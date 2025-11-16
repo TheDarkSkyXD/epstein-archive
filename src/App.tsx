@@ -1,31 +1,67 @@
 import { useState, useEffect } from 'react';
-import { Search, Users, BarChart3, Eye, Globe, FileText, Newspaper } from 'lucide-react';
-import { peopleData, totalPeople, totalMentions, totalFiles } from './data/peopleData';
+import { Search, Users, BarChart3, Eye, Globe, FileText, Newspaper, Clock } from 'lucide-react';
 import { Person } from './data/peopleData';
 import { EvidenceModal } from './components/EvidenceModal';
 import { DataVisualization } from './components/DataVisualization';
 import { EvidenceSearch } from './components/EvidenceSearch';
 import { DocumentBrowser } from './components/DocumentBrowser';
 import { ArticleFeed } from './components/ArticleFeed';
+import { Timeline } from './components/Timeline';
 import { DocumentProcessor } from './services/documentProcessor';
 import { sampleDocuments } from './data/sampleDocuments';
+import { DataLoaderService } from './services/dataLoader';
 
 function App() {
   const [people, setPeople] = useState<Person[]>([]);
   const [filteredPeople, setFilteredPeople] = useState<Person[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
-  const [activeTab, setActiveTab] = useState<'people' | 'analytics' | 'search' | 'documents' | 'articles'>('people');
+  const [activeTab, setActiveTab] = useState<'people' | 'analytics' | 'search' | 'documents' | 'articles' | 'timeline'>('people');
   const [sortBy, setSortBy] = useState<'name' | 'mentions' | 'spice' | 'risk'>('spice');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [documentProcessor, setDocumentProcessor] = useState<DocumentProcessor | null>(null);
   const [documentsLoaded, setDocumentsLoaded] = useState(false);
+  const [dataStats, setDataStats] = useState({
+    totalPeople: 0,
+    totalMentions: 0,
+    totalFiles: 0,
+    highRisk: 0,
+    mediumRisk: 0,
+    lowRisk: 0
+  });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Convert peopleData object to array
-    const peopleArray = Object.values(peopleData);
-    setPeople(peopleArray);
-    setFilteredPeople(peopleArray);
+    // Load real people data from processed files
+    const loadRealData = async () => {
+      try {
+        setLoading(true);
+        const dataLoader = DataLoaderService.getInstance();
+        const realPeople = await dataLoader.loadPeopleData();
+        
+        if (realPeople.length > 0) {
+          setPeople(realPeople);
+          setFilteredPeople(realPeople);
+          
+          // Calculate stats
+          const stats = dataLoader.getStats(realPeople);
+          setDataStats({
+            totalPeople: stats.totalPeople,
+            totalMentions: stats.totalMentions,
+            totalFiles: stats.totalFiles,
+            highRisk: stats.highRisk,
+            mediumRisk: stats.mediumRisk,
+            lowRisk: stats.lowRisk
+          });
+        }
+      } catch (error) {
+        console.error('Error loading real data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadRealData();
   }, []);
 
   useEffect(() => {
@@ -129,11 +165,11 @@ function App() {
                 </h1>
               </div>
               <div className="hidden md:flex items-center space-x-2 text-cyan-300 text-xs font-mono">
-                <span>{totalPeople} SUBJECTS</span>
+                <span>{dataStats.totalPeople} SUBJECTS</span>
                 <span>•</span>
-                <span>{totalMentions.toLocaleString()} MENTIONS</span>
+                <span>{dataStats.totalMentions.toLocaleString()} MENTIONS</span>
                 <span>•</span>
-                <span>{totalFiles} FILES</span>
+                <span>{dataStats.totalFiles} FILES</span>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -153,6 +189,17 @@ function App() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
+        {/* Loading State */}
+        {loading && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-slate-800 p-8 rounded-xl text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
+              <p className="text-white text-lg">Loading real Epstein files data...</p>
+              <p className="text-slate-400 text-sm mt-2">Processing 178,791 individuals and 2,332 documents</p>
+            </div>
+          </div>
+        )}
+
         {/* Navigation Tabs - X-Files Style */}
         <div className="flex space-x-1 mb-8 bg-slate-800/50 backdrop-blur-sm p-1 rounded-xl border border-slate-700 overflow-x-auto">
           <button
@@ -200,6 +247,17 @@ function App() {
             <span>Documents</span>
           </button>
           <button
+            onClick={() => setActiveTab('timeline')}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap ${
+              activeTab === 'timeline'
+                ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-lg'
+                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+            }`}
+          >
+            <Clock className="h-4 w-4" />
+            <span>Timeline</span>
+          </button>
+          <button
             onClick={() => setActiveTab('articles')}
             className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap ${
               activeTab === 'articles'
@@ -215,29 +273,29 @@ function App() {
         {/* Tab Content */}
         {activeTab === 'people' && (
           <div className="space-y-6">
-            {/* Stats Overview */}
+            {/* Stats Overview - Using Real Data */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
               <div className="bg-gradient-to-br from-red-900 to-red-700 p-6 rounded-xl">
                 <div className="text-3xl font-bold text-white">
-                  {people.filter(p => p.likelihood_score === 'HIGH').length}
+                  {dataStats.highRisk}
                 </div>
                 <div className="text-red-200">High Risk Subjects</div>
               </div>
               <div className="bg-gradient-to-br from-yellow-900 to-yellow-700 p-6 rounded-xl">
                 <div className="text-3xl font-bold text-white">
-                  {people.filter(p => p.likelihood_score === 'MEDIUM').length}
+                  {dataStats.mediumRisk}
                 </div>
                 <div className="text-yellow-200">Medium Risk Subjects</div>
               </div>
               <div className="bg-gradient-to-br from-green-900 to-green-700 p-6 rounded-xl">
                 <div className="text-3xl font-bold text-white">
-                  {people.filter(p => p.likelihood_score === 'LOW').length}
+                  {dataStats.lowRisk}
                 </div>
                 <div className="text-green-200">Low Risk Subjects</div>
               </div>
               <div className="bg-gradient-to-br from-blue-900 to-blue-700 p-6 rounded-xl">
                 <div className="text-3xl font-bold text-white">
-                  {totalMentions.toLocaleString()}
+                  {dataStats.totalMentions.toLocaleString()}
                 </div>
                 <div className="text-blue-200">Total Mentions</div>
               </div>
@@ -372,6 +430,18 @@ function App() {
               )}
             </div>
             {documentProcessor && <DocumentBrowser processor={documentProcessor} />}
+          </div>
+        )}
+
+        {activeTab === 'timeline' && (
+          <div className="space-y-8">
+            <div className="mb-8">
+              <h2 className="text-3xl font-bold text-white mb-2">Timeline of Events</h2>
+              <p className="text-slate-400">
+                Chronological timeline of significant events extracted from the Epstein files
+              </p>
+            </div>
+            <Timeline />
           </div>
         )}
 

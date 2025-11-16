@@ -1,0 +1,212 @@
+import React, { useState, useEffect } from 'react';
+import { Article, ArticleFeedService } from '../services/articleFeedService';
+import { ExternalLink, Calendar, Tag, RefreshCw, AlertCircle } from 'lucide-react';
+
+interface ArticleFeedProps {
+  feedUrl: string;
+  tagFilter?: string;
+  maxArticles?: number;
+}
+
+export const ArticleFeed: React.FC<ArticleFeedProps> = ({ 
+  feedUrl, 
+  tagFilter = 'epstein',
+  maxArticles = 6 
+}) => {
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  
+  const feedService = new ArticleFeedService();
+
+  const fetchArticles = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const fetchedArticles = await feedService.fetchArticles(feedUrl, tagFilter);
+      setArticles(fetchedArticles.slice(0, maxArticles));
+      setLastUpdated(new Date());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch articles');
+      console.error('Error fetching articles:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchArticles();
+  }, [feedUrl, tagFilter, maxArticles]);
+
+  const formatDate = (dateString: string): string => {
+    return feedService.formatPubDate(dateString);
+  };
+
+  const truncateText = (text: string, maxLength: number = 150): string => {
+    return feedService.truncateText(text, maxLength);
+  };
+
+  if (loading) {
+    return (
+      <div className="bg-gray-900 rounded-lg p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-white">Latest Articles</h2>
+          <div className="flex items-center space-x-2">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
+            <span className="text-sm text-gray-400">Loading articles...</span>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(maxArticles)].map((_, i) => (
+            <div key={i} className="bg-gray-800 rounded-lg p-4 animate-pulse">
+              <div className="h-4 bg-gray-700 rounded mb-2"></div>
+              <div className="h-3 bg-gray-700 rounded mb-2"></div>
+              <div className="h-3 bg-gray-700 rounded mb-2"></div>
+              <div className="h-2 bg-gray-700 rounded"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-gray-900 rounded-lg p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-white">Latest Articles</h2>
+          <button
+            onClick={fetchArticles}
+            className="flex items-center space-x-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span>Retry</span>
+          </button>
+        </div>
+        <div className="bg-red-900 border border-red-700 rounded-lg p-4">
+          <div className="flex items-center space-x-2 mb-2">
+            <AlertCircle className="w-5 h-5 text-red-400" />
+            <span className="text-red-200 font-medium">Failed to load articles</span>
+          </div>
+          <p className="text-red-300 text-sm">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (articles.length === 0) {
+    return (
+      <div className="bg-gray-900 rounded-lg p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-white">Latest Articles</h2>
+          <button
+            onClick={fetchArticles}
+            className="flex items-center space-x-2 px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span>Refresh</span>
+          </button>
+        </div>
+        <div className="text-center py-8">
+          <Tag className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-400 mb-2">No articles found</h3>
+          <p className="text-gray-500">
+            {tagFilter ? `No articles found with tag "${tagFilter}"` : 'No articles available'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-gray-900 rounded-lg p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold text-white">Latest Articles</h2>
+        <div className="flex items-center space-x-4">
+          {lastUpdated && (
+            <span className="text-sm text-gray-400">
+              Updated {formatDate(lastUpdated.toISOString())}
+            </span>
+          )}
+          <button
+            onClick={fetchArticles}
+            className="flex items-center space-x-2 px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span>Refresh</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {articles.map((article, index) => (
+          <article 
+            key={article.guid || index} 
+            className="bg-gray-800 rounded-lg p-4 hover:bg-gray-700 transition-colors group"
+          >
+            <div className="flex items-start justify-between mb-3">
+              <h3 className="font-semibold text-white line-clamp-2 group-hover:text-blue-300 transition-colors">
+                {article.title}
+              </h3>
+              <a
+                href={article.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-400 hover:text-blue-400 transition-colors ml-2 flex-shrink-0"
+                title="Read full article"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            </div>
+
+            <p className="text-sm text-gray-300 mb-3 line-clamp-3">
+              {truncateText(article.description)}
+            </p>
+
+            <div className="flex items-center justify-between text-xs text-gray-400">
+              <div className="flex items-center space-x-2">
+                <Calendar className="w-3 h-3" />
+                <span>{formatDate(article.pubDate)}</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span>{article.author}</span>
+              </div>
+            </div>
+
+            {article.categories.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1">
+                {article.categories.slice(0, 3).map((category, catIndex) => (
+                  <span 
+                    key={catIndex}
+                    className="px-2 py-1 bg-gray-700 text-gray-300 text-xs rounded"
+                  >
+                    {category}
+                  </span>
+                ))}
+                {article.categories.length > 3 && (
+                  <span className="px-2 py-1 bg-gray-700 text-gray-400 text-xs rounded">
+                    +{article.categories.length - 3}
+                  </span>
+                )}
+              </div>
+            )}
+          </article>
+        ))}
+      </div>
+
+      <div className="mt-6 text-center">
+        <a
+          href={feedUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center space-x-2 text-blue-400 hover:text-blue-300 transition-colors"
+        >
+          <span>View all articles on Substack</span>
+          <ExternalLink className="w-4 h-4" />
+        </a>
+      </div>
+    </div>
+  );
+};

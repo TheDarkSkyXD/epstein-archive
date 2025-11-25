@@ -50,6 +50,7 @@ export interface EntityContext {
   file: string;
   date?: string;
   significance: 'high' | 'medium' | 'low';
+  source?: string;
 }
 
 export interface Passage {

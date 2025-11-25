@@ -31,18 +31,18 @@ export function searchPeople(people: Person[], searchTerm: string, filters: Sear
 
   if (filters.role !== 'all') {
     filtered = filtered.filter(person => 
-      person.evidence_types?.some(type => type.toLowerCase().includes(filters.role.toLowerCase()))
+      person.evidence_types?.some(type => type.toLowerCase().includes(filters.role?.toLowerCase() || ''))
     );
   }
 
   if (filters.status !== 'all') {
     filtered = filtered.filter(person => 
-      person.likelihood_score.toLowerCase().includes(filters.status.toLowerCase())
+      person.likelihood_score.toLowerCase().includes(filters.status?.toLowerCase() || '')
     );
   }
 
-  if (filters.minMentions > 0) {
-    filtered = filtered.filter(person => person.mentions >= filters.minMentions);
+  if (filters.minMentions && filters.minMentions > 0) {
+    filtered = filtered.filter(person => person.mentions >= (filters.minMentions || 0));
   }
 
   // Sort by mentions (descending)

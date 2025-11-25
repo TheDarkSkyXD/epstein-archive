@@ -18,87 +18,209 @@ export class ArticleFeedService {
     const cached = this.cache.get(cacheKey);
     
     if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+      console.log('Returning cached articles:', cached.articles.length);
       return cached.articles;
     }
 
-    try {
-      const response = await fetch(feedUrl);
-      const xmlText = await response.text();
-      const articles = this.parseRSS(xmlText, tagFilter);
-      
-      this.cache.set(cacheKey, { articles, timestamp: Date.now() });
-      return articles;
-    } catch (error) {
-      console.error('Error fetching articles:', error);
-      return [];
+    // List of CORS proxies to try
+    const proxies = [
+      `https://api.allorigins.win/get?url=${encodeURIComponent(feedUrl)}`,
+      `https://corsproxy.io/?${encodeURIComponent(feedUrl)}`,
+      `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(feedUrl)}`
+    ];
+
+    for (let i = 0; i < proxies.length; i++) {
+      try {
+        console.log(`Fetching articles from: ${feedUrl} with proxy ${i + 1}: ${proxies[i]}`);
+        
+        const response = await fetch(proxies[i], {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; EpsteinArchive/1.0; +http://example.com/bot)'
+          }
+        });
+        
+        console.log(`Proxy ${i + 1} response status:`, response.status);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        let xmlText: string;
+        if (proxies[i].includes('allorigins')) {
+          const data = await response.json();
+          xmlText = data.contents;
+        } else {
+          xmlText = await response.text();
+        }
+        
+        console.log(`Proxy ${i + 1} data received, length:`, xmlText?.length);
+        
+        if (!xmlText || xmlText.length < 100) {
+          throw new Error('Invalid or empty response from proxy');
+        }
+        
+        const articles = this.parseRSS(xmlText, tagFilter);
+        console.log(`Parsed articles from proxy ${i + 1}:`, articles.length);
+        
+        if (articles.length > 0) {
+          this.cache.set(cacheKey, { articles, timestamp: Date.now() });
+          return articles;
+        }
+      } catch (error) {
+        console.error(`Error fetching articles with proxy ${i + 1}:`, error);
+        // Continue to next proxy
+      }
     }
+    
+    // Fallback to direct fetch if all proxies fail
+    try {
+      console.log('Trying direct fetch as final fallback...');
+      const response = await fetch(feedUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; EpsteinArchive/1.0; +http://example.com/bot)'
+        }
+      });
+      console.log('Direct fetch response status:', response.status);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const xmlText = await response.text();
+      console.log('Direct fetch XML length:', xmlText.length);
+      
+      const articles = this.parseRSS(xmlText, tagFilter);
+      console.log('Parsed articles from direct fetch:', articles.length);
+      
+      if (articles.length > 0) {
+        this.cache.set(cacheKey, { articles, timestamp: Date.now() });
+        return articles;
+      }
+    } catch (fallbackError) {
+      console.error('All fetch methods failed:', fallbackError);
+    }
+    
+    return [];
   }
 
   private parseRSS(xmlText: string, tagFilter?: string): Article[] {
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
-    
-    // Check for parsing errors
-    const parserError = xmlDoc.getElementsByTagName('parsererror');
-    if (parserError.length > 0) {
-      console.error('RSS parsing error:', parserError[0].textContent);
-      return [];
-    }
-
-    const items = xmlDoc.getElementsByTagName('item');
-    const articles: Article[] = [];
-
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      const title = this.getElementText(item, 'title') || 'Untitled';
-      const link = this.getElementText(item, 'link') || '';
-      const description = this.getElementText(item, 'description') || '';
-      const pubDate = this.getElementText(item, 'pubDate') || '';
-      const author = this.getElementText(item, 'author') || 'Unknown';
-      const guid = this.getElementText(item, 'guid') || link;
-      const content = this.getElementText(item, 'content:encoded') || description;
-
-      // Extract categories/tags
-      const categoryElements = item.getElementsByTagName('category');
-      const categories: string[] = [];
-      for (let j = 0; j < categoryElements.length; j++) {
-        const category = categoryElements[j].textContent?.trim();
-        if (category) {
-          categories.push(category);
-        }
+    try {
+      // Validate input
+      if (!xmlText || xmlText.length < 50) {
+        console.warn('RSS XML text is too short or empty');
+        return [];
       }
+      
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+      
+      // Check for parsing errors
+      const parserError = xmlDoc.getElementsByTagName('parsererror');
+      if (parserError.length > 0) {
+        console.error('RSS parsing error:', parserError[0].textContent);
+        return [];
+      }
+      
+      // Try different RSS/Atom formats
+      let items: HTMLCollectionOf<Element>;
+      
+      // RSS 2.0 format
+      items = xmlDoc.getElementsByTagName('item');
+      if (items.length === 0) {
+        // Atom format
+        items = xmlDoc.getElementsByTagName('entry');
+      }
+      
+      if (items.length === 0) {
+        console.warn('No RSS items found in feed');
+        return [];
+      }
+      
+      const articles: Article[] = [];
 
-      // Apply tag filter if specified (case-insensitive)
-      if (tagFilter) {
-        const hasTag = categories.some(cat => 
-          cat.toLowerCase().includes(tagFilter.toLowerCase()) ||
-          title.toLowerCase().includes(tagFilter.toLowerCase()) ||
-          description.toLowerCase().includes(tagFilter.toLowerCase())
-        );
+      for (let i = 0; i < Math.min(items.length, 50); i++) { // Limit to 50 articles
+        const item = items[i];
+        let title, link, description, pubDate, author, guid, content;
         
-        if (!hasTag) {
+        // Handle RSS 2.0 format
+        if (item.tagName === 'item') {
+          title = this.getElementText(item, 'title') || 'Untitled';
+          link = this.getElementText(item, 'link') || '';
+          description = this.getElementText(item, 'description') || '';
+          pubDate = this.getElementText(item, 'pubDate') || this.getElementText(item, 'dc:date') || '';
+          author = this.getElementText(item, 'author') || this.getElementText(item, 'dc:creator') || 'Unknown';
+          guid = this.getElementText(item, 'guid') || link;
+          content = this.getElementText(item, 'content:encoded') || description;
+        } 
+        // Handle Atom format
+        else if (item.tagName === 'entry') {
+          title = this.getElementText(item, 'title') || 'Untitled';
+          const linkElement = item.getElementsByTagName('link')[0];
+          link = linkElement ? linkElement.getAttribute('href') || '' : '';
+          description = this.getElementText(item, 'summary') || '';
+          const publishedElement = item.getElementsByTagName('published')[0];
+          const updatedElement = item.getElementsByTagName('updated')[0];
+          pubDate = (publishedElement ? publishedElement.textContent : '') || 
+                   (updatedElement ? updatedElement.textContent : '') || '';
+          const authorElement = item.getElementsByTagName('author')[0];
+          const nameElement = authorElement ? authorElement.getElementsByTagName('name')[0] : null;
+          author = nameElement ? nameElement.textContent || 'Unknown' : 'Unknown';
+          guid = this.getElementText(item, 'id') || link;
+          content = this.getElementText(item, 'content') || description;
+        }
+        
+        // Extract categories/tags
+        const categoryElements = item.getElementsByTagName('category');
+        const categories: string[] = [];
+        for (let j = 0; j < Math.min(categoryElements.length, 10); j++) { // Limit categories
+          const category = categoryElements[j].textContent?.trim() || categoryElements[j].getAttribute('term')?.trim();
+          if (category) {
+            categories.push(category);
+          }
+        }
+        
+        // Apply tag filter if specified (case-insensitive)
+        // Search in title, description, and categories
+        if (tagFilter) {
+          const searchTerm = tagFilter.toLowerCase();
+          const hasTag = 
+            (title?.toLowerCase().includes(searchTerm) ||
+            description?.toLowerCase().includes(searchTerm) ||
+            content?.toLowerCase().includes(searchTerm) ||
+            categories.some(cat => cat.toLowerCase().includes(searchTerm)));
+          
+          if (!hasTag) {
+            continue;
+          }
+        }
+        
+        // Validate required fields
+        if (!title || !link) {
           continue;
         }
+        
+        articles.push({
+          title: this.cleanText(title),
+          link,
+          description: this.cleanText(description || ''),
+          pubDate: pubDate || new Date().toISOString(),
+          author: this.cleanText(author || ''),
+          categories,
+          content: this.cleanText(content || ''),
+          guid: guid || link
+        });
       }
-
-      articles.push({
-        title: this.cleanText(title),
-        link,
-        description: this.cleanText(description),
-        pubDate,
-        author: this.cleanText(author),
-        categories,
-        content: this.cleanText(content),
-        guid
+      
+      // Sort by publication date (newest first)
+      return articles.sort((a, b) => {
+        const dateA = new Date(a.pubDate).getTime() || 0;
+        const dateB = new Date(b.pubDate).getTime() || 0;
+        return dateB - dateA;
       });
+    } catch (error) {
+      console.error('Error parsing RSS feed:', error);
+      return [];
     }
-
-    // Sort by publication date (newest first)
-    return articles.sort((a, b) => {
-      const dateA = new Date(a.pubDate).getTime();
-      const dateB = new Date(b.pubDate).getTime();
-      return dateB - dateA;
-    });
   }
 
   private getElementText(parent: Element, tagName: string): string | null {

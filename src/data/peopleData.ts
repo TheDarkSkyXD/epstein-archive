@@ -1,27 +1,13 @@
-export interface Person {
-  name: string;
-  mentions: number;
-  files: number;
-  contexts: Array<{
-    file: string;
-    context: string;
-    date: string;
-  }>;
-  evidence_types: string[];
-  spicy_passages: Array<{
-    keyword: string;
-    passage: string;
-    filename: string;
-  }>;
-  likelihood_score: 'HIGH' | 'MEDIUM' | 'LOW';
-  spice_score: number;
-  spice_rating: number;
-  spice_peppers: string;
-  spice_description: string;
-}
+import { Person } from '../types';
 
 export const peopleData: Record<string, Person> = {
   "George Mitchell": {
+    id: "George Mitchell",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 5,
     "evidence_types": [
       "document",
@@ -49,6 +35,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Barely spicy - Minor mentions"
   },
   "Bill Richardson": {
+    id: "Bill Richardson",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 7,
     "evidence_types": [
       "document",
@@ -81,6 +73,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Barely spicy - Minor mentions"
   },
   "Professor Of Computer": {
+    id: "Professor Of Computer",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 3,
     "evidence_types": [
       "document",
@@ -103,6 +101,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Barely spicy - Minor mentions"
   },
   "Kevin Spacey": {
+    id: "Kevin Spacey",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 7,
     "evidence_types": [
       "document",
@@ -135,6 +139,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Barely spicy - Minor mentions"
   },
   "President Bashar Al": {
+    id: "President Bashar Al",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 3,
     "evidence_types": [
       "document",
@@ -157,6 +167,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Mildly spicy - Some interesting connections"
   },
   "Professor At Harvard": {
+    id: "Professor At Harvard",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 4,
     "evidence_types": [
       "document",
@@ -184,6 +200,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Barely spicy - Minor mentions"
   },
   "Prince Andrew": {
+    id: "Prince Andrew",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 98,
     "evidence_types": [
       "email",
@@ -234,6 +256,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Very spicy - Significant incriminating content"
   },
   "President Seemed To": {
+    id: "President Seemed To",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 3,
     "evidence_types": [
       "document",
@@ -256,6 +284,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Mildly spicy - Some interesting connections"
   },
   "Chris Tucker": {
+    id: "Chris Tucker",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 3,
     "evidence_types": [
       "document",
@@ -278,6 +312,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Barely spicy - Minor mentions"
   },
   "President Al Gore": {
+    id: "President Al Gore",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 4,
     "evidence_types": [
       "document",
@@ -305,6 +345,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Mildly spicy - Some interesting connections"
   },
   "President Donald Trump": {
+    id: "President Donald Trump",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 18,
     "evidence_types": [
       "document",
@@ -337,6 +383,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Moderately spicy - Notable controversial mentions"
   },
   "Professor Of Economics": {
+    id: "Professor Of Economics",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 3,
     "evidence_types": [
       "document",
@@ -359,6 +411,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Barely spicy - Minor mentions"
   },
   "Michael Wolff": {
+    id: "Michael Wolff",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 65,
     "evidence_types": [
       "document",
@@ -391,6 +449,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Mildly spicy - Some interesting connections"
   },
   "Ehud Barak": {
+    id: "Ehud Barak",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 9,
     "evidence_types": [
       "document",
@@ -423,6 +487,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Barely spicy - Minor mentions"
   },
   "President Clinton To": {
+    id: "President Clinton To",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 4,
     "evidence_types": [
       "document",
@@ -450,6 +520,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Mildly spicy - Some interesting connections"
   },
   "President Hosni Mubarak": {
+    id: "President Hosni Mubarak",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 3,
     "evidence_types": [
       "document",
@@ -472,6 +548,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Mildly spicy - Some interesting connections"
   },
   "Naomi Campbell": {
+    id: "Naomi Campbell",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 3,
     "evidence_types": [
       "document",
@@ -494,6 +576,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Barely spicy - Minor mentions"
   },
   "Professor School Of": {
+    id: "Professor School Of",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 14,
     "evidence_types": [
       "document",
@@ -526,6 +614,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Mildly spicy - Some interesting connections"
   },
   "Jeffrey Epstein": {
+    id: "Jeffrey Epstein",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 2312,
     "evidence_types": [
       "email",
@@ -576,6 +670,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Very spicy - Significant incriminating content"
   },
   "President Ronald Reagan": {
+    id: "President Ronald Reagan",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 3,
     "evidence_types": [
       "document",
@@ -598,6 +698,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Mildly spicy - Some interesting connections"
   },
   "Senator George Mitchell": {
+    id: "Senator George Mitchell",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 3,
     "evidence_types": [
       "document",
@@ -620,6 +726,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Mildly spicy - Some interesting connections"
   },
   "Prince Andrew As": {
+    id: "Prince Andrew As",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 4,
     "evidence_types": [
       "document",
@@ -647,6 +759,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Mildly spicy - Some interesting connections"
   },
   "Alan Dershowitz": {
+    id: "Alan Dershowitz",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 189,
     "evidence_types": [
       "email",
@@ -697,6 +815,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Very spicy - Significant incriminating content"
   },
   "Professor Of Physics": {
+    id: "Professor Of Physics",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 6,
     "evidence_types": [
       "document",
@@ -729,6 +853,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Barely spicy - Minor mentions"
   },
   "Virginia Roberts": {
+    id: "Virginia Roberts",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 312,
     "evidence_types": [
       "email",
@@ -779,6 +909,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Very spicy - Significant incriminating content"
   },
   "George Bush": {
+    id: "George Bush",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 9,
     "evidence_types": [
       "document",
@@ -811,6 +947,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Barely spicy - Minor mentions"
   },
   "President Bill Clinton": {
+    id: "President Bill Clinton",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 26,
     "evidence_types": [
       "document",
@@ -843,6 +985,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Very spicy - Significant incriminating content"
   },
   "President Trump On": {
+    id: "President Trump On",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 4,
     "evidence_types": [
       "document",
@@ -870,6 +1018,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Mildly spicy - Some interesting connections"
   },
   "Bill Clinton": {
+    id: "Bill Clinton",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 143,
     "evidence_types": [
       "email",
@@ -920,6 +1074,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Very spicy - Significant incriminating content"
   },
   "Professor Of American": {
+    id: "Professor Of American",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 10,
     "evidence_types": [
       "document",
@@ -952,6 +1112,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Mildly spicy - Some interesting connections"
   },
   "Prince Andrew Walking": {
+    id: "Prince Andrew Walking",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 4,
     "evidence_types": [
       "document",
@@ -979,6 +1145,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Mildly spicy - Some interesting connections"
   },
   "Donald Trump": {
+    id: "Donald Trump",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 856,
     "evidence_types": [
       "email",
@@ -1029,6 +1201,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Nuclear spicy - Major criminal evidence"
   },
   "President Of Harvard": {
+    id: "President Of Harvard",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 3,
     "evidence_types": [
       "document",
@@ -1051,6 +1229,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Mildly spicy - Some interesting connections"
   },
   "Barack Obama": {
+    id: "Barack Obama",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 45,
     "evidence_types": [
       "document",
@@ -1083,6 +1267,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Mildly spicy - Some interesting connections"
   },
   "President Clinton That": {
+    id: "President Clinton That",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 3,
     "evidence_types": [
       "document",
@@ -1105,6 +1295,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Mildly spicy - Some interesting connections"
   },
   "Leslie Wexner": {
+    id: "Leslie Wexner",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 67,
     "evidence_types": [
       "email",
@@ -1149,6 +1345,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Moderately spicy - Notable controversial mentions"
   },
   "Ghislaine Maxwell": {
+    id: "Ghislaine Maxwell",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 623,
     "evidence_types": [
       "email",
@@ -1199,6 +1401,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Nuclear spicy - Major criminal evidence"
   },
   "Jean Luc Brunel": {
+    id: "Jean Luc Brunel",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 14,
     "evidence_types": [
       "document",
@@ -1231,6 +1439,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Mildly spicy - Some interesting connections"
   },
   "President Obama In": {
+    id: "President Obama In",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 3,
     "evidence_types": [
       "document",
@@ -1253,6 +1467,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Mildly spicy - Some interesting connections"
   },
   "Virginia Roberts Giuffre": {
+    id: "Virginia Roberts Giuffre",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 5,
     "evidence_types": [
       "document",
@@ -1280,6 +1500,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Barely spicy - Minor mentions"
   },
   "President Moon Jae": {
+    id: "President Moon Jae",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 3,
     "evidence_types": [
       "document",
@@ -1302,6 +1528,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Mildly spicy - Some interesting connections"
   },
   "President At His": {
+    id: "President At His",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 3,
     "evidence_types": [
       "document",
@@ -1324,6 +1556,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Mildly spicy - Some interesting connections"
   },
   "President Mahmoud Ahmadinejad": {
+    id: "President Mahmoud Ahmadinejad",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 3,
     "evidence_types": [
       "document",
@@ -1346,6 +1584,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Mildly spicy - Some interesting connections"
   },
   "Hillary Clinton": {
+    id: "Hillary Clinton",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 50,
     "evidence_types": [
       "document",
@@ -1378,6 +1622,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Moderately spicy - Notable controversial mentions"
   },
   "President Xi Jinping": {
+    id: "President Xi Jinping",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 10,
     "evidence_types": [
       "document",
@@ -1410,6 +1660,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Moderately spicy - Notable controversial mentions"
   },
   "Heidi Klum": {
+    id: "Heidi Klum",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 3,
     "evidence_types": [
       "document",
@@ -1432,6 +1688,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Barely spicy - Minor mentions"
   },
   "Professor Alan Dershowitz": {
+    id: "Professor Alan Dershowitz",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 10,
     "evidence_types": [
       "document",
@@ -1464,6 +1726,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Mildly spicy - Some interesting connections"
   },
   "Bill Gates": {
+    id: "Bill Gates",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 16,
     "evidence_types": [
       "document",
@@ -1496,6 +1764,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Mildly spicy - Some interesting connections"
   },
   "Peter Thiel": {
+    id: "Peter Thiel",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 9,
     "evidence_types": [
       "document",
@@ -1528,6 +1802,12 @@ export const peopleData: Record<string, Person> = {
     "spice_description": "Barely spicy - Minor mentions"
   },
   "President Barack Obama": {
+    id: "President Barack Obama",
+    role: "Unknown",
+    secondary_roles: "",
+    status: "Unknown",
+    connections: "",
+    fileReferences: [],
     "files": 15,
     "evidence_types": [
       "document",

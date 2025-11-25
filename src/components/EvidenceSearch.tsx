@@ -1,7 +1,9 @@
-import React, { useState, useMemo } from 'react';
-import { Search, FileText, Calendar, User, AlertTriangle } from 'lucide-react';
-import { peopleData } from '../data/peopleData';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Search, FileText, Calendar, User, AlertTriangle, Flag } from 'lucide-react';
+import { optimizedDataService } from '../services/OptimizedDataService';
 import { Person } from '../types';
+import { useNavigation } from '../services/ContentNavigationService.tsx';
+import { RedFlagIndex } from './RedFlagIndex';
 
 interface SearchResult {
   person: Person;
@@ -18,109 +20,121 @@ interface SearchResult {
   score: number;
 }
 
-export const EvidenceSearch: React.FC = () => {
-  const [searchQuery, setSearchQuery] = useState('');
+interface EvidenceSearchProps {
+  onPersonClick?: (person: Person, searchTerm: string) => void;
+}
+
+export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick }) => {
   const [selectedRiskLevel, setSelectedRiskLevel] = useState<string>('ALL');
   const [selectedEvidenceType, setSelectedEvidenceType] = useState<string>('ALL');
-  const [showSpicyOnly, setShowSpicyOnly] = useState(false);
-  const [minSpiceRating, setMinSpiceRating] = useState<number>(0);
-  const [maxSpiceRating, setMaxSpiceRating] = useState<number>(5);
-  const [sortBy, setSortBy] = useState<'relevance' | 'mentions' | 'spice' | 'name'>('relevance');
+  const [showRedFlagOnly, setShowRedFlagOnly] = useState(false);
+  const [minRedFlagRating, setMinRedFlagRating] = useState<number>(0);
+  const [maxRedFlagRating, setMaxRedFlagRating] = useState<number>(5);
+  const [sortBy, setSortBy] = useState<'relevance' | 'mentions' | 'redflag_asc' | 'redflag_desc' | 'name'>('relevance');
+  const [people, setPeople] = useState<Person[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Use navigation context for shared state
+  const navigation = useNavigation();
+  const { searchTerm, setSearchTerm } = navigation;
+  const [searchQuery, setSearchQuery] = useState(searchTerm || '');
+  
+  // Sync search term with navigation context
+  useEffect(() => {
+    setSearchQuery(searchTerm || '');
+  }, [searchTerm]);
+  
+  // Update navigation context when search query changes
+  useEffect(() => {
+    setSearchTerm(searchQuery);
+  }, [searchQuery, setSearchTerm]);
+
+  useEffect(() => {
+    loadPeopleData();
+  }, []);
+
+  // Reload data when filters change
+  useEffect(() => {
+    loadPeopleData();
+  }, [searchQuery, selectedRiskLevel, selectedEvidenceType, minRedFlagRating, maxRedFlagRating, sortBy]);
+
+
+  const loadPeopleData = async () => {
+    try {
+      setLoading(true);
+      const dataService = optimizedDataService;
+      await dataService.initialize();
+      
+      // Build filters object
+      const filters: any = {
+        searchTerm: searchQuery || undefined,
+        minRedFlagIndex: minRedFlagRating,
+        maxRedFlagIndex: maxRedFlagRating
+      };
+      
+      // Add likelihood filter if not ALL
+      if (selectedRiskLevel !== 'ALL') {
+        filters.likelihoodScore = [selectedRiskLevel];
+      }
+      
+      // Add evidence type filter if not ALL
+      if (selectedEvidenceType !== 'ALL') {
+        filters.evidenceTypes = [selectedEvidenceType];
+      }
+      
+      // Add sort
+      if (sortBy === 'redflag_desc') {
+        filters.sortBy = 'spice';
+        filters.sortOrder = 'desc';
+      } else if (sortBy === 'redflag_asc') {
+        filters.sortBy = 'spice';
+        filters.sortOrder = 'asc';
+      } else if (sortBy === 'mentions') {
+        filters.sortBy = 'mentions';
+        filters.sortOrder = 'desc';
+      } else if (sortBy === 'name') {
+        filters.sortBy = 'name';
+        filters.sortOrder = 'asc';
+      }
+      
+      const result = await dataService.getPaginatedData(filters, 1);
+      setPeople(result.data);
+    } catch (error) {
+      console.error('Error loading people data for search:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const allEvidenceTypes = useMemo(() => {
     const types = new Set<string>();
-    Object.values(peopleData).forEach(person => {
+    people.forEach(person => {
       person.evidence_types.forEach(type => types.add(type));
     });
     return Array.from(types).sort();
-  }, []);
+  }, [people]);
+
+  const handlePersonClick = (person: Person) => {
+    if (onPersonClick) {
+      onPersonClick(person, searchQuery);
+    } else {
+      console.log('No onPersonClick handler provided, person clicked:', person.name);
+    }
+  };
 
   const searchResults = useMemo(() => {
-    if (!searchQuery.trim() && selectedRiskLevel === 'ALL' && selectedEvidenceType === 'ALL' && !showSpicyOnly && minSpiceRating === 0 && maxSpiceRating === 5) {
+    if (loading) {
       return [];
     }
 
-    const results: SearchResult[] = [];
-    const query = searchQuery.toLowerCase();
-
-    Object.values(peopleData).forEach(person => {
-      // Filter by risk level
-      if (selectedRiskLevel !== 'ALL' && person.likelihood_score !== selectedRiskLevel) {
-        return;
-      }
-
-      // Filter by evidence type
-      if (selectedEvidenceType !== 'ALL' && !person.evidence_types.includes(selectedEvidenceType)) {
-        return;
-      }
-
-      // Filter by spicy content
-      if (showSpicyOnly && person.spicy_passages.length === 0) {
-        return;
-      }
-
-      // Filter by spice rating range
-      if (person.spice_rating < minSpiceRating || person.spice_rating > maxSpiceRating) {
-        return;
-      }
-
-      let score = 0;
-      const matchingContexts: SearchResult['matchingContexts'] = [];
-      const matchingPassages: SearchResult['matchingPassages'] = [];
-
-      // Search in person name
-      if (person.name.toLowerCase().includes(query)) {
-        score += 10;
-      }
-
-      // Search in contexts
-      person.contexts.forEach(context => {
-        if (context.context.toLowerCase().includes(query)) {
-          matchingContexts.push(context);
-          score += 5;
-        }
-      });
-
-      // Search in spicy passages
-      person.spicy_passages.forEach(passage => {
-        if (passage.passage.toLowerCase().includes(query) || passage.keyword.toLowerCase().includes(query)) {
-          matchingPassages.push(passage);
-          score += 8;
-        }
-      });
-
-      // If no search query, include all filtered results
-      if (!query.trim()) {
-        score = 1;
-        matchingContexts.push(...person.contexts.slice(0, 2));
-        matchingPassages.push(...person.spicy_passages.slice(0, 2));
-      }
-
-      if (score > 0) {
-        results.push({
-          person,
-          matchingContexts,
-          matchingPassages,
-          score
-        });
-      }
-    });
-
-    // Sort results based on selected criteria
-    return results.sort((a, b) => {
-      switch (sortBy) {
-        case 'mentions':
-          return b.person.mentions - a.person.mentions;
-        case 'spice':
-          return b.person.spice_score - a.person.spice_score;
-        case 'name':
-          return a.person.name.localeCompare(b.person.name);
-        case 'relevance':
-        default:
-          return b.score - a.score;
-      }
-    });
-  }, [searchQuery, selectedRiskLevel, selectedEvidenceType, showSpicyOnly, minSpiceRating, maxSpiceRating, sortBy]);
+    // Since filtering is now done server-side, we just need to format the results
+    return people.map(person => ({
+      person,
+      matchingContexts: person.contexts.slice(0, 3),
+      matchingPassages: person.spicy_passages?.slice(0, 3) || [],
+      score: person.spice_score || person.mentions
+    }));
+  }, [people, loading]);
 
   return (
     <div className="space-y-6">
@@ -131,15 +145,25 @@ export const EvidenceSearch: React.FC = () => {
           Evidence Search
         </h2>
         
+        {/* Loading State */}
+        {loading && (
+          <div className="mb-4 flex items-center space-x-2 text-gray-400">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
+            <span>Loading evidence data...</span>
+          </div>
+        )}
+        
         {/* Search Input */}
         <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
           <input
             type="text"
             placeholder="Search names, contexts, or evidence..."
+            aria-label="Search names, contexts, or evidence"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            disabled={loading}
+            className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
           />
         </div>
 
@@ -150,7 +174,9 @@ export const EvidenceSearch: React.FC = () => {
             <select
               value={selectedRiskLevel}
               onChange={(e) => setSelectedRiskLevel(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={loading}
+              aria-label="Filter by risk level"
+              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
             >
               <option value="ALL">All Levels</option>
               <option value="HIGH">High Risk</option>
@@ -164,7 +190,9 @@ export const EvidenceSearch: React.FC = () => {
             <select
               value={selectedEvidenceType}
               onChange={(e) => setSelectedEvidenceType(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={loading}
+              aria-label="Filter by evidence type"
+              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
             >
               <option value="ALL">All Types</option>
               {allEvidenceTypes.map(type => (
@@ -174,34 +202,38 @@ export const EvidenceSearch: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Min Spice Rating</label>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Min Red Flag Rating</label>
             <select
-              value={minSpiceRating}
-              onChange={(e) => setMinSpiceRating(Number(e.target.value))}
-              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={minRedFlagRating}
+              onChange={(e) => setMinRedFlagRating(Number(e.target.value))}
+              disabled={loading}
+              aria-label="Filter by minimum red flag rating"
+              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
             >
-              <option value={0}>🌶️ 0 - No Spice</option>
-              <option value={1}>🌶️ 1 - Mild</option>
-              <option value={2}>🌶️🌶️ 2 - Medium</option>
-              <option value={3}>🌶️🌶️🌶️ 3 - Hot</option>
-              <option value={4}>🌶️🌶️🌶️🌶️ 4 - Very Hot</option>
-              <option value={5}>🌶️🌶️🌶️🌶️🌶️ 5 - Nuclear</option>
+              <option value={0}>⚪ 0 - No Red Flags</option>
+              <option value={1}>🟡 1 - Minor Concerns</option>
+              <option value={2}>🟠 2 - Moderate Red Flags</option>
+              <option value={3}>🔴 3 - Significant Red Flags</option>
+              <option value={4}>🟣 4 - High Red Flags</option>
+              <option value={5}>⚫ 5 - Critical Red Flags</option>
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Max Spice Rating</label>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Max Red Flag Rating</label>
             <select
-              value={maxSpiceRating}
-              onChange={(e) => setMaxSpiceRating(Number(e.target.value))}
-              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={maxRedFlagRating}
+              onChange={(e) => setMaxRedFlagRating(Number(e.target.value))}
+              disabled={loading}
+              aria-label="Filter by maximum red flag rating"
+              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
             >
-              <option value={0}>🌶️ 0 - No Spice</option>
-              <option value={1}>🌶️ 1 - Mild</option>
-              <option value={2}>🌶️🌶️ 2 - Medium</option>
-              <option value={3}>🌶️🌶️🌶️ 3 - Hot</option>
-              <option value={4}>🌶️🌶️🌶️🌶️ 4 - Very Hot</option>
-              <option value={5}>🌶️🌶️🌶️🌶️🌶️ 5 - Nuclear</option>
+              <option value={0}>⚪ 0 - No Red Flags</option>
+              <option value={1}>🟡 1 - Minor Concerns</option>
+              <option value={2}>🟠 2 - Moderate Red Flags</option>
+              <option value={3}>🔴 3 - Significant Red Flags</option>
+              <option value={4}>🟣 4 - High Red Flags</option>
+              <option value={5}>⚫ 5 - Critical Red Flags</option>
             </select>
           </div>
 
@@ -210,11 +242,14 @@ export const EvidenceSearch: React.FC = () => {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
-              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={loading}
+              aria-label="Sort results by"
+              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
             >
               <option value="relevance">Relevance</option>
-              <option value="mentions">Mentions</option>
-              <option value="spice">Spice Level</option>
+              <option value="mentions">Document mentions</option>
+              <option value="redflag_desc">Red Flag Index (high → low)</option>
+              <option value="redflag_asc">Red Flag Index (low → high)</option>
               <option value="name">Name</option>
             </select>
           </div>
@@ -223,12 +258,13 @@ export const EvidenceSearch: React.FC = () => {
             <label className="flex items-center space-x-2 text-white">
               <input
                 type="checkbox"
-                checked={showSpicyOnly}
-                onChange={(e) => setShowSpicyOnly(e.target.checked)}
-                className="w-4 h-4 text-blue-600 bg-gray-800 border-gray-600 rounded focus:ring-blue-500"
+                checked={showRedFlagOnly}
+                onChange={(e) => setShowRedFlagOnly(e.target.checked)}
+                disabled={loading}
+                className="w-4 h-4 text-blue-600 bg-gray-800 border-gray-600 rounded focus:ring-blue-500 disabled:opacity-50"
               />
-              <span className="text-sm">Spicy Only</span>
-              <AlertTriangle className="w-4 h-4 text-yellow-500" />
+              <span className="text-sm">Red Flag Only</span>
+              <Flag className="w-4 h-4 text-red-500" />
             </label>
           </div>
         </div>
@@ -238,7 +274,7 @@ export const EvidenceSearch: React.FC = () => {
             {searchResults.length} results found
           </div>
           <div className="text-xs text-gray-500">
-            Spice Range: {minSpiceRating} - {maxSpiceRating} peppers
+            Red Flag Range: {minRedFlagRating} - {maxRedFlagRating}
           </div>
         </div>
       </div>
@@ -253,7 +289,7 @@ export const EvidenceSearch: React.FC = () => {
           </div>
         )}
 
-        {searchResults.length === 0 && !searchQuery.trim() && selectedRiskLevel === 'ALL' && selectedEvidenceType === 'ALL' && !showSpicyOnly && (
+        {searchResults.length === 0 && !searchQuery.trim() && selectedRiskLevel === 'ALL' && selectedEvidenceType === 'ALL' && !showRedFlagOnly && (
           <div className="text-center py-12">
             <Search className="w-12 h-12 text-gray-500 mx-auto mb-4" />
             <p className="text-gray-400 text-lg">Start searching to find evidence</p>
@@ -268,7 +304,13 @@ export const EvidenceSearch: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <User className="w-5 h-5 text-blue-400" />
-                  <h3 className="text-lg font-bold text-white">{result.person.name}</h3>
+                  <button
+                    onClick={() => handlePersonClick(result.person)}
+                    className="text-lg font-bold text-white hover:text-blue-400 transition-colors duration-200 text-left"
+                    title="Click to view full profile"
+                  >
+                    {result.person.name}
+                  </button>
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                     result.person.likelihood_score === 'HIGH' ? 'bg-red-900 text-red-200' :
                     result.person.likelihood_score === 'MEDIUM' ? 'bg-yellow-900 text-yellow-200' :
@@ -276,14 +318,14 @@ export const EvidenceSearch: React.FC = () => {
                   }`}>
                     {result.person.likelihood_score} RISK
                   </span>
-                  <span className="text-lg" title={`${result.person.spice_peppers} - ${result.person.spice_description}`}>
-                    {result.person.spice_peppers}
-                  </span>
+                  {result.person.red_flag_index !== undefined && (
+                    <RedFlagIndex value={result.person.red_flag_index} size="sm" />
+                  )}
                 </div>
                 <div className="text-right">
                   <div className="text-sm text-gray-400">{result.person.mentions} mentions</div>
                   <div className="text-xs text-gray-500">{result.person.files} files</div>
-                  <div className="text-xs text-orange-400">{result.person.spice_score} spice points</div>
+                  <div className="text-xs text-orange-400">{result.person.spice_score} red flag points</div>
                 </div>
               </div>
             </div>
@@ -327,7 +369,7 @@ export const EvidenceSearch: React.FC = () => {
               </div>
             )}
 
-            {/* Matching Spicy Passages */}
+            {/* Matching Red Flag Passages */}
             {result.matchingPassages.length > 0 && (
               <div className="p-4 bg-red-900 bg-opacity-20">
                 <h4 className="text-sm font-medium text-red-300 mb-3 flex items-center gap-2">

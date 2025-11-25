@@ -1,4 +1,5 @@
 import { Document, DocumentMetadata, Entity, Passage, DocumentCollection, BrowseFilters } from '../types/documents';
+import { EntityNameService } from './EntityNameService';
 
 export class DocumentProcessor {
   private documents: Map<string, Document> = new Map();
@@ -28,12 +29,12 @@ export class DocumentProcessor {
 
   // Entity extraction patterns
   private readonly ENTITY_PATTERNS = {
-    person: /\b([A-Z][a-z]+ [A-Z][a-z]+(?: [A-Z][a-z]+)?)\b/g,
+    person: /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\b/g, // More flexible person name pattern
     email: /\b([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/g,
     phone: /\b(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})\b/g,
     date: /\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}\b/g,
     amount: /\$[0-9,]+(?:\.[0-9]{2})?/g,
-    location: /\b(?:New York|Los Angeles|Chicago|Miami|Palm Beach|Little St James|Epstein Island)\b/g
+    location: /\b(?:New York|Los Angeles|Chicago|Miami|Palm Beach|Little St James|Epstein Island|Russia|CIA|FBI|Mossad)\b/g
   };
 
   async processDocument(filePath: string, content: string): Promise<Document> {
@@ -61,6 +62,7 @@ export class DocumentProcessor {
     };
 
     this.documents.set(id, document);
+    console.log(`DocumentProcessor: Added document ${id}, total documents: ${this.documents.size}`);
     this.buildSearchIndex(document);
     this.buildInvertedIndex(document);
     this.buildEntityIndex(document);
@@ -72,15 +74,25 @@ export class DocumentProcessor {
     return document;
   }
 
-  async processDocumentBatch(fileContents: Array<{path: string, content: string}>): Promise<Document[]> {
+  async processDocumentBatch(fileContents: Array<{path: string, content: string}>, batchSize: number = 100): Promise<Document[]> {
     const documents: Document[] = [];
     
-    for (const file of fileContents) {
+    // Process in batches to avoid memory issues with large datasets
+    for (let i = 0; i < fileContents.length; i += batchSize) {
+      const batch = fileContents.slice(i, i + batchSize);
+      const batchPromises = batch.map(file => this.processDocument(file.path, file.content));
+      
       try {
-        const document = await this.processDocument(file.path, file.content);
-        documents.push(document);
+        const batchResults = await Promise.all(batchPromises);
+        documents.push(...batchResults);
+        
+        // Log progress for large batches
+        if (fileContents.length > 1000) {
+          console.log(`Processed batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(fileContents.length/batchSize)} - ${documents.length} documents total`);
+        }
       } catch (error) {
-        console.error(`Error processing ${file.path}:`, error);
+        console.error(`Error processing batch starting at index ${i}:`, error);
+        // Continue processing remaining batches
       }
     }
 
@@ -88,7 +100,14 @@ export class DocumentProcessor {
   }
 
   private generateDocumentId(filePath: string): string {
-    return btoa(filePath).replace(/[^a-zA-Z0-9]/g, '').substring(0, 20);
+    // Create a simple hash of the file path
+    let hash = 0;
+    for (let i = 0; i < filePath.length; i++) {
+      const char = filePath.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash).toString(36) + '_' + filePath.split('/').pop()?.replace(/[^a-zA-Z0-9]/g, '').substring(0, 10) || 'doc';
   }
 
   private extractTitle(content: string, filePath: string): string {
@@ -185,8 +204,10 @@ export class DocumentProcessor {
     // Extract people
     const peopleMatches = content.match(this.ENTITY_PATTERNS.person) || [];
     peopleMatches.forEach(name => {
-      if (this.isValidPersonName(name)) {
-        this.addEntity(entities, name, 'person', content, filePath);
+      if (EntityNameService.isValidPersonName(name)) {
+        // Consolidate name variants
+        const canonicalName = EntityNameService.consolidatePersonName(name);
+        this.addEntity(entities, canonicalName, 'person', content, filePath);
       }
     });
 
@@ -214,13 +235,19 @@ export class DocumentProcessor {
       this.addEntity(entities, amount, 'amount', content, filePath);
     });
 
-    // Extract locations
+    // Extract locations and organizations
     const locationMatches = content.match(this.ENTITY_PATTERNS.location) || [];
     locationMatches.forEach(location => {
-      this.addEntity(entities, location, 'location', content, filePath);
+      if (EntityNameService.isValidOrganizationName(location)) {
+        this.addEntity(entities, location, 'organization', content, filePath);
+      } else {
+        this.addEntity(entities, location, 'location', content, filePath);
+      }
     });
 
-    return Array.from(entities.values());
+    // Filter and consolidate entities using EntityNameService
+    const entityArray = Array.from(entities.values());
+    return EntityNameService.filterAndConsolidateEntities(entityArray);
   }
 
   private addEntity(entities: Map<string, Entity>, name: string, type: Entity['type'], content: string, filePath: string) {
@@ -257,9 +284,7 @@ export class DocumentProcessor {
   }
 
   private isValidPersonName(name: string): boolean {
-    // Filter out common false positives
-    const invalidNames = ['The', 'And', 'But', 'For', 'With', 'From', 'That', 'This', 'Page', 'File'];
-    return !invalidNames.includes(name) && name.length > 3;
+    return EntityNameService.isValidPersonName(name);
   }
 
   private escapeRegExp(string: string): string {
@@ -380,15 +405,15 @@ export class DocumentProcessor {
 
   private calculateSpiceRating(score: number): { rating: number; peppers: string; description: string } {
     if (score >= 50) {
-      return { rating: 5, peppers: '🌶️🌶️🌶️🌶️🌶️', description: 'Nuclear spicy - Major criminal evidence' };
+      return { rating: 5, peppers: '🚩🚩🚩🚩🚩', description: 'Red Flag Index 5 - Major criminal evidence' };
     } else if (score >= 35) {
-      return { rating: 4, peppers: '🌶️🌶️🌶️🌶️', description: 'Very spicy - Significant incriminating content' };
+      return { rating: 4, peppers: '🚩🚩🚩🚩', description: 'Red Flag Index 4 - Significant incriminating content' };
     } else if (score >= 20) {
-      return { rating: 3, peppers: '🌶️🌶️🌶️', description: 'Moderately spicy - Notable controversial mentions' };
+      return { rating: 3, peppers: '🚩🚩🚩', description: 'Red Flag Index 3 - Notable controversial mentions' };
     } else if (score >= 10) {
-      return { rating: 2, peppers: '🌶️🌶️', description: 'Mildly spicy - Some interesting connections' };
+      return { rating: 2, peppers: '🚩🚩', description: 'Red Flag Index 2 - Some interesting connections' };
     } else {
-      return { rating: 1, peppers: '🌶️', description: 'Barely spicy - Minor mentions' };
+      return { rating: 1, peppers: '🚩', description: 'Red Flag Index 1 - Minor mentions' };
     }
   }
 
@@ -414,14 +439,20 @@ export class DocumentProcessor {
     const uniqueWords = [...new Set(contentWords)].filter(word => word.length > 2);
     terms.push(...uniqueWords.slice(0, 1000)); // Limit to first 1000 unique words
     
-    // Add entity names
-    document.entities.forEach(entity => {
-      terms.push(entity.name.toLowerCase());
+    // Add entity names (safely handle undefined)
+    const entities = document.entities || [];
+    entities.forEach(entity => {
+      if (entity && entity.name) {
+        terms.push(entity.name.toLowerCase());
+      }
     });
     
-    // Add keywords from passages
-    document.passages.forEach(passage => {
-      terms.push(...passage.keywords);
+    // Add keywords from passages (safely handle undefined)
+    const passages = (document as any).passages || [];
+    passages.forEach((passage: any) => {
+      if (passage && passage.keywords && Array.isArray(passage.keywords)) {
+        terms.push(...passage.keywords);
+      }
     });
     
     return [...new Set(terms)].filter(term => term.length > 2);
@@ -700,11 +731,12 @@ export class DocumentProcessor {
       let comparison = 0;
 
       switch (sortBy) {
-        case 'date':
+        case 'date': {
           const dateA = a.dateCreated || '';
           const dateB = b.dateCreated || '';
           comparison = dateA.localeCompare(dateB);
           break;
+        }
         case 'spice':
           comparison = a.spiceScore - b.spiceScore;
           break;
@@ -735,6 +767,7 @@ export class DocumentProcessor {
 
   getDocumentCollection(): DocumentCollection {
     const documents = Array.from(this.documents.values());
+    console.log(`DocumentProcessor: getDocumentCollection called, documents in Map: ${this.documents.size}, array length: ${documents.length}`);
     const fileTypes = new Map<string, number>();
     const categories = new Map<string, number>();
     
@@ -886,5 +919,34 @@ export class DocumentProcessor {
       topEntities: this.getAllEntities().slice(0, 10),
       dateRange: collection.dateRange
     };
+  }
+
+  // Load documents from an external source (e.g., API)
+  async loadDocuments(documents: Document[]): Promise<void> {
+    console.log(`DocumentProcessor: Loading ${documents.length} documents...`);
+    
+    for (const doc of documents) {
+      // Store document in the Map
+      this.documents.set(doc.id, doc);
+      
+      // Build all indexes for this document
+      this.buildSearchIndex(doc);
+      this.buildInvertedIndex(doc);
+      this.buildEntityIndex(doc);
+      this.buildDateIndex(doc);
+      this.buildCategoryIndex(doc);
+      
+      // Update entity index if document has entities
+      if (doc.entities && doc.entities.length > 0) {
+        this.updateEntityIndex(doc.entities);
+      }
+      
+      // Store passages if available
+      if (doc.passages && doc.passages.length > 0) {
+        this.passages.set(doc.id, doc.passages);
+      }
+    }
+    
+    console.log(`DocumentProcessor: Loaded ${this.documents.size} total documents`);
   }
 }

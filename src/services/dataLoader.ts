@@ -1,9 +1,9 @@
-import { Person } from '../data/peopleData';
+import { Person } from '../types';
 
-export interface RealPerson extends Person {
+export interface RealPerson extends Omit<Person, 'fileReferences'> {
   fullName: string;
   primaryRole: string;
-  secondaryRoles: string;
+  secondaryRoles: string[];
   keyEvidence: string;
   fileReferences: string;
   connectionsToEpstein: string;
@@ -40,7 +40,7 @@ export class DataLoaderService {
         name: person.fullName,
         fullName: person.fullName,
         primaryRole: person.primaryRole,
-        secondaryRoles: person.secondaryRoles,
+        secondaryRoles: person.secondaryRoles ? person.secondaryRoles.split(',').map((r: string) => r.trim()) : [],
         mentions: person.mentions || 0,
         files: (person.fileReferences?.split(',')?.length || 0),
         contexts: this.generateContexts(person),

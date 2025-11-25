@@ -139,7 +139,7 @@ test.describe('Data Validation Tests', () => {
       person.contexts.forEach(context => {
         expect(context.file).toBeTruthy();
         expect(context.file.length).toBeGreaterThan(0);
-        expect(context.file).toMatch(/\\.txt$/); // Should end with .txt
+        expect(context.file).toMatch(/\.txt$/); // Should end with .txt
       });
       
       person.spicy_passages.forEach(passage => {

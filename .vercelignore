@@ -1,0 +1,19 @@
+# Database files
+*.db
+*.sqlite
+
+# Large data files
+public/data/evidence_database.json
+public/data/people.json
+
+# Build artifacts that shouldn't be deployed
+dist/data/
+
+# Development files
+node_modules/
+*.log
+.DS_Store
+
+# Source data files that are processed during build
+src/data/
+data/

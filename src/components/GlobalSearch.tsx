@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Calendar, Eye, Download, X, ChevronDown } from 'lucide-react';
+import { apiClient } from '../services/apiClient';
 
 interface SearchResult {
   file: string;
@@ -33,7 +34,11 @@ const GlobalSearch: React.FC = () => {
     min_word_count: 0
   });
   // const [availableEntities, setAvailableEntities] = useState<string[]>([]); // Not used in current implementation
-  const [fileIndex, setFileIndex] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
+
+  useEffect(() => {
+    apiClient.getStats().then(setStats).catch(console.error);
+  }, []);
 
   const categories = [
     { id: 'all', name: 'All Categories', color: 'bg-gray-600' },
@@ -46,117 +51,47 @@ const GlobalSearch: React.FC = () => {
   ];
 
   useEffect(() => {
-    loadFileIndex();
+    // Initial load or check API health?
+    // For now, we rely on user search
   }, []);
 
   useEffect(() => {
     if (searchTerm.length > 2) {
-      performSearch();
+      const delayDebounceFn = setTimeout(() => {
+        performSearch();
+      }, 500);
+
+      return () => clearTimeout(delayDebounceFn);
     } else {
       setResults([]);
       setFilteredResults([]);
     }
-  }, [searchTerm, fileIndex]);
+  }, [searchTerm]);
 
   useEffect(() => {
     applyFilters();
   }, [results, filters]);
 
-  const loadFileIndex = async () => {
-    try {
-      const response = await fetch('/data/searchable_files.json');
-      const data = await response.json();
-      setFileIndex(data.files || []);
-      
-      // Extract unique entities for filter
-      const entities = new Set<string>();
-      data.files?.forEach((file: any) => {
-        file.entities?.forEach((entity: string) => entities.add(entity));
-      });
-      // setAvailableEntities(Array.from(entities).sort()); // Not used in current implementation
-    } catch (error) {
-      console.error('Error loading file index:', error);
-    }
-  };
-
   const performSearch = async () => {
     setLoading(true);
     
     try {
-      const searchResults: SearchResult[] = [];
-      const searchTerms = searchTerm.toLowerCase().split(' ').filter(term => term.length > 2);
+      const data = await apiClient.search(searchTerm, 100);
       
-      fileIndex.forEach((file) => {
-        let score = 0;
-        const highlights: string[] = [];
-        
-        // Search in filename
-        const filenameLower = file.filename.toLowerCase();
-        searchTerms.forEach(term => {
-          if (filenameLower.includes(term)) {
-            score += 10;
-            highlights.push(`Filename: ${file.filename}`);
-          }
-        });
-        
-        // Search in entities
-        if (file.entities) {
-          searchTerms.forEach(term => {
-            file.entities.forEach((entity: string) => {
-              if (entity.toLowerCase().includes(term)) {
-                score += 5;
-                if (!highlights.includes(`Entity: ${entity}`)) {
-                  highlights.push(`Entity: ${entity}`);
-                }
-              }
-            });
-          });
-        }
-        
-        // Search in dates
-        if (file.dates) {
-          searchTerms.forEach(term => {
-            file.dates.forEach((date: string) => {
-              if (date.toLowerCase().includes(term)) {
-                score += 3;
-                if (!highlights.includes(`Date: ${date}`)) {
-                  highlights.push(`Date: ${date}`);
-                }
-              }
-            });
-          });
-        }
-        
-        // Search in category
-        if (file.category) {
-          searchTerms.forEach(term => {
-            if (file.category.toLowerCase().includes(term)) {
-              score += 2;
-              if (!highlights.includes(`Category: ${file.category}`)) {
-                highlights.push(`Category: ${file.category}`);
-              }
-            }
-          });
-        }
-        
-        if (score > 0) {
-          searchResults.push({
-            file: file.path,
-            filename: file.filename,
-            category: file.category,
-            entities: file.entities || [],
-            dates: file.dates || [],
-            word_count: file.word_count || 0,
-            score,
-            highlights
-          });
-        }
-      });
-      
-      // Sort by score (highest first)
-      searchResults.sort((a, b) => b.score - a.score);
-      
-      setResults(searchResults.slice(0, 100)); // Limit to top 100 results
+      if (data.documents) {
+        const searchResults: SearchResult[] = data.documents.map((doc: any) => ({
+          file: doc.filePath,
+          filename: doc.fileName,
+          category: doc.evidenceType || 'general_documents',
+          entities: [], // API might need to return entities for documents if we want to filter by them here
+          dates: [], // API might need to return dates
+          word_count: doc.wordCount || 0,
+          score: doc.score || 0,
+          highlights: doc.contentPreview ? [doc.contentPreview] : []
+        }));
+        setResults(searchResults);
+        setFilteredResults(searchResults); // Apply filters will run after this
+      }
     } catch (error) {
       console.error('Search error:', error);
     } finally {
@@ -237,7 +172,7 @@ const GlobalSearch: React.FC = () => {
         </div>
         
         <p className="text-gray-400 text-sm mt-2">
-          Search across {fileIndex.length.toLocaleString()} evidence files. Try names, dates, document types, or key terms.
+          Search across {stats?.totalDocuments?.toLocaleString() || 'thousands of'} evidence files. Try names, dates, document types, or key terms.
         </p>
       </div>
 

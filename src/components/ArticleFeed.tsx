@@ -113,8 +113,22 @@ export const ArticleFeed: React.FC<ArticleFeedProps> = ({
           <Tag className="w-12 h-12 text-gray-600 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-400 mb-2">No articles found</h3>
           <p className="text-gray-500">
-            {tagFilter ? `No articles found with tag "${tagFilter}"` : 'No articles available'}
+            {tagFilter ? (
+              <>
+                No articles found with "{tagFilter}" in title, description, or tags.
+                <br />
+                <span className="text-sm">Try refreshing or check back later for new content.</span>
+              </>
+            ) : (
+              'No articles available'
+            )}
           </p>
+          {error && (
+            <div className="mt-4 text-sm text-red-400 bg-red-900 bg-opacity-20 rounded-lg p-3">
+              <p className="font-medium">Error: {error}</p>
+              <p className="text-red-300">This might be due to network issues or the feed being temporarily unavailable.</p>
+            </div>
+          )}
         </div>
       </div>
     );

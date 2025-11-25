@@ -1,130 +1,394 @@
-import { useState, useEffect } from 'react';
-import { Search, Users, BarChart3, Eye, Globe, FileText, Newspaper, Clock } from 'lucide-react';
-import { Person } from './data/peopleData';
-import { EvidenceModal } from './components/EvidenceModal';
-import { DataVisualization } from './components/DataVisualization';
-import { EvidenceSearch } from './components/EvidenceSearch';
-import { DocumentBrowser } from './components/DocumentBrowser';
-import { ArticleFeed } from './components/ArticleFeed';
-import { Timeline } from './components/Timeline';
+import { useState, useEffect, useCallback, Suspense, lazy } from 'react';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { Search, User, Users, FileText, TrendingUp, BarChart3, Newspaper, Calendar, Database as DatabaseIcon, Globe, Clock, ChevronLeft, ChevronRight, Book, CheckCircle2, Target, Shield, Image } from 'lucide-react';
+import { Person } from './types';
+import { Document } from './types/documents';
+import { OptimizedDataService, SearchFilters } from './services/OptimizedDataService';
+import { useNavigation } from './services/ContentNavigationService.tsx';
+import PersonCard from './components/PersonCard';
+import MediaAndArticlesTab from './components/MediaAndArticlesTab';
+import PersonCardSkeleton from './components/PersonCardSkeleton';
+import StatsSkeleton from './components/StatsSkeleton';
+import { StatsDisplay } from './components/StatsDisplay';
+import { apiClient } from './services/apiClient';
 import { DocumentProcessor } from './services/documentProcessor';
-import { sampleDocuments } from './data/sampleDocuments';
-import { DataLoaderService } from './services/dataLoader';
+import { generateSampleDocuments } from './data/sampleDocuments';
+import { useCountUp } from './hooks/useCountUp';
+
+// Lazy load heavy components
+const EvidenceModal = lazy(() => import('./components/EvidenceModal').then(module => ({ default: module.EvidenceModal })));
+const DataVisualization = lazy(() => import('./components/DataVisualization').then(module => ({ default: module.DataVisualization })));
+const BlackBookViewer = lazy(() => import('./components/BlackBookViewer').then(module => ({ default: module.BlackBookViewer })));
+const EvidenceSearch = lazy(() => import('./components/EvidenceSearch').then(module => ({ default: module.EvidenceSearch })));
+const DocumentBrowser = lazy(() => import('./components/DocumentBrowser').then(module => ({ default: module.DocumentBrowser })));
+const Timeline = lazy(() => import('./components/Timeline').then(module => ({ default: module.Timeline })));
+const DocumentUploader = lazy(() => import('./components/DocumentUploader').then(module => ({ default: module.DocumentUploader })));
+const InvestigationWorkspace = lazy(() => import('./components/InvestigationWorkspace').then(module => ({ default: module.InvestigationWorkspace })));
+const ReleaseNotesPanel = lazy(() => import('./components/ReleaseNotesPanel').then(module => ({ default: module.ReleaseNotesPanel })));
+
 
 function App() {
-  const [people, setPeople] = useState<Person[]>([]);
-  const [filteredPeople, setFilteredPeople] = useState<Person[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Determine active tab from URL
+  const getTabFromPath = (pathname: string): Tab => {
+    if (pathname === '/' || pathname === '/people') return 'people';
+    if (pathname.startsWith('/search')) return 'search';
+    if (pathname.startsWith('/documents')) return 'documents';
+    if (pathname.startsWith('/media')) return 'media';
+    if (pathname.startsWith('/timeline')) return 'timeline';
+    if (pathname.startsWith('/investigations')) return 'investigations';
+    if (pathname.startsWith('/analytics')) return 'analytics';
+    if (pathname.startsWith('/blackbook')) return 'blackbook';
+    return 'people'; // default
+  };
+  
+  type Tab = 'people' | 'search' | 'documents' | 'media' | 'timeline' | 'investigations' | 'analytics' | 'blackbook';
+  const activeTab = getTabFromPath(location.pathname);
+  
+  const [people, setPeople] = useState<Person[]>(() => {
+    // Try to load first page from cache for instant render
+    try {
+      const cached = localStorage.getItem('epstein_archive_people_page1');
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (e) {
+      console.error('Error loading cached people:', e);
+    }
+    return [];
+  });
+  const [filteredPeople, setFilteredPeople] = useState<Person[]>(people);
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
-  const [activeTab, setActiveTab] = useState<'people' | 'analytics' | 'search' | 'documents' | 'articles' | 'timeline'>('people');
+  const [searchTermForModal, setSearchTermForModal] = useState<string>('');
+  const [selectedDocumentId, setSelectedDocumentId] = useState<string>('');
+  const [selectedDocumentSearchTerm, setSelectedDocumentSearchTerm] = useState<string>('');
   const [sortBy, setSortBy] = useState<'name' | 'mentions' | 'spice' | 'risk'>('spice');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [documentProcessor, setDocumentProcessor] = useState<DocumentProcessor | null>(null);
   const [documentsLoaded, setDocumentsLoaded] = useState(false);
-  const [dataStats, setDataStats] = useState({
-    totalPeople: 0,
-    totalMentions: 0,
-    totalFiles: 0,
-    highRisk: 0,
-    mediumRisk: 0,
-    lowRisk: 0
+  
+  // Use navigation context for shared state
+  const navigation = useNavigation();
+  const { searchTerm, setSearchTerm } = navigation;
+
+  // Clear selected document when switching tabs
+  useEffect(() => {
+    if (activeTab !== 'documents') {
+      setSelectedDocumentId('');
+    }
+  }, [activeTab]);
+  
+  // Update navigation context when search term changes
+  useEffect(() => {
+    // This will automatically sync with the navigation context
+  }, [searchTerm]);
+  const [dataStats, setDataStats] = useState(() => {
+    // Try to load from local storage for immediate display
+    try {
+      const cached = localStorage.getItem('epstein_archive_stats');
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (e) {
+      console.error('Error loading cached stats:', e);
+    }
+    return {
+      totalPeople: 0,
+      totalMentions: 0,
+      totalFiles: 0,
+      highRisk: 0,
+      mediumRisk: 0,
+      lowRisk: 0
+    };
   });
+
+  // Animate header stats
+  const headerTotalPeople = useCountUp(dataStats.totalPeople, 1000);
+  const headerTotalMentions = useCountUp(dataStats.totalMentions, 1200);
+  const headerTotalFiles = useCountUp(dataStats.totalFiles, 1100);
+
+  const [analyticsData, setAnalyticsData] = useState<any>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState<string>('Initializing...');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalPeople, setTotalPeople] = useState(0);
+  const [dataService, setDataService] = useState<OptimizedDataService | null>(null);
+    const [showReleaseNotes, setShowReleaseNotes] = useState(false);
 
   useEffect(() => {
-    // Load real people data from processed files
-    const loadRealData = async () => {
+    // Initialize optimized data service
+    const initializeDataService = async () => {
       try {
         setLoading(true);
-        const dataLoader = DataLoaderService.getInstance();
-        const realPeople = await dataLoader.loadPeopleData();
+        setLoadingProgress('Connecting to database...');
+        const service = OptimizedDataService.getInstance();
+        await service.initialize();
+        setDataService(service);
+        setLoadingProgress('Loading subjects...');
         
-        if (realPeople.length > 0) {
-          setPeople(realPeople);
-          setFilteredPeople(realPeople);
-          
-          // Calculate stats
-          const stats = dataLoader.getStats(realPeople);
-          setDataStats({
-            totalPeople: stats.totalPeople,
-            totalMentions: stats.totalMentions,
-            totalFiles: stats.totalFiles,
-            highRisk: stats.highRisk,
-            mediumRisk: stats.mediumRisk,
-            lowRisk: stats.lowRisk
-          });
+        // Load first page of data
+        console.log('About to load first page...');
+        const result = await service.getPaginatedData({}, 1);
+        console.log('Initial data load:', {
+          dataLength: result.data.length,
+          total: result.total,
+          page: result.page,
+          totalPages: result.totalPages,
+          pageSize: result.pageSize,
+          firstPerson: result.data[0]
+        });
+        setLoadingProgress(`Loaded ${result.data.length} subjects...`);
+        setPeople(result.data);
+        setFilteredPeople(result.data);
+        setCurrentPage(result.page);
+        setTotalPages(result.totalPages);
+        setTotalPeople(result.total);
+        
+        // Cache first page for next load
+        try {
+          localStorage.setItem('epstein_archive_people_page1', JSON.stringify(result.data));
+        } catch (e) {
+          console.error('Error caching people data:', e);
         }
+        
+        // Enable virtual scrolling for large datasets (disabled for pagination)
+        // setUseVirtualScroll(result.total > 100);
+        
+        // We don't update stats here anymore to avoid double-updates/jumps
+        // fetchGlobalStats will handle the authoritative stats
       } catch (error) {
-        console.error('Error loading real data:', error);
+        console.error('Error initializing data service:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    loadRealData();
-  }, []);
+    initializeDataService();
+    
+    // Fetch global stats
+    const fetchGlobalStats = async () => {
+      try {
+        setLoadingProgress('Loading statistics...');
+        const service = OptimizedDataService.getInstance();
+        await service.initialize();
+        const stats = await service.getStatistics();
+        console.log('Global stats loaded:', stats);
+        setLoadingProgress('Finalizing...');
+        
+        const highRisk = stats.likelihoodDistribution.find((d: any) => d.level === 'HIGH')?.count || 0;
+        const mediumRisk = stats.likelihoodDistribution.find((d: any) => d.level === 'MEDIUM')?.count || 0;
+        const lowRisk = stats.likelihoodDistribution.find((d: any) => d.level === 'LOW')?.count || 0;
+        
+        const newStats = {
+          totalPeople: stats.totalEntities,
+          totalMentions: stats.totalMentions,
+          totalFiles: stats.totalDocuments,
+          highRisk,
+          mediumRisk,
+          lowRisk
+        };
 
-  useEffect(() => {
-    // Initialize document processor with sample documents
-    const initializeDocuments = async () => {
-      const processor = new DocumentProcessor();
-      await processor.processDocumentBatch(
-        sampleDocuments.map(doc => ({
-          path: doc.filename,
-          content: doc.content
-        }))
-      );
-      setDocumentProcessor(processor);
-      setDocumentsLoaded(true);
-    };
-
-    initializeDocuments();
-  }, []);
-
-  useEffect(() => {
-    // Filter and sort people based on search term and sort criteria
-    let filtered = people;
-
-    if (searchTerm.trim()) {
-      const query = searchTerm.toLowerCase();
-      filtered = people.filter(person =>
-        person.name.toLowerCase().includes(query) ||
-        person.evidence_types.some(type => type.toLowerCase().includes(query)) ||
-        person.contexts.some(ctx => ctx.context.toLowerCase().includes(query))
-      );
-    }
-
-    // Sort the filtered results
-    const sorted = [...filtered].sort((a, b) => {
-      let comparison = 0;
-
-      switch (sortBy) {
-        case 'name':
-          comparison = a.name.localeCompare(b.name);
-          break;
-        case 'mentions':
-          comparison = a.mentions - b.mentions;
-          break;
-        case 'spice':
-          comparison = a.spice_score - b.spice_score;
-          break;
-        case 'risk':
-          const riskOrder = { 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1 };
-          comparison = riskOrder[a.likelihood_score] - riskOrder[b.likelihood_score];
-          break;
-        default:
-          comparison = 0;
+        // Only update if changed to prevent animation restart
+        setDataStats((prev: typeof newStats) => {
+          if (JSON.stringify(prev) !== JSON.stringify(newStats)) {
+            localStorage.setItem('epstein_archive_stats', JSON.stringify(newStats));
+            return newStats;
+          }
+          return prev;
+        });
+      } catch (error) {
+        console.error('Error fetching global stats:', error);
       }
+    };
+    
+    fetchGlobalStats();
+  }, []);
 
-      return sortOrder === 'asc' ? comparison : -comparison;
-    });
+  useEffect(() => {
+    // Initialize document processor with REAL database documents
+    const loadRealDocuments = async () => {
+      try {
+        console.log('Loading documents from API...');
+        // Fetch all documents for client-side processing
+        // In a production app with millions of docs, we'd move search to server-side
+        // But for 2,300 docs, client-side is fast and responsive
+        const response = await apiClient.getDocuments({}, 1, 3000);
+        
+        console.log('API response:', response);
+        
+        if (!response || !response.data) {
+          throw new Error('Invalid API response structure');
+        }
+        
+        if (response.data.length === 0) {
+          throw new Error('No documents found in API response');
+        }
 
-    setFilteredPeople(sorted);
-  }, [searchTerm, people, sortBy, sortOrder]);
+        console.log(`Loaded ${response.data.length} documents from API (total: ${response.total})`);
 
-  const handlePersonClick = (person: Person) => {
-    setSelectedPerson(person);
+        const documents: Document[] = response.data.map((doc: any) => ({
+          id: doc.id,
+          title: doc.fileName,
+          filename: doc.fileName,
+          fileType: doc.fileType || 'unknown',
+          fileSize: doc.fileSize || 0,
+          dateCreated: doc.dateCreated,
+          dateModified: doc.dateModified,
+          content: doc.content || '',
+          metadata: {
+            source: 'Epstein Files',
+            confidentiality: 'Public',
+            categories: [],
+            ...doc.metadata
+          },
+          entities: [], // Entities are loaded separately or on demand
+          spiceRating: doc.spiceRating || 1,
+          spicePeppers: '🌶️'.repeat(doc.spiceRating || 1),
+          spiceDescription: `Red Flag Index ${doc.spiceRating || 1}`
+        }));
+
+        const processor = new DocumentProcessor();
+        await processor.loadDocuments(documents);
+        setDocumentProcessor(processor);
+        
+      } catch (error) {
+        console.error('Error loading documents:', error);
+        console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
+        console.log('Falling back to sample documents due to error');
+        const processor = new DocumentProcessor();
+        const sampleDocs = generateSampleDocuments();
+        await processor.loadDocuments(sampleDocs);
+        setDocumentProcessor(processor);
+      } finally {
+        setDocumentsLoaded(true);
+      }
+    };
+    
+    loadRealDocuments();
+  }, []);
+
+  const handleSearchAndFilter = useCallback(async () => {
+    if (!dataService) return;
+
+    try {
+      const filters: SearchFilters = {
+        searchTerm: searchTerm.trim() || undefined,
+        sortBy,
+        sortOrder
+      };
+
+      const result = await dataService.getPaginatedData(filters, currentPage);
+      setPeople(result.data);
+      setFilteredPeople(result.data);
+      setCurrentPage(result.page);
+      setTotalPages(result.totalPages);
+      setTotalPeople(result.total);
+      
+      // Enable virtual scrolling for large filtered datasets (disabled for pagination)
+      // setUseVirtualScroll(result.total > 100);
+      
+      // Only update totalPeople count from search results, keep other global stats
+      // unless we implement a specific filtered-stats endpoint
+      if (filters.searchTerm) {
+         // If searching, we might want to update stats to reflect search results
+         // But for now, let's keep global stats in the header to avoid "0 files" issues
+         // or just update the total count
+      }
+    } catch (error) {
+      console.error('Error searching and filtering:', error);
+    }
+  }, [dataService, searchTerm, sortBy, sortOrder, currentPage]);
+
+  useEffect(() => {
+    handleSearchAndFilter();
+  }, [handleSearchAndFilter]);
+
+  const handlePageChange = async (newPage: number) => {
+    if (newPage < 1 || newPage > totalPages) return;
+    setCurrentPage(newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  const fetchAnalyticsData = useCallback(async () => {
+    if (!dataService) return;
+
+    try {
+      setAnalyticsLoading(true);
+      setAnalyticsError(null);
+      console.log('Fetching analytics data...');
+      // Get statistics from the data service
+      const stats = await dataService.getStatistics();
+      console.log('Analytics stats:', stats);
+      
+      // Set the analytics data directly - the stats already match what DataVisualization expects
+      setAnalyticsData(stats);
+    } catch (error) {
+      console.error('Error fetching analytics data:', error);
+      setAnalyticsError(error instanceof Error ? error.message : 'Failed to load analytics data');
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }, [dataService]);
+
+  // Effect for fetching analytics data when tab changes
+  useEffect(() => {
+    if (activeTab === 'analytics') {
+      fetchAnalyticsData();
+    }
+  }, [activeTab, fetchAnalyticsData]);
+
+  const handlePersonClick = useCallback((person: Person, searchTerm?: string) => {
+    console.log('Person clicked:', person.name, 'Search term:', searchTerm);
+    setSelectedPerson(person);
+    setSearchTermForModal(searchTerm || '');
+  }, []);
+
+  const handleDocumentClick = useCallback((document: any, searchTerm?: string) => {
+    console.log('=== handleDocumentClick START ===');
+    console.log('Document clicked:', document);
+    console.log('document.id:', document?.id);
+    console.log('Search term:', searchTerm);
+    
+    // Close the person modal
+    setSelectedPerson(null);
+    
+    // Switch to documents tab
+    navigate('/documents');
+    
+    // Set the search term for highlighting in the document browser
+    console.log('Setting selectedDocumentSearchTerm to:', searchTerm);
+    if (searchTerm) {
+      setSelectedDocumentSearchTerm(searchTerm);
+      console.log('selectedDocumentSearchTerm set successfully');
+    } else {
+      console.log('No searchTerm provided, clearing selectedDocumentSearchTerm');
+      setSelectedDocumentSearchTerm('');
+    }
+    
+    // Set the selected document ID to auto-open it in the document browser
+    if (document && document.id) {
+      console.log('Setting selectedDocumentId to:', document.id);
+      setSelectedDocumentId(document.id);
+      console.log('selectedDocumentId set successfully');
+    } else {
+      console.log('WARNING: document or document.id is missing!', { document, id: document?.id });
+    }
+    console.log('=== handleDocumentClick END ===');
+  }, []);
+
+  const handleDocumentsUploaded = useCallback((count: number) => {
+    console.log(`Uploaded and processed ${count} documents`);
+    // Refresh the document processor if needed
+    if (documentProcessor) {
+      // The DocumentBrowser will automatically update when the processor changes
+      console.log('Document processor updated with new documents');
+    }
+  }, [documentProcessor]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-slate-900 to-black relative overflow-hidden">
@@ -140,7 +404,7 @@ function App() {
         <div className="absolute inset-0">
           {[...Array(20)].map((_, i) => (
             <div
-              key={i}
+              key={`particle-${i}-${Date.now()}`}
               className="absolute w-1 h-1 bg-cyan-400 rounded-full opacity-30 animate-ping"
               style={{
                 left: `${Math.random() * 100}%`,
@@ -154,31 +418,76 @@ function App() {
       </div>
 
       {/* Header */}
-      <header className="bg-slate-900/80 backdrop-blur-sm border-b border-slate-700 sticky top-0 z-40">
+      <header className="bg-slate-900/80 backdrop-blur-sm border-b border-slate-700 sticky top-0 z-40 transition-all duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <Eye className="h-8 w-8 text-cyan-400 animate-pulse" />
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
-                  THE EPSTEIN FILES
-                </h1>
+          <div className="flex flex-col md:flex-row md:items-center justify-between py-3 md:h-16 space-y-3 md:space-y-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="bg-gradient-to-br from-cyan-500 to-blue-600 p-2 rounded-lg shadow-lg shadow-cyan-500/20">
+                  <DatabaseIcon className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-lg md:text-2xl font-bold bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent whitespace-nowrap">
+                    THE EPSTEIN FILES
+                  </h1>
+                  <div className="hidden md:flex items-center space-x-2 text-cyan-300 text-xs font-mono">
+                    <span>{headerTotalPeople.toLocaleString()} SUBJECTS</span>
+                    <span>•</span>
+                    <span>{headerTotalMentions.toLocaleString()} MENTIONS</span>
+                    <span>•</span>
+                    <span>{headerTotalFiles.toLocaleString()} FILES</span>
+                  </div>
+                </div>
               </div>
-              <div className="hidden md:flex items-center space-x-2 text-cyan-300 text-xs font-mono">
-                <span>{dataStats.totalPeople} SUBJECTS</span>
-                <span>•</span>
-                <span>{dataStats.totalMentions.toLocaleString()} MENTIONS</span>
-                <span>•</span>
-                <span>{dataStats.totalFiles} FILES</span>
+              
+              <button
+                onClick={() => setShowReleaseNotes(true)}
+                className="hidden md:flex items-center space-x-2 text-sm text-slate-400 bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-700/50 ml-4 hover:text-cyan-300 transition-colors"
+                title="What's New"
+              >
+                <Book className="h-4 w-4 text-cyan-400" />
+                <span>What's New</span>
+              </button>
+              
+              <div 
+                className="hidden md:flex items-center space-x-2 text-sm text-slate-400 bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-700/50 ml-4 relative group cursor-help"
+                title="Click for source details"
+              >
+                <Shield className="h-4 w-4 text-emerald-400" />
+                <span>Verified Source</span>
+                
+                {/* Tooltip */}
+                <div className="absolute hidden group-hover:block z-50 left-0 top-full mt-2 w-80 bg-slate-900 border border-slate-700 rounded-lg p-4 shadow-xl">
+                  <div className="text-sm font-semibold text-white mb-2">Verified Sources</div>
+                  <div className="text-xs text-slate-300 space-y-2">
+                    <div>
+                      <div className="font-medium text-emerald-400 mb-1">Source Types:</div>
+                      <ul className="list-disc list-inside space-y-1 text-slate-400">
+                        <li>Court Documents & Legal Filings</li>
+                        <li>Flight Logs & Travel Records</li>
+                        <li>Email Correspondence</li>
+                        <li>Deposition Transcripts</li>
+                        <li>Financial Records</li>
+                        <li>Photographic Evidence</li>
+                      </ul>
+                    </div>
+                    <div className="pt-2 border-t border-slate-700">
+                      <div className="font-medium text-cyan-400">Total Documents: {headerTotalFiles.toLocaleString()}</div>
+                      <div className="text-slate-500 mt-1">All sources verified through public court records and official filings</div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
+            
+            <div className="w-full md:w-auto">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Search subjects, evidence types..."
-                  className="pl-10 pr-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent w-64"
+                  placeholder="Search names, contexts..."
+                  aria-label="Search names, contexts, or evidence"
+                  className="w-full md:w-64 pl-10 pr-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -188,22 +497,14 @@ function App() {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8 relative z-10">
         {/* Loading State */}
-        {loading && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-slate-800 p-8 rounded-xl text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
-              <p className="text-white text-lg">Loading real Epstein files data...</p>
-              <p className="text-slate-400 text-sm mt-2">Processing 178,791 individuals and 2,332 documents</p>
-            </div>
-          </div>
-        )}
+        {/* Loading State removed - using skeletons instead */}
 
         {/* Navigation Tabs - X-Files Style */}
-        <div className="flex space-x-1 mb-8 bg-slate-800/50 backdrop-blur-sm p-1 rounded-xl border border-slate-700 overflow-x-auto">
+        <div className="flex space-x-2 mb-6 bg-slate-800/50 backdrop-blur-sm p-1.5 rounded-xl border border-slate-700 overflow-x-auto scrollbar-hide -mx-4 px-4 md:mx-0 md:px-1.5">
           <button
-            onClick={() => setActiveTab('people')}
+            onClick={() => navigate('/people')}
             className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap ${
               activeTab === 'people'
                 ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg'
@@ -214,29 +515,18 @@ function App() {
             <span>Subjects</span>
           </button>
           <button
-            onClick={() => setActiveTab('analytics')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap ${
-              activeTab === 'analytics'
-                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
-                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
-            }`}
-          >
-            <BarChart3 className="h-4 w-4" />
-            <span>Analytics</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('search')}
+            onClick={() => navigate('/search')}
             className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap ${
               activeTab === 'search'
                 ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg'
                 : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
             }`}
           >
-            <Globe className="h-4 w-4" />
-            <span>Evidence Search</span>
+            <Search className="h-4 w-4" />
+            <span>Search</span>
           </button>
           <button
-            onClick={() => setActiveTab('documents')}
+            onClick={() => navigate('/documents')}
             className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap ${
               activeTab === 'documents'
                 ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-lg'
@@ -247,7 +537,29 @@ function App() {
             <span>Documents</span>
           </button>
           <button
-            onClick={() => setActiveTab('timeline')}
+            onClick={() => navigate('/investigations')}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap ${
+              activeTab === 'investigations'
+                ? 'bg-gradient-to-r from-red-600 to-pink-600 text-white shadow-lg'
+                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+            }`}
+          >
+            <Target className="h-4 w-4" />
+            <span>Investigations</span>
+          </button>
+          <button
+            onClick={() => navigate('/blackbook')}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap ${
+              activeTab === 'blackbook'
+                ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-lg'
+                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+            }`}
+          >
+            <Book className="h-4 w-4" />
+            <span>Black Book</span>
+          </button>
+          <button
+            onClick={() => navigate('/timeline')}
             className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap ${
               activeTab === 'timeline'
                 ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-lg'
@@ -257,218 +569,299 @@ function App() {
             <Clock className="h-4 w-4" />
             <span>Timeline</span>
           </button>
+            <button
+              onClick={() => navigate('/media')}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                activeTab === 'media'
+                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              <Newspaper className="w-4 h-4" />
+              <span>Media & Articles</span>
+            </button>
           <button
-            onClick={() => setActiveTab('articles')}
+            onClick={() => navigate('/analytics')}
             className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap ${
-              activeTab === 'articles'
-                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg'
+              activeTab === 'analytics'
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
                 : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
             }`}
           >
-            <Newspaper className="h-4 w-4" />
-            <span>Articles</span>
+            <BarChart3 className="h-4 w-4" />
+            <span>Analytics</span>
           </button>
         </div>
 
         {/* Tab Content */}
-        {activeTab === 'people' && (
-          <div className="space-y-6">
-            {/* Stats Overview - Using Real Data */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              <div className="bg-gradient-to-br from-red-900 to-red-700 p-6 rounded-xl">
-                <div className="text-3xl font-bold text-white">
-                  {dataStats.highRisk}
+        <Suspense fallback={
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
+          </div>
+        }>
+          {activeTab === 'people' && (
+            <div className="space-y-6">
+              {/* Stats Overview - Using Real Data */}
+              {loading && !dataStats.totalPeople ? (
+                <div className="space-y-4">
+                  <div className="text-center text-cyan-400 text-sm animate-pulse">
+                    {loadingProgress}
+                  </div>
+                  <StatsSkeleton />
                 </div>
-                <div className="text-red-200">High Risk Subjects</div>
-              </div>
-              <div className="bg-gradient-to-br from-yellow-900 to-yellow-700 p-6 rounded-xl">
-                <div className="text-3xl font-bold text-white">
-                  {dataStats.mediumRisk}
-                </div>
-                <div className="text-yellow-200">Medium Risk Subjects</div>
-              </div>
-              <div className="bg-gradient-to-br from-green-900 to-green-700 p-6 rounded-xl">
-                <div className="text-3xl font-bold text-white">
-                  {dataStats.lowRisk}
-                </div>
-                <div className="text-green-200">Low Risk Subjects</div>
-              </div>
-              <div className="bg-gradient-to-br from-blue-900 to-blue-700 p-6 rounded-xl">
-                <div className="text-3xl font-bold text-white">
-                  {dataStats.totalMentions.toLocaleString()}
-                </div>
-                <div className="text-blue-200">Total Mentions</div>
-              </div>
-            </div>
+              ) : (
+                <StatsDisplay stats={dataStats} />
+              )}
 
-            {/* Results and Sorting */}
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-white mb-2">Investigation Subjects</h2>
-                <p className="text-slate-400">
-                  Found {filteredPeople.length} subjects matching your criteria
-                </p>
-              </div>
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2">
-                  <label className="text-sm text-slate-400">Sort by:</label>
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as any)}
-                    className="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              {/* Results and Sorting */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-white mb-2">Investigation Subjects</h2>
+                  <p className="text-slate-400">
+                    Found {totalPeople.toLocaleString()} subjects matching your criteria
+                    {totalPeople > 50 && ` (showing page ${currentPage} of ${totalPages})`}
+                    <br />
+                    <span className="text-xs text-slate-500">
+                      Currently showing {filteredPeople.length} items on this page
+                    </span>
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center space-x-2">
+                    <label className="text-sm text-slate-400 whitespace-nowrap">Sort by:</label>
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as any)}
+                      aria-label="Sort people by"
+                      className="bg-slate-800 border border-slate-600 rounded-lg px-3 h-10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    >
+                      <option value="spice">🚩 Red Flag Index</option>
+                      <option value="mentions">📊 Mentions</option>
+                      <option value="risk">⚠️ Risk Level</option>
+                      <option value="name">👤 Name</option>
+                    </select>
+                  </div>
+                  <button
+                    onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                    className="h-10 px-3 bg-slate-800 border border-slate-600 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+                    title={`Sort ${sortOrder === 'asc' ? 'Descending' : 'Ascending'}`}
                   >
-                    <option value="spice">🌶️ Spice Level</option>
-                    <option value="mentions">📊 Mentions</option>
-                    <option value="risk">⚠️ Risk Level</option>
-                    <option value="name">👤 Name</option>
-                  </select>
+                    {sortOrder === 'asc' ? '↑' : '↓'}
+                  </button>
                 </div>
-                <button
-                  onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                  className="p-2 bg-slate-800 border border-slate-600 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
-                  title={`Sort ${sortOrder === 'asc' ? 'Descending' : 'Ascending'}`}
-                >
-                  {sortOrder === 'asc' ? '↑' : '↓'}
-                </button>
               </div>
-            </div>
 
-            {/* People Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredPeople.map((person) => (
-                <div
-                  key={person.name}
-                  onClick={() => handlePersonClick(person)}
-                  className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl p-6 hover:bg-slate-800/70 transition-all duration-300 cursor-pointer hover:scale-105 hover:shadow-xl"
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-bold text-white">{person.name}</h3>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-lg" title={`${person.spice_peppers} - ${person.spice_description}`}>
-                        {person.spice_peppers}
-                      </span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        person.likelihood_score === 'HIGH' ? 'bg-red-900 text-red-200' :
-                        person.likelihood_score === 'MEDIUM' ? 'bg-yellow-900 text-yellow-200' :
-                        'bg-green-900 text-green-200'
-                      }`}>
-                        {person.likelihood_score}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-400">Mentions:</span>
-                      <span className="text-white font-medium">{person.mentions.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-400">Files:</span>
-                      <span className="text-white font-medium">{person.files}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-400">Spice Score:</span>
-                      <span className="text-orange-400 font-medium">{person.spice_score}</span>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-1">
-                    {person.evidence_types.slice(0, 3).map((type, i) => (
-                      <span key={i} className="px-2 py-1 bg-slate-700 text-slate-300 rounded text-xs">
-                        {type}
-                      </span>
-                    ))}
-                  </div>
+              {/* People Grid - Always use grid layout for paginated data */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {loading ? (
+                  // Show 12 skeletons while loading to match 3-column grid
+                  [...Array(12)].map((_, index) => (
+                    <PersonCardSkeleton key={`skeleton-${index}`} />
+                  ))
+                ) : (
+                  filteredPeople.map((person, index) => (
+                    <PersonCard 
+                      key={`${person.name}-${index}`} 
+                      person={person} 
+                      onClick={() => handlePersonClick(person, searchTerm)}
+                      searchTerm={searchTerm}
+                      onDocumentClick={handleDocumentClick}
+                    />
+                  ))
+                )}
+              </div>
+
+              {!loading && filteredPeople.length === 0 && (
+                <div className="text-center py-12">
+                  <Users className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-slate-300 mb-2">No results found</h3>
+                  <p className="text-slate-400">Try adjusting your search terms</p>
                 </div>
-              ))}
-            </div>
+              )}
 
-            {filteredPeople.length === 0 && (
-              <div className="text-center py-12">
-                <Users className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-slate-300 mb-2">No results found</h3>
-                <p className="text-slate-400">Try adjusting your search terms</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'analytics' && (
-          <div className="space-y-8">
-            <div className="mb-8">
-              <h2 className="text-3xl font-bold text-white mb-2">Data Analytics</h2>
-              <p className="text-slate-400">
-                Comprehensive statistical analysis of the Epstein Investigation dataset
-              </p>
-            </div>
-            <DataVisualization people={people} />
-          </div>
-        )}
-
-        {activeTab === 'search' && (
-          <div className="space-y-8">
-            <div className="mb-8">
-              <h2 className="text-3xl font-bold text-white mb-2">Evidence Search</h2>
-              <p className="text-slate-400">
-                Search across all evidence files with advanced filtering and full-text indexing
-              </p>
-            </div>
-            <EvidenceSearch />
-          </div>
-        )}
-
-        {activeTab === 'documents' && (
-          <div className="space-y-8">
-            <div className="mb-8">
-              <h2 className="text-3xl font-bold text-white mb-2">Document Browser</h2>
-              <p className="text-slate-400">
-                Browse and search through the complete Epstein files collection with advanced filtering
-              </p>
-              {!documentsLoaded && (
-                <div className="mt-4 flex items-center space-x-2 text-yellow-400">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-400"></div>
-                  <span>Loading documents...</span>
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center space-x-4 mt-8">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="flex items-center space-x-2 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 transition-colors"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    <span>Previous</span>
+                  </button>
+                  
+                  <div className="flex items-center space-x-2">
+                    <span className="text-slate-400">Page</span>
+                    <span className="text-white font-medium">{currentPage}</span>
+                    <span className="text-slate-400">of</span>
+                    <span className="text-white font-medium">{totalPages}</span>
+                  </div>
+                  
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="flex items-center space-x-2 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 transition-colors"
+                  >
+                    <span>Next</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
                 </div>
               )}
             </div>
-            {documentProcessor && <DocumentBrowser processor={documentProcessor} />}
-          </div>
-        )}
+          )}
 
-        {activeTab === 'timeline' && (
-          <div className="space-y-8">
-            <div className="mb-8">
-              <h2 className="text-3xl font-bold text-white mb-2">Timeline of Events</h2>
-              <p className="text-slate-400">
-                Chronological timeline of significant events extracted from the Epstein files
-              </p>
+          {activeTab === 'analytics' && (
+            <div className="space-y-8">
+              <div className="mb-8">
+                <h2 className="text-3xl font-bold text-white mb-2">Data Analytics</h2>
+                <p className="text-slate-400">
+                  Comprehensive statistical analysis of the Epstein Investigation dataset
+                </p>
+              </div>
+              <DataVisualization 
+                people={filteredPeople} 
+                analyticsData={analyticsData}
+                loading={analyticsLoading}
+                error={analyticsError}
+                onRetry={fetchAnalyticsData}
+                onPersonSelect={(person) => {
+                  setSelectedPerson(person);
+                  setSearchTermForModal('');
+                }}
+              />
             </div>
-            <Timeline />
-          </div>
-        )}
+          )}
 
-        {activeTab === 'articles' && (
-          <div className="space-y-8">
-            <div className="mb-8">
-              <h2 className="text-3xl font-bold text-white mb-2">Latest Articles</h2>
-              <p className="text-slate-400">
-                Recent articles and analysis from the investigation
-              </p>
-            </div>
-            <ArticleFeed 
-              feedUrl="https://generik.substack.com/feed" 
-              tagFilter="epstein" 
-              maxArticles={9}
+          {activeTab === 'search' && (
+            <EvidenceSearch onPersonClick={handlePersonClick} />
+          )}
+
+          {activeTab === 'documents' && documentProcessor && (
+            <DocumentBrowser 
+              processor={documentProcessor} 
+              searchTerm={selectedDocumentSearchTerm}
+              onSearchTermChange={setSelectedDocumentSearchTerm}
+              selectedDocumentId={selectedDocumentId}
+              onDocumentClose={() => {
+                setSelectedDocumentId('');
+                setSelectedDocumentSearchTerm('');
+              }}
             />
-          </div>
-        )}
+          )}
+
+          {activeTab === 'timeline' && (
+            <Timeline />
+          )}
+
+          {activeTab === 'media' && (
+            <MediaAndArticlesTab />
+          )}
+
+          {activeTab === 'investigations' && (
+            <InvestigationWorkspace 
+              currentUser={{
+                id: '1',
+                name: 'Investigator',
+                email: 'investigator@example.com',
+                role: 'lead',
+                permissions: ['read', 'write', 'admin'],
+                joinedAt: new Date(),
+                expertise: ['investigative journalism', 'data analysis']
+              }}
+            />
+          )}
+
+          {activeTab === 'blackbook' && (
+            <div className="mt-6">
+              <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500"></div></div>}>
+                <BlackBookViewer />
+              </Suspense>
+            </div>
+          )}
+        </Suspense>
       </div>
 
       {/* Evidence Modal */}
-      {selectedPerson && (
-        <EvidenceModal
-          person={selectedPerson}
-          onClose={() => setSelectedPerson(null)}
+      <Suspense fallback={
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
+        </div>
+      }>
+        {selectedPerson && (
+          <EvidenceModal
+            person={selectedPerson}
+            onClose={() => setSelectedPerson(null)}
+            searchTerm={searchTermForModal}
+            onDocumentClick={handleDocumentClick}
+          />
+        )}
+      </Suspense>
+      
+      {/* Release Notes Panel */}
+      <Suspense fallback={null}>
+        <ReleaseNotesPanel 
+          isOpen={showReleaseNotes}
+          onClose={() => setShowReleaseNotes(false)}
+          releaseNotes={[
+            {
+              version: 'v2.1.0',
+              date: '2024-01-15',
+              title: 'Investigation Onboarding Features',
+              notes: [
+                'Added guided onboarding tour for new investigation users',
+                'Implemented example investigation template for empty states',
+                'Enhanced traceability with breadcrumbs and source badges',
+                'Added data integrity dashboard panel',
+                'Integrated evidence packet export functionality',
+                'Added in-app release notes panel'
+              ]
+            },
+            {
+              version: 'v2.0.0',
+              date: '2024-01-10',
+              title: 'Major Platform Update',
+              notes: [
+                'Complete UI redesign with dark theme',
+                'Enhanced search capabilities',
+                'Improved document browser with filtering',
+                'Added timeline visualization',
+                'Implemented network analysis tools',
+                'Added forensic analysis workspace'
+              ]
+            }
+          ]}
         />
-      )}
+      </Suspense>
+      
+      {/* Footer with support links */}
+      <footer className="mt-12 py-6 border-t border-slate-800 bg-slate-900/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <p className="text-slate-400 text-sm">
+              The Epstein Archive Investigation Tool - Supporting transparency and accountability
+            </p>
+            <div className="flex items-center space-x-6">
+              <a 
+                href="https://coff.ee/generik" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-slate-400 hover:text-cyan-400 text-sm flex items-center transition-colors"
+              >
+                Support on coff.ee
+              </a>
+              <a 
+                href="https://generik.substack.com" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-slate-400 hover:text-cyan-400 text-sm flex items-center transition-colors"
+              >
+                The End Times Substack
+              </a>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

@@ -1,12 +1,12 @@
-import { useState, useEffect, useCallback, Suspense, lazy } from 'react';
+import { useState, useEffect, useCallback, Suspense, lazy, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { Search, User, Users, FileText, TrendingUp, BarChart3, Newspaper, Calendar, Database as DatabaseIcon, Globe, Clock, ChevronLeft, ChevronRight, Book, CheckCircle2, Target, Shield, Image } from 'lucide-react';
-import { Person } from './types';
+import { Search, User, Users, FileText, TrendingUp, BarChart3, Newspaper, Calendar, Database as DatabaseIcon, Globe, Clock, ChevronLeft, ChevronRight, Book, CheckCircle2, Target, Shield, Image, Menu, X, Camera, HelpCircle } from 'lucide-react';import { Person } from './types';
 import { Document } from './types/documents';
 import { OptimizedDataService, SearchFilters } from './services/OptimizedDataService';
 import { useNavigation } from './services/ContentNavigationService.tsx';
 import PersonCard from './components/PersonCard';
-import MediaAndArticlesTab from './components/MediaAndArticlesTab';
+import EvidenceMedia from './components/EvidenceMedia';
 import PersonCardSkeleton from './components/PersonCardSkeleton';
 import StatsSkeleton from './components/StatsSkeleton';
 import { StatsDisplay } from './components/StatsDisplay';
@@ -14,17 +14,31 @@ import { apiClient } from './services/apiClient';
 import { DocumentProcessor } from './services/documentProcessor';
 import { generateSampleDocuments } from './data/sampleDocuments';
 import { useCountUp } from './hooks/useCountUp';
-
+import MobileMenu from './components/MobileMenu';
+import UndoProvider from './components/UndoManager';
+import ToastProvider, { useToasts } from './components/ToastProvider';
+import ScopedErrorBoundary from './components/ScopedErrorBoundary';
+import ProgressBar from './components/ProgressBar';
+import LoadingPill from './components/LoadingPill';
+import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
+import { Breadcrumb } from './components/Breadcrumb';
+import { VirtualList } from './components/VirtualList';
+import Icon from './components/Icon';
+import { FirstRunOnboarding } from './components/FirstRunOnboarding';
+import { useFirstRunOnboarding } from './hooks/useFirstRunOnboarding';
+import { InvestigationsProvider } from './contexts/InvestigationsContext';
 // Lazy load heavy components
 const EvidenceModal = lazy(() => import('./components/EvidenceModal').then(module => ({ default: module.EvidenceModal })));
 const DataVisualization = lazy(() => import('./components/DataVisualization').then(module => ({ default: module.DataVisualization })));
 const BlackBookViewer = lazy(() => import('./components/BlackBookViewer').then(module => ({ default: module.BlackBookViewer })));
 const EvidenceSearch = lazy(() => import('./components/EvidenceSearch').then(module => ({ default: module.EvidenceSearch })));
 const DocumentBrowser = lazy(() => import('./components/DocumentBrowser').then(module => ({ default: module.DocumentBrowser })));
+const DocumentModal = lazy(() => import('./components/DocumentModal').then(module => ({ default: module.DocumentModal })));
 const Timeline = lazy(() => import('./components/Timeline').then(module => ({ default: module.Timeline })));
 const DocumentUploader = lazy(() => import('./components/DocumentUploader').then(module => ({ default: module.DocumentUploader })));
 const InvestigationWorkspace = lazy(() => import('./components/InvestigationWorkspace').then(module => ({ default: module.InvestigationWorkspace })));
 const ReleaseNotesPanel = lazy(() => import('./components/ReleaseNotesPanel').then(module => ({ default: module.ReleaseNotesPanel })));
+const AboutPage = lazy(() => import('./components/AboutPage').then(module => ({ default: module.default })));
 
 
 function App() {
@@ -41,10 +55,11 @@ function App() {
     if (pathname.startsWith('/investigations')) return 'investigations';
     if (pathname.startsWith('/analytics')) return 'analytics';
     if (pathname.startsWith('/blackbook')) return 'blackbook';
+    if (pathname.startsWith('/about')) return 'about';
     return 'people'; // default
   };
   
-  type Tab = 'people' | 'search' | 'documents' | 'media' | 'timeline' | 'investigations' | 'analytics' | 'blackbook';
+  type Tab = 'people' | 'search' | 'documents' | 'media' | 'timeline' | 'investigations' | 'analytics' | 'blackbook' | 'about';
   const activeTab = getTabFromPath(location.pathname);
   
   const [people, setPeople] = useState<Person[]>(() => {
@@ -64,14 +79,28 @@ function App() {
   const [searchTermForModal, setSearchTermForModal] = useState<string>('');
   const [selectedDocumentId, setSelectedDocumentId] = useState<string>('');
   const [selectedDocumentSearchTerm, setSelectedDocumentSearchTerm] = useState<string>('');
+  const [documentModalId, setDocumentModalId] = useState<string>('');
+  const [documentModalInitial, setDocumentModalInitial] = useState<any | null>(null);
+  const [investigateAttract, setInvestigateAttract] = useState<boolean>(false);
+  const [investigatePopoverOpen, setInvestigatePopoverOpen] = useState<boolean>(false);
+  const investigateBtnRef = useRef<HTMLButtonElement | null>(null);
+  const [investigatePopoverPos, setInvestigatePopoverPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [investigateArrowLeft, setInvestigateArrowLeft] = useState<number>(16);
   const [sortBy, setSortBy] = useState<'name' | 'mentions' | 'spice' | 'risk'>('spice');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [entityType, setEntityType] = useState<string>('all');
+  const [selectedRiskLevel, setSelectedRiskLevel] = useState<'HIGH' | 'MEDIUM' | 'LOW' | null>(null);
   const [documentProcessor, setDocumentProcessor] = useState<DocumentProcessor | null>(null);
   const [documentsLoaded, setDocumentsLoaded] = useState(false);
-  
+  const [showReleaseNotes, setShowReleaseNotes] = useState(false);
+  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);  
   // Use navigation context for shared state
   const navigation = useNavigation();
   const { searchTerm, setSearchTerm } = navigation;
+  
+  // First run onboarding
+  const { shouldShowOnboarding, completeOnboarding, skipOnboarding } = useFirstRunOnboarding();
+
 
   // Clear selected document when switching tabs
   useEffect(() => {
@@ -84,6 +113,132 @@ function App() {
   useEffect(() => {
     // This will automatically sync with the navigation context
   }, [searchTerm]);
+  
+  // Keyboard shortcuts for power users
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle shortcuts when not in an input field
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+      
+      // Ctrl/Cmd + K for search focus
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        const searchInput = document.querySelector('input[type="text"]');
+        if (searchInput) {
+          (searchInput as HTMLInputElement).focus();
+          // Announce focus change for screen readers
+          const announcement = document.createElement('div');
+          announcement.setAttribute('aria-live', 'polite');
+          announcement.setAttribute('aria-atomic', 'true');
+          announcement.className = 'sr-only';
+          announcement.textContent = 'Search input focused';
+          document.body.appendChild(announcement);
+          setTimeout(() => document.body.removeChild(announcement), 1000);
+        }
+      }
+      
+      // Ctrl/Cmd + 1-9 for tab navigation
+      if (e.ctrlKey || e.metaKey) {
+        const tabMap: Record<string, string> = {
+          '1': '/people',
+          '2': '/search',
+          '3': '/documents',
+          '4': '/media',
+          '5': '/timeline',
+          '6': '/investigations',
+          '7': '/analytics',
+          '8': '/blackbook',
+          '9': '/about'
+        };
+        
+        if (tabMap[e.key]) {
+          e.preventDefault();
+          navigate(tabMap[e.key]);
+          // Announce navigation change for screen readers
+          const announcement = document.createElement('div');
+          announcement.setAttribute('aria-live', 'polite');
+          announcement.setAttribute('aria-atomic', 'true');
+          announcement.className = 'sr-only';
+          announcement.textContent = `Navigated to ${tabMap[e.key].substring(1)} section`;
+          document.body.appendChild(announcement);
+          setTimeout(() => document.body.removeChild(announcement), 1000);
+        }
+      }
+      
+      // ESC to close modals
+      if (e.key === 'Escape') {
+        if (selectedPerson) {
+          setSelectedPerson(null);
+          // Announce modal close for screen readers
+          const announcement = document.createElement('div');
+          announcement.setAttribute('aria-live', 'polite');
+          announcement.setAttribute('aria-atomic', 'true');
+          announcement.className = 'sr-only';
+          announcement.textContent = 'Person details modal closed';
+          document.body.appendChild(announcement);
+          setTimeout(() => document.body.removeChild(announcement), 1000);
+        }
+        if (documentModalId) {
+          setDocumentModalId('');
+          setDocumentModalInitial(null);
+          // Announce modal close for screen readers
+          const announcement = document.createElement('div');
+          announcement.setAttribute('aria-live', 'polite');
+          announcement.setAttribute('aria-atomic', 'true');
+          announcement.className = 'sr-only';
+          announcement.textContent = 'Document modal closed';
+          document.body.appendChild(announcement);
+          setTimeout(() => document.body.removeChild(announcement), 1000);
+        }
+        if (showReleaseNotes) {
+          setShowReleaseNotes(false);
+          // Announce modal close for screen readers
+          const announcement = document.createElement('div');
+          announcement.setAttribute('aria-live', 'polite');
+          announcement.setAttribute('aria-atomic', 'true');
+          announcement.className = 'sr-only';
+          announcement.textContent = 'Release notes closed';
+          document.body.appendChild(announcement);
+          setTimeout(() => document.body.removeChild(announcement), 1000);
+        }
+      }
+      
+      // Ctrl/Cmd + Shift + R for refresh/reload
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'R') {
+        e.preventDefault();
+        window.location.reload();
+        // Announce reload for screen readers
+        const announcement = document.createElement('div');
+        announcement.setAttribute('aria-live', 'polite');
+        announcement.setAttribute('aria-atomic', 'true');
+        announcement.className = 'sr-only';
+        announcement.textContent = 'Reloading application';
+        document.body.appendChild(announcement);
+        setTimeout(() => document.body.removeChild(announcement), 1000);
+      }
+      
+      // Ctrl/Cmd + / for keyboard shortcuts help
+      if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+        e.preventDefault();
+        setShowKeyboardShortcuts(true);
+        // Announce modal open for screen readers
+        const announcement = document.createElement('div');
+        announcement.setAttribute('aria-live', 'polite');
+        announcement.setAttribute('aria-atomic', 'true');
+        announcement.className = 'sr-only';
+        announcement.textContent = 'Keyboard shortcuts help opened';
+        document.body.appendChild(announcement);
+        setTimeout(() => document.body.removeChild(announcement), 1000);
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [navigate, selectedPerson, documentModalId, showReleaseNotes, showKeyboardShortcuts]);
   const [dataStats, setDataStats] = useState(() => {
     // Try to load from local storage for immediate display
     try {
@@ -114,22 +269,27 @@ function App() {
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState<string>('Initializing...');
+  const [loadingProgressValue, setLoadingProgressValue] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [totalPeople, setTotalPeople] = useState(0);
   const [dataService, setDataService] = useState<OptimizedDataService | null>(null);
-    const [showReleaseNotes, setShowReleaseNotes] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  const { addToast } = useToasts()
   useEffect(() => {
     // Initialize optimized data service
     const initializeDataService = async () => {
       try {
         setLoading(true);
         setLoadingProgress('Connecting to database...');
+        setLoadingProgressValue(10);
+        addToast({ text: 'Connecting to database…', type: 'info' })
         const service = OptimizedDataService.getInstance();
         await service.initialize();
         setDataService(service);
         setLoadingProgress('Loading subjects...');
+        setLoadingProgressValue(30);
         
         // Load first page of data
         console.log('About to load first page...');
@@ -143,15 +303,22 @@ function App() {
           firstPerson: result.data[0]
         });
         setLoadingProgress(`Loaded ${result.data.length} subjects...`);
-        setPeople(result.data);
-        setFilteredPeople(result.data);
+        setLoadingProgressValue(60);
+        const normalized = (result.data || []).map((p: any) => ({
+          ...p,
+          red_flag_rating: (p.red_flag_rating ?? p.redFlagRating ?? p.spiceRating ?? 0),
+          name: p.name ?? p.fullName ?? p.full_name,
+          files: p.files ?? p.documentCount ?? 0,
+        }))
+        setPeople(normalized);
+        setFilteredPeople(normalized);
         setCurrentPage(result.page);
         setTotalPages(result.totalPages);
         setTotalPeople(result.total);
         
         // Cache first page for next load
         try {
-          localStorage.setItem('epstein_archive_people_page1', JSON.stringify(result.data));
+          localStorage.setItem('epstein_archive_people_page1', JSON.stringify(normalized));
         } catch (e) {
           console.error('Error caching people data:', e);
         }
@@ -163,8 +330,10 @@ function App() {
         // fetchGlobalStats will handle the authoritative stats
       } catch (error) {
         console.error('Error initializing data service:', error);
+        addToast({ text: 'Failed to load subjects', type: 'error' })
       } finally {
         setLoading(false);
+        addToast({ text: 'Subjects loaded', type: 'success' })
       }
     };
 
@@ -174,11 +343,14 @@ function App() {
     const fetchGlobalStats = async () => {
       try {
         setLoadingProgress('Loading statistics...');
+        setLoadingProgressValue(80);
         const service = OptimizedDataService.getInstance();
         await service.initialize();
         const stats = await service.getStatistics();
         console.log('Global stats loaded:', stats);
         setLoadingProgress('Finalizing...');
+        setLoadingProgressValue(90);
+        addToast({ text: 'Statistics loaded', type: 'success' })
         
         const highRisk = stats.likelihoodDistribution.find((d: any) => d.level === 'HIGH')?.count || 0;
         const mediumRisk = stats.likelihoodDistribution.find((d: any) => d.level === 'MEDIUM')?.count || 0;
@@ -201,8 +373,10 @@ function App() {
           }
           return prev;
         });
+        setLoadingProgressValue(100);
       } catch (error) {
         console.error('Error fetching global stats:', error);
+        addToast({ text: 'Failed to load statistics', type: 'error' })
       }
     };
     
@@ -210,10 +384,73 @@ function App() {
   }, []);
 
   useEffect(() => {
+    try {
+      const shown = localStorage.getItem('investigate_attract_shown') === 'true';
+      if (!shown) setInvestigateAttract(true);
+      const t = setTimeout(() => setInvestigateAttract(false), 8000);
+      return () => clearTimeout(t);
+    } catch (e) {
+      console.warn('localStorage not available:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      const dismissed = localStorage.getItem('investigate_popover_dismissed') === 'true';
+      if (!dismissed && activeTab === 'people') {
+        const timer = setTimeout(() => setInvestigatePopoverOpen(true), 1200);
+        return () => clearTimeout(timer);
+      }
+    } catch (e) {
+      console.warn('localStorage not available:', e);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (!investigatePopoverOpen) return;
+    const anchor = (document.querySelector('[data-investigation-nav-top]') as HTMLElement) || (document.querySelector('[data-investigation-nav]') as HTMLElement) || investigateBtnRef.current;
+    if (anchor) {
+      const rect = anchor.getBoundingClientRect();
+      const x = Math.round(rect.left + window.scrollX);
+      const y = Math.round(rect.bottom + 8 + window.scrollY);
+      setInvestigatePopoverPos({ x, y });
+      const centerX = rect.left + rect.width / 2 + window.scrollX;
+      const arrowX = Math.max(12, Math.min(300 - 12, centerX - x - 8));
+      setInvestigateArrowLeft(arrowX);
+    }
+  }, [investigatePopoverOpen]);
+
+  useEffect(() => {
+    const reposition = () => {
+      if (investigatePopoverOpen) {
+        const anchor = (document.querySelector('[data-investigation-nav-top]') as HTMLElement) || (document.querySelector('[data-investigation-nav]') as HTMLElement) || investigateBtnRef.current;
+        if (anchor) {
+          const rect = anchor.getBoundingClientRect();
+          const x = Math.round(rect.left + window.scrollX);
+          const y = Math.round(rect.bottom + 8 + window.scrollY);
+          setInvestigatePopoverPos({ x, y });
+          const centerX = rect.left + rect.width / 2 + window.scrollX;
+          const arrowX = Math.max(12, Math.min(300 - 12, centerX - x - 8));
+          setInvestigateArrowLeft(arrowX);
+        }
+      }
+    };
+    window.addEventListener('resize', reposition);
+    window.addEventListener('scroll', reposition, { passive: true });
+    const id = setInterval(reposition, 300); // defensive update in dynamic layouts
+    return () => { window.removeEventListener('resize', reposition); window.removeEventListener('scroll', reposition); clearInterval(id) };
+  }, [investigatePopoverOpen]);
+
+  const [documentLoadingProgress, setDocumentLoadingProgress] = useState<string>('');
+  const [documentLoadingProgressValue, setDocumentLoadingProgressValue] = useState<number>(0);
+
+  useEffect(() => {
     // Initialize document processor with REAL database documents
     const loadRealDocuments = async () => {
       try {
         console.log('Loading documents from API...');
+        setDocumentLoadingProgress('Connecting to document database...');
+        setDocumentLoadingProgressValue(10);
         // Fetch all documents for client-side processing
         // In a production app with millions of docs, we'd move search to server-side
         // But for 2,300 docs, client-side is fast and responsive
@@ -230,39 +467,57 @@ function App() {
         }
 
         console.log(`Loaded ${response.data.length} documents from API (total: ${response.total})`);
+        setDocumentLoadingProgress(`Processing ${response.data.length} documents...`);
+        setDocumentLoadingProgressValue(40);
 
-        const documents: Document[] = response.data.map((doc: any) => ({
-          id: doc.id,
-          title: doc.fileName,
-          filename: doc.fileName,
-          fileType: doc.fileType || 'unknown',
-          fileSize: doc.fileSize || 0,
-          dateCreated: doc.dateCreated,
-          dateModified: doc.dateModified,
-          content: doc.content || '',
-          metadata: {
-            source: 'Epstein Files',
-            confidentiality: 'Public',
-            categories: [],
-            ...doc.metadata
-          },
-          entities: [], // Entities are loaded separately or on demand
-          spiceRating: doc.spiceRating || 1,
-          spicePeppers: '🌶️'.repeat(doc.spiceRating || 1),
-          spiceDescription: `Red Flag Index ${doc.spiceRating || 1}`
-        }));
+        const documents: Document[] = response.data.map((doc: any, index: number) => {
+          // Update progress periodically
+          if (index % 100 === 0) {
+            const progress = 40 + Math.floor((index / response.data.length) * 40);
+            setDocumentLoadingProgressValue(progress);
+          }
+          
+          return {
+            id: doc.id,
+            title: doc.fileName,
+            filename: doc.fileName,
+            fileType: doc.fileType || 'unknown',
+            fileSize: doc.fileSize || 0,
+            dateCreated: doc.dateCreated,
+            dateModified: doc.dateModified,
+            content: doc.content || '',
+            metadata: {
+              source: 'Epstein Files',
+              confidentiality: 'Public',
+              categories: [],
+              ...doc.metadata
+            },
+            entities: [], // Entities are loaded separately or on demand
+            spiceRating: doc.spiceRating || 1,
+            spicePeppers: '🌶️'.repeat(doc.spiceRating || 1),
+            spiceDescription: `Red Flag Index ${doc.spiceRating || 1}`
+          };
+        });
 
+        setDocumentLoadingProgress('Initializing document processor...');
+        setDocumentLoadingProgressValue(80);
         const processor = new DocumentProcessor();
         await processor.loadDocuments(documents);
+        setDocumentLoadingProgress('Documents ready');
+        setDocumentLoadingProgressValue(100);
         setDocumentProcessor(processor);
         
       } catch (error) {
         console.error('Error loading documents:', error);
         console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
         console.log('Falling back to sample documents due to error');
+        setDocumentLoadingProgress('Loading sample documents...');
+        setDocumentLoadingProgressValue(50);
         const processor = new DocumentProcessor();
         const sampleDocs = generateSampleDocuments();
         await processor.loadDocuments(sampleDocs);
+        setDocumentLoadingProgress('Sample documents ready');
+        setDocumentLoadingProgressValue(100);
         setDocumentProcessor(processor);
       } finally {
         setDocumentsLoaded(true);
@@ -279,7 +534,9 @@ function App() {
       const filters: SearchFilters = {
         searchTerm: searchTerm.trim() || undefined,
         sortBy,
-        sortOrder
+        sortOrder,
+        entityType: entityType !== 'all' ? entityType : undefined,
+        likelihoodScore: selectedRiskLevel ? [selectedRiskLevel] : undefined
       };
 
       const result = await dataService.getPaginatedData(filters, currentPage);
@@ -302,7 +559,25 @@ function App() {
     } catch (error) {
       console.error('Error searching and filtering:', error);
     }
-  }, [dataService, searchTerm, sortBy, sortOrder, currentPage]);
+  }, [dataService, searchTerm, sortBy, sortOrder, entityType, selectedRiskLevel, currentPage]);
+
+  // Handler for risk level chip clicks
+  const handleRiskLevelClick = useCallback((level: 'HIGH' | 'MEDIUM' | 'LOW') => {
+    // Toggle: if clicking the same level, deselect it
+    setSelectedRiskLevel(prev => prev === level ? null : level);
+    // Reset to page 1 when filter changes
+    setCurrentPage(1);
+  }, []);
+
+  // Handler to reset all filters
+  const handleResetFilters = useCallback(() => {
+    setSelectedRiskLevel(null);
+    setEntityType('all');
+    setSearchTerm('');
+    setSortBy('spice');
+    setSortOrder('desc');
+    setCurrentPage(1);
+  }, []);
 
   useEffect(() => {
     handleSearchAndFilter();
@@ -311,6 +586,23 @@ function App() {
   const handlePageChange = async (newPage: number) => {
     if (newPage < 1 || newPage > totalPages) return;
     setCurrentPage(newPage);
+    
+    // Prefetch next page for smoother experience
+    if (dataService && newPage < totalPages) {
+      const filters: SearchFilters = {
+        searchTerm: searchTerm.trim() || undefined,
+        sortBy,
+        sortOrder,
+        entityType: entityType !== 'all' ? entityType : undefined,
+        likelihoodScore: selectedRiskLevel ? [selectedRiskLevel] : undefined
+      };
+      
+      // Prefetch next page in background
+      dataService.prefetchNextPage(filters, newPage).catch(error => {
+        console.warn('Failed to prefetch next page:', error);
+      });
+    }
+    
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -342,10 +634,37 @@ function App() {
     }
   }, [activeTab, fetchAnalyticsData]);
 
+  // Effect to prefetch next page when current page loads
+  useEffect(() => {
+    if (dataService && currentPage < totalPages) {
+      const filters: SearchFilters = {
+        searchTerm: searchTerm.trim() || undefined,
+        sortBy,
+        sortOrder,
+        entityType: entityType !== 'all' ? entityType : undefined,
+        likelihoodScore: selectedRiskLevel ? [selectedRiskLevel] : undefined
+      };
+      
+      // Prefetch next page in background
+      dataService.prefetchNextPage(filters, currentPage).catch(error => {
+        console.warn('Failed to prefetch next page:', error);
+      });
+    }
+  }, [dataService, currentPage, totalPages, searchTerm, sortBy, sortOrder, entityType, selectedRiskLevel]);
+
   const handlePersonClick = useCallback((person: Person, searchTerm?: string) => {
     console.log('Person clicked:', person.name, 'Search term:', searchTerm);
     setSelectedPerson(person);
     setSearchTermForModal(searchTerm || '');
+    
+    // Announce navigation for screen readers
+    const announcement = document.createElement('div');
+    announcement.setAttribute('aria-live', 'polite');
+    announcement.setAttribute('aria-atomic', 'true');
+    announcement.className = 'sr-only';
+    announcement.textContent = `Opening details for ${person.name}`;
+    document.body.appendChild(announcement);
+    setTimeout(() => document.body.removeChild(announcement), 1000);
   }, []);
 
   const handleDocumentClick = useCallback((document: any, searchTerm?: string) => {
@@ -354,13 +673,12 @@ function App() {
     console.log('document.id:', document?.id);
     console.log('Search term:', searchTerm);
     
-    // Close the person modal
-    setSelectedPerson(null);
+    // Open inline document modal first; keep person modal to avoid race/unmount issues
+    const docId = document?.id?.toString() || '';
+    setDocumentModalId(docId);
+    setDocumentModalInitial(document || null);
     
-    // Switch to documents tab
-    navigate('/documents');
-    
-    // Set the search term for highlighting in the document browser
+    // Set the search term for highlighting
     console.log('Setting selectedDocumentSearchTerm to:', searchTerm);
     if (searchTerm) {
       setSelectedDocumentSearchTerm(searchTerm);
@@ -370,14 +688,18 @@ function App() {
       setSelectedDocumentSearchTerm('');
     }
     
-    // Set the selected document ID to auto-open it in the document browser
-    if (document && document.id) {
-      console.log('Setting selectedDocumentId to:', document.id);
-      setSelectedDocumentId(document.id);
-      console.log('selectedDocumentId set successfully');
-    } else {
-      console.log('WARNING: document or document.id is missing!', { document, id: document?.id });
-    }
+    // Keep legacy path as fallback for browser tab
+    setSelectedDocumentId(docId);
+    
+    // Announce navigation for screen readers
+    const announcement = document.createElement('div');
+    announcement.setAttribute('aria-live', 'polite');
+    announcement.setAttribute('aria-atomic', 'true');
+    announcement.className = 'sr-only';
+    announcement.textContent = `Opening document ${document?.title || 'untitled'}`;
+    document.body.appendChild(announcement);
+    setTimeout(() => document.body.removeChild(announcement), 1000);
+    
     console.log('=== handleDocumentClick END ===');
   }, []);
 
@@ -391,17 +713,32 @@ function App() {
   }, [documentProcessor]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-slate-900 to-black relative overflow-hidden">
-      <div className="absolute inset-0 overflow-hidden">
+    <ToastProvider>
+      <UndoProvider>
+        <InvestigationsProvider>
+          <div className="min-h-screen bg-gradient-to-br from-gray-950 via-slate-900 to-black relative overflow-x-hidden overflow-y-auto flex flex-col">
+        {shouldShowOnboarding && (
+          <FirstRunOnboarding
+            onComplete={completeOnboarding}
+            onSkip={skipOnboarding}
+          />
+        )}
+
+      {/* Skip links for accessibility */}
+      <div className="sr-only">
+        <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:p-4 focus:bg-slate-900 focus:text-white z-50">Skip to main content</a>
+        <a href="#navigation" className="sr-only focus:not-sr-only focus:absolute focus:p-4 focus:bg-slate-900 focus:text-white z-50 mt-10">Skip to navigation</a>
+      </div>
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-cyan-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"></div>
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse animation-delay-2000"></div>
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-pulse animation-delay-4000"></div>
 
         {/* Grid pattern overlay */}
-        <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
+        <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none"></div>
 
         {/* Floating particles */}
-        <div className="absolute inset-0">
+        <div className="absolute inset-0 pointer-events-none">
           {[...Array(20)].map((_, i) => (
             <div
               key={`particle-${i}-${Date.now()}`}
@@ -420,14 +757,14 @@ function App() {
       {/* Header */}
       <header className="bg-slate-900/80 backdrop-blur-sm border-b border-slate-700 sticky top-0 z-40 transition-all duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row md:items-center justify-between py-3 md:h-16 space-y-3 md:space-y-0">
+          <div className="flex flex-col md:flex-row flex-wrap md:items-center justify-between py-3 md:min-h-16 gap-y-3 space-y-3 md:space-y-0">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="bg-gradient-to-br from-cyan-500 to-blue-600 p-2 rounded-lg shadow-lg shadow-cyan-500/20">
-                  <DatabaseIcon className="h-6 w-6 text-white" />
+              <div className="flex items-center space-x-4 min-w-0">
+                <div className="bg-gradient-to-br from-cyan-500 to-blue-600 p-2 rounded-lg shadow-lg shadow-cyan-500/20 flex-shrink-0">
+                  <Icon name="Database" size="md" color="white" />
                 </div>
-                <div>
-                  <h1 className="text-lg md:text-2xl font-bold bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent whitespace-nowrap">
+                <div className="min-w-0">
+                  <h1 className="text-lg md:text-2xl font-bold bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent truncate">
                     THE EPSTEIN FILES
                   </h1>
                   <div className="hidden md:flex items-center space-x-2 text-cyan-300 text-xs font-mono">
@@ -440,160 +777,327 @@ function App() {
                 </div>
               </div>
               
-              <button
-                onClick={() => setShowReleaseNotes(true)}
-                className="hidden md:flex items-center space-x-2 text-sm text-slate-400 bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-700/50 ml-4 hover:text-cyan-300 transition-colors"
-                title="What's New"
-              >
-                <Book className="h-4 w-4 text-cyan-400" />
-                <span>What's New</span>
-              </button>
-              
-              <div 
-                className="hidden md:flex items-center space-x-2 text-sm text-slate-400 bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-700/50 ml-4 relative group cursor-help"
-                title="Click for source details"
-              >
-                <Shield className="h-4 w-4 text-emerald-400" />
-                <span>Verified Source</span>
+              {/* Collapsible header buttons with hover animations */}
+              <div className="hidden md:flex items-center space-x-2">
+                <button
+                  onClick={() => setShowReleaseNotes(true)}
+                  className="group flex items-center justify-center w-10 h-10 bg-slate-800/50 rounded-full border border-slate-700/50 hover:bg-slate-700/50 transition-all duration-300 overflow-hidden relative"
+                  title="What's New"
+                  aria-label="What's New"
+                >
+                  <Icon name="Book" size="sm" color="info" className="group-hover:scale-110 transition-transform duration-300" />
+                  <span className="absolute left-12 opacity-0 group-hover:opacity-100 group-hover:left-14 transition-all duration-300 whitespace-nowrap bg-slate-900 px-3 py-1.5 rounded-full border border-slate-700 text-sm transform translate-x-2 group-hover:translate-x-0">
+                    What's New
+                  </span>
+                </button>
                 
-                {/* Tooltip */}
-                <div className="absolute hidden group-hover:block z-50 left-0 top-full mt-2 w-80 bg-slate-900 border border-slate-700 rounded-lg p-4 shadow-xl">
-                  <div className="text-sm font-semibold text-white mb-2">Verified Sources</div>
-                  <div className="text-xs text-slate-300 space-y-2">
-                    <div>
-                      <div className="font-medium text-emerald-400 mb-1">Source Types:</div>
-                      <ul className="list-disc list-inside space-y-1 text-slate-400">
-                        <li>Court Documents & Legal Filings</li>
-                        <li>Flight Logs & Travel Records</li>
-                        <li>Email Correspondence</li>
-                        <li>Deposition Transcripts</li>
-                        <li>Financial Records</li>
-                        <li>Photographic Evidence</li>
-                      </ul>
-                    </div>
-                    <div className="pt-2 border-t border-slate-700">
-                      <div className="font-medium text-cyan-400">Total Documents: {headerTotalFiles.toLocaleString()}</div>
-                      <div className="text-slate-500 mt-1">All sources verified through public court records and official filings</div>
+                <button
+                  onClick={() => setShowKeyboardShortcuts(true)}
+                  className="group flex items-center justify-center w-10 h-10 bg-slate-800/50 rounded-full border border-slate-700/50 hover:bg-slate-700/50 transition-all duration-300 overflow-hidden relative"
+                  title="Keyboard Shortcuts"
+                  aria-label="Keyboard Shortcuts"
+                >
+                  <Icon name="HelpCircle" size="sm" color="info" className="group-hover:scale-110 transition-transform duration-300" />
+                  <span className="absolute left-12 opacity-0 group-hover:opacity-100 group-hover:left-14 transition-all duration-300 whitespace-nowrap bg-slate-900 px-3 py-1.5 rounded-full border border-slate-700 text-sm transform translate-x-2 group-hover:translate-x-0">
+                    Shortcuts
+                  </span>
+                </button>
+                
+                <div 
+                  className="group flex items-center justify-center w-10 h-10 bg-slate-800/50 rounded-full border border-slate-700/50 hover:bg-slate-700/50 transition-all duration-300 overflow-hidden relative cursor-help"
+                  title="Click for source details"
+                  aria-label="Verified Source"
+                >
+                  <Icon name="Shield" size="sm" color="success" className="group-hover:scale-110 transition-transform duration-300" />
+                  <span className="absolute left-12 opacity-0 group-hover:opacity-100 group-hover:left-14 transition-all duration-300 whitespace-nowrap bg-slate-900 px-3 py-1.5 rounded-full border border-slate-700 text-sm transform translate-x-2 group-hover:translate-x-0">
+                    Verified Source
+                  </span>
+                  
+                  {/* Tooltip */}
+                  <div className="absolute hidden group-hover:block z-50 left-0 top-full mt-2 w-80 bg-slate-900 border border-slate-700 rounded-lg p-4 shadow-xl transition-opacity duration-300">
+                    <div className="text-sm font-semibold text-white mb-2">Verified Sources</div>
+                    <div className="text-xs text-slate-300 space-y-2">
+                      <div>
+                        <div className="font-medium text-emerald-400 mb-1">Source Types:</div>
+                        <ul className="list-disc list-inside space-y-1 text-slate-400">
+                          <li>Court Documents & Legal Filings</li>
+                          <li>Flight Logs & Travel Records</li>
+                          <li>Email Correspondence</li>
+                          <li>Deposition Transcripts</li>
+                          <li>Financial Records</li>
+                          <li>Photographic Evidence</li>
+                        </ul>
+                      </div>
+                      <div className="pt-2 border-t border-slate-700">
+                        <div className="font-medium text-cyan-400">Total Documents: {headerTotalFiles.toLocaleString()}</div>
+                        <div className="text-slate-500 mt-1">All sources verified through public court records and official filings</div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
+              </div>            </div>
             
-            <div className="w-full md:w-auto">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <div className="w-full md:w-auto flex items-center justify-between md:justify-start gap-2">
+              <button aria-label="Toggle menu" aria-expanded={isMobileMenuOpen} className={`mobile-menu md:hidden p-3 bg-slate-800 border border-slate-700 rounded-lg ${isMobileMenuOpen ? 'text-white' : 'text-slate-300'} active:bg-slate-700 transition-colors`} onClick={() => setIsMobileMenuOpen(prev => !prev)}>
+                {isMobileMenuOpen ? <Icon name="X" size="sm" /> : <Icon name="Menu" size="sm" />}
+              </button>
+              <div className="relative flex-1">
+                <Icon name="Search" size="sm" color="gray" className="absolute left-3 top-1/2 transform -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder="Search names, contexts..."
-                  aria-label="Search names, contexts, or evidence"
-                  className="w-full md:w-64 pl-10 pr-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
+                  placeholder="Search across all evidence..."
+                  aria-label="Unified search across subjects, documents, and evidence"
+                  className="w-full md:w-64 pl-10 pr-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm form-input sticky-search"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
+                {searchTerm.trim().length >= 2 && (
+                  <div className="absolute left-0 mt-1 w-full md:w-96 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
+                    <div className="p-2 text-xs text-slate-400 border-b border-slate-700">Search results for "{searchTerm}"</div>
+                    {people.filter(p=> (p.name||'').toLowerCase().includes(searchTerm.toLowerCase())).slice(0,5).map((p,i)=> (
+                      <button key={`sugg-${p.id}-${i}`} className="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-800 flex items-center gap-2" onClick={()=> handlePersonClick(p, searchTerm)}>
+                        <Icon name="User" size="sm" color="gray" />
+                        <span className="truncate">{p.name}</span>
+                        <span className="text-xs text-slate-500 ml-auto">Subject</span>
+                      </button>
+                    ))}
+                    {people.filter(p=> (p.name||'').toLowerCase().includes(searchTerm.toLowerCase())).length===0 && (
+                      <div className="px-3 py-2 text-sm text-slate-400">No subjects found</div>
+                    )}
+                    <div className="border-t border-slate-700 mt-1 pt-1">
+                      <button 
+                        className="w-full text-left px-3 py-2 text-sm text-cyan-400 hover:bg-slate-800 flex items-center gap-2"
+                        onClick={() => navigate(`/search?q=${encodeURIComponent(searchTerm)}`)}
+                      >
+                        <Icon name="Search" size="sm" />
+                        <span>Search all documents for "{searchTerm}"</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 ml-2 mr-2">
+              <div className="group relative">
+                <button
+                  onClick={() => navigate('/investigations')}
+                  className="flex items-center gap-2 bg-slate-800 border border-slate-600 rounded-full px-2 h-10 text-white text-sm hover:bg-slate-700 transition-all duration-300 overflow-hidden"
+                >
+                  <Icon name="Plus" size="sm" />
+                  <span className="max-w-0 group-hover:max-w-[120px] opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap">New</span>
+                </button>
+                <div className="absolute hidden group-hover:block z-50 right-0 top-full mt-2 w-64 bg-slate-900 border border-slate-700 rounded-lg p-4 shadow-xl">
+                  <div className="text-sm font-semibold text-white mb-1">Create</div>
+                  <div className="text-xs text-slate-300">Start a new investigation, add evidence, or import documents.</div>
+                </div>
+              </div>
+              <div className="group relative">
+                <button
+                  onClick={() => setShowKeyboardShortcuts(true)}
+                  className="flex items-center gap-2 bg-slate-800 border border-slate-600 rounded-full px-2 h-10 text-white text-sm hover:bg-slate-700 transition-all duration-300 overflow-hidden"
+                >
+                  <Icon name="Command" size="sm" />
+                  <span className="max-w-0 group-hover:max-w-[140px] opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap">Shortcuts</span>
+                </button>
+                <div className="absolute hidden group-hover:block z-50 right-0 top-full mt-2 w-64 bg-slate-900 border border-slate-700 rounded-lg p-4 shadow-xl">
+                  <div className="text-sm font-semibold text-white mb-1">Keyboard Shortcuts</div>
+                  <div className="text-xs text-slate-300">Speed up navigation and actions with quick keys.</div>
+                </div>
+              </div>
+              <div className="group relative">
+                <button
+                  onClick={() => navigate('/articles')}
+                  className="flex items-center gap-2 bg-slate-800 border border-slate-600 rounded-full px-2 h-10 text-white text-sm hover:bg-slate-700 transition-all duration-300 overflow-hidden"
+                >
+                  <Icon name="Shield" size="sm" />
+                  <span className="max-w-0 group-hover:max-w-[140px] opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap">Sources</span>
+                </button>
+                <div className="absolute hidden group-hover:block z-50 right-0 top-full mt-2 w-72 bg-slate-900 border border-slate-700 rounded-lg p-4 shadow-xl">
+                  <div className="text-sm font-semibold text-white mb-1">Verified Sources</div>
+                  <div className="text-xs text-slate-300">Court filings, flight logs, emails, depositions, financial records, and photographic evidence.</div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8 relative z-10">
-        {/* Loading State */}
-        {/* Loading State removed - using skeletons instead */}
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8 relative z-10 flex-grow overflow-hidden">
+        {/* Mobile Stats Row */}
+        <div className="md:hidden grid grid-cols-3 gap-2 mb-6 text-center">
+          <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-2">
+            <div className="text-xs text-slate-400 uppercase tracking-wider">Subjects</div>
+            <div className="text-lg font-bold text-cyan-400">{headerTotalPeople.toLocaleString()}</div>
+          </div>
+          <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-2">
+            <div className="text-xs text-slate-400 uppercase tracking-wider">Mentions</div>
+            <div className="text-lg font-bold text-blue-400">{headerTotalMentions.toLocaleString()}</div>
+          </div>
+          <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-2">
+            <div className="text-xs text-slate-400 uppercase tracking-wider">Files</div>
+            <div className="text-lg font-bold text-purple-400">{headerTotalFiles.toLocaleString()}</div>
+          </div>
+        </div>
+        {/* Unified Progress Pill */}
+        {(() => {
+          const label = loading ? loadingProgress : (analyticsLoading ? 'Loading analytics...' : null)
+          const value = loading ? loadingProgressValue : (analyticsLoading ? 80 : undefined)
+          return label ? <LoadingPill label={label} value={value} /> : null
+        })()}
 
         {/* Navigation Tabs - X-Files Style */}
-        <div className="flex space-x-2 mb-6 bg-slate-800/50 backdrop-blur-sm p-1.5 rounded-xl border border-slate-700 overflow-x-auto scrollbar-hide -mx-4 px-4 md:mx-0 md:px-1.5">
+        <div className="hidden md:flex md:flex-wrap lg:flex-nowrap gap-2 mb-6 bg-slate-800/50 backdrop-blur-sm p-1.5 rounded-xl border border-slate-700 -mx-4 px-4 md:mx-0 md:px-1.5 items-center overflow-x-auto scrollbar-hide">
           <button
             onClick={() => navigate('/people')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap ${
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap lg:flex-shrink-0 ${
               activeTab === 'people'
-                ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg'
-                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg btn-primary'
+                : 'text-slate-400 hover:text-white hover:bg-slate-700/50 btn-secondary'
             }`}
           >
-            <Users className="h-4 w-4" />
+            <Icon name="Users" size="sm" />
             <span>Subjects</span>
           </button>
           <button
             onClick={() => navigate('/search')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap ${
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap lg:flex-shrink-0 ${
               activeTab === 'search'
-                ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg'
-                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg btn-primary'
+                : 'text-slate-400 hover:text-white hover:bg-slate-700/50 btn-secondary'
             }`}
           >
-            <Search className="h-4 w-4" />
+            <Icon name="Search" size="sm" />
             <span>Search</span>
           </button>
           <button
             onClick={() => navigate('/documents')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap ${
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap lg:flex-shrink-0 ${
               activeTab === 'documents'
-                ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-lg'
-                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-lg btn-primary'
+                : 'text-slate-400 hover:text-white hover:bg-slate-700/50 btn-secondary'
             }`}
           >
-            <FileText className="h-4 w-4" />
+            <Icon name="FileText" size="sm" />
             <span>Documents</span>
           </button>
-          <button
-            onClick={() => navigate('/investigations')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap ${
-              activeTab === 'investigations'
-                ? 'bg-gradient-to-r from-red-600 to-pink-600 text-white shadow-lg'
-                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
-            }`}
-          >
-            <Target className="h-4 w-4" />
-            <span>Investigations</span>
-          </button>
+          <div className="relative inline-block">
+            <button
+              onClick={() => { try { localStorage.setItem('investigate_attract_shown','true'); localStorage.setItem('investigate_popover_dismissed','true'); } catch (e) { console.warn('localStorage not available:', e); } setInvestigateAttract(false); setInvestigatePopoverOpen(false); navigate('/investigations'); }}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap lg:flex-shrink-0 ${
+                activeTab === 'investigations'
+                  ? 'bg-gradient-to-r from-red-600 to-pink-600 text-white shadow-lg btn-primary'
+                  : `text-slate-400 hover:text-white hover:bg-slate-700/50 ${investigateAttract ? 'ring-2 ring-pink-500 shadow-lg shadow-pink-500/30 animate-pulse' : ''} btn-secondary`
+              }`}
+              aria-haspopup="dialog"
+              aria-expanded={investigatePopoverOpen}
+              ref={investigateBtnRef}
+              data-investigation-nav-top
+            >
+              <Icon name="Target" size="sm" />
+              <span>Investigations</span>
+            </button>
+            {investigatePopoverOpen && activeTab !== 'investigations' && createPortal(
+              <div className="fixed w-[320px] bg-slate-900 border border-pink-500/40 rounded-xl shadow-xl p-4" style={{ left: investigatePopoverPos.x, top: investigatePopoverPos.y, zIndex: 2147483647 }}>
+                <div className="absolute -top-2" style={{ left: `${investigateArrowLeft}px` }}>
+                  <div className="w-4 h-4 bg-slate-900 border border-pink-500/40 rotate-45"></div>
+                </div>
+                <div className="text-white font-semibold mb-1">Investigations</div>
+                <div className="text-slate-300 text-sm mb-3">Create and manage deep-dive investigations, link evidence, and track findings.</div>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 hover:bg-slate-700"
+                    onClick={() => { try { localStorage.setItem('investigate_popover_dismissed','true'); } catch (e) { console.warn('localStorage not available:', e); } setInvestigatePopoverOpen(false); setInvestigateAttract(false); }}
+                  >
+                    Got it
+                  </button>
+                  <button
+                    className="px-3 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-lg"
+                    onClick={() => { try { localStorage.setItem('investigate_popover_dismissed','true'); localStorage.setItem('investigate_attract_shown','true'); } catch (e) { console.warn('localStorage not available:', e); } setInvestigatePopoverOpen(false); setInvestigateAttract(false); navigate('/investigations'); }}
+                  >
+                    Try it
+                  </button>
+                </div>
+              </div>,
+              document.body
+            )}
+          </div>
           <button
             onClick={() => navigate('/blackbook')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap ${
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap lg:flex-shrink-0 ${
               activeTab === 'blackbook'
-                ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-lg'
-                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-lg btn-primary'
+                : 'text-slate-400 hover:text-white hover:bg-slate-700/50 btn-secondary'
             }`}
           >
-            <Book className="h-4 w-4" />
+            <Icon name="Book" size="sm" />
             <span>Black Book</span>
           </button>
           <button
             onClick={() => navigate('/timeline')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap ${
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap lg:flex-shrink-0 ${
               activeTab === 'timeline'
-                ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-lg'
-                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-lg btn-primary'
+                : 'text-slate-400 hover:text-white hover:bg-slate-700/50 btn-secondary'
             }`}
           >
-            <Clock className="h-4 w-4" />
+            <Icon name="Clock" size="sm" />
             <span>Timeline</span>
           </button>
             <button
               onClick={() => navigate('/media')}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors lg:flex-shrink-0 ${
                 activeTab === 'media'
-                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg btn-primary'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-700/50 btn-secondary'
               }`}
             >
-              <Newspaper className="w-4 h-4" />
-              <span>Media & Articles</span>
+              <Icon name="Newspaper" size="sm" />
+              <span>Media</span>
             </button>
+
           <button
             onClick={() => navigate('/analytics')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap ${
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap lg:flex-shrink-0 ${
               activeTab === 'analytics'
-                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
-                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg btn-primary'
+                : 'text-slate-400 hover:text-white hover:bg-slate-700/50 btn-secondary'
             }`}
           >
-            <BarChart3 className="h-4 w-4" />
+            <Icon name="BarChart3" size="sm" />
             <span>Analytics</span>
           </button>
+          <button
+            onClick={() => navigate('/about')}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap lg:flex-shrink-0 ${
+              activeTab === 'about'
+                ? 'bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-lg btn-primary'
+                : 'text-slate-400 hover:text-white hover:bg-slate-700/50 btn-secondary'
+            }`}
+          >
+            <Icon name="Shield" size="sm" />
+            <span>About</span>
+          </button>
         </div>
+        <MobileMenu
+          open={isMobileMenuOpen}
+          searchTerm={searchTerm}
+          onSearchTermChange={setSearchTerm}
+          onNavigate={(p) => navigate(p)}
+          onClose={() => setIsMobileMenuOpen(false)}
+        />
 
         {/* Tab Content */}
+        <div id="main-content" className="flex-grow">
+        {/* Breadcrumb navigation */}
+        <div className="mb-4 px-4 md:px-0">
+          <Breadcrumb 
+            items={[
+              { label: 'Home', href: '/' },
+              { label: activeTab.charAt(0).toUpperCase() + activeTab.slice(1) }
+            ]} 
+          />
+        </div>
+        <div className="view-transition-enter view-transition-enter-active">
         <Suspense fallback={
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
@@ -610,7 +1114,12 @@ function App() {
                   <StatsSkeleton />
                 </div>
               ) : (
-                <StatsDisplay stats={dataStats} />
+                <StatsDisplay 
+                  stats={dataStats} 
+                  selectedRiskLevel={selectedRiskLevel}
+                  onRiskLevelClick={handleRiskLevelClick}
+                  onResetFilters={handleResetFilters}
+                />
               )}
 
               {/* Results and Sorting */}
@@ -619,23 +1128,50 @@ function App() {
                   <h2 className="text-2xl font-bold text-white mb-2">Investigation Subjects</h2>
                   <p className="text-slate-400">
                     Found {totalPeople.toLocaleString()} subjects matching your criteria
-                    {totalPeople > 50 && ` (showing page ${currentPage} of ${totalPages})`}
+                    {totalPages > 1 && ` (showing page ${currentPage} of ${totalPages})`}
                     <br />
                     <span className="text-xs text-slate-500">
-                      Currently showing {filteredPeople.length} items on this page
+                      • Currently showing {filteredPeople.length} items on this page
                     </span>
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="flex items-center space-x-2">
-                    <label className="text-sm text-slate-400 whitespace-nowrap">Sort by:</label>
+                    <label className="text-sm text-slate-400 whitespace-nowrap">Type:</label>
+                    <select
+                      value={entityType}
+                      onChange={(e) => setEntityType(e.target.value)}
+                      aria-label="Filter by entity type"
+                      className="bg-slate-800 border border-slate-600 rounded-lg px-3 h-10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 form-select"
+                    >
+                      <option value="all">All Types</option>
+                      <option value="Person">👤 Person</option>
+                      <option value="Organization">🏢 Organization</option>
+                      <option value="Location">📍 Location</option>
+                      <option value="Document">📄 Document</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <label className="text-sm text-slate-400 whitespace-nowrap hidden md:inline">Sort by:</label>
+                    <label className="text-sm text-slate-400 whitespace-nowrap md:hidden">Sort:</label>
                     <select
                       value={sortBy}
                       onChange={(e) => setSortBy(e.target.value as any)}
                       aria-label="Sort people by"
-                      className="bg-slate-800 border border-slate-600 rounded-lg px-3 h-10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      className="hidden md:block bg-slate-800 border border-slate-600 rounded-lg px-3 h-10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 form-select"
                     >
                       <option value="spice">🚩 Red Flag Index</option>
+                      <option value="mentions">📊 Mentions</option>
+                      <option value="risk">⚠️ Risk Level</option>
+                      <option value="name">👤 Name</option>
+                    </select>
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as any)}
+                      aria-label="Sort people by"
+                      className="md:hidden bg-slate-800 border border-slate-600 rounded-lg px-3 h-10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 form-select"
+                    >
+                      <option value="spice">🚩 Red Flags</option>
                       <option value="mentions">📊 Mentions</option>
                       <option value="risk">⚠️ Risk Level</option>
                       <option value="name">👤 Name</option>
@@ -643,7 +1179,7 @@ function App() {
                   </div>
                   <button
                     onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                    className="h-10 px-3 bg-slate-800 border border-slate-600 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+                    className="h-10 px-3 bg-slate-800 border border-slate-600 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors btn-secondary"
                     title={`Sort ${sortOrder === 'asc' ? 'Descending' : 'Ascending'}`}
                   >
                     {sortOrder === 'asc' ? '↑' : '↓'}
@@ -651,15 +1187,39 @@ function App() {
                 </div>
               </div>
 
-              {/* People Grid - Always use grid layout for paginated data */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {loading ? (
-                  // Show 12 skeletons while loading to match 3-column grid
-                  [...Array(12)].map((_, index) => (
+              {/* People Grid - Use virtualization for large datasets */}
+              {loading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {/* Show 12 skeletons while loading to match 3-column grid */}
+                  {[...Array(12)].map((_, index) => (
                     <PersonCardSkeleton key={`skeleton-${index}`} />
-                  ))
-                ) : (
-                  filteredPeople.map((person, index) => (
+                  ))}
+                </div>
+              ) : filteredPeople.length > 100 ? (
+                // Use virtual list for large datasets
+                <div className="h-[600px]">
+                  <VirtualList
+                    items={filteredPeople}
+                    itemHeight={300}
+                    containerHeight={600}
+                    renderItem={(person, index) => (
+                      <div className="p-2">
+                        <PersonCard 
+                          key={`${person.name}-${index}`} 
+                          person={person} 
+                          onClick={() => handlePersonClick(person, searchTerm)}
+                          searchTerm={searchTerm}
+                          onDocumentClick={handleDocumentClick}
+                        />
+                      </div>
+                    )}
+                    onItemClick={(person) => handlePersonClick(person, searchTerm)}
+                  />
+                </div>
+              ) : (
+                // Use grid layout for smaller datasets
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {filteredPeople.map((person, index) => (
                     <PersonCard 
                       key={`${person.name}-${index}`} 
                       person={person} 
@@ -667,13 +1227,13 @@ function App() {
                       searchTerm={searchTerm}
                       onDocumentClick={handleDocumentClick}
                     />
-                  ))
-                )}
-              </div>
+                  ))}
+                </div>
+              )}
 
               {!loading && filteredPeople.length === 0 && (
                 <div className="text-center py-12">
-                  <Users className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                  <Icon name="Users" size="xl" color="gray" className="mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-slate-300 mb-2">No results found</h3>
                   <p className="text-slate-400">Try adjusting your search terms</p>
                 </div>
@@ -685,9 +1245,9 @@ function App() {
                   <button
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
-                    className="flex items-center space-x-2 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 transition-colors"
+                    className="flex items-center space-x-2 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 transition-colors btn-secondary"
                   >
-                    <ChevronLeft className="h-4 w-4" />
+                    <Icon name="ChevronLeft" size="sm" />
                     <span>Previous</span>
                   </button>
                   
@@ -701,10 +1261,10 @@ function App() {
                   <button
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
-                    className="flex items-center space-x-2 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 transition-colors"
+                    className="flex items-center space-x-2 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 transition-colors btn-secondary"
                   >
                     <span>Next</span>
-                    <ChevronRight className="h-4 w-4" />
+                    <Icon name="ChevronRight" size="sm" />
                   </button>
                 </div>
               )}
@@ -712,6 +1272,7 @@ function App() {
           )}
 
           {activeTab === 'analytics' && (
+            <ScopedErrorBoundary>
             <div className="space-y-8">
               <div className="mb-8">
                 <h2 className="text-3xl font-bold text-white mb-2">Data Analytics</h2>
@@ -731,23 +1292,31 @@ function App() {
                 }}
               />
             </div>
+            </ScopedErrorBoundary>
           )}
 
           {activeTab === 'search' && (
             <EvidenceSearch onPersonClick={handlePersonClick} />
           )}
 
-          {activeTab === 'documents' && documentProcessor && (
-            <DocumentBrowser 
-              processor={documentProcessor} 
-              searchTerm={selectedDocumentSearchTerm}
-              onSearchTermChange={setSelectedDocumentSearchTerm}
-              selectedDocumentId={selectedDocumentId}
-              onDocumentClose={() => {
-                setSelectedDocumentId('');
-                setSelectedDocumentSearchTerm('');
-              }}
-            />
+          {activeTab === 'documents' && (
+            <div className="space-y-6">
+              {!documentsLoaded && (
+                <LoadingPill label={documentLoadingProgress || 'Loading documents...'} value={documentLoadingProgressValue} />
+              )}
+              {documentProcessor && (
+                <DocumentBrowser 
+                  processor={documentProcessor} 
+                  searchTerm={selectedDocumentSearchTerm}
+                  onSearchTermChange={setSelectedDocumentSearchTerm}
+                  selectedDocumentId={selectedDocumentId}
+                  onDocumentClose={() => {
+                    setSelectedDocumentId('');
+                    setSelectedDocumentSearchTerm('');
+                  }}
+                />
+              )}
+            </div>
           )}
 
           {activeTab === 'timeline' && (
@@ -755,7 +1324,15 @@ function App() {
           )}
 
           {activeTab === 'media' && (
-            <MediaAndArticlesTab />
+            <ScopedErrorBoundary>
+              <EvidenceMedia />
+            </ScopedErrorBoundary>
+          )}
+
+
+
+          {activeTab === 'about' && (
+            <AboutPage />
           )}
 
           {activeTab === 'investigations' && (
@@ -780,6 +1357,8 @@ function App() {
             </div>
           )}
         </Suspense>
+        </div>
+      </div>
       </div>
 
       {/* Evidence Modal */}
@@ -789,12 +1368,20 @@ function App() {
         </div>
       }>
         {selectedPerson && (
-          <EvidenceModal
-            person={selectedPerson}
-            onClose={() => setSelectedPerson(null)}
-            searchTerm={searchTermForModal}
-            onDocumentClick={handleDocumentClick}
-          />
+          <ScopedErrorBoundary>
+            <EvidenceModal
+              person={selectedPerson}
+              onClose={() => setSelectedPerson(null)}
+              searchTerm={searchTermForModal}
+              onDocumentClick={handleDocumentClick}
+            />
+          </ScopedErrorBoundary>
+        )}
+      </Suspense>
+      {/* Inline Document Modal */}
+      <Suspense fallback={null}>
+        {documentModalId && (
+          <DocumentModal id={documentModalId} searchTerm={selectedDocumentSearchTerm} initialDoc={documentModalInitial} onClose={() => { setDocumentModalId(''); setDocumentModalInitial(null); }} />
         )}
       </Suspense>
       
@@ -805,37 +1392,188 @@ function App() {
           onClose={() => setShowReleaseNotes(false)}
           releaseNotes={[
             {
-              version: 'v2.1.0',
-              date: '2024-01-15',
-              title: 'Investigation Onboarding Features',
+              version: 'v3.7.0',
+              date: 'December 6, 2025',
+              title: 'Entity Data Quality & Performance Overhaul',
               notes: [
-                'Added guided onboarding tour for new investigation users',
-                'Implemented example investigation template for empty states',
-                'Enhanced traceability with breadcrumbs and source badges',
-                'Added data integrity dashboard panel',
-                'Integrated evidence packet export functionality',
-                'Added in-app release notes panel'
+                'Cleaned 3,254 junk entities (sentence fragments, OCR artifacts)',
+                'Consolidated 26 duplicate entities into canonical forms (Trump, Clinton, Obama, etc.)',
+                'Enriched 47 key entities with roles and titles (Politician, Lawyer, Victim, etc.)',
+                'Built 182,158 new entity relationships from document co-occurrence',
+                'Total relationships now 402,202 for deeper investigation connections',
+                'Added 6 performance indexes and ran database optimization',
+                'Fixed 129 misclassified "Date" entities'
+              ]
+            },
+            {
+              version: 'v3.1.1',
+              date: 'December 5, 2025',
+              title: 'Chip Filtering with Pagination Fix',
+              notes: [
+                'Fixed chip filtering to work properly with pagination controls',
+                'Pagination controls now remain visible when risk filters are active, even with single-page results',
+                'Users can now easily clear filters using the pagination controls'
+              ]
+            },
+            {
+              version: 'v3.1.0',
+              date: 'December 4, 2025',
+              title: 'Major Release: Photo Browser & Dataset Analysis',
+              notes: [
+                'New Photo Browser with 13 categorized albums and 231 evidence images',
+                'Intelligent image analysis and tagging system',
+                'Comprehensive About page with dataset statistics and legal context',
+                'Enhanced Media tab with evidence/photo library switcher',
+                'Full-text search across 23,000+ new email pages',
+                'Forensic analysis tools and Red Flag Index integration'
+              ]
+            },
+            {
+              version: 'v3.0.0',
+              date: 'December 4, 2025',
+              title: 'Enhanced Document Metadata',
+              notes: [
+                'New professional Metadata Panel for documents',
+                'Detailed technical, structural, and linguistic analysis display',
+                'Improved network risk visualization',
+                'Comprehensive file information and tags'
+              ]
+            },
+            {
+              version: 'v2.9.0',
+              date: 'December 4, 2025',
+              title: 'Forensic PDFs, Custody Exports, Global Insights, Deep Links',
+              notes: [
+                'PDF technical extraction (Producer, Creator, dates, PageCount) with runtime fallback',
+                'Structural scanning (PDF version, font count, JavaScript presence, jsObjectIds)',
+                'New metrics endpoints: JSON download and global summary aggregation',
+                'Dashboard charts: FKGL distribution and sentiment breakdown',
+                'Top lists: JS-heavy PDFs, High Entity Density, Highest Risk',
+                'Compare widget with URL persistence (compareA/compareB) and quick-hover metrics',
+                'Top list rows open analyzer; deep-link with tab=forensic&docId=<id>',
+                'Chain-of-custody exports: text, CSV, and printable HTML report',
+                'End-to-end verification and production deploy readiness'
+              ]
+            },
+            {
+              version: 'v2.9.1',
+              date: 'December 4, 2025',
+              title: 'Evidence Types Everywhere + Filtering',
+              notes: [
+                'Mapped evidence types across all endpoints (list, entity, search)',
+                'Added evidence type filtering in entities API (view-backed LIKE)',
+                'Improved PersonCard to show evidence type chips and formatting',
+                'Robust risk filtering: fixed SQL binding, client-side fallback',
+                'Built deployment package and verified e2e'
+              ]
+            },
+            {
+              version: 'v2.9.0',
+              date: 'December 4, 2025',
+              title: 'Risk & Evidence Types Parity',
+              notes: [
+                'Fixed risk filter chips to reliably filter results',
+                'Surfaced evidence types across list cards, search, and modal',
+                'Implemented evidence type filtering in entities API',
+                'Backfilled evidence links from documents to entities'
+              ]
+            },
+            {
+              version: 'v2.8.0',
+              date: 'December 3, 2025',
+              title: 'UI Cleanup + Deploy Parity',
+              notes: [
+                'Removed redundant left sidebar; streamlined navigation to top tabs',
+                'Ensured production points to latest frontend build path',
+                'Verified API parity and relationship stats schema in production',
+                'Updated What\'s New and versioning for visibility'
+              ]
+            },
+            {
+              version: 'v2.7.0',
+              date: 'December 3, 2025',
+              title: 'Investigator Feature Completion + Prod Parity',
+              notes: [
+                'Forensic Document Analyzer responsive fix and sticky modal header',
+                'Graph export (SVG/PNG), risk color + proximity thickness with disclaimer',
+                'Provenance & sensitivity chips: source collection, original URL, credibility, sensitivity',
+                'Enhanced search with facets/snippets and filters (type, evidenceType, redFlagBand, date range)',
+                'Production endpoints parity: relationships, graph, stats, jobs, summary-source',
+                'Weighted relationship recompute with proximity, risk, confidence, metadata breakdown',
+                'Alias clustering script and stats endpoint',
+                'Build packaging script fixes and production deploy package'
+              ]
+            },
+            {
+              version: 'v2.6.0',
+              date: 'December 1, 2025',
+              title: 'Black Book Filters + Data Enrichment',
+              notes: [
+                'Black Book API: search, letter, contact filters (phone/email/address)',
+                'Viewer: server-side filters, 5K limit fetch for full coverage',
+                'Metadata extraction across documents (emails, phones, addresses, orgs, locations)',
+                'Alias clustering & canonical elevation for key persons',
+                'Weighted relationships computed with risk and evidence-type bias'
+              ]
+            },
+            {
+              version: 'v2.4.0',
+              date: 'December 1, 2025',
+              title: 'Search Engine Upgrade (FTS, Synonyms, Strict Filtering)',
+              notes: [
+                'FTS5-backed search with prefix and synonym expansion',
+                'Weighted ranking (name, role, mentions, Red Flags)',
+                'Strict homepage filtering to exact name matches',
+                'Fallback to indexed LIKE when FTS unavailable',
+                'Continuous FTS sync via triggers (insert/update/delete)',
+                'Paginated search API with stable response shape'
+              ]
+            },
+            {
+              version: 'v2.2.0',
+              date: 'December 1, 2025',
+              title: 'Mobile UX Overhaul',
+              notes: [
+                'Compact stats display (single row layout)',
+                'Enhanced mobile menu and improved tap targets',
+                'Visual feedback (active states) on all interactive elements'
+              ]
+            },
+            {
+              version: 'v2.1.0',
+              date: 'November 26, 2025',
+              title: 'Data Quality & Deployment Automation',
+              notes: [
+                'Automated deployment system with validation and rollback',
+                'Database hardening with WAL mode and hourly backups',
+                'Removed 1,006 duplicate and malformed entities',
+                'TypeScript compilation automation for production'
               ]
             },
             {
               version: 'v2.0.0',
-              date: '2024-01-10',
-              title: 'Major Platform Update',
+              date: 'November 25, 2025',
+              title: 'Red Flag Index & Enhanced Features',
               notes: [
-                'Complete UI redesign with dark theme',
-                'Enhanced search capabilities',
-                'Improved document browser with filtering',
-                'Added timeline visualization',
-                'Implemented network analysis tools',
-                'Added forensic analysis workspace'
+                'Red Flag Index system (replaced Spice Rating)',
+                'Enhanced entity filtering and search',
+                'Improved document browser with highlighting',
+                'Black Book data integration',
+                'Timeline visualization',
+                'Analytics dashboard'
               ]
             }
           ]}
         />
       </Suspense>
       
+      <KeyboardShortcutsModal 
+        isOpen={showKeyboardShortcuts}
+        onClose={() => setShowKeyboardShortcuts(false)}
+      />
+      
       {/* Footer with support links */}
-      <footer className="mt-12 py-6 border-t border-slate-800 bg-slate-900/50">
+      <footer className="mt-auto py-6 border-t border-slate-800 bg-slate-900/50 sticky bottom-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-slate-400 text-sm">
@@ -858,11 +1596,23 @@ function App() {
               >
                 The End Times Substack
               </a>
+              <a
+                href="https://about.glasscode.academy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-slate-400 hover:text-cyan-400 text-sm flex items-center transition-colors"
+                title="Glass Academy"
+              >
+                Glass Academy
+              </a>
             </div>
           </div>
         </div>
       </footer>
-    </div>
+          </div>
+        </InvestigationsProvider>
+      </UndoProvider>
+    </ToastProvider>
   );
 }
 

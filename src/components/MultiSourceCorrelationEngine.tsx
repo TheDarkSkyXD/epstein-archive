@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, Unlink, Search, Filter, Download, AlertTriangle, CheckCircle, Clock, MapPin, Phone, Mail, DollarSign, User, Building, Calendar, TrendingUp, Activity } from 'lucide-react';
+import { AddToInvestigationButton } from './AddToInvestigationButton';
 
 interface DataSource {
   id: string;
@@ -48,116 +49,55 @@ export default function MultiSourceCorrelationEngine() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState(0);
 
-  // Mock data sources
+  // Load real data
   useEffect(() => {
-    const mockSources: DataSource[] = [
-      {
-        id: 'financial-001',
-        type: 'financial',
-        name: 'Epstein Financial Records',
-        description: 'Bank statements, wire transfers, and transaction records',
-        lastUpdated: '2024-01-15',
-        reliability: 'verified',
-        recordCount: 2847,
-        coverage: 94
-      },
-      {
-        id: 'communication-001',
-        type: 'communication',
-        name: 'Email & Phone Records',
-        description: 'Email metadata, phone logs, and messaging data',
-        lastUpdated: '2024-01-14',
-        reliability: 'high',
-        recordCount: 15632,
-        coverage: 87
-      },
-      {
-        id: 'travel-001',
-        type: 'travel',
-        name: 'Flight & Travel Logs',
-        description: 'Flight manifests, passport records, and travel itineraries',
-        lastUpdated: '2024-01-13',
-        reliability: 'verified',
-        recordCount: 892,
-        coverage: 96
-      },
-      {
-        id: 'document-001',
-        type: 'document',
-        name: 'Legal & Court Documents',
-        description: 'Court filings, depositions, and legal correspondence',
-        lastUpdated: '2024-01-12',
-        reliability: 'verified',
-        recordCount: 1247,
-        coverage: 100
-      },
-      {
-        id: 'social-001',
-        type: 'social',
-        name: 'Social Media & Public Records',
-        description: 'Social media posts, public appearances, and media coverage',
-        lastUpdated: '2024-01-11',
-        reliability: 'medium',
-        recordCount: 3421,
-        coverage: 73
-      },
-      {
-        id: 'legal-001',
-        type: 'legal',
-        name: 'Property & Business Records',
-        description: 'Property deeds, business registrations, and corporate filings',
-        lastUpdated: '2024-01-10',
-        reliability: 'high',
-        recordCount: 567,
-        coverage: 91
-      }
-    ];
+    const load = async () => {
+      try {
+        // Get a representative entity (top by mentions)
+        const entsResp = await fetch('/api/entities?limit=1&sortBy=mentions');
+        const entsJson = await entsResp.json();
+        const topEntity = Array.isArray(entsJson?.entities) ? entsJson.entities[0] : undefined;
 
-    const mockRules: CorrelationRule[] = [
-      {
-        id: 'rule-001',
-        name: 'Coordinated Travel Pattern',
-        description: 'Detect when multiple suspects travel to the same location within 48 hours',
-        type: 'automatic',
-        enabled: true,
-        sensitivity: 'high',
-        lastTriggered: '2024-01-15T14:30:00Z',
-        triggerCount: 23
-      },
-      {
-        id: 'rule-002',
-        name: 'Financial-Communication Correlation',
-        description: 'Link large financial transactions with communication activity',
-        type: 'automatic',
-        enabled: true,
-        sensitivity: 'medium',
-        lastTriggered: '2024-01-14T09:15:00Z',
-        triggerCount: 41
-      },
-      {
-        id: 'rule-003',
-        name: 'Shell Company Network',
-        description: 'Identify networks of shell companies with common characteristics',
-        type: 'ml_suggested',
-        enabled: true,
-        sensitivity: 'high',
-        lastTriggered: '2024-01-13T16:45:00Z',
-        triggerCount: 15
-      },
-      {
-        id: 'rule-004',
-        name: 'Temporal Proximity Analysis',
-        description: 'Find events occurring within suspicious time windows',
-        type: 'automatic',
-        enabled: false,
-        sensitivity: 'low',
-        triggerCount: 0
-      }
-    ];
+        // Build data sources summary from DB stats
+        const statsResp = await fetch('/api/stats');
+        const stats = await statsResp.json().catch(() => ({}));
+        const ds: DataSource[] = [
+          { id: 'documents', type: 'document', name: 'Documents', description: 'Indexed evidence documents', lastUpdated: new Date().toISOString().slice(0,10), reliability: 'verified', recordCount: stats?.totalDocuments || 0, coverage: 100 },
+          { id: 'entities', type: 'legal', name: 'Entities', description: 'People and organizations with mentions', lastUpdated: new Date().toISOString().slice(0,10), reliability: 'high', recordCount: stats?.totalEntities || 0, coverage: 100 }
+        ];
+        setDataSources(ds);
 
-    setDataSources(mockSources);
-    setCorrelationRules(mockRules);
-    generateMockCorrelations();
+        // Relationships for correlations
+        if (topEntity?.id) {
+          const relResp = await fetch(`/api/relationships?entityId=${topEntity.id}&includeBreakdown=true&minConfidence=0`);
+          const relJson = await relResp.json();
+          const rels = Array.isArray(relJson?.relationships) ? relJson.relationships : [];
+          const corr: CorrelationResult[] = rels.map((r: any, idx: number) => ({
+            id: `rel-${idx}`,
+            type: 'entity',
+            confidence: Math.round((r.confidence || 0) * 100) || 75,
+            description: `Relationship ${r.relationship_type} with entity ${r.target_id}`,
+            sources: [],
+            entities: [String(topEntity.fullName || topEntity.name || topEntity.id), String(r.target_id)],
+            timeRange: { start: 'Unknown', end: 'Unknown' },
+            significance: (r.proximity_score || 0) > 0.7 ? 'high' : (r.proximity_score || 0) > 0.4 ? 'medium' : 'low',
+            evidence: [],
+            anomalies: []
+          }));
+          setCorrelations(corr);
+        } else {
+          setCorrelations([]);
+        }
+
+        // Basic rule list without mocks
+        setCorrelationRules([]);
+      } catch {
+        setDataSources([]);
+        setCorrelationRules([]);
+        setCorrelations([]);
+      }
+    };
+    load();
   }, []);
 
   const generateMockCorrelations = () => {
@@ -268,8 +208,8 @@ export default function MultiSourceCorrelationEngine() {
     setTimeout(() => {
       setIsAnalyzing(false);
       setAnalysisProgress(0);
-      generateMockCorrelations(); // Refresh correlations
-    }, 3500);
+      // No mock refresh; re-run load would happen via separate controls if needed
+      }, 3500);
   };
 
   const getSourceIcon = (type: string) => {
@@ -357,7 +297,7 @@ export default function MultiSourceCorrelationEngine() {
 
         {/* Controls */}
         <div className="bg-gray-800 rounded-lg p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">Search Correlations</label>
               <div className="relative">
@@ -408,7 +348,7 @@ export default function MultiSourceCorrelationEngine() {
               <button
                 onClick={runCorrelationAnalysis}
                 disabled={isAnalyzing}
-                className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg transition-colors flex items-center justify-center gap-2"
+                className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg transition-colors flex items-center justify-center gap-2 whitespace-nowrap min-w-[160px]"
               >
                 {isAnalyzing ? (
                   <>
@@ -455,11 +395,11 @@ export default function MultiSourceCorrelationEngine() {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
           <div className="bg-gray-800 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-sm">Active Sources</p>
+                <p className="text-gray-400 text-sm whitespace-nowrap">Active Sources</p>
                 <p className="text-2xl font-bold text-blue-400">{dataSources.length}</p>
               </div>
               <Activity className="w-8 h-8 text-blue-400" />
@@ -469,7 +409,7 @@ export default function MultiSourceCorrelationEngine() {
           <div className="bg-gray-800 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-sm">Total Correlations</p>
+                <p className="text-gray-400 text-sm whitespace-nowrap">Total Correlations</p>
                 <p className="text-2xl font-bold text-green-400">{filteredCorrelations.length}</p>
               </div>
               <Link className="w-8 h-8 text-green-400" />
@@ -479,7 +419,7 @@ export default function MultiSourceCorrelationEngine() {
           <div className="bg-gray-800 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-sm">Critical Findings</p>
+                <p className="text-gray-400 text-sm whitespace-nowrap">Critical Findings</p>
                 <p className="text-2xl font-bold text-yellow-400">
                   {filteredCorrelations.filter(c => c.significance === 'critical').length}
                 </p>
@@ -491,7 +431,7 @@ export default function MultiSourceCorrelationEngine() {
           <div className="bg-gray-800 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-400 text-sm">Avg Confidence</p>
+                <p className="text-gray-400 text-sm whitespace-nowrap">Avg Confidence</p>
                 <p className="text-2xl font-bold text-purple-400">
                   {filteredCorrelations.length > 0 
                     ? Math.round(filteredCorrelations.reduce((sum, c) => sum + c.confidence, 0) / filteredCorrelations.length)
@@ -504,9 +444,9 @@ export default function MultiSourceCorrelationEngine() {
         </div>
 
         {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {/* Correlation Results */}
-          <div className="lg:col-span-2">
+          <div className="md:col-span-1 xl:col-span-2">
             <div className="bg-gray-800 rounded-lg p-6">
               <h2 className="text-xl font-semibold text-gray-100 mb-4">Correlation Results</h2>
               <div className="space-y-4 max-h-96 overflow-y-auto">
@@ -543,6 +483,32 @@ export default function MultiSourceCorrelationEngine() {
                       }`}>
                         {correlation.significance.toUpperCase()}
                       </span>
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <AddToInvestigationButton 
+                          item={{
+                            id: correlation.id,
+                            title: `Correlation: ${correlation.description.substring(0, 50)}...`,
+                            description: correlation.description,
+                            type: 'evidence',
+                            sourceId: correlation.id,
+                            metadata: {
+                              confidence: correlation.confidence,
+                              type: correlation.type,
+                              significance: correlation.significance
+                            }
+                          }}
+                          investigations={[]} // This needs to be populated from context or props
+                          onAddToInvestigation={(invId, item, relevance) => {
+                            console.log('Add to investigation', invId, item, relevance);
+                            const event = new CustomEvent('add-to-investigation', { 
+                              detail: { investigationId: invId, item, relevance } 
+                            });
+                            window.dispatchEvent(event);
+                          }}
+                          variant="icon"
+                          className="hover:bg-slate-600 p-1"
+                        />
+                      </div>
                     </div>
 
                     <p className="text-gray-100 mb-3">{correlation.description}</p>
@@ -655,7 +621,33 @@ export default function MultiSourceCorrelationEngine() {
             {/* Correlation Details */}
             {selectedCorrelation && (
               <div className="bg-gray-800 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-100 mb-4">Correlation Details</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-100">Correlation Details</h3>
+                  <AddToInvestigationButton 
+                    item={{
+                      id: selectedCorrelation.id,
+                      title: `Correlation: ${selectedCorrelation.description.substring(0, 50)}...`,
+                      description: selectedCorrelation.description,
+                      type: 'evidence',
+                      sourceId: selectedCorrelation.id,
+                      metadata: {
+                        confidence: selectedCorrelation.confidence,
+                        type: selectedCorrelation.type,
+                        significance: selectedCorrelation.significance
+                      }
+                    }}
+                    investigations={[]} // This needs to be populated from context or props
+                    onAddToInvestigation={(invId, item, relevance) => {
+                      console.log('Add to investigation', invId, item, relevance);
+                      const event = new CustomEvent('add-to-investigation', { 
+                        detail: { investigationId: invId, item, relevance } 
+                      });
+                      window.dispatchEvent(event);
+                    }}
+                    variant="button"
+                    className="text-xs"
+                  />
+                </div>
                 <div className="space-y-3">
                   <div>
                     <label className="block text-sm font-medium text-gray-400">Type</label>

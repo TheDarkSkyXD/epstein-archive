@@ -1,8 +1,10 @@
 import React from 'react';
-import { User, ExternalLink, Calendar, TrendingUp, FileText, Award, Briefcase } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Person } from '../types';
-import { getLikelihoodColor, formatNumber } from '../utils/search';
-import { RedFlagIndex } from './RedFlagIndex';
+import { formatNumber } from '../utils/search';
+import { AddToInvestigationButton } from './AddToInvestigationButton';
+import Icon from './Icon';
+import { getEntityTypeIcon } from '../utils/entityTypeIcons';
 
 interface PersonCardProps {
   person: Person;
@@ -12,251 +14,147 @@ interface PersonCardProps {
 }
 
 const PersonCard: React.FC<PersonCardProps> = ({ person, onClick, onDocumentClick, searchTerm }) => {
-  // Calculate mention intensity for visual indicator
-  const maxMentions = 10686; // Trump's mentions as max
-  const mentionIntensity = (person.mentions / maxMentions) * 100;
+  const navigate = useNavigate();
+  const rating = Number((person as any).red_flag_rating ?? (person as any).redFlagRating ?? (person as any).spiceRating ?? 0);
   
-  // Get role icon
-  const getRoleIcon = (role: string) => {
-    const roleLower = role.toLowerCase();
-    if (roleLower.includes('president')) return <Award className="h-4 w-4" />;
-    if (roleLower.includes('senator')) return <Award className="h-4 w-4" />;
-    if (roleLower.includes('governor')) return <Award className="h-4 w-4" />;
-    if (roleLower.includes('business') || roleLower.includes('financier') || roleLower.includes('ceo') || roleLower.includes('executive')) return <Briefcase className="h-4 w-4" />;
-    if (roleLower.includes('professor') || roleLower.includes('lawyer') || roleLower.includes('attorney')) return <FileText className="h-4 w-4" />;
-    if (roleLower.includes('socialite')) return <User className="h-4 w-4" />;
-    return <FileText className="h-4 w-4" />;
+  // Get entity type icon
+  const getEntityIcon = () => {
+    const entityType = (person as any).entity_type || (person as any).entityType;
+    return getEntityTypeIcon(entityType, 'md');
   };
 
-  // Get status color
-  const getStatusColor = (status: string) => {
-    if (status.includes('CONVICTED')) return 'text-red-400';
-    if (status.includes('DECEASED')) return 'text-gray-400';
-    if (status.includes('ACTIVE')) return 'text-green-400';
-    return 'text-yellow-400';
+  // Get risk color based on rating
+  const getRiskColor = (r: number) => {
+    if (r >= 5) return 'text-purple-400 bg-purple-500/20 border-purple-500/40';
+    if (r >= 4) return 'text-red-400 bg-red-500/20 border-red-500/40';
+    if (r >= 3) return 'text-orange-400 bg-orange-500/20 border-orange-500/40';
+    if (r >= 2) return 'text-yellow-400 bg-yellow-500/20 border-yellow-500/40';
+    return 'text-slate-400 bg-slate-500/20 border-slate-500/40';
   };
 
-  // Function to highlight search terms in text
+  // Highlight search term in text
   const highlightText = (text: string, term?: string) => {
-    if (!term || !text || typeof text !== 'string') return text;
-    
+    if (!term || !text) return text;
     try {
-      // Escape special regex chars
-      const escapeRegExp = (string: string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      
-      // Split term into words and filter out short words to avoid noise
-      const terms = term.split(/\s+/).filter(t => t.length > 2).map(escapeRegExp);
-      
-      if (terms.length === 0) {
-        // If no valid terms after filtering, try the full term if it's short but not empty
-        if (term.trim().length > 0) {
-           const regex = new RegExp(`(${escapeRegExp(term)})`, 'gi');
-           return text.replace(regex, '<mark class="bg-yellow-500 text-black px-1 rounded">$1</mark>');
-        }
-        return text;
-      }
-      
-      // Create pattern to match any of the terms
-      const pattern = `(${terms.join('|')})`;
-      const regex = new RegExp(pattern, 'gi');
-      
-      return text.replace(regex, '<mark class="bg-yellow-500 text-black px-1 rounded">$1</mark>');
-    } catch (e) {
-      console.warn('Error highlighting text:', e);
+      const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`(${escapedTerm})`, 'gi');
+      const parts = text.split(regex);
+      return parts.map((part, i) => 
+        regex.test(part) ? <mark key={i} className="bg-yellow-500/30 text-yellow-200 px-0.5 rounded">{part}</mark> : part
+      );
+    } catch {
       return text;
     }
   };
 
-  // Function to safely render highlighted text
-  const renderHighlightedText = (text: string, term?: string) => {
-    if (!term || !text || typeof text !== 'string') return text;
-    
-    try {
-      const highlighted = highlightText(text, term);
-      if (highlighted === text) return text;
-      
-      return <span dangerouslySetInnerHTML={{ __html: highlighted }} />;
-    } catch (e) {
-      console.warn('Error rendering highlighted text:', e);
-      return text;
-    }
-  };
+  const files = person.files ?? (person.fileReferences?.length ?? 0);
+  const title = person.title || (person.evidence_types?.[0]?.toString().replace('_', ' ').toUpperCase()) || 'Unknown';
 
   return (
     <div 
       onClick={onClick}
-      className="interactive-card bg-gradient-to-br from-slate-800/70 to-slate-900/50 backdrop-blur-sm border border-slate-600 rounded-2xl p-6 hover:from-slate-800/80 hover:to-slate-900/60 hover:border-slate-500 cursor-pointer group animate-fade-in"
+      className="group bg-slate-800/60 hover:bg-slate-800/90 border border-slate-700/50 hover:border-slate-600 rounded-xl p-4 cursor-pointer transition-all duration-200 active:scale-[0.99]"
+      tabIndex={0}
+      role="button"
+      aria-label={`View details for ${person.name}`}
     >
-      {/* Mention intensity bar */}
-      <div className="mb-4 h-1 bg-slate-700 rounded-full overflow-hidden">
-        <div 
-          className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-500"
-          style={{ width: `${mentionIntensity}%` }}
-        ></div>
-      </div>
-
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center space-x-3">
-          <div className="bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl p-3 group-hover:from-slate-600 group-hover:to-slate-700 transition-all duration-300">
-            <User className="h-6 w-6 text-slate-300 group-hover:text-white" />
-          </div>
-          <div>
-          <div className="relative group/name">
-            <h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors">
-              {searchTerm ? renderHighlightedText(person.name, searchTerm) : person.name}
-            </h3>
-            {/* Name variant tooltip */}
-            {person.title_variants && person.title_variants.length > 0 && (
-              <div className="absolute left-0 top-full mt-2 w-64 bg-slate-900 border border-slate-700 rounded-lg p-3 shadow-xl opacity-0 invisible group-hover/name:opacity-100 group-hover/name:visible transition-all duration-200 z-10">
-                <div className="text-xs font-semibold text-white mb-1">Name Variants:</div>
-                <div className="text-xs text-slate-300">
-                  {person.title_variants.join(', ')}
-                </div>
-              </div>
-            )}
-          </div>
-            {person.title && (
-              <div className="flex items-center space-x-2 mt-1">
-                <div className="text-slate-400 text-sm">
-                  {getRoleIcon(person.title)}
-                </div>
-                <p className="text-sm text-slate-400">
-                  {searchTerm ? renderHighlightedText(person.title, searchTerm) : person.title}
-                </p>
-              </div>
-            )}
-            {!person.title && (
-              <div className="flex items-center space-x-2 mt-1">
-                <div className="text-slate-400 text-sm">
-                  {getRoleIcon(person.evidence_types?.[0] || 'Unknown')}
-                </div>
-                <p className="text-sm text-slate-400">
-                  {searchTerm ? renderHighlightedText(person.evidence_types?.[0] || 'Unknown', searchTerm) : (person.evidence_types?.[0] || 'Unknown')}
-                </p>
-              </div>
-            )}
-            {person.role && (
-              <p className="text-xs text-slate-500 mt-1 max-w-xs line-clamp-2">
-                {searchTerm ? renderHighlightedText(person.role, searchTerm) : person.role}
-              </p>
-            )}
-          </div>
+      {/* Top row: Icon, Name, Risk badge */}
+      <div className="flex items-start gap-3 mb-3">
+        {/* Entity icon */}
+        <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-slate-700/50 flex items-center justify-center text-slate-400 group-hover:text-white group-hover:bg-slate-600/50 transition-colors">
+          {getEntityIcon()}
         </div>
-        <div className="text-right">
-          <div className="mt-2 flex flex-col items-end gap-1">
-            <div title="Red Flag Index - Risk level based on evidence and mentions">
-              <RedFlagIndex value={person.red_flag_index !== undefined ? person.red_flag_index : (person.spice_rating || 0)} size="sm" showLabel />
-            </div>
-            <div className="flex items-center text-xs text-slate-400">
-              <TrendingUp className="h-3 w-3 mr-1" />
-              <span title="Total mentions across all documents">{formatNumber(person.mentions)} mentions</span>
-            </div>
-            <div className="text-xs text-slate-500" title="Number of documents referencing this person">
-              {(person.files !== undefined ? person.files : (person.fileReferences ? person.fileReferences.length : 0))} documents
-            </div>
-          </div>
+        
+        {/* Name and title */}
+        <div className="flex-1 min-w-0">
+          <h3 className="text-base font-semibold text-white truncate group-hover:text-cyan-300 transition-colors">
+            {searchTerm ? highlightText(person.name, searchTerm) : person.name}
+          </h3>
+          <p className="text-xs text-slate-400 truncate mt-0.5">
+            {searchTerm ? highlightText(title, searchTerm) : title}
+          </p>
+        </div>
+        
+        {/* Risk badge - compact with flag icons */}
+        <div className={`flex-shrink-0 flex items-center gap-1 px-2 py-1 rounded-full border text-xs font-medium ${getRiskColor(rating)}`}>
+          {Array.from({ length: Math.min(5, rating) }).map((_, i) => (
+            <Icon name="Flag" size="xs" color="inherit" />
+          ))}
         </div>
       </div>
-
-      <div className="space-y-4">
-        {/* Secondary Roles */}
-        {person.evidence_types && person.evidence_types.length > 1 && (
-          <div className="bg-slate-800/30 rounded-lg p-3">
-            <div className="flex items-start space-x-2">
-              <FileText className="h-4 w-4 text-slate-400 mt-0.5" />
-              <div>
-                <span className="text-slate-400 text-sm font-medium" title="Other roles or positions associated with this person">Additional Roles</span>
-                <p className="text-slate-300 text-xs mt-1">
-                  {searchTerm ? renderHighlightedText(person.evidence_types.slice(1).join(', '), searchTerm) : person.evidence_types.slice(1).join(', ')}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Key Evidence Preview */}
-        <div className="bg-gradient-to-r from-slate-800/40 to-slate-700/30 rounded-lg p-4 border border-slate-600/50">
-          <div className="flex items-start space-x-2 mb-2">
-            <div className="w-2 h-2 rounded-full bg-blue-400 mt-2"></div>
-            <div className="flex-1">
-              <p className="text-xs text-slate-300 leading-relaxed">
-                {person.spice_description ? 
-                  renderHighlightedText(person.spice_description.substring(0, 140) + (person.spice_description.length > 140 ? '...' : ''), searchTerm) : 
-                  'No key evidence available'}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center justify-between mt-3">
-            <div className="flex items-center space-x-2">
-              <div className="flex space-x-1">
-                {Array.from({ length: Math.min(3, Math.ceil(person.likelihood_score === 'HIGH' ? 3 : person.likelihood_score === 'MEDIUM' ? 2 : 1)) }).map((_, i) => (
-                  <div key={i} className="w-1 h-4 bg-gradient-to-b from-red-500 to-red-600 rounded"></div>
-                ))}
-              </div>
-              <span className="text-xs text-slate-400" title="Estimated risk level based on evidence strength">Risk Level</span>
-            </div>
-            <span className="text-xs text-slate-500">{(person.files !== undefined ? person.files : 0)} sources</span>
-          </div>
+      
+      {/* Stats row - horizontal, compact */}
+      <div className="flex items-center gap-4 text-xs text-slate-400 mb-3">
+        <div className="flex items-center gap-1.5">
+          <Icon name="TrendingUp" size="sm" />
+          <span>{formatNumber(person.mentions)} mentions</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Icon name="Folder" size="sm" />
+          <span>{files} docs</span>
         </div>
       </div>
-
-      {/* Key Documents & Context */}
-      {person.fileReferences && person.fileReferences.length > 0 && (
-        <div className="space-y-3 mt-4">
-          <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider" title="Most relevant documents referencing this person">Key Documents</h4>
-          <div className="space-y-2 max-h-48 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
-            {person.fileReferences.slice(0, 5).map((doc, idx) => (
-              <div 
-                key={idx}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  // Use searchTerm if it's truthy (not empty/whitespace), otherwise use person.name
-                  const termToUse = (searchTerm && searchTerm.trim()) || person.name;
-                  onDocumentClick && onDocumentClick(doc, termToUse);
-                }}
-                className="bg-slate-800/40 hover:bg-slate-700/60 p-3 rounded-lg border border-slate-700/50 hover:border-blue-500/30 transition-all cursor-pointer group/doc"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-2">
-                    <FileText className="h-3 w-3 text-blue-400 mt-0.5" />
-                    <span className="text-xs font-medium text-slate-300 group-hover/doc:text-blue-300 truncate max-w-[180px]" title="Document filename">
-                      {doc.filename}
-                    </span>
-                  </div>
-                  <RedFlagIndex value={doc.spiceRating || 0} size="sm" />
-                </div>
-                
-                
-                {(doc.contextText || doc.contentPreview) && (
-                  <p className="text-[10px] text-slate-400 mt-1.5 line-clamp-2 leading-relaxed pl-5 border-l-2 border-slate-700 group-hover/doc:border-blue-500/50 transition-colors">
-                    {searchTerm ? 
-                      renderHighlightedText((doc.contextText || doc.contentPreview || '').substring(0, 150), searchTerm) : 
-                      (doc.contextText || doc.contentPreview || '').substring(0, 150)}
-                    ...
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-          {person.fileReferences.length > 5 && (
-            <div className="text-center pt-1">
-              <span className="text-[10px] text-slate-500">
-                + {person.fileReferences.length - 5} more documents
-              </span>
-            </div>
+      
+      {/* Description - truncated to 2 lines */}
+      {person.red_flag_description && (
+// Code to remove the prefix if present
+        <p className="text-xs text-slate-300 leading-relaxed line-clamp-2 mb-3">
+          {searchTerm ? highlightText(person.red_flag_description.replace(/^Red Flag Index \d+[\s:-]*/i, ''), searchTerm) : person.red_flag_description.replace(/^Red Flag Index \d+[\s:-]*/i, '')}
+        </p>
+      )}
+      
+      {/* Evidence types - horizontal chips, no wrap */}
+      {person.evidence_types && person.evidence_types.length > 1 && (
+        <div className="flex items-center gap-1.5 mb-3 overflow-hidden">
+          {person.evidence_types.slice(0, 3).map((type, i) => (
+            <span key={i} className="flex-shrink-0 px-2 py-0.5 bg-blue-900/40 text-blue-300 rounded text-[10px] uppercase tracking-wide">
+              {type.toString().replace('_', ' ')}
+            </span>
+          ))}
+          {person.evidence_types.length > 3 && (
+            <span className="text-[10px] text-slate-500">+{person.evidence_types.length - 3}</span>
           )}
         </div>
       )}
-
-      {/* Action Button */}
-      <div className="mt-6 flex items-center justify-between pt-4 border-t border-slate-700/50">
-        <div className="flex items-center space-x-2 text-xs text-slate-400">
-          <Calendar className="h-3 w-3" />
-          <span>{(person.files !== undefined ? person.files : (person.fileReferences ? person.fileReferences.length : 0))} documents</span>
+      
+      {/* Footer - action buttons */}      <div className="flex items-center justify-between pt-2 border-t border-slate-700/30">
+        <div className="flex items-center gap-1">
+          <button 
+            onClick={(e) => { 
+                e.stopPropagation(); 
+                navigate(`/documents?search=${encodeURIComponent(person.name)}`);
+            }}
+            className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-blue-400 px-1.5 py-1 rounded hover:bg-slate-700/50 transition-colors"
+            title="Related Documents"
+          >
+            <Icon name="FileText" size="xs" />
+            <span>Docs</span>
+          </button>
+          <button 
+            onClick={(e) => { 
+                e.stopPropagation(); 
+                navigate(`/investigations?tab=analytics&focus=${person.id}`);
+            }}
+            className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-purple-400 px-1.5 py-1 rounded hover:bg-slate-700/50 transition-colors"
+            title="Network"
+          >
+            <Icon name="Network" size="xs" />
+            <span>Network</span>
+          </button>
+          <AddToInvestigationButton 
+            item={{
+              id: person.id || '',
+              title: person.name,
+              description: person.role || 'Person of interest',
+              type: 'entity',
+              sourceId: person.id || ''
+            }}
+            variant="quick"
+          />
         </div>
-        <div className="flex items-center text-blue-400 text-sm font-medium group-hover:text-blue-300 transition-colors">
-          <span title="Click to see detailed information about this person">View Full Profile</span>
-          <ExternalLink className="h-4 w-4 ml-1 transform group-hover:translate-x-1 transition-transform" />
+        <div className="flex items-center gap-1 text-xs text-blue-400 group-hover:text-blue-300 transition-colors">
+          <span>Profile</span>
+          <Icon name="ExternalLink" size="xs" className="transform group-hover:translate-x-0.5 transition-transform" />
         </div>
       </div>
     </div>

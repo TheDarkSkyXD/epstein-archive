@@ -1,0 +1,119 @@
+
+# Entity Validation Report
+Generated: 2025-11-19T08:41:44.831Z
+
+## Statistics
+- Total Entities: 96,461
+- Valid Entities: 87,023 (90.22%)
+- Invalid Entities: 9,438 (9.78%)
+
+## Invalid Entity Reasons
+- Failed validation (improper structure): 9,315 (98.70%)
+- Starts with preposition: 88 (0.93%)
+- Starts with common verb/word: 16 (0.17%)
+- Too many words (likely phrase): 15 (0.16%)
+- Title + non-name word: 4 (0.04%)
+
+## Sample Invalid Entities (First 50)
+- "Watched Bret" (Failed validation (improper structure))
+- "International Jet" (Failed validation (improper structure))
+- "Praising His" (Failed validation (improper structure))
+- "Named Paul" (Failed validation (improper structure))
+- "Endorsed Negotiations" (Failed validation (improper structure))
+- "Acting Entirely" (Failed validation (improper structure))
+- "Named Bruce" (Failed validation (improper structure))
+- "Liked Generals" (Failed validation (improper structure))
+- "Liked Her" (Failed validation (improper structure))
+- "Emeritus Noted" (Failed validation (improper structure))
+- "Enjoyed Trash" (Failed validation (improper structure))
+- "Agreed Not" (Failed validation (improper structure))
+- "It Is Notable That Fairey" (Failed validation (improper structure))
+- "Find Interesting Is" (Failed validation (improper structure))
+- "If Any Party Is" (Starts with preposition)
+- "We Have Roughly" (Failed validation (improper structure))
+- "Mansion Is" (Failed validation (improper structure))
+- "Is Considering Investigating Google" (Failed validation (improper structure))
+- "Am In Paris You" (Failed validation (improper structure))
+- "Am Totally Confused" (Failed validation (improper structure))
+- "We Will Also Need The" (Failed validation (improper structure))
+- "His Future Is Dark" (Failed validation (improper structure))
+- "He Faces" (Failed validation (improper structure))
+- "Are You Enjoying La" (Failed validation (improper structure))
+- "You Form" (Failed validation (improper structure))
+- "Was Told Trump Sold His" (Failed validation (improper structure))
+- "And Even If There Was" (Failed validation (improper structure))
+- "My Point Is" (Failed validation (improper structure))
+- "Am Kathy Ruemmler" (Failed validation (improper structure))
+- "He Is Indian" (Failed validation (improper structure))
+- "He Needs Three Engine Overhaul" (Failed validation (improper structure))
+- "Dallah Albaraka Is" (Failed validation (improper structure))
+- "Bin Mahfouz Was" (Failed validation (improper structure))
+- "Court Is To Consider" (Failed validation (improper structure))
+- "Private Person Can Engage Lawfully" (Failed validation (improper structure))
+- "Am Spanish" (Failed validation (improper structure))
+- "Am Not French" (Failed validation (improper structure))
+- "It Is Why" (Failed validation (improper structure))
+- "Seeking And Risk" (Failed validation (improper structure))
+- "We Hauser Chapter" (Failed validation (improper structure))
+- "We Feel" (Failed validation (improper structure))
+- "We Also Can" (Failed validation (improper structure))
+- "Distinguished Scientific Journal" (Failed validation (improper structure))
+- "Our Brain" (Failed validation (improper structure))
+- "Am Answer" (Failed validation (improper structure))
+- "You Cited" (Failed validation (improper structure))
+- "Is It Not True" (Failed validation (improper structure))
+- "We Really Don" (Failed validation (improper structure))
+- "My Question Wasn" (Failed validation (improper structure))
+- "Been Waived" (Failed validation (improper structure))
+
+## Sample Valid Entities (First 50)
+- "Test Entity"
+- "Yoweri Museveni"
+- "Cassell Who"
+- "Jerry Brown"
+- "Deborah Rhode"
+- "Jacques Chirac"
+- "Alexander Bickel"
+- "Obama Authorized"
+- "Kevin Spacey"
+- "Who Influenced"
+- "Jean Luc Brunel"
+- "John Hope"
+- "Anwar Al"
+- "Barak Obama"
+- "Rockefeller Wrote"
+- "Franklin Intentionally"
+- "Jimmy Carter"
+- "Gerald Ford"
+- "Mohammad Bin"
+- "Jalal Talabani"
+- "Jesse Helms"
+- "Obama Now"
+- "Typically Preferred"
+- "Hosni Mubarak"
+- "Obama Conducts"
+- "Joe Biden"
+- "Robert Byrd"
+- "Enrique Pe"
+- "Obama Supports"
+- "Eliot Spitzer"
+- "Kennedy Plant"
+- "Grant Military"
+- "Jomo Kenyatta"
+- "Mike Gravel"
+- "Mahmoud Ahmadinej"
+- "Xi Jinping"
+- "Seldom Disagreed"
+- "Obama Signed"
+- "Sultan Argues"
+- "Wade Adopted"
+- "An Enviable"
+- "Byrd Who"
+- "Mohammed Bin"
+- "Lisa Murkowski"
+- "Tayyip Erdogan"
+- "Palin As"
+- "Obama Disagreed"
+- "Bush Signed"
+- "Hamid Karzai"
+- "Seeks Her"

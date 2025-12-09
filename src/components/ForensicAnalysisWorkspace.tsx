@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Investigation, EvidenceItem, TimelineEvent } from '../types/investigation';
-import { Microscope, FileSearch, Network, DollarSign, Link, BarChart3, Download, Settings, Eye, EyeOff } from 'lucide-react';
+import { Microscope, FileSearch, Network, DollarSign, Link, BarChart3, Download, Settings, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { ForensicDocumentAnalyzer } from './ForensicDocumentAnalyzer';
 import EntityRelationshipMapper from './EntityRelationshipMapper';
 import FinancialTransactionMapper from './FinancialTransactionMapper';
 import MultiSourceCorrelationEngine from './MultiSourceCorrelationEngine';
 import ForensicReportGenerator from './ForensicReportGenerator';
+import { transformToNetwork } from '../utils/networkDataUtils';
 
 interface ForensicAnalysisWorkspaceProps {
   investigation: Investigation;
@@ -22,6 +24,7 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
 }) => {
   const [activeTool, setActiveTool] = useState<'documents' | 'entities' | 'financial' | 'correlation' | 'reports'>('documents');
   const [showToolSettings, setShowToolSettings] = useState(false);
+  const [toolsCollapsed, setToolsCollapsed] = useState(false);
   const [enabledTools, setEnabledTools] = useState({
     documents: true,
     entities: true,
@@ -29,6 +32,13 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
     correlation: true,
     reports: true
   });
+
+  // Generate network data for the Entity Mapper
+  const networkData = useMemo(() => {
+    const people: any[] = [];
+    const documents = (evidence || []).map(ev => ({ id: ev.id, title: ev.title || ev.id, mentionedEntities: [] }));
+    return transformToNetwork(people, documents);
+  }, [evidence]);
 
   const forensicTools = [
     {
@@ -84,19 +94,22 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
   };
 
   const getToolStats = () => {
+    const financialCount = evidence.filter(e => (e.type||'').toLowerCase().includes('financial')).length;
     return {
-      documents: { count: evidence.filter(e => e.type === 'document').length, confidence: 94 },
-      entities: { count: 47, confidence: 87 },
-      financial: { count: 2847, confidence: 91 },
-      correlation: { count: 156, confidence: 89 },
-      reports: { count: 12, confidence: 96 }
+      documents: { count: evidence.filter(e => (e.type||'').toLowerCase().includes('document')).length, confidence: 94 },
+      entities: { count: networkData.entities.length, confidence: 87 },
+      financial: { count: financialCount, confidence: financialCount ? 91 : 0 },
+      correlation: { count: 0, confidence: 0 },
+      reports: { count: 1, confidence: 96 }
     };
   };
 
   const stats = getToolStats();
+  const location = useLocation();
+  const docIdParam = (()=>{ try { const p = new URLSearchParams(location.search); return p.get('docId') || ''; } catch { return ''; } })();
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100">
+    <div className="min-h-full bg-gray-900 text-gray-100">
       {/* Header */}
       <div className="bg-gray-800 border-b border-gray-700 px-6 py-4">
         <div className="flex items-center justify-between">
@@ -152,44 +165,82 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
         )}
       </div>
 
-      <div className="flex">
-        {/* Sidebar */}
-        <div className="w-80 bg-gray-800 border-r border-gray-700 min-h-screen">
+      <div className="flex flex-col md:flex-row">
+        {/* Collapsible Sidebar */}
+        <div className={`${toolsCollapsed ? 'w-16' : 'w-full md:w-80'} bg-gray-800 border-b md:border-b-0 md:border-r border-gray-700 transition-all duration-300`}>
           {/* Tool Selection */}
           <div className="p-4 border-b border-gray-700">
-            <h2 className="text-lg font-semibold text-gray-100 mb-4">Forensic Tools</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className={`text-lg font-semibold text-gray-100 ${toolsCollapsed ? 'hidden' : ''}`}>Forensic Tools</h2>
+              <button
+                onClick={() => setToolsCollapsed(!toolsCollapsed)}
+                className="p-2 text-gray-400 hover:text-white transition-colors rounded-md hover:bg-gray-700"
+                title={toolsCollapsed ? "Expand tools" : "Collapse tools"}
+              >
+                {toolsCollapsed ? 
+                  <ArrowRight className="w-5 h-5" /> : 
+                  <ArrowRight className="w-5 h-5 rotate-180" />
+                }
+              </button>
+            </div>
             <div className="space-y-2">
               {enabledToolsList.map(tool => {
                 const Icon = tool.icon;
                 const toolStats = stats[tool.id as keyof typeof stats];
                 return (
-                  <button
-                    key={tool.id}
-                    onClick={() => setActiveTool(tool.id as any)}
-                    className={`w-full p-3 rounded-lg text-left transition-colors ${
-                      activeTool === tool.id
-                        ? 'bg-red-900 border border-red-600'
-                        : 'bg-gray-700 hover:bg-gray-600 border border-gray-600'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 mb-2">
-                      <Icon className="w-5 h-5 text-red-400" />
-                      <span className="font-medium text-gray-100">{tool.name}</span>
-                    </div>
-                    <p className="text-xs text-gray-400 mb-2">{tool.description}</p>
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-gray-500">
-                        {toolStats.count.toLocaleString()} items
-                      </span>
-                      <span className={`px-2 py-1 rounded text-xs ${
-                        toolStats.confidence >= 90 ? 'bg-green-900 text-green-200' :
-                        toolStats.confidence >= 80 ? 'bg-yellow-900 text-yellow-200' :
-                        'bg-red-900 text-red-200'
-                      }`}>
-                        {toolStats.confidence}% confidence
-                      </span>
-                    </div>
-                  </button>
+                  <div key={tool.id} className="relative group">
+                    <button
+                      onClick={() => setActiveTool(tool.id as any)}
+                      className={`w-full p-3 rounded-lg text-left transition-colors ${
+                        activeTool === tool.id
+                          ? 'bg-red-900 border border-red-600'
+                          : 'bg-gray-700 hover:bg-gray-600 border border-gray-600'
+                      } ${toolsCollapsed ? 'p-3 flex items-center justify-center' : ''}`}
+                      title={toolsCollapsed ? `${tool.name}: ${tool.description}` : ''}
+                    >
+                      <div className={`flex items-center ${toolsCollapsed ? 'justify-center' : 'gap-3 mb-2'}`}>
+                        <Icon className="w-5 h-5 text-red-400" />
+                        {!toolsCollapsed && <span className="font-medium text-gray-100">{tool.name}</span>}
+                      </div>
+                      {!toolsCollapsed && (
+                        <>
+                          <p className="text-xs text-gray-400 mb-2 line-clamp-2 whitespace-nowrap overflow-hidden text-ellipsis">{tool.description}</p>
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="text-gray-500">
+                              {toolStats.count.toLocaleString()} items
+                            </span>
+                            <span className={`px-2 py-1 rounded text-xs ${
+                              toolStats.confidence >= 90 ? 'bg-green-900 text-green-200' :
+                              toolStats.confidence >= 80 ? 'bg-yellow-900 text-yellow-200' :
+                              'bg-red-900 text-red-200'
+                            }`}>
+                              {toolStats.confidence}% confidence
+                            </span>
+                          </div>
+                        </>
+                      )}
+                    </button>
+                    
+                    {/* Popover summary for collapsed view */}
+                    {toolsCollapsed && (
+                      <div className="absolute left-full ml-2 top-0 w-64 bg-gray-800 border border-gray-600 rounded-lg p-3 shadow-lg z-10 hidden group-hover:block">
+                        <h4 className="font-medium text-gray-100 mb-1">{tool.name}</h4>
+                        <p className="text-xs text-gray-400 mb-2">{tool.description}</p>
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-gray-500">
+                            {toolStats.count.toLocaleString()} items
+                          </span>
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            toolStats.confidence >= 90 ? 'bg-green-900 text-green-200' :
+                            toolStats.confidence >= 80 ? 'bg-yellow-900 text-yellow-200' :
+                            'bg-red-900 text-red-200'
+                          }`}>
+                            {toolStats.confidence}% confidence
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -251,13 +302,13 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
             {activeTool === 'documents' && (
               <ForensicDocumentAnalyzer 
                 documentUrl={evidence[0]?.source || ''} 
-                documentId={evidence[0]?.id || ''} 
+                documentId={docIdParam || evidence[0]?.id || ''} 
               />
             )}
             {activeTool === 'entities' && (
               <EntityRelationshipMapper 
-                entities={[]} 
-                relationships={[]} 
+                entities={networkData.entities} 
+                relationships={networkData.relationships} 
               />
             )}
             {activeTool === 'financial' && (

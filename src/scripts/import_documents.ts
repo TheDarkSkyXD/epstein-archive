@@ -91,13 +91,17 @@ function calculateSpiceRating(content: string): number {
 
 // We'll implement the main logic using better-sqlite3 directly
 import Database from 'better-sqlite3';
-const DB_PATH = join(process.cwd(), 'epstein-archive.db');
+const DB_PATH = process.env.DB_PATH || join(process.cwd(), 'epstein-archive.db');
 const db = new Database(DB_PATH);
 
 async function run() {
   console.log('Starting document import...');
   
-  const jsonPath = join(process.cwd(), 'public', 'data', 'searchable_files.json');
+  const jsonPath = (() => {
+    const prod = join('/opt/epstein-archive', 'public', 'data', 'searchable_files.json');
+    if (existsSync(prod)) return prod;
+    return join(process.cwd(), 'public', 'data', 'searchable_files.json');
+  })();
   if (!existsSync(jsonPath)) {
     console.error('searchable_files.json not found at', jsonPath);
     process.exit(1);
@@ -125,14 +129,19 @@ async function run() {
   const transaction = db.transaction((filesToImport) => {
     for (const file of filesToImport) {
       try {
-        if (!existsSync(file.path)) {
+        const baseLocal = '/Users/veland/Downloads/Epstein Files';
+        const baseProd = '/opt/epstein-archive/data';
+        const mappedPath = (file.path || '').startsWith(baseLocal)
+          ? file.path.replace(baseLocal, baseProd)
+          : file.path;
+        if (!existsSync(mappedPath)) {
           // console.warn(`File not found: ${file.path}`);
           skippedCount++;
           continue;
         }
 
-        const content = readFileSync(file.path, 'utf-8');
-        const stats = statSync(file.path);
+        const content = readFileSync(mappedPath, 'utf-8');
+        const stats = statSync(mappedPath);
 
         const metadata = {
           original_entities: file.entities,
@@ -148,7 +157,7 @@ async function run() {
 
         insertStmt.run({
           file_name: file.filename,
-          file_path: file.path,
+          file_path: mappedPath,
           file_type: ext,
           file_size: stats.size,
           date_created: new Date(stats.birthtime).toISOString(),

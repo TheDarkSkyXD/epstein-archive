@@ -1,4 +1,4 @@
-import { Document, DocumentMetadata, Entity, Passage, DocumentCollection, BrowseFilters } from '../types/documents';
+import { Document, DocumentMetadata, Entity, Passage, DocumentCollection, BrowseFilters, TechnicalMetadata, StructureMetadata, LinguisticMetadata, TemporalMetadata, NetworkMetadata } from '../types/documents';
 import { EntityNameService } from './EntityNameService';
 
 export class DocumentProcessor {
@@ -42,8 +42,22 @@ export class DocumentProcessor {
     const metadata = this.extractMetadata(filePath, content);
     const entities = this.extractEntities(content, filePath);
     const passages = this.extractPassages(content, filePath);
-    const spiceScore = this.calculateSpiceScore(content);
-    const spiceRating = this.calculateSpiceRating(spiceScore);
+    const redFlagScore = this.calculateSpiceScore(content);
+    const redFlagRating = this.calculateSpiceRating(redFlagScore);
+
+    // Forensic Analysis
+    const technical = this.extractTechnicalMetadata(content, filePath);
+    const structure = this.analyzePDFStructure(content, filePath);
+    const linguistics = this.analyzeLinguistics(content);
+    const temporal = this.analyzeTemporalPatterns(metadata, technical);
+    const network = this.calculateNetworkMetrics(entities, content);
+
+    // Merge forensic metadata
+    metadata.technical = technical;
+    metadata.structure = structure;
+    metadata.linguistics = linguistics;
+    metadata.temporal = temporal;
+    metadata.network = network;
 
     const document: Document = {
       id,
@@ -55,10 +69,10 @@ export class DocumentProcessor {
       metadata,
       entities,
       passages,
-      spiceScore,
-      spiceRating: spiceRating.rating,
-      spicePeppers: spiceRating.peppers,
-      spiceDescription: spiceRating.description
+      redFlagScore,
+      redFlagRating: redFlagRating.rating,
+      redFlagPeppers: redFlagRating.peppers,
+      redFlagDescription: redFlagRating.description
     };
 
     this.documents.set(id, document);
@@ -314,7 +328,7 @@ export class DocumentProcessor {
       if (trimmedSentence.length > 20) {
         const entities = this.extractEntitiesFromPassage(trimmedSentence);
         const keywords = this.extractKeywords(trimmedSentence);
-        const spiceLevel = this.calculateSpiceScore(trimmedSentence);
+        const redFlagLevel = this.calculateSpiceScore(trimmedSentence);
 
         passages.push({
           id: `${filePath}_passage_${index}`,
@@ -322,8 +336,8 @@ export class DocumentProcessor {
           context: this.getPassageContext(content, index, sentences),
           keywords,
           entities: entities.map(e => e.name),
-          spiceLevel,
-          significance: this.calculatePassageSignificance(spiceLevel, entities.length),
+          redFlagLevel,
+          significance: this.calculatePassageSignificance(redFlagLevel, entities.length),
           file: filePath,
           position: content.indexOf(trimmedSentence)
         });
@@ -376,9 +390,9 @@ export class DocumentProcessor {
     return sentences.slice(start, end).join('. ').trim();
   }
 
-  private calculatePassageSignificance(spiceLevel: number, entityCount: number): 'high' | 'medium' | 'low' {
-    if (spiceLevel >= 4 || entityCount >= 3) return 'high';
-    if (spiceLevel >= 2 || entityCount >= 1) return 'medium';
+  private calculatePassageSignificance(redFlagLevel: number, entityCount: number): 'high' | 'medium' | 'low' {
+    if (redFlagLevel >= 4 || entityCount >= 3) return 'high';
+    if (redFlagLevel >= 2 || entityCount >= 1) return 'medium';
     return 'low';
   }
 
@@ -650,7 +664,7 @@ export class DocumentProcessor {
     });
     
     // Spice score bonus
-    score += document.spiceRating * 0.5;
+    score += document.redFlagRating * 0.5;
     
     return score;
   }
@@ -706,8 +720,8 @@ export class DocumentProcessor {
       }
 
       // Spice level filter
-      if (filters.spiceLevel) {
-        if (doc.spiceRating < filters.spiceLevel.min || doc.spiceRating > filters.spiceLevel.max) {
+      if (filters.redFlagLevel) {
+        if (doc.redFlagRating < filters.redFlagLevel.min || doc.redFlagRating > filters.redFlagLevel.max) {
           return false;
         }
       }
@@ -738,7 +752,7 @@ export class DocumentProcessor {
           break;
         }
         case 'spice':
-          comparison = a.spiceScore - b.spiceScore;
+          comparison = a.redFlagScore - b.redFlagScore;
           break;
         case 'fileType':
           comparison = a.fileType.localeCompare(b.fileType);
@@ -749,7 +763,7 @@ export class DocumentProcessor {
         default: // relevance - sort by entity count and mentions
           comparison = b.entities.length - a.entities.length;
           if (comparison === 0) {
-            comparison = b.spiceScore - a.spiceScore;
+            comparison = b.redFlagScore - a.redFlagScore;
           }
       }
 
@@ -795,6 +809,163 @@ export class DocumentProcessor {
       fileTypes,
       categories
     };
+  }
+
+  // Forensic Metadata Extraction Methods
+
+  private extractTechnicalMetadata(content: string, filePath: string): TechnicalMetadata {
+    const technical: TechnicalMetadata = {};
+    
+    // Extract PDF metadata using regex
+    const producerMatch = content.match(/\/Producer\s*\(([^)]+)\)/);
+    if (producerMatch) technical.producer = producerMatch[1];
+    
+    const creatorMatch = content.match(/\/Creator\s*\(([^)]+)\)/);
+    if (creatorMatch) technical.creator = creatorMatch[1];
+    
+    const createDateMatch = content.match(/\/CreationDate\s*\(D:([^)]+)\)/);
+    if (createDateMatch) technical.createDate = this.parsePDFDate(createDateMatch[1]);
+    
+    const modDateMatch = content.match(/\/ModDate\s*\(D:([^)]+)\)/);
+    if (modDateMatch) technical.modifyDate = this.parsePDFDate(modDateMatch[1]);
+    
+    return technical;
+  }
+
+  private parsePDFDate(dateStr: string): string {
+    // Format: D:YYYYMMDDHHmmSSOHH'mm'
+    // Example: D:20190706120000-04'00'
+    try {
+      const year = dateStr.substring(0, 4);
+      const month = dateStr.substring(4, 6);
+      const day = dateStr.substring(6, 8);
+      const hour = dateStr.substring(8, 10) || '00';
+      const min = dateStr.substring(10, 12) || '00';
+      const sec = dateStr.substring(12, 14) || '00';
+      return `${year}-${month}-${day}T${hour}:${min}:${sec}Z`;
+    } catch (e) {
+      return new Date().toISOString();
+    }
+  }
+
+  private analyzePDFStructure(content: string, filePath: string): StructureMetadata {
+    const structure: StructureMetadata = {};
+    
+    // Detect Javascript
+    structure.hasJavascript = /\/JavaScript|\/JS\b/.test(content);
+    
+    // Count fonts
+    const fontMatches = content.match(/\/Font\b/g);
+    structure.fontCount = fontMatches ? fontMatches.length : 0;
+    
+    // Check if tagged
+    structure.isTagged = /\/MarkInfo\s*<<\s*\/Marked\s+true/.test(content);
+    
+    // PDF Version
+    const versionMatch = content.match(/^\s*%PDF-(\d+\.\d+)/);
+    if (versionMatch) structure.pdfVersion = versionMatch[1];
+    
+    // Page count (estimate based on /Page objects)
+    const pageMatches = content.match(/\/Type\s*\/Page\b/g);
+    structure.pageCount = pageMatches ? pageMatches.length : 1;
+    
+    return structure;
+  }
+
+  private analyzeLinguistics(content: string): LinguisticMetadata {
+    const linguistics: LinguisticMetadata = {};
+    
+    // Word count and unique words
+    const words = content.toLowerCase().match(/\b\w+\b/g) || [];
+    linguistics.wordCount = words.length;
+    const uniqueWords = new Set(words);
+    linguistics.uniqueWordCount = uniqueWords.size;
+    
+    // Type-Token Ratio (TTR)
+    linguistics.ttr = words.length > 0 ? uniqueWords.size / words.length : 0;
+    
+    // Readability (Flesch-Kincaid Grade Level)
+    // 0.39 * (words/sentences) + 11.8 * (syllables/words) - 15.59
+    const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 0);
+    const sentenceCount = Math.max(1, sentences.length);
+    const syllableCount = this.countSyllables(content);
+    
+    const avgWordsPerSentence = words.length / sentenceCount;
+    const avgSyllablesPerWord = words.length > 0 ? syllableCount / words.length : 0;
+    
+    linguistics.readingLevel = Math.max(0, (0.39 * avgWordsPerSentence) + (11.8 * avgSyllablesPerWord) - 15.59);
+    
+    // Sentiment (Simple keyword based)
+    const positiveWords = ['good', 'great', 'excellent', 'positive', 'success', 'happy', 'agree', 'confirm'];
+    const negativeWords = ['bad', 'poor', 'negative', 'fail', 'sad', 'deny', 'reject', 'criminal', 'guilty', 'abuse'];
+    
+    let sentimentScore = 0;
+    words.forEach(word => {
+      if (positiveWords.includes(word)) sentimentScore += 1;
+      if (negativeWords.includes(word)) sentimentScore -= 1;
+    });
+    
+    // Normalize score -1 to 1
+    linguistics.sentimentScore = Math.max(-1, Math.min(1, sentimentScore / Math.max(1, words.length * 0.1)));
+    linguistics.sentiment = linguistics.sentimentScore > 0.1 ? 'positive' : linguistics.sentimentScore < -0.1 ? 'negative' : 'neutral';
+    
+    return linguistics;
+  }
+
+  private countSyllables(text: string): number {
+    // Very basic syllable counter
+    return text.toLowerCase().split(/[aeiouy]+/).length - 1;
+  }
+
+  private analyzeTemporalPatterns(metadata: DocumentMetadata, technical: TechnicalMetadata): TemporalMetadata {
+    const temporal: TemporalMetadata = {};
+    
+    // Use creation date if available
+    const dateStr = technical.createDate || metadata.testimonyDate || metadata.flightDate;
+    
+    if (dateStr) {
+      const date = new Date(dateStr);
+      if (!isNaN(date.getTime())) {
+        const hour = date.getUTCHours();
+        const day = date.getUTCDay();
+        
+        // Business hours (9am - 5pm)
+        temporal.isBusinessHours = hour >= 9 && hour <= 17 && day !== 0 && day !== 6;
+        
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        temporal.dayOfWeek = days[day];
+        
+        // Timezone inference (very rough, based on offset in original string if we had it, but here we just have UTC date object)
+        // Ideally we'd parse the offset from the raw string in extractTechnicalMetadata
+      }
+    }
+    
+    return temporal;
+  }
+
+  private calculateNetworkMetrics(entities: Entity[], content: string): NetworkMetadata {
+    const network: NetworkMetadata = {};
+    
+    // Entity Density (Entities per 1000 words)
+    const wordCount = content.split(/\s+/).length;
+    network.entityDensity = wordCount > 0 ? (entities.length / wordCount) * 1000 : 0;
+    
+    // Risk Score (Sum of significance)
+    let riskScore = 0;
+    entities.forEach(e => {
+      if (e.significance === 'high') riskScore += 10;
+      if (e.significance === 'medium') riskScore += 5;
+      if (e.significance === 'low') riskScore += 1;
+    });
+    network.riskScore = riskScore;
+    
+    // Co-occurrence Risk (Pairs of high risk entities)
+    const highRiskEntities = entities.filter(e => e.significance === 'high');
+    // n * (n-1) / 2 pairs
+    const n = highRiskEntities.length;
+    network.coOccurrenceRisk = (n * (n - 1)) / 2;
+    
+    return network;
   }
 
   findRelatedDocuments(documentId: string, limit: number = 10): Document[] {
@@ -908,7 +1079,7 @@ export class DocumentProcessor {
   getStatistics() {
     const collection = this.getDocumentCollection();
     const totalEntities = Array.from(this.entities.values()).length;
-    const avgSpiceScore = collection.documents.reduce((sum, doc) => sum + doc.spiceScore, 0) / collection.totalFiles;
+    const avgSpiceScore = collection.documents.reduce((sum, doc) => sum + doc.redFlagScore, 0) / collection.totalFiles;
 
     return {
       totalDocuments: collection.totalFiles,

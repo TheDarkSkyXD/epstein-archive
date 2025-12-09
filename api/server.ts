@@ -3,6 +3,10 @@ import cors from 'cors';
 import { databaseService } from '../src/services/DatabaseService';
 import { SearchFilters } from '../src/types';
 
+// Use require for Node.js built-ins
+const fs = require('fs');
+const path = require('path');
+
 const app = express();
 const PORT = process.env.API_PORT || 3012;
 
@@ -42,8 +46,8 @@ app.get('/api/entities', async (req, res) => {
     // Transform the result to match the expected format
     const transformedData = result.entities.map((entity: any) => ({
       id: entity.id,
-      name: entity.fullName,
-      fullName: entity.fullName,
+      name: entity.name || entity.fullName,
+      fullName: entity.name || entity.fullName,
       primaryRole: entity.primaryRole,
       secondaryRoles: entity.secondaryRoles || [],
       title: entity.title,
@@ -55,10 +59,10 @@ app.get('/api/entities', async (req, res) => {
       evidence_types: entity.evidenceTypes || entity.secondaryRoles || [],
       spicy_passages: entity.spicyPassages || [],
       likelihood_score: entity.likelihoodLevel,
-      spice_score: entity.spiceScore,
-      spice_rating: entity.spiceRating,
-      spice_peppers: '🌶️'.repeat(entity.spiceRating || 1),
-      spice_description: `Spice level ${entity.spiceRating || 1}`,
+      red_flag_rating: entity.red_flag_rating,
+      red_flag_score: entity.red_flag_score,
+      red_flag_peppers: entity.red_flag_peppers || '🏳️',
+      red_flag_description: entity.red_flag_description_text || 'No Red Flags',
       connectionsToEpstein: entity.connectionsSummary || ''
     }));
 
@@ -82,6 +86,12 @@ app.get('/api/entities', async (req, res) => {
 app.get('/api/entities/:id', async (req, res) => {
   try {
     const entityId = req.params.id;
+    
+    // Validate entity ID format
+    if (!entityId || !/^[1-9]\d*$/.test(entityId)) {
+      return res.status(400).json({ error: 'Invalid entity ID format' });
+    }
+    
     const entity = await databaseService.getEntityById(entityId);
     
     if (!entity) {
@@ -91,8 +101,8 @@ app.get('/api/entities/:id', async (req, res) => {
     // Transform entity to match expected API format
     const transformedEntity = {
       id: entity.id,
-      name: entity.fullName,
-      fullName: entity.fullName,
+      name: entity.name || entity.fullName,
+      fullName: entity.name || entity.fullName,
       primaryRole: entity.primaryRole,
       secondaryRoles: entity.secondaryRoles || [],
       mentions: entity.mentions,
@@ -101,10 +111,10 @@ app.get('/api/entities/:id', async (req, res) => {
       evidence_types: entity.evidenceTypes || entity.secondaryRoles || [],
       spicy_passages: entity.spicyPassages || [],
       likelihood_score: entity.likelihoodLevel,
-      spice_score: entity.spiceScore,
-      spice_rating: entity.spiceRating,
-      spice_peppers: '🌶️'.repeat(entity.spiceRating || 1),
-      spice_description: `Spice level ${entity.spiceRating || 1}`,
+      red_flag_rating: entity.red_flag_rating,
+      red_flag_score: entity.red_flag_score,
+      red_flag_peppers: entity.red_flag_peppers || '🏳️',
+      red_flag_description: entity.red_flag_description_text || 'No Red Flags',
       connectionsToEpstein: entity.connectionsSummary || '',
       fileReferences: entity.fileReferences?.map((ref: any) => ({
         ...ref,
@@ -126,6 +136,12 @@ app.get('/api/entities/:id', async (req, res) => {
 app.get('/api/entities/:id/documents', async (req, res) => {
   try {
     const entityId = req.params.id;
+    
+    // Validate entity ID format
+    if (!entityId || !/^[1-9]\d*$/.test(entityId)) {
+      return res.status(400).json({ error: 'Invalid entity ID format' });
+    }
+    
     const entity = await databaseService.getEntityById(entityId);
     
     if (!entity) {
@@ -160,8 +176,8 @@ app.get('/api/search', async (req, res) => {
     // Transform entities to match expected API format
     const transformedEntities = result.entities.map((entity: any) => ({
       id: entity.id,
-      name: entity.fullName,
-      fullName: entity.fullName,
+      name: entity.name || entity.fullName,
+      fullName: entity.name || entity.fullName,
       primaryRole: entity.primaryRole,
       secondaryRoles: entity.secondaryRoles || [],
       mentions: entity.mentions,
@@ -170,10 +186,10 @@ app.get('/api/search', async (req, res) => {
       evidence_types: entity.secondaryRoles || [],
       spicy_passages: entity.spicyPassages || [],
       likelihood_score: entity.likelihoodLevel,
-      spice_score: entity.spiceScore,
-      spice_rating: entity.spiceRating,
-      spice_peppers: '🌶️'.repeat(entity.spiceRating || 1),
-      spice_description: `Spice level ${entity.spiceRating || 1}`,
+      red_flag_rating: entity.red_flag_rating,
+      red_flag_score: entity.red_flag_score,
+      red_flag_peppers: entity.red_flag_peppers || '🏳️',
+      red_flag_description: entity.red_flag_description_text || 'No Red Flags',
       connectionsToEpstein: entity.connectionsSummary || ''
     }));
 
@@ -218,7 +234,44 @@ app.get('/api/stats', async (req, res) => {
 });
 
 // Serve static files
-app.use('/files', express.static('/Users/veland/Downloads/Epstein Files/Epstein Estate Documents - Seventh Production'));
+app.use('/files', express.static('/Users/veland/Downloads/Epstein Files/data/originals'));
+// Serve PDF files
+app.get('/api/media/pdf', (req, res) => {
+  console.log('PDF endpoint hit with query:', req.query);
+  try {
+    const filePath = decodeURIComponent(req.query.filePath as string);
+    console.log('Decoded file path:', filePath);
+    
+    // Security check - ensure file is within allowed directories
+    if (!filePath || !filePath.startsWith('/Users/veland/Downloads/Epstein Files/data/')) {
+      console.log('Security check failed for path:', filePath);
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      console.log('File not found:', filePath);
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    console.log('Streaming file:', filePath);
+    // Set appropriate headers for PDF
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${path.basename(filePath)}"`);
+    
+    // Stream the file
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.pipe(res);
+    
+    fileStream.on('error', (err) => {
+      console.error('Error streaming PDF:', err);
+      res.status(500).json({ error: 'Failed to stream PDF' });
+    });
+  } catch (error) {
+    console.error('Error serving PDF:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // Get document pages
 app.get('/api/documents/:id/pages', async (req, res) => {

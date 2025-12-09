@@ -7,6 +7,8 @@ import { apiClient } from '../services/apiClient';
 import { DocumentAnnotationSystem } from './DocumentAnnotationSystem';
 import { Breadcrumb } from './Breadcrumb';
 import { SourceBadge } from './SourceBadge';
+import DocumentSkeleton from './DocumentSkeleton';
+import { AddToInvestigationButton } from './AddToInvestigationButton';
 
 interface DocumentBrowserProps {
   processor: DocumentProcessor;
@@ -17,30 +19,32 @@ interface DocumentBrowserProps {
 }
 
 export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, searchTerm: externalSearchTerm, onSearchTermChange, selectedDocumentId, onDocumentClose }) => {
-  console.log('DocumentBrowser: Component mounted with processor:', !!processor);
-  
-
-  console.log('DocumentBrowser: Component mounted with processor:', !!processor);
-  
   // Use navigation context for shared state
   const navigation = useNavigation();
   const { searchTerm: contextSearchTerm, setSearchTerm: setContextSearchTerm } = navigation;
   
+  // Initialize search from URL params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const searchParam = params.get('search');
+    if (searchParam && searchParam !== contextSearchTerm) {
+      if (onSearchTermChange) {
+        onSearchTermChange(searchParam);
+      } else {
+        setContextSearchTerm(searchParam);
+      }
+    }
+  }, []);
+
   // Use either external searchTerm or context searchTerm
   const effectiveSearchTerm = externalSearchTerm !== undefined ? externalSearchTerm : contextSearchTerm;
-  
-  console.log('DocumentBrowser searchTerm props:', { 
-    externalSearchTerm, 
-    contextSearchTerm, 
-    effectiveSearchTerm 
-  });
   
   const [documents, setDocuments] = useState<Document[]>([]);
   const [filteredDocuments, setFilteredDocuments] = useState<Document[]>([]);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [relatedDocuments, setRelatedDocuments] = useState<Document[]>([]);
   const [showFilters, setShowFilters] = useState(false);
-  const [sortBy, setSortBy] = useState<'relevance' | 'date' | 'spice' | 'fileType' | 'size'>('relevance');
+  const [sortBy, setSortBy] = useState<'relevance' | 'date' | 'red_flag' | 'fileType' | 'size'>('red_flag');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [collection, setCollection] = useState<DocumentCollection | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -48,14 +52,16 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
   // const [displayLimit, setDisplayLimit] = useState(100); // Start with 100 documents
   const [currentPage, setCurrentPage] = useState(1);
   const [showMetadata, setShowMetadata] = useState(false);
-  const itemsPerPage = 100;
+  const [hideLowCredibility, setHideLowCredibility] = useState(false);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
+  const [totalDocuments, setTotalDocuments] = useState(0);
   
   const [filters, setFilters] = useState<BrowseFilters>({
     fileType: [],
     dateRange: {},
     entities: [],
     categories: [],
-    spiceLevel: { min: 1, max: 5 },
+    redFlagLevel: { min: 0, max: 5 },
     confidentiality: [],
     source: []
   });
@@ -132,44 +138,96 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
     // setUseVirtualScrolling(filteredDocuments.length > 100);
   }, [filteredDocuments.length]);
 
+  // Fetch documents from API with pagination
   useEffect(() => {
-    try {
-      console.log('DocumentBrowser: Loading document collection...');
-      const docCollection = processor.getDocumentCollection();
-      console.log('DocumentBrowser: Collection loaded:', {
-        totalDocuments: docCollection?.documents?.length || 0,
-        fileTypes: Array.from(docCollection?.fileTypes?.keys() || []),
-        hasCollection: !!docCollection,
-        documents: docCollection?.documents?.slice(0, 5).map(d => ({id: d.id, title: d.title, filename: d.filename})) || []
-      });
-      
-      setCollection(docCollection);
-      const docs = docCollection?.documents || [];
-      console.log('DocumentBrowser: Setting documents state with', docs.length, 'documents');
-      setDocuments(docs);
-      setFilteredDocuments(docs);
-    } catch (error) {
-      console.error('DocumentBrowser: Error loading document collection:', error);
-      setDocuments([]);
-      setFilteredDocuments([]);
-    }
-  }, [processor]);
+    const fetchDocuments = async () => {
+      try {
+        console.log('DocumentBrowser: Fetching documents from API...');
+        
+        // Build API query params
+        const params = new URLSearchParams();
+        params.append('page', currentPage.toString());
+        params.append('limit', itemsPerPage.toString());
+        
+        if (effectiveSearchTerm && effectiveSearchTerm.trim()) {
+          params.append('search', effectiveSearchTerm);
+        }
+        
+        if (sortBy) {
+          params.append('sortBy', sortBy);
+        }
+        
+        // Add evidence type filter from categories
+        if (filters.categories && filters.categories.length > 0) {
+          params.append('evidenceType', filters.categories[0]);
+        }
+        
+        const response = await fetch(`/api/documents?${params.toString()}`);
+        const result = await response.json();
+        
+        console.log('DocumentBrowser: API response:', {
+          total: result.total,
+          page: result.page,
+          dataLength: result.data?.length || 0
+        });
+        
+        // Map API response to Document type
+        const docs: Document[] = (result.data || []).map((doc: any) => ({
+          id: doc.id?.toString() || doc.fileName,
+          title: doc.title || doc.fileName,
+          filename: doc.fileName,
+          fileType: doc.fileType || 'unknown',
+          fileSize: doc.fileSize || 0,
+          dateCreated: doc.dateCreated,
+          dateModified: doc.dateModified,
+          content: doc.content || doc.contentPreview || '',
+          metadata: {
+            source: 'Epstein Files',
+            confidentiality: 'Public',
+            categories: [],
+            ...doc.metadata,
+            emailHeaders: doc.metadata?.emailHeaders
+          },
+          entities: [],
+          passages: [],
+          redFlagScore: doc.redFlagRating || 0,
+          redFlagRating: doc.redFlagRating || 1,
+          redFlagPeppers: '🚩'.repeat(doc.redFlagRating || 1),
+          redFlagDescription: `Red Flag Index ${doc.redFlagRating || 1}`,
+          evidenceType: doc.evidenceType || doc.evidence_type || 'document',
+          parentDocumentId: doc.parentDocumentId || doc.parent_document_id,
+          threadId: doc.threadId || doc.thread_id,
+          threadPosition: doc.threadPosition || doc.thread_position
+        }));
+        
+        setDocuments(docs);
+        setFilteredDocuments(docs);
+        
+        // Store total count for pagination
+        if (result.total !== undefined) {
+          setTotalDocuments(result.total);
+        }
+      } catch (error) {
+        console.error('DocumentBrowser: Error fetching documents:', error);
+        setDocuments([]);
+        setFilteredDocuments([]);
+      }
+    };
 
+    fetchDocuments();
+  }, [currentPage, itemsPerPage, effectiveSearchTerm, sortBy, filters.categories]);
+
+  // Apply client-side filters (credibility only - other filters handled by API)
   useEffect(() => {
     let results = documents;
 
-    // Apply search
-    if (effectiveSearchTerm && effectiveSearchTerm.trim()) {
-      results = processor.searchDocuments(effectiveSearchTerm, filters);
-    } else {
-      results = processor.browseDocuments(filters, sortBy, sortOrder);
+    // Apply credibility filter
+    if (hideLowCredibility) {
+      results = results.filter(d => (d.metadata?.credibility_score ?? 1) >= 0.6);
     }
-
-    // Apply pagination
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    setFilteredDocuments(results.slice(startIndex, endIndex));
-  }, [documents, effectiveSearchTerm, filters, sortBy, sortOrder, processor, currentPage]);
+    
+    setFilteredDocuments(results);
+  }, [documents, hideLowCredibility]);
 
   // Auto-select document when selectedDocumentId changes
   useEffect(() => {
@@ -213,10 +271,10 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
               },
               entities: [], 
               passages: [],
-              spiceScore: docData.spiceScore || 0,
-              spiceRating: docData.spiceRating || 1,
-              spicePeppers: '🚩'.repeat(docData.spiceRating || 1),
-              spiceDescription: `Red Flag Index ${docData.spiceRating || 1}`
+              redFlagScore: docData.redFlagRating || 0,
+              redFlagRating: docData.redFlagRating || 1,
+              redFlagPeppers: '🚩'.repeat(docData.redFlagRating || 1),
+              redFlagDescription: `Red Flag Index ${docData.redFlagRating || 1}`
             };
             
             handleDocumentSelect(newDoc);
@@ -258,8 +316,8 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
     handleFilterChange('fileType', updated);
   };
 
-  const handleSpiceLevelChange = (min: number, max: number) => {
-    handleFilterChange('spiceLevel', { min, max });
+  const handleRedFlagLevelChange = (min: number, max: number) => {
+    handleFilterChange('redFlagLevel', { min, max });
   };
 
   const handleDocumentSelect = async (document: Document) => {
@@ -289,59 +347,104 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
   };
 
 
-  const DocumentCard: React.FC<{ document: Document }> = ({ document }) => (
-    <div className="bg-gray-900 border border-gray-700 rounded-lg p-4 hover:border-gray-500 transition-colors cursor-pointer"
-         onClick={() => handleDocumentSelect(document)}>
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center space-x-2">
-          <FileText className="w-4 h-4 text-blue-400" />
-          <span className="text-xs text-gray-400 uppercase">{document.fileType}</span>
+  const DocumentCard: React.FC<{ document: Document }> = ({ document }) => {
+    // Generate human-readable title from content or use existing title
+    const getDisplayTitle = () => {
+      if (document.title && document.title !== document.filename) {
+        return document.title;
+      }
+      // Extract first sentence or meaningful text from content
+      const content = document.content || '';
+      const firstSentence = content.split(/[.!?]\s/)[0];
+      if (firstSentence && firstSentence.length > 10 && firstSentence.length < 100) {
+        return firstSentence;
+      }
+      // Fallback to filename without extension
+      return document.filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' ');
+    };
+
+    const displayTitle = getDisplayTitle();
+    const summary = (document.content || '').substring(0, 200).trim();
+
+    return (
+      <div className="bg-gray-900 border border-gray-700 rounded-lg p-4 hover:border-gray-500 transition-colors cursor-pointer"
+           onClick={() => handleDocumentSelect(document)}>
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center space-x-2">
+            <FileText className="w-4 h-4 text-blue-400" />
+            <span className="text-xs text-gray-400 uppercase">{document.fileType}</span>
+          </div>
+          <div className="flex items-center space-x-1">
+            <span className="text-xs text-gray-400">{formatFileSize(document.fileSize)}</span>
+            <span className="text-lg">{document.redFlagPeppers}</span>
+            <div onClick={(e) => e.stopPropagation()}>
+              <AddToInvestigationButton 
+                item={{
+                  id: document.id,
+                  title: document.title || document.filename,
+                  description: document.content?.substring(0, 100) || 'Document evidence',
+                  type: 'document',
+                  sourceId: document.id
+                }}
+                investigations={[]} // This needs to be populated from context or props
+                onAddToInvestigation={(invId, item, relevance) => {
+                  console.log('Add to investigation', invId, item, relevance);
+                  const event = new CustomEvent('add-to-investigation', { 
+                    detail: { investigationId: invId, item, relevance } 
+                  });
+                  window.dispatchEvent(event);
+                }}
+                variant="icon"
+                className="hover:bg-slate-700 p-1"
+              />
+            </div>
+          </div>
         </div>
-        <div className="flex items-center space-x-1">
-          <span className="text-xs text-gray-400">{formatFileSize(document.fileSize)}</span>
-          <span className="text-lg">{document.spicePeppers}</span>
+        
+        <h3 className="font-semibold text-white mb-1 line-clamp-2">
+          {effectiveSearchTerm ? renderHighlightedText(displayTitle, effectiveSearchTerm) : displayTitle}
+        </h3>
+        <p className="text-xs text-gray-500 mb-2">({document.filename})</p>
+        
+        {summary && (
+          <p className="text-sm text-gray-300 mb-3 line-clamp-3">
+            {effectiveSearchTerm ? renderHighlightedText(summary + '...', effectiveSearchTerm) : summary + '...'}
+          </p>
+        )}
+        
+        <div className="flex items-center justify-between text-xs text-gray-400">
+          <div className="flex items-center space-x-2">
+            <Calendar className="w-3 h-3" />
+            <span>{formatDate(document.dateCreated)}</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Users className="w-3 h-3" />
+            <span>{document.entities.length} entities</span>
+          </div>
         </div>
+        
+        {/* Source badge for document card */}
+        <div className="mt-2">
+          <SourceBadge source={document.metadata.source || 'Seventh Production'} />
+        </div>
+        
+        {document.entities.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-1">
+            {document.entities.slice(0, 3).map((entity, index) => (
+              <span key={index} className="px-2 py-1 bg-gray-800 text-xs text-gray-300 rounded">
+                {effectiveSearchTerm ? renderHighlightedText(entity.name, effectiveSearchTerm) : entity.name}
+              </span>
+            ))}
+            {document.entities.length > 3 && (
+              <span className="px-2 py-1 bg-gray-800 text-xs text-gray-400 rounded">
+                +{document.entities.length - 3} more
+              </span>
+            )}
+          </div>
+        )}
       </div>
-      
-      <h3 className="font-semibold text-white mb-2 line-clamp-2">
-        {effectiveSearchTerm ? renderHighlightedText(document.title, effectiveSearchTerm) : document.title}
-      </h3>
-      <p className="text-sm text-gray-300 mb-3 line-clamp-3">
-        {effectiveSearchTerm ? renderHighlightedText(document.content.substring(0, 200) + '...', effectiveSearchTerm) : document.content.substring(0, 200) + '...'}
-      </p>
-      
-      <div className="flex items-center justify-between text-xs text-gray-400">
-        <div className="flex items-center space-x-2">
-          <Calendar className="w-3 h-3" />
-          <span>{formatDate(document.dateCreated)}</span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Users className="w-3 h-3" />
-          <span>{document.entities.length} entities</span>
-        </div>
-      </div>
-      
-      {/* Source badge for document card */}
-      <div className="mt-2">
-        <SourceBadge source={document.metadata.source || 'Seventh Production'} />
-      </div>
-      
-      {document.entities.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-1">
-          {document.entities.slice(0, 3).map((entity, index) => (
-            <span key={index} className="px-2 py-1 bg-gray-800 text-xs text-gray-300 rounded">
-              {effectiveSearchTerm ? renderHighlightedText(entity.name, effectiveSearchTerm) : entity.name}
-            </span>
-          ))}
-          {document.entities.length > 3 && (
-            <span className="px-2 py-1 bg-gray-800 text-xs text-gray-400 rounded">
-              +{document.entities.length - 3} more
-            </span>
-          )}
-        </div>
-      )}
-    </div>
-  );
+    );
+  };
   
   // Virtualized document card for better performance with large lists
   // const VirtualizedDocumentCard = ({ index, style }: { index: number; style: React.CSSProperties }) => {
@@ -414,8 +517,8 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
     };
 
     return (
-      <div className="fixed inset-x-0 top-16 bottom-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-0 md:p-4">
-      <div className="bg-gray-900 rounded-none md:rounded-lg w-full h-full md:max-w-6xl md:max-h-[95vh] overflow-hidden flex flex-col shadow-2xl border-0 md:border border-gray-700">
+      <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-0 md:p-4">
+      <div className="bg-gray-900 rounded-none md:rounded-lg w-full h-full md:w-auto md:h-auto md:max-w-6xl md:max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border-0 md:border border-gray-700">
         
         <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-800">
           {/* Breadcrumb */}
@@ -433,7 +536,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
             <h2 className="text-lg font-semibold text-white">
               {searchTerm ? renderHighlightedText(document.title, searchTerm) : document.title}
             </h2>
-            <span className="text-lg">{document.spicePeppers}</span>
+            <span className="text-lg">{document.redFlagPeppers}</span>
           </div>
           <div className="flex items-center space-x-2">
             <button 
@@ -450,6 +553,25 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
             >
               <Download className="w-4 h-4" />
             </button>
+            <AddToInvestigationButton 
+              item={{
+                id: document.id,
+                title: document.title || document.filename,
+                description: document.content?.substring(0, 100) || 'Document evidence',
+                type: 'document',
+                sourceId: document.id
+              }}
+              investigations={[]} // This needs to be populated from context or props
+              onAddToInvestigation={(invId, item, relevance) => {
+                console.log('Add to investigation', invId, item, relevance);
+                const event = new CustomEvent('add-to-investigation', { 
+                  detail: { investigationId: invId, item, relevance } 
+                });
+                window.dispatchEvent(event);
+              }}
+              variant="icon"
+              className="hover:bg-slate-700"
+            />
             <button 
               onClick={() => {
                 setSelectedDocument(null);
@@ -511,17 +633,138 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
             {activeTab === 'content' && (
               <div className="prose prose-invert max-w-none">
                 <div className="mb-4 flex items-center justify-between">
-                  <div className="text-sm text-gray-400">Select text to add annotations and evidence</div>
-                  <button
-                    onClick={() => setShowAnnotations(!showAnnotations)}
-                    className={`px-3 py-1 text-xs rounded ${
-                      showAnnotations ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    }`}
-                  >
-                    {showAnnotations ? 'Hide Annotations' : 'Show Annotations'}
-                  </button>
+                  <div className="text-sm text-gray-400">
+                    {document.evidenceType === 'email' ? '📧 Email Message' : 
+                     document.evidenceType === 'legal' ? '⚖️ Legal Document' :
+                     document.evidenceType === 'deposition' ? '📜 Deposition' :
+                     document.evidenceType === 'financial' ? '💰 Financial Record' :
+                     document.fileType?.match(/jpe?g|png|gif|bmp|webp/i) ? '📷 Image' :
+                     document.fileType?.match(/csv|xls/i) ? '📊 Spreadsheet' :
+                     'Select text to add annotations and evidence'}
+                  </div>
+                  {!document.fileType?.match(/jpe?g|png|gif|bmp|webp|csv|xls/i) && (
+                    <button
+                      onClick={() => setShowAnnotations(!showAnnotations)}
+                      className={`px-3 py-1 text-xs rounded ${
+                        showAnnotations ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      }`}
+                    >
+                      {showAnnotations ? 'Hide Annotations' : 'Show Annotations'}
+                    </button>
+                  )}
                 </div>
-                {showAnnotations ? (
+                
+                {/* Email Headers Display */}
+                {document.evidenceType === 'email' && document.metadata?.emailHeaders && (
+                  <div className="bg-gray-800 rounded-lg p-4 mb-4 border border-gray-700">
+                    <div className="space-y-2 text-sm">
+                      {document.metadata.emailHeaders.from && (
+                        <div className="flex">
+                          <span className="text-gray-400 w-16">From:</span>
+                          <span className="text-white">{document.metadata.emailHeaders.from}</span>
+                        </div>
+                      )}
+                      {document.metadata.emailHeaders.to && (
+                        <div className="flex">
+                          <span className="text-gray-400 w-16">To:</span>
+                          <span className="text-white">{document.metadata.emailHeaders.to}</span>
+                        </div>
+                      )}
+                      {document.metadata.emailHeaders.cc && (
+                        <div className="flex">
+                          <span className="text-gray-400 w-16">Cc:</span>
+                          <span className="text-gray-300">{document.metadata.emailHeaders.cc}</span>
+                        </div>
+                      )}
+                      {document.metadata.emailHeaders.sentDate && (
+                        <div className="flex">
+                          <span className="text-gray-400 w-16">Date:</span>
+                          <span className="text-gray-300">{document.metadata.emailHeaders.sentDate}</span>
+                        </div>
+                      )}
+                      {document.metadata.emailHeaders.subject && (
+                        <div className="flex">
+                          <span className="text-gray-400 w-16">Subject:</span>
+                          <span className="text-white font-medium">{document.metadata.emailHeaders.subject}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Image Viewer for image files */}
+                {document.fileType?.match(/jpe?g|png|gif|bmp|webp/i) ? (
+                  <div className="flex flex-col items-center">
+                    <img 
+                      src={`/api/documents/${document.id}/file`} 
+                      alt={document.title}
+                      className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg"
+                      onError={(e) => {
+                        // Fallback to showing OCR text if image fails to load
+                        (e.target as HTMLImageElement).style.display = 'none';
+                        const parent = (e.target as HTMLImageElement).parentElement;
+                        if (parent) {
+                          parent.innerHTML = `<pre class="whitespace-pre-wrap text-sm text-gray-300 font-mono leading-relaxed">${document.content || 'No content available'}</pre>`;
+                        }
+                      }}
+                    />
+                    {document.content && document.content.trim() && (
+                      <div className="mt-4 w-full">
+                        <details className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                          <summary className="cursor-pointer text-sm text-gray-400 hover:text-white">
+                            📝 OCR Extracted Text ({document.content.split(/\s+/).length} words)
+                          </summary>
+                          <pre className="mt-4 whitespace-pre-wrap text-xs text-gray-400 font-mono leading-relaxed max-h-48 overflow-y-auto">
+                            {document.content}
+                          </pre>
+                        </details>
+                      </div>
+                    )}
+                  </div>
+                ) : document.fileType?.match(/csv/i) || document.evidenceType === 'financial' ? (
+                  /* CSV/Financial Table Viewer */
+                  <div className="overflow-x-auto">
+                    <div className="bg-gray-800 rounded-lg p-4 border border-gray-700 mb-4">
+                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                        <span>💰</span>
+                        <span>Financial Data / Spreadsheet</span>
+                      </div>
+                    </div>
+                    {(() => {
+                      const lines = (document.content || '').split('\n').filter(l => l.trim());
+                      if (lines.length === 0) return <p className="text-gray-400">No data available</p>;
+                      
+                      // Try to parse as CSV
+                      const rows = lines.map(line => line.split(/[,\t]/));
+                      const hasHeader = rows.length > 1;
+                      
+                      return (
+                        <table className="w-full text-sm text-left border-collapse">
+                          {hasHeader && (
+                            <thead className="bg-gray-800 text-gray-300 uppercase text-xs">
+                              <tr>
+                                {rows[0].map((cell, i) => (
+                                  <th key={i} className="px-4 py-3 border border-gray-700">{cell.trim()}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                          )}
+                          <tbody>
+                            {rows.slice(hasHeader ? 1 : 0).map((row, rowIdx) => (
+                              <tr key={rowIdx} className={rowIdx % 2 === 0 ? 'bg-gray-900' : 'bg-gray-800'}>
+                                {row.map((cell, cellIdx) => (
+                                  <td key={cellIdx} className="px-4 py-2 border border-gray-700 text-gray-300">
+                                    {cell.trim()}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      );
+                    })()}
+                  </div>
+                ) : showAnnotations ? (
                   <DocumentAnnotationSystem
                     documentId={document.id}
                     content={document.content}
@@ -546,7 +789,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
                   pages.map((pageUrl, index) => (
                     <div key={index} className="w-full max-w-3xl bg-white p-1 rounded shadow-lg">
                       <img 
-                        src={`http://localhost:3012${pageUrl}`} 
+                        src={pageUrl.startsWith('/') ? pageUrl : `/${pageUrl}`} 
                         alt={`Page ${index + 1}`}
                         className="w-full h-auto"
                         loading="lazy"
@@ -621,7 +864,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
                               </span>
                             )}
                           </h4>
-                          <span className="text-lg">{relatedDoc.spicePeppers}</span>
+                          <span className="text-lg">{relatedDoc.redFlagPeppers}</span>
                         </div>
                         <div className="text-sm text-gray-300 mb-2 line-clamp-2">
                           {searchTerm ? renderHighlightedText(relatedDoc.content.substring(0, 150) + '...', searchTerm) : relatedDoc.content.substring(0, 150) + '...'}
@@ -703,14 +946,34 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
                   <div className="flex justify-between">
                     <span className="text-gray-400">Source:</span>
                     <span className="text-gray-300">
-                      <SourceBadge source={document.metadata.source || 'Seventh Production'} />
+                      <SourceBadge source={document.metadata.source_collection || document.metadata.source || 'Unknown'} />
                     </span>
                   </div>
+                  {document.metadata?.source_original_url && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Source URL:</span>
+                      <a href={document.metadata.source_original_url} target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300 truncate max-w-[12rem]">{document.metadata.source_original_url}</a>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-gray-400">Confidentiality:</span>
                     <span className="text-gray-300">{document.metadata.confidentiality}</span>
                   </div>
                 </div>
+                  <div className="mt-3">
+                    <h4 className="text-sm font-semibold text-white mb-1">Credibility</h4>
+                    <div className="text-sm text-gray-300">{typeof document.metadata?.credibility_score === 'number' ? `${Math.round((document.metadata.credibility_score as number)*100)/100}` : 'Unknown'}</div>
+                  </div>
+                  {Array.isArray(document.metadata?.sensitivity_flags) && (document.metadata!.sensitivity_flags as any[]).length > 0 && (
+                    <div className="mt-3">
+                      <h4 className="text-sm font-semibold text-white mb-1">Sensitivity</h4>
+                      <div className="flex flex-wrap gap-1">
+                        {(document.metadata!.sensitivity_flags as any[]).map((flag: string, idx: number) => (
+                          <span key={idx} className="px-2 py-1 bg-yellow-900 text-yellow-200 text-xs rounded">{flag}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
               </div>
 
               {document.metadata?.categories?.length > 0 && (
@@ -764,7 +1027,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
                       {Array.from({ length: 5 }).map((_, i) => (
                         <span
                           key={i}
-                          className={i < document.spiceRating ? 'text-red-500' : 'text-slate-600'}
+                          className={i < document.redFlagRating ? 'text-red-500' : 'text-slate-600'}
                         >
                           🚩
                         </span>
@@ -781,7 +1044,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <div className="min-h-screen text-white overflow-x-hidden">
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-4">Document Browser</h1>
@@ -790,7 +1053,8 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
 
         {/* Search and Filters */}
         <div className="mb-6 space-y-4">
-          <div className="flex items-center space-x-4">
+          {/* Search bar and filter button - stack on mobile */}
+          <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
@@ -806,17 +1070,50 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
                     setContextSearchTerm(newValue);
                   }
                 }}
-                className="w-full pl-10 pr-4 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500"
+                className="w-full pl-10 pr-4 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500 min-h-[44px]"
               />
             </div>
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center space-x-2 px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700"
+              className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 min-h-[44px] shrink-0"
             >
               <Filter className="w-4 h-4" />
               <span>Filters</span>
               {showFilters ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
             </button>
+          </div>
+
+          {/* Category Type Filter Buttons - Horizontal scroll on mobile */}
+          <div className="mobile-scroll-x -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex sm:flex-wrap gap-2">
+            {[
+              { type: 'all', label: '📁 All Documents', icon: '📁' },
+              { type: 'legal', label: '⚖️ Legal', icon: '⚖️' },
+              { type: 'email', label: '📧 Email', icon: '📧' },
+              { type: 'deposition', label: '📜 Deposition', icon: '📜' },
+              { type: 'article', label: '📰 Article', icon: '📰' },
+              { type: 'photo', label: '📷 Photo', icon: '📷' },
+              { type: 'financial', label: '💰 Financial', icon: '💰' },
+              { type: 'document', label: '📄 Document', icon: '📄' },
+            ].map(({ type, label }) => (
+              <button
+                key={type}
+                onClick={() => {
+                  if (type === 'all') {
+                    handleFilterChange('categories', []);
+                  } else {
+                    handleFilterChange('categories', [type]);
+                  }
+                }}
+                className={`mobile-chip mobile-chip-interactive touch-feedback shrink-0 ${
+                  (type === 'all' && (!filters.categories || filters.categories.length === 0)) ||
+                  (filters.categories?.includes(type))
+                    ? 'bg-blue-600 text-white border border-blue-500'
+                    : 'bg-gray-800 text-gray-300 border border-gray-700 hover:bg-gray-700 hover:text-white'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
 
           {showFilters && (
@@ -867,15 +1164,15 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
                         type="range"
                         min="1"
                         max="5"
-                        value={filters.spiceLevel?.min || 1}
-                        onChange={(e) => handleSpiceLevelChange(parseInt(e.target.value), filters.spiceLevel?.max || 5)}
+                        value={filters.redFlagLevel?.min || 0}
+                        onChange={(e) => handleRedFlagLevelChange(parseInt(e.target.value), filters.redFlagLevel?.max || 5)}
                         className="flex-1"
                       />
                       <span className="text-xs text-gray-400">🚩🚩🚩🚩🚩</span>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <span className="text-xs text-gray-400">Min: {filters.spiceLevel?.min || 1}</span>
-                      <span className="text-xs text-gray-400">Max: {filters.spiceLevel?.max || 5}</span>
+                      <span className="text-xs text-gray-400">Min: {filters.redFlagLevel?.min || 0}</span>
+                      <span className="text-xs text-gray-400">Max: {filters.redFlagLevel?.max || 5}</span>
                     </div>
                   </div>
                 </div>
@@ -890,7 +1187,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
                   >
                     <option value="relevance">Relevance</option>
                     <option value="date">Date</option>
-                    <option value="spice">Red Flag Index</option>
+                    <option value="red_flag">Red Flag Index</option>
                     <option value="fileType">File Type</option>
                     <option value="size">File Size</option>
                   </select>
@@ -903,22 +1200,47 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
                     <option value="asc">Ascending</option>
                   </select>
                 </div>
+                {/* Credibility Filter */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">Reliability</label>
+                  <label className="flex items-center text-sm" title="Hide documents flagged as low credibility based on source and provenance">
+                    <input
+                      type="checkbox"
+                      checked={hideLowCredibility}
+                      onChange={(e) => setHideLowCredibility(e.target.checked)}
+                      className="mr-2"
+                    />
+                    Hide low credibility material
+                  </label>
+                </div>
               </div>
             </div>
           )}
         </div>
 
         {/* Results Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center space-x-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div className="flex items-center space-x-4 flex-wrap gap-2">
             <div className="text-gray-400">
-              Showing {filteredDocuments.length} of {documents.length} documents
+              Showing {filteredDocuments.length} of {totalDocuments.toLocaleString()} documents
             </div>
-            {/* {displayLimit < documents.length && (
-              <div className="text-sm text-blue-400">
-                Display limit: {displayLimit}
-              </div>
-            )} */}
+            {/* Page Size Selector */}
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-500">Per page:</label>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1); // Reset to first page
+                }}
+                className="bg-gray-800 border border-gray-600 rounded px-2 py-1 text-sm text-white"
+              >
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value={200}>200</option>
+              </select>
+            </div>
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => setViewMode('grid')}
@@ -940,7 +1262,9 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
         </div>
 
         {/* Document Grid/List */}
-        {viewMode === 'grid' ? (
+        {documents.length === 0 && filteredDocuments.length === 0 ? (
+          <DocumentSkeleton count={12} />
+        ) : viewMode === 'grid' ? (
           // Regular grid view
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredDocuments.map(document => (
@@ -958,7 +1282,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
                       <div className="flex items-center space-x-2 mb-2">
                         <FileText className="w-4 h-4 text-blue-400" />
                         <span className="text-xs text-gray-400 uppercase">{document.fileType}</span>
-                        <span className="text-lg">{document.spicePeppers}</span>
+                        <span className="text-lg">{document.redFlagPeppers}</span>
                       </div>
                       <h3 className="font-semibold text-white mb-2">
                         {effectiveSearchTerm ? renderHighlightedText(document.title, effectiveSearchTerm) : document.title}
@@ -996,7 +1320,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
         )}
 
         {/* Pagination Controls */}
-        {documents.length > itemsPerPage && (
+        {filteredDocuments.length > 0 && (
           <div className="flex items-center justify-center space-x-4 mt-8">
             <button
               onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
@@ -1006,15 +1330,16 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
               Previous
             </button>
             
-            <div className="text-sm text-gray-400">
-              Page {currentPage} of {Math.ceil(documents.length / itemsPerPage)}
-              <br />
-              Showing {Math.min(itemsPerPage, documents.length - (currentPage - 1) * itemsPerPage)} of {documents.length} documents
+            <div className="text-sm text-gray-400 text-center">
+              <div>Page {currentPage} of {Math.ceil(totalDocuments / itemsPerPage) || 1}</div>
+              <div className="text-xs mt-1">
+                Showing {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, totalDocuments)} of {totalDocuments.toLocaleString()} documents
+              </div>
             </div>
             
             <button
-              onClick={() => setCurrentPage(prev => Math.min(Math.ceil(documents.length / itemsPerPage), prev + 1))}
-              disabled={currentPage === Math.ceil(documents.length / itemsPerPage)}
+              onClick={() => setCurrentPage(prev => prev + 1)}
+              disabled={currentPage >= Math.ceil(totalDocuments / itemsPerPage)}
               className="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700 transition-colors"
             >
               Next

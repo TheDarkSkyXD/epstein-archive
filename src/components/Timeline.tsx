@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Clock, FileText, Calendar, Users } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Clock, FileText, Calendar, Users, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
 
 interface TimelineEvent {
@@ -20,6 +20,16 @@ export const Timeline: React.FC<TimelineProps> = ({ className = "" }) => {
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  // Sort events based on current sort order
+  const sortedEvents = useMemo(() => {
+    return [...events].sort((a, b) => {
+      const dateA = a.date.getTime();
+      const dateB = b.date.getTime();
+      return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+    });
+  }, [events, sortOrder]);
 
   useEffect(() => {
     loadTimelineData();
@@ -534,14 +544,28 @@ export const Timeline: React.FC<TimelineProps> = ({ className = "" }) => {
   return (
     <div className={`space-y-8 ${className}`}>
       {/* Timeline Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
           <h2 className="text-3xl font-bold text-white mb-2">Investigation Timeline</h2>
           <p className="text-slate-400">
             Chronological sequence of {events.length} significant events extracted from the evidence files.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Sort Toggle */}
+          <button
+            onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+            className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 border border-slate-600 rounded-full hover:bg-slate-700 hover:border-slate-500 transition-all duration-200 text-sm text-slate-200"
+            title={sortOrder === 'desc' ? 'Showing newest first' : 'Showing oldest first'}
+          >
+            {sortOrder === 'desc' ? (
+              <><ArrowDown className="w-4 h-4" /><span>Newest First</span></>
+            ) : (
+              <><ArrowUp className="w-4 h-4" /><span>Oldest First</span></>
+            )}
+          </button>
+          
+          {/* Significance Legend */}
           <div className="flex items-center gap-2 px-3 py-1 bg-red-900/20 border border-red-500/30 rounded-full">
             <div className="w-2 h-2 rounded-full bg-red-500"></div>
             <span className="text-xs text-red-200">High Significance</span>
@@ -554,7 +578,7 @@ export const Timeline: React.FC<TimelineProps> = ({ className = "" }) => {
       </div>
 
       <div className="relative border-l-2 border-slate-700 ml-4 md:ml-6 space-y-8">
-        {events.map((event, index) => (
+        {sortedEvents.map((event, index) => (
           <div
             key={index}
             className="relative pl-8 md:pl-12"

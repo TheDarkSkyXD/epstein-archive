@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Document, Page, pdfjs } from 'react-pdf';
-import { FileText, Search, Fingerprint, Clock, User, MapPin, Phone, Mail, DollarSign, Camera, ZoomIn, ZoomOut, RotateCcw, Download, Eye, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { FileText, Search, Fingerprint, Clock, User, MapPin, Phone, Mail, DollarSign, ZoomIn, ZoomOut, RotateCw, ChevronLeft, ChevronRight, AlertTriangle, CheckCircle, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { format } from 'date-fns';
+import { DocumentMetadataPanel } from './DocumentMetadataPanel';
 
 // Set up PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
@@ -53,6 +56,11 @@ interface DocumentMetadata {
     sentiment: 'positive' | 'negative' | 'neutral';
     writingStyle: 'formal' | 'informal' | 'technical' | 'legal';
   };
+  technical?: any;
+  structure?: any;
+  linguistics?: any;
+  network?: any;
+  tags?: string[];
 }
 
 interface DetectedEntity {
@@ -62,6 +70,8 @@ interface DetectedEntity {
   confidence: number;
   context: string;
   crossReferences: string[];
+  name?: string;
+  sentiment?: string;
 }
 
 interface DetectedPattern {
@@ -70,6 +80,7 @@ interface DetectedPattern {
   entities: string[];
   confidence: number;
   significance: 'low' | 'medium' | 'high';
+  severity?: 'low' | 'medium' | 'high';
   timeline?: {
     startDate?: string;
     endDate?: string;
@@ -104,6 +115,8 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
   onAnalysisComplete,
   caseContext
 }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [numPages, setNumPages] = useState<number>(0);
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [scale, setScale] = useState<number>(1.0);
@@ -111,18 +124,121 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
   const [analysis, setAnalysis] = useState<ForensicAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [selectedEntity, setSelectedEntity] = useState<DetectedEntity | null>(null);
-  const [selectedPattern, setSelectedPattern] = useState<DetectedPattern | null>(null);
-  const [activeTab, setActiveTab] = useState<'document' | 'entities' | 'patterns' | 'anomalies' | 'metadata'>('document');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'entities' | 'patterns' | 'anomalies' | 'metadata'>('dashboard');
+  const [metrics, setMetrics] = useState<any|null>(null);
+  const [summary, setSummary] = useState<any|null>(null);
+  const [topJs, setTopJs] = useState<any[]>([]);
+  const [topDensity, setTopDensity] = useState<any[]>([]);
+  const [topRisk, setTopRisk] = useState<any[]>([]);
+  const [compareAId, setCompareAId] = useState('');
+  const [compareBId, setCompareBId] = useState('');
+  const [compareA, setCompareA] = useState<any|null>(null);
+  const [compareB, setCompareB] = useState<any|null>(null);
+  const [hoveredId, setHoveredId] = useState<string>('');
+  const [quickMetrics, setQuickMetrics] = useState<Record<string, any>>({});
+  const [activeId, setActiveId] = useState<string>(documentId);
+  useEffect(()=>{ setActiveId(documentId); },[documentId]);
+  useEffect(()=>{
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const a = params.get('compareA');
+      const b = params.get('compareB');
+      if (a) setCompareAId(a);
+      if (b) setCompareBId(b);
+    } catch (err) {
+      console.error('Error parsing URL parameters:', err);
+    }
+  },[]);
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [highlightedText, setHighlightedText] = useState<string>('');
-  
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [viewerWidth, setViewerWidth] = useState<number>(0);
+  const [expandedSections, setExpandedSections] = useState<{ [key: string]: boolean }>({
+    factors: false,
+    fileInfo: false,
+    docProps: false,
+    textAnalysis: false
+  });
+  const viewerRef = useRef<HTMLDivElement>(null);
+  const [docMeta, setDocMeta] = useState<{ source_collection?: string; source_original_url?: string; credibility_score?: number; sensitivity_flags?: string[] } | null>(null);
+  const [localUrl, setLocalUrl] = useState<string>('');
+
+  useEffect(() => {
+    const el = viewerRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver(() => {
+      setViewerWidth(el.clientWidth);
+    });
+    obs.observe(el);
+    setViewerWidth(el.clientWidth);
+    return () => obs.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const fetchDoc = async () => {
+      try {
+        if (activeId) {
+          const res = await fetch(`/api/documents/${activeId}`);
+          if (res.ok) {
+            const data = await res.json();
+            const meta = data.metadata || {};
+            setDocMeta({
+              source_collection: meta.source_collection,
+              source_original_url: meta.source_original_url,
+              credibility_score: meta.credibility_score,
+              sensitivity_flags: Array.isArray(meta.sensitivity_flags) ? meta.sensitivity_flags : []
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching document metadata:', err);
+      }
+    };
+    fetchDoc();
+  }, [activeId]);
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        if (activeId) {
+          const res = await fetch(`/api/forensic/metrics/${activeId}`);
+          if (res.ok) {
+            const data = await res.json();
+            setMetrics(data);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching metrics:', err);
+      }
+    };
+    const fetchSummary = async () => {
+      try {
+        const res = await fetch('/api/forensic/metrics-summary');
+        if (res.ok) setSummary(await res.json());
+      } catch (err) {
+        console.error('Error fetching summary:', err);
+      }
+    };
+    const fetchTop = async () => {
+      try {
+        const [jsRes, denRes, riskRes] = await Promise.all([
+          fetch('/api/forensic/metrics-list/top?by=js&limit=10'),
+          fetch('/api/forensic/metrics-list/top?by=density&limit=10'),
+          fetch('/api/forensic/metrics-list/top?by=risk&limit=10'),
+        ]);
+        if (jsRes.ok) { const d = await jsRes.json(); setTopJs(d.data || []); }
+        if (denRes.ok) { const d = await denRes.json(); setTopDensity(d.data || []); }
+        if (riskRes.ok) { const d = await riskRes.json(); setTopRisk(d.data || []); }
+      } catch (err) {
+        console.error('Error fetching top metrics:', err);
+      }
+    };
+    if (activeTab === 'dashboard' && activeId) { fetchMetrics(); fetchSummary(); fetchTop(); }
+  }, [activeTab, activeId]);
 
   // Mock forensic analysis data
   const generateMockAnalysis = (): ForensicAnalysis => {
     return {
       id: `analysis-${Date.now()}`,
-      documentId,
+      documentId: activeId,
       authenticity: {
         score: 87,
         verdict: 'authentic',
@@ -280,35 +396,48 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
     }
   };
 
-  const zoomIn = () => setScale(scale + 0.1);
-  const zoomOut = () => setScale(Math.max(0.5, scale - 0.1));
+  const zoomIn = () => setScale(Math.min(2.0, scale + 0.2));
+  const zoomOut = () => setScale(Math.max(0.5, scale - 0.2));
   const rotateClockwise = () => setRotation((rotation + 90) % 360);
 
   const startForensicAnalysis = async () => {
+    if (!(documentId || localUrl)) return;
     setIsAnalyzing(true);
-    
-    // Simulate forensic analysis process
-    const steps = [
-      { progress: 10, message: 'Analyzing document metadata...' },
-      { progress: 25, message: 'Extracting text content...' },
-      { progress: 40, message: 'Identifying entities and patterns...' },
-      { progress: 60, message: 'Cross-referencing with case database...' },
-      { progress: 80, message: 'Detecting anomalies and inconsistencies...' },
-      { progress: 95, message: 'Generating forensic report...' }
-    ];
-
-    for (const step of steps) {
-      await new Promise(resolve => setTimeout(resolve, 800));
-      // Update progress would go here
+    try {
+      if (documentId) {
+        const resp = await fetch(`/api/forensic/analyze/${documentId}`);
+        const data = await resp.json();
+        setAnalysis(data);
+        if (onAnalysisComplete) onAnalysisComplete(data);
+      } else {
+        // Local file analysis (basic client-side only)
+        const fileName = 'uploaded.pdf';
+        const now = new Date().toISOString();
+        const localAnalysis: any = {
+          id: `analysis-${Date.now()}`,
+          documentId: 'local-upload',
+          authenticity: { score: 50, verdict: 'inconclusive', factors: [] },
+          metadata: {
+            fileInfo: { name: fileName, size: 0, type: 'application/pdf', created: now, modified: now, hash: '' },
+            textAnalysis: { wordCount: 0, characterCount: 0, averageWordLength: 0, readingLevel: 'Unknown', sentiment: 'neutral', writingStyle: 'formal' }
+          },
+          entities: [], patterns: [], anomalies: [], timestamp: now
+        };
+        setAnalysis(localAnalysis);
+        if (onAnalysisComplete) onAnalysisComplete(localAnalysis);
+      }
+    } catch (e) {
+      console.error('Forensic analysis failed', e);
+    } finally {
+      setIsAnalyzing(false);
     }
+  };
 
-    const mockAnalysis = generateMockAnalysis();
-    setAnalysis(mockAnalysis);
-    setIsAnalyzing(false);
-    
-    if (onAnalysisComplete) {
-      onAnalysisComplete(mockAnalysis);
-    }
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
   };
 
   const getEntityIcon = (type: DetectedEntity['type']) => {
@@ -326,117 +455,103 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
     }
   };
 
-  const getAuthenticityColor = (score: number) => {
-    if (score >= 90) return 'text-green-600';
-    if (score >= 70) return 'text-yellow-600';
-    return 'text-red-600';
-  };
-
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'low': return 'text-green-600';
-      case 'medium': return 'text-yellow-600';
-      case 'high': return 'text-red-600';
-      default: return 'text-gray-600';
-    }
-  };
-
-  const getAnomalySeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'minor': return 'text-yellow-600';
-      case 'significant': return 'text-orange-600';
-      case 'critical': return 'text-red-600';
-      default: return 'text-gray-600';
-    }
-  };
-
   return (
-    <div className="bg-gray-900 text-gray-100 min-h-screen p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Forensic Document Analyzer</h1>
-          <p className="text-gray-400">Advanced document authentication and forensic analysis</p>
+    <div className="h-full bg-gray-900 text-gray-100 flex flex-col">
+      {/* Compact Toolbar */}
+      <div className="bg-gray-800 border-b border-gray-700 px-6 py-3">
+        <div className="flex items-center justify-between gap-4">
+          {/* Search */}
+          <div className="flex-1 max-w-md">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search document..."
+                className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
+              />
+            </div>
+          </div>
+
+          {/* Controls */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={zoomOut}
+              className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+              title="Zoom Out"
+            >
+              <ZoomOut className="w-4 h-4" />
+            </button>
+            <span className="text-sm text-gray-400 min-w-16 text-center">
+              {Math.round(scale * 100)}%
+            </span>
+            <button
+              onClick={zoomIn}
+              className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+              title="Zoom In"
+            >
+              <ZoomIn className="w-4 h-4" />
+            </button>
+            <button
+              onClick={rotateClockwise}
+              className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+              title="Rotate"
+            >
+              <RotateCw className="w-4 h-4" />
+            </button>
+          </div>
         </div>
+      </div>
 
-        {/* Document Viewer and Analysis Panel */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Main Content */}
+      <div className="flex-1 overflow-hidden">
+        <div className="h-full flex flex-col gap-6 p-6">
           {/* Document Viewer */}
-          <div className="bg-gray-800 rounded-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-white">Document Viewer</h2>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={zoomOut}
-                  className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+          <div className="flex flex-col bg-gray-800 rounded-lg overflow-hidden">
+            <div ref={viewerRef} className="flex-1 overflow-auto bg-gray-900">
+              {documentUrl || localUrl ? (
+                <Document
+                  file={documentUrl || localUrl}
+                  onLoadSuccess={onDocumentLoadSuccess}
+                  loading={<div className="p-8 text-center text-gray-400">Loading document...</div>}
+                  error={<div className="p-8 text-center text-red-400">Error loading document</div>}
                 >
-                  <ZoomOut className="w-4 h-4" />
-                </button>
-                <span className="text-sm text-gray-400 min-w-12 text-center">
-                  {Math.round(scale * 100)}%
-                </span>
-                <button
-                  onClick={zoomIn}
-                  className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
-                >
-                  <ZoomIn className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={rotateClockwise}
-                  className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={startForensicAnalysis}
-                  disabled={isAnalyzing}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white rounded-lg transition-colors"
-                >
-                  <Fingerprint className="w-4 h-4 mr-2 inline" />
-                  {isAnalyzing ? 'Analyzing...' : 'Analyze Document'}
-                </button>
-              </div>
+                  <div className="flex justify-center p-4">
+                    <Page
+                      pageNumber={pageNumber}
+                      width={viewerWidth ? Math.floor((viewerWidth - 32) * scale) : undefined}
+                      rotate={rotation}
+                      loading={<div className="p-8 text-center text-gray-400">Loading page...</div>}
+                    />
+                  </div>
+                </Document>
+              ) : (
+                <div className="h-full flex items-center justify-center p-8">
+                  <div className="max-w-md w-full text-center">
+                    <Fingerprint className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-300 mb-2">No document selected</h3>
+                    <p className="text-gray-400 mb-4">Upload a PDF or choose a document from the case to begin analysis.</p>
+                    <div className="flex items-center justify-center gap-3">
+                      <label className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg cursor-pointer">
+                        <input type="file" accept="application/pdf" className="hidden" onChange={(e)=>{ const f=e.target.files?.[0]; if(!f) return; const url=URL.createObjectURL(f); setLocalUrl(url); setDocMeta({}); }} />
+                        Upload PDF
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-
-            {/* Search Bar */}
-            <div className="mb-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search document..."
-                  className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400"
-                />
-              </div>
-            </div>
-
-            {/* PDF Viewer */}
-            <div className="border border-gray-700 rounded-lg overflow-hidden bg-white">
-              <Document
-                file={documentUrl}
-                onLoadSuccess={onDocumentLoadSuccess}
-                loading={<div className="p-8 text-center text-gray-600">Loading document...</div>}
-                error={<div className="p-8 text-center text-red-600">Error loading document</div>}
-              >
-                <Page
-                  pageNumber={pageNumber}
-                  scale={scale}
-                  rotate={rotation}
-                  loading={<div className="p-8 text-center text-gray-600">Loading page...</div>}
-                />
-              </Document>
-            </div>
-
+            
             {/* Page Navigation */}
             {numPages > 0 && (
-              <div className="flex items-center justify-between mt-4">
+              <div className="flex items-center justify-between bg-gray-800 border-t border-gray-700 px-4 py-3">
                 <button
                   onClick={goToPrevPage}
                   disabled={pageNumber <= 1}
-                  className="px-3 py-1 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-500 rounded-lg transition-colors"
+                  className="flex items-center gap-1 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-500 rounded-lg transition-colors text-sm"
                 >
+                  <ChevronLeft className="w-4 h-4" />
                   Previous
                 </button>
                 <span className="text-sm text-gray-400">
@@ -445,360 +560,481 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                 <button
                   onClick={goToNextPage}
                   disabled={pageNumber >= numPages}
-                  className="px-3 py-1 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-500 rounded-lg transition-colors"
+                  className="flex items-center gap-1 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-500 rounded-lg transition-colors text-sm"
                 >
                   Next
+                  <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
             )}
           </div>
 
           {/* Analysis Panel */}
-          <div className="bg-gray-800 rounded-lg p-6">
-            {/* Authenticity Score */}
-            {analysis && (
-              <div className="mb-6">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-lg font-semibold text-white">Authenticity Score</h3>
-                  <span className={`text-2xl font-bold ${getAuthenticityColor(analysis.authenticity.score)}`}>
-                    {analysis.authenticity.score}%
-                  </span>
-                </div>
-                <div className="w-full bg-gray-700 rounded-full h-3">
-                  <div
-                    className={`h-3 rounded-full ${
-                      analysis.authenticity.score >= 90 ? 'bg-green-600' :
-                      analysis.authenticity.score >= 70 ? 'bg-yellow-600' : 'bg-red-600'
-                    }`}
-                    style={{ width: `${analysis.authenticity.score}%` }}
-                  ></div>
-                </div>
-                <div className="flex items-center gap-2 mt-2">
-                  {analysis.authenticity.verdict === 'authentic' && <CheckCircle className="w-5 h-5 text-green-600" />}
-                  {analysis.authenticity.verdict === 'suspicious' && <AlertTriangle className="w-5 h-5 text-yellow-600" />}
-                  {analysis.authenticity.verdict === 'forged' && <XCircle className="w-5 h-5 text-red-600" />}
-                  <span className="text-sm text-gray-300 capitalize">{analysis.authenticity.verdict}</span>
-                </div>
-              </div>
-            )}
-
-            {/* Analysis Tabs */}
-            <div className="mb-4">
-              <div className="flex flex-wrap gap-1">
-                {[
-                  { id: 'entities', label: 'Entities', icon: User },
-                  { id: 'patterns', label: 'Patterns', icon: FileText },
-                  { id: 'anomalies', label: 'Anomalies', icon: AlertTriangle },
-                  { id: 'metadata', label: 'Metadata', icon: FileText }
-                ].map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id as any)}
-                    className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                      activeTab === tab.id
-                        ? 'bg-red-600 text-white'
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    }`}
-                  >
-                    <tab.icon className="w-4 h-4" />
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Tab Content */}
-            {analysis && (
-              <div className="space-y-4 max-h-96 overflow-y-auto">
-                {activeTab === 'entities' && (
-                  <div>
-                    <h4 className="text-white font-medium mb-3">Detected Entities ({analysis.entities.length})</h4>
-                    <div className="space-y-2">
-                      {analysis.entities.map((entity, index) => (
-                        <div
-                          key={index}
-                          className="p-3 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-650 transition-colors"
-                          onClick={() => setSelectedEntity(entity)}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center">
-                              {React.createElement(getEntityIcon(entity.type), { className: 'w-4 h-4 text-gray-300' })}
-                            </div>
-                            <div className="flex-1">
-                              <p className="text-white font-medium">{entity.text}</p>
-                              <p className="text-gray-400 text-sm capitalize">{entity.type}</p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-sm text-gray-400">{Math.round(entity.confidence)}% confidence</p>
-                              <p className="text-xs text-gray-500">{entity.crossReferences.length} refs</p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === 'patterns' && (
-                  <div>
-                    <h4 className="text-white font-medium mb-3">Detected Patterns ({analysis.patterns.length})</h4>
-                    <div className="space-y-3">
-                      {analysis.patterns.map((pattern, index) => (
-                        <div
-                          key={index}
-                          className="p-3 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-650 transition-colors border-l-4"
-                          style={{ borderLeftColor: pattern.significance === 'high' ? '#ef4444' : pattern.significance === 'medium' ? '#f59e0b' : '#10b981' }}
-                          onClick={() => setSelectedPattern(pattern)}
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs text-gray-400 uppercase">{pattern.type}</span>
-                            <span className={`text-xs px-2 py-1 rounded ${
-                              pattern.significance === 'high' ? 'bg-red-900 text-red-300' :
-                              pattern.significance === 'medium' ? 'bg-yellow-900 text-yellow-300' : 'bg-green-900 text-green-300'
-                            }`}>
-                              {pattern.significance}
-                            </span>
-                          </div>
-                          <p className="text-white text-sm mb-2">{pattern.description}</p>
-                          <div className="flex items-center justify-between text-xs text-gray-400">
-                            <span>{pattern.entities.length} entities</span>
-                            <span>{Math.round(pattern.confidence)}% confidence</span>
-                          </div>
-                          {pattern.timeline && (
-                            <div className="mt-2 text-xs text-gray-500">
-                              {pattern.timeline.frequency === 'recurring' && '↻ Recurring pattern'}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === 'anomalies' && (
-                  <div>
-                    <h4 className="text-white font-medium mb-3">Detected Anomalies ({analysis.anomalies.length})</h4>
-                    <div className="space-y-3">
-                      {analysis.anomalies.map((anomaly, index) => (
-                        <div
-                          key={index}
-                          className="p-3 bg-gray-700 rounded-lg border-l-4"
-                          style={{ borderLeftColor: anomaly.severity === 'critical' ? '#ef4444' : anomaly.severity === 'significant' ? '#f59e0b' : '#6b7280' }}
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs text-gray-400 uppercase">{anomaly.type}</span>
-                            <span className={`text-xs px-2 py-1 rounded ${
-                              anomaly.severity === 'critical' ? 'bg-red-900 text-red-300' :
-                              anomaly.severity === 'significant' ? 'bg-orange-900 text-orange-300' : 'bg-gray-700 text-gray-300'
-                            }`}>
-                              {anomaly.severity}
-                            </span>
-                          </div>
-                          <p className="text-white text-sm mb-2">{anomaly.description}</p>
-                          <p className="text-gray-400 text-xs mb-2">{anomaly.explanation}</p>
-                          {anomaly.requiresInvestigation && (
-                            <div className="flex items-center gap-1 text-xs text-red-400">
-                              <AlertTriangle className="w-3 h-3" />
-                              Requires investigation
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === 'metadata' && (
-                  <div>
-                    <h4 className="text-white font-medium mb-3">Document Metadata</h4>
-                    <div className="space-y-3">
-                      <div className="p-3 bg-gray-700 rounded-lg">
-                        <h5 className="text-white font-medium mb-2">File Information</h5>
-                        <div className="space-y-1 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Filename:</span>
-                            <span className="text-white">{analysis.metadata.fileInfo.name}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Size:</span>
-                            <span className="text-white">{(analysis.metadata.fileInfo.size / 1024 / 1024).toFixed(2)} MB</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Type:</span>
-                            <span className="text-white">{analysis.metadata.fileInfo.type}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Hash:</span>
-                            <span className="text-white text-xs font-mono">{analysis.metadata.fileInfo.hash.substring(0, 16)}...</span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {analysis.metadata.documentProperties && (
-                        <div className="p-3 bg-gray-700 rounded-lg">
-                          <h5 className="text-white font-medium mb-2">Document Properties</h5>
-                          <div className="space-y-1 text-sm">
-                            {analysis.metadata.documentProperties.author && (
-                              <div className="flex justify-between">
-                                <span className="text-gray-400">Author:</span>
-                                <span className="text-white">{analysis.metadata.documentProperties.author}</span>
-                              </div>
-                            )}
-                            {analysis.metadata.documentProperties.pageCount && (
-                              <div className="flex justify-between">
-                                <span className="text-gray-400">Pages:</span>
-                                <span className="text-white">{analysis.metadata.documentProperties.pageCount}</span>
-                              </div>
-                            )}
-                            {analysis.metadata.documentProperties.creationDate && (
-                              <div className="flex justify-between">
-                                <span className="text-gray-400">Created:</span>
-                                <span className="text-white">{format(new Date(analysis.metadata.documentProperties.creationDate), 'PPP')}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                      
-                      <div className="p-3 bg-gray-700 rounded-lg">
-                        <h5 className="text-white font-medium mb-2">Text Analysis</h5>
-                        <div className="space-y-1 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Word Count:</span>
-                            <span className="text-white">{analysis.metadata.textAnalysis.wordCount.toLocaleString()}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Reading Level:</span>
-                            <span className="text-white">{analysis.metadata.textAnalysis.readingLevel}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Sentiment:</span>
-                            <span className="text-white capitalize">{analysis.metadata.textAnalysis.sentiment}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Style:</span>
-                            <span className="text-white capitalize">{analysis.metadata.textAnalysis.writingStyle}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
+          <div className="flex flex-col bg-gray-800 rounded-lg overflow-hidden">
             {!analysis && !isAnalyzing && (
-              <div className="text-center py-8">
-                <Fingerprint className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-300 mb-2">No Analysis Yet</h3>
-                <p className="text-gray-400 mb-4">
-                  Click "Analyze Document" to perform forensic analysis
+              <div className="flex-1 flex flex-col items-center justify-center p-8">
+                <Fingerprint className="w-20 h-20 text-gray-600 mb-6" />
+                <h3 className="text-xl font-semibold text-gray-300 mb-3">No Analysis Yet</h3>
+                <p className="text-gray-400 text-center mb-6 max-w-sm">
+                  Perform forensic analysis to authenticate this document and extract key information
                 </p>
+                <button
+                  onClick={startForensicAnalysis}
+                  disabled={!(documentUrl || localUrl)}
+                  className={`flex items-center gap-2 px-6 py-3 rounded-lg transition-colors font-medium ${documentUrl || localUrl ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-gray-700 text-gray-400 cursor-not-allowed'}`}
+                >
+                  <Fingerprint className="w-5 h-5" />
+                  Analyze Document
+                </button>
               </div>
             )}
 
             {isAnalyzing && (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
-                <h3 className="text-lg font-medium text-gray-300 mb-2">Analyzing Document...</h3>
-                <p className="text-gray-400">
+              <div className="flex-1 flex flex-col items-center justify-center p-8">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-red-600 mb-6"></div>
+                <h3 className="text-xl font-semibold text-gray-300 mb-3">Analyzing Document...</h3>
+                <p className="text-gray-400 text-center max-w-sm">
                   Performing forensic analysis and cross-referencing with case database
                 </p>
               </div>
             )}
-          </div>
-        </div>
 
-        {/* Detailed Entity/Pattern Modal */}
-        {(selectedEntity || selectedPattern) && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
-              {selectedEntity && (
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-semibold text-white">Entity Details</h3>
-                    <button
-                      onClick={() => setSelectedEntity(null)}
-                      className="text-gray-400 hover:text-white"
-                    >
-                      <XCircle className="w-6 h-6" />
-                    </button>
-                  </div>
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="text-white font-medium mb-2">{selectedEntity.text}</h4>
-                      <p className="text-gray-400 capitalize">{selectedEntity.type}</p>
-                    </div>
-                    <div>
-                      <h5 className="text-white font-medium mb-1">Context</h5>
-                      <p className="text-gray-300 text-sm">{selectedEntity.context}</p>
-                    </div>
-                    <div>
-                      <h5 className="text-white font-medium mb-1">Cross References</h5>
-                      <div className="space-y-1">
-                        {selectedEntity.crossReferences.map((ref, index) => (
-                          <div key={index} className="text-sm text-blue-400 hover:text-blue-300 cursor-pointer">
-                            {ref}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {selectedPattern && (
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-semibold text-white">Pattern Analysis</h3>
-                    <button
-                      onClick={() => setSelectedPattern(null)}
-                      className="text-gray-400 hover:text-white"
-                    >
-                      <XCircle className="w-6 h-6" />
-                    </button>
-                  </div>
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="text-white font-medium mb-2">{selectedPattern.description}</h4>
-                      <span className={`text-xs px-2 py-1 rounded ${
-                        selectedPattern.significance === 'high' ? 'bg-red-900 text-red-300' :
-                        selectedPattern.significance === 'medium' ? 'bg-yellow-900 text-yellow-300' : 'bg-green-900 text-green-300'
+            {analysis && (
+              <div className="flex-1 flex flex-col overflow-hidden">
+                {/* Authenticity Score - Always Visible */}
+                <div className="bg-gray-800 border-b border-gray-700 p-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-semibold text-white">Authenticity Score</h3>
+                    <div className="flex items-center gap-2">
+                      {analysis.authenticity.verdict === 'authentic' && <CheckCircle className="w-5 h-5 text-green-500" />}
+                      {analysis.authenticity.verdict === 'suspicious' && <AlertTriangle className="w-5 h-5 text-yellow-500" />}
+                      {analysis.authenticity.verdict === 'forged' && <XCircle className="w-5 h-5 text-red-500" />}
+                      <span className={`text-3xl font-bold ${
+                        analysis.authenticity.score >= 90 ? 'text-green-500' :
+                        analysis.authenticity.score >= 70 ? 'text-yellow-500' : 'text-red-500'
                       }`}>
-                        {selectedPattern.significance} significance
+                        {analysis.authenticity.score}%
                       </span>
                     </div>
-                    <div>
-                      <h5 className="text-white font-medium mb-1">Involved Entities</h5>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedPattern.entities.map((entity, index) => (
-                          <span key={index} className="px-2 py-1 bg-gray-700 text-gray-300 rounded text-sm">
-                            {entity}
-                          </span>
-                        ))}
-                      </div>
+                  </div>
+                  <div className="w-full bg-gray-700 rounded-full h-2.5 mb-3">
+                    <div
+                      className={`h-2.5 rounded-full transition-all ${
+                        analysis.authenticity.score >= 90 ? 'bg-green-500' :
+                        analysis.authenticity.score >= 70 ? 'bg-yellow-500' : 'bg-red-500'
+                      }`}
+                      style={{ width: `${analysis.authenticity.score}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-sm text-gray-400 capitalize">
+                    Verdict: <span className="text-white font-medium">{analysis.authenticity.verdict}</span>
+                  </p>
+
+                  {/* Collapsible Factors */}
+                  <button
+                    onClick={() => toggleSection('factors')}
+                    className="flex items-center gap-2 mt-4 text-sm text-gray-400 hover:text-gray-300"
+                  >
+                    {expandedSections.factors ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    {expandedSections.factors ? 'Hide' : 'Show'} Authenticity Factors
+                  </button>
+                  {expandedSections.factors && (
+                    <div className="mt-3 space-y-2">
+                      {analysis.authenticity.factors.map((factor, idx) => (
+                        <div key={idx} className="p-3 bg-gray-700 rounded-lg">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-medium text-white capitalize">{factor.type.replace('_', ' ')}</span>
+                            <span className="text-sm text-gray-400">{factor.score}%</span>
+                          </div>
+                          <p className="text-xs text-gray-400">{factor.description}</p>
+                        </div>
+                      ))}
                     </div>
-                    {selectedPattern.timeline && (
-                      <div>
-                        <h5 className="text-white font-medium mb-1">Timeline</h5>
-                        <div className="text-sm text-gray-300">
-                          {selectedPattern.timeline.frequency === 'recurring' && '↻ Recurring pattern'}
-                          {selectedPattern.timeline.startDate && (
-                            <div>Start: {format(new Date(selectedPattern.timeline.startDate), 'PPP')}</div>
-                          )}
-                          {selectedPattern.timeline.endDate && (
-                            <div>End: {format(new Date(selectedPattern.timeline.endDate), 'PPP')}</div>
+                  )}
+                </div>
+
+                {/* Tabs */}
+                <div className="bg-gray-800 border-b border-gray-700 px-6 py-3">
+                  <div className="flex gap-2">
+                    {[
+                      { id: 'dashboard', label: 'Dashboard', icon: FileText, count: undefined },
+                      { id: 'entities', label: 'Entities', icon: User, count: analysis.entities.length },
+                      { id: 'patterns', label: 'Patterns', icon: FileText, count: analysis.patterns.length },
+                      { id: 'anomalies', label: 'Anomalies', icon: AlertTriangle, count: analysis.anomalies.length },
+                      { id: 'metadata', label: 'Metadata', icon: FileText }
+                    ].map((tab) => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id as any)}
+                        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                          activeTab === tab.id
+                            ? 'bg-red-600 text-white'
+                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        }`}
+                      >
+                        <tab.icon className="w-4 h-4" />
+                        {tab.label}
+                        {tab.count !== undefined && (
+                          <span className={`px-1.5 py-0.5 rounded text-xs ${
+                            activeTab === tab.id ? 'bg-red-700' : 'bg-gray-600'
+                          }`}>
+                            {tab.count}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Tab Content */}
+                <div className="flex-1 overflow-y-auto p-6">
+                  {activeTab === 'dashboard' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {/* Technical Forensics */}
+                      <div className="p-4 bg-gray-700 rounded-lg">
+                        <h4 className="text-white font-medium mb-2">Technical Forensics</h4>
+                        <div className="text-sm text-gray-300 space-y-1">
+                          <div>Producer: <span className="text-gray-100">{metrics?.technical?.producer ?? 'Unknown'}</span></div>
+                          <div>Creator: <span className="text-gray-100">{metrics?.technical?.creator ?? 'Unknown'}</span></div>
+                          <div>Created: <span className="text-gray-100">{metrics?.technical?.creationDate ?? '—'}</span></div>
+                          <div>Modified: <span className="text-gray-100">{metrics?.technical?.modificationDate ?? '—'}</span></div>
+                          <div>Page Count: <span className="text-gray-100">{metrics?.technical?.pageCount ?? '—'}</span></div>
+                          <div className="mt-2">
+                            <button onClick={async ()=>{ const r = await fetch(`/api/forensic/metrics/${documentId}/download`); const b = await r.blob(); const url = URL.createObjectURL(b); const a = document.createElement('a'); a.href = url; a.download = `metrics-${documentId}.json`; a.click(); URL.revokeObjectURL(url); }} className="px-2 py-1 bg-gray-600 text-white rounded text-xs hover:bg-gray-500">Download Metrics JSON</button>
+                          </div>
+                        </div>
+                      </div>
+                      {/* Structural Analysis */}
+                      <div className="p-4 bg-gray-700 rounded-lg">
+                        <h4 className="text-white font-medium mb-2">Structural</h4>
+                        <div className="text-sm text-gray-300 space-y-1">
+                          <div>JavaScript: <span className="text-gray-100">{metrics?.structural?.containsJavascript ? 'Detected' : 'None/Unknown'}</span></div>
+                          <div>Font Count: <span className="text-gray-100">{metrics?.structural?.fontCount ?? 'Unknown'}</span></div>
+                          <div>PDF Version: <span className="text-gray-100">{metrics?.structural?.pdfVersion ?? 'Unknown'}</span></div>
+                          <div>JS Object IDs: <span className="text-gray-100">{Array.isArray(metrics?.structural?.jsObjectIds) ? metrics.structural.jsObjectIds.length : 0}</span></div>
+                          {Array.isArray(metrics?.structural?.jsObjectIds) && metrics.structural.jsObjectIds.length > 0 && (
+                            <details className="mt-1">
+                              <summary className="cursor-pointer text-gray-300">Show IDs</summary>
+                              <div className="text-xs text-gray-300">{metrics.structural.jsObjectIds.join(', ')}</div>
+                            </details>
                           )}
                         </div>
                       </div>
-                    )}
+                      {/* Linguistic */}
+                      <div className="p-4 bg-gray-700 rounded-lg">
+                        <h4 className="text-white font-medium mb-2">Linguistic</h4>
+                        <div className="text-sm text-gray-300 space-y-1">
+                          <div>Flesch-Kincaid: <span className="text-gray-100">{metrics?.linguistic?.readabilityFKGL ?? '—'}</span></div>
+                          <div>Sentiment: <span className="text-gray-100 capitalize">{metrics?.linguistic?.sentiment ?? 'neutral'}</span></div>
+                          <div>TTR: <span className="text-gray-100">{metrics?.linguistic?.typeTokenRatio ?? '—'}%</span></div>
+                        </div>
+                      </div>
+                      {/* Temporal */}
+                      <div className="p-4 bg-gray-700 rounded-lg">
+                        <h4 className="text-white font-medium mb-2">Temporal</h4>
+                        <div className="text-sm text-gray-300 space-y-1">
+                          <div>Business Hours: <span className="text-gray-100">{metrics?.temporal?.businessHours ? 'Yes' : 'No'}</span></div>
+                          <div>Day of Week: <span className="text-gray-100">{metrics?.temporal?.dayOfWeek ?? '—'}</span></div>
+                        </div>
+                      </div>
+                      {/* Network */}
+                      <div className="p-4 bg-gray-700 rounded-lg">
+                        <h4 className="text-white font-medium mb-2">Network</h4>
+                        <div className="text-sm text-gray-300 space-y-1">
+                          <div>Entity Density / 1000 words: <span className="text-gray-100">{metrics?.network?.entityDensityPer1000Words ?? '—'}</span></div>
+                          <div>Risk Score: <span className="text-gray-100">{metrics?.network?.riskScore ?? '—'}%</span></div>
+                        </div>
+                      </div>
+                      {/* Readability Distribution */}
+                      <div className="p-4 bg-gray-700 rounded-lg col-span-1 md:col-span-2">
+                        <h4 className="text-white font-medium mb-2">Readability Distribution (FKGL)</h4>
+                        <div className="h-40">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={summary?.readabilityBuckets || []}>
+                              <XAxis dataKey="range" stroke="#ccc" tick={{ fill: '#ccc' }} />
+                              <YAxis stroke="#ccc" tick={{ fill: '#ccc' }} allowDecimals={false} />
+                              <Tooltip contentStyle={{ backgroundColor: '#374151', border: 'none', color: '#fff' }} />
+                              <Bar dataKey="count" fill="#60a5fa" />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+                      {/* Sentiment Breakdown */}
+                      <div className="p-4 bg-gray-700 rounded-lg">
+                        <h4 className="text-white font-medium mb-2">Sentiment Breakdown</h4>
+                        <div className="h-40">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie data={[{name:'positive', value: summary?.sentimentCounts?.positive || 0},{name:'neutral', value: summary?.sentimentCounts?.neutral || 0},{name:'negative', value: summary?.sentimentCounts?.negative || 0}]} dataKey="value" nameKey="name" outerRadius={60} fill="#8884d8" label>
+                                {['#10b981','#9ca3af','#ef4444'].map((c, i) => <Cell key={i} fill={c} />)}
+                              </Pie>
+                              <Tooltip contentStyle={{ backgroundColor: '#374151', border: 'none', color: '#fff' }} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+                      {/* Top JS-heavy PDFs */}
+                      <div className="p-4 bg-gray-700 rounded-lg">
+                        <h4 className="text-white font-medium mb-2">Top JS-heavy PDFs</h4>
+                        <div className="text-xs text-gray-300 space-y-1">
+                          {topJs.slice(0,5).map((t:any)=> (
+                             <div key={t.id} className="flex justify-between items-center"
+                                 onMouseEnter={async ()=>{ setHoveredId(String(t.id)); if (!quickMetrics[String(t.id)]) { try { const r = await fetch(`/api/forensic/metrics/${t.id}`); if (r.ok) { const m = await r.json(); setQuickMetrics(prev=>({ ...prev, [String(t.id)]: m })); } } catch {} } }}
+                                 onMouseLeave={()=>setHoveredId('')}
+                                 onClick={()=>{ const idStr = String(t.id); if (!location.pathname.startsWith('/investigations')) { navigate(`/investigations?tab=forensic&docId=${idStr}`); } else { setActiveId(idStr); try { const params = new URLSearchParams(window.location.search); params.set('tab','forensic'); params.set('docId', idStr); const url = `${window.location.pathname}?${params.toString()}`; window.history.replaceState(null,'',url); } catch {} } }}
+                            >
+                              <span className="truncate max-w-[50%]">{t.fileName}</span>
+                              <span className="mr-2">{t.score}</span>
+                              <div className="flex gap-1">
+                                <button onClick={()=>setCompareAId(String(t.id))} className="px-1.5 py-0.5 bg-gray-600 text-white rounded text-xs">A</button>
+                                <button onClick={()=>setCompareBId(String(t.id))} className="px-1.5 py-0.5 bg-gray-600 text-white rounded text-xs">B</button>
+                              </div>
+                              {hoveredId === String(t.id) && (
+                                <div className="ml-2 text-[10px] text-gray-300">
+                                  <span>FKGL: {quickMetrics[String(t.id)]?.linguistic?.readabilityFKGL ?? '—'}</span>
+                                  <span className="ml-2 capitalize">Sentiment: {quickMetrics[String(t.id)]?.linguistic?.sentiment ?? 'neutral'}</span>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      {/* High Entity Density */}
+                      <div className="p-4 bg-gray-700 rounded-lg">
+                        <h4 className="text-white font-medium mb-2">High Entity Density</h4>
+                        <div className="text-xs text-gray-300 space-y-1">
+                          {topDensity.slice(0,5).map((t:any)=> (
+                             <div key={t.id} className="flex justify-between items-center"
+                                 onMouseEnter={async ()=>{ setHoveredId(String(t.id)); if (!quickMetrics[String(t.id)]) { try { const r = await fetch(`/api/forensic/metrics/${t.id}`); if (r.ok) { const m = await r.json(); setQuickMetrics(prev=>({ ...prev, [String(t.id)]: m })); } } catch {} } }}
+                                 onMouseLeave={()=>setHoveredId('')}
+                                 onClick={()=>{ const idStr = String(t.id); if (!location.pathname.startsWith('/investigations')) { navigate(`/investigations?tab=forensic&docId=${idStr}`); } else { setActiveId(idStr); try { const params = new URLSearchParams(window.location.search); params.set('tab','forensic'); params.set('docId', idStr); const url = `${window.location.pathname}?${params.toString()}`; window.history.replaceState(null,'',url); } catch {} } }}
+                            >
+                              <span className="truncate max-w-[50%]">{t.fileName}</span>
+                              <span className="mr-2">{t.score}</span>
+                              <div className="flex gap-1">
+                                <button onClick={()=>setCompareAId(String(t.id))} className="px-1.5 py-0.5 bg-gray-600 text-white rounded text-xs">A</button>
+                                <button onClick={()=>setCompareBId(String(t.id))} className="px-1.5 py-0.5 bg-gray-600 text-white rounded text-xs">B</button>
+                              </div>
+                              {hoveredId === String(t.id) && (
+                                <div className="ml-2 text-[10px] text-gray-300">
+                                  <span>FKGL: {quickMetrics[String(t.id)]?.linguistic?.readabilityFKGL ?? '—'}</span>
+                                  <span className="ml-2 capitalize">Sentiment: {quickMetrics[String(t.id)]?.linguistic?.sentiment ?? 'neutral'}</span>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Highest Risk Score */}
+                      <div className="p-4 bg-gray-700 rounded-lg">
+                        <h4 className="text-white font-medium mb-2">Highest Risk Score</h4>
+                        <div className="text-xs text-gray-300 space-y-1">
+                          {topRisk.slice(0,5).map((t:any)=> (
+                             <div key={t.id} className="flex justify-between items-center"
+                                 onMouseEnter={async ()=>{ setHoveredId(String(t.id)); if (!quickMetrics[String(t.id)]) { try { const r = await fetch(`/api/forensic/metrics/${t.id}`); if (r.ok) { const m = await r.json(); setQuickMetrics(prev=>({ ...prev, [String(t.id)]: m })); } } catch {} } }}
+                                 onMouseLeave={()=>setHoveredId('')}
+                                 onClick={()=>{ const idStr = String(t.id); if (!location.pathname.startsWith('/investigations')) { navigate(`/investigations?tab=forensic&docId=${idStr}`); } else { setActiveId(idStr); try { const params = new URLSearchParams(window.location.search); params.set('tab','forensic'); params.set('docId', idStr); const url = `${window.location.pathname}?${params.toString()}`; window.history.replaceState(null,'',url); } catch {} } }}
+                            >
+                              <span className="truncate max-w-[50%]">{t.fileName}</span>
+                              <span className="mr-2">{t.score}%</span>
+                              <div className="flex gap-1">
+                                <button onClick={()=>setCompareAId(String(t.id))} className="px-1.5 py-0.5 bg-gray-600 text-white rounded text-xs">A</button>
+                                <button onClick={()=>setCompareBId(String(t.id))} className="px-1.5 py-0.5 bg-gray-600 text-white rounded text-xs">B</button>
+                              </div>
+                              {hoveredId === String(t.id) && (
+                                <div className="ml-2 text=[10px] text-gray-300">
+                                  <span>FKGL: {quickMetrics[String(t.id)]?.linguistic?.readabilityFKGL ?? '—'}</span>
+                                  <span className="ml-2 capitalize">Sentiment: {quickMetrics[String(t.id)]?.linguistic?.sentiment ?? 'neutral'}</span>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Compare Documents */}
+                      <div className="p-4 bg-gray-700 rounded-lg col-span-1 md:col-span-2">
+                        <h4 className="text-white font-medium mb-2">Compare Documents</h4>
+                        <div className="flex gap-2 mb-2">
+                          <input value={compareAId} onChange={e=>setCompareAId(e.target.value)} placeholder="Doc ID A" className="bg-gray-600 text-white p-2 rounded text-sm" />
+                          <input value={compareBId} onChange={e=>setCompareBId(e.target.value)} placeholder="Doc ID B" className="bg-gray-600 text-white p-2 rounded text-sm" />
+                          <button onClick={async ()=>{ try { const [a,b] = await Promise.all([ fetch(`/api/forensic/metrics/${compareAId}`), fetch(`/api/forensic/metrics/${compareBId}`) ]); if (a.ok) setCompareA(await a.json()); if (b.ok) setCompareB(await b.json()); const params = new URLSearchParams(window.location.search); if (compareAId) params.set('compareA', compareAId); else params.delete('compareA'); if (compareBId) params.set('compareB', compareBId); else params.delete('compareB'); const url = `${window.location.pathname}?${params.toString()}`; window.history.replaceState(null,'',url); } catch {} }} className="px-3 py-2 bg-blue-600 text-white rounded text-sm">Load</button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="bg-gray-700 rounded p-3">
+                            <h5 className="text-white text-sm mb-2">FKGL</h5>
+                            <div className="h-32">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={[{name:'A', val: compareA?.linguistic?.readabilityFKGL || 0},{name:'B', val: compareB?.linguistic?.readabilityFKGL || 0}]}> 
+                                  <XAxis dataKey="name" stroke="#ccc" tick={{ fill: '#ccc' }} />
+                                  <YAxis stroke="#ccc" tick={{ fill: '#ccc' }} />
+                                  <Bar dataKey="val" fill="#34d399" />
+                                </BarChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </div>
+                          <div className="bg-gray-700 rounded p-3">
+                            <h5 className="text-white text-sm mb-2">Entity Density / 1000</h5>
+                            <div className="h-32">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={[{name:'A', val: compareA?.network?.entityDensityPer1000Words || 0},{name:'B', val: compareB?.network?.entityDensityPer1000Words || 0}]}> 
+                                  <XAxis dataKey="name" stroke="#ccc" tick={{ fill: '#ccc' }} />
+                                  <YAxis stroke="#ccc" tick={{ fill: '#ccc' }} />
+                                  <Bar dataKey="val" fill="#f59e0b" />
+                                </BarChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {activeTab === 'entities' && (
+                    <div className="space-y-3">
+                      {analysis.entities.map((entity, index) => (
+                        <div
+                          key={index}
+                          className="p-4 bg-gray-700 rounded-lg hover:bg-gray-650 transition-colors cursor-pointer"
+                          onClick={() => setSelectedEntity(entity)}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 bg-gray-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                              {React.createElement(getEntityIcon(entity.type), { className: 'w-5 h-5 text-gray-300' })}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between mb-1">
+                                <p className="text-white font-medium truncate">{entity.text}</p>
+                                <span className="text-xs text-gray-400 ml-2">{Math.round(entity.confidence)}%</span>
+                              </div>
+                              <p className="text-sm text-gray-400 capitalize mb-1">{entity.type}</p>
+                              <p className="text-xs text-gray-500 line-clamp-2">{entity.context}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {activeTab === 'patterns' && (
+                    <div className="space-y-3">
+                      {analysis.patterns.map((pattern, index) => (
+                        <div
+                          key={index}
+                          className="p-4 bg-gray-700 rounded-lg border-l-4"
+                          style={{ borderLeftColor: pattern.significance === 'high' ? '#ef4444' : pattern.significance === 'medium' ? '#f59e0b' : '#10b981' }}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs text-gray-400 uppercase font-medium">{pattern.type}</span>
+                            <span className={`text-xs px-2 py-1 rounded font-medium ${pattern.significance === 'high' ? 'bg-red-700 text-white' : pattern.significance === 'medium' ? 'bg-yellow-700 text-white' : 'bg-green-700 text-white'}`}>{pattern.significance}</span>
+                          </div>
+                          <div className="bg-gray-700/50 rounded-lg p-4">
+                            <div className="flex items-start gap-3">
+                              <AlertTriangle className="w-5 h-5 text-yellow-500 mt-0.5" />
+                              <div>
+                                <h4 className="text-white font-medium mb-1">{pattern.type}</h4>
+                                <p className="text-sm text-gray-400 mb-2">{pattern.description}</p>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-gray-500">Severity:</span>
+                                  <div className="flex-1 h-1.5 bg-gray-600 rounded-full w-24">
+                                    <div
+                                      className={`h-full rounded-full ${
+                                        pattern.severity === 'high' ? 'bg-red-500' :
+                                        pattern.severity === 'medium' ? 'bg-yellow-500' :
+                                        'bg-blue-500'
+                                      }`}
+                                      style={{ width: pattern.severity === 'high' ? '100%' : pattern.severity === 'medium' ? '60%' : '30%' }}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+
+
+                  {activeTab === 'metadata' && (
+                    <div className="p-4">
+                      <DocumentMetadataPanel 
+                        document={{
+                          fileName: analysis.metadata.fileInfo.name,
+                          fileType: analysis.metadata.fileInfo.type,
+                          fileSize: analysis.metadata.fileInfo.size,
+                          contentHash: analysis.metadata.fileInfo.hash,
+                          dateCreated: analysis.metadata.fileInfo.created,
+                          dateModified: analysis.metadata.fileInfo.modified,
+                          redFlagRating: metrics?.network?.riskScore ? Math.ceil(metrics.network.riskScore / 20) : 0,
+                          tags: analysis.metadata.tags,
+                          metadata: {
+                            technical: metrics?.technical || analysis.metadata.technical,
+                            structure: metrics?.structural || analysis.metadata.structure,
+                            linguistics: metrics?.linguistic || analysis.metadata.linguistics,
+                            network: metrics?.network || analysis.metadata.network,
+                            source_collection: docMeta?.source_collection,
+                            source_original_url: docMeta?.source_original_url,
+                            tags: analysis.metadata.tags
+                          }
+                        }} 
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Entity Detail Modal */}
+      {selectedEntity && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-xl max-w-lg w-full p-6 border border-gray-700 shadow-2xl">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-xl font-bold text-white mb-1">{selectedEntity.name}</h3>
+                <span className="text-sm text-gray-400 capitalize">{selectedEntity.type}</span>
+              </div>
+              <button 
+                onClick={() => setSelectedEntity(null)}
+                className="text-gray-400 hover:text-white"
+              >
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="bg-gray-700/50 p-4 rounded-lg">
+                <h4 className="text-sm font-medium text-gray-300 mb-2">Analysis</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-500 block">Sentiment</span>
+                    <span className={selectedEntity.sentiment === 'negative' ? 'text-red-400' : 'text-green-400'}>
+                      {selectedEntity.sentiment}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 block">Confidence</span>
+                    <span className="text-white">{(selectedEntity.confidence * 100).toFixed(0)}%</span>
                   </div>
                 </div>
-              )}
+              </div>
+              
+              <div className="flex justify-end">
+                <button 
+                  onClick={() => setSelectedEntity(null)}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };
+
+export default ForensicDocumentAnalyzer;

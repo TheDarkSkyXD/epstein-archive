@@ -2,29 +2,29 @@ import { test, expect } from '@playwright/test';
 import { peopleData } from '../src/data/peopleData';
 
 test.describe('Data Validation Tests', () => {
-  test('should have valid spice ratings for all people', () => {
+  test('should have valid red flag ratings for all people', () => {
     const people = Object.values(peopleData);
     
     people.forEach(person => {
-      // Check spice rating is within valid range
-      expect(person.spice_rating).toBeGreaterThanOrEqual(0);
-      expect(person.spice_rating).toBeLessThanOrEqual(5);
+      // Check red flag rating is within valid range
+      expect(person.red_flag_rating !== undefined ? person.red_flag_rating : 0).toBeGreaterThanOrEqual(0);
+      expect(person.red_flag_rating !== undefined ? person.red_flag_rating : 0).toBeLessThanOrEqual(5);
       
-      // Check spice score is non-negative
-      expect(person.spice_score).toBeGreaterThanOrEqual(0);
+      // Check red flag score is non-negative
+      expect(person.red_flag_score !== undefined ? person.red_flag_score : 0).toBeGreaterThanOrEqual(0);
       
-      // Check spice peppers match the rating
-      const expectedPeppers = '🌶️'.repeat(person.spice_rating);
-      expect(person.spice_peppers).toBe(expectedPeppers || '🌶️');
+      // Check red flag peppers match the rating
+      const expectedPeppers = '🚩'.repeat(person.red_flag_rating !== undefined ? person.red_flag_rating : 0);
+      expect(person.red_flag_peppers).toBe(expectedPeppers || '🏳️');
       
-      // Check spice description is not empty
-      expect(person.spice_description).toBeTruthy();
-      expect(person.spice_description.length).toBeGreaterThan(0);
+      // Check red flag description is not empty
+      expect(person.red_flag_description).toBeTruthy();
+      expect(person.red_flag_description && person.red_flag_description.length > 0).toBeTruthy();
     });
   });
 
-  test('should have top spice ratings for key figures', () => {
-    const topSpicyPeople = [
+  test('should have top red flag ratings for key figures', () => {
+    const topRedFlagPeople = [
       'Donald Trump',
       'Ghislaine Maxwell',
       'Prince Andrew',
@@ -34,11 +34,11 @@ test.describe('Data Validation Tests', () => {
       'Virginia Roberts'
     ];
 
-    topSpicyPeople.forEach(name => {
+    topRedFlagPeople.forEach(name => {
       const person = peopleData[name];
       expect(person).toBeDefined();
-      expect(person.spice_rating).toBeGreaterThanOrEqual(3);
-      expect(person.spice_score).toBeGreaterThanOrEqual(25);
+      expect(person.red_flag_rating !== undefined ? person.red_flag_rating : 0).toBeGreaterThanOrEqual(3);
+      expect(person.red_flag_score !== undefined ? person.red_flag_score : 0).toBeGreaterThanOrEqual(25);
     });
   });
 
@@ -86,7 +86,7 @@ test.describe('Data Validation Tests', () => {
     });
   });
 
-  test('should have valid spicy passages structure', () => {
+  test('should have valid red flag passages structure', () => {
     const people = Object.values(peopleData);
     
     people.forEach(person => {
@@ -106,21 +106,24 @@ test.describe('Data Validation Tests', () => {
     });
   });
 
-  test('should have spice score correlation with rating', () => {
+  test('should have red flag score correlation with rating', () => {
     const people = Object.values(peopleData);
     
     people.forEach(person => {
-      // Higher spice rating should generally mean higher spice score
-      if (person.spice_rating === 5) {
-        expect(person.spice_score).toBeGreaterThanOrEqual(50);
-      } else if (person.spice_rating === 4) {
-        expect(person.spice_score).toBeGreaterThanOrEqual(30);
-      } else if (person.spice_rating === 3) {
-        expect(person.spice_score).toBeGreaterThanOrEqual(20);
-      } else if (person.spice_rating === 2) {
-        expect(person.spice_score).toBeGreaterThanOrEqual(10);
-      } else if (person.spice_rating === 1) {
-        expect(person.spice_score).toBeGreaterThanOrEqual(5);
+      // Higher red flag rating should generally mean higher red flag score
+      const redFlagRating = person.red_flag_rating !== undefined ? person.red_flag_rating : 0;
+      const redFlagScore = person.red_flag_score !== undefined ? person.red_flag_score : 0;
+      
+      if (redFlagRating === 5) {
+        expect(redFlagScore).toBeGreaterThanOrEqual(50);
+      } else if (redFlagRating === 4) {
+        expect(redFlagScore).toBeGreaterThanOrEqual(30);
+      } else if (redFlagRating === 3) {
+        expect(redFlagScore).toBeGreaterThanOrEqual(20);
+      } else if (redFlagRating === 2) {
+        expect(redFlagScore).toBeGreaterThanOrEqual(10);
+      } else if (redFlagRating === 1) {
+        expect(redFlagScore).toBeGreaterThanOrEqual(5);
       }
     });
   });

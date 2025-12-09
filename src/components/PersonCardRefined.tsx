@@ -1,8 +1,9 @@
 import React from 'react';
-import { User, FileText, TrendingUp } from 'lucide-react';
+import Icon from './Icon';
 import { Person } from '../types';
 import { RedFlagIndex } from './RedFlagIndex';
 import { BaseCard } from './BaseCard';
+import { getEntityTypeIcon } from '../utils/entityTypeIcons';
 
 interface PersonCardProps {
   person: Person;
@@ -17,16 +18,22 @@ export const PersonCardRefined: React.FC<PersonCardProps> = ({
   onDocumentClick, 
   searchTerm 
 }) => {
+  // Get entity type icon
+  const getEntityIcon = () => {
+    const entityType = (person as any).entity_type || (person as any).entityType;
+    return getEntityTypeIcon(entityType, 'md');
+  };
+
   // Get role icon
   const getRoleIcon = (role: string) => {
     const roleLower = role.toLowerCase();
-    if (roleLower.includes('president')) return <User className="h-4 w-4" />;
-    if (roleLower.includes('senator')) return <User className="h-4 w-4" />;
-    if (roleLower.includes('governor')) return <User className="h-4 w-4" />;
-    if (roleLower.includes('business') || roleLower.includes('financier') || roleLower.includes('ceo') || roleLower.includes('executive')) return <User className="h-4 w-4" />;
-    if (roleLower.includes('professor') || roleLower.includes('lawyer') || roleLower.includes('attorney')) return <FileText className="h-4 w-4" />;
-    if (roleLower.includes('socialite')) return <User className="h-4 w-4" />;
-    return <User className="h-4 w-4" />;
+    if (roleLower.includes('president')) return <Icon name="User" size="sm" />;
+    if (roleLower.includes('senator')) return <Icon name="User" size="sm" />;
+    if (roleLower.includes('governor')) return <Icon name="User" size="sm" />;
+    if (roleLower.includes('business') || roleLower.includes('financier') || roleLower.includes('ceo') || roleLower.includes('executive')) return <Icon name="User" size="sm" />;
+    if (roleLower.includes('professor') || roleLower.includes('lawyer') || roleLower.includes('attorney')) return <Icon name="FileText" size="sm" />;
+    if (roleLower.includes('socialite')) return <Icon name="User" size="sm" />;
+    return <Icon name="User" size="sm" />;
   };
 
   // Function to highlight search terms in text
@@ -80,7 +87,7 @@ export const PersonCardRefined: React.FC<PersonCardProps> = ({
       <div className="flex items-start justify-between mb-[var(--space-3)]">
         <div className="flex items-center space-x-[var(--space-3)]">
           <div className="bg-[var(--bg-subtle)] rounded-[var(--radius-md)] p-[var(--space-3)] group-hover:bg-[var(--accent-soft-primary)] transition-all duration-300">
-            <User className="h-6 w-6 text-[var(--text-tertiary)] group-hover:text-[var(--accent-primary)]" />
+            {getEntityIcon()}
           </div>
           <div>
             <h3 className="text-[var(--font-size-h3)] font-semibold text-[var(--text-primary)] group-hover:text-[var(--accent-primary)] transition-colors">
@@ -100,9 +107,9 @@ export const PersonCardRefined: React.FC<PersonCardProps> = ({
         </div>
         <div className="text-right">
           <div className="flex flex-col items-end gap-[var(--space-1)]">
-            <RedFlagIndex value={person.red_flag_index !== undefined ? person.red_flag_index : (person.spice_rating || 0)} size="sm" showLabel />
+            <RedFlagIndex value={person.red_flag_rating !== undefined ? person.red_flag_rating : 0} size="sm" showLabel variant="combined" showTextLabel={true} />
             <div className="flex items-center text-[var(--font-size-small)] text-[var(--text-tertiary)]">
-              <TrendingUp className="h-3 w-3 mr-1" />
+              <Icon name="TrendingUp" size="xs" className="h-3 w-3 mr-1" />
               <span>{person.mentions} mentions</span>
             </div>
             <div className="text-[var(--font-size-small)] text-[var(--text-disabled)]">
@@ -132,12 +139,12 @@ export const PersonCardRefined: React.FC<PersonCardProps> = ({
       )}
 
       {/* Key Evidence Preview */}
-      {person.spice_description && (
+      {person.red_flag_description && (
         <div className="bg-[var(--bg-subtle)] rounded-[var(--radius-md)] p-[var(--space-3)] mb-[var(--space-3)]">
           <p className="text-[var(--font-size-caption)] text-[var(--text-secondary)] leading-relaxed">
             {searchTerm ? 
-              renderHighlightedText(person.spice_description.substring(0, 140) + (person.spice_description.length > 140 ? '...' : ''), searchTerm) : 
-              person.spice_description.substring(0, 140) + (person.spice_description.length > 140 ? '...' : '')}
+              renderHighlightedText(person.red_flag_description.substring(0, 140) + (person.red_flag_description.length > 140 ? '...' : ''), searchTerm) : 
+              person.red_flag_description.substring(0, 140) + (person.red_flag_description.length > 140 ? '...' : '')}
           </p>
         </div>
       )}
@@ -145,7 +152,7 @@ export const PersonCardRefined: React.FC<PersonCardProps> = ({
       {/* Action Buttons */}
       <div className="flex items-center justify-between pt-[var(--space-4)] border-t border-[var(--border-subtle)]">
         <div className="flex items-center space-x-[var(--space-2)] text-[var(--font-size-small)] text-[var(--text-tertiary)]">
-          <FileText className="h-4 w-4" />
+          <Icon name="FileText" size="sm" className="h-4 w-4" />
           <span>{(person.files !== undefined ? person.files : (person.fileReferences ? person.fileReferences.length : 0))} documents</span>
         </div>
         <button className="text-[var(--accent-primary)] text-[var(--font-size-caption)] font-medium hover:text-[var(--accent-secondary)] transition-colors">

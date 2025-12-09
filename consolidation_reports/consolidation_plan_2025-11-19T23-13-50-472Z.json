@@ -1,0 +1,64 @@
+{
+  "timestamp": "2025-11-19T23:13:50.473Z",
+  "dryRun": true,
+  "stats": {
+    "totalEntities": 87023,
+    "validEntities": 87020,
+    "invalidEntities": 3,
+    "uniqueEntities": 87019,
+    "entitiesToConsolidate": 1,
+    "duplicatesToRemove": 1,
+    "extractionStats": {
+      "total": 87020,
+      "withTitle": 117,
+      "withoutTitle": 86903,
+      "byRole": {
+        "Political": 27,
+        "Business": 16,
+        "Academic": 5,
+        "Military": 50,
+        "Royal": 19
+      },
+      "avgConfidence": 0.9999327740749235
+    }
+  },
+  "consolidationPlans": [
+    {
+      "cleanName": "test entity",
+      "primaryEntity": {
+        "id": "3",
+        "full_name": "Test Entity",
+        "primary_role": "Manager",
+        "secondary_roles": "[]",
+        "likelihood_level": "HIGH",
+        "mentions": 300,
+        "current_status": null,
+        "connections_summary": null,
+        "spice_rating": 4,
+        "spice_score": 500
+      },
+      "duplicates": [
+        {
+          "id": "180795",
+          "full_name": "Test Entity",
+          "primary_role": "Manager",
+          "secondary_roles": "[]",
+          "likelihood_level": "HIGH",
+          "mentions": 100,
+          "current_status": null,
+          "connections_summary": null,
+          "spice_rating": 4,
+          "spice_score": 500
+        }
+      ],
+      "title": null,
+      "titleVariants": [],
+      "totalMentions": 400
+    }
+  ],
+  "invalidEntityIds": [
+    "102162",
+    "82772",
+    "34132"
+  ]
+}

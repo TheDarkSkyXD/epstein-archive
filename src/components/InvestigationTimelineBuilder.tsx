@@ -30,6 +30,7 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
   const [showFilters, setShowFilters] = useState(false);
   const [filterTypes, setFilterTypes] = useState<string[]>([]);
   const [draggedEvent, setDraggedEvent] = useState<TimelineEvent | null>(null);
+  const [autoMilestones, setAutoMilestones] = useState<TimelineEvent[]>([]);
   const timelineRef = useRef<HTMLDivElement>(null);
 
   const [newEvent, setNewEvent] = useState<Partial<TimelineEvent> & { startDateString: string }>({
@@ -90,7 +91,82 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
     ? events.filter(event => filterTypes.includes(event.type))
     : events;
 
-  const timelineGroups = groupEventsByDate(filteredEvents);
+  const timelineGroups = groupEventsByDate([...filteredEvents, ...autoMilestones]);
+
+  // Auto-generate milestones when evidence or hypotheses change
+  useEffect(() => {
+    generateAutoMilestones();
+  }, [evidence.length, hypotheses.length]);
+
+  // Auto-add milestones when evidence items are added
+  useEffect(() => {
+    if (evidence.length > 0) {
+      const latestEvidence = evidence[evidence.length - 1];
+      const evidenceMilestoneExists = events.some(event => 
+        event.type === 'document' && 
+        event.title.includes('New Evidence Added')
+      );
+      
+      if (!evidenceMilestoneExists) {
+        const evidenceMilestone: TimelineEvent = {
+          id: `milestone-evidence-added-${latestEvidence.id}`,
+          title: `New Evidence Added: ${latestEvidence.title}`,
+          description: latestEvidence.description || 'A new piece of evidence was added to the investigation',
+          startDate: new Date(latestEvidence.extractedAt || Date.now()),
+          type: 'document',
+          confidence: latestEvidence.credibility === 'verified' ? 100 : 80,
+          documents: [latestEvidence.id],
+          hypothesisIds: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          layerId: 'auto-milestone',
+          entities: [],
+          evidence: [],
+          importance: 'medium',
+          tags: ['auto-generated', 'evidence-milestone'],
+          sources: [],
+          createdBy: 'system'
+        };
+        
+        onEventsUpdate([...events, evidenceMilestone]);
+      }
+    }
+  }, [evidence.length]);
+
+  // Auto-add milestones when hypotheses are created or updated
+  useEffect(() => {
+    if (hypotheses.length > 0) {
+      const latestHypothesis = hypotheses[hypotheses.length - 1];
+      const hypothesisMilestoneExists = events.some(event => 
+        event.type === 'hypothesis' && 
+        event.title.includes(latestHypothesis.title)
+      );
+      
+      if (!hypothesisMilestoneExists) {
+        const hypothesisMilestone: TimelineEvent = {
+          id: `milestone-hypothesis-${latestHypothesis.id}`,
+          title: `Hypothesis Created: ${latestHypothesis.title}`,
+          description: latestHypothesis.description || 'A new hypothesis was formulated',
+          startDate: new Date(latestHypothesis.createdAt || Date.now()),
+          type: 'hypothesis',
+          confidence: latestHypothesis.confidence || 50,
+          documents: [],
+          hypothesisIds: [latestHypothesis.id],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          layerId: 'auto-milestone',
+          entities: [],
+          evidence: [],
+          importance: 'high',
+          tags: ['auto-generated', 'hypothesis-milestone'],
+          sources: [],
+          createdBy: 'system'
+        };
+        
+        onEventsUpdate([...events, hypothesisMilestone]);
+      }
+    }
+  }, [hypotheses.length]);
 
   const handleAddEvent = () => {
     if (!newEvent.title || !newEvent.startDateString) return;
@@ -173,7 +249,117 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
   const handleDeleteEvent = (eventId: string) => {
     if (window.confirm('Are you sure you want to delete this timeline event?')) {
       onEventsUpdate(events.filter(e => e.id !== eventId));
+      // Also remove from auto-milestones if it exists there
+      setAutoMilestones(autoMilestones.filter(m => m.id !== eventId));
     }
+  };
+
+  const generateAutoMilestones = () => {
+    const milestones: TimelineEvent[] = [];
+    
+    // Auto-generate investigation milestones based on evidence and patterns
+    if (evidence.length > 0) {
+      // Evidence discovery milestone
+      const earliestEvidence = evidence.reduce((earliest, current) => {
+        const currentDate = new Date(current.extractedAt || Date.now());
+        const earliestDate = new Date(earliest.extractedAt || Date.now());
+        return currentDate < earliestDate ? current : earliest;
+      });
+      
+      milestones.push({
+        id: `milestone-evidence-${investigation.id}`,
+        title: 'Evidence Collection Started',
+        description: `Initial evidence discovered: ${earliestEvidence.title}`,
+        startDate: new Date(earliestEvidence.extractedAt || Date.now()),
+        type: 'document',
+        confidence: 100,
+        documents: [earliestEvidence.id],
+        hypothesisIds: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        layerId: 'auto-milestone',
+        entities: [],
+        evidence: [],
+        importance: 'high',
+        tags: ['auto-generated', 'milestone'],
+        sources: [],
+        createdBy: 'system'
+      });
+    }
+    
+    // Hypothesis formation milestone
+    if (hypotheses.length > 0) {
+      const primaryHypothesis = hypotheses[0];
+      milestones.push({
+        id: `milestone-hypothesis-${investigation.id}`,
+        title: 'Primary Hypothesis Formed',
+        description: primaryHypothesis.description || 'Initial investigation hypothesis established',
+        startDate: new Date(primaryHypothesis.createdAt || Date.now()),
+        type: 'hypothesis',
+        confidence: primaryHypothesis.confidence || 80,
+        documents: [],
+        hypothesisIds: [primaryHypothesis.id],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        layerId: 'auto-milestone',
+        entities: [],
+        evidence: [],
+        importance: 'high',
+        tags: ['auto-generated', 'milestone', 'hypothesis'],
+        sources: [],
+        createdBy: 'system'
+      });
+    }
+    
+    // Investigation creation milestone
+    milestones.push({
+      id: `milestone-investigation-${investigation.id}`,
+      title: 'Investigation Initiated',
+      description: `Investigation "${investigation.title}" created`,
+      startDate: investigation.createdAt,
+      type: 'document',
+      confidence: 100,
+      documents: [],
+      hypothesisIds: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      layerId: 'auto-milestone',
+      entities: [],
+      evidence: [],
+      importance: 'critical',
+      tags: ['auto-generated', 'milestone', 'investigation-start'],
+      sources: [],
+      createdBy: 'system'
+    });
+    
+    // Evidence threshold milestones
+    const evidenceThresholds = [5, 10, 25, 50, 100];
+    evidenceThresholds.forEach(threshold => {
+      if (evidence.length >= threshold) {
+        const thresholdEvidence = evidence[threshold - 1];
+        milestones.push({
+          id: `milestone-evidence-${threshold}-${investigation.id}`,
+          title: `Evidence Milestone: ${threshold} Items`,
+          description: `Investigation reached ${threshold} evidence items`,
+          startDate: new Date(thresholdEvidence.extractedAt || Date.now()),
+          type: 'document',
+          confidence: 90,
+          documents: evidence.slice(0, threshold).map(e => e.id),
+          hypothesisIds: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          layerId: 'auto-milestone',
+          entities: [],
+          evidence: [],
+          importance: threshold >= 25 ? 'high' : 'medium',
+          tags: ['auto-generated', 'milestone', 'evidence-threshold'],
+          sources: [],
+          createdBy: 'system'
+        });
+      }
+    });
+    
+    setAutoMilestones(milestones);
   };
 
   const handleDragStart = (event: TimelineEvent) => {

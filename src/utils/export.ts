@@ -14,9 +14,9 @@ export const exportData = {
         `"${person.likelihood_score}"`,
         `"${person.mentions}"`,
         `"${person.likelihood_score}"`,
-        `"${person.spice_description || 'No key evidence'}"`,
-        `"${person.files}"`,
-        `"${person.contexts?.[0]?.context || 'No connections data'}"`
+        `"${person.red_flag_description || 'No key evidence'}"`,
+        "${person.files}",
+        "${person.contexts?.[0]?.context || 'No connections data'}"
       ].join(','))
     ].join('\n');
     

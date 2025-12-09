@@ -80,6 +80,7 @@ export interface Investigator {
   joinedAt: Date;
   organization?: string;
   expertise: string[];
+  status?: 'active' | 'pending' | 'inactive';
 }
 
 export interface AccessControl {

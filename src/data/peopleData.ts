@@ -29,10 +29,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "MEDIUM",
     "spicy_passages": [],
     "mentions": 28,
-    "spice_score": 9,
-    "spice_rating": 1,
-    "spice_peppers": "\ud83c\udf36\ufe0f",
-    "spice_description": "Barely spicy - Minor mentions"
+    "red_flag_score": 9,
+    "red_flag_rating": 1,
+    "red_flag_peppers": "\ud83d\udea9",
+    "red_flag_description": "Barely spicy - Minor mentions"
   },
   "Bill Richardson": {
     id: "Bill Richardson",
@@ -67,10 +67,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "MEDIUM",
     "spicy_passages": [],
     "mentions": 39,
-    "spice_score": 9,
-    "spice_rating": 1,
-    "spice_peppers": "\ud83c\udf36\ufe0f",
-    "spice_description": "Barely spicy - Minor mentions"
+    "red_flag_score": 9,
+    "red_flag_rating": 1,
+    "red_flag_peppers": "\ud83d\udea9",
+    "red_flag_description": "Barely spicy - Minor mentions"
   },
   "Professor Of Computer": {
     id: "Professor Of Computer",
@@ -95,10 +95,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "MEDIUM",
     "spicy_passages": [],
     "mentions": 18,
-    "spice_score": 9,
-    "spice_rating": 1,
-    "spice_peppers": "\ud83c\udf36\ufe0f",
-    "spice_description": "Barely spicy - Minor mentions"
+    "red_flag_score": 9,
+    "red_flag_rating": 1,
+    "red_flag_peppers": "\ud83d\udea9",
+    "red_flag_description": "Barely spicy - Minor mentions"
   },
   "Kevin Spacey": {
     id: "Kevin Spacey",
@@ -133,10 +133,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "MEDIUM",
     "spicy_passages": [],
     "mentions": 39,
-    "spice_score": 9,
-    "spice_rating": 1,
-    "spice_peppers": "\ud83c\udf36\ufe0f",
-    "spice_description": "Barely spicy - Minor mentions"
+    "red_flag_score": 9,
+    "red_flag_rating": 1,
+    "red_flag_peppers": "\ud83d\udea9",
+    "red_flag_description": "Barely spicy - Minor mentions"
   },
   "President Bashar Al": {
     id: "President Bashar Al",
@@ -161,10 +161,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "MEDIUM",
     "spicy_passages": [],
     "mentions": 17,
-    "spice_score": 11,
-    "spice_rating": 2,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Mildly spicy - Some interesting connections"
+    "red_flag_score": 11,
+    "red_flag_rating": 2,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Mildly spicy - Some interesting connections"
   },
   "Professor At Harvard": {
     id: "Professor At Harvard",
@@ -194,10 +194,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "MEDIUM",
     "spicy_passages": [],
     "mentions": 22,
-    "spice_score": 9,
-    "spice_rating": 1,
-    "spice_peppers": "\ud83c\udf36\ufe0f",
-    "spice_description": "Barely spicy - Minor mentions"
+    "red_flag_score": 9,
+    "red_flag_rating": 1,
+    "red_flag_peppers": "\ud83d\udea9",
+    "red_flag_description": "Barely spicy - Minor mentions"
   },
   "Prince Andrew": {
     id: "Prince Andrew",
@@ -250,10 +250,10 @@ export const peopleData: Record<string, Person> = {
       }
     ],
     "mentions": 156,
-    "spice_score": 49,
-    "spice_rating": 4,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Very spicy - Significant incriminating content"
+    "red_flag_score": 49,
+    "red_flag_rating": 4,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Very spicy - Significant incriminating content"
   },
   "President Seemed To": {
     id: "President Seemed To",
@@ -278,10 +278,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "MEDIUM",
     "spicy_passages": [],
     "mentions": 16,
-    "spice_score": 11,
-    "spice_rating": 2,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Mildly spicy - Some interesting connections"
+    "red_flag_score": 11,
+    "red_flag_rating": 2,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Mildly spicy - Some interesting connections"
   },
   "Chris Tucker": {
     id: "Chris Tucker",
@@ -306,10 +306,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "MEDIUM",
     "spicy_passages": [],
     "mentions": 19,
-    "spice_score": 9,
-    "spice_rating": 1,
-    "spice_peppers": "\ud83c\udf36\ufe0f",
-    "spice_description": "Barely spicy - Minor mentions"
+    "red_flag_score": 9,
+    "red_flag_rating": 1,
+    "red_flag_peppers": "\ud83d\udea9",
+    "red_flag_description": "Barely spicy - Minor mentions"
   },
   "President Al Gore": {
     id: "President Al Gore",
@@ -339,10 +339,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "MEDIUM",
     "spicy_passages": [],
     "mentions": 24,
-    "spice_score": 13,
-    "spice_rating": 2,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Mildly spicy - Some interesting connections"
+    "red_flag_score": 13,
+    "red_flag_rating": 2,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Mildly spicy - Some interesting connections"
   },
   "President Donald Trump": {
     id: "President Donald Trump",
@@ -377,10 +377,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "HIGH",
     "spicy_passages": [],
     "mentions": 91,
-    "spice_score": 28,
-    "spice_rating": 3,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Moderately spicy - Notable controversial mentions"
+    "red_flag_score": 28,
+    "red_flag_rating": 3,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Moderately spicy - Notable controversial mentions"
   },
   "Professor Of Economics": {
     id: "Professor Of Economics",
@@ -405,10 +405,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "MEDIUM",
     "spicy_passages": [],
     "mentions": 15,
-    "spice_score": 9,
-    "spice_rating": 1,
-    "spice_peppers": "\ud83c\udf36\ufe0f",
-    "spice_description": "Barely spicy - Minor mentions"
+    "red_flag_score": 9,
+    "red_flag_rating": 1,
+    "red_flag_peppers": "\ud83d\udea9",
+    "red_flag_description": "Barely spicy - Minor mentions"
   },
   "Michael Wolff": {
     id: "Michael Wolff",
@@ -443,10 +443,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "HIGH",
     "spicy_passages": [],
     "mentions": 325,
-    "spice_score": 18,
-    "spice_rating": 2,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Mildly spicy - Some interesting connections"
+    "red_flag_score": 18,
+    "red_flag_rating": 2,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Mildly spicy - Some interesting connections"
   },
   "Ehud Barak": {
     id: "Ehud Barak",
@@ -481,10 +481,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "MEDIUM",
     "spicy_passages": [],
     "mentions": 48,
-    "spice_score": 9,
-    "spice_rating": 1,
-    "spice_peppers": "\ud83c\udf36\ufe0f",
-    "spice_description": "Barely spicy - Minor mentions"
+    "red_flag_score": 9,
+    "red_flag_rating": 1,
+    "red_flag_peppers": "\ud83d\udea9",
+    "red_flag_description": "Barely spicy - Minor mentions"
   },
   "President Clinton To": {
     id: "President Clinton To",
@@ -514,10 +514,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "MEDIUM",
     "spicy_passages": [],
     "mentions": 21,
-    "spice_score": 17,
-    "spice_rating": 2,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Mildly spicy - Some interesting connections"
+    "red_flag_score": 17,
+    "red_flag_rating": 2,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Mildly spicy - Some interesting connections"
   },
   "President Hosni Mubarak": {
     id: "President Hosni Mubarak",
@@ -542,10 +542,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "MEDIUM",
     "spicy_passages": [],
     "mentions": 19,
-    "spice_score": 11,
-    "spice_rating": 2,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Mildly spicy - Some interesting connections"
+    "red_flag_score": 11,
+    "red_flag_rating": 2,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Mildly spicy - Some interesting connections"
   },
   "Naomi Campbell": {
     id: "Naomi Campbell",
@@ -570,10 +570,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "MEDIUM",
     "spicy_passages": [],
     "mentions": 17,
-    "spice_score": 9,
-    "spice_rating": 1,
-    "spice_peppers": "\ud83c\udf36\ufe0f",
-    "spice_description": "Barely spicy - Minor mentions"
+    "red_flag_score": 9,
+    "red_flag_rating": 1,
+    "red_flag_peppers": "\ud83d\udea9",
+    "red_flag_description": "Barely spicy - Minor mentions"
   },
   "Professor School Of": {
     id: "Professor School Of",
@@ -608,10 +608,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "HIGH",
     "spicy_passages": [],
     "mentions": 72,
-    "spice_score": 16,
-    "spice_rating": 2,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Mildly spicy - Some interesting connections"
+    "red_flag_score": 16,
+    "red_flag_rating": 2,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Mildly spicy - Some interesting connections"
   },
   "Jeffrey Epstein": {
     id: "Jeffrey Epstein",
@@ -664,10 +664,10 @@ export const peopleData: Record<string, Person> = {
       }
     ],
     "mentions": 3364,
-    "spice_score": 47,
-    "spice_rating": 4,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Very spicy - Significant incriminating content"
+    "red_flag_score": 47,
+    "red_flag_rating": 4,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Very spicy - Significant incriminating content"
   },
   "President Ronald Reagan": {
     id: "President Ronald Reagan",
@@ -692,10 +692,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "MEDIUM",
     "spicy_passages": [],
     "mentions": 17,
-    "spice_score": 11,
-    "spice_rating": 2,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Mildly spicy - Some interesting connections"
+    "red_flag_score": 11,
+    "red_flag_rating": 2,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Mildly spicy - Some interesting connections"
   },
   "Senator George Mitchell": {
     id: "Senator George Mitchell",
@@ -720,10 +720,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "MEDIUM",
     "spicy_passages": [],
     "mentions": 16,
-    "spice_score": 11,
-    "spice_rating": 2,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Mildly spicy - Some interesting connections"
+    "red_flag_score": 11,
+    "red_flag_rating": 2,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Mildly spicy - Some interesting connections"
   },
   "Prince Andrew As": {
     id: "Prince Andrew As",
@@ -753,10 +753,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "MEDIUM",
     "spicy_passages": [],
     "mentions": 22,
-    "spice_score": 13,
-    "spice_rating": 2,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Mildly spicy - Some interesting connections"
+    "red_flag_score": 13,
+    "red_flag_rating": 2,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Mildly spicy - Some interesting connections"
   },
   "Alan Dershowitz": {
     id: "Alan Dershowitz",
@@ -809,10 +809,10 @@ export const peopleData: Record<string, Person> = {
       }
     ],
     "mentions": 234,
-    "spice_score": 37,
-    "spice_rating": 4,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Very spicy - Significant incriminating content"
+    "red_flag_score": 37,
+    "red_flag_rating": 4,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Very spicy - Significant incriminating content"
   },
   "Professor Of Physics": {
     id: "Professor Of Physics",
@@ -847,10 +847,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "MEDIUM",
     "spicy_passages": [],
     "mentions": 30,
-    "spice_score": 9,
-    "spice_rating": 1,
-    "spice_peppers": "\ud83c\udf36\ufe0f",
-    "spice_description": "Barely spicy - Minor mentions"
+    "red_flag_score": 9,
+    "red_flag_rating": 1,
+    "red_flag_peppers": "\ud83d\udea9",
+    "red_flag_description": "Barely spicy - Minor mentions"
   },
   "Virginia Roberts": {
     id: "Virginia Roberts",
@@ -903,10 +903,10 @@ export const peopleData: Record<string, Person> = {
       }
     ],
     "mentions": 406,
-    "spice_score": 37,
-    "spice_rating": 4,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Very spicy - Significant incriminating content"
+    "red_flag_score": 37,
+    "red_flag_rating": 4,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Very spicy - Significant incriminating content"
   },
   "George Bush": {
     id: "George Bush",
@@ -941,10 +941,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "MEDIUM",
     "spicy_passages": [],
     "mentions": 48,
-    "spice_score": 9,
-    "spice_rating": 1,
-    "spice_peppers": "\ud83c\udf36\ufe0f",
-    "spice_description": "Barely spicy - Minor mentions"
+    "red_flag_score": 9,
+    "red_flag_rating": 1,
+    "red_flag_peppers": "\ud83d\udea9",
+    "red_flag_description": "Barely spicy - Minor mentions"
   },
   "President Bill Clinton": {
     id: "President Bill Clinton",
@@ -979,10 +979,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "HIGH",
     "spicy_passages": [],
     "mentions": 130,
-    "spice_score": 30,
-    "spice_rating": 4,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Very spicy - Significant incriminating content"
+    "red_flag_score": 30,
+    "red_flag_rating": 4,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Very spicy - Significant incriminating content"
   },
   "President Trump On": {
     id: "President Trump On",
@@ -1012,10 +1012,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "MEDIUM",
     "spicy_passages": [],
     "mentions": 20,
-    "spice_score": 17,
-    "spice_rating": 2,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Mildly spicy - Some interesting connections"
+    "red_flag_score": 17,
+    "red_flag_rating": 2,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Mildly spicy - Some interesting connections"
   },
   "Bill Clinton": {
     id: "Bill Clinton",
@@ -1068,10 +1068,10 @@ export const peopleData: Record<string, Person> = {
       }
     ],
     "mentions": 187,
-    "spice_score": 49,
-    "spice_rating": 4,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Very spicy - Significant incriminating content"
+    "red_flag_score": 49,
+    "red_flag_rating": 4,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Very spicy - Significant incriminating content"
   },
   "Professor Of American": {
     id: "Professor Of American",
@@ -1106,10 +1106,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "HIGH",
     "spicy_passages": [],
     "mentions": 54,
-    "spice_score": 16,
-    "spice_rating": 2,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Mildly spicy - Some interesting connections"
+    "red_flag_score": 16,
+    "red_flag_rating": 2,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Mildly spicy - Some interesting connections"
   },
   "Prince Andrew Walking": {
     id: "Prince Andrew Walking",
@@ -1139,10 +1139,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "MEDIUM",
     "spicy_passages": [],
     "mentions": 22,
-    "spice_score": 13,
-    "spice_rating": 2,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Mildly spicy - Some interesting connections"
+    "red_flag_score": 13,
+    "red_flag_rating": 2,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Mildly spicy - Some interesting connections"
   },
   "Donald Trump": {
     id: "Donald Trump",
@@ -1195,10 +1195,10 @@ export const peopleData: Record<string, Person> = {
       }
     ],
     "mentions": 1218,
-    "spice_score": 59,
-    "spice_rating": 5,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Nuclear spicy - Major criminal evidence"
+    "red_flag_score": 59,
+    "red_flag_rating": 5,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9\ud83d\udea9\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Nuclear spicy - Major criminal evidence"
   },
   "President Of Harvard": {
     id: "President Of Harvard",
@@ -1223,10 +1223,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "MEDIUM",
     "spicy_passages": [],
     "mentions": 19,
-    "spice_score": 11,
-    "spice_rating": 2,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Mildly spicy - Some interesting connections"
+    "red_flag_score": 11,
+    "red_flag_rating": 2,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Mildly spicy - Some interesting connections"
   },
   "Barack Obama": {
     id: "Barack Obama",
@@ -1261,10 +1261,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "HIGH",
     "spicy_passages": [],
     "mentions": 226,
-    "spice_score": 18,
-    "spice_rating": 2,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Mildly spicy - Some interesting connections"
+    "red_flag_score": 18,
+    "red_flag_rating": 2,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Mildly spicy - Some interesting connections"
   },
   "President Clinton That": {
     id: "President Clinton That",
@@ -1289,10 +1289,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "MEDIUM",
     "spicy_passages": [],
     "mentions": 15,
-    "spice_score": 13,
-    "spice_rating": 2,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Mildly spicy - Some interesting connections"
+    "red_flag_score": 13,
+    "red_flag_rating": 2,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Mildly spicy - Some interesting connections"
   },
   "Leslie Wexner": {
     id: "Leslie Wexner",
@@ -1339,10 +1339,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "LOW",
     "spicy_passages": [],
     "mentions": 89,
-    "spice_score": 26,
-    "spice_rating": 3,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Moderately spicy - Notable controversial mentions"
+    "red_flag_score": 26,
+    "red_flag_rating": 3,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Moderately spicy - Notable controversial mentions"
   },
   "Ghislaine Maxwell": {
     id: "Ghislaine Maxwell",
@@ -1395,10 +1395,10 @@ export const peopleData: Record<string, Person> = {
       }
     ],
     "mentions": 892,
-    "spice_score": 56,
-    "spice_rating": 5,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Nuclear spicy - Major criminal evidence"
+    "red_flag_score": 56,
+    "red_flag_rating": 5,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9\ud83d\udea9\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Nuclear spicy - Major criminal evidence"
   },
   "Jean Luc Brunel": {
     id: "Jean Luc Brunel",
@@ -1433,10 +1433,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "HIGH",
     "spicy_passages": [],
     "mentions": 74,
-    "spice_score": 16,
-    "spice_rating": 2,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Mildly spicy - Some interesting connections"
+    "red_flag_score": 16,
+    "red_flag_rating": 2,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Mildly spicy - Some interesting connections"
   },
   "President Obama In": {
     id: "President Obama In",
@@ -1461,10 +1461,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "MEDIUM",
     "spicy_passages": [],
     "mentions": 19,
-    "spice_score": 11,
-    "spice_rating": 2,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Mildly spicy - Some interesting connections"
+    "red_flag_score": 11,
+    "red_flag_rating": 2,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Mildly spicy - Some interesting connections"
   },
   "Virginia Roberts Giuffre": {
     id: "Virginia Roberts Giuffre",
@@ -1494,10 +1494,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "MEDIUM",
     "spicy_passages": [],
     "mentions": 28,
-    "spice_score": 9,
-    "spice_rating": 1,
-    "spice_peppers": "\ud83c\udf36\ufe0f",
-    "spice_description": "Barely spicy - Minor mentions"
+    "red_flag_score": 9,
+    "red_flag_rating": 1,
+    "red_flag_peppers": "\ud83d\udea9",
+    "red_flag_description": "Barely spicy - Minor mentions"
   },
   "President Moon Jae": {
     id: "President Moon Jae",
@@ -1522,10 +1522,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "MEDIUM",
     "spicy_passages": [],
     "mentions": 16,
-    "spice_score": 11,
-    "spice_rating": 2,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Mildly spicy - Some interesting connections"
+    "red_flag_score": 11,
+    "red_flag_rating": 2,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Mildly spicy - Some interesting connections"
   },
   "President At His": {
     id: "President At His",
@@ -1550,10 +1550,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "MEDIUM",
     "spicy_passages": [],
     "mentions": 17,
-    "spice_score": 11,
-    "spice_rating": 2,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Mildly spicy - Some interesting connections"
+    "red_flag_score": 11,
+    "red_flag_rating": 2,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Mildly spicy - Some interesting connections"
   },
   "President Mahmoud Ahmadinejad": {
     id: "President Mahmoud Ahmadinejad",
@@ -1578,10 +1578,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "MEDIUM",
     "spicy_passages": [],
     "mentions": 16,
-    "spice_score": 11,
-    "spice_rating": 2,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Mildly spicy - Some interesting connections"
+    "red_flag_score": 11,
+    "red_flag_rating": 2,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Mildly spicy - Some interesting connections"
   },
   "Hillary Clinton": {
     id: "Hillary Clinton",
@@ -1616,10 +1616,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "HIGH",
     "spicy_passages": [],
     "mentions": 253,
-    "spice_score": 24,
-    "spice_rating": 3,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Moderately spicy - Notable controversial mentions"
+    "red_flag_score": 24,
+    "red_flag_rating": 3,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Moderately spicy - Notable controversial mentions"
   },
   "President Xi Jinping": {
     id: "President Xi Jinping",
@@ -1654,10 +1654,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "HIGH",
     "spicy_passages": [],
     "mentions": 52,
-    "spice_score": 22,
-    "spice_rating": 3,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Moderately spicy - Notable controversial mentions"
+    "red_flag_score": 22,
+    "red_flag_rating": 3,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Moderately spicy - Notable controversial mentions"
   },
   "Heidi Klum": {
     id: "Heidi Klum",
@@ -1682,10 +1682,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "MEDIUM",
     "spicy_passages": [],
     "mentions": 16,
-    "spice_score": 9,
-    "spice_rating": 1,
-    "spice_peppers": "\ud83c\udf36\ufe0f",
-    "spice_description": "Barely spicy - Minor mentions"
+    "red_flag_score": 9,
+    "red_flag_rating": 1,
+    "red_flag_peppers": "\ud83d\udea9",
+    "red_flag_description": "Barely spicy - Minor mentions"
   },
   "Professor Alan Dershowitz": {
     id: "Professor Alan Dershowitz",
@@ -1720,10 +1720,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "HIGH",
     "spicy_passages": [],
     "mentions": 54,
-    "spice_score": 16,
-    "spice_rating": 2,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Mildly spicy - Some interesting connections"
+    "red_flag_score": 16,
+    "red_flag_rating": 2,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Mildly spicy - Some interesting connections"
   },
   "Bill Gates": {
     id: "Bill Gates",
@@ -1758,10 +1758,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "HIGH",
     "spicy_passages": [],
     "mentions": 81,
-    "spice_score": 16,
-    "spice_rating": 2,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Mildly spicy - Some interesting connections"
+    "red_flag_score": 16,
+    "red_flag_rating": 2,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Mildly spicy - Some interesting connections"
   },
   "Peter Thiel": {
     id: "Peter Thiel",
@@ -1796,10 +1796,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "MEDIUM",
     "spicy_passages": [],
     "mentions": 49,
-    "spice_score": 9,
-    "spice_rating": 1,
-    "spice_peppers": "\ud83c\udf36\ufe0f",
-    "spice_description": "Barely spicy - Minor mentions"
+    "red_flag_score": 9,
+    "red_flag_rating": 1,
+    "red_flag_peppers": "\ud83d\udea9",
+    "red_flag_description": "Barely spicy - Minor mentions"
   },
   "President Barack Obama": {
     id: "President Barack Obama",
@@ -1834,10 +1834,10 @@ export const peopleData: Record<string, Person> = {
     "likelihood_score": "HIGH",
     "spicy_passages": [],
     "mentions": 79,
-    "spice_score": 22,
-    "spice_rating": 3,
-    "spice_peppers": "\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f\ud83c\udf36\ufe0f",
-    "spice_description": "Moderately spicy - Notable controversial mentions"
+    "red_flag_score": 22,
+    "red_flag_rating": 3,
+    "red_flag_peppers": "\ud83d\udea9\ud83d\udea9\ud83d\udea9",
+    "red_flag_description": "Moderately spicy - Notable controversial mentions"
   }
 };
 

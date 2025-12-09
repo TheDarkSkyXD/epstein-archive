@@ -39,8 +39,6 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Vercel
-.vercel/
 
 # Test results
 test-results/
@@ -53,11 +51,15 @@ playwright-report/
 
 # Backup files
 *.backup
+*.backup-*
 
-# SQLite databases (except specific ones)
+# Large SQL dumps (use production DB directly)
+*.sql
+deploy*.db
+epstein-archive.db.backup*
+
+# SQLite databases
 *.db
-!epstein-archive.db
-!deploy.db
 
 # Node debug logs
 npm-debug.log*

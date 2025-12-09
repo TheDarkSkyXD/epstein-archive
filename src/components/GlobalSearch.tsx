@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Calendar, Eye, Download, X, ChevronDown } from 'lucide-react';
+import { Search, Filter, Calendar, Eye, Download, X, ChevronDown, User, Building } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
+import { Person } from '../types';
 
 interface SearchResult {
   file: string;
@@ -23,6 +24,7 @@ interface SearchFilters {
 const GlobalSearch: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [results, setResults] = useState<SearchResult[]>([]);
+  const [entityResults, setEntityResults] = useState<Person[]>([]);
   const [filteredResults, setFilteredResults] = useState<SearchResult[]>([]);
   const [selectedResult, setSelectedResult] = useState<SearchResult | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -33,7 +35,6 @@ const GlobalSearch: React.FC = () => {
     date_range: { start: '', end: '' },
     min_word_count: 0
   });
-  // const [availableEntities, setAvailableEntities] = useState<string[]>([]); // Not used in current implementation
   const [stats, setStats] = useState<any>(null);
 
   useEffect(() => {
@@ -51,11 +52,6 @@ const GlobalSearch: React.FC = () => {
   ];
 
   useEffect(() => {
-    // Initial load or check API health?
-    // For now, we rely on user search
-  }, []);
-
-  useEffect(() => {
     if (searchTerm.length > 2) {
       const delayDebounceFn = setTimeout(() => {
         performSearch();
@@ -64,6 +60,7 @@ const GlobalSearch: React.FC = () => {
       return () => clearTimeout(delayDebounceFn);
     } else {
       setResults([]);
+      setEntityResults([]);
       setFilteredResults([]);
     }
   }, [searchTerm]);
@@ -78,19 +75,23 @@ const GlobalSearch: React.FC = () => {
     try {
       const data = await apiClient.search(searchTerm, 100);
       
+      if (data.entities) {
+        setEntityResults(data.entities);
+      }
+
       if (data.documents) {
         const searchResults: SearchResult[] = data.documents.map((doc: any) => ({
           file: doc.filePath,
           filename: doc.fileName,
           category: doc.evidenceType || 'general_documents',
-          entities: [], // API might need to return entities for documents if we want to filter by them here
-          dates: [], // API might need to return dates
+          entities: [], 
+          dates: [], 
           word_count: doc.wordCount || 0,
           score: doc.score || 0,
           highlights: doc.contentPreview ? [doc.contentPreview] : []
         }));
         setResults(searchResults);
-        setFilteredResults(searchResults); // Apply filters will run after this
+        setFilteredResults(searchResults); 
       }
     } catch (error) {
       console.error('Search error:', error);
@@ -227,12 +228,49 @@ const GlobalSearch: React.FC = () => {
         </div>
       )}
 
-      {/* Results */}
+      {/* Entity Results */}
+      {entityResults.length > 0 && (
+        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 p-6">
+          <h3 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+            <User className="h-5 w-5 text-cyan-400" />
+            Matched Entities
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {entityResults.map((entity) => (
+              <div key={entity.id} className="bg-gray-700/50 p-4 rounded-lg border border-gray-600 hover:border-cyan-500 transition-colors cursor-pointer">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h4 className="text-white font-medium">{entity.name}</h4>
+                    <p className="text-sm text-gray-400">{entity.role || 'Unknown Role'}</p>
+                  </div>
+                  <div className={`px-2 py-1 rounded text-xs font-bold ${
+                    (entity.red_flag_rating || 0) > 3 ? 'bg-red-900 text-red-200' : 'bg-gray-600 text-gray-300'
+                  }`}>
+                    🚩 {entity.red_flag_rating || 0}
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center gap-4 text-xs text-gray-400">
+                  <span className="flex items-center gap-1">
+                    <Eye className="h-3 w-3" />
+                    {entity.files || 0} docs
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Building className="h-3 w-3" />
+                    {entity.mentions || 0} mentions
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Document Results */}
       <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700">
         <div className="p-6 border-b border-gray-700">
           <div className="flex items-center justify-between">
             <h3 className="text-xl font-semibold text-white">
-              Search Results {searchTerm && `for "${searchTerm}"`}
+              Document Results {searchTerm && `for "${searchTerm}"`}
             </h3>
             <span className="text-gray-400">
               {filteredResults.length.toLocaleString()} results
@@ -272,9 +310,13 @@ const GlobalSearch: React.FC = () => {
                   {result.highlights.length > 0 && (
                     <div className="space-y-1">
                       {result.highlights.slice(0, 3).map((highlight, idx) => (
-                        <div key={idx} className="text-cyan-300 text-sm flex items-center space-x-2">
-                          <span>•</span>
-                          <span>{highlight}</span>
+                        <div key={idx} className="text-gray-300 text-sm flex items-start space-x-2">
+                          <span className="mt-1 text-cyan-500">•</span>
+                          <span 
+                            dangerouslySetInnerHTML={{ 
+                              __html: highlight.replace(/<mark>/g, '<mark class="bg-yellow-500/30 text-yellow-200 rounded px-0.5">') 
+                            }} 
+                          />
                         </div>
                       ))}
                     </div>
@@ -332,7 +374,7 @@ const GlobalSearch: React.FC = () => {
           ))}
         </div>
         
-        {filteredResults.length === 0 && searchTerm && (
+        {filteredResults.length === 0 && entityResults.length === 0 && searchTerm && (
           <div className="p-12 text-center">
             <Search className="h-12 w-12 text-gray-500 mx-auto mb-4" />
             <h4 className="text-gray-300 font-medium mb-2">No results found</h4>

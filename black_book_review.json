@@ -1,0 +1,2806 @@
+{
+  "needsReview": [
+    {
+      "id": 8,
+      "person_id": 12260,
+      "original": "Cornwall Terrace London",
+      "cleaned": "Unknown",
+      "entry_text": "London, W",
+      "needs_review": true
+    },
+    {
+      "id": 14,
+      "person_id": 187434,
+      "original": "Amon, Roberta 8",
+      "cleaned": "Amon, Roberta 8",
+      "entry_text": "Amon, Roberta 8",
+      "needs_review": true
+    },
+    {
+      "id": 16,
+      "person_id": 187436,
+      "original": "Po18 8ap",
+      "cleaned": "Po18 8ap",
+      "entry_text": "PO18 8AP",
+      "needs_review": true
+    },
+    {
+      "id": 31,
+      "person_id": 187449,
+      "original": "N940027. 001 212 877 112",
+      "cleaned": "Unknown",
+      "entry_text": "N940027. 001 212 877 112",
+      "needs_review": true
+    },
+    {
+      "id": 32,
+      "person_id": 187450,
+      "original": "S/2d West igwlar.com",
+      "cleaned": "S/2d West igwlar.com",
+      "entry_text": "S/2d West igwlar.com\nscheduler\n47867 8488 Jim Kendes 1\n(Hm)103-87/97 Yarranabbe Gar-",
+      "needs_review": true
+    },
+    {
+      "id": 38,
+      "person_id": 187455,
+      "original": "OT",
+      "cleaned": "ot",
+      "entry_text": "OT\nentertainmentlines\n0836-594-908(p)",
+      "needs_review": true
+    },
+    {
+      "id": 41,
+      "person_id": 187458,
+      "original": "Call 1:230328umarcom",
+      "cleaned": "Call 1:230328umarcom",
+      "entry_text": "Call 1:230328umarcom",
+      "needs_review": true
+    },
+    {
+      "id": 47,
+      "person_id": 187464,
+      "original": "ny 1001",
+      "cleaned": "Ny, 1001",
+      "entry_text": "NY, 1001\n87 39 1002",
+      "needs_review": true
+    },
+    {
+      "id": 48,
+      "person_id": 187465,
+      "original": "TT",
+      "cleaned": "tt",
+      "entry_text": "TT\n917 822 9168",
+      "needs_review": true
+    },
+    {
+      "id": 50,
+      "person_id": 187467,
+      "original": "Blacker (Blogs 8 Jill, Mr",
+      "cleaned": "Blacker (Blogs 8 Jill, Mr",
+      "entry_text": "Blacker (Blogs 8 Jill, Mr",
+      "needs_review": true
+    },
+    {
+      "id": 53,
+      "person_id": 187470,
+      "original": "W5 OHS 1",
+      "cleaned": "Unknown",
+      "entry_text": "W5 OHS 1",
+      "needs_review": true
+    },
+    {
+      "id": 54,
+      "person_id": 187471,
+      "original": "ZT",
+      "cleaned": "zt",
+      "entry_text": "ZT\n....",
+      "needs_review": true
+    },
+    {
+      "id": 55,
+      "person_id": 187472,
+      "original": "Q01 212 397 4454(h)",
+      "cleaned": "001 646 841 6391 C.CCm",
+      "entry_text": "Q01 212 397 4454(h)\n001 646 841 6391 C.CCm",
+      "needs_review": true
+    },
+    {
+      "id": 61,
+      "person_id": 187477,
+      "original": "Via Pincina 13",
+      "cleaned": "Via Pincina 13",
+      "entry_text": "Via Pincina 13",
+      "needs_review": true
+    },
+    {
+      "id": 70,
+      "person_id": 187485,
+      "original": "Progina & fíberto",
+      "cleaned": "Progina & fíberto",
+      "entry_text": "Progina & fíberto\n-. 814552 0916 fax",
+      "needs_review": true
+    },
+    {
+      "id": 78,
+      "person_id": 187492,
+      "original": "NAwand 7%g0",
+      "cleaned": "NAwand 7%g0",
+      "entry_text": "NAwand 7%g0\n639713812390)\nmail: julia@cygnel.co.z\n13",
+      "needs_review": true
+    },
+    {
+      "id": 82,
+      "person_id": 187496,
+      "original": "Paris, 75016",
+      "cleaned": "90 Park Avenue",
+      "entry_text": "Paris, 75016\n90 Park Avenue\n259 6441\n-mail\n582 3400 w\n001 212 560 5559(aw)",
+      "needs_review": true
+    },
+    {
+      "id": 84,
+      "person_id": 187498,
+      "original": "Brooks, Christopher ¿",
+      "cleaned": "Brooks, Christopher ¿",
+      "entry_text": "Brooks, Christopher ¿",
+      "needs_review": true
+    },
+    {
+      "id": 93,
+      "person_id": 187506,
+      "original": "FT",
+      "cleaned": "ft",
+      "entry_text": "FT",
+      "needs_review": true
+    },
+    {
+      "id": 99,
+      "person_id": 187512,
+      "original": "London SR6482",
+      "cleaned": "209735182482",
+      "entry_text": "London SR6482\n209735182482",
+      "needs_review": true
+    },
+    {
+      "id": 110,
+      "person_id": 187523,
+      "original": "Sw3 2ay, uk",
+      "cleaned": "Sw3 2ay, uk",
+      "entry_text": "SW3 2AY, UK\n0314\n37 225 00811|\nmail: mark.cecil@gigpartners.co.uk\n844863890 (Mistique",
+      "needs_review": true
+    },
+    {
+      "id": 112,
+      "person_id": 187525,
+      "original": "PO Box 49428",
+      "cleaned": "Unknown",
+      "entry_text": "PO Box 49428",
+      "needs_review": true
+    },
+    {
+      "id": 122,
+      "person_id": 187534,
+      "original": "W7 ЗА",
+      "cleaned": "-isenga Rüsta\" vi S.te",
+      "entry_text": "W7 ЗА\n-isenga rüsta\" vi s.te\n(*lere azz 2820฿\n0494 672492",
+      "needs_review": true
+    },
+    {
+      "id": 126,
+      "person_id": 187538,
+      "original": "Hm)166 E. 63rd s",
+      "cleaned": "Hm)166 E. 63rd s",
+      "entry_text": "Hm)166 E. 63rd s",
+      "needs_review": true
+    },
+    {
+      "id": 127,
+      "person_id": 187539,
+      "original": "NeYo 02.",
+      "cleaned": "NeYo 02.",
+      "entry_text": "NeYo 02.",
+      "needs_review": true
+    },
+    {
+      "id": 130,
+      "person_id": 187542,
+      "original": "Bidasoa #5",
+      "cleaned": "Bidasoa #5",
+      "entry_text": "Bidasoa #5\nvier\n- 8T",
+      "needs_review": true
+    },
+    {
+      "id": 131,
+      "person_id": 187543,
+      "original": "Soa 129pa2x.",
+      "cleaned": "Soa 129pa2x.",
+      "entry_text": "Soa 129pa2x.\ndepartment 51",
+      "needs_review": true
+    },
+    {
+      "id": 132,
+      "person_id": 949,
+      "original": "Aimee Demilia Newsham",
+      "cleaned": "10002",
+      "entry_text": "New York, N°\n10002\n1223 29034\nerre\n125 est 72ndl\nrusso\n200-723 67.\n6T\n55 21 2524 5682 (wf)\nde Baecque, Patrick\n3 8 11 87 9260\nEmail: pdebaecque@lefigaro.f\nde Cabrol, Milly",
+      "needs_review": true
+    },
+    {
+      "id": 140,
+      "person_id": 187551,
+      "original": "New York Nt T0028",
+      "cleaned": "im)Vinowsle",
+      "entry_text": "New York Nt T0028\nim)Vinowsle",
+      "needs_review": true
+    },
+    {
+      "id": 149,
+      "person_id": 187560,
+      "original": "Dubb; Anthony V.",
+      "cleaned": "Dubb; Anthony V.",
+      "entry_text": "Dubb; Anthony V.\n6 East 79th st",
+      "needs_review": true
+    },
+    {
+      "id": 154,
+      "person_id": 187565,
+      "original": "Sunninghill Park SLs 7TH",
+      "cleaned": "Sunninghill Park SLs 7TH",
+      "entry_text": "Sunninghill Park SLs 7TH",
+      "needs_review": true
+    },
+    {
+      "id": 155,
+      "person_id": 187566,
+      "original": "al 7885372153",
+      "cleaned": "al 7885372153",
+      "entry_text": "AL 7885372153\n01346 845698\n202 938 4800 NYO - John\n0144020-79786110 Kate\n347-327-3599 Forn O Sullivan\n212 419 7493 jenean f",
+      "needs_review": true
+    },
+    {
+      "id": 157,
+      "person_id": 187568,
+      "original": "Sir Antica Di San Vito 36",
+      "cleaned": "Sir Antica Di San Vito 36",
+      "entry_text": "Sir Antica Di San Vito 36\n8838 113225033 (\n314 720 0082 (%))",
+      "needs_review": true
+    },
+    {
+      "id": 160,
+      "person_id": 187570,
+      "original": "Sw1 1aa",
+      "cleaned": "Sw1 1aa",
+      "entry_text": "SW1 1AA\n011 44 7768 630630\nĐ207 024 5955[wd\nmail: aace@dial.pipex.com\n4m Sunninghill |",
+      "needs_review": true
+    },
+    {
+      "id": 161,
+      "person_id": 187571,
+      "original": "Ascot, Berkshire SL5 7тH",
+      "cleaned": "Ascot, Berkshire SL5 7тH",
+      "entry_text": "Ascot, Berkshire SL5 7тH\nance (f)\n11844-873 070 Sunnino H\n0207-930 1224 (wf)\n01344-873 080\nunninghill 1\n11485-540 502 Wood Farm",
+      "needs_review": true
+    },
+    {
+      "id": 179,
+      "person_id": 187586,
+      "original": "N",
+      "cleaned": "Unknown",
+      "entry_text": "N",
+      "needs_review": true
+    },
+    {
+      "id": 192,
+      "person_id": 8145,
+      "original": "Fast 66th St",
+      "cleaned": "Fast 66th St",
+      "entry_text": "Fast 66th St\n32109298",
+      "needs_review": true
+    },
+    {
+      "id": 198,
+      "person_id": 187600,
+      "original": "Se 0 328 (0)",
+      "cleaned": "Sedia 039 07321",
+      "entry_text": "Sedia 039 07321\nord, Kati\nord Modal",
+      "needs_review": true
+    },
+    {
+      "id": 212,
+      "person_id": 187586,
+      "original": "N",
+      "cleaned": "lexandra\"Alexandra\"",
+      "entry_text": "N\nlexandra\"Alexandra\"",
+      "needs_review": true
+    },
+    {
+      "id": 220,
+      "person_id": 187620,
+      "original": "London SV",
+      "cleaned": "Email: cribon@prd.co.uk",
+      "entry_text": "London SV\nEmail: cribon@prd.co.uk",
+      "needs_review": true
+    },
+    {
+      "id": 225,
+      "person_id": 187625,
+      "original": "L2 Ashmabe Street",
+      "cleaned": "9201213128(1)",
+      "entry_text": "L2 Ashmabe Street\n9201213128(1)",
+      "needs_review": true
+    },
+    {
+      "id": 229,
+      "person_id": 187629,
+      "original": "London",
+      "cleaned": "25W or N8 50021",
+      "entry_text": "London\n25W or N8 50021\n30397.58 Palm Beach",
+      "needs_review": true
+    },
+    {
+      "id": 235,
+      "person_id": 187634,
+      "original": "W1S 35J",
+      "cleaned": "Unknown",
+      "entry_text": "W1S 35J",
+      "needs_review": true
+    },
+    {
+      "id": 241,
+      "person_id": 187640,
+      "original": "BS en89 080 ajk Grders",
+      "cleaned": "BS en89 080 ajk Grders",
+      "entry_text": "BS en89 080 ajk Grders\n0207-221 5758(h)\n07977 695 830 Celt",
+      "needs_review": true
+    },
+    {
+      "id": 242,
+      "person_id": 187641,
+      "original": "ME",
+      "cleaned": "me",
+      "entry_text": "ME\n313 89 4818 (n",
+      "needs_review": true
+    },
+    {
+      "id": 252,
+      "person_id": 187649,
+      "original": "Gios GLB 8QQ",
+      "cleaned": "Gios GLB 8QQ",
+      "entry_text": "Gios GLB 8QQ\n01666 880 313 (hf)\non Laton Place",
+      "needs_review": true
+    },
+    {
+      "id": 253,
+      "person_id": 187650,
+      "original": "X8A",
+      "cleaned": "235-3588 148 Eaton",
+      "entry_text": "X8A\n235-3588 148 Eaton\n... :",
+      "needs_review": true
+    },
+    {
+      "id": 259,
+      "person_id": 187655,
+      "original": "R4 7 0028",
+      "cleaned": "881 342 387 1635฿",
+      "entry_text": "R4 7 0028\n881 342 387 1635฿\n3513(hp\nEmail: 001 603 5194 (PP)",
+      "needs_review": true
+    },
+    {
+      "id": 275,
+      "person_id": 187670,
+      "original": "F",
+      "cleaned": "Unknown",
+      "entry_text": "F",
+      "needs_review": true
+    },
+    {
+      "id": 284,
+      "person_id": 187678,
+      "original": "London war Street",
+      "cleaned": "0207-229 7568(1)",
+      "entry_text": "London war Street\n0207-229 7568(1)",
+      "needs_review": true
+    },
+    {
+      "id": 298,
+      "person_id": 187690,
+      "original": "New York, near 20th & Park)",
+      "cleaned": "317672180(p)",
+      "entry_text": "New York, near 20th & Park)\n317672180(p)\nind, Charlie",
+      "needs_review": true
+    },
+    {
+      "id": 313,
+      "person_id": 187702,
+      "original": "M2 0. Y 10021",
+      "cleaned": ". y 10021",
+      "entry_text": "M2 0. Y 10021\n1410-657-883\nand Gay\nclean Virgin\n73 Bigelow SI",
+      "needs_review": true
+    },
+    {
+      "id": 337,
+      "person_id": 187724,
+      "original": "B9 61176 3858",
+      "cleaned": "Mail: Chnsiophelazar@aoi.co.uk",
+      "entry_text": "B9 61176 3858\nmail: chnsiophelazar@aoi.co.uk\n0 33 1 4562 8566 (1\n0207-351 2576 (h)\n207-491 7408 m",
+      "needs_review": true
+    },
+    {
+      "id": 346,
+      "person_id": 187732,
+      "original": "Liógos, Babis",
+      "cleaned": "Liógos, Babis",
+      "entry_text": "Liógos, Babis\n88/2 2850",
+      "needs_review": true
+    },
+    {
+      "id": 350,
+      "person_id": 187736,
+      "original": "Lanchi 378 Street",
+      "cleaned": "Lanchi 378 Street",
+      "entry_text": "Lanchi 378 Street",
+      "needs_review": true
+    },
+    {
+      "id": 360,
+      "person_id": 187744,
+      "original": "It",
+      "cleaned": "It",
+      "entry_text": "It",
+      "needs_review": true
+    },
+    {
+      "id": 368,
+      "person_id": 187752,
+      "original": "Lo el aces 150",
+      "cleaned": "Lo el aces 150",
+      "entry_text": "Lo el aces 150\n50 3585 336 5179 Guy and Anne",
+      "needs_review": true
+    },
+    {
+      "id": 388,
+      "person_id": 187770,
+      "original": "Mermagon, Mr Jonathar 981 397 981 4398 (Justin p)",
+      "cleaned": "Mermagon, Mr Jonathar 981 397 981 4398 (Justin p)",
+      "entry_text": "Mermagon, Mr Jonathar 981 397 981 4398 (Justin p)\n9 Weatherby C",
+      "needs_review": true
+    },
+    {
+      "id": 403,
+      "person_id": 1591,
+      "original": "West 9th Street A",
+      "cleaned": "West 9th Street A",
+      "entry_text": "West 9th Street A\n12124 0 1092",
+      "needs_review": true
+    },
+    {
+      "id": 406,
+      "person_id": 187786,
+      "original": "Ta S.Marta 1",
+      "cleaned": "Ta S.Marta 1",
+      "entry_text": "Ta S.Marta 1\n00 39 2 86451573 (h)\n00 39 2 8572",
+      "needs_review": true
+    },
+    {
+      "id": 420,
+      "person_id": 187798,
+      "original": "Hm) / Queenscale Place",
+      "cleaned": "Hm) / Queenscale Place",
+      "entry_text": "Hm) / Queenscale Place",
+      "needs_review": true
+    },
+    {
+      "id": 421,
+      "person_id": 187799,
+      "original": "Mews(w",
+      "cleaned": "Mews(w",
+      "entry_text": "Mews(w",
+      "needs_review": true
+    },
+    {
+      "id": 422,
+      "person_id": 187600,
+      "original": "Se 0 328 (0)",
+      "cleaned": "Se 0 328 (0)",
+      "entry_text": "Se 0 328 (0)",
+      "needs_review": true
+    },
+    {
+      "id": 423,
+      "person_id": 187629,
+      "original": "London",
+      "cleaned": "0207-730",
+      "entry_text": "London\n0207-730",
+      "needs_review": true
+    },
+    {
+      "id": 425,
+      "person_id": 187801,
+      "original": "Oswald, William 8",
+      "cleaned": "Oswald, William 8",
+      "entry_text": "Oswald, William 8",
+      "needs_review": true
+    },
+    {
+      "id": 431,
+      "person_id": 187807,
+      "original": "vy 1002",
+      "cleaned": "vy ny 1002",
+      "entry_text": "VY NY 1002\n0468 89337\nlat number",
+      "needs_review": true
+    },
+    {
+      "id": 437,
+      "person_id": 187813,
+      "original": "PARA N Om Florin)",
+      "cleaned": "PARA N Om Florin)",
+      "entry_text": "PARA N Om Florin)",
+      "needs_review": true
+    },
+    {
+      "id": 439,
+      "person_id": 187815,
+      "original": "N.y. ny 10023",
+      "cleaned": "N.y. ny 10023",
+      "entry_text": "N.Y. NY 10023\n313981 2902 Portable\n917-520-7294 car phone",
+      "needs_review": true
+    },
+    {
+      "id": 446,
+      "person_id": 39406,
+      "original": "New York",
+      "cleaned": "Unknown",
+      "entry_text": "New York",
+      "needs_review": true
+    },
+    {
+      "id": 452,
+      "person_id": 187827,
+      "original": "New York, NY 10028",
+      "cleaned": "60T212 439 6 187 (b)",
+      "entry_text": "New York, NY 10028\n60T212 439 6 187 (b)",
+      "needs_review": true
+    },
+    {
+      "id": 457,
+      "person_id": 187832,
+      "original": "San Sty gru 64111",
+      "cleaned": "San Sty gru 64111",
+      "entry_text": "San Sty gru 64111\n001 816 931 2720",
+      "needs_review": true
+    },
+    {
+      "id": 458,
+      "person_id": 187833,
+      "original": "Gm)1518 N. Astor Street",
+      "cleaned": "Gm)1518 N. Astor Street",
+      "entry_text": "Gm)1518 N. Astor Street",
+      "needs_review": true
+    },
+    {
+      "id": 459,
+      "person_id": 187834,
+      "original": "IL",
+      "cleaned": "il",
+      "entry_text": "IL\n3127008347\n599/\n(Mary. Ryan)\n12 664 0889 (fax)",
+      "needs_review": true
+    },
+    {
+      "id": 461,
+      "person_id": 187464,
+      "original": "ny 1001",
+      "cleaned": "ny 1001",
+      "entry_text": "NY 1001,",
+      "needs_review": true
+    },
+    {
+      "id": 463,
+      "person_id": 187837,
+      "original": "S8 02 88401",
+      "cleaned": "Mail:",
+      "entry_text": "S8 02 88401\nmail:",
+      "needs_review": true
+    },
+    {
+      "id": 467,
+      "person_id": 187840,
+      "original": "B8P 193 en to 10012",
+      "cleaned": "507 92 43 078418(0)",
+      "entry_text": "B8P 193 en to 10012\n507 92 43 078418(0)",
+      "needs_review": true
+    },
+    {
+      "id": 480,
+      "person_id": 187853,
+      "original": "W92 PH",
+      "cleaned": "Unknown",
+      "entry_text": "W92 PH",
+      "needs_review": true
+    },
+    {
+      "id": 485,
+      "person_id": 80,
+      "original": "BE 7oth Street (ti)",
+      "cleaned": "BE 7oth Street (ti)",
+      "entry_text": "BE 7oth Street (ti)\n21253958566 10021\nEmail: mmmust@aol.com or",
+      "needs_review": true
+    },
+    {
+      "id": 486,
+      "person_id": 187858,
+      "original": "Hm)lan-office",
+      "cleaned": "Hm)lan-office",
+      "entry_text": "Hm)lan-office\nazard Freres\na Rockefeller Pla\n12 632 2650 lan 11\n001 917 679 3705 lan (P)\n207 734 2260 Maine\n212 632 2650 lan work",
+      "needs_review": true
+    },
+    {
+      "id": 488,
+      "person_id": 187860,
+      "original": "Rutland Duke and Duch: 001 212 754 6750",
+      "cleaned": "Rutland Duke and Duch: 001 212 754 6750",
+      "entry_text": "Rutland Duke and Duch: 001 212 754 6750(w)\ness",
+      "needs_review": true
+    },
+    {
+      "id": 497,
+      "person_id": 187868,
+      "original": "Abc Prest 8194",
+      "cleaned": "Abc Prest 8194",
+      "entry_text": "ABC PREST 8194 (w)",
+      "needs_review": true
+    },
+    {
+      "id": 512,
+      "person_id": 39406,
+      "original": "New York",
+      "cleaned": "69212 734 3236",
+      "entry_text": "New York\n69212 734 3236",
+      "needs_review": true
+    },
+    {
+      "id": 516,
+      "person_id": 187885,
+      "original": "od 392 7200 4527",
+      "cleaned": "od 392 7200 4527",
+      "entry_text": "OD 392 7200 4527",
+      "needs_review": true
+    },
+    {
+      "id": 521,
+      "person_id": 39179,
+      "original": "New Albany",
+      "cleaned": "312-474-2520 ()",
+      "entry_text": "New York, NY\n312-474-2520 ()\n154 ningion PonGo\nensinaton Park H",
+      "needs_review": true
+    },
+    {
+      "id": 522,
+      "person_id": 187890,
+      "original": "London, United Kingdom W11",
+      "cleaned": "0207-327 5533 (п)",
+      "entry_text": "London, United Kingdom W11\n0207-327 5533 (п)\noros Pett, Soros",
+      "needs_review": true
+    },
+    {
+      "id": 531,
+      "person_id": 187896,
+      "original": "ca 90089",
+      "cleaned": "ca 90089",
+      "entry_text": "CA 90089\n19360 1512 0",
+      "needs_review": true
+    },
+    {
+      "id": 548,
+      "person_id": 187912,
+      "original": "N6 4LP",
+      "cleaned": "lp",
+      "entry_text": "N6 4LP",
+      "needs_review": true
+    },
+    {
+      "id": 559,
+      "person_id": 187922,
+      "original": "BO 19 A 8807 (Vorah,)",
+      "cleaned": "BO 19 A 8807 (Vorah,)",
+      "entry_text": "BO 19 A 8807 (Vorah,)",
+      "needs_review": true
+    },
+    {
+      "id": 564,
+      "person_id": 187927,
+      "original": "Noi 21899414 -",
+      "cleaned": "Noi 21899414 -",
+      "entry_text": "NOI 21899414 -",
+      "needs_review": true
+    },
+    {
+      "id": 566,
+      "person_id": 187929,
+      "original": "Red Park Ave. 10021.",
+      "cleaned": "Red Park Ave. 10021.",
+      "entry_text": "Red Park Ave. 10021.",
+      "needs_review": true
+    },
+    {
+      "id": 569,
+      "person_id": 187931,
+      "original": "Not 212345310016",
+      "cleaned": "Not 212345310016",
+      "entry_text": "NOT 212345310016",
+      "needs_review": true
+    },
+    {
+      "id": 573,
+      "person_id": 187935,
+      "original": "Man Řę",
+      "cleaned": "Man Řę",
+      "entry_text": "Man Řę\n44795 183 524",
+      "needs_review": true
+    },
+    {
+      "id": 580,
+      "person_id": 187940,
+      "original": "Toub, Veronica (Busson)",
+      "cleaned": "Toub, Veronica (Busson)",
+      "entry_text": "Toub, Veronica (Busson)",
+      "needs_review": true
+    },
+    {
+      "id": 581,
+      "person_id": 187941,
+      "original": "Rew aka N0021 USA",
+      "cleaned": "Rew aka N0021 USA",
+      "entry_text": "Rew aka N0021 USA",
+      "needs_review": true
+    },
+    {
+      "id": 583,
+      "person_id": 187827,
+      "original": "New York, NY 10028",
+      "cleaned": "Unknown",
+      "entry_text": "New York, NY 1002",
+      "needs_review": true
+    },
+    {
+      "id": 589,
+      "person_id": 187946,
+      "original": "New York Road",
+      "cleaned": "62",
+      "entry_text": "New York Road\n62",
+      "needs_review": true
+    },
+    {
+      "id": 590,
+      "person_id": 187947,
+      "original": "London SW3.",
+      "cleaned": "01-622 9933",
+      "entry_text": "London SW3.\n01-622 9933\n07-351 00",
+      "needs_review": true
+    },
+    {
+      "id": 593,
+      "person_id": 187949,
+      "original": "Suite 117",
+      "cleaned": "Suite 117",
+      "entry_text": "Suite 117",
+      "needs_review": true
+    },
+    {
+      "id": 594,
+      "person_id": 187950,
+      "original": "Beverly Hills, CA 90065",
+      "cleaned": "Beverly Hills, CA 90065",
+      "entry_text": "Beverly Hills, CA 90065",
+      "needs_review": true
+    },
+    {
+      "id": 599,
+      "person_id": 4314,
+      "original": "Flat 239 Chelsea Embankment 001312 5700040",
+      "cleaned": "Flat 239 Chelsea Embankment 001312 5700040",
+      "entry_text": "Flat 239 Chelsea Embankment 001312 5700040 (w)\n207 734.771\n131 8 8335",
+      "needs_review": true
+    },
+    {
+      "id": 602,
+      "person_id": 187956,
+      "original": "Warkberg Anouska)",
+      "cleaned": "Warkberg Anouska)",
+      "entry_text": "Warkberg Anouska)\n0207-602 5811 (",
+      "needs_review": true
+    },
+    {
+      "id": 604,
+      "person_id": 187958,
+      "original": "Marion)",
+      "cleaned": "Marion)",
+      "entry_text": "Marion)\n0012123717029 (\nryaram Lionel and",
+      "needs_review": true
+    },
+    {
+      "id": 607,
+      "person_id": 187961,
+      "original": "Nilliams-Ellis, David 8",
+      "cleaned": "Nilliams-Ellis, David 8",
+      "entry_text": "Nilliams-Ellis, David 8",
+      "needs_review": true
+    },
+    {
+      "id": 610,
+      "person_id": 187964,
+      "original": "London SW1",
+      "cleaned": "1207.235",
+      "entry_text": "London SW1\n1207.235\n0207-309 9524(0)",
+      "needs_review": true
+    },
+    {
+      "id": 616,
+      "person_id": 187970,
+      "original": "Grates 99 netcom.com",
+      "cleaned": "Grates 99 netcom.com",
+      "entry_text": "Grates 99 netcom.com",
+      "needs_review": true
+    },
+    {
+      "id": 628,
+      "person_id": 187981,
+      "original": "S128T",
+      "cleaned": "Unknown",
+      "entry_text": "S128T",
+      "needs_review": true
+    },
+    {
+      "id": 638,
+      "person_id": 187991,
+      "original": "Sp970 825 381",
+      "cleaned": "Sp970 825 381",
+      "entry_text": "SP970 825 381\n64",
+      "needs_review": true
+    },
+    {
+      "id": 640,
+      "person_id": 187993,
+      "original": "Susa teor Oman P.O. Box 879",
+      "cleaned": "Susa teor Oman P.O. Box 879",
+      "entry_text": "Susa teor Oman P.O. Box 879,",
+      "needs_review": true
+    },
+    {
+      "id": 644,
+      "person_id": 187742,
+      "original": "New 100",
+      "cleaned": "New 100",
+      "entry_text": "New 100\n1 917 825 8767\n7 585 201\nEmail: Bettinalz@aol.com\n160 $",
+      "needs_review": true
+    },
+    {
+      "id": 645,
+      "person_id": 187996,
+      "original": "B31 0 10k0, 100210)",
+      "cleaned": "10k0, 100210)",
+      "entry_text": "B31 0 10k0, 100210)\ns016:38go8capital.com\n61212192 7837 50\n57 Home -\n65TH STREET",
+      "needs_review": true
+    },
+    {
+      "id": 647,
+      "person_id": 187998,
+      "original": "New York, NY 10021",
+      "cleaned": "168 2 3328)",
+      "entry_text": "New York, NY 10021\n168 2 3328)",
+      "needs_review": true
+    },
+    {
+      "id": 649,
+      "person_id": 188000,
+      "original": "UI",
+      "cleaned": "ui",
+      "entry_text": "UI\n(Hm)PO Box 4495",
+      "needs_review": true
+    },
+    {
+      "id": 651,
+      "person_id": 188002,
+      "original": "NY",
+      "cleaned": "ny",
+      "entry_text": "NY\n10163-4495\n201 493\n917 842 5754\n7640 Howie ceil",
+      "needs_review": true
+    },
+    {
+      "id": 655,
+      "person_id": 188005,
+      "original": "ny 105198",
+      "cleaned": "ny 105198",
+      "entry_text": "NY 105198\n845 526 3716, (h,0)\n914 804 6719(p)",
+      "needs_review": true
+    },
+    {
+      "id": 660,
+      "person_id": 188010,
+      "original": "Line 3",
+      "cleaned": "Line 3",
+      "entry_text": "Line 3\n2611\n(w) Line 4\n683\njare office",
+      "needs_review": true
+    },
+    {
+      "id": 673,
+      "person_id": 39406,
+      "original": "New York",
+      "cleaned": "Unknown",
+      "entry_text": "New York",
+      "needs_review": true
+    },
+    {
+      "id": 676,
+      "person_id": 188022,
+      "original": "America(a)",
+      "cleaned": "America(a)",
+      "entry_text": "AMERICA(A)\nberiques - Resale Num-\n13-3647756",
+      "needs_review": true
+    },
+    {
+      "id": 702,
+      "person_id": 188044,
+      "original": "on Voraxy 1801",
+      "cleaned": "Zonal, XI 18019",
+      "entry_text": "Zonal, XI 18019\n312-303-3348",
+      "needs_review": true
+    },
+    {
+      "id": 704,
+      "person_id": 188046,
+      "original": "V12-88000",
+      "cleaned": "Unknown",
+      "entry_text": "V12-88000",
+      "needs_review": true
+    },
+    {
+      "id": 707,
+      "person_id": 188048,
+      "original": "Trust House 40",
+      "cleaned": "Trust House 40",
+      "entry_text": "Trust House 40\new at 641h Street.\new Yor\n12-734-9101",
+      "needs_review": true
+    },
+    {
+      "id": 724,
+      "person_id": 188062,
+      "original": "For shows and games:",
+      "cleaned": "For shows and games:",
+      "entry_text": "For shows and games:\n312-590 2374 DC Coe Tickets\ncierge/Johanna London",
+      "needs_review": true
+    },
+    {
+      "id": 731,
+      "person_id": 188068,
+      "original": "Av. Brigadeiro Faria Lima, 1485",
+      "cleaned": "Av. Brigadeiro Faria Lima, 1485",
+      "entry_text": "Av. Brigadeiro Faria Lima, 1485\n67935621051972 cell in France",
+      "needs_review": true
+    },
+    {
+      "id": 734,
+      "person_id": 34,
+      "original": "Ment (e)",
+      "cleaned": "Ment (e)",
+      "entry_text": "MENT (E)",
+      "needs_review": true
+    },
+    {
+      "id": 749,
+      "person_id": 2405,
+      "original": "Finance (e)",
+      "cleaned": "Finance (e)",
+      "entry_text": "FINANCE (E)\nten nearns",
+      "needs_review": true
+    },
+    {
+      "id": 754,
+      "person_id": 844,
+      "original": "France (fr)",
+      "cleaned": "France (fr)",
+      "entry_text": "FRANCE (FR)\n00 33 F4272 75194",
+      "needs_review": true
+    },
+    {
+      "id": 758,
+      "person_id": 188091,
+      "original": "Cabaret (night club)",
+      "cleaned": "Cabaret (night club)",
+      "entry_text": "Cabaret (night club)",
+      "needs_review": true
+    },
+    {
+      "id": 765,
+      "person_id": 1718,
+      "original": "Epstein, Jeffrey (G)",
+      "cleaned": "Epstein, Jeffrey (G)",
+      "entry_text": "Epstein, Jeffrey (G)",
+      "needs_review": true
+    },
+    {
+      "id": 767,
+      "person_id": 188099,
+      "original": "Apartment 200",
+      "cleaned": "Apartment 200",
+      "entry_text": "Apartment 200\n53144170210",
+      "needs_review": true
+    },
+    {
+      "id": 768,
+      "person_id": 188100,
+      "original": "France 75116",
+      "cleaned": "France 75116",
+      "entry_text": "France 75116\n351\n221 4d1 702111f\nsteini@wanadoo.fr(Valc\nm)1 Rue Chaforne/Staff Er\nranc\n1A 131\n8298\n01 47 37 18 18 Ambasador Car\n53 43 43 00 Jean Marie @\nBristos eg 475 Jean Marie @\n997388133 937 a aidsont\n00133 148 27 85 33 (h) Vaisonk",
+      "needs_review": true
+    },
+    {
+      "id": 769,
+      "person_id": 188101,
+      "original": "Staff House Line 1",
+      "cleaned": "Cotto 67 18 82 staff lin",
+      "entry_text": "Cotto 67 18 82 staff lin\na tir Comulcarad",
+      "needs_review": true
+    },
+    {
+      "id": 770,
+      "person_id": 188102,
+      "original": "Peres(conc.)",
+      "cleaned": "Peres(conc.)",
+      "entry_text": "Peres(conc.)\n46 0n 30 79 1)< Paras\n16 09 592 853 M",
+      "needs_review": true
+    },
+    {
+      "id": 772,
+      "person_id": 188103,
+      "original": "Ne 62 31 88 55 Mr Pascal cell(ca-",
+      "cleaned": "Ne 62 31 88 55 Mr Pascal cell(ca-",
+      "entry_text": "Ne 62 31 88 55 Mr Pascal cell(ca-\n11 42 87 49 38 M Karim o\n06 09 65 65 55 Mr. Karim or",
+      "needs_review": true
+    },
+    {
+      "id": 774,
+      "person_id": 188105,
+      "original": "Tel SS T 90 Mr. Lafond(a/c",
+      "cleaned": "he 30369 Mr. Lafond",
+      "entry_text": "Tel SS T 90 Mr. Lafond(a/c,\nhe 30369 Mr. Lafond\n00342.pMl. Pasquer\n66129487 Mr Santos",
+      "needs_review": true
+    },
+    {
+      "id": 775,
+      "person_id": 188106,
+      "original": "Peron, Marie Jose!",
+      "cleaned": "Peron, Marie Jose!",
+      "entry_text": "Peron, Marie Jose!",
+      "needs_review": true
+    },
+    {
+      "id": 777,
+      "person_id": 188108,
+      "original": "Rue Louise 1",
+      "cleaned": "Rue Louise 1",
+      "entry_text": "Rue Louise 1\n113\n50 Brussel\n817 33 2938 22 46FAX\n57332 412×35 0079 Belgian det-\n011 33 607 26 9785 French Cel-\n01953144014401 Berlioz",
+      "needs_review": true
+    },
+    {
+      "id": 778,
+      "person_id": 188109,
+      "original": "FaR 94169415 Berliz France",
+      "cleaned": "FaR 94169415 Berliz France",
+      "entry_text": "FaR 94169415 Berliz France",
+      "needs_review": true
+    },
+    {
+      "id": 783,
+      "person_id": 188114,
+      "original": "No. 1 N. Avenue",
+      "cleaned": "No. 1 N. Avenue",
+      "entry_text": "No. 1 N. Avenue",
+      "needs_review": true
+    },
+    {
+      "id": 785,
+      "person_id": 188115,
+      "original": "F58 85 042611 Paris",
+      "cleaned": "042611 Paris",
+      "entry_text": "F58 85 042611 Paris\n+33 616 60 6000 (p)\n+34\n852778234",
+      "needs_review": true
+    },
+    {
+      "id": 786,
+      "person_id": 188116,
+      "original": "Spain)",
+      "cleaned": "Spain)",
+      "entry_text": "Spain)",
+      "needs_review": true
+    },
+    {
+      "id": 787,
+      "person_id": 188117,
+      "original": "Spain fax)",
+      "cleaned": "Spain fax)",
+      "entry_text": "Spain fax)\n34 699 212 298 (Spain p)\n01144 370272428\norkl",
+      "needs_review": true
+    },
+    {
+      "id": 798,
+      "person_id": 188127,
+      "original": "Lé Voltaire",
+      "cleaned": "Lé Voltaire",
+      "entry_text": "Lé Voltaire",
+      "needs_review": true
+    },
+    {
+      "id": 801,
+      "person_id": 188130,
+      "original": "SN 1078 6479 stephane Coula",
+      "cleaned": "SN 1078 6479 stephane Coula",
+      "entry_text": "SN 1078 6479 stephane Coula\n8P 4401 4401 Gerakdine Talavera",
+      "needs_review": true
+    },
+    {
+      "id": 803,
+      "person_id": 188132,
+      "original": "Rue L. 14055 0685",
+      "cleaned": "Rue L. 14055 0685",
+      "entry_text": "Rue L. 14055 0685\n33142415033 Bastien-foat\n3359286 2422 Bastien-foat\n336 82617962 karine (Nicole's)\n71\n9974766 3727 Karine (Nicole's)\n36 5320 0066 Deborah (p)\np: Laeliti\n06 2247 4450 Deborah\n0609635180 Nadia",
+      "needs_review": true
+    },
+    {
+      "id": 808,
+      "person_id": 188136,
+      "original": "M1 21239 93 7171 Morocco",
+      "cleaned": "93 7171 Morocco",
+      "entry_text": "M1 21239 93 7171 Morocco\n+33 144 1875 71 (hf\n140\n0000.\n29.6003097 Riser: a cel\ninfographie.pinto@albertopinto",
+      "needs_review": true
+    },
+    {
+      "id": 813,
+      "person_id": 188141,
+      "original": "Sushi 01 56 26 00 55",
+      "cleaned": "Sushi 01 56 26 00 55",
+      "entry_text": "Sushi 01 56 26 00 55",
+      "needs_review": true
+    },
+    {
+      "id": 821,
+      "person_id": 188149,
+      "original": "Room 4041 Floor 6",
+      "cleaned": "Room 4041 Floor 6",
+      "entry_text": "Room 4041 Floor 6",
+      "needs_review": true
+    },
+    {
+      "id": 822,
+      "person_id": 25124,
+      "original": "Hotels (hi)",
+      "cleaned": "Hotels (hi)",
+      "entry_text": "HOTELS (HI)",
+      "needs_review": true
+    },
+    {
+      "id": 828,
+      "person_id": 188154,
+      "original": "Island(1)",
+      "cleaned": "Island(1)",
+      "entry_text": "ISLAND(1)",
+      "needs_review": true
+    },
+    {
+      "id": 833,
+      "person_id": 187742,
+      "original": "New 100",
+      "cleaned": "212 307 8081(8.",
+      "entry_text": "New York, NY 1001\n212 307 8081(8.\nsm495e59 gisoncax.com\n61121263526382 Moraco f",
+      "needs_review": true
+    },
+    {
+      "id": 835,
+      "person_id": 188159,
+      "original": "A0 gr",
+      "cleaned": "2678 Guest",
+      "entry_text": "A0 gr\n2678 Guest\n340 714 0808 Soare (unused)\nepstein, Jeffrey\n740 690 1443",
+      "needs_review": true
+    },
+    {
+      "id": 839,
+      "person_id": 188163,
+      "original": "vi 0080",
+      "cleaned": "vi 0080",
+      "entry_text": "VI 0080\n617 347 7907 Boslon h\n73",
+      "needs_review": true
+    },
+    {
+      "id": 840,
+      "person_id": 188164,
+      "original": "ny ny 10011",
+      "cleaned": "ny ny 10011",
+      "entry_text": "NY NY 10011\n212 989 8429 o\n212 989 89861\nEmail: dan-",
+      "needs_review": true
+    },
+    {
+      "id": 843,
+      "person_id": 188167,
+      "original": "Pinto Tonio Dealarcon 41",
+      "cleaned": "Pinto Tonio Dealarcon 41",
+      "entry_text": "Pinto Tonio Dealarcon 41",
+      "needs_review": true
+    },
+    {
+      "id": 845,
+      "person_id": 188168,
+      "original": "Usvi 0",
+      "cleaned": "Usvi 0",
+      "entry_text": "USVI 00802-1306\n340-776-5835 FAX",
+      "needs_review": true
+    },
+    {
+      "id": 855,
+      "person_id": 188175,
+      "original": "Italy (1)",
+      "cleaned": "Italy (1)",
+      "entry_text": "ITALY (1)",
+      "needs_review": true
+    },
+    {
+      "id": 857,
+      "person_id": 1847,
+      "original": "Jeffrey (j)",
+      "cleaned": "Jeffrey (j)",
+      "entry_text": "JEFFREY (J)\n301 East 66th St",
+      "needs_review": true
+    },
+    {
+      "id": 859,
+      "person_id": 188178,
+      "original": "New York, 50021",
+      "cleaned": "Unknown",
+      "entry_text": "New York, 50021",
+      "needs_review": true
+    },
+    {
+      "id": 863,
+      "person_id": 20983,
+      "original": "Adler: Frederick (Fred) &",
+      "cleaned": "Adler: Frederick (Fred) &",
+      "entry_text": "Adler: Frederick (Fred) &\n34: 13 983 В)",
+      "needs_review": true
+    },
+    {
+      "id": 865,
+      "person_id": 188182,
+      "original": "Apt 10A",
+      "cleaned": "Apt 10A",
+      "entry_text": "Apt 10A\nEmail: evadubin@holmail.com\n45034 Face 1",
+      "needs_review": true
+    },
+    {
+      "id": 866,
+      "person_id": 779,
+      "original": "Son 804 9293",
+      "cleaned": "Son 804 9293",
+      "entry_text": "Son 804 9293 (h)",
+      "needs_review": true
+    },
+    {
+      "id": 867,
+      "person_id": 188183,
+      "original": "Xxx:",
+      "cleaned": "Xxx:",
+      "entry_text": "XXX:\n126646941 (WING)\n+48 70 566 0463 Mr. Anderson's\n4 939 3070 emergency\n14 415 7171 (wl",
+      "needs_review": true
+    },
+    {
+      "id": 869,
+      "person_id": 188185,
+      "original": "We 051:18102 *",
+      "cleaned": "We 051:18102 *",
+      "entry_text": "We 051:18102 *\n31737340000\n283 5282 Hamatons\n(11 46 5232 2113 Sweden\n14 669 8157 North Salem\n11 46 5227 0397 Parenis /wit\nfari\n512 758 5700 work(1-9-03)\nsec. Caprice\n74",
+      "needs_review": true
+    },
+    {
+      "id": 870,
+      "person_id": 188186,
+      "original": "C0. Box 295me5",
+      "cleaned": "Unknown",
+      "entry_text": "C0. Box 295me5",
+      "needs_review": true
+    },
+    {
+      "id": 871,
+      "person_id": 188187,
+      "original": "co 81612",
+      "cleaned": "co 81612",
+      "entry_text": "CO 81612\n303-920-3776",
+      "needs_review": true
+    },
+    {
+      "id": 875,
+      "person_id": 188190,
+      "original": "England SW33ST",
+      "cleaned": "England SW33ST",
+      "entry_text": "England SW33ST\n4420-7352 8444",
+      "needs_review": true
+    },
+    {
+      "id": 882,
+      "person_id": 187807,
+      "original": "vy 1002",
+      "cleaned": "vy 1002",
+      "entry_text": "VY 1002",
+      "needs_review": true
+    },
+    {
+      "id": 885,
+      "person_id": 188196,
+      "original": "New Kany Or 43054(1)",
+      "cleaned": "New Kany Or 43054(1)",
+      "entry_text": "New Kany Or 43054(1)",
+      "needs_review": true
+    },
+    {
+      "id": 888,
+      "person_id": 188198,
+      "original": "Ohio 43230",
+      "cleaned": "Ohio 43230",
+      "entry_text": "Ohio 43230\n814-445-3174",
+      "needs_review": true
+    },
+    {
+      "id": 890,
+      "person_id": 188200,
+      "original": "Part France 79008",
+      "cleaned": "Part France 79008",
+      "entry_text": "Part France 79008\n81864180\n331 45 6:\nmall: benamou @art-cul-\n(Him (home)\n3B evil Sur Sere\n607011918 cel\n140883637 home",
+      "needs_review": true
+    },
+    {
+      "id": 892,
+      "person_id": 188202,
+      "original": "Husband: Gilbert Hakim",
+      "cleaned": "Husband: Gilbert Hakim",
+      "entry_text": "Husband: Gilbert Hakim",
+      "needs_review": true
+    },
+    {
+      "id": 897,
+      "person_id": 188204,
+      "original": "New York, N° 10019°",
+      "cleaned": "Unknown",
+      "entry_text": "New York, N° 10019°",
+      "needs_review": true
+    },
+    {
+      "id": 901,
+      "person_id": 188208,
+      "original": "Company:",
+      "cleaned": "Company:",
+      "entry_text": "Company:\n461 Park Ave., South\n639 3979954 Ebuntry",
+      "needs_review": true
+    },
+    {
+      "id": 906,
+      "person_id": 188213,
+      "original": "Bronx: 796863",
+      "cleaned": "Bronx: 796863",
+      "entry_text": "Bronx: 796863\nlived Saty.\n718 884 6586 (h)\n646 418 9306 p\nEmail: michelle @naproperty.com",
+      "needs_review": true
+    },
+    {
+      "id": 913,
+      "person_id": 188220,
+      "original": "DOT 21 08g*, 10022",
+      "cleaned": "DOT 21 08g*, 10022",
+      "entry_text": "DOT 21 08g*, 10022\n66-8875 Hom\n59 6083 Geoff VonKuhr",
+      "needs_review": true
+    },
+    {
+      "id": 914,
+      "person_id": 188221,
+      "original": "Sik Lew 702 10022",
+      "cleaned": "Sik Lew 702 10022",
+      "entry_text": "SIK LEW 702 10022\n9L\n.... .....",
+      "needs_review": true
+    },
+    {
+      "id": 916,
+      "person_id": 28671,
+      "original": "Ber 987, Alan",
+      "cleaned": "Ber 987, Alan",
+      "entry_text": "Ber 987, Alan\n212 861 8218 (h)\n858 626\n2050\n(W-direct)\n358. 625 2099 (wf",
+      "needs_review": true
+    },
+    {
+      "id": 924,
+      "person_id": 54,
+      "original": "Ma 207 6383 Al Castricone",
+      "cleaned": "Ma 207 6383 Al Castricone",
+      "entry_text": "Ma 207 6383 Al Castricone (P)",
+      "needs_review": true
+    },
+    {
+      "id": 933,
+      "person_id": 43413,
+      "original": "N. NY 1001, 1st Floor",
+      "cleaned": "N. NY 1001, 1st Floor",
+      "entry_text": "N. NY 1001, 1st Floor\n12 593 5700 (y\n12 593 0500 fa",
+      "needs_review": true
+    },
+    {
+      "id": 935,
+      "person_id": 188002,
+      "original": "NY",
+      "cleaned": "ny",
+      "entry_text": "NY\n10021-4266\n2179523400 )\n(car)\n.com\njoin street\n312953384(3)",
+      "needs_review": true
+    },
+    {
+      "id": 937,
+      "person_id": 27298,
+      "original": "Ace 25873810.6 Jec",
+      "cleaned": "Ace 25873810.6 Jec",
+      "entry_text": "ACE 25873810.6 JEC",
+      "needs_review": true
+    },
+    {
+      "id": 938,
+      "person_id": 188234,
+      "original": "Acct #1814-9779-3 JEE",
+      "cleaned": "Acct #1814-9779-3 JEE",
+      "entry_text": "Acct #1814-9779-3 JEE",
+      "needs_review": true
+    },
+    {
+      "id": 939,
+      "person_id": 188235,
+      "original": "Acct #1814-9809-9",
+      "cleaned": "Acct #1814-9809-9",
+      "entry_text": "Acct #1814-9809-9",
+      "needs_review": true
+    },
+    {
+      "id": 940,
+      "person_id": 188236,
+      "original": "AccI # 2587-7622-4 Max Hotel",
+      "cleaned": "AccI # 2587-7622-4 Max Hotel",
+      "entry_text": "AccI # 2587-7622-4 Max Hotel\n800-654-0920 Automatic Pick-up\n399-247-6500 Local Office\n00-654-0920 Problems/package\n8998 10829390 Johannesburg",
+      "needs_review": true
+    },
+    {
+      "id": 942,
+      "person_id": 188238,
+      "original": "Hi Danielle (pastry Dept)",
+      "cleaned": "Hi Danielle (pastry Dept)",
+      "entry_text": "Hi Danielle (pastry Dept)\n9875985592 cell",
+      "needs_review": true
+    },
+    {
+      "id": 944,
+      "person_id": 188240,
+      "original": "Ysag38780 Brother - Victor",
+      "cleaned": "Ysag38780 Brother - Victor",
+      "entry_text": "Ysag38780 Brother - Victor\n941 383 5226 Vacation",
+      "needs_review": true
+    },
+    {
+      "id": 945,
+      "person_id": 188241,
+      "original": "AFV5232 Frequent Flyer Num-",
+      "cleaned": "AFV5232 Frequent Flyer Num-",
+      "entry_text": "AFV5232 Frequent Flyer Num-",
+      "needs_review": true
+    },
+    {
+      "id": 946,
+      "person_id": 188242,
+      "original": "Sante F8. NM 8",
+      "cleaned": "Sante F8. NM 8",
+      "entry_text": "Sante F8. NM 87501-8943\n505984 8800w-main\n0550W Directe\n05\n1 505\n970\n9709204187 9\n292 260 3223 NY lura\nolivia)",
+      "needs_review": true
+    },
+    {
+      "id": 953,
+      "person_id": 188248,
+      "original": "S2 571",
+      "cleaned": "0299 (h1)",
+      "entry_text": "S2 571\n0299 (h1)\n732\n577\nemergency\n(62)",
+      "needs_review": true
+    },
+    {
+      "id": 954,
+      "person_id": 188249,
+      "original": "Gon 10128",
+      "cleaned": "Gon 10128",
+      "entry_text": "GON 10128",
+      "needs_review": true
+    },
+    {
+      "id": 955,
+      "person_id": 188250,
+      "original": "T4 20AY",
+      "cleaned": "ay",
+      "entry_text": "T4 20AY\nmom's home\n10003\n09 683 088\n124739462(2)\n10021\neil, Pau\nlennia! A\n2-121-23",
+      "needs_review": true
+    },
+    {
+      "id": 957,
+      "person_id": 188252,
+      "original": "Rye, NY 10580",
+      "cleaned": "Rye, NY 10580",
+      "entry_text": "Rye, NY 10580\n001 914 967\n7220\n01 284 494 2354",
+      "needs_review": true
+    },
+    {
+      "id": 966,
+      "person_id": 188258,
+      "original": "B1153293%%",
+      "cleaned": "Unknown",
+      "entry_text": "B1153293%%",
+      "needs_review": true
+    },
+    {
+      "id": 970,
+      "person_id": 188262,
+      "original": "F4233067 New Fax 1+",
+      "cleaned": "+33 1 45 49 14 75 (wl)",
+      "entry_text": "F4233067 New Fax 1+\n+33 1 45 49 14 75 (wl)\n\"Jarecki, Gioria\n10 Timber Trial\ninfone.com",
+      "needs_review": true
+    },
+    {
+      "id": 971,
+      "person_id": 188263,
+      "original": "H870 ON Plaza: Apt 37/38",
+      "cleaned": "2127990450degRiver or 49)",
+      "entry_text": "H870 ON Plaza: Apt 37/38\n2127990450degRiver or 49)\n814-967-1220 Westchester\n1440 (W\n984 1442 (wl)\n888\n8076\n0859/0860 Plane\n8048 Westchester f\n1440 Emergency\n01\n7220 Emergency\n212 984 1450 Other",
+      "needs_review": true
+    },
+    {
+      "id": 975,
+      "person_id": 188266,
+      "original": "Cambridge, MA 021",
+      "cleaned": "Cambridge, MA 021",
+      "entry_text": "Cambridge, MA 021\n...?\n80\n213\n(Robin)",
+      "needs_review": true
+    },
+    {
+      "id": 976,
+      "person_id": 188204,
+      "original": "New York, N° 10019°",
+      "cleaned": "Unknown",
+      "entry_text": "New York, NY 10019",
+      "needs_review": true
+    },
+    {
+      "id": 981,
+      "person_id": 188271,
+      "original": "Lopez, (Buklarewicz)",
+      "cleaned": "Lopez, (Buklarewicz)",
+      "entry_text": "Lopez, (Buklarewicz)",
+      "needs_review": true
+    },
+    {
+      "id": 984,
+      "person_id": 39406,
+      "original": "New York",
+      "cleaned": "792 431 394 Parent 5",
+      "entry_text": "New York\n792 431 394 parent 5",
+      "needs_review": true
+    },
+    {
+      "id": 987,
+      "person_id": 188273,
+      "original": "Suite 105",
+      "cleaned": "Suite 105",
+      "entry_text": "Suite 105\n007 614 784 9540 43054\nprop",
+      "needs_review": true
+    },
+    {
+      "id": 993,
+      "person_id": 188279,
+      "original": "md 20785",
+      "cleaned": "md 20785",
+      "entry_text": "MD 20785\n01 3063470 211(W\n301 306 3479 (wl)\n301 ke 72 20000",
+      "needs_review": true
+    },
+    {
+      "id": 1000,
+      "person_id": 188283,
+      "original": "Washington, DC 20005",
+      "cleaned": "Washington, DC 20005",
+      "entry_text": "Washington, DC 20005\n2023778105(w)\n-mail: bchapman@verer.com ;\n36 4535 DC Fax\n645 305 1392 Neather (n)",
+      "needs_review": true
+    },
+    {
+      "id": 1004,
+      "person_id": 188285,
+      "original": "Washington 98005",
+      "cleaned": "Washington 98005",
+      "entry_text": "Washington 98005\n2267 2308(W)",
+      "needs_review": true
+    },
+    {
+      "id": 1005,
+      "person_id": 188286,
+      "original": "Belmont3441 134th Ave. N.C.",
+      "cleaned": "Belmont3441 134th Ave. N.C.",
+      "entry_text": "Belmont3441 134th Ave. N.C.\n3503 5160 (p)\n25 936 7333 Sharleen PT Assis-\n12: 936 2170 Serena FT Assis-\ntant\n425 936 1222 Direct Fax-Use\n425-869-5599 Joan Waters (per-\nai assis\n2309 Claudia Leschuck\n785 7788 0\nasi\n2350 y\n811 871631125 172 Boal (sat)\n866 501 9015 Plane\n435 260 7319 Claudia - emer-\ngency",
+      "needs_review": true
+    },
+    {
+      "id": 1008,
+      "person_id": 188288,
+      "original": "Box 688 (Mailing address)",
+      "cleaned": "Box 688 (Mailing address)",
+      "entry_text": "Box 688 (Mailing address)\n525 West Campus Oval",
+      "needs_review": true
+    },
+    {
+      "id": 1009,
+      "person_id": 188289,
+      "original": "N4 495000H 43054",
+      "cleaned": "h 43054",
+      "entry_text": "N4 495000H 43054\n14 639 6025 Coran Fed Ex Ac\naddress",
+      "needs_review": true
+    },
+    {
+      "id": 1010,
+      "person_id": 188290,
+      "original": "Ohio 43054",
+      "cleaned": "Ohio 43054",
+      "entry_text": "Ohio 43054\n814 668 3096 Pare Duraberg",
+      "needs_review": true
+    },
+    {
+      "id": 1017,
+      "person_id": 188295,
+      "original": "md 21286",
+      "cleaned": "md 21286",
+      "entry_text": "MD 21286\n410 494 1163(0",
+      "needs_review": true
+    },
+    {
+      "id": 1021,
+      "person_id": 188299,
+      "original": "Chm 457 2 Kingiam Ave  Perlman, Itzhak",
+      "cleaned": "Chm 457 2 Kingiam Ave  Perlman, Itzhak",
+      "entry_text": "Chm 457 2 Kingiam Ave (h) Perlman, Itzhak\n398 308245, CassinaOvitz's as-\n312-31-899 Ripple in Ny\nent/kann time\n12-595-2483 Privale Lir",
+      "needs_review": true
+    },
+    {
+      "id": 1026,
+      "person_id": 188304,
+      "original": "Fe",
+      "cleaned": "Fe",
+      "entry_text": "Fe",
+      "needs_review": true
+    },
+    {
+      "id": 1031,
+      "person_id": 188308,
+      "original": "West Paste Co FL 33409",
+      "cleaned": "West Paste Co FL 33409",
+      "entry_text": "West Paste Co FL 33409",
+      "needs_review": true
+    },
+    {
+      "id": 1032,
+      "person_id": 188309,
+      "original": "Ed, #500",
+      "cleaned": "Ed, #500",
+      "entry_text": "Ed, #500\n614415 6240(1)",
+      "needs_review": true
+    },
+    {
+      "id": 1035,
+      "person_id": 188311,
+      "original": "To 4433 7063 david rigg insure",
+      "cleaned": "To 4433 7063 david rigg insure",
+      "entry_text": "To 4433 7063 david rigg insure\nance",
+      "needs_review": true
+    },
+    {
+      "id": 1044,
+      "person_id": 1266,
+      "original": "San Nazzaro Sesia (NO)",
+      "cleaned": "San Nazzaro Sesia (NO)",
+      "entry_text": "San Nazzaro Sesia (NO)\n5739032184090 work harit\n011390262912196 Privale\n011390321827000 Rivale Line at\nhome\nsnyder, Richard & Laura",
+      "needs_review": true
+    },
+    {
+      "id": 1049,
+      "person_id": 949,
+      "original": "Aimee Demilia Newsham",
+      "cleaned": "Email: wspector@bear.com",
+      "entry_text": "New York S NAY779 (W)\nEmail: wspector@bear.com",
+      "needs_review": true
+    },
+    {
+      "id": 1052,
+      "person_id": 188325,
+      "original": "The Mirador Building 39",
+      "cleaned": "The Mirador Building 39",
+      "entry_text": "The Mirador Building 39",
+      "needs_review": true
+    },
+    {
+      "id": 1054,
+      "person_id": 188326,
+      "original": "Suite 110",
+      "cleaned": "Suite 110",
+      "entry_text": "Suite 110",
+      "needs_review": true
+    },
+    {
+      "id": 1055,
+      "person_id": 188327,
+      "original": "Miami, FL. 33131",
+      "cleaned": "Unknown",
+      "entry_text": "Miami, FL. 33131",
+      "needs_review": true
+    },
+    {
+      "id": 1061,
+      "person_id": 188331,
+      "original": "P.O. Box 7477.",
+      "cleaned": "P.O. Box 7477.",
+      "entry_text": "P.O. Box 7477.",
+      "needs_review": true
+    },
+    {
+      "id": 1066,
+      "person_id": 188335,
+      "original": "U7",
+      "cleaned": "Unknown",
+      "entry_text": "U7",
+      "needs_review": true
+    },
+    {
+      "id": 1073,
+      "person_id": 188342,
+      "original": "uh 43081",
+      "cleaned": "uh 43081",
+      "entry_text": "UH 43081\n014 856 973 2310\nrossle",
+      "needs_review": true
+    },
+    {
+      "id": 1077,
+      "person_id": 188273,
+      "original": "Suite 105",
+      "cleaned": "Suite 105",
+      "entry_text": "Suite 105",
+      "needs_review": true
+    },
+    {
+      "id": 1080,
+      "person_id": 188347,
+      "original": "Account # E10-954",
+      "cleaned": "Account # E10-954",
+      "entry_text": "Account # E10-954\n800 742",
+      "needs_review": true
+    },
+    {
+      "id": 1081,
+      "person_id": 188348,
+      "original": "Poemat 800-782-7892",
+      "cleaned": "Poemat 800-782-7892",
+      "entry_text": "Poemat 800-782-7892\nups)",
+      "needs_review": true
+    },
+    {
+      "id": 1082,
+      "person_id": 188349,
+      "original": "Valukas, 1олу",
+      "cleaned": "Valukas, 1олу",
+      "entry_text": "Valukas, 1олу",
+      "needs_review": true
+    },
+    {
+      "id": 1091,
+      "person_id": 188357,
+      "original": "FI",
+      "cleaned": "fi",
+      "entry_text": "FI\nance 45116\n33 6608\n011 33 66 081 7425 p",
+      "needs_review": true
+    },
+    {
+      "id": 1093,
+      "person_id": 188359,
+      "original": "East 77th Street",
+      "cleaned": "East 77th Street",
+      "entry_text": "East 77th Street",
+      "needs_review": true
+    },
+    {
+      "id": 1094,
+      "person_id": 187998,
+      "original": "New York, NY 10021",
+      "cleaned": "3 el Row Send All",
+      "entry_text": "New York, NY 10021\n3 EL ROW SEND ALL\n31 33 38 Pais - Concierge",
+      "needs_review": true
+    },
+    {
+      "id": 1099,
+      "person_id": 188363,
+      "original": "London, United Kingdom WiK",
+      "cleaned": "4 20-7499 7711 Home",
+      "entry_text": "London, United Kingdom WiK\n4 20-7499 7711 Home\n763 Home - fa\n427 6744 Range Rover-\nbents were David\n011-44-385\n0831-355-056 Mercedes",
+      "needs_review": true
+    },
+    {
+      "id": 1100,
+      "person_id": 36405,
+      "original": "On 44370 85994 Mercedes",
+      "cleaned": "On 44370 85994 Mercedes",
+      "entry_text": "On 44370 85994 Mercedes\nnew stor\n11 44 370 883 955 Range Rover",
+      "needs_review": true
+    },
+    {
+      "id": 1101,
+      "person_id": 188364,
+      "original": "Mole 57838801 Benly Mobile",
+      "cleaned": "Mole 57838801 Benly Mobile",
+      "entry_text": "Mole 57838801 Benly Mobile",
+      "needs_review": true
+    },
+    {
+      "id": 1107,
+      "person_id": 188367,
+      "original": "Coumb-300",
+      "cleaned": "Coumb-300",
+      "entry_text": "Coumb-300\n378 378 6574 WMC Pan 1994\n614-415-5008 F\nmail: dryan@limitedbrands.com\n1 8 1590 e, can Chao\n14.415.5000 Main In\nee 199:",
+      "needs_review": true
+    },
+    {
+      "id": 1108,
+      "person_id": 188368,
+      "original": "S14 415 5006 Daina Ryan direct",
+      "cleaned": "5006 Daina Ryan direct",
+      "entry_text": "S14 415 5006 Daina Ryan direct",
+      "needs_review": true
+    },
+    {
+      "id": 1111,
+      "person_id": 19691,
+      "original": "Main Line information)",
+      "cleaned": "Main Line information)",
+      "entry_text": "Main Line information)\n300802 2084e, NW.",
+      "needs_review": true
+    },
+    {
+      "id": 1115,
+      "person_id": 188372,
+      "original": "Fax",
+      "cleaned": "Unknown",
+      "entry_text": "Fax",
+      "needs_review": true
+    },
+    {
+      "id": 1120,
+      "person_id": 188377,
+      "original": "Suite 1801",
+      "cleaned": "Suite 1801",
+      "entry_text": "Suite 1801\nnzuckerman@bostonproperl",
+      "needs_review": true
+    },
+    {
+      "id": 1122,
+      "person_id": 188379,
+      "original": "Street",
+      "cleaned": "26 1096 Clare Asst.",
+      "entry_text": "Street\n26 1096 Clare Asst.\n331 Bil Wede (%)\n1900\n7084 R.",
+      "needs_review": true
+    },
+    {
+      "id": 1123,
+      "person_id": 188380,
+      "original": "Jeferey Ż1st.",
+      "cleaned": "Jeferey Ż1st.",
+      "entry_text": "JEFEREY Ż1ST.",
+      "needs_review": true
+    },
+    {
+      "id": 1128,
+      "person_id": 188384,
+      "original": "Sor Washington, NY 11050",
+      "cleaned": "Sor Washington, NY 11050",
+      "entry_text": "Sor Washington, NY 11050\n918-3892 p\nrbgeast71@aoi.com\n7 040 61571",
+      "needs_review": true
+    },
+    {
+      "id": 1130,
+      "person_id": 188386,
+      "original": "Site 2",
+      "cleaned": "Site 2",
+      "entry_text": "Site 2",
+      "needs_review": true
+    },
+    {
+      "id": 1134,
+      "person_id": 188389,
+      "original": "T(P)",
+      "cleaned": "Unknown",
+      "entry_text": "T(P)",
+      "needs_review": true
+    },
+    {
+      "id": 1136,
+      "person_id": 188391,
+      "original": "Lyne Bojo (hit)",
+      "cleaned": "Lyne Bojo (hit)",
+      "entry_text": "Lyne Bojo (hit)\n14 Merc.",
+      "needs_review": true
+    },
+    {
+      "id": 1143,
+      "person_id": 188398,
+      "original": "ny 10021",
+      "cleaned": "Apartment NY 10021",
+      "entry_text": "Apartment NY 10021\n20 355 248 on Skype pint\n312 19 89 83P",
+      "needs_review": true
+    },
+    {
+      "id": 1146,
+      "person_id": 188401,
+      "original": "Acct # 5002",
+      "cleaned": "Acct # 5002",
+      "entry_text": "Acct # 5002",
+      "needs_review": true
+    },
+    {
+      "id": 1153,
+      "person_id": 188408,
+      "original": "Sawyers Tom/Pat (tele-",
+      "cleaned": "Sawyers Tom/Pat (tele-",
+      "entry_text": "Sawyers Tom/Pat (tele-",
+      "needs_review": true
+    },
+    {
+      "id": 1154,
+      "person_id": 188409,
+      "original": "bd Coa 0 513.",
+      "cleaned": "bd Coa 0 513.",
+      "entry_text": "BD COA 0 513.",
+      "needs_review": true
+    },
+    {
+      "id": 1155,
+      "person_id": 188410,
+      "original": "nj 08825",
+      "cleaned": "nj 08825",
+      "entry_text": "NJ 08825\n308-996-6958 (1\n808 20 2 Toni\n# 4195978 Pal beeoer 1801\n759 724:\n908 561 2641 ppl's home",
+      "needs_review": true
+    },
+    {
+      "id": 1157,
+      "person_id": 188412,
+      "original": "Apartment 8C",
+      "cleaned": "Apartment 8C",
+      "entry_text": "Apartment 8C",
+      "needs_review": true
+    },
+    {
+      "id": 1158,
+      "person_id": 39406,
+      "original": "New York",
+      "cleaned": "Unknown",
+      "entry_text": "New York",
+      "needs_review": true
+    },
+    {
+      "id": 1159,
+      "person_id": 188398,
+      "original": "ny 10021",
+      "cleaned": "ny 10021",
+      "entry_text": "NY 10021\n917 681 1373 (8)\n00\n00",
+      "needs_review": true
+    },
+    {
+      "id": 1160,
+      "person_id": 8106,
+      "original": "Kenya (k)",
+      "cleaned": "Kenya (k)",
+      "entry_text": "KENYA (K)",
+      "needs_review": true
+    },
+    {
+      "id": 1177,
+      "person_id": 187629,
+      "original": "London",
+      "cleaned": "0207-730-8369",
+      "entry_text": "London,\n0207-730-8369\n0207-730 0437 (fax)",
+      "needs_review": true
+    },
+    {
+      "id": 1179,
+      "person_id": 188429,
+      "original": "Martin Tim/Debbie Stew",
+      "cleaned": "Martin Tim/Debbie Stew",
+      "entry_text": "Martin Tim/Debbie Stew",
+      "needs_review": true
+    },
+    {
+      "id": 1182,
+      "person_id": 18129,
+      "original": "Massage - UK (a)",
+      "cleaned": "Massage - UK (a)",
+      "entry_text": "Massage - UK (a)\n40P 256 289 Joanne Bur\n(01616 300982 Barry (Amste)\n0207-838 9130 2nd Line\n87785771552 Pange Rover",
+      "needs_review": true
+    },
+    {
+      "id": 1190,
+      "person_id": 188438,
+      "original": "Police 24 hours",
+      "cleaned": "Police 24 hours",
+      "entry_text": "Police 24 hours\n0207-321-8273",
+      "needs_review": true
+    },
+    {
+      "id": 1194,
+      "person_id": 188440,
+      "original": "Contact:",
+      "cleaned": "Contact:",
+      "entry_text": "Contact:",
+      "needs_review": true
+    },
+    {
+      "id": 1211,
+      "person_id": 188456,
+      "original": "v 22 37 002989 2101",
+      "cleaned": "v 22 37 002989 2101",
+      "entry_text": "V 22 37 002989 2101\n12 88 109\n205 529 3956 fax\n4311440 01 Oxford ID number",
+      "needs_review": true
+    },
+    {
+      "id": 1212,
+      "person_id": 188457,
+      "original": "Berton yens Prudenti 10 um.",
+      "cleaned": "Berton yens Prudenti 10 um.",
+      "entry_text": "Berton yens Prudenti 10 um.",
+      "needs_review": true
+    },
+    {
+      "id": 1218,
+      "person_id": 188462,
+      "original": "Y Hospital 525 E 68th",
+      "cleaned": "Y Hospital 525 E 68th",
+      "entry_text": "Y Hospital 525 E 68th\n001 212 748 4100",
+      "needs_review": true
+    },
+    {
+      "id": 1224,
+      "person_id": 188467,
+      "original": "Bi6 62 C2E Beach",
+      "cleaned": "Bi6 62 C2E Beach",
+      "entry_text": "Bi6 62 C2E Beach\n313 328 1693 emergency",
+      "needs_review": true
+    },
+    {
+      "id": 1226,
+      "person_id": 187423,
+      "original": "P.b)",
+      "cleaned": "pb",
+      "entry_text": "PB",
+      "needs_review": true
+    },
+    {
+      "id": 1230,
+      "person_id": 188471,
+      "original": "fl 33487",
+      "cleaned": "fl 33487",
+      "entry_text": "FL 33487\n561 302 1844 (p)",
+      "needs_review": true
+    },
+    {
+      "id": 1232,
+      "person_id": 188473,
+      "original": "Account # 17313",
+      "cleaned": "Account # 17313",
+      "entry_text": "Account # 17313",
+      "needs_review": true
+    },
+    {
+      "id": 1240,
+      "person_id": 188481,
+      "original": "Florida 33480",
+      "cleaned": "Florida 33480",
+      "entry_text": "Florida 33480",
+      "needs_review": true
+    },
+    {
+      "id": 1241,
+      "person_id": 188482,
+      "original": "Hm1144 Pleasant St.",
+      "cleaned": "Hm1144 Pleasant St.",
+      "entry_text": "Hm1144 Pleasant St.",
+      "needs_review": true
+    },
+    {
+      "id": 1244,
+      "person_id": 188101,
+      "original": "Staff House Line 1",
+      "cleaned": "Staff House Line 1",
+      "entry_text": "Staff House Line 1\n0319 Staff House Line 2\n14 Staff House Line 3\n4533 Staff House Line 4\n818 8398 Salv (0\n561 369 4354 Jerome Pierre-gar-\n-$81641 0728 Jerome Pierre-gar-\n→ 56\n881888 1784\n1700 Christophe E\n*\n561 762 2741 Paula (car) -\n3183061382 Ronnie Carey\n14015 cal ovaring i)\nwitness\n3812807298 (B",
+      "needs_review": true
+    },
+    {
+      "id": 1250,
+      "person_id": 13973,
+      "original": "Dawn W-R (W",
+      "cleaned": "Dawn W-R (W",
+      "entry_text": "Dawn W-R (W",
+      "needs_review": true
+    },
+    {
+      "id": 1253,
+      "person_id": 188492,
+      "original": "Alexandra (",
+      "cleaned": "Alexandra (",
+      "entry_text": "Alexandra (\n546 Johanna's cell\n0676\n561 707 1789 Dominique & Keily\n991 214 2319 Mary Southwell\n561 533 7599 Diane Cahill (h)\n408 Diane Cahill p\n561 798 6103 Andrea Ton's\n161858 8837 Heidi\ncoleen p",
+      "needs_review": true
+    },
+    {
+      "id": 1258,
+      "person_id": 5560,
+      "original": "Beth (o)",
+      "cleaned": "Beth (o)",
+      "entry_text": "Beth (o)",
+      "needs_review": true
+    },
+    {
+      "id": 1262,
+      "person_id": 188498,
+      "original": "Gwendolen Aór",
+      "cleaned": "Gwendolen Aór",
+      "entry_text": "Gwendolen Aór\n6) 525 2084 Hawthornes\n•5 .",
+      "needs_review": true
+    },
+    {
+      "id": 1266,
+      "person_id": 42241,
+      "original": "Lina (cosmo & co)",
+      "cleaned": "Lina (cosmo & co)",
+      "entry_text": "Lina (cosmo & co)",
+      "needs_review": true
+    },
+    {
+      "id": 1277,
+      "person_id": 188511,
+      "original": "Moss Brian /Carolyn",
+      "cleaned": "Moss Brian /Carolyn",
+      "entry_text": "Moss Brian /Carolyn",
+      "needs_review": true
+    },
+    {
+      "id": 1287,
+      "person_id": 188520,
+      "original": "P314723 0053",
+      "cleaned": "Unknown",
+      "entry_text": "P314723 0053",
+      "needs_review": true
+    },
+    {
+      "id": 1296,
+      "person_id": 188528,
+      "original": "M33144159415 Caroline",
+      "cleaned": "Unknown",
+      "entry_text": "M33144159415 Caroline",
+      "needs_review": true
+    },
+    {
+      "id": 1298,
+      "person_id": 188530,
+      "original": "Paris, Rome",
+      "cleaned": "Unknown",
+      "entry_text": "Paris, Rome",
+      "needs_review": true
+    },
+    {
+      "id": 1300,
+      "person_id": 188532,
+      "original": "Security (sc)",
+      "cleaned": "Security (sc)",
+      "entry_text": "SECURITY (SC)\ncotland Yar\n07.330 12\n(SW)",
+      "needs_review": true
+    },
+    {
+      "id": 1301,
+      "person_id": 7347,
+      "original": "Travel (i)",
+      "cleaned": "Travel (i)",
+      "entry_text": "TRAVEL (I)",
+      "needs_review": true
+    },
+    {
+      "id": 1304,
+      "person_id": 188534,
+      "original": "Abdullah :",
+      "cleaned": "Abdullah :",
+      "entry_text": "Abdullah :\n(Cent. Cards)",
+      "needs_review": true
+    },
+    {
+      "id": 1308,
+      "person_id": 188536,
+      "original": "City, NY 10021",
+      "cleaned": "City, NY 10021",
+      "entry_text": "City, NY 10021\n800-456-3548\n718-361-9800 Ellen/Tackia\n00-456-3548 Toll-Free Number\ndowni",
+      "needs_review": true
+    },
+    {
+      "id": 1319,
+      "person_id": 12871,
+      "original": "To Trie?",
+      "cleaned": "To Trie?",
+      "entry_text": "To Trie?",
+      "needs_review": true
+    },
+    {
+      "id": 1325,
+      "person_id": 188551,
+      "original": "Safe 30 perang Office Park",
+      "cleaned": "Safe 30 perang Office Park",
+      "entry_text": "Safe 30 perang Office Park\n1 888 835 9782 Book light\n11 in gren yanking rax\n877 357 1263 Flight Options",
+      "needs_review": true
+    },
+    {
+      "id": 1330,
+      "person_id": 188044,
+      "original": "on Voraxy 1801",
+      "cleaned": "on Voraxy 1801",
+      "entry_text": "ON VORAXY 1801\nvite 100\n212-798800",
+      "needs_review": true
+    },
+    {
+      "id": 1337,
+      "person_id": 3804,
+      "original": "St 53 e8 Take Planet ext.",
+      "cleaned": "St 53 e8 Take Planet ext.",
+      "entry_text": "St 53 e8 Take Planet ext.",
+      "needs_review": true
+    },
+    {
+      "id": 1338,
+      "person_id": 9698,
+      "original": "Ice 6o 3737 FyTime Travel-",
+      "cleaned": "Ice 6o 3737 FyTime Travel-",
+      "entry_text": "Ice 6o 3737 FyTime Travel-",
+      "needs_review": true
+    },
+    {
+      "id": 1339,
+      "person_id": 188561,
+      "original": "LO",
+      "cleaned": "lo",
+      "entry_text": "LO\n• U7",
+      "needs_review": true
+    },
+    {
+      "id": 1357,
+      "person_id": 31231,
+      "original": "Karen (h",
+      "cleaned": "Karen (h",
+      "entry_text": "Karen (h",
+      "needs_review": true
+    },
+    {
+      "id": 1361,
+      "person_id": 188577,
+      "original": "Floyd (Nextel)",
+      "cleaned": "Floyd (Nextel)",
+      "entry_text": "Floyd (Nextel)\nlanollo (vexiel)",
+      "needs_review": true
+    },
+    {
+      "id": 1362,
+      "person_id": 188578,
+      "original": "Doo4",
+      "cleaned": "Doo4",
+      "entry_text": "DOO4",
+      "needs_review": true
+    },
+    {
+      "id": 1363,
+      "person_id": 188579,
+      "original": "Kate (Nextel)",
+      "cleaned": "Kate (Nextel)",
+      "entry_text": "Kate (Nextel)\nvira 1 (p)\n505 660 9583 More front\n305 660 3976 Mercedes - back\n905 660 6240 Mercedes G500",
+      "needs_review": true
+    },
+    {
+      "id": 1365,
+      "person_id": 188581,
+      "original": "Paścuzzi",
+      "cleaned": "Paścuzzi",
+      "entry_text": "Paścuzzi\ntealy. Shannot",
+      "needs_review": true
+    },
+    {
+      "id": 1368,
+      "person_id": 188584,
+      "original": "Santa FRing C87308",
+      "cleaned": "Santa FRing C87308",
+      "entry_text": "Santa FRing C87308\n395 481898 Bam (Cheryl)",
+      "needs_review": true
+    },
+    {
+      "id": 1372,
+      "person_id": 188588,
+      "original": "Suite 1000",
+      "cleaned": "Suite 1000",
+      "entry_text": "Suite 1000",
+      "needs_review": true
+    },
+    {
+      "id": 1373,
+      "person_id": 188589,
+      "original": "A05:268-938B NM 87103-2168",
+      "cleaned": "303 848 1889 (%)",
+      "entry_text": "A05:268-938B NM 87103-2168\n303 848 1889 (%)",
+      "needs_review": true
+    },
+    {
+      "id": 1381,
+      "person_id": 188596,
+      "original": "BM",
+      "cleaned": "bm",
+      "entry_text": "BM",
+      "needs_review": true
+    },
+    {
+      "id": 1385,
+      "person_id": 188600,
+      "original": "New York, Park South #18F",
+      "cleaned": "97",
+      "entry_text": "New York, Park South #18F\n97",
+      "needs_review": true
+    },
+    {
+      "id": 1387,
+      "person_id": 188602,
+      "original": "Hatsuhana (Japanese)",
+      "cleaned": "Hatsuhana (Japanese)",
+      "entry_text": "Hatsuhana (Japanese)\n0701212333385",
+      "needs_review": true
+    },
+    {
+      "id": 1409,
+      "person_id": 188621,
+      "original": "Visitors Massage (P.B)",
+      "cleaned": "Visitors Massage (P.B)",
+      "entry_text": "Visitors Massage (P.B)\n- Allison Chambors\n- Johanna\n- Jennifer\n- Cordyn Andriano\n- Kristen\n- Alias\n- Down\n- Cache (B1ez1l)\n- Perla\n- Filicie\n- Manucle\n- Mark\n- Courthoy Wild\n- Tele\n- Natelio\n- Svotten\n- Cheri Lynch\n- Britney\n- Jihanna\n- Brittany\n- Cachs\n- Jenny\n- Katyz\n- Emmy\n- Nina\n- Allison\n(561) 751-1011\n(561) 050-0185\n(561) 515-9814\n(561) 478-0496\n(561) 832-6777\n(561) 707-35651\n(917) 774-4452\n(561) 776-5679\n00551183834951\n917) 518 - 2434\n303) 51 - 8013\n(212) 308 Ciri\n(561) 644-1639\n(561) 202-0188\n(911) 603-2296\n917) 204-9696\n(917) 774-3061\n(66) 373-1422\n161) 644-7226\n(561) 714-0546",
+      "needs_review": true
+    },
+    {
+      "id": 1411,
+      "person_id": 188623,
+      "original": "Important e-mail (addresses)",
+      "cleaned": "Important e-mail (addresses)",
+      "entry_text": "Important e-mail (addresses)\n#.JeffreyE.Epstein:joffreye@mindspring.com\njesproject@yahoo.com\nzorroranch@eol.com\napstein@wanzdoo.fr\n### Chislain@ Mexwall: gmex1@mindspring.com",
+      "needs_review": true
+    },
+    {
+      "id": 1412,
+      "person_id": 187423,
+      "original": "P.b)",
+      "cleaned": "P.b)",
+      "entry_text": "P.B)\n(N.X)\n(M.M)\n(Peris)\n(NX)\n- In House-\n- Tim Newcombe\n(Citrix Systems Programmer)\n(614) 361-8625 Call.\n(614) 481-7628 4.\n12) 755-1050 - Charloy Pelmer\n(Chal-Aurodo Restaurant) NIC\n10) 274-0323 Joe Pageno (Chaf-Aspon, (0,)\n(Impon Christopho Fronc Driver) PB (56) 350-1700\n→ Jet evacuation\n(561) 233-7242\n(561) 233-7240\n→ Secret Service Personal escorting",
+      "needs_review": true
+    },
+    {
+      "id": 1415,
+      "person_id": 188625,
+      "original": "Brundl \"Scout\" for young women",
+      "cleaned": "Brundl \"Scout\" for young women",
+      "entry_text": "Brundl \"Scout\" for young women",
+      "needs_review": true
+    },
+    {
+      "id": 1417,
+      "person_id": 188627,
+      "original": "Dubin)",
+      "cleaned": "Dubin)",
+      "entry_text": "Dubin)\n(212) 288-4844\n- Derid Cook Palm Beach (2004-2005) Witness,\ninteracted and chatted daily with underage girls.-\n5",
+      "needs_review": true
+    }
+  ],
+  "cleaned": [
+    {
+      "id": 1,
+      "person_id": 187423,
+      "original": "P.b)",
+      "cleaned": "P.b.",
+      "entry_text": "P.B.,\n2004-2005",
+      "needs_review": false
+    },
+    {
+      "id": 2,
+      "person_id": 187424,
+      "original": "A344 574202",
+      "cleaned": "Nna",
+      "entry_text": "A344 574202\nnna",
+      "needs_review": false
+    },
+    {
+      "id": 3,
+      "person_id": 187425,
+      "original": "Aldridge Saffron",
+      "cleaned": "Aldridge Saffron",
+      "entry_text": "Aldridge Saffron",
+      "needs_review": false
+    },
+    {
+      "id": 4,
+      "person_id": 187426,
+      "original": "Aldridge",
+      "cleaned": "Aldridge",
+      "entry_text": "Aldridge\n001 212-879-7653\n0207-22fg@aol.com",
+      "needs_review": false
+    },
+    {
+      "id": 5,
+      "person_id": 187427,
+      "original": "Alexander Pam",
+      "cleaned": "Alexander Pam",
+      "entry_text": "Alexander Pam\n31215514 37588\nmail: palexander@alexanderrog",
+      "needs_review": false
+    },
+    {
+      "id": 6,
+      "person_id": 187428,
+      "original": "Agra bit Giacomo",
+      "cleaned": "Agra bit Giacomo",
+      "entry_text": "Agra bit Giacomo",
+      "needs_review": false
+    },
+    {
+      "id": 7,
+      "person_id": 187429,
+      "original": "Papike Si",
+      "cleaned": "Papike Si",
+      "entry_text": "Papike Si",
+      "needs_review": false
+    },
+    {
+      "id": 9,
+      "person_id": 42580,
+      "original": "Allan Paul",
+      "cleaned": "Allan Paul",
+      "entry_text": "Allan Paul\n001 206 355 5777\nEmail: paul@vulcan.com",
+      "needs_review": false
+    },
+    {
+      "id": 10,
+      "person_id": 187430,
+      "original": "Allan, Nick & Sarah",
+      "cleaned": "Allan, Nick & Sarah",
+      "entry_text": "Allan, Nick & Sarah",
+      "needs_review": false
+    },
+    {
+      "id": 11,
+      "person_id": 187431,
+      "original": "Sallymarle, Rufus &",
+      "cleaned": "Sallymarle, Rufus &",
+      "entry_text": "Sallymarle, Rufus &",
+      "needs_review": false
+    },
+    {
+      "id": 12,
+      "person_id": 187432,
+      "original": "Althorp, Charlie",
+      "cleaned": "Althorp, Charlie",
+      "entry_text": "Althorp, Charlie\n6207-229 1573(1)\n0207-637 8655 (W)",
+      "needs_review": false
+    },
+    {
+      "id": 13,
+      "person_id": 187433,
+      "original": "Alun-Jones, Carella",
+      "cleaned": "Alun-Jones, Carella",
+      "entry_text": "Alun-Jones, Carella\n37238 60 0 4)\n207-235-7769/9169 (2nd home\nhome & fax",
+      "needs_review": false
+    },
+    {
+      "id": 15,
+      "person_id": 187435,
+      "original": "Maurice",
+      "cleaned": "Maurice",
+      "entry_text": "Maurice",
+      "needs_review": false
+    },
+    {
+      "id": 17,
+      "person_id": 187437,
+      "original": "Ivarez, Seno",
+      "cleaned": "Ivarez, Seno",
+      "entry_text": "Ivarez, Seno",
+      "needs_review": false
+    },
+    {
+      "id": 18,
+      "person_id": 187438,
+      "original": "Incenti",
+      "cleaned": "Incenti",
+      "entry_text": "Incenti\n31334 27 80370)\n0 34 1 563 8466 (f)",
+      "needs_review": false
+    },
+    {
+      "id": 19,
+      "person_id": 43280,
+      "original": "Amon, Mr Philippe",
+      "cleaned": "Amon, Mr Philippe",
+      "entry_text": "Amon, Mr Philippe\n70 Aubon\nine de Bou",
+      "needs_review": false
+    },
+    {
+      "id": 20,
+      "person_id": 187439,
+      "original": "Anastos, Lisa",
+      "cleaned": "Anastos, Lisa",
+      "entry_text": "Anastos, Lisa\n88312 40 1781(y)\n001 212 826 4908 (%))",
+      "needs_review": false
+    },
+    {
+      "id": 21,
+      "person_id": 187440,
+      "original": "Anderson, Lulu",
+      "cleaned": "Anderson, Lulu",
+      "entry_text": "Anderson, Lulu\n8396237 2020",
+      "needs_review": false
+    },
+    {
+      "id": 22,
+      "person_id": 187441,
+      "original": "Appleby, Robert & Alex",
+      "cleaned": "Appleby, Robert & Alex",
+      "entry_text": "Appleby, Robert & Alex\n1207-398 3400 (h)\nA@Asia.debl.com\nEansepx@rockgacka.com\ntrango, Maite\nispaiter #10 (home",
+      "needs_review": false
+    },
+    {
+      "id": 23,
+      "person_id": 187442,
+      "original": "Armstrong, Arthur &",
+      "cleaned": "Armstrong, Arthur &",
+      "entry_text": "Armstrong, Arthur &",
+      "needs_review": false
+    },
+    {
+      "id": 24,
+      "person_id": 187443,
+      "original": "Cathy",
+      "cleaned": "Cathy",
+      "entry_text": "Cathy\n001 212 737 7290 (h)\n78g Park Ave\nlact)\n881281 859 3732 (W)",
+      "needs_review": false
+    },
+    {
+      "id": 25,
+      "person_id": 187444,
+      "original": "Aznar Jose",
+      "cleaned": "Aznar Jose",
+      "entry_text": "Aznar Jose\n&S Capita\n40 West 57th Street\n7th Floor",
+      "needs_review": false
+    },
+    {
+      "id": 26,
+      "person_id": 187445,
+      "original": "Baca das Coisan",
+      "cleaned": "Baca das Coisan",
+      "entry_text": "Baca das Coisan",
+      "needs_review": false
+    },
+    {
+      "id": 27,
+      "person_id": 187446,
+      "original": "Bahrke Peter",
+      "cleaned": "Bahrke Peter",
+      "entry_text": "Bahrke Peter",
+      "needs_review": false
+    },
+    {
+      "id": 28,
+      "person_id": 187447,
+      "original": "Baker Danny",
+      "cleaned": "Baker Danny",
+      "entry_text": "Baker Danny\n001 917 647 9649",
+      "needs_review": false
+    },
+    {
+      "id": 29,
+      "person_id": 187448,
+      "original": "Bakhtiar, Shariar",
+      "cleaned": "Bakhtiar, Shariar",
+      "entry_text": "Bakhtiar, Shariar\n8383770987(8",
+      "needs_review": false
+    },
+    {
+      "id": 30,
+      "person_id": 1251,
+      "original": "Baldwin Alec",
+      "cleaned": "Baldwin Alec",
+      "entry_text": "Baldwin Alec\n881 316 283 2832(6)\n0865 2, Falgard 0X1 3BJ\naylesford Hou\nbreton- in. Mar\n+44 7831 136 210 Alice (P)\n3139156 Georga\n44 7836 747546 George Uk ce\nand Lady Cr Anthony\n81888371(\ngrest 12 in 3/ Clinton",
+      "needs_review": false
+    },
+    {
+      "id": 33,
+      "person_id": 187451,
+      "original": "Darling Point",
+      "cleaned": "Darling Point",
+      "entry_text": "Darling Point\ndirector\n302800057057 cier pots-\n82873895019 st. Helen",
+      "needs_review": false
+    },
+    {
+      "id": 34,
+      "person_id": 187452,
+      "original": "Barnes, Peter",
+      "cleaned": "Barnes, Peter",
+      "entry_text": "Barnes, Peter\n001 213 621 2332 (W)",
+      "needs_review": false
+    },
+    {
+      "id": 35,
+      "person_id": 187453,
+      "original": "Barnett, Craig",
+      "cleaned": "Barnett, Craig",
+      "entry_text": "Barnett, Craig\n1779624 101 3dra Latham\n646 227 4930 Denise Diaric\n272348 0452 Joe Castion asst:",
+      "needs_review": false
+    },
+    {
+      "id": 36,
+      "person_id": 187454,
+      "original": "Bastone Hillary",
+      "cleaned": "Bastone, Hillary",
+      "entry_text": "Bastone, Hillary\n0207-259 6070",
+      "needs_review": false
+    },
+    {
+      "id": 37,
+      "person_id": 187454,
+      "original": "Bastone Hillary",
+      "cleaned": "Bastone Hillary",
+      "entry_text": "Bastone Hillary",
+      "needs_review": false
+    },
+    {
+      "id": 39,
+      "person_id": 187456,
+      "original": "Bastone, Tim Natasha",
+      "cleaned": "Bastone, Tim Natasha",
+      "entry_text": "Bastone, Tim Natasha\n492 5802741\n492 876593/\n0492 860584 (h)\n0492 76593 (w)",
+      "needs_review": false
+    },
+    {
+      "id": 40,
+      "person_id": 187457,
+      "original": "Baumer, Lorenzo",
+      "cleaned": "Baumer, Lorenzo",
+      "entry_text": "Baumer, Lorenzo",
+      "needs_review": false
+    },
+    {
+      "id": 42,
+      "person_id": 187459,
+      "original": "Beaumont, Lord & Lady",
+      "cleaned": "Beaumont, Lord & Lady",
+      "entry_text": "Beaumont, Lord & Lady\n212 249 6601 (Asst Erin Eagan)",
+      "needs_review": false
+    },
+    {
+      "id": 43,
+      "person_id": 187460,
+      "original": "Benson, Steven",
+      "cleaned": "Benson, Steven",
+      "entry_text": "Benson, Steven\n801 312 32 7357 (",
+      "needs_review": false
+    },
+    {
+      "id": 44,
+      "person_id": 187461,
+      "original": "Bentinck, Baron",
+      "cleaned": "Bentinck, Baron",
+      "entry_text": "Bentinck, Baron\n25th Floor\nme)\n0407307 (p)\nBentinck@msn.com",
+      "needs_review": false
+    },
+    {
+      "id": 45,
+      "person_id": 187462,
+      "original": "Birchall, Martyn",
+      "cleaned": "Birchall, Martyn",
+      "entry_text": "Birchall, Martyn\n1548 (h",
+      "needs_review": false
+    },
+    {
+      "id": 46,
+      "person_id": 187463,
+      "original": "Beckwith, Tamara",
+      "cleaned": "Beckwith, Tamara",
+      "entry_text": "Beckwith, Tamara\n001 323 864 4005\n81312181 1082\n50 West 2bin Sireet\n505000\n.....\nEmail: bis-",
+      "needs_review": false
+    },
+    {
+      "id": 49,
+      "person_id": 187466,
+      "original": "Back Conna & Barbara",
+      "cleaned": "Back Conna & Barbara",
+      "entry_text": "Back Conna & Barbara\n372 132 1306 NY (A",
+      "needs_review": false
+    },
+    {
+      "id": 51,
+      "person_id": 187468,
+      "original": "Jak Hange",
+      "cleaned": "Jak Hange",
+      "entry_text": "Jak Hange\nleeds Lani\n61730892114\n2911",
+      "needs_review": false
+    },
+    {
+      "id": 52,
+      "person_id": 187469,
+      "original": "Dawson Place",
+      "cleaned": "Dawson Place",
+      "entry_text": "Dawson Place\n0776 6012181",
+      "needs_review": false
+    },
+    {
+      "id": 56,
+      "person_id": 187473,
+      "original": "Bossom, Hon Bruce and",
+      "cleaned": "Bossom, Hon Bruce and",
+      "entry_text": "Bossom, Hon Bruce and",
+      "needs_review": false
+    },
+    {
+      "id": 57,
+      "person_id": 187474,
+      "original": "Penelope",
+      "cleaned": "Penelope",
+      "entry_text": "Penelope",
+      "needs_review": false
+    },
+    {
+      "id": 58,
+      "person_id": 3085,
+      "original": "La pron ale Rad",
+      "cleaned": "La pron ale Rad",
+      "entry_text": "La pron ale Rad\n0207-589 8919",
+      "needs_review": false
+    },
+    {
+      "id": 59,
+      "person_id": 187475,
+      "original": "Brachetti Peretti",
+      "cleaned": "Brachetti Peretti",
+      "entry_text": "Brachetti Peretti",
+      "needs_review": false
+    },
+    {
+      "id": 60,
+      "person_id": 187476,
+      "original": "Fernando",
+      "cleaned": "Fernando",
+      "entry_text": "Fernando",
+      "needs_review": false
+    },
+    {
+      "id": 62,
+      "person_id": 187478,
+      "original": "Rome",
+      "cleaned": "Rome",
+      "entry_text": "Rome\n0198",
+      "needs_review": false
+    },
+    {
+      "id": 63,
+      "person_id": 187479,
+      "original": "Boucherie Sylvianne",
+      "cleaned": "Boucherie Sylvianne",
+      "entry_text": "Boucherie Sylvianne",
+      "needs_review": false
+    },
+    {
+      "id": 64,
+      "person_id": 47161,
+      "original": "B Ave Du Maine",
+      "cleaned": "B Ave Du Maine",
+      "entry_text": "B Ave Du Maine\n003 1 4321 0790(\n53 807 359712 Talib-internet fr",
+      "needs_review": false
+    }
+  ]
+}

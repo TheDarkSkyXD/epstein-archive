@@ -1,0 +1,2242 @@
+[
+  {
+    "timestamp": "2025-11-25T05:37:23.191Z",
+    "sourceId": 50124,
+    "sourceName": "Epstein Jeffrey",
+    "targetId": 7,
+    "targetName": "Jeffrey Epstein",
+    "mentionsTransferred": 10,
+    "confidence": 98,
+    "method": "name_reordering"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.192Z",
+    "sourceId": 52566,
+    "sourceName": "Gas Natural",
+    "targetId": 5933,
+    "targetName": "Natural Gas",
+    "mentionsTransferred": 1,
+    "confidence": 98,
+    "method": "name_reordering"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.194Z",
+    "sourceId": 10321,
+    "sourceName": "Jewish Orthodox",
+    "targetId": 4323,
+    "targetName": "Orthodox Jewish",
+    "mentionsTransferred": 1,
+    "confidence": 98,
+    "method": "name_reordering"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.195Z",
+    "sourceId": 60335,
+    "sourceName": "General Secretary",
+    "targetId": 30018,
+    "targetName": "Secretary General",
+    "mentionsTransferred": 1,
+    "confidence": 98,
+    "method": "name_reordering"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.196Z",
+    "sourceId": 2610,
+    "sourceName": "Frank Knight",
+    "targetId": 24404,
+    "targetName": "Knight Frank",
+    "mentionsTransferred": 1,
+    "confidence": 98,
+    "method": "name_reordering"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.197Z",
+    "sourceId": 30267,
+    "sourceName": "General Director",
+    "targetId": 26919,
+    "targetName": "Director General",
+    "mentionsTransferred": 1,
+    "confidence": 98,
+    "method": "name_reordering"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.198Z",
+    "sourceId": 10042,
+    "sourceName": "Martin Marty",
+    "targetId": 69259,
+    "targetName": "Marty Martin",
+    "mentionsTransferred": 1,
+    "confidence": 98,
+    "method": "name_reordering"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.199Z",
+    "sourceId": 11126,
+    "sourceName": "Step Two",
+    "targetId": 66196,
+    "targetName": "Two Step",
+    "mentionsTransferred": 1,
+    "confidence": 98,
+    "method": "name_reordering"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.199Z",
+    "sourceId": 16820,
+    "sourceName": "Almighty God",
+    "targetId": 56084,
+    "targetName": "God Almighty",
+    "mentionsTransferred": 1,
+    "confidence": 98,
+    "method": "name_reordering"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.200Z",
+    "sourceId": 25183,
+    "sourceName": "Krauss Professor",
+    "targetId": 66563,
+    "targetName": "Professor Krauss",
+    "mentionsTransferred": 1,
+    "confidence": 98,
+    "method": "name_reordering"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.203Z",
+    "sourceId": 48318,
+    "sourceName": "Oil Gas",
+    "targetId": 66096,
+    "targetName": "Gas Oil",
+    "mentionsTransferred": 1,
+    "confidence": 98,
+    "method": "name_reordering"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.205Z",
+    "sourceId": 50596,
+    "sourceName": "National Party Congress",
+    "targetId": 50683,
+    "targetName": "Party National Congress",
+    "mentionsTransferred": 1,
+    "confidence": 98,
+    "method": "name_reordering"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.209Z",
+    "sourceId": 53276,
+    "sourceName": "One Year",
+    "targetId": 56272,
+    "targetName": "Year One",
+    "mentionsTransferred": 1,
+    "confidence": 98,
+    "method": "name_reordering"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.212Z",
+    "sourceId": 53998,
+    "sourceName": "Middle East In",
+    "targetId": 65613,
+    "targetName": "In Middle East",
+    "mentionsTransferred": 1,
+    "confidence": 98,
+    "method": "name_reordering"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.213Z",
+    "sourceId": 31244,
+    "sourceName": "Aetrex Worldwide",
+    "targetId": 31410,
+    "targetName": "Aertrex Worldwide",
+    "mentionsTransferred": 3,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.214Z",
+    "sourceId": 21427,
+    "sourceName": "African Americans",
+    "targetId": 15862,
+    "targetName": "African American",
+    "mentionsTransferred": 5,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.215Z",
+    "sourceId": 5780,
+    "sourceName": "Aging Populations",
+    "targetId": 41222,
+    "targetName": "Aging Population",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.215Z",
+    "sourceId": 56132,
+    "sourceName": "Al Ahram Egyptian",
+    "targetId": 56131,
+    "targetName": "Al Abram Egyptian",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.216Z",
+    "sourceId": 29591,
+    "sourceName": "Al Qaida",
+    "targetId": 3758,
+    "targetName": "Al Qaeda",
+    "mentionsTransferred": 2,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.217Z",
+    "sourceId": 16251,
+    "sourceName": "Alicia Keys",
+    "targetId": 27592,
+    "targetName": "Alicia Keyes",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.218Z",
+    "sourceId": 43542,
+    "sourceName": "American Religious",
+    "targetId": 43334,
+    "targetName": "American Religions",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.219Z",
+    "sourceId": 27687,
+    "sourceName": "American Way",
+    "targetId": 50089,
+    "targetName": "American War",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.232Z",
+    "sourceId": 45056,
+    "sourceName": "Ana Obregol",
+    "targetId": 45081,
+    "targetName": "Ana Obregon",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.233Z",
+    "sourceId": 39073,
+    "sourceName": "Andrei Lugovoi",
+    "targetId": 37035,
+    "targetName": "Andrei Lugovoy",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.233Z",
+    "sourceId": 58212,
+    "sourceName": "Arab Revolutions",
+    "targetId": 67618,
+    "targetName": "Arab Revolution",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.234Z",
+    "sourceId": 44476,
+    "sourceName": "Assistant Legal Attach",
+    "targetId": 43903,
+    "targetName": "Assistant Legal Attache",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.234Z",
+    "sourceId": 7641,
+    "sourceName": "Attention Values",
+    "targetId": 8272,
+    "targetName": "Attention Value",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.234Z",
+    "sourceId": 6578,
+    "sourceName": "Attorneys Jeffrey Sloman",
+    "targetId": 6176,
+    "targetName": "Attorney Jeffrey Sloman",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.235Z",
+    "sourceId": 56950,
+    "sourceName": "Austen Goolsbee",
+    "targetId": 56973,
+    "targetName": "Austan Goolsbee",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.235Z",
+    "sourceId": 35112,
+    "sourceName": "Barry Krisher",
+    "targetId": 166,
+    "targetName": "Barry Krischer",
+    "mentionsTransferred": 2,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.235Z",
+    "sourceId": 46808,
+    "sourceName": "Ben Sassc",
+    "targetId": 66229,
+    "targetName": "Ben Sasse",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.235Z",
+    "sourceId": 30442,
+    "sourceName": "Big Brothers",
+    "targetId": 20680,
+    "targetName": "Big Brother",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.236Z",
+    "sourceId": 8219,
+    "sourceName": "Blocks Worlds",
+    "targetId": 8218,
+    "targetName": "Blocks World",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.236Z",
+    "sourceId": 57908,
+    "sourceName": "Bosch Dishwashers",
+    "targetId": 57907,
+    "targetName": "Bosch Dishwasher",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.236Z",
+    "sourceId": 5742,
+    "sourceName": "Business Standards",
+    "targetId": 68325,
+    "targetName": "Business Standard",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.237Z",
+    "sourceId": 35123,
+    "sourceName": "Cadillac Escalades",
+    "targetId": 34652,
+    "targetName": "Cadillac Escalade",
+    "mentionsTransferred": 2,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.237Z",
+    "sourceId": 35185,
+    "sourceName": "Case Agents",
+    "targetId": 34623,
+    "targetName": "Case Agent",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.238Z",
+    "sourceId": 17821,
+    "sourceName": "Central American",
+    "targetId": 11402,
+    "targetName": "Central America",
+    "mentionsTransferred": 2,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.239Z",
+    "sourceId": 35557,
+    "sourceName": "Central Asian",
+    "targetId": 16499,
+    "targetName": "Central Asia",
+    "mentionsTransferred": 3,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.239Z",
+    "sourceId": 39368,
+    "sourceName": "Chiang Kai",
+    "targetId": 11435,
+    "targetName": "Chiang Mai",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.239Z",
+    "sourceId": 5701,
+    "sourceName": "Chief Investment Officer",
+    "targetId": 22519,
+    "targetName": "Chief Investment Office",
+    "mentionsTransferred": 3,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.240Z",
+    "sourceId": 32480,
+    "sourceName": "Chinese Communists",
+    "targetId": 38862,
+    "targetName": "Chinese Communist",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.240Z",
+    "sourceId": 5222,
+    "sourceName": "Christy Turiington",
+    "targetId": 5084,
+    "targetName": "Christy Turlington",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.240Z",
+    "sourceId": 29062,
+    "sourceName": "Civil Action",
+    "targetId": 45324,
+    "targetName": "Civil Actions",
+    "mentionsTransferred": 2,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.241Z",
+    "sourceId": 39272,
+    "sourceName": "Clinton Administrations",
+    "targetId": 4403,
+    "targetName": "Clinton Administration",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.241Z",
+    "sourceId": 26200,
+    "sourceName": "Colonel Steele",
+    "targetId": 26202,
+    "targetName": "Colonel Steel",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.241Z",
+    "sourceId": 49929,
+    "sourceName": "Condeleezza Rice",
+    "targetId": 17566,
+    "targetName": "Condoleezza Rice",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.241Z",
+    "sourceId": 26315,
+    "sourceName": "Congressmen Hyde",
+    "targetId": 26310,
+    "targetName": "Congressman Hyde",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.242Z",
+    "sourceId": 33386,
+    "sourceName": "Convenience Stores",
+    "targetId": 33957,
+    "targetName": "Convenience Store",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.242Z",
+    "sourceId": 21655,
+    "sourceName": "Criminal Laws",
+    "targetId": 11802,
+    "targetName": "Criminal Law",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.243Z",
+    "sourceId": 44836,
+    "sourceName": "Daily News Photos",
+    "targetId": 34123,
+    "targetName": "Daily News Photo",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.243Z",
+    "sourceId": 49666,
+    "sourceName": "Dallah Al Baraka",
+    "targetId": 30111,
+    "targetName": "Dallah Albaraka",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.243Z",
+    "sourceId": 60797,
+    "sourceName": "Daniel Dennet",
+    "targetId": 6882,
+    "targetName": "Daniel Dennett",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.243Z",
+    "sourceId": 18492,
+    "sourceName": "Dark Ages",
+    "targetId": 62597,
+    "targetName": "Dark Age",
+    "mentionsTransferred": 2,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.244Z",
+    "sourceId": 4982,
+    "sourceName": "Defendants Jeffrey Epstein",
+    "targetId": 4986,
+    "targetName": "Defendant Jeffrey Epstein",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.244Z",
+    "sourceId": 35161,
+    "sourceName": "Detective Silvestre",
+    "targetId": 35156,
+    "targetName": "Detective Silvestri",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.244Z",
+    "sourceId": 55834,
+    "sourceName": "Devan Chemicals",
+    "targetId": 55837,
+    "targetName": "Devan Chemical",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.245Z",
+    "sourceId": 32254,
+    "sourceName": "Distributed Systems",
+    "targetId": 32283,
+    "targetName": "Distributed System",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.245Z",
+    "sourceId": 43060,
+    "sourceName": "Donald Trumps",
+    "targetId": 134,
+    "targetName": "Donald Trump",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.246Z",
+    "sourceId": 2980,
+    "sourceName": "Eastern Europeans",
+    "targetId": 26464,
+    "targetName": "Eastern European",
+    "mentionsTransferred": 2,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.246Z",
+    "sourceId": 56949,
+    "sourceName": "Economic Advisors",
+    "targetId": 13706,
+    "targetName": "Economic Advisers",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.247Z",
+    "sourceId": 47815,
+    "sourceName": "Ehud Barack",
+    "targetId": 362,
+    "targetName": "Ehud Barak",
+    "mentionsTransferred": 12,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.258Z",
+    "sourceId": 26670,
+    "sourceName": "Elie Wiesels",
+    "targetId": 7179,
+    "targetName": "Elie Wiesel",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.258Z",
+    "sourceId": 27682,
+    "sourceName": "Emmy Awards",
+    "targetId": 10791,
+    "targetName": "Emmy Award",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.258Z",
+    "sourceId": 22555,
+    "sourceName": "Encyclopaedia Britannica",
+    "targetId": 18466,
+    "targetName": "Encyclopedia Britannica",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.259Z",
+    "sourceId": 47690,
+    "sourceName": "Fannie Ma",
+    "targetId": 618,
+    "targetName": "Fannie Mae",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.259Z",
+    "sourceId": 41741,
+    "sourceName": "Federal Budgets",
+    "targetId": 41012,
+    "targetName": "Federal Budget",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.260Z",
+    "sourceId": 21695,
+    "sourceName": "Federal Prosecutions",
+    "targetId": 21715,
+    "targetName": "Federal Prosecution",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.260Z",
+    "sourceId": 38645,
+    "sourceName": "Foreign Correspondent",
+    "targetId": 35707,
+    "targetName": "Foreign Correspondents",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.260Z",
+    "sourceId": 34909,
+    "sourceName": "Forest Hills Blvd",
+    "targetId": 68391,
+    "targetName": "Forest Hill Blvd",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.261Z",
+    "sourceId": 57599,
+    "sourceName": "Game Changer",
+    "targetId": 9563,
+    "targetName": "Game Change",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.261Z",
+    "sourceId": 49232,
+    "sourceName": "Gaza Stip",
+    "targetId": 3822,
+    "targetName": "Gaza Strip",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.261Z",
+    "sourceId": 52450,
+    "sourceName": "Gerard Wynn",
+    "targetId": 64760,
+    "targetName": "Gerald Wynn",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.262Z",
+    "sourceId": 14285,
+    "sourceName": "Gold Prices",
+    "targetId": 14293,
+    "targetName": "Gold Price",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.262Z",
+    "sourceId": 841,
+    "sourceName": "Golf Produclions",
+    "targetId": 1534,
+    "targetName": "Golf Productions",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.262Z",
+    "sourceId": 27568,
+    "sourceName": "Grammy Award",
+    "targetId": 16209,
+    "targetName": "Grammy Awards",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.263Z",
+    "sourceId": 2660,
+    "sourceName": "Gunnar Myrdal",
+    "targetId": 2667,
+    "targetName": "Gunnar Myradal",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.263Z",
+    "sourceId": 22345,
+    "sourceName": "Haloacetic Acids",
+    "targetId": 22263,
+    "targetName": "Haloacetic Acid",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.263Z",
+    "sourceId": 17112,
+    "sourceName": "Hare Krishnas",
+    "targetId": 11081,
+    "targetName": "Hare Krishna",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.264Z",
+    "sourceId": 26584,
+    "sourceName": "Hasan Nasrallah",
+    "targetId": 49889,
+    "targetName": "Hassan Nasrallah",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.264Z",
+    "sourceId": 6047,
+    "sourceName": "Heidi Kium",
+    "targetId": 44649,
+    "targetName": "Heidi Klum",
+    "mentionsTransferred": 2,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.264Z",
+    "sourceId": 10084,
+    "sourceName": "Herbert Callen",
+    "targetId": 17462,
+    "targetName": "Herbert Allen",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.265Z",
+    "sourceId": 38173,
+    "sourceName": "Hillary Rosen",
+    "targetId": 67311,
+    "targetName": "Hilary Rosen",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.265Z",
+    "sourceId": 51394,
+    "sourceName": "Information Systems",
+    "targetId": 40186,
+    "targetName": "Information System",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.265Z",
+    "sourceId": 62178,
+    "sourceName": "International Organizations",
+    "targetId": 32291,
+    "targetName": "International Organization",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.266Z",
+    "sourceId": 49033,
+    "sourceName": "Israeli Prime Ministers",
+    "targetId": 4287,
+    "targetName": "Israeli Prime Minister",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.266Z",
+    "sourceId": 10288,
+    "sourceName": "Jack Kerouc",
+    "targetId": 17925,
+    "targetName": "Jack Kerouac",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.266Z",
+    "sourceId": 2055,
+    "sourceName": "Jane Does",
+    "targetId": 291,
+    "targetName": "Jane Doe",
+    "mentionsTransferred": 20,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.267Z",
+    "sourceId": 48212,
+    "sourceName": "Jane Doe Na",
+    "targetId": 524,
+    "targetName": "Jane Doe No",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.267Z",
+    "sourceId": 34675,
+    "sourceName": "Janusz Banasiack",
+    "targetId": 516,
+    "targetName": "Janusz Banasiak",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.267Z",
+    "sourceId": 60267,
+    "sourceName": "Jefffrey Epstein",
+    "targetId": 7,
+    "targetName": "Jeffrey Epstein",
+    "mentionsTransferred": 12,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.268Z",
+    "sourceId": 485,
+    "sourceName": "Jeffrey Heiman",
+    "targetId": 6161,
+    "targetName": "Jeffrey Herman",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.268Z",
+    "sourceId": 38679,
+    "sourceName": "Jonathan Mann",
+    "targetId": 36735,
+    "targetName": "Jonathan Man",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.268Z",
+    "sourceId": 37497,
+    "sourceName": "Julie Creswell",
+    "targetId": 39049,
+    "targetName": "Julie Cresswell",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.269Z",
+    "sourceId": 53818,
+    "sourceName": "Junior Mezzanine Debt",
+    "targetId": 69559,
+    "targetName": "Junior Mezzanine Deb",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.269Z",
+    "sourceId": 38937,
+    "sourceName": "Justin Silk",
+    "targetId": 37362,
+    "targetName": "Justin Sink",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.269Z",
+    "sourceId": 4652,
+    "sourceName": "Labor Zionists",
+    "targetId": 3847,
+    "targetName": "Labor Zionist",
+    "mentionsTransferred": 2,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.270Z",
+    "sourceId": 3804,
+    "sourceName": "Labour Zionist",
+    "targetId": 3847,
+    "targetName": "Labor Zionist",
+    "mentionsTransferred": 2,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.270Z",
+    "sourceId": 43129,
+    "sourceName": "Lady Ghislane",
+    "targetId": 45091,
+    "targetName": "Lady Ghislaine",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.270Z",
+    "sourceId": 6592,
+    "sourceName": "Law Review",
+    "targetId": 21191,
+    "targetName": "Law Reviews",
+    "mentionsTransferred": 3,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.280Z",
+    "sourceId": 49933,
+    "sourceName": "Lee Kwan Yew",
+    "targetId": 40594,
+    "targetName": "Lee Kuan Yew",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.281Z",
+    "sourceId": 32079,
+    "sourceName": "Len Sassman",
+    "targetId": 32077,
+    "targetName": "Len Sassaman",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.281Z",
+    "sourceId": 38968,
+    "sourceName": "Lindsay Mill",
+    "targetId": 36563,
+    "targetName": "Lindsay Mills",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.282Z",
+    "sourceId": 1265,
+    "sourceName": "Los Anoeles",
+    "targetId": 5609,
+    "targetName": "Los Aneeles",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.282Z",
+    "sourceId": 5400,
+    "sourceName": "Ma Brunel",
+    "targetId": 5309,
+    "targetName": "Ma Brunei",
+    "mentionsTransferred": 2,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.283Z",
+    "sourceId": 13257,
+    "sourceName": "Magens Bay",
+    "targetId": 13305,
+    "targetName": "Magen Bay",
+    "mentionsTransferred": 2,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.283Z",
+    "sourceId": 59475,
+    "sourceName": "Manage Subscriptions",
+    "targetId": 67313,
+    "targetName": "Manage Subscription",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.283Z",
+    "sourceId": 26193,
+    "sourceName": "Mary Jo Kopeche",
+    "targetId": 16892,
+    "targetName": "Mary Jo Kopechne",
+    "mentionsTransferred": 2,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.284Z",
+    "sourceId": 9812,
+    "sourceName": "Mathematical Field",
+    "targetId": 62654,
+    "targetName": "Mathematical Fields",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.284Z",
+    "sourceId": 6048,
+    "sourceName": "Matt Groning",
+    "targetId": 27328,
+    "targetName": "Matt Groening",
+    "mentionsTransferred": 2,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.284Z",
+    "sourceId": 56151,
+    "sourceName": "Media Law",
+    "targetId": 27443,
+    "targetName": "Media Lab",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.285Z",
+    "sourceId": 51314,
+    "sourceName": "Medical Device",
+    "targetId": 51299,
+    "targetName": "Medical Devices",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.285Z",
+    "sourceId": 41303,
+    "sourceName": "Medicare Payments",
+    "targetId": 60078,
+    "targetName": "Medicare Payment",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.286Z",
+    "sourceId": 19839,
+    "sourceName": "Medium Enterprises",
+    "targetId": 47460,
+    "targetName": "Medium Enterprise",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.286Z",
+    "sourceId": 25451,
+    "sourceName": "Mia Farrow",
+    "targetId": 26330,
+    "targetName": "Mia Farro",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.287Z",
+    "sourceId": 48634,
+    "sourceName": "Michael Manson",
+    "targetId": 65417,
+    "targetName": "Michael Mason",
+    "mentionsTransferred": 2,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.287Z",
+    "sourceId": 26650,
+    "sourceName": "Mikael Gorbachov",
+    "targetId": 18621,
+    "targetName": "Mikael Gorbachev",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.288Z",
+    "sourceId": 8408,
+    "sourceName": "Modifying Evolving Probabilistic Hypergraphs",
+    "targetId": 8302,
+    "targetName": "Modifying Evolving Probabilistic Hypergraph",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.289Z",
+    "sourceId": 60716,
+    "sourceName": "Nancy Mitchell",
+    "targetId": 17655,
+    "targetName": "Nance Mitchell",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.289Z",
+    "sourceId": 3591,
+    "sourceName": "Nate Soars",
+    "targetId": 3584,
+    "targetName": "Nate Soares",
+    "mentionsTransferred": 2,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.290Z",
+    "sourceId": 7972,
+    "sourceName": "Neural Network",
+    "targetId": 8672,
+    "targetName": "Neural Networks",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.290Z",
+    "sourceId": 34107,
+    "sourceName": "Novo Scotia",
+    "targetId": 1021,
+    "targetName": "Nova Scotia",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.291Z",
+    "sourceId": 38298,
+    "sourceName": "On Israel",
+    "targetId": 4109,
+    "targetName": "On Israeli",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.291Z",
+    "sourceId": 10418,
+    "sourceName": "Open Secret",
+    "targetId": 39996,
+    "targetName": "Open Secrets",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.292Z",
+    "sourceId": 4515,
+    "sourceName": "Orthodox Jew",
+    "targetId": 4458,
+    "targetName": "Orthodox Jews",
+    "mentionsTransferred": 4,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.293Z",
+    "sourceId": 25798,
+    "sourceName": "Passover Seders",
+    "targetId": 4785,
+    "targetName": "Passover Seder",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.294Z",
+    "sourceId": 42259,
+    "sourceName": "Pension Plans",
+    "targetId": 1396,
+    "targetName": "Pension Plan",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.294Z",
+    "sourceId": 44447,
+    "sourceName": "Photo Cover \tCrlm",
+    "targetId": 44232,
+    "targetName": "Photo Cover \tCrim",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.295Z",
+    "sourceId": 40419,
+    "sourceName": "President Nicolas Sarkozy",
+    "targetId": 65557,
+    "targetName": "President Nicholas Sarkozy",
+    "mentionsTransferred": 3,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.296Z",
+    "sourceId": 46006,
+    "sourceName": "President Xi Jingping",
+    "targetId": 36159,
+    "targetName": "President Xi Jinping",
+    "mentionsTransferred": 3,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.297Z",
+    "sourceId": 59578,
+    "sourceName": "Presidential Medals",
+    "targetId": 10993,
+    "targetName": "Presidential Medal",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.298Z",
+    "sourceId": 50468,
+    "sourceName": "Prince Mohammed",
+    "targetId": 29594,
+    "targetName": "Prince Mohamed",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.298Z",
+    "sourceId": 2439,
+    "sourceName": "Privacy Acts",
+    "targetId": 28961,
+    "targetName": "Privacy Act",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.298Z",
+    "sourceId": 57614,
+    "sourceName": "Private Markets",
+    "targetId": 42041,
+    "targetName": "Private Market",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.299Z",
+    "sourceId": 60490,
+    "sourceName": "Prudential Regulation Authorit",
+    "targetId": 639,
+    "targetName": "Prudential Regulation Authority",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.300Z",
+    "sourceId": 44549,
+    "sourceName": "Read Conchita Sarnoffs",
+    "targetId": 5040,
+    "targetName": "Read Conchita Sarnoff",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.300Z",
+    "sourceId": 51889,
+    "sourceName": "Regulatory Organizations",
+    "targetId": 51964,
+    "targetName": "Regulatory Organization",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.301Z",
+    "sourceId": 44015,
+    "sourceName": "Released Date",
+    "targetId": 66264,
+    "targetName": "Release Date",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.320Z",
+    "sourceId": 26539,
+    "sourceName": "Rene Cassin",
+    "targetId": 26419,
+    "targetName": "Rene Casin",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.322Z",
+    "sourceId": 18276,
+    "sourceName": "Request Nos",
+    "targetId": 66974,
+    "targetName": "Request No",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.324Z",
+    "sourceId": 53700,
+    "sourceName": "Restructuring Charge Addbackl",
+    "targetId": 69502,
+    "targetName": "Restructuring Charge Addback",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.324Z",
+    "sourceId": 31440,
+    "sourceName": "Revolutionary Guards",
+    "targetId": 31479,
+    "targetName": "Revolutionary Guard",
+    "mentionsTransferred": 3,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.325Z",
+    "sourceId": 10074,
+    "sourceName": "Richard Feynmann",
+    "targetId": 10047,
+    "targetName": "Richard Feynman",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.325Z",
+    "sourceId": 28908,
+    "sourceName": "Right Act",
+    "targetId": 292,
+    "targetName": "Rights Act",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.325Z",
+    "sourceId": 48201,
+    "sourceName": "Rignts Act",
+    "targetId": 292,
+    "targetName": "Rights Act",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.326Z",
+    "sourceId": 46297,
+    "sourceName": "Robert Dold",
+    "targetId": 45059,
+    "targetName": "Robert Gold",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.326Z",
+    "sourceId": 27006,
+    "sourceName": "Rock Stars",
+    "targetId": 35328,
+    "targetName": "Rock Star",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.326Z",
+    "sourceId": 8975,
+    "sourceName": "Roll Hall",
+    "targetId": 21932,
+    "targetName": "Roll Call",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.327Z",
+    "sourceId": 26624,
+    "sourceName": "Ronald Regan",
+    "targetId": 11267,
+    "targetName": "Ronald Reagan",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.328Z",
+    "sourceId": 1989,
+    "sourceName": "Rupert Murdoch",
+    "targetId": 65454,
+    "targetName": "Rupert Murdochs",
+    "mentionsTransferred": 14,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.328Z",
+    "sourceId": 38857,
+    "sourceName": "Russian Intelligence Services",
+    "targetId": 38855,
+    "targetName": "Russian Intelligence Service",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.329Z",
+    "sourceId": 48223,
+    "sourceName": "Sarah Ransomme",
+    "targetId": 3630,
+    "targetName": "Sarah Ransome",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.329Z",
+    "sourceId": 31866,
+    "sourceName": "Saudi Arabi",
+    "targetId": 2135,
+    "targetName": "Saudi Arabia",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.329Z",
+    "sourceId": 29514,
+    "sourceName": "Saudi Arabian Princes",
+    "targetId": 29504,
+    "targetName": "Saudi Arabian Prince",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.329Z",
+    "sourceId": 29519,
+    "sourceName": "Saudi Prince",
+    "targetId": 29503,
+    "targetName": "Saudi Princes",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.330Z",
+    "sourceId": 62176,
+    "sourceName": "See Articles",
+    "targetId": 476,
+    "targetName": "See Article",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.330Z",
+    "sourceId": 9311,
+    "sourceName": "See Bryant",
+    "targetId": 29103,
+    "targetName": "See Bryan",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.331Z",
+    "sourceId": 21487,
+    "sourceName": "See Jacoby",
+    "targetId": 21215,
+    "targetName": "See Jacob",
+    "mentionsTransferred": 2,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.331Z",
+    "sourceId": 21050,
+    "sourceName": "Sex Offenders",
+    "targetId": 63124,
+    "targetName": "Sex Offender",
+    "mentionsTransferred": 2,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.332Z",
+    "sourceId": 58243,
+    "sourceName": "Shimon Perez",
+    "targetId": 3734,
+    "targetName": "Shimon Peres",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.332Z",
+    "sourceId": 38761,
+    "sourceName": "Snowden It",
+    "targetId": 37241,
+    "targetName": "Snowden Is",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.333Z",
+    "sourceId": 43195,
+    "sourceName": "Social Brains",
+    "targetId": 43229,
+    "targetName": "Social Brain",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.334Z",
+    "sourceId": 61063,
+    "sourceName": "Source Entr",
+    "targetId": 61082,
+    "targetName": "Source Entry",
+    "mentionsTransferred": 11,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.336Z",
+    "sourceId": 6684,
+    "sourceName": "South African",
+    "targetId": 635,
+    "targetName": "South Africa",
+    "mentionsTransferred": 14,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.340Z",
+    "sourceId": 286,
+    "sourceName": "South Florid",
+    "targetId": 245,
+    "targetName": "South Florida",
+    "mentionsTransferred": 2,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.341Z",
+    "sourceId": 366,
+    "sourceName": "Special Agent Pryor",
+    "targetId": 364,
+    "targetName": "Special Agent Pryo",
+    "mentionsTransferred": 2,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.341Z",
+    "sourceId": 44198,
+    "sourceName": "Stat Agent Soc",
+    "targetId": 44289,
+    "targetName": "Stat Aaent Soc",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.342Z",
+    "sourceId": 3181,
+    "sourceName": "Steve Hedley",
+    "targetId": 58232,
+    "targetName": "Steve Hadley",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.343Z",
+    "sourceId": 54843,
+    "sourceName": "Stock Markets",
+    "targetId": 51786,
+    "targetName": "Stock Market",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.344Z",
+    "sourceId": 10726,
+    "sourceName": "Strange Attractors",
+    "targetId": 18818,
+    "targetName": "Strange Attractor",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.345Z",
+    "sourceId": 29658,
+    "sourceName": "Sultan Bio",
+    "targetId": 68398,
+    "targetName": "Sultan Bin",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.346Z",
+    "sourceId": 56325,
+    "sourceName": "Sunni Islamist",
+    "targetId": 56324,
+    "targetName": "Sunni Islamism",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.347Z",
+    "sourceId": 29229,
+    "sourceName": "Superior Courts",
+    "targetId": 16578,
+    "targetName": "Superior Court",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.347Z",
+    "sourceId": 57486,
+    "sourceName": "Tax Core",
+    "targetId": 42611,
+    "targetName": "Tax Code",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.347Z",
+    "sourceId": 3990,
+    "sourceName": "Tel Avivi",
+    "targetId": 3720,
+    "targetName": "Tel Aviv",
+    "mentionsTransferred": 4,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.348Z",
+    "sourceId": 58478,
+    "sourceName": "Terry Kafk",
+    "targetId": 58452,
+    "targetName": "Terry Kafka",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.348Z",
+    "sourceId": 36366,
+    "sourceName": "They Didn",
+    "targetId": 41459,
+    "targetName": "They Did",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.367Z",
+    "sourceId": 10866,
+    "sourceName": "Timothy Ferriss",
+    "targetId": 57271,
+    "targetName": "Timothy Ferris",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.368Z",
+    "sourceId": 26762,
+    "sourceName": "Tonta Haddad",
+    "targetId": 9246,
+    "targetName": "Tonja Haddad",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.369Z",
+    "sourceId": 1625,
+    "sourceName": "Toronto Development",
+    "targetId": 967,
+    "targetName": "Toronto Develooment",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.370Z",
+    "sourceId": 57433,
+    "sourceName": "Traditionals Asset Managers",
+    "targetId": 57524,
+    "targetName": "Traditional Asset Managers",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.371Z",
+    "sourceId": 864,
+    "sourceName": "Trumo Paoeants",
+    "targetId": 1182,
+    "targetName": "Trumo Paaeants",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.372Z",
+    "sourceId": 33015,
+    "sourceName": "Trump Steaks",
+    "targetId": 14552,
+    "targetName": "Trump Speaks",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.373Z",
+    "sourceId": 20538,
+    "sourceName": "Turing Machines",
+    "targetId": 18803,
+    "targetName": "Turing Machine",
+    "mentionsTransferred": 2,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.374Z",
+    "sourceId": 22375,
+    "sourceName": "Underlying Asset",
+    "targetId": 1334,
+    "targetName": "Underlying Assets",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.374Z",
+    "sourceId": 41408,
+    "sourceName": "Unemployment Rates",
+    "targetId": 12581,
+    "targetName": "Unemployment Rate",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.375Z",
+    "sourceId": 55167,
+    "sourceName": "United Nation",
+    "targetId": 574,
+    "targetName": "United Nations",
+    "mentionsTransferred": 2,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.376Z",
+    "sourceId": 49607,
+    "sourceName": "Usama Bin Ladin",
+    "targetId": 49713,
+    "targetName": "Usama Bin Laden",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.377Z",
+    "sourceId": 47839,
+    "sourceName": "Vicki Ward",
+    "targetId": 29318,
+    "targetName": "Vicky Ward",
+    "mentionsTransferred": 9,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.378Z",
+    "sourceId": 48074,
+    "sourceName": "Victim Rights Act",
+    "targetId": 29278,
+    "targetName": "Victims Rights Act",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.378Z",
+    "sourceId": 50601,
+    "sourceName": "Victoria Harbour",
+    "targetId": 36537,
+    "targetName": "Victoria Harbor",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.379Z",
+    "sourceId": 5426,
+    "sourceName": "Vise Petition",
+    "targetId": 5328,
+    "targetName": "Visa Petition",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.380Z",
+    "sourceId": 32043,
+    "sourceName": "Warez Dudes",
+    "targetId": 32070,
+    "targetName": "Warez Dude",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.380Z",
+    "sourceId": 36863,
+    "sourceName": "West German",
+    "targetId": 21556,
+    "targetName": "West Germany",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.381Z",
+    "sourceId": 34288,
+    "sourceName": "West Indian Co",
+    "targetId": 69083,
+    "targetName": "West India Co",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.383Z",
+    "sourceId": 36907,
+    "sourceName": "Whistleblower Protection Act",
+    "targetId": 38814,
+    "targetName": "Whistle Blower Protection Act",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.384Z",
+    "sourceId": 44451,
+    "sourceName": "Witn Coot",
+    "targetId": 44291,
+    "targetName": "Witn Coor",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.385Z",
+    "sourceId": 12766,
+    "sourceName": "Year Aheads",
+    "targetId": 612,
+    "targetName": "Year Ahead",
+    "mentionsTransferred": 1,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.387Z",
+    "sourceId": 4113,
+    "sourceName": "Yitzhik Mordechai",
+    "targetId": 4628,
+    "targetName": "Yitzhik Mordecai",
+    "mentionsTransferred": 2,
+    "confidence": 97.5,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.387Z",
+    "sourceId": 38908,
+    "sourceName": "American  Internet",
+    "targetId": 35983,
+    "targetName": "American Interest",
+    "mentionsTransferred": 1,
+    "confidence": 95,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.393Z",
+    "sourceId": 29148,
+    "sourceName": "Attorney General Reno",
+    "targetId": 45021,
+    "targetName": "Attorney General Reaz",
+    "mentionsTransferred": 1,
+    "confidence": 95,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.393Z",
+    "sourceId": 5097,
+    "sourceName": "Christopher Knight",
+    "targetId": 52145,
+    "targetName": "Christopher Wright",
+    "mentionsTransferred": 1,
+    "confidence": 95,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.393Z",
+    "sourceId": 7569,
+    "sourceName": "Cognitive Processes",
+    "targetId": 50858,
+    "targetName": "Cognitive Process",
+    "mentionsTransferred": 1,
+    "confidence": 95,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.394Z",
+    "sourceId": 21071,
+    "sourceName": "District Attomey",
+    "targetId": 20987,
+    "targetName": "District Attorney",
+    "mentionsTransferred": 1,
+    "confidence": 95,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.394Z",
+    "sourceId": 33607,
+    "sourceName": "Ermenegildo Zegna",
+    "targetId": 9464,
+    "targetName": "Ermenegildo Zenga",
+    "mentionsTransferred": 1,
+    "confidence": 95,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.395Z",
+    "sourceId": 44089,
+    "sourceName": "Federal Prosecutor",
+    "targetId": 21715,
+    "targetName": "Federal Prosecution",
+    "mentionsTransferred": 1,
+    "confidence": 95,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.395Z",
+    "sourceId": 31485,
+    "sourceName": "Foreign Ministry",
+    "targetId": 3733,
+    "targetName": "Foreign Minister",
+    "mentionsTransferred": 5,
+    "confidence": 95,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.396Z",
+    "sourceId": 49768,
+    "sourceName": "Henry Louis Gates",
+    "targetId": 63731,
+    "targetName": "Henry Lewis Gates",
+    "mentionsTransferred": 1,
+    "confidence": 95,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.396Z",
+    "sourceId": 5515,
+    "sourceName": "Immigration Servic",
+    "targetId": 5514,
+    "targetName": "Immigration Services",
+    "mentionsTransferred": 1,
+    "confidence": 95,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.396Z",
+    "sourceId": 43716,
+    "sourceName": "Intelligence Analyst",
+    "targetId": 34842,
+    "targetName": "Intelligent Analyst",
+    "mentionsTransferred": 1,
+    "confidence": 95,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.397Z",
+    "sourceId": 44169,
+    "sourceName": "Italian Organized Crime",
+    "targetId": 44384,
+    "targetName": "Italian Organized Cnme",
+    "mentionsTransferred": 1,
+    "confidence": 95,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.397Z",
+    "sourceId": 6811,
+    "sourceName": "Jessica Chastian",
+    "targetId": 6784,
+    "targetName": "Jessica Chastain",
+    "mentionsTransferred": 1,
+    "confidence": 95,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.397Z",
+    "sourceId": 44365,
+    "sourceName": "Nigerian Organized",
+    "targetId": 44263,
+    "targetName": "Nigenan Organized",
+    "mentionsTransferred": 1,
+    "confidence": 95,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.397Z",
+    "sourceId": 3985,
+    "sourceName": "Palestine Liberation Ogranization",
+    "targetId": 2146,
+    "targetName": "Palestine Liberation Organization",
+    "mentionsTransferred": 2,
+    "confidence": 95,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.398Z",
+    "sourceId": 46806,
+    "sourceName": "President Richard Nix",
+    "targetId": 9059,
+    "targetName": "President Richard Nixon",
+    "mentionsTransferred": 1,
+    "confidence": 95,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.398Z",
+    "sourceId": 17003,
+    "sourceName": "Presidential Seal",
+    "targetId": 10993,
+    "targetName": "Presidential Medal",
+    "mentionsTransferred": 1,
+    "confidence": 95,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.399Z",
+    "sourceId": 25452,
+    "sourceName": "Prime Minister Benjamin Netanayu",
+    "targetId": 15427,
+    "targetName": "Prime Minister Benjamin Netanyahu",
+    "mentionsTransferred": 1,
+    "confidence": 95,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.419Z",
+    "sourceId": 50027,
+    "sourceName": "Prime Minister Binyamin Netanyahu",
+    "targetId": 15427,
+    "targetName": "Prime Minister Benjamin Netanyahu",
+    "mentionsTransferred": 1,
+    "confidence": 95,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.420Z",
+    "sourceId": 48974,
+    "sourceName": "Prime Minister Sharon",
+    "targetId": 63850,
+    "targetName": "Prime Minister Sharaf",
+    "mentionsTransferred": 1,
+    "confidence": 95,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.420Z",
+    "sourceId": 24534,
+    "sourceName": "Programme Director",
+    "targetId": 36452,
+    "targetName": "Program Director",
+    "mentionsTransferred": 1,
+    "confidence": 95,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.421Z",
+    "sourceId": 9220,
+    "sourceName": "Publix Supermarket",
+    "targetId": 18271,
+    "targetName": "Publix Super Markets",
+    "mentionsTransferred": 1,
+    "confidence": 95,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.421Z",
+    "sourceId": 45359,
+    "sourceName": "Steven Hoffenbag",
+    "targetId": 137,
+    "targetName": "Steven Hoffenberg",
+    "mentionsTransferred": 1,
+    "confidence": 95,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.421Z",
+    "sourceId": 26755,
+    "sourceName": "Tortja Haddad Coleman",
+    "targetId": 65724,
+    "targetName": "Torla Haddad Coleman",
+    "mentionsTransferred": 1,
+    "confidence": 95,
+    "method": "typo_correction"
+  },
+  {
+    "timestamp": "2025-11-25T05:37:23.422Z",
+    "sourceId": 1126,
+    "sourceName": "Trumo Marks Mumbai",
+    "targetId": 1093,
+    "targetName": "Trumo Marks Dubai",
+    "mentionsTransferred": 1,
+    "confidence": 95,
+    "method": "typo_correction"
+  }
+]

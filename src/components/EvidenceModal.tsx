@@ -1,11 +1,15 @@
 import React, { useMemo, useState, useCallback, useEffect } from 'react';
-import { X, FileText, Calendar, User, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, ChevronUp, ChevronDown } from 'lucide-react';
 import { Person } from '../types';
 import { apiClient } from '../services/apiClient';
 import { ArticleFeed } from './ArticleFeed';
 import { RedFlagIndex } from './RedFlagIndex';
 import { Breadcrumb } from './Breadcrumb';
 import { SourceBadge } from './SourceBadge';
+import FormField from './FormField';
+import Tooltip from './Tooltip';
+import Icon from './Icon';
+import { useModalFocusTrap } from '../hooks/useModalFocusTrap';
 
 interface EvidenceModalProps {
   person: Person;
@@ -18,6 +22,35 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(({ person,
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['stats', 'evidence']));
   const [documents, setDocuments] = useState<any[]>([]);
   const [loadingDocuments, setLoadingDocuments] = useState(false);
+  const [selectedEvidenceType, setSelectedEvidenceType] = useState<string | null>(null);
+  const { modalRef } = useModalFocusTrap(true);
+
+  // Handle keyboard events for modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onClose]);
+
+  // Announce modal opening for screen readers
+  useEffect(() => {
+    const announcement = document.createElement('div');
+    announcement.setAttribute('aria-live', 'polite');
+    announcement.setAttribute('aria-atomic', 'true');
+    announcement.className = 'sr-only';
+    announcement.textContent = `Opened details for ${person.name}`;
+    document.body.appendChild(announcement);
+    return () => {
+      document.body.removeChild(announcement);
+    };
+  }, [person.name]);
 
   const toggleSection = useCallback((section: string) => {
     setExpandedSections(prev => {
@@ -29,7 +62,17 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(({ person,
       }
       return newSet;
     });
-  }, []);
+    
+    // Announce section toggle for screen readers
+    const announcement = document.createElement('div');
+    announcement.setAttribute('aria-live', 'polite');
+    announcement.setAttribute('aria-atomic', 'true');
+    announcement.className = 'sr-only';
+    const isExpanded = !expandedSections.has(section);
+    announcement.textContent = `${section} section ${isExpanded ? 'expanded' : 'collapsed'}`;
+    document.body.appendChild(announcement);
+    setTimeout(() => document.body.removeChild(announcement), 1000);
+  }, [expandedSections]);
 
   const isSectionExpanded = useCallback((section: string) => expandedSections.has(section), [expandedSections]);
 
@@ -41,7 +84,13 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(({ person,
       setLoadingDocuments(true);
       try {
         const personDocuments = await apiClient.getEntityDocuments(person.id);
-        setDocuments(personDocuments);
+        // Sort by Red Flag Index (descending)
+        const sortedDocuments = personDocuments.sort((a, b) => {
+          const aRating = a.redFlagRating || 0;
+          const bRating = b.redFlagRating || 0;
+          return bRating - aRating;
+        });
+        setDocuments(sortedDocuments);
       } catch (error) {
         console.error('Error fetching documents:', error);
       } finally {
@@ -71,6 +120,33 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(({ person,
       (person?.spicy_passages?.slice(0, 2) || []),
     [person?.spicy_passages, isSectionExpanded]
   );
+
+  // Filter and sort documents: RFI desc → mentions desc
+  const filteredDocuments = useMemo(() => {
+    let docs = [...documents];
+    
+    // Filter by selected evidence type
+    if (selectedEvidenceType) {
+      const filterType = selectedEvidenceType.toLowerCase().replace(' ', '_');
+      docs = docs.filter(doc => 
+        doc.evidenceType?.toLowerCase() === filterType ||
+        doc.evidence_type?.toLowerCase() === filterType
+      );
+    }
+    
+    // Sort by Red Flag Index (desc) → mentions (desc)
+    docs.sort((a, b) => {
+      const aRFI = a.redFlagRating || a.red_flag_rating || 0;
+      const bRFI = b.redFlagRating || b.red_flag_rating || 0;
+      if (bRFI !== aRFI) return bRFI - aRFI;
+      
+      const aMentions = a.mentions || a.mentionCount || 0;
+      const bMentions = b.mentions || b.mentionCount || 0;
+      return bMentions - aMentions;
+    });
+    
+    return docs;
+  }, [documents, selectedEvidenceType]);
 
   // Function to highlight search terms in text
   const highlightText = (text: string, term?: string) => {
@@ -118,70 +194,127 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(({ person,
     );
   }
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-0 md:p-4">
-      <div className="bg-slate-800 rounded-none md:rounded-xl w-full h-full md:h-auto md:max-h-[90vh] md:max-w-4xl overflow-y-auto border-0 md:border border-slate-700 flex flex-col">
-        {/* Header */}
-        <div className="sticky top-0 bg-slate-800 border-b border-slate-700 p-4 md:p-6 flex items-center justify-between gap-3">
-          {/* Breadcrumb */}
-          <div className="w-full mb-4">
+    <div 
+      ref={modalRef}
+      className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-0 md:p-4 overflow-hidden" 
+      role="dialog" 
+      aria-modal="true" 
+      aria-labelledby="modal-title"
+      aria-describedby="modal-description"
+    >
+      <div className="bg-slate-800 rounded-none md:rounded-xl w-full h-full md:h-auto md:max-h-[90vh] md:max-w-4xl overflow-y-auto border-0 md:border border-slate-700 flex flex-col max-w-full" style={{ maxWidth: 'calc(100vw - 2rem)' }}>
+        {/* Header - Mobile optimized sticky header */}
+        <div className="sticky top-0 bg-slate-800 border-b border-slate-700 px-4 py-3 md:p-6 flex flex-col gap-3 z-10">
+          {/* Top row: Close button and breadcrumb */}
+          <div className="flex items-center justify-between">
             <Breadcrumb 
               items={[
                 { label: 'Subjects', onClick: () => {} },
                 { label: person.name || 'Unknown Person' }
               ]} 
             />
+            <button
+              onClick={onClose}
+              className="p-3 -mr-1 hover:bg-slate-700 rounded-lg transition-colors touch-feedback"
+              aria-label="Close modal"
+            >
+              <X className="w-5 h-5 text-slate-400" aria-hidden="true" />
+            </button>
           </div>
           
+          {/* Person info row */}
           <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
-            <User className="w-5 h-5 md:w-6 md:h-6 text-cyan-400 shrink-0" />
-            <h2 className="text-lg md:text-2xl font-bold text-white truncate">
+            <Icon name="User" size="md" color="info" className="shrink-0" />
+            <h1 
+              id="modal-title"
+              className="text-base sm:text-lg md:text-2xl font-bold text-white truncate flex-1 min-w-0"
+            >
               {searchTerm ? renderHighlightedText(person.name || 'Unknown', searchTerm) : (person.name || 'Unknown')}
-            </h2>
-            <span className={`px-2 md:px-3 py-1 rounded-full text-xs md:text-sm font-medium whitespace-nowrap shrink-0 ${
-              person.likelihood_score === 'HIGH' ? 'bg-red-900 text-red-200' :
-              person.likelihood_score === 'MEDIUM' ? 'bg-yellow-900 text-yellow-200' :
-              'bg-green-900 text-green-200'
-            }`}>
+            </h1>
+            <span 
+              className={`mobile-chip mobile-chip-sm shrink-0 ${
+                person.likelihood_score === 'HIGH' ? 'bg-red-900 text-red-200' :
+                person.likelihood_score === 'MEDIUM' ? 'bg-yellow-900 text-yellow-200' :
+                'bg-green-900 text-green-200'
+              }`}
+              aria-label={`Risk level: ${(person.likelihood_score || 'UNKNOWN')}`}
+            >
               {(person.likelihood_score || 'UNKNOWN')} RISK
             </span>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-slate-700 rounded-lg transition-colors shrink-0"
-          >
-            <X className="w-5 h-5 text-slate-400" />
-          </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6">
+        <div 
+          id="modal-description"
+          className="p-4 sm:p-6 space-y-5 sm:space-y-6"
+        >
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="bg-slate-700 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-white">{(person?.mentions || 0).toLocaleString()}</div>
-              <div className="text-slate-400 text-sm">Total Mentions</div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            <div className="bg-slate-700 rounded-lg p-4 pr-10 sm:pr-4 text-center relative">
+              <div className="absolute top-2 right-2">
+                <Tooltip content="Total number of times this subject is mentioned across all documents in the archive">
+                  <Icon name="Info" size="sm" color="gray" className="cursor-help" />
+                </Tooltip>
+              </div>
+              <div className="text-lg sm:text-2xl font-bold text-white">{(person?.mentions || 0).toLocaleString()}</div>
+              <div className="text-slate-400 text-xs sm:text-sm" aria-label="Total mentions across all documents">Total Mentions</div>
             </div>
-            <div className="bg-slate-700 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-white">{person?.files || 0}</div>
-              <div className="text-slate-400 text-sm">Files</div>
+            <div className="bg-slate-700 rounded-lg p-4 pr-10 sm:pr-4 text-center relative">
+              <div className="absolute top-2 right-2">
+                <Tooltip content="Number of documents that reference or mention this subject">
+                  <Icon name="Info" size="sm" color="gray" className="cursor-help" />
+                </Tooltip>
+              </div>
+              <div className="text-lg sm:text-2xl font-bold text-white">{person?.files || 0}</div>
+              <div className="text-slate-400 text-xs sm:text-sm" aria-label="Number of documents referencing this person">Files</div>
             </div>
-            <div className="bg-slate-700 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-white">{(person?.evidence_types || []).length}</div>
-              <div className="text-slate-400 text-sm">Evidence Types</div>
+            <div className="bg-slate-700 rounded-lg p-4 pr-10 sm:pr-4 text-center relative">
+              <div className="absolute top-2 right-2">
+                <Tooltip content="Different categories of evidence associated with this subject" position="left">
+                  <Icon name="Info" size="sm" color="gray" className="cursor-help" />
+                </Tooltip>
+              </div>
+              <div className="text-lg sm:text-2xl font-bold text-white">{(person?.evidence_types || []).length}</div>
+              <div className="text-slate-400 text-xs sm:text-sm" aria-label="Number of different evidence types">Evidence Types</div>
             </div>
           </div>
 
-          {/* Evidence Types */}
+          {/* Evidence Types - Horizontal scroll on mobile */}
           <div>
-            <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-              <FileText className="w-4 h-4" />
+            <h2 
+              className="text-base sm:text-lg font-semibold text-white mb-3 flex items-center gap-2"
+              aria-level={2}
+            >
+              <Icon name="FileText" size="sm" />
               Evidence Types
-            </h3>
-            <div className="flex flex-wrap gap-2">
+              <Tooltip content="Filter documents by evidence category">
+                <Icon name="Info" size="sm" color="gray" />
+              </Tooltip>
+            </h2>
+            <div className="mobile-scroll-x -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex sm:flex-wrap gap-2">
+              <button
+                onClick={() => setSelectedEvidenceType(null)}
+                className={`mobile-chip mobile-chip-interactive touch-feedback shrink-0 ${
+                  selectedEvidenceType === null
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
+                }`}
+              >
+                ALL
+              </button>
               {evidenceTypes.map((type, i) => (
-                <span key={i} className="px-3 py-1 bg-blue-900 text-blue-200 rounded-full text-sm">
+                <button
+                  key={i}
+                  onClick={() => setSelectedEvidenceType(type === selectedEvidenceType ? null : type)}
+                  className={`mobile-chip mobile-chip-interactive touch-feedback shrink-0 ${
+                    selectedEvidenceType === type
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-blue-900 text-blue-200 hover:bg-blue-800'
+                  }`}
+                >
                   {type}
-                </span>
+                </button>
               ))}
             </div>
           </div>
@@ -190,10 +323,16 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(({ person,
           {person?.contexts?.length > 0 && (
             <div>
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
+                <h2 
+                  className="text-lg font-semibold text-white flex items-center gap-2"
+                  aria-level={2}
+                >
+                  <Icon name="FileText" size="sm" />
                   Contexts ({person.contexts.length})
-                </h3>
+                  <Tooltip content="Relevant excerpts from documents mentioning this subject">
+                    <Icon name="Info" size="sm" color="gray" />
+                  </Tooltip>
+                </h2>
                 <button
                   onClick={() => toggleSection('contexts')}
                   className="flex items-center gap-1 text-slate-400 hover:text-white transition-colors"
@@ -213,12 +352,12 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(({ person,
                     </p>
                     <div className="flex items-center gap-4 text-xs text-slate-400">
                       <span className="flex items-center gap-1">
-                        <FileText className="w-3 h-3" />
+                        <Icon name="FileText" size="xs" />
                         {context?.file || 'Unknown file'}
                       </span>
                       {context?.date && context.date !== 'Unknown' && (
                         <span className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
+                          <Icon name="Calendar" size="xs" />
                           {context.date}
                         </span>
                       )}
@@ -241,10 +380,16 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(({ person,
           {!loadingDocuments && documents.length > 0 && (
             <div>
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  Documents ({documents.length})
-                </h3>
+                <h2 
+                  className="text-lg font-semibold text-white flex items-center gap-2"
+                  aria-level={2}
+                >
+                  <Icon name="FileText" size="sm" />
+                  Documents ({filteredDocuments.length}{selectedEvidenceType ? ` of ${documents.length}` : ''})
+                  <Tooltip content="Documents that reference or mention this subject">
+                    <Icon name="Info" size="sm" color="gray" />
+                  </Tooltip>
+                </h2>
                 <button
                   onClick={() => toggleSection('documents')}
                   className="flex items-center gap-1 text-slate-400 hover:text-white transition-colors"
@@ -257,15 +402,19 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(({ person,
                 </button>
               </div>
               <div className="space-y-3">
-                {(isSectionExpanded('documents') ? documents : documents.slice(0, 3)).map((doc, i) => (
+                {(isSectionExpanded('documents') ? filteredDocuments : filteredDocuments.slice(0, 3)).map((doc, i) => (
                   <div 
                     key={i} 
                     className="bg-slate-700 rounded-lg p-4 cursor-pointer hover:bg-slate-600 transition-colors border border-slate-600 hover:border-blue-500"
-                    onClick={() => onDocumentClick?.(doc, searchTerm)}
+                    onClick={() => {
+                      // Ensure document has proper structure with id field
+                      const documentToOpen = { ...doc, id: doc.id || doc.documentId };
+                      onDocumentClick?.(documentToOpen, searchTerm || person.name);
+                    }}
                   >
                     <div className="flex items-start justify-between mb-2">
-                      <h4 className="text-white font-medium">{doc.title || doc.fileName || doc.filename || 'Untitled Document'}</h4>
-                      <RedFlagIndex value={doc.spiceRating || doc.spice_rating || 0} size="sm" />
+                      <h3 className="text-white font-medium">{doc.title || doc.fileName || doc.filename || 'Untitled Document'}</h3>
+                      <RedFlagIndex value={doc.redFlagRating || 0} size="sm" variant="combined" showTextLabel={true} />
                     </div>
                     <div className="flex items-center space-x-2 mb-3">
                       {/* Source badge for document */}
@@ -279,12 +428,12 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(({ person,
                     </p>
                     <div className="flex items-center gap-4 text-xs text-slate-400">
                       <span className="flex items-center gap-1">
-                        <FileText className="w-3 h-3" />
+                        <Icon name="FileText" size="xs" />
                         {doc.fileName || doc.filename || 'Unknown file'}
                       </span>
                       {(doc.date || doc.dateCreated) && (
                         <span className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
+                          <Icon name="Calendar" size="xs" />
                           {doc.date || doc.dateCreated}
                         </span>
                       )}
@@ -294,12 +443,12 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(({ person,
                     </div>
                   </div>
                 ))}
-                {documents.length > 3 && !isSectionExpanded('documents') && (
+                {filteredDocuments.length > 3 && !isSectionExpanded('documents') && (
                   <button
                     onClick={() => toggleSection('documents')}
                     className="w-full py-2 text-slate-400 hover:text-white transition-colors text-sm"
                   >
-                    Show {documents.length - 3} more documents...
+                    Show {filteredDocuments.length - 3} more documents...
                   </button>
                 )}
               </div>
@@ -310,10 +459,13 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(({ person,
           {person?.spicy_passages?.length > 0 && (
             <div>
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-semibold text-red-300 flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4" />
+                <h2 className="text-lg font-semibold text-red-300 flex items-center gap-2" aria-level={2}>
+                  <Icon name="AlertTriangle" size="sm" color="danger" />
                   Key Passages ({person.spicy_passages.length})
-                </h3>
+                  <Tooltip content="Excerpts containing flagged keywords or significant mentions">
+                    <Icon name="Info" size="sm" color="gray" />
+                  </Tooltip>
+                </h2>
                 <button
                   onClick={() => toggleSection('passages')}
                   className="flex items-center gap-1 text-slate-400 hover:text-red-300 transition-colors"
@@ -336,7 +488,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(({ person,
                         {searchTerm ? renderHighlightedText(passage?.keyword || '', searchTerm) : (passage?.keyword?.toUpperCase() || 'UNKNOWN')}
                       </span>
                       <span className="flex items-center gap-1">
-                        <FileText className="w-3 h-3" />
+                        <Icon name="FileText" size="xs" />
                         {passage?.filename || 'Unknown file'}
                       </span>
                       {/* Source badge for passage */}

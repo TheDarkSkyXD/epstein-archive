@@ -42,10 +42,10 @@ P.S. - Don't forget to have the flight logs updated to reflect the "official" pa
       { name: "Little St. James", type: "location", mentions: 1, contexts: [], significance: "high", relatedEntities: [] }
     ],
     passages: [],
-    spiceScore: 28,
-    spiceRating: 3,
-    spicePeppers: "🌶️🌶️🌶️",
-    spiceDescription: "Moderately spicy - Notable controversial mentions"
+    redFlagScore: 28,
+    redFlagRating: 3,
+    redFlagPeppers: "🌶️🌶️🌶️",
+    redFlagDescription: "Moderately spicy - Notable controversial mentions"
   },
   
   {
@@ -115,10 +115,10 @@ Date: March 20, 2005`,
       { name: "Palm Beach International", type: "location", mentions: 1, contexts: [], significance: "medium", relatedEntities: [] }
     ],
     passages: [],
-    spiceScore: 32,
-    spiceRating: 4,
-    spicePeppers: "🌶️🌶️🌶️🌶️",
-    spiceDescription: "Very spicy - Significant incriminating content"
+    redFlagScore: 32,
+    redFlagRating: 4,
+    redFlagPeppers: "🌶️🌶️🌶️🌶️",
+    redFlagDescription: "Very spicy - Significant incriminating content"
   },
 
   {
@@ -182,10 +182,10 @@ A: It was basically an organized sex trafficking operation. Girls were flown in,
       { name: "Little St. James Island", type: "location", mentions: 1, contexts: [], significance: "high", relatedEntities: [] }
     ],
     passages: [],
-    spiceScore: 67,
-    spiceRating: 5,
-    spicePeppers: "🌶️🌶️🌶️🌶️🌶️",
-    spiceDescription: "Nuclear spicy - Major criminal evidence"
+    redFlagScore: 67,
+    redFlagRating: 5,
+    redFlagPeppers: "🌶️🌶️🌶️🌶️🌶️",
+    redFlagDescription: "Nuclear spicy - Major criminal evidence"
   },
 
   {
@@ -251,10 +251,10 @@ These records represent only a portion of total transactions. Many payments were
       { name: "Prince Andrew", type: "person", mentions: 1, contexts: [], significance: "high", relatedEntities: [] }
     ],
     passages: [],
-    spiceScore: 58,
-    spiceRating: 5,
-    spicePeppers: "🌶️🌶️🌶️🌶️🌶️",
-    spiceDescription: "Nuclear spicy - Major criminal evidence"
+    redFlagScore: 58,
+    redFlagRating: 5,
+    redFlagPeppers: "🌶️🌶️🌶️🌶️🌶️",
+    redFlagDescription: "Nuclear spicy - Major criminal evidence"
   },
 
   {
@@ -305,10 +305,10 @@ P.S. - I've also been talking to a 15-year-old who's shown some interest, but sh
       { name: "Palm Beach", type: "location", mentions: 1, contexts: [], significance: "medium", relatedEntities: [] }
     ],
     passages: [],
-    spiceScore: 72,
-    spiceRating: 5,
-    spicePeppers: "🌶️🌶️🌶️🌶️🌶️",
-    spiceDescription: "Nuclear spicy - Major criminal evidence"
+    redFlagScore: 72,
+    redFlagRating: 5,
+    redFlagPeppers: "🌶️🌶️🌶️🌶️🌶️",
+    redFlagDescription: "Nuclear spicy - Major criminal evidence"
   },
 
   {
@@ -356,10 +356,10 @@ P.S. - Hillary sends her regards. She's sorry she can't join us on this trip but
       { name: "Hillary Clinton", type: "person", mentions: 1, contexts: [], significance: "medium", relatedEntities: ["Bill Clinton"] }
     ],
     passages: [],
-    spiceScore: 24,
-    spiceRating: 3,
-    spicePeppers: "🌶️🌶️🌶️",
-    spiceDescription: "Moderately spicy - Notable controversial mentions"
+    redFlagScore: 24,
+    redFlagRating: 3,
+    redFlagPeppers: "🌶️🌶️🌶️",
+    redFlagDescription: "Moderately spicy - Notable controversial mentions"
   }
 ];
 

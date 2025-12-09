@@ -24,11 +24,10 @@ export interface Person {
     source?: string;
   }>;
   likelihood_score: 'HIGH' | 'MEDIUM' | 'LOW';
-  spice_score: number;
-  spice_rating: number;
-  spice_peppers: string;
-  spice_description: string;
-  red_flag_index?: number; // Red Flag Index (0-5)
+  red_flag_rating?: number; // Red Flag Rating (0-5) - current field
+  red_flag_score?: number; // Red Flag Score
+  red_flag_peppers?: string; // Red Flag Peppers visualization
+  red_flag_description?: string; // Red Flag Description
   risk_level?: 'HIGH' | 'MEDIUM' | 'LOW'; // Risk level
   fileReferences: {
     id?: string;
@@ -38,7 +37,7 @@ export interface Person {
     contentPreview?: string;
     contextText?: string;
     aiSummary?: string;
-    spiceRating?: number;
+    redFlagRating?: number;
   }[];
 }
 
@@ -70,10 +69,12 @@ export interface SearchFilters {
   likelihoodScore?: ('HIGH' | 'MEDIUM' | 'LOW')[];
   maxMentions?: number;
   evidenceTypes?: string[];
-  sortBy?: 'name' | 'mentions' | 'spice' | 'risk';
+  sortBy?: 'name' | 'mentions' | 'red_flag' | 'risk';
   sortOrder?: 'asc' | 'desc';
   minRedFlagIndex?: number;
   maxRedFlagIndex?: number;
+  entityType?: string;
+  dataSource?: string; // Filter by data source (e.g., 'black_book', 'seventh_production')
 }
 
-export type SortOption = 'name' | 'mentions' | 'spice' | 'recent';
+export type SortOption = 'name' | 'mentions' | 'red_flag' | 'recent' | 'spice' | 'risk';

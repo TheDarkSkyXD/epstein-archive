@@ -1,0 +1,226 @@
+import React, { useState, useEffect } from 'react';
+import { X, Download, ZoomIn, ZoomOut, RotateCw } from 'lucide-react';
+
+interface MediaViewerProps {
+  filePath: string;
+  fileName: string;
+  fileType: string;
+  onClose: () => void;
+}
+
+export const MediaViewer: React.FC<MediaViewerProps> = ({ 
+  filePath, 
+  fileName, 
+  fileType,
+  onClose 
+}) => {
+  const [zoom, setZoom] = useState(1);
+  const [rotation, setRotation] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleZoomIn = () => {
+    setZoom(prev => Math.min(prev + 0.2, 3));
+  };
+
+  const handleZoomOut = () => {
+    setZoom(prev => Math.max(prev - 0.2, 0.5));
+  };
+
+  const handleRotate = () => {
+    setRotation(prev => (prev + 90) % 360);
+  };
+
+  const handleDownload = () => {
+    const link = document.createElement('a');
+    link.href = filePath;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const isPdf = fileType === 'pdf' || fileName.toLowerCase().endsWith('.pdf');
+  const isImage = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].some(ext => 
+    fileType === ext || fileName.toLowerCase().endsWith('.' + ext)
+  );
+
+  useEffect(() => {
+    // Reset zoom and rotation when file changes
+    setZoom(1);
+    setRotation(0);
+  }, [filePath]);
+
+  const renderMedia = () => {
+    if (isPdf) {
+      return (
+        <iframe
+          src={`${filePath}#toolbar=0&navpanes=0&scrollbar=0`}
+          className="w-full h-full border-0"
+          title={`PDF Viewer - ${fileName}`}
+          onLoad={() => setIsLoading(false)}
+          onError={() => {
+            setIsLoading(false);
+            setError('Failed to load PDF document');
+          }}
+        />
+      );
+    }
+
+    if (isImage) {
+      return (
+        <div className="flex items-center justify-center w-full h-full overflow-auto">
+          <img
+            src={filePath}
+            alt={fileName}
+            className="max-w-full max-h-full object-contain"
+            style={{
+              transform: `scale(${zoom}) rotate(${rotation}deg)`,
+              transition: 'transform 0.2s ease'
+            }}
+            onLoad={() => setIsLoading(false)}
+            onError={() => {
+              setIsLoading(false);
+              setError('Failed to load image');
+            }}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex flex-col items-center justify-center w-full h-full text-center p-8">
+        <div className="text-slate-400 mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <h3 className="text-xl font-semibold mb-2">File Preview Unavailable</h3>
+          <p className="mb-4">This file type cannot be previewed in the browser.</p>
+        </div>
+        <a
+          href={filePath}
+          download={fileName}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+        >
+          <Download className="w-4 h-4" />
+          Download File
+        </a>
+      </div>
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 bg-slate-900 border-b border-slate-700">
+        <div className="flex items-center gap-3">
+          <div className="bg-slate-800 p-2 rounded-lg">
+            {isPdf ? (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            ) : isImage ? (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            )}
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-white truncate max-w-md">{fileName}</h2>
+            <p className="text-sm text-slate-400 capitalize">{fileType || 'document'}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {!isPdf && (isImage) && (
+            <>
+              <button 
+                onClick={handleZoomOut}
+                className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+                disabled={zoom <= 0.5}
+                title="Zoom Out"
+              >
+                <ZoomOut className="w-5 h-5" />
+              </button>
+              <span className="text-slate-400 text-sm mx-1">{Math.round(zoom * 100)}%</span>
+              <button 
+                onClick={handleZoomIn}
+                className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+                disabled={zoom >= 3}
+                title="Zoom In"
+              >
+                <ZoomIn className="w-5 h-5" />
+              </button>
+              <button 
+                onClick={handleRotate}
+                className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+                title="Rotate"
+              >
+                <RotateCw className="w-5 h-5" />
+              </button>
+            </>
+          )}
+          <button 
+            onClick={handleDownload}
+            className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+            title="Download"
+          >
+            <Download className="w-5 h-5" />
+          </button>
+          <button 
+            onClick={onClose}
+            className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+            title="Close"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Loading/Error States */}
+      {isLoading && (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+            <p className="text-slate-400">Loading media...</p>
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center text-red-400">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <h3 className="text-xl font-semibold mb-2">Error Loading Media</h3>
+            <p className="mb-4">{error}</p>
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+            >
+              Close Viewer
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Media Content */}
+      {!isLoading && !error && (
+        <div className="flex-1 overflow-hidden">
+          {renderMedia()}
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className="p-3 bg-slate-900 border-t border-slate-700 text-center text-sm text-slate-400">
+        {isPdf ? 'PDF Document Viewer' : isImage ? 'Image Viewer' : 'File Viewer'} • {fileName}
+      </div>
+    </div>
+  );
+};
+
+export default MediaViewer;

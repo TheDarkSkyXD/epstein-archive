@@ -1,0 +1,52 @@
+import React from 'react';
+
+interface DocumentSkeletonProps {
+  count?: number;
+}
+
+const DocumentSkeleton: React.FC<DocumentSkeletonProps> = ({ count = 12 }) => {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {[...Array(count)].map((_, i) => (
+        <div 
+          key={i} 
+          className="bg-slate-800/50 border border-slate-700 rounded-xl p-5 relative overflow-hidden"
+          aria-label="Loading document preview"
+        >
+          {/* Shimmer effect */}
+          <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+          
+          {/* Document header */}
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <div className="bg-slate-700 rounded-lg w-12 h-12 animate-pulse"></div>
+              <div>
+                <div className="h-5 w-32 bg-slate-700 rounded mb-2 animate-pulse"></div>
+                <div className="h-3 w-24 bg-slate-700 rounded animate-pulse"></div>
+              </div>
+            </div>
+            <div className="h-6 w-12 bg-slate-700 rounded-full animate-pulse"></div>
+          </div>
+          
+          {/* Document preview */}
+          <div className="space-y-2 mb-4">
+            <div className="h-3 w-full bg-slate-700 rounded animate-pulse"></div>
+            <div className="h-3 w-5/6 bg-slate-700 rounded animate-pulse"></div>
+            <div className="h-3 w-4/6 bg-slate-700 rounded animate-pulse"></div>
+          </div>
+          
+          {/* Document metadata */}
+          <div className="flex items-center justify-between pt-3 border-t border-slate-700/50">
+            <div className="flex items-center space-x-2">
+              <div className="h-3 w-16 bg-slate-700 rounded animate-pulse"></div>
+              <div className="h-3 w-12 bg-slate-700 rounded animate-pulse"></div>
+            </div>
+            <div className="h-3 w-20 bg-slate-700 rounded animate-pulse"></div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+export default DocumentSkeleton;

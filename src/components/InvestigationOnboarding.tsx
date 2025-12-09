@@ -105,7 +105,7 @@ export const InvestigationOnboarding: React.FC<InvestigationOnboardingProps> = (
         <div className="flex items-center justify-between p-[var(--space-6)] pt-[var(--space-4)] border-t border-[var(--border-subtle)]">
           <button
             onClick={handleSkip}
-            className="px-[var(--space-4)] py-[var(--space-2)] text-[var(--font-size-caption)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+            className="px-[var(--space-4)] py-[var(--space-2)] text-[var(--font-size-caption)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors whitespace-nowrap"
           >
             Skip Tour
           </button>
@@ -113,14 +113,14 @@ export const InvestigationOnboarding: React.FC<InvestigationOnboardingProps> = (
             {step > 1 && (
               <button
                 onClick={() => setStep(step - 1)}
-                className="px-[var(--space-4)] py-[var(--space-2)] text-[var(--font-size-caption)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+                className="px-[var(--space-4)] py-[var(--space-2)] text-[var(--font-size-caption)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors whitespace-nowrap"
               >
                 Previous
               </button>
             )}
             <button
               onClick={handleNext}
-              className="px-[var(--space-6)] py-[var(--space-2)] bg-[var(--accent-primary)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent-secondary)] transition-colors flex items-center"
+              className="px-[var(--space-6)] py-[var(--space-2)] bg-[var(--accent-primary)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent-secondary)] transition-colors flex items-center whitespace-nowrap"
             >
               {step === totalSteps ? 'Get Started' : 'Next'}
               {step !== totalSteps && <ArrowRight className="h-4 w-4 ml-[var(--space-2)]" />}

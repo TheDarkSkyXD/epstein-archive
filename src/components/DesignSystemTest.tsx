@@ -21,7 +21,7 @@ const mockPerson = {
   spice_rating: 4,
   spice_peppers: '****',
   spice_description: 'Multiple high-risk associations with key individuals and suspicious financial transactions.',
-  red_flag_index: 4,
+  red_flag_rating: 4,
   fileReferences: []
 };
 
@@ -96,12 +96,47 @@ export const DesignSystemTest: React.FC = () => {
             <h3 className="text-[var(--font-size-h3)] font-semibold text-[var(--text-primary)] mb-[var(--space-3)]">
               Red Flag Index
             </h3>
-            <div className="flex flex-wrap items-center gap-[var(--space-4)]">
-              <RedFlagIndex value={1} size="sm" showLabel />
-              <RedFlagIndex value={2} size="sm" showLabel />
-              <RedFlagIndex value={3} size="md" showLabel />
-              <RedFlagIndex value={4} size="md" showLabel />
-              <RedFlagIndex value={5} size="lg" showLabel />
+            <div className="grid grid-cols-4 gap-4">
+              <div>
+                <h4 className="text-sm font-medium text-slate-300 mb-2">Emoji Variant (Default)</h4>
+                <div className="space-y-2">
+                  <RedFlagIndex value={1} size="sm" showLabel />
+                  <RedFlagIndex value={2} size="sm" showLabel />
+                  <RedFlagIndex value={3} size="md" showLabel />
+                  <RedFlagIndex value={4} size="md" showLabel />
+                  <RedFlagIndex value={5} size="lg" showLabel />
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-slate-300 mb-2">Text Variant</h4>
+                <div className="space-y-2">
+                  <RedFlagIndex value={1} size="sm" showLabel variant="text" />
+                  <RedFlagIndex value={2} size="sm" showLabel variant="text" />
+                  <RedFlagIndex value={3} size="md" showLabel variant="text" />
+                  <RedFlagIndex value={4} size="md" showLabel variant="text" />
+                  <RedFlagIndex value={5} size="lg" showLabel variant="text" />
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-slate-300 mb-2">Icon Variant</h4>
+                <div className="space-y-2">
+                  <RedFlagIndex value={1} size="sm" showLabel variant="icon" />
+                  <RedFlagIndex value={2} size="sm" showLabel variant="icon" />
+                  <RedFlagIndex value={3} size="md" showLabel variant="icon" />
+                  <RedFlagIndex value={4} size="md" showLabel variant="icon" />
+                  <RedFlagIndex value={5} size="lg" showLabel variant="icon" />
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-slate-300 mb-2">Combined Variant (Accessible)</h4>
+                <div className="space-y-2">
+                  <RedFlagIndex value={1} size="sm" showLabel variant="combined" showTextLabel={true} />
+                  <RedFlagIndex value={2} size="sm" showLabel variant="combined" showTextLabel={true} />
+                  <RedFlagIndex value={3} size="md" showLabel variant="combined" showTextLabel={true} />
+                  <RedFlagIndex value={4} size="md" showLabel variant="combined" showTextLabel={true} />
+                  <RedFlagIndex value={5} size="lg" showLabel variant="combined" showTextLabel={true} />
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -1,0 +1,1012 @@
+[
+  {
+    "timestamp": "2025-11-25T05:41:59.746Z",
+    "sourceId": 47665,
+    "sourceName": "Billy Clinton",
+    "targetId": 253,
+    "targetName": "William Clinton",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.748Z",
+    "sourceId": 13550,
+    "sourceName": "Rich Kahn",
+    "targetId": 12042,
+    "targetName": "Richard Kahn",
+    "mentionsTransferred": 6,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.749Z",
+    "sourceId": 38426,
+    "sourceName": "Stephen Bannon",
+    "targetId": 17956,
+    "targetName": "Steve Bannon",
+    "mentionsTransferred": 2,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.750Z",
+    "sourceId": 9367,
+    "sourceName": "Lawrence Summers",
+    "targetId": 29344,
+    "targetName": "Larry Summers",
+    "mentionsTransferred": 18,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.750Z",
+    "sourceId": 29340,
+    "sourceName": "James Cayne",
+    "targetId": 29374,
+    "targetName": "Jimmy Cayne",
+    "mentionsTransferred": 2,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.751Z",
+    "sourceId": 6576,
+    "sourceName": "Alex Acosta",
+    "targetId": 261,
+    "targetName": "Alexander Acosta",
+    "mentionsTransferred": 17,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.752Z",
+    "sourceId": 16590,
+    "sourceName": "Kenneth Starr",
+    "targetId": 255,
+    "targetName": "Ken Starr",
+    "mentionsTransferred": 23,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.752Z",
+    "sourceId": 68488,
+    "sourceName": "Nick Ribis",
+    "targetId": 4925,
+    "targetName": "Nicholas Ribis",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.753Z",
+    "sourceId": 60363,
+    "sourceName": "Bob Mueller",
+    "targetId": 20295,
+    "targetName": "Robert Mueller",
+    "mentionsTransferred": 4,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.753Z",
+    "sourceId": 2625,
+    "sourceName": "Bob Trivers",
+    "targetId": 2454,
+    "targetName": "Robert Trivers",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.754Z",
+    "sourceId": 61955,
+    "sourceName": "Mike Cohen",
+    "targetId": 20317,
+    "targetName": "Michael Cohen",
+    "mentionsTransferred": 2,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.754Z",
+    "sourceId": 38036,
+    "sourceName": "Mike Flynn",
+    "targetId": 36035,
+    "targetName": "Michael Flynn",
+    "mentionsTransferred": 3,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.755Z",
+    "sourceId": 36573,
+    "sourceName": "Ed Snowden",
+    "targetId": 32126,
+    "targetName": "Edward Snowden",
+    "mentionsTransferred": 2,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.755Z",
+    "sourceId": 65490,
+    "sourceName": "Mike Milken",
+    "targetId": 25419,
+    "targetName": "Michael Milken",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.755Z",
+    "sourceId": 29478,
+    "sourceName": "Jim Patterson",
+    "targetId": 29477,
+    "targetName": "James Patterson",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.756Z",
+    "sourceId": 99,
+    "sourceName": "Joe Recarey",
+    "targetId": 6130,
+    "targetName": "Joseph Recarey",
+    "mentionsTransferred": 7,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.756Z",
+    "sourceId": 48650,
+    "sourceName": "Danny Kahneman",
+    "targetId": 4204,
+    "targetName": "Daniel Kahneman",
+    "mentionsTransferred": 3,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.757Z",
+    "sourceId": 20504,
+    "sourceName": "Dan Dennett",
+    "targetId": 6882,
+    "targetName": "Daniel Dennett",
+    "mentionsTransferred": 2,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.757Z",
+    "sourceId": 20436,
+    "sourceName": "Daniel Hillis",
+    "targetId": 16044,
+    "targetName": "Danny Hillis",
+    "mentionsTransferred": 3,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.774Z",
+    "sourceId": 61836,
+    "sourceName": "Chuck Schumer",
+    "targetId": 34716,
+    "targetName": "Charles Schumer",
+    "mentionsTransferred": 2,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.774Z",
+    "sourceId": 51104,
+    "sourceName": "Ben Franklin",
+    "targetId": 3899,
+    "targetName": "Benjamin Franklin",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.775Z",
+    "sourceId": 56242,
+    "sourceName": "Jim Jones",
+    "targetId": 10026,
+    "targetName": "James Jones",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.775Z",
+    "sourceId": 22050,
+    "sourceName": "Abraham Gosman",
+    "targetId": 22036,
+    "targetName": "Abe Gosman",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.775Z",
+    "sourceId": 65460,
+    "sourceName": "Steve Hanson",
+    "targetId": 58373,
+    "targetName": "Stephen Hanson",
+    "mentionsTransferred": 3,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.776Z",
+    "sourceId": 58839,
+    "sourceName": "Pete Strzok",
+    "targetId": 58857,
+    "targetName": "Peter Strzok",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.776Z",
+    "sourceId": 43024,
+    "sourceName": "Robert Costa",
+    "targetId": 58971,
+    "targetName": "Bob Costa",
+    "mentionsTransferred": 3,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.776Z",
+    "sourceId": 17485,
+    "sourceName": "Robert Iger",
+    "targetId": 6287,
+    "targetName": "Bob Iger",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.777Z",
+    "sourceId": 16729,
+    "sourceName": "Tim Leary",
+    "targetId": 9977,
+    "targetName": "Timothy Leary",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.777Z",
+    "sourceId": 20579,
+    "sourceName": "Joe Weizenbaum",
+    "targetId": 18512,
+    "targetName": "Joseph Weizenbaum",
+    "mentionsTransferred": 2,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.778Z",
+    "sourceId": 149,
+    "sourceName": "Bob Meister",
+    "targetId": 29406,
+    "targetName": "Robert Meister",
+    "mentionsTransferred": 2,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.778Z",
+    "sourceId": 59591,
+    "sourceName": "Steve Schwarzman",
+    "targetId": 31002,
+    "targetName": "Stephen Schwarzman",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.778Z",
+    "sourceId": 4828,
+    "sourceName": "Mike Hayden",
+    "targetId": 36627,
+    "targetName": "Michael Hayden",
+    "mentionsTransferred": 2,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.778Z",
+    "sourceId": 38089,
+    "sourceName": "Jim Baker",
+    "targetId": 38060,
+    "targetName": "James Baker",
+    "mentionsTransferred": 3,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.779Z",
+    "sourceId": 10325,
+    "sourceName": "Robert Lowe",
+    "targetId": 38103,
+    "targetName": "Rob Lowe",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.779Z",
+    "sourceId": 4844,
+    "sourceName": "Bob Gates",
+    "targetId": 63902,
+    "targetName": "Robert Gates",
+    "mentionsTransferred": 2,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.779Z",
+    "sourceId": 15365,
+    "sourceName": "Tom Scott",
+    "targetId": 2108,
+    "targetName": "Thomas Scott",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.780Z",
+    "sourceId": 16903,
+    "sourceName": "John Kennedy",
+    "targetId": 4624,
+    "targetName": "Jack Kennedy",
+    "mentionsTransferred": 2,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.780Z",
+    "sourceId": 17095,
+    "sourceName": "Charlie Manson",
+    "targetId": 6909,
+    "targetName": "Charles Manson",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.780Z",
+    "sourceId": 8032,
+    "sourceName": "Stephen Omohundro",
+    "targetId": 7472,
+    "targetName": "Steve Omohundro",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.780Z",
+    "sourceId": 48966,
+    "sourceName": "Thomas Friedman",
+    "targetId": 11050,
+    "targetName": "Tom Friedman",
+    "mentionsTransferred": 3,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.781Z",
+    "sourceId": 28796,
+    "sourceName": "Doug Beloof",
+    "targetId": 11822,
+    "targetName": "Douglas Beloof",
+    "mentionsTransferred": 2,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.781Z",
+    "sourceId": 16486,
+    "sourceName": "Richard Beckler",
+    "targetId": 16484,
+    "targetName": "Rich Beckler",
+    "mentionsTransferred": 3,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.781Z",
+    "sourceId": 16583,
+    "sourceName": "Susan Horton",
+    "targetId": 16506,
+    "targetName": "Sue Horton",
+    "mentionsTransferred": 3,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.781Z",
+    "sourceId": 44695,
+    "sourceName": "Ronald Eppinger",
+    "targetId": 29443,
+    "targetName": "Ron Eppinger",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.782Z",
+    "sourceId": 38934,
+    "sourceName": "Michael       Rogers",
+    "targetId": 36808,
+    "targetName": "Mike Rogers",
+    "mentionsTransferred": 2,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.782Z",
+    "sourceId": 49041,
+    "sourceName": "William Burns",
+    "targetId": 61123,
+    "targetName": "Bill Burns",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.782Z",
+    "sourceId": 15364,
+    "sourceName": "Rick Simpson",
+    "targetId": 2344,
+    "targetName": "Richard Simpson",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.782Z",
+    "sourceId": 6128,
+    "sourceName": "William Riley",
+    "targetId": 6051,
+    "targetName": "Bill Riley",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.783Z",
+    "sourceId": 7305,
+    "sourceName": "Jon Haidt",
+    "targetId": 7177,
+    "targetName": "Jonathan Haidt",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.783Z",
+    "sourceId": 58233,
+    "sourceName": "Bill Perry",
+    "targetId": 8004,
+    "targetName": "William Perry",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.783Z",
+    "sourceId": 17506,
+    "sourceName": "Dick Alpert",
+    "targetId": 9979,
+    "targetName": "Richard Alpert",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.784Z",
+    "sourceId": 28810,
+    "sourceName": "Steve Twist",
+    "targetId": 11826,
+    "targetName": "Stephen Twist",
+    "mentionsTransferred": 2,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.784Z",
+    "sourceId": 45009,
+    "sourceName": "Kenneth Sweder",
+    "targetId": 15366,
+    "targetName": "Ken Sweder",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.784Z",
+    "sourceId": 17336,
+    "sourceName": "Bill Bennett",
+    "targetId": 16679,
+    "targetName": "William Bennett",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.784Z",
+    "sourceId": 17350,
+    "sourceName": "Robert Kennedy",
+    "targetId": 16850,
+    "targetName": "Bobby Kennedy",
+    "mentionsTransferred": 2,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.785Z",
+    "sourceId": 25737,
+    "sourceName": "Joseph Kennedy",
+    "targetId": 16873,
+    "targetName": "Joe Kennedy",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.797Z",
+    "sourceId": 26303,
+    "sourceName": "Robert Bennett",
+    "targetId": 17334,
+    "targetName": "Bob Bennett",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.797Z",
+    "sourceId": 20869,
+    "sourceName": "Dave Kaiser",
+    "targetId": 20373,
+    "targetName": "David Kaiser",
+    "mentionsTransferred": 2,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.798Z",
+    "sourceId": 20983,
+    "sourceName": "Susan Edelman",
+    "targetId": 21140,
+    "targetName": "Sue Edelman",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.798Z",
+    "sourceId": 61442,
+    "sourceName": "Steve Cohen",
+    "targetId": 28403,
+    "targetName": "Stephen Cohen",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.798Z",
+    "sourceId": 32686,
+    "sourceName": "Pat Califia",
+    "targetId": 32675,
+    "targetName": "Patrick Califia",
+    "mentionsTransferred": 2,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.798Z",
+    "sourceId": 36620,
+    "sourceName": "Joe Chamberlin",
+    "targetId": 36589,
+    "targetName": "Joseph Chamberlin",
+    "mentionsTransferred": 2,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.799Z",
+    "sourceId": 64266,
+    "sourceName": "Richard Anderson",
+    "targetId": 37306,
+    "targetName": "Rick Anderson",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.799Z",
+    "sourceId": 67413,
+    "sourceName": "Donald Jr",
+    "targetId": 38038,
+    "targetName": "Don Jr",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.799Z",
+    "sourceId": 38039,
+    "sourceName": "Charlie Kushner",
+    "targetId": 38078,
+    "targetName": "Charles Kushner",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.800Z",
+    "sourceId": 37908,
+    "sourceName": "Gregory Hartmann",
+    "targetId": 59646,
+    "targetName": "Greg Hartmann",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.800Z",
+    "sourceId": 8608,
+    "sourceName": "Benjamin Kuipers",
+    "targetId": 7790,
+    "targetName": "Ben Kuipers",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.802Z",
+    "sourceId": 27398,
+    "sourceName": "Larry Klein",
+    "targetId": 9102,
+    "targetName": "Lawrence Klein",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.802Z",
+    "sourceId": 10433,
+    "sourceName": "James Olds",
+    "targetId": 9826,
+    "targetName": "Jim Olds",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.803Z",
+    "sourceId": 57157,
+    "sourceName": "John Anderson",
+    "targetId": 16841,
+    "targetName": "Jack Anderson",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.803Z",
+    "sourceId": 53234,
+    "sourceName": "Benjamin Stein",
+    "targetId": 17360,
+    "targetName": "Ben Stein",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.803Z",
+    "sourceId": 35654,
+    "sourceName": "Michael Weiss",
+    "targetId": 17920,
+    "targetName": "Mike Weiss",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.803Z",
+    "sourceId": 48547,
+    "sourceName": "Patty Hearst",
+    "targetId": 25416,
+    "targetName": "Patricia Hearst",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.804Z",
+    "sourceId": 26135,
+    "sourceName": "Pat Buchanan",
+    "targetId": 25481,
+    "targetName": "Patrick Buchanan",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.804Z",
+    "sourceId": 26213,
+    "sourceName": "Billy Bulger",
+    "targetId": 25489,
+    "targetName": "William Bulger",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.804Z",
+    "sourceId": 25774,
+    "sourceName": "Bill Brennan",
+    "targetId": 25676,
+    "targetName": "William Brennan",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.804Z",
+    "sourceId": 25693,
+    "sourceName": "Alex Bickel",
+    "targetId": 25691,
+    "targetName": "Alexander Bickel",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.804Z",
+    "sourceId": 25735,
+    "sourceName": "Bill Douglas",
+    "targetId": 25728,
+    "targetName": "William Douglas",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.805Z",
+    "sourceId": 25828,
+    "sourceName": "Bob Nozick",
+    "targetId": 25827,
+    "targetName": "Robert Nozick",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.805Z",
+    "sourceId": 53045,
+    "sourceName": "John Gill",
+    "targetId": 26274,
+    "targetName": "Johnny Gill",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.805Z",
+    "sourceId": 68699,
+    "sourceName": "Rick Friedman",
+    "targetId": 26318,
+    "targetName": "Dick Friedman",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.806Z",
+    "sourceId": 34409,
+    "sourceName": "Andrew Williams",
+    "targetId": 27507,
+    "targetName": "Andy Williams",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.806Z",
+    "sourceId": 28304,
+    "sourceName": "Charlie Eames",
+    "targetId": 28299,
+    "targetName": "Charles Eames",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.806Z",
+    "sourceId": 32107,
+    "sourceName": "Dan Geer",
+    "targetId": 31810,
+    "targetName": "Daniel Geer",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.806Z",
+    "sourceId": 31888,
+    "sourceName": "Andrew Haldane",
+    "targetId": 31875,
+    "targetName": "Andy Haldane",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.807Z",
+    "sourceId": 39064,
+    "sourceName": "David Boyer",
+    "targetId": 37544,
+    "targetName": "Dave Boyer",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.807Z",
+    "sourceId": 38239,
+    "sourceName": "James Mattis",
+    "targetId": 37999,
+    "targetName": "Jim Mattis",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.807Z",
+    "sourceId": 38137,
+    "sourceName": "Robert Mercer",
+    "targetId": 38022,
+    "targetName": "Bob Mercer",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.808Z",
+    "sourceId": 38525,
+    "sourceName": "Matt Boyle",
+    "targetId": 38523,
+    "targetName": "Matthew Boyle",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.808Z",
+    "sourceId": 43514,
+    "sourceName": "Nicholas Epley",
+    "targetId": 43247,
+    "targetName": "Nick Epley",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.808Z",
+    "sourceId": 43690,
+    "sourceName": "Ronald Thisted",
+    "targetId": 43256,
+    "targetName": "Ron Thisted",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.808Z",
+    "sourceId": 56580,
+    "sourceName": "Bill Hamilton",
+    "targetId": 43354,
+    "targetName": "William Hamilton",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.819Z",
+    "sourceId": 52687,
+    "sourceName": "Andy Ellis",
+    "targetId": 46608,
+    "targetName": "Andrew Ellis",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.820Z",
+    "sourceId": 51340,
+    "sourceName": "James Niedel",
+    "targetId": 51259,
+    "targetName": "Jim Niedel",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.820Z",
+    "sourceId": 51520,
+    "sourceName": "Ronald Hunt",
+    "targetId": 51324,
+    "targetName": "Ron Hunt",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.820Z",
+    "sourceId": 53036,
+    "sourceName": "Dave Clark",
+    "targetId": 52691,
+    "targetName": "David Clark",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.820Z",
+    "sourceId": 56061,
+    "sourceName": "Charlie Neivert",
+    "targetId": 55222,
+    "targetName": "Charles Neivert",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.821Z",
+    "sourceId": 61672,
+    "sourceName": "Jackie Chan",
+    "targetId": 56513,
+    "targetName": "John Chan",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.821Z",
+    "sourceId": 65653,
+    "sourceName": "William Kristol",
+    "targetId": 57172,
+    "targetName": "Bill Kristol",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.821Z",
+    "sourceId": 62461,
+    "sourceName": "Jim Kim",
+    "targetId": 60218,
+    "targetName": "Jamie Kim",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  },
+  {
+    "timestamp": "2025-11-25T05:41:59.821Z",
+    "sourceId": 61453,
+    "sourceName": "Kate Surridge",
+    "targetId": 61383,
+    "targetName": "Katie Surridge",
+    "mentionsTransferred": 1,
+    "confidence": 85,
+    "method": "nickname_resolution"
+  }
+]

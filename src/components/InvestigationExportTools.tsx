@@ -138,7 +138,11 @@ export const InvestigationExportTools: React.FC<ExportToolsProps> = ({
     report += `**Lead Investigator:** ${investigation.leadInvestigator}\n\n`;
 
     if (investigation.description) {
-      report += `## Executive Summary\n\n${investigation.description}\n\n`;
+      report += `## Executive Summary
+
+${investigation.description}
+
+`;
     }
 
     if (includeHypotheses && hypotheses.length > 0) {
@@ -476,10 +480,10 @@ export const InvestigationExportTools: React.FC<ExportToolsProps> = ({
           </div>
         )}
 
-        {/* Export Options */}
+        {/* Export Options - Stacked Layout */}
         <div className="mb-8">
           <h2 className="text-xl font-semibold text-white mb-4">Export Formats</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="flex flex-col gap-3">
             {exportFormats.map(format => (
               <div
                 key={format.id}
@@ -490,7 +494,7 @@ export const InvestigationExportTools: React.FC<ExportToolsProps> = ({
                 }`}
                 onClick={() => setSelectedFormat(format.id)}
               >
-                <div className="flex items-center gap-3 mb-3">
+                <div className="flex items-center gap-3 mb-2">
                   <div className={`w-10 h-10 rounded-lg ${format.color} flex items-center justify-center`}>
                     <format.icon className="w-5 h-5 text-white" />
                   </div>
@@ -499,16 +503,16 @@ export const InvestigationExportTools: React.FC<ExportToolsProps> = ({
                     <span className="text-xs text-gray-400 uppercase">{format.category}</span>
                   </div>
                 </div>
-                <p className="text-gray-300 text-sm">{format.description}</p>
+                <p className="text-gray-400 text-xs">{format.description}</p>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Export Settings */}
+        {/* Export Settings - Stacked Layout */}
         <div className="mb-8 bg-gray-800 rounded-lg p-6">
           <h2 className="text-xl font-semibold text-white mb-4">Export Settings</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="flex flex-col gap-6">
             <div>
               <h3 className="text-lg font-medium text-white mb-3">Content Options</h3>
               <div className="space-y-3">
@@ -519,7 +523,7 @@ export const InvestigationExportTools: React.FC<ExportToolsProps> = ({
                     onChange={(e) => setIncludeEvidenceChain(e.target.checked)}
                     className="rounded"
                   />
-                  <span className="text-gray-300">Include evidence chain documentation</span>
+                  <span className="text-gray-400 text-sm">Include evidence chain documentation</span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
@@ -528,7 +532,7 @@ export const InvestigationExportTools: React.FC<ExportToolsProps> = ({
                     onChange={(e) => setIncludeAnnotations(e.target.checked)}
                     className="rounded"
                   />
-                  <span className="text-gray-300">Include document annotations</span>
+                  <span className="text-gray-400 text-sm">Include document annotations</span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
@@ -537,7 +541,7 @@ export const InvestigationExportTools: React.FC<ExportToolsProps> = ({
                     onChange={(e) => setIncludeTimeline(e.target.checked)}
                     className="rounded"
                   />
-                  <span className="text-gray-300">Include timeline events</span>
+                  <span className="text-gray-400 text-sm">Include timeline events</span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
@@ -546,7 +550,7 @@ export const InvestigationExportTools: React.FC<ExportToolsProps> = ({
                     onChange={(e) => setIncludeHypotheses(e.target.checked)}
                     className="rounded"
                   />
-                  <span className="text-gray-300">Include hypotheses and analysis</span>
+                  <span className="text-gray-400 text-sm">Include hypotheses and analysis</span>
                 </label>
               </div>
             </div>
@@ -560,7 +564,7 @@ export const InvestigationExportTools: React.FC<ExportToolsProps> = ({
                     onChange={(e) => setRedactSensitive(e.target.checked)}
                     className="rounded"
                   />
-                  <span className="text-gray-300">Redact sensitive information</span>
+                  <span className="text-gray-400 text-sm">Redact sensitive information</span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
@@ -569,7 +573,7 @@ export const InvestigationExportTools: React.FC<ExportToolsProps> = ({
                     onChange={(e) => setIncludeConfidential(e.target.checked)}
                     className="rounded"
                   />
-                  <span className="text-gray-300">Include confidential evidence</span>
+                  <span className="text-gray-400 text-sm">Include confidential evidence</span>
                 </label>
               </div>
             </div>
@@ -595,10 +599,10 @@ export const InvestigationExportTools: React.FC<ExportToolsProps> = ({
           </button>
         </div>
 
-        {/* Publishing Options */}
+        {/* Publishing Options - Stacked Layout */}
         <div className="mb-8">
           <h2 className="text-xl font-semibold text-white mb-4">Publishing Options</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="flex flex-col gap-3">
             {publishingOptions.map(option => (
               <div
                 key={option.id}
@@ -609,7 +613,7 @@ export const InvestigationExportTools: React.FC<ExportToolsProps> = ({
                 }`}
                 onClick={() => setSelectedPublishing(option.id)}
               >
-                <div className="flex items-center gap-3 mb-3">
+                <div className="flex items-center gap-3 mb-2">
                   <div className={`w-10 h-10 rounded-lg ${
                     option.security === 'public' ? 'bg-green-600' :
                     option.security === 'secure' ? 'bg-red-600' : 'bg-yellow-600'
@@ -621,7 +625,7 @@ export const InvestigationExportTools: React.FC<ExportToolsProps> = ({
                     <span className="text-xs text-gray-400 uppercase">{option.security}</span>
                   </div>
                 </div>
-                <p className="text-gray-300 text-sm">{option.description}</p>
+                <p className="text-gray-400 text-xs">{option.description}</p>
               </div>
             ))}
           </div>
@@ -663,25 +667,25 @@ export const InvestigationExportTools: React.FC<ExportToolsProps> = ({
           </div>
         )}
 
-        {/* Investigation Summary */}
+        {/* Investigation Summary - Stacked Layout */}
         <div className="bg-gray-800 rounded-lg p-6">
           <h2 className="text-xl font-semibold text-white mb-4">Investigation Summary</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-red-400">{evidence.length}</div>
-              <div className="text-gray-400 text-sm">Evidence Items</div>
+          <div className="flex flex-col gap-3">
+            <div className="flex justify-between items-center pb-2 border-b border-gray-700">
+              <span className="text-gray-400">Evidence Items</span>
+              <span className="text-xl font-bold text-red-400">{evidence.length}</span>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-400">{timelineEvents.length}</div>
-              <div className="text-gray-400 text-sm">Timeline Events</div>
+            <div className="flex justify-between items-center pb-2 border-b border-gray-700">
+              <span className="text-gray-400">Timeline Events</span>
+              <span className="text-xl font-bold text-blue-400">{timelineEvents.length}</span>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-400">{hypotheses.length}</div>
-              <div className="text-gray-400 text-sm">Hypotheses</div>
+            <div className="flex justify-between items-center pb-2 border-b border-gray-700">
+              <span className="text-gray-400">Hypotheses</span>
+              <span className="text-xl font-bold text-green-400">{hypotheses.length}</span>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-400">{annotations.length}</div>
-              <div className="text-gray-400 text-sm">Annotations</div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-400">Annotations</span>
+              <span className="text-xl font-bold text-purple-400">{annotations.length}</span>
             </div>
           </div>
         </div>

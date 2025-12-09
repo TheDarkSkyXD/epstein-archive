@@ -34,10 +34,10 @@ export const colors = {
   
   // Text colors
   text: {
-    primary: '#f1f5f9',   // Primary text color
-    secondary: '#cbd5e1', // Secondary text
-    tertiary: '#94a3b8',  // Tertiary text
-    disabled: '#64748b',  // Disabled text
+    primary: '#ffffff',   // Primary text color (improved contrast)
+    secondary: '#e2e8f0', // Secondary text (improved contrast)
+    tertiary: '#cbd5e1',  // Tertiary text (improved contrast)
+    disabled: '#94a3b8',  // Disabled text (improved contrast)
   },
 };
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Newspaper, ExternalLink, Calendar, User, Tag, Search, Filter } from 'lucide-react';
+import ArticleViewerModal from './ArticleViewerModal';
 
 interface Article {
   id: number;
@@ -10,7 +11,7 @@ interface Article {
   published_date: string;
   summary: string;
   tags: string;
-  spice_rating: number;
+  redFlagRating: number;
   created_at: string;
 }
 
@@ -20,6 +21,7 @@ export const ArticlesTab: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPublication, setSelectedPublication] = useState<string>('all');
+  const [viewerArticle, setViewerArticle] = useState<any | null>(null);
 
   useEffect(() => {
     fetchArticles();
@@ -76,10 +78,10 @@ export const ArticlesTab: React.FC = () => {
       filtered = filtered.filter(article => article.publication === selectedPublication);
     }
 
-    // Sort by spice rating (highest first), then by date
+    // Sort by Red Flag Index (highest first), then by date
     filtered.sort((a, b) => {
-      if (b.spice_rating !== a.spice_rating) {
-        return b.spice_rating - a.spice_rating;
+      if (b.redFlagRating !== a.redFlagRating) {
+        return b.redFlagRating - a.redFlagRating;
       }
       return new Date(b.published_date).getTime() - new Date(a.published_date).getTime();
     });
@@ -186,8 +188,8 @@ export const ArticlesTab: React.FC = () => {
                 <h3 className="text-xl font-semibold text-white line-clamp-2 flex-1">
                   {article.title}
                 </h3>
-                <span className="text-2xl flex-shrink-0" title={`Red Flag Index: ${article.spice_rating}/5`}>
-                  {getSpicePeppers(article.spice_rating)}
+                <span className="text-2xl flex-shrink-0" title={`Red Flag Index: ${article.redFlagRating}/5`}>
+                  {getSpicePeppers(article.redFlagRating)}
                 </span>
               </div>
 
@@ -229,16 +231,37 @@ export const ArticlesTab: React.FC = () => {
                 </div>
               )}
 
-              {/* Read More Button */}
-              <a
-                href={article.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-              >
-                <span>Read Full Article</span>
-                <ExternalLink className="h-4 w-4" />
-              </a>
+              {/* Actions */}
+              <div className="flex gap-2">
+                <button
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg transition-colors"
+                  onClick={async () => {
+                    try {
+                      const resp = await fetch(`/api/articles/${article.id}`)
+                      if (resp.ok) {
+                        const data = await resp.json()
+                        setViewerArticle(data)
+                      } else {
+                        // Fallback: open external
+                        window.open(article.url, '_blank')
+                      }
+                    } catch {
+                      window.open(article.url, '_blank')
+                    }
+                  }}
+                >
+                  <span>View In App</span>
+                </button>
+                <a
+                  href={article.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                >
+                  <span>Open Source</span>
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              </div>
             </div>
           </div>
         ))}
@@ -251,6 +274,7 @@ export const ArticlesTab: React.FC = () => {
           <p>No articles found matching your criteria.</p>
         </div>
       )}
+      <ArticleViewerModal article={viewerArticle} highlight={searchTerm} onClose={() => setViewerArticle(null)} />
     </div>
   );
 };

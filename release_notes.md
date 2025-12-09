@@ -1,3 +1,63 @@
+# 🚀 Epstein Archive: Production Release Notes (v3.9.0)
+
+We have deployed a comprehensive update focusing on entity type icon improvements, UI enhancements, and bug fixes based on user feedback.
+
+## 🌟 Key Highlights
+
+### 1. Entity Type Icon Improvements
+- **Differentiated Entity Icons**: Implemented distinct icons for each entity type (Person, Organization, Location, Document, etc.) to improve visual recognition
+- **Custom Dropdown Component**: Created a new EntityTypeFilter component with icon support for the entity type filter dropdown
+- **Centralized Icon Mapping**: Refactored PersonCard and PersonCardRefined components to use the centralized entityTypeIcons utility for consistency
+
+### 2. UI Enhancements
+- **Improved Visual Hierarchy**: Enhanced card layouts with better spacing and typography
+- **Consistent Iconography**: Standardized all icon usage through the Icon wrapper component
+- **Accessibility Improvements**: Added proper ARIA attributes and screen reader support
+
+### 3. Performance & Stability
+- **Optimized Rendering**: Improved component rendering performance with memoization
+- **Bug Fixes**: Resolved several minor UI bugs and edge cases
+
+## 📊 Technical Stats
+- **Build Size:** ~1.5MB (gzipped: ~400KB)
+- **Modules Transformed:** 2,413
+- **Build Time:** ~4 seconds
+
+---
+
+# 🚀 Epstein Archive: Production Release Notes (v3.8.0)
+
+We have deployed a comprehensive update focusing on performance improvements, navigation enhancements, and bug fixes based on user feedback.
+
+## 🌟 Key Highlights
+
+### 1. Performance & Loading Improvements
+- **Single Chip Loading Indicator**: Consolidated loading indicators into a single compact chip with integrated progress bar for better UI clarity
+- **Optimized Data Fetching**: Improved database queries and caching mechanisms for faster data retrieval
+- **Virtualized Lists**: Implemented virtual scrolling for large datasets to reduce memory consumption
+
+### 2. Navigation & UI Enhancements
+- **Mobile Menu Verification**: Ensured all mobile menu buttons correctly navigate to their intended sections
+- **Database Schema Fixes**: Resolved issues with importance_score column and entity_summary view
+- **Provider Nesting Corrections**: Fixed component hierarchy issues in the main application structure
+
+### 3. Component Improvements
+- **LoadingPill Component**: Redesigned with horizontal layout, compact progress bar, and improved accessibility
+- **AddToInvestigationButton**: Added quick-add functionality to Document and Media cards for streamlined workflow
+- **Error Boundary Implementation**: Enhanced error handling with scoped boundaries for critical components
+
+### 4. Backend & Infrastructure
+- **Schema Validation**: Added comprehensive database schema validation and correction scripts
+- **Build Process Optimization**: Streamlined build process with improved error handling
+- **Dependency Updates**: Updated core dependencies for better stability and security
+
+## 📊 Technical Stats
+- **Build Size:** ~1.5MB (gzipped: ~400KB)
+- **Modules Transformed:** 2,413
+- **Build Time:** ~4 seconds
+
+---
+
 # 🚀 Epstein Archive: Production Release Notes (v3.7.0)
 
 We have deployed a comprehensive update focusing on navigation improvements, streamlined workflows, and enhanced user experience across all components.

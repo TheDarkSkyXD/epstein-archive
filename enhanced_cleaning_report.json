@@ -1,0 +1,74 @@
+{
+  "timestamp": "2025-11-24T02:41:12.430Z",
+  "stats": {
+    "totalEntries": 1417,
+    "mappedToPublic": 0,
+    "aiCleaned": 0,
+    "unchanged": 1417
+  },
+  "publicDataSize": 0,
+  "samples": {
+    "mapped": [
+      {
+        "full_name": "St. Bris, Edward"
+      },
+      {
+        "full_name": "D Lowndes Place"
+      },
+      {
+        "full_name": "O Ladbroke Road"
+      },
+      {
+        "full_name": "US Air"
+      },
+      {
+        "full_name": "Peres"
+      },
+      {
+        "full_name": "Aimee Demilia Newsham"
+      },
+      {
+        "full_name": "Air Center Helicopter"
+      },
+      {
+        "full_name": "Air France"
+      },
+      {
+        "full_name": "Pinto, Alberto"
+      },
+      {
+        "full_name": "Baldwin Alec"
+      },
+      {
+        "full_name": "The Chilea, we"
+      },
+      {
+        "full_name": "West Raia Beach, i"
+      },
+      {
+        "full_name": "The Great American"
+      },
+      {
+        "full_name": "Ord, Robert"
+      },
+      {
+        "full_name": "In Sunset Entertainment"
+      },
+      {
+        "full_name": "Sacco Amy"
+      },
+      {
+        "full_name": "Mr. Berak, Ehud Formor P.M. of Israel on"
+      },
+      {
+        "full_name": "Lee, Dr."
+      },
+      {
+        "full_name": "La pron ale Rad"
+      },
+      {
+        "full_name": "IM Attr"
+      }
+    ]
+  }
+}

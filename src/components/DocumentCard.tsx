@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card } from './Card';
 import { AddToInvestigationButton } from './AddToInvestigationButton';
+import Icon from './Icon';
 
 interface Document {
   id: string;

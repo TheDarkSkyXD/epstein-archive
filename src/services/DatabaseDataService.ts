@@ -114,7 +114,7 @@ export class DatabaseDataService {
       likelihoodScore: levels
     };
     
-    return this.getEntities(page, limit, filters, 'spice');
+    return this.getEntities(page, limit, filters, 'red_flag');
   }
 
   /**
@@ -131,7 +131,7 @@ export class DatabaseDataService {
       minMentions: 0
     };
     
-    return this.getEntities(page, limit, filters, 'spice');
+    return this.getEntities(page, limit, filters, 'red_flag');
   }
 
   /**
@@ -256,8 +256,8 @@ export class DatabaseDataService {
       'Mentions',
       'Current Status',
       'Connections Summary',
-      'Spice Rating',
-      'Spice Score',
+      'Red Flag Rating',
+      'Red Flag Score',
       'File References Count',
       'Created At',
       'Updated At'
@@ -272,8 +272,8 @@ export class DatabaseDataService {
       entity.mentions || 0,
       `"${(entity.currentStatus || '').replace(/"/g, '""')}"`,
       `"${(entity.connectionsSummary || '').replace(/"/g, '""')}"`,
-      entity.spiceRating || 0,
-      entity.spiceScore || 0,
+      entity.redFlagRating || 0,
+      entity.redFlagScore || 0,
       (entity.fileReferences || []).length,
       entity.createdAt || '',
       entity.updatedAt || ''

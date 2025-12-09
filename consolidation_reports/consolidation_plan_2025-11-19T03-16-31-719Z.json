@@ -1,0 +1,29 @@
+{
+  "timestamp": "2025-11-19T03:16:31.720Z",
+  "dryRun": false,
+  "stats": {
+    "totalEntities": 96461,
+    "validEntities": 96460,
+    "invalidEntities": 1,
+    "uniqueEntities": 96460,
+    "entitiesToConsolidate": 0,
+    "duplicatesToRemove": 0,
+    "extractionStats": {
+      "total": 96460,
+      "withTitle": 178,
+      "withoutTitle": 96282,
+      "byRole": {
+        "Political": 39,
+        "Business": 17,
+        "Academic": 7,
+        "Military": 91,
+        "Royal": 24
+      },
+      "avgConfidence": 0.9999077337756558
+    }
+  },
+  "consolidationPlans": [],
+  "invalidEntityIds": [
+    "180425"
+  ]
+}

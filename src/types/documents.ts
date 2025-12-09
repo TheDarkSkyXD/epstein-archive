@@ -1,19 +1,66 @@
 export interface Document {
   id: string;
-  filename: string;
+  filename?: string;
   title: string;
   content: string;
-  fileType: 'email' | 'pdf' | 'txt' | 'doc' | 'image' | 'other';
+  fileType: string;
   fileSize: number;
   dateCreated?: string;
   dateModified?: string;
-  metadata: DocumentMetadata;
-  entities: Entity[];
-  passages: Passage[];
-  spiceScore: number;
-  spiceRating: number;
-  spicePeppers: string;
-  spiceDescription: string;
+  metadata?: DocumentMetadata;
+  entities?: Entity[];
+  passages?: Passage[];
+  redFlagScore?: number;
+  redFlagRating?: number;
+  redFlagPeppers?: string;
+  redFlagDescription?: string;
+  evidenceType?: 'email' | 'legal' | 'deposition' | 'photo' | 'article' | 'document';
+  parentDocumentId?: string;
+  threadId?: string;
+  threadPosition?: number;
+}
+
+export interface TechnicalMetadata {
+  producer?: string;
+  creator?: string;
+  softwareVersion?: string;
+  modifyDate?: string;
+  createDate?: string;
+  metadataDate?: string;
+  cameraMake?: string;
+  cameraModel?: string;
+  gpsCoordinates?: string;
+}
+
+export interface StructureMetadata {
+  hasJavascript?: boolean;
+  fontCount?: number;
+  isTagged?: boolean;
+  pdfVersion?: string;
+  pageCount?: number;
+  attachmentCount?: number;
+  incrementalUpdates?: number;
+}
+
+export interface LinguisticMetadata {
+  readingLevel?: number; // Flesch-Kincaid Grade Level
+  sentiment?: 'positive' | 'negative' | 'neutral';
+  sentimentScore?: number; // -1 to 1
+  wordCount?: number;
+  uniqueWordCount?: number;
+  ttr?: number; // Type-Token Ratio
+}
+
+export interface TemporalMetadata {
+  estimatedTimezone?: string;
+  isBusinessHours?: boolean;
+  dayOfWeek?: string;
+}
+
+export interface NetworkMetadata {
+  entityDensity?: number;
+  riskScore?: number;
+  coOccurrenceRisk?: number;
 }
 
 export interface DocumentMetadata {
@@ -32,6 +79,27 @@ export interface DocumentMetadata {
   categories: string[];
   confidentiality: 'public' | 'confidential' | 'sealed' | 'classified';
   source: string;
+  source_collection?: string;
+  source_original_url?: string;
+  credibility_score?: number;
+  sensitivity_flags?: string[];
+  
+  // Email metadata
+  emailHeaders?: {
+    from?: string;
+    to?: string;
+    cc?: string;
+    subject?: string;
+    sentDate?: string;
+    attachmentCount?: number;
+  };
+  
+  // Forensic Metadata
+  technical?: TechnicalMetadata;
+  structure?: StructureMetadata;
+  linguistics?: LinguisticMetadata;
+  temporal?: TemporalMetadata;
+  network?: NetworkMetadata;
 }
 
 export interface Entity {
@@ -59,7 +127,7 @@ export interface Passage {
   context: string;
   keywords: string[];
   entities: string[];
-  spiceLevel: number;
+  redFlagLevel: number;
   significance: 'high' | 'medium' | 'low';
   file: string;
   position: number;
@@ -102,7 +170,7 @@ export interface BrowseFilters {
   };
   entities?: string[];
   categories?: string[];
-  spiceLevel?: {
+  redFlagLevel?: {
     min: number;
     max: number;
   };
@@ -112,7 +180,7 @@ export interface BrowseFilters {
 
 export interface BrowseOptions {
   filters: BrowseFilters;
-  sortBy: 'relevance' | 'date' | 'spice' | 'fileType' | 'size';
+  sortBy: 'relevance' | 'date' | 'red_flag' | 'fileType' | 'size';
   sortOrder: 'asc' | 'desc';
   page: number;
   pageSize: number;

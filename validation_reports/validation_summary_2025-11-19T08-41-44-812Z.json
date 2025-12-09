@@ -1,0 +1,1121 @@
+{
+  "timestamp": "2025-11-19T08:41:44.831Z",
+  "stats": {
+    "total": 96461,
+    "valid": 87023,
+    "invalid": 9438,
+    "validPercentage": 90.21573485657416,
+    "invalidPercentage": 9.784265143425841
+  },
+  "invalidReasons": {
+    "Failed validation (improper structure)": 9315,
+    "Starts with preposition": 88,
+    "Too many words (likely phrase)": 15,
+    "Title + non-name word": 4,
+    "Starts with common verb/word": 16
+  },
+  "sampleInvalid": [
+    {
+      "id": "180793",
+      "name": "Watched Bret",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "180783",
+      "name": "International Jet",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "180779",
+      "name": "Praising His",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "180675",
+      "name": "Named Paul",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "180643",
+      "name": "Endorsed Negotiations",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "180631",
+      "name": "Acting Entirely",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "180611",
+      "name": "Named Bruce",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "180566",
+      "name": "Liked Generals",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "180449",
+      "name": "Liked Her",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "180390",
+      "name": "Emeritus Noted",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "180376",
+      "name": "Enjoyed Trash",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "180366",
+      "name": "Agreed Not",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "178775",
+      "name": "It Is Notable That Fairey",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "178743",
+      "name": "Find Interesting Is",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "178713",
+      "name": "If Any Party Is",
+      "isValid": false,
+      "reason": "Starts with preposition"
+    },
+    {
+      "id": "178633",
+      "name": "We Have Roughly",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "178629",
+      "name": "Mansion Is",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "178623",
+      "name": "Is Considering Investigating Google",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "178540",
+      "name": "Am In Paris You",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "178539",
+      "name": "Am Totally Confused",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "178450",
+      "name": "We Will Also Need The",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "178367",
+      "name": "His Future Is Dark",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "178356",
+      "name": "He Faces",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "178347",
+      "name": "Are You Enjoying La",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "178290",
+      "name": "You Form",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "178208",
+      "name": "Was Told Trump Sold His",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "178180",
+      "name": "And Even If There Was",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "178161",
+      "name": "My Point Is",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "178137",
+      "name": "Am Kathy Ruemmler",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "178120",
+      "name": "He Is Indian",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "178117",
+      "name": "He Needs Three Engine Overhaul",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "178102",
+      "name": "Dallah Albaraka Is",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "178087",
+      "name": "Bin Mahfouz Was",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "178010",
+      "name": "Court Is To Consider",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177998",
+      "name": "Private Person Can Engage Lawfully",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177975",
+      "name": "Am Spanish",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177974",
+      "name": "Am Not French",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177930",
+      "name": "It Is Why",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177921",
+      "name": "Seeking And Risk",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177919",
+      "name": "We Hauser Chapter",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177887",
+      "name": "We Feel",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177879",
+      "name": "We Also Can",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177874",
+      "name": "Distinguished Scientific Journal",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177864",
+      "name": "Our Brain",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177813",
+      "name": "Am Answer",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177803",
+      "name": "You Cited",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177792",
+      "name": "Is It Not True",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177768",
+      "name": "We Really Don",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177759",
+      "name": "My Question Wasn",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177721",
+      "name": "Been Waived",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177718",
+      "name": "Bates Numbered Be",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177716",
+      "name": "Its All Right",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177690",
+      "name": "Visiting Scholar",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177682",
+      "name": "Tell What The Year Is",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177678",
+      "name": "Her Calendar",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177662",
+      "name": "Was Actually In Boston",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177648",
+      "name": "Was Not In Jeffrey",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177608",
+      "name": "You Can Answer",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177593",
+      "name": "My People All Love Me",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177592",
+      "name": "My People",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177570",
+      "name": "Senior Analyst Jhyman",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177568",
+      "name": "Senior Director Bfeller",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177548",
+      "name": "Is That Fair To Say",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177527",
+      "name": "Was Not Trying To Filibuster",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177525",
+      "name": "You Made Mr",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177510",
+      "name": "Had Was",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177502",
+      "name": "The Deposition Was",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177489",
+      "name": "So One Of Them Was",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177458",
+      "name": "And This Was",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177453",
+      "name": "He Took The Fifth",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177449",
+      "name": "So The Answer Was",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177446",
+      "name": "Was Not Treating Those Separately",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177437",
+      "name": "We Are Up To Exhibit",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177432",
+      "name": "Was That Answer",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177427",
+      "name": "Note And There Was",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177423",
+      "name": "Was Thinking Of Was",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177404",
+      "name": "Was David Boies",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177399",
+      "name": "Distinguished Lawyer",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177397",
+      "name": "You Said Not To Answer",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177374",
+      "name": "His Phone Is Not Working",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177359",
+      "name": "It Was Either Exhibit",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177343",
+      "name": "Closest Friends Are",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177337",
+      "name": "Was Suggesting That Mr",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177322",
+      "name": "Was Able To Read",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177255",
+      "name": "Was Aware That There Was",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177247",
+      "name": "Now Was",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177245",
+      "name": "He Mentioned",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177214",
+      "name": "The Purpose Is",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177180",
+      "name": "So This Was",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177178",
+      "name": "Named Person",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177165",
+      "name": "He Can Answer That Question",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177162",
+      "name": "Massage Was",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177160",
+      "name": "My Question Was",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177159",
+      "name": "You As",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177148",
+      "name": "The Time Is",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177116",
+      "name": "Was Joking In One Sense",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177072",
+      "name": "Person Was",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177064",
+      "name": "Global Rates And Fx Weekly",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177026",
+      "name": "It Was Me",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    },
+    {
+      "id": "177012",
+      "name": "Believed To Have Wide",
+      "isValid": false,
+      "reason": "Failed validation (improper structure)"
+    }
+  ],
+  "sampleValid": [
+    {
+      "id": "180795",
+      "name": "Test Entity",
+      "isValid": true
+    },
+    {
+      "id": "180794",
+      "name": "Yoweri Museveni",
+      "isValid": true
+    },
+    {
+      "id": "180787",
+      "name": "Cassell Who",
+      "isValid": true
+    },
+    {
+      "id": "180784",
+      "name": "Jerry Brown",
+      "isValid": true
+    },
+    {
+      "id": "180781",
+      "name": "Deborah Rhode",
+      "isValid": true
+    },
+    {
+      "id": "180780",
+      "name": "Jacques Chirac",
+      "isValid": true
+    },
+    {
+      "id": "180776",
+      "name": "Alexander Bickel",
+      "isValid": true
+    },
+    {
+      "id": "180774",
+      "name": "Obama Authorized",
+      "isValid": true
+    },
+    {
+      "id": "180771",
+      "name": "Kevin Spacey",
+      "isValid": true
+    },
+    {
+      "id": "180767",
+      "name": "Who Influenced",
+      "isValid": true
+    },
+    {
+      "id": "180766",
+      "name": "Jean Luc Brunel",
+      "isValid": true
+    },
+    {
+      "id": "180765",
+      "name": "John Hope",
+      "isValid": true
+    },
+    {
+      "id": "180764",
+      "name": "Anwar Al",
+      "isValid": true
+    },
+    {
+      "id": "180762",
+      "name": "Barak Obama",
+      "isValid": true
+    },
+    {
+      "id": "180761",
+      "name": "Rockefeller Wrote",
+      "isValid": true
+    },
+    {
+      "id": "180760",
+      "name": "Franklin Intentionally",
+      "isValid": true
+    },
+    {
+      "id": "180759",
+      "name": "Jimmy Carter",
+      "isValid": true
+    },
+    {
+      "id": "180757",
+      "name": "Gerald Ford",
+      "isValid": true
+    },
+    {
+      "id": "180756",
+      "name": "Mohammad Bin",
+      "isValid": true
+    },
+    {
+      "id": "180754",
+      "name": "Jalal Talabani",
+      "isValid": true
+    },
+    {
+      "id": "180751",
+      "name": "Jesse Helms",
+      "isValid": true
+    },
+    {
+      "id": "180750",
+      "name": "Obama Now",
+      "isValid": true
+    },
+    {
+      "id": "180749",
+      "name": "Typically Preferred",
+      "isValid": true
+    },
+    {
+      "id": "180744",
+      "name": "Hosni Mubarak",
+      "isValid": true
+    },
+    {
+      "id": "180743",
+      "name": "Obama Conducts",
+      "isValid": true
+    },
+    {
+      "id": "180742",
+      "name": "Joe Biden",
+      "isValid": true
+    },
+    {
+      "id": "180741",
+      "name": "Robert Byrd",
+      "isValid": true
+    },
+    {
+      "id": "180740",
+      "name": "Enrique Pe",
+      "isValid": true
+    },
+    {
+      "id": "180738",
+      "name": "Obama Supports",
+      "isValid": true
+    },
+    {
+      "id": "180737",
+      "name": "Eliot Spitzer",
+      "isValid": true
+    },
+    {
+      "id": "180735",
+      "name": "Kennedy Plant",
+      "isValid": true
+    },
+    {
+      "id": "180734",
+      "name": "Grant Military",
+      "isValid": true
+    },
+    {
+      "id": "180732",
+      "name": "Jomo Kenyatta",
+      "isValid": true
+    },
+    {
+      "id": "180731",
+      "name": "Mike Gravel",
+      "isValid": true
+    },
+    {
+      "id": "180730",
+      "name": "Mahmoud Ahmadinej",
+      "isValid": true
+    },
+    {
+      "id": "180726",
+      "name": "Xi Jinping",
+      "isValid": true
+    },
+    {
+      "id": "180724",
+      "name": "Seldom Disagreed",
+      "isValid": true
+    },
+    {
+      "id": "180723",
+      "name": "Obama Signed",
+      "isValid": true
+    },
+    {
+      "id": "180722",
+      "name": "Sultan Argues",
+      "isValid": true
+    },
+    {
+      "id": "180720",
+      "name": "Wade Adopted",
+      "isValid": true
+    },
+    {
+      "id": "180719",
+      "name": "An Enviable",
+      "isValid": true
+    },
+    {
+      "id": "180718",
+      "name": "Byrd Who",
+      "isValid": true
+    },
+    {
+      "id": "180715",
+      "name": "Mohammed Bin",
+      "isValid": true
+    },
+    {
+      "id": "180714",
+      "name": "Lisa Murkowski",
+      "isValid": true
+    },
+    {
+      "id": "180713",
+      "name": "Tayyip Erdogan",
+      "isValid": true
+    },
+    {
+      "id": "180712",
+      "name": "Palin As",
+      "isValid": true
+    },
+    {
+      "id": "180709",
+      "name": "Obama Disagreed",
+      "isValid": true
+    },
+    {
+      "id": "180706",
+      "name": "Bush Signed",
+      "isValid": true
+    },
+    {
+      "id": "180705",
+      "name": "Hamid Karzai",
+      "isValid": true
+    },
+    {
+      "id": "180704",
+      "name": "Seeks Her",
+      "isValid": true
+    },
+    {
+      "id": "180702",
+      "name": "Alex Bickel",
+      "isValid": true
+    },
+    {
+      "id": "180701",
+      "name": "Assad Operate",
+      "isValid": true
+    },
+    {
+      "id": "180699",
+      "name": "Mccain Today",
+      "isValid": true
+    },
+    {
+      "id": "180696",
+      "name": "Patrick Mcnamara",
+      "isValid": true
+    },
+    {
+      "id": "180695",
+      "name": "Michel Suleiman",
+      "isValid": true
+    },
+    {
+      "id": "180694",
+      "name": "Hank Brown",
+      "isValid": true
+    },
+    {
+      "id": "180691",
+      "name": "Donald Trump",
+      "isValid": true
+    },
+    {
+      "id": "180689",
+      "name": "Turki Because",
+      "isValid": true
+    },
+    {
+      "id": "180687",
+      "name": "Run Amok",
+      "isValid": true
+    },
+    {
+      "id": "180684",
+      "name": "Personally Directed",
+      "isValid": true
+    },
+    {
+      "id": "180683",
+      "name": "Jonathan Conceded",
+      "isValid": true
+    },
+    {
+      "id": "180680",
+      "name": "Telford Taylor",
+      "isValid": true
+    },
+    {
+      "id": "180679",
+      "name": "Dwight David",
+      "isValid": true
+    },
+    {
+      "id": "180677",
+      "name": "Training Ground",
+      "isValid": true
+    },
+    {
+      "id": "180676",
+      "name": "Harry Truman",
+      "isValid": true
+    },
+    {
+      "id": "180674",
+      "name": "Jiang Zemin",
+      "isValid": true
+    },
+    {
+      "id": "180672",
+      "name": "Hill Testified",
+      "isValid": true
+    },
+    {
+      "id": "180671",
+      "name": "Phil Gramm",
+      "isValid": true
+    },
+    {
+      "id": "180670",
+      "name": "Bernie Sanders",
+      "isValid": true
+    },
+    {
+      "id": "180669",
+      "name": "Steven Kosslyn",
+      "isValid": true
+    },
+    {
+      "id": "180666",
+      "name": "Kyl Embodied",
+      "isValid": true
+    },
+    {
+      "id": "180665",
+      "name": "Discussed Movies",
+      "isValid": true
+    },
+    {
+      "id": "180664",
+      "name": "Goodluck Jonathan",
+      "isValid": true
+    },
+    {
+      "id": "180661",
+      "name": "Orrin Hatch",
+      "isValid": true
+    },
+    {
+      "id": "180660",
+      "name": "Missed His",
+      "isValid": true
+    },
+    {
+      "id": "180659",
+      "name": "Bill Gates",
+      "isValid": true
+    },
+    {
+      "id": "180657",
+      "name": "Mitchell",
+      "isValid": true
+    },
+    {
+      "id": "180654",
+      "name": "Spoke Briefly",
+      "isValid": true
+    },
+    {
+      "id": "180653",
+      "name": "Ahmadinejad Stressed",
+      "isValid": true
+    },
+    {
+      "id": "180652",
+      "name": "Gordon Humphrey",
+      "isValid": true
+    },
+    {
+      "id": "180649",
+      "name": "Mohamed Morsy",
+      "isValid": true
+    },
+    {
+      "id": "180648",
+      "name": "Ted Cruz",
+      "isValid": true
+    },
+    {
+      "id": "180645",
+      "name": "Kyl Also",
+      "isValid": true
+    },
+    {
+      "id": "180638",
+      "name": "Existential Pleas",
+      "isValid": true
+    },
+    {
+      "id": "180637",
+      "name": "Urging Him",
+      "isValid": true
+    },
+    {
+      "id": "180636",
+      "name": "Kyl Proposed",
+      "isValid": true
+    },
+    {
+      "id": "180634",
+      "name": "Obama Visited",
+      "isValid": true
+    },
+    {
+      "id": "180633",
+      "name": "Amos Tversky",
+      "isValid": true
+    },
+    {
+      "id": "180632",
+      "name": "Barry Goldwater",
+      "isValid": true
+    },
+    {
+      "id": "180630",
+      "name": "Achieved Immediate",
+      "isValid": true
+    },
+    {
+      "id": "180629",
+      "name": "Guido Calabresi",
+      "isValid": true
+    },
+    {
+      "id": "180628",
+      "name": "Obama Addressed",
+      "isValid": true
+    },
+    {
+      "id": "180627",
+      "name": "Ehud Barak",
+      "isValid": true
+    },
+    {
+      "id": "180625",
+      "name": "Ted Kennedy",
+      "isValid": true
+    },
+    {
+      "id": "180624",
+      "name": "Abraham Goldstein",
+      "isValid": true
+    },
+    {
+      "id": "180622",
+      "name": "Fundamentally Wants",
+      "isValid": true
+    },
+    {
+      "id": "180621",
+      "name": "Dmitry Medvedev",
+      "isValid": true
+    },
+    {
+      "id": "180620",
+      "name": "Paul Cassell",
+      "isValid": true
+    },
+    {
+      "id": "180619",
+      "name": "Salman As",
+      "isValid": true
+    },
+    {
+      "id": "180618",
+      "name": "Hatch Interjected",
+      "isValid": true
+    }
+  ]
+}

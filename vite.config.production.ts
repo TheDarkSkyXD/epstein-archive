@@ -18,9 +18,9 @@ export default defineConfig({
   },
   build: {
     // Production optimizations
-    target: 'es2015',
-    minify: 'terser',
-    sourcemap: config.nodeEnv === 'production' ? false : 'inline',
+    target: 'es2020',
+    minify: 'esbuild',
+    sourcemap: true,
     rollupOptions: {
       output: {
         manualChunks: {

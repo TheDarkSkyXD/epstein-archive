@@ -1,0 +1,95 @@
+{
+  "timestamp": "2025-12-05T13:39:41.275Z",
+  "brokenLinks": {
+    "orphanedDocuments": 0,
+    "missingFiles": [
+      "/Users/veland/Downloads/Epstein Files/EPSTEIN_INCRIMINATING_DOCUMENT.pdf",
+      "/Users/veland/Downloads/Epstein Files/Epstein Estate Documents - Seventh Production/DATA/HOUSE_OVERSIGHT_009.dat",
+      "/Users/veland/Downloads/Epstein Files/Epstein Estate Documents - Seventh Production/IMAGES/001/001-OCR.txt",
+      "/Users/veland/Downloads/Epstein Files/Epstein Estate Documents - Seventh Production/IMAGES/002/002-OCR.txt",
+      "/Users/veland/Downloads/Epstein Files/Epstein Estate Documents - Seventh Production/IMAGES/003/003-OCR.txt",
+      "/Users/veland/Downloads/Epstein Files/Epstein Estate Documents - Seventh Production/IMAGES/004/004-OCR.txt",
+      "/Users/veland/Downloads/Epstein Files/Epstein Estate Documents - Seventh Production/IMAGES/005/005-OCR.txt",
+      "/Users/veland/Downloads/Epstein Files/Epstein Estate Documents - Seventh Production/IMAGES/005/Untitled.txt",
+      "/Users/veland/Downloads/Epstein Files/Epstein Estate Documents - Seventh Production/IMAGES/006/006-OCR.txt",
+      "/Users/veland/Downloads/Epstein Files/Epstein Estate Documents - Seventh Production/IMAGES/007/007-OCR.txt",
+      "/Users/veland/Downloads/Epstein Files/Epstein Estate Documents - Seventh Production/IMAGES/008/008-OCR.txt",
+      "/Users/veland/Downloads/Epstein Files/Epstein Estate Documents - Seventh Production/IMAGES/009/009-OCR.txt",
+      "/Users/veland/Downloads/Epstein Files/Epstein Estate Documents - Seventh Production/IMAGES/010/010-OCR.txt",
+      "/Users/veland/Downloads/Epstein Files/Epstein Estate Documents - Seventh Production/IMAGES/011/011-OCR.txt",
+      "/Users/veland/Downloads/Epstein Files/Epstein Estate Documents - Seventh Production/IMAGES/012/012-OCR.txt",
+      "/Users/veland/Downloads/Epstein Files/Epstein Estate Documents - Seventh Production/TEXT/001/HOUSE_OVERSIGHT_010477.txt",
+      "/Users/veland/Downloads/Epstein Files/Epstein Estate Documents - Seventh Production/TEXT/001/HOUSE_OVERSIGHT_010486.txt",
+      "/Users/veland/Downloads/Epstein Files/Epstein Estate Documents - Seventh Production/TEXT/001/HOUSE_OVERSIGHT_010560.txt",
+      "/Users/veland/Downloads/Epstein Files/Epstein Estate Documents - Seventh Production/TEXT/001/HOUSE_OVERSIGHT_010566.txt",
+      "/Users/veland/Downloads/Epstein Files/Epstein Estate Documents - Seventh Production/TEXT/001/HOUSE_OVERSIGHT_010609.txt"
+    ],
+    "invalidEntityLinks": 0
+  },
+  "dateConsistency": {
+    "totalDates": 129,
+    "validFormats": 0,
+    "invalidFormats": [
+      "On Friday",
+      "June Squibb",
+      "Marchesa Ballroom",
+      "On Monday",
+      "Maybe Jeffrey",
+      "On Tuesday",
+      "Maybe Jevons",
+      "May Britain",
+      "May Britain Remember Your Wisdom",
+      "On Saturdays",
+      "Maybe Begin",
+      "Sunday June",
+      "On Sunday",
+      "On Saturday",
+      "Saturday October",
+      "September Os",
+      "May Conce",
+      "November David",
+      "Friday Night Party",
+      "Maynard Smith"
+    ],
+    "conflictingDates": []
+  },
+  "categoryDistribution": {
+    "evidenceTypes": {
+      "document": 19911,
+      "financial": 14449,
+      "email": 10554,
+      "legal": 5397,
+      "bank_record": 0,
+      "contract": 0,
+      "flight_log": 0,
+      "photo": 0,
+      "property_record": 0,
+      "testimony": 0
+    },
+    "underRepresented": [
+      "bank_record (0)",
+      "contract (0)",
+      "flight_log (0)",
+      "photo (0)",
+      "property_record (0)",
+      "testimony (0)"
+    ],
+    "wellCovered": [
+      "document (19911)",
+      "financial (14449)",
+      "email (10554)",
+      "legal (5397)"
+    ]
+  },
+  "entityQuality": {
+    "totalPeople": 37756,
+    "withRoles": 619,
+    "unknownRoles": 37137,
+    "withTitles": 1341
+  },
+  "relationships": {
+    "total": 220044,
+    "avgWeight": 27.092899601897802,
+    "isolatedEntities": 29991
+  }
+}

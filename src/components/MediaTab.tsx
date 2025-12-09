@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Image, Video, Download, ExternalLink, Filter, Search, Star, AlertTriangle } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
+import PhotoBrowser from './PhotoBrowser';
 
 interface MediaItem {
   id: string;
@@ -26,6 +27,7 @@ interface MediaTabProps {
 }
 
 export const MediaTab: React.FC<MediaTabProps> = () => {
+  const [activeTab, setActiveTab] = useState<'evidence' | 'photos'>('evidence');
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<MediaItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -34,6 +36,7 @@ export const MediaTab: React.FC<MediaTabProps> = () => {
   const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
   const [loading, setLoading] = useState(true);
 
+
   // Fetch real media data from API
   useEffect(() => {
     const fetchMediaData = async () => {
@@ -41,21 +44,21 @@ export const MediaTab: React.FC<MediaTabProps> = () => {
         setLoading(true);
         
         // Fetch media items from API
-        const response = await apiClient.get<{ data: any[] }>('/api/media?page=1&limit=100');
+        const response = await apiClient.get<any[]>('/api/media/images');
         
-        if (response && response.data) {
+        if (response && Array.isArray(response.data)) {
           const mediaItems: MediaItem[] = response.data.map((item: any) => ({
             id: item.id.toString(),
-            type: item.fileType && (item.fileType === 'mp4' || item.fileType === 'mov' || item.fileType === 'avi') ? 'video' : 'image',
-            url: `/files${item.filePath.replace('/Users/veland/Downloads/Epstein Files', '')}`,
-            thumbnail: `/files${item.filePath.replace('/Users/veland/Downloads/Epstein Files', '')}`,
-            title: item.title || `Media Item ${item.id}`,
+            type: item.format && (item.format.toLowerCase() === 'mp4' || item.format.toLowerCase() === 'mov' || item.format.toLowerCase() === 'avi') ? 'video' : 'image',
+            url: item.path || item.filePath || '',
+            thumbnail: item.thumbnail_path || item.path || item.filePath || '',
+            title: item.title || item.filename || `Media Item ${item.id}`,
             description: item.description || '',
             source: 'Epstein Files Archive',
-            verificationStatus: item.verificationStatus || 'verified',
-            spiceRating: item.spiceRating || 1,
+            verificationStatus: (item.verification_status || 'verified').toLowerCase(),
+            spiceRating: item.redFlagRating || item.spice_rating || 1,
             relatedEntities: [], // Would need to fetch related entities separately
-            dateAdded: new Date(item.createdAt || Date.now()),
+            dateAdded: new Date(item.date_added || item.createdAt || Date.now()),
             metadata: item.metadata || {}
           }));
           
@@ -229,13 +232,42 @@ export const MediaTab: React.FC<MediaTabProps> = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-white mb-2">Media Evidence</h2>
-        <p className="text-slate-400">
-          Verified images and video evidence in highest available resolution
-        </p>
+      {/* Tab Switcher */}
+      <div className="flex items-center gap-4 border-b border-slate-700 pb-4">
+        <button
+          onClick={() => setActiveTab('evidence')}
+          className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+            activeTab === 'evidence'
+              ? 'bg-blue-600 text-white'
+              : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+          }`}
+        >
+          📸 Evidence Media
+        </button>
+        <button
+          onClick={() => setActiveTab('photos')}
+          className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+            activeTab === 'photos'
+              ? 'bg-blue-600 text-white'
+              : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+          }`}
+        >
+          🖼️ Photo Library
+        </button>
       </div>
+
+      {/* Conditional Content */}
+      {activeTab === 'photos' ? (
+        <PhotoBrowser />
+      ) : (
+        <>
+          {/* Header */}
+          <div className="mb-8">
+            <h2 className="text-3xl font-bold text-white mb-2">Media Evidence</h2>
+            <p className="text-slate-400">
+              Verified images and video evidence in highest available resolution
+            </p>
+          </div>
 
       {/* Search and Filters */}
       <div className="bg-slate-800/50 rounded-lg p-4 space-y-4">
@@ -471,6 +503,8 @@ export const MediaTab: React.FC<MediaTabProps> = () => {
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

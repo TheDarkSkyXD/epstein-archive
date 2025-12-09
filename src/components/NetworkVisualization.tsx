@@ -71,24 +71,38 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   const [filterType, setFilterType] = useState<string>('all');
   const [filterRisk, setFilterRisk] = useState<string>('all');
   const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [lastPan, setLastPan] = useState({ x: 0, y: 0 });
 
   // Initialize with force-directed layout
   useEffect(() => {
-    const processedNodes = initialNodes.map(node => ({
-      ...node,
-      position: node.position || { x: Math.random() * 800, y: Math.random() * 600 },
-      color: node.color || getNodeColor(node.type, node.metadata.riskLevel),
-      size: node.size || getNodeSize(node.importance)
-    }));
+    // Spread nodes more evenly across the canvas initially
+    const spreadNodes = initialNodes.map((node, index) => {
+      const angle = (index / initialNodes.length) * 2 * Math.PI;
+      const radius = 200 + (index % 5) * 50; // Vary radius to create layers
+      
+      return {
+        ...node,
+        position: node.position || { 
+          x: 400 + Math.cos(angle) * radius, 
+          y: 300 + Math.sin(angle) * radius 
+        },
+        color: node.color || getNodeColor(node.type, node.metadata.riskLevel),
+        size: node.size || getNodeSize(node.importance)
+      };
+    });
     
-    setNodes(processedNodes);
+    setNodes(spreadNodes);
     setEdges(initialEdges);
     
-    // Apply force-directed layout
-    applyForceLayout(processedNodes, initialEdges);
+    // Apply force-directed layout with more iterations for better spacing
+    applyForceLayout(spreadNodes, initialEdges, 150);
+    
+    // Center the network after layout
+    setTimeout(() => centerNetwork(), 1000);
   }, [initialNodes, initialEdges]);
 
   // Apply filters
@@ -156,15 +170,15 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     return colors[type];
   };
 
-  const applyForceLayout = (nodes: NetworkNode[], edges: NetworkEdge[], iterations = 50) => {
+  const applyForceLayout = (nodes: NetworkNode[], edges: NetworkEdge[], iterations = 150) => {
     const centerX = 400;
     const centerY = 300;
-    const repulsionStrength = 1000;
-    const attractionStrength = 0.1;
+    const repulsionStrength = 3000; // Further increased repulsion to spread nodes further apart
+    const attractionStrength = 0.03; // Further reduced attraction to prevent clustering
     const damping = 0.9;
     
     for (let i = 0; i < iterations; i++) {
-      // Apply repulsion between all nodes
+      // Apply repulsion between all nodes (increased to spread out more)
       for (let j = 0; j < nodes.length; j++) {
         for (let k = j + 1; k < nodes.length; k++) {
           const nodeA = nodes[j];
@@ -176,14 +190,26 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           const dy = nodeB.position.y - nodeA.position.y;
           const distance = Math.sqrt(dx * dx + dy * dy) || 1;
           
-          const force = repulsionStrength / (distance * distance);
-          const fx = (dx / distance) * force;
-          const fy = (dy / distance) * force;
+          // Increase minimum distance to prevent overlap
+          const minDistance = (nodeA.size || 12) + (nodeB.size || 12) + 30;
+          const force = (repulsionStrength * 4) / (distance * distance + 1);
+          const fx = (dx / (distance + 1)) * force;
+          const fy = (dy / (distance + 1)) * force;
           
           nodeA.position.x -= fx;
           nodeA.position.y -= fy;
           nodeB.position.x += fx;
           nodeB.position.y += fy;
+          
+          // Additional separation if nodes are too close
+          if (distance < minDistance) {
+            const separationX = (dx / (distance + 1)) * (minDistance - distance);
+            const separationY = (dy / (distance + 1)) * (minDistance - distance);
+            nodeA.position.x -= separationX * 0.7;
+            nodeA.position.y -= separationY * 0.7;
+            nodeB.position.x += separationX * 0.7;
+            nodeB.position.y += separationY * 0.7;
+          }
         }
       }
       
@@ -198,9 +224,10 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         const dy = target.position.y - source.position.y;
         const distance = Math.sqrt(dx * dx + dy * dy) || 1;
         
-        const force = attractionStrength * distance * edge.strength;
-        const fx = (dx / distance) * force;
-        const fy = (dy / distance) * force;
+        // Reduce attraction strength to prevent tight clustering
+        const force = attractionStrength * distance * edge.strength * 0.3;
+        const fx = (dx / (distance + 1)) * force;
+        const fy = (dy / (distance + 1)) * force;
         
         source.position.x += fx;
         source.position.y += fy;
@@ -215,8 +242,8 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         const dx = centerX - node.position.x;
         const dy = centerY - node.position.y;
         
-        node.position.x += dx * 0.01;
-        node.position.y += dy * 0.01;
+        node.position.x += dx * 0.003; // Further reduced center gravity
+        node.position.y += dy * 0.003;
       });
       
       // Apply damping
@@ -374,7 +401,112 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     
     event.preventDefault();
     const delta = event.deltaY > 0 ? 0.9 : 1.1;
-    setZoom(prev => Math.max(0.1, Math.min(3, prev * delta)));
+    
+    // Get canvas center position
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    
+    // Convert screen coordinates to world coordinates
+    const worldCenterX = (centerX - pan.x) / zoom;
+    const worldCenterY = (centerY - pan.y) / zoom;
+    
+    // Apply zoom
+    const newZoom = Math.max(0.1, Math.min(3, zoom * delta));
+    
+    // Adjust pan to keep center fixed
+    const newPanX = centerX - worldCenterX * newZoom;
+    const newPanY = centerY - worldCenterY * newZoom;
+    
+    setZoom(newZoom);
+    setPan({ x: newPanX, y: newPanY });
+  };
+
+  // Enhanced zoom to center on mouse position
+  const handleWheelEnhanced = (event: React.WheelEvent<HTMLCanvasElement>) => {
+    if (!interactive) return;
+    
+    event.preventDefault();
+    const delta = event.deltaY > 0 ? 0.9 : 1.1;
+    
+    // Get mouse position relative to canvas
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+    
+    // Convert screen coordinates to world coordinates
+    const worldMouseX = (mouseX - pan.x) / zoom;
+    const worldMouseY = (mouseY - pan.y) / zoom;
+    
+    // Apply zoom
+    const newZoom = Math.max(0.1, Math.min(3, zoom * delta));
+    
+    // Adjust pan to keep mouse position fixed
+    const newPanX = mouseX - worldMouseX * newZoom;
+    const newPanY = mouseY - worldMouseY * newZoom;
+    
+    setZoom(newZoom);
+    setPan({ x: newPanX, y: newPanY });
+  };
+
+  const centerNetwork = () => {
+    if (filteredNodes.length === 0) return;
+    
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    // Calculate center of all nodes
+    const bounds = filteredNodes.reduce((acc, node) => {
+      if (!node.position) return acc;
+      return {
+        minX: Math.min(acc.minX, node.position.x),
+        maxX: Math.max(acc.maxX, node.position.x),
+        minY: Math.min(acc.minY, node.position.y),
+        maxY: Math.max(acc.maxY, node.position.y)
+      };
+    }, { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity });
+    
+    const centerX = (bounds.minX + bounds.maxX) / 2;
+    const centerY = (bounds.minY + bounds.maxY) / 2;
+    
+    // Center the network on canvas
+    const canvasCenterX = canvas.width / 2;
+    const canvasCenterY = canvas.height / 2;
+    
+    setPan({
+      x: canvasCenterX - centerX * zoom,
+      y: canvasCenterY - centerY * zoom
+    });
+  };
+
+  const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!interactive) return;
+    
+    setIsDragging(true);
+    setDragStart({ x: event.clientX, y: event.clientY });
+    setLastPan({ x: pan.x, y: pan.y });
+  };
+
+  const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!interactive || !isDragging) return;
+    
+    const deltaX = event.clientX - dragStart.x;
+    const deltaY = event.clientY - dragStart.y;
+    
+    setPan({
+      x: lastPan.x + deltaX,
+      y: lastPan.y + deltaY
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
   };
 
   const exportNetwork = () => {
@@ -463,9 +595,13 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           ref={canvasRef}
           width={800}
           height={height}
-          className="w-full h-full cursor-pointer"
+          className="w-full h-full cursor-grab active:cursor-grabbing"
           onClick={handleCanvasClick}
-          onWheel={handleWheel}
+          onWheel={handleWheelEnhanced}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
           style={{ maxWidth: '100%', height: 'auto' }}
         />
         
@@ -475,20 +611,30 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
             <button
               onClick={() => setZoom(prev => Math.min(3, prev * 1.2))}
               className="p-2 bg-gray-800 border border-gray-600 rounded-lg text-white hover:bg-gray-700"
+              title="Zoom In"
             >
               +
             </button>
             <button
               onClick={() => setZoom(prev => Math.max(0.1, prev * 0.8))}
               className="p-2 bg-gray-800 border border-gray-600 rounded-lg text-white hover:bg-gray-700"
+              title="Zoom Out"
             >
               -
             </button>
             <button
               onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
               className="p-2 bg-gray-800 border border-gray-600 rounded-lg text-white hover:bg-gray-700 text-xs"
+              title="Reset View"
             >
               Reset
+            </button>
+            <button
+              onClick={centerNetwork}
+              className="p-2 bg-gray-800 border border-gray-600 rounded-lg text-white hover:bg-gray-700 text-xs"
+              title="Center Network"
+            >
+              Center
             </button>
           </div>
         )}

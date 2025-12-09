@@ -24,7 +24,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: process.env.NODE_ENV === 'production' ? 'https://your-domain.com' : 'http://localhost:3002',
+    baseURL: process.env.NODE_ENV === 'production' ? 'https://epstein.academy' : 'http://localhost:3002',
     
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
@@ -75,15 +75,16 @@ export default defineConfig({
   ],
 
   /* Run your local dev server before starting the tests */
-  webServer: [
+  /* Run your local dev server before starting the tests */
+  webServer: process.env.NODE_ENV === 'production' ? [] : [
     {
-      command: process.env.NODE_ENV === 'production' ? 'npm run start' : 'npm run dev',
+      command: 'npm run dev',
       port: 3002,
       reuseExistingServer: !process.env.CI,
       timeout: 120 * 1000,
     },
     {
-      command: process.env.NODE_ENV === 'production' ? 'npm run api:prod' : 'npm run api',
+      command: 'npm run api',
       port: 3012,
       reuseExistingServer: !process.env.CI,
       timeout: 120 * 1000,

@@ -1,0 +1,31 @@
+
+// Serve static files from dist
+app.use(express.static(path.join(__dirname, '../dist')));
+
+// Serve documents if path is provided
+const documentsPath = process.env.DOCUMENTS_PATH;
+if (documentsPath) {
+  app.use('/files', express.static(documentsPath));
+}
+
+// SPA fallback - must be last
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  res.sendFile(path.join(__dirname, '../dist/index.html'));
+});
+
+// Start server
+app.listen(PORT, async () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`📊 API endpoints available at http://localhost:${PORT}/api/*`);
+  
+  // Test database connection
+  try {
+    const stats = await databaseService.getStatistics();
+    console.log(`📊 Database connected with ${stats.totalEntities} entities and ${stats.totalDocuments} documents`);
+  } catch (error) {
+    console.error('❌ Database connection failed:', error);
+  }
+});

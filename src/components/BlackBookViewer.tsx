@@ -18,6 +18,9 @@ export const BlackBookViewer: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [selectedLetter, setSelectedLetter] = useState<string>('ALL');
+  const [hasPhone, setHasPhone] = useState<boolean>(false);
+  const [hasEmail, setHasEmail] = useState<boolean>(false);
+  const [hasAddress, setHasAddress] = useState<boolean>(false);
 
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
@@ -26,14 +29,24 @@ export const BlackBookViewer: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    filterEntries();
-  }, [searchTerm, selectedLetter, entries]);
+    fetchBlackBookEntries();
+  }, [searchTerm, selectedLetter, hasPhone, hasEmail, hasAddress]);
 
   const fetchBlackBookEntries = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/black-book');
-      const data = await response.json();
+      const params = new URLSearchParams();
+      if (searchTerm.trim()) params.set('search', searchTerm.trim());
+      if (selectedLetter) params.set('letter', selectedLetter);
+      if (hasPhone) params.set('hasPhone', 'true');
+      if (hasEmail) params.set('hasEmail', 'true');
+      if (hasAddress) params.set('hasAddress', 'true');
+      params.set('limit', '5000');
+      const response = await fetch(`/api/black-book?${params.toString()}`);
+      const result = await response.json();
+      
+      // API now returns {data: [...], total, page, pageSize, totalPages}
+      const data = result.data || [];
       
       // Parse JSON fields
       const parsedEntries = data.map((entry: any) => ({
@@ -52,29 +65,10 @@ export const BlackBookViewer: React.FC = () => {
     }
   };
 
-  const filterEntries = () => {
-    let filtered = entries;
-
-    // Filter by letter
-    if (selectedLetter !== 'ALL') {
-      filtered = filtered.filter(entry => 
-        entry.person_name?.toUpperCase().startsWith(selectedLetter)
-      );
-    }
-
-    // Filter by search term
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(entry =>
-        entry.person_name?.toLowerCase().includes(term) ||
-        entry.phone_numbers.some(p => p.includes(term)) ||
-        entry.email_addresses.some(e => e.toLowerCase().includes(term)) ||
-        entry.addresses.some(a => a.toLowerCase().includes(term))
-      );
-    }
-
-    setFilteredEntries(filtered);
-  };
+  // Client-side fallback remains if needed
+  useEffect(() => {
+    setFilteredEntries(entries);
+  }, [entries]);
 
   const extractName = (entryText: string): string => {
     // Extract name from first line
@@ -142,6 +136,25 @@ export const BlackBookViewer: React.FC = () => {
             {letter}
           </button>
         ))}
+      </div>
+
+      {/* Contact Filters */}
+      <div className="flex flex-wrap gap-3 items-center">
+        <label className="flex items-center gap-2 text-slate-300">
+          <input type="checkbox" checked={hasPhone} onChange={(e) => setHasPhone(e.target.checked)} />
+          <span>Has Phone</span>
+          <Phone className="w-4 h-4 text-slate-400" />
+        </label>
+        <label className="flex items-center gap-2 text-slate-300">
+          <input type="checkbox" checked={hasEmail} onChange={(e) => setHasEmail(e.target.checked)} />
+          <span>Has Email</span>
+          <Mail className="w-4 h-4 text-slate-400" />
+        </label>
+        <label className="flex items-center gap-2 text-slate-300">
+          <input type="checkbox" checked={hasAddress} onChange={(e) => setHasAddress(e.target.checked)} />
+          <span>Has Address</span>
+          <MapPin className="w-4 h-4 text-slate-400" />
+        </label>
       </div>
 
       {/* Entries Grid */}

@@ -1,0 +1,448 @@
+// ============================================
+// Hypothesis API Endpoints
+// ============================================
+
+// GET /api/hypotheses - List hypotheses
+app.get('/api/hypotheses', async (req, res) => {
+  try {
+    const { investigationId, page, limit } = req.query;
+    
+    const result = await hypothesisService.getHypotheses(
+      investigationId ? parseInt(investigationId as string) : undefined,
+      page ? parseInt(page as string) : undefined,
+      limit ? parseInt(limit as string) : undefined
+    );
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching hypotheses:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch hypotheses',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// POST /api/hypotheses - Create hypothesis
+app.post('/api/hypotheses', async (req, res) => {
+  try {
+    const { investigationId, title, description, priority, tags, createdBy } = req.body;
+    
+    if (!investigationId || !title || !createdBy) {
+      return res.status(400).json({ 
+        error: 'Validation failed',
+        details: 'investigationId, title, and createdBy are required' 
+      });
+    }
+    
+    const hypothesis = await hypothesisService.createHypothesis({
+      investigationId,
+      title,
+      description,
+      priority,
+      tags,
+      createdBy
+    });
+    
+    res.status(201).json(hypothesis);
+  } catch (error) {
+    console.error('Error creating hypothesis:', error);
+    res.status(500).json({ 
+      error: 'Failed to create hypothesis',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// GET /api/hypotheses/:id - Get hypothesis by ID
+app.get('/api/hypotheses/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid hypothesis ID' });
+    }
+    
+    const hypothesis = await hypothesisService.getHypothesisById(id);
+    
+    if (!hypothesis) {
+      return res.status(404).json({ error: 'Hypothesis not found' });
+    }
+    
+    res.json(hypothesis);
+  } catch (error) {
+    console.error('Error fetching hypothesis:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch hypothesis',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// PATCH /api/hypotheses/:id - Update hypothesis
+app.patch('/api/hypotheses/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid hypothesis ID' });
+    }
+    
+    const { title, description, status, priority, tags } = req.body;
+    
+    const hypothesis = await hypothesisService.updateHypothesis(id, {
+      title,
+      description,
+      status,
+      priority,
+      tags
+    });
+    
+    if (!hypothesis) {
+      return res.status(404).json({ error: 'Hypothesis not found' });
+    }
+    
+    res.json(hypothesis);
+  } catch (error) {
+    console.error('Error updating hypothesis:', error);
+    res.status(500).json({ 
+      error: 'Failed to update hypothesis',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// DELETE /api/hypotheses/:id - Delete hypothesis
+app.delete('/api/hypotheses/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid hypothesis ID' });
+    }
+    
+    const deleted = await hypothesisService.deleteHypothesis(id);
+    
+    if (!deleted) {
+      return res.status(404).json({ error: 'Hypothesis not found' });
+    }
+    
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting hypothesis:', error);
+    res.status(500).json({ 
+      error: 'Failed to delete hypothesis',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// ============================================
+// Evidence Link API Endpoints
+// ============================================
+
+// GET /api/hypotheses/:id/evidence - Get evidence links for hypothesis
+app.get('/api/hypotheses/:id/evidence', async (req, res) => {
+  try {
+    const hypothesisId = parseInt(req.params.id);
+    
+    if (isNaN(hypothesisId)) {
+      return res.status(400).json({ error: 'Invalid hypothesis ID' });
+    }
+    
+    const links = await evidenceLinkService.getEvidenceLinks(hypothesisId);
+    
+    res.json({ data: links, total: links.length });
+  } catch (error) {
+    console.error('Error fetching evidence links:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch evidence links',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// POST /api/hypotheses/:id/evidence - Add evidence link
+app.post('/api/hypotheses/:id/evidence', async (req, res) => {
+  try {
+    const hypothesisId = parseInt(req.params.id);
+    
+    if (isNaN(hypothesisId)) {
+      return res.status(400).json({ error: 'Invalid hypothesis ID' });
+    }
+    
+    const { evidenceType, evidenceId, role, note, addedBy } = req.body;
+    
+    if (!evidenceType || !evidenceId || !role || !addedBy) {
+      return res.status(400).json({ 
+        error: 'Validation failed',
+        details: 'evidenceType, evidenceId, role, and addedBy are required' 
+      });
+    }
+    
+    const link = await evidenceLinkService.createEvidenceLink({
+      hypothesisId,
+      evidenceType,
+      evidenceId,
+      role,
+      note,
+      addedBy
+    });
+    
+    res.status(201).json(link);
+  } catch (error) {
+    console.error('Error creating evidence link:', error);
+    res.status(500).json({ 
+      error: 'Failed to create evidence link',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// DELETE /api/hypotheses/:hypothesisId/evidence/:linkId - Delete evidence link
+app.delete('/api/hypotheses/:hypothesisId/evidence/:linkId', async (req, res) => {
+  try {
+    const linkId = parseInt(req.params.linkId);
+    
+    if (isNaN(linkId)) {
+      return res.status(400).json({ error: 'Invalid link ID' });
+    }
+    
+    const deleted = await evidenceLinkService.deleteEvidenceLink(linkId);
+    
+    if (!deleted) {
+      return res.status(404).json({ error: 'Evidence link not found' });
+    }
+    
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting evidence link:', error);
+    res.status(500).json({ 
+      error: 'Failed to delete evidence link',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// ============================================
+// Notes API Endpoints
+// ============================================
+
+// GET /api/notes - List notes
+app.get('/api/notes', async (req, res) => {
+  try {
+    const { subjectType, subjectId, page, limit } = req.query;
+    
+    const result = await noteService.getNotes(
+      subjectType as string,
+      subjectId as string,
+      page ? parseInt(page as string) : undefined,
+      limit ? parseInt(limit as string) : undefined
+    );
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching notes:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch notes',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// POST /api/notes - Create note
+app.post('/api/notes', async (req, res) => {
+  try {
+    const { subjectType, subjectId, authorId, body, visibility } = req.body;
+    
+    if (!subjectType || !subjectId || !authorId || !body) {
+      return res.status(400).json({ 
+        error: 'Validation failed',
+        details: 'subjectType, subjectId, authorId, and body are required' 
+      });
+    }
+    
+    const note = await noteService.createNote({
+      subjectType,
+      subjectId,
+      authorId,
+      body,
+      visibility
+    });
+    
+    res.status(201).json(note);
+  } catch (error) {
+    console.error('Error creating note:', error);
+    res.status(500).json({ 
+      error: 'Failed to create note',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// PATCH /api/notes/:id - Update note
+app.patch('/api/notes/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid note ID' });
+    }
+    
+    const { body, visibility } = req.body;
+    
+    const note = await noteService.updateNote(id, { body, visibility });
+    
+    if (!note) {
+      return res.status(404).json({ error: 'Note not found' });
+    }
+    
+    res.json(note);
+  } catch (error) {
+    console.error('Error updating note:', error);
+    res.status(500).json({ 
+      error: 'Failed to update note',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// DELETE /api/notes/:id - Delete note
+app.delete('/api/notes/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid note ID' });
+    }
+    
+    const deleted = await noteService.deleteNote(id);
+    
+    if (!deleted) {
+      return res.status(404).json({ error: 'Note not found' });
+    }
+    
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting note:', error);
+    res.status(500).json({ 
+      error: 'Failed to delete note',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// ============================================
+// Tasks API Endpoints
+// ============================================
+
+// GET /api/tasks - List tasks
+app.get('/api/tasks', async (req, res) => {
+  try {
+    const { investigationId, status, assigneeId, page, limit } = req.query;
+    
+    const result = await taskService.getTasks(
+      investigationId ? parseInt(investigationId as string) : undefined,
+      status as string,
+      assigneeId as string,
+      page ? parseInt(page as string) : undefined,
+      limit ? parseInt(limit as string) : undefined
+    );
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching tasks:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch tasks',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// POST /api/tasks - Create task
+app.post('/api/tasks', async (req, res) => {
+  try {
+    const { investigationId, title, description, assigneeId, dueDate } = req.body;
+    
+    if (!investigationId || !title) {
+      return res.status(400).json({ 
+        error: 'Validation failed',
+        details: 'investigationId and title are required' 
+      });
+    }
+    
+    const task = await taskService.createTask({
+      investigationId,
+      title,
+      description,
+      assigneeId,
+      dueDate
+    });
+    
+    res.status(201).json(task);
+  } catch (error) {
+    console.error('Error creating task:', error);
+    res.status(500).json({ 
+      error: 'Failed to create task',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// PATCH /api/tasks/:id - Update task
+app.patch('/api/tasks/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid task ID' });
+    }
+    
+    const { title, description, status, assigneeId, dueDate } = req.body;
+    
+    const task = await taskService.updateTask(id, {
+      title,
+      description,
+      status,
+      assigneeId,
+      dueDate
+    });
+    
+    if (!task) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+    
+    res.json(task);
+  } catch (error) {
+    console.error('Error updating task:', error);
+    res.status(500).json({ 
+      error: 'Failed to update task',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// DELETE /api/tasks/:id - Delete task
+app.delete('/api/tasks/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid task ID' });
+    }
+    
+    const deleted = await taskService.deleteTask(id);
+    
+    if (!deleted) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+    
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting task:', error);
+    res.status(500).json({ 
+      error: 'Failed to delete task',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});

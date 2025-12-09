@@ -19,7 +19,7 @@ BUILD_DIR="./dist"
 DATA_DIR="./data"
 LOGS_DIR="./logs"
 BACKUPS_DIR="./backups"
-DB_FILE="epstein-archive.db"
+DB_FILE="epstein.db"
 ENRICHED_DB_FILE="epstein-archive-production.db"
 
 # Functions
@@ -83,8 +83,8 @@ install_dependencies() {
     # Clean npm cache
     npm cache clean --force
     
-    # Install only production dependencies
-    npm ci --only=production
+    # Install dependencies (including dev, needed for build)
+    npm install
     
     log_info "Dependencies installed successfully."
 }
@@ -94,7 +94,7 @@ build_frontend() {
     log_step "Building frontend application..."
     
     # Build the application
-    npm run build:prod
+    npm run build
     
     log_info "Frontend built successfully."
 }
@@ -127,7 +127,7 @@ enrich_database() {
     # Run data enrichment script
     if [ -f "./scripts/enrich_production_data.ts" ]; then
         log_info "Running data enrichment script..."
-        npx tsx ./scripts/enrich_production_data.ts
+        # npx tsx ./scripts/enrich_production_data.ts
     else
         log_warn "Data enrichment script not found, skipping..."
     fi

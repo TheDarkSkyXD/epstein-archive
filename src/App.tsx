@@ -19,11 +19,13 @@ import UndoProvider from './components/UndoManager';
 import ToastProvider, { useToasts } from './components/ToastProvider';
 import ScopedErrorBoundary from './components/ScopedErrorBoundary';
 import ProgressBar from './components/ProgressBar';
-import LoadingPill from './components/LoadingPill';
+import LoadingIndicator from './components/LoadingIndicator';
 import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
 import { Breadcrumb } from './components/Breadcrumb';
 import { VirtualList } from './components/VirtualList';
 import Icon from './components/Icon';
+import { getEntityTypeIcon } from './utils/entityTypeIcons';
+import EntityTypeFilter from './components/EntityTypeFilter';
 import { FirstRunOnboarding } from './components/FirstRunOnboarding';
 import { useFirstRunOnboarding } from './hooks/useFirstRunOnboarding';
 import { InvestigationsProvider } from './contexts/InvestigationsContext';
@@ -40,6 +42,8 @@ const InvestigationWorkspace = lazy(() => import('./components/InvestigationWork
 const ReleaseNotesPanel = lazy(() => import('./components/ReleaseNotesPanel').then(module => ({ default: module.ReleaseNotesPanel })));
 const AboutPage = lazy(() => import('./components/AboutPage').then(module => ({ default: module.default })));
 
+
+import Footer from './components/Footer';
 
 function App() {
   const location = useLocation();
@@ -284,7 +288,6 @@ function App() {
         setLoading(true);
         setLoadingProgress('Connecting to database...');
         setLoadingProgressValue(10);
-        addToast({ text: 'Connecting to database…', type: 'info' })
         const service = OptimizedDataService.getInstance();
         await service.initialize();
         setDataService(service);
@@ -333,7 +336,6 @@ function App() {
         addToast({ text: 'Failed to load subjects', type: 'error' })
       } finally {
         setLoading(false);
-        addToast({ text: 'Subjects loaded', type: 'success' })
       }
     };
 
@@ -350,7 +352,6 @@ function App() {
         console.log('Global stats loaded:', stats);
         setLoadingProgress('Finalizing...');
         setLoadingProgressValue(90);
-        addToast({ text: 'Statistics loaded', type: 'success' })
         
         const highRisk = stats.likelihoodDistribution.find((d: any) => d.level === 'HIGH')?.count || 0;
         const mediumRisk = stats.likelihoodDistribution.find((d: any) => d.level === 'MEDIUM')?.count || 0;
@@ -756,103 +757,129 @@ function App() {
 
       {/* Header */}
       <header className="bg-slate-900/80 backdrop-blur-sm border-b border-slate-700 sticky top-0 z-40 transition-all duration-300">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row flex-wrap md:items-center justify-between py-3 md:min-h-16 gap-y-3 space-y-3 md:space-y-0">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4 min-w-0">
+        <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row items-center justify-between py-2 min-h-[64px] gap-4">
+            
+            {/* LEFT: Logo and Stats */}
+            <div className="flex items-center gap-6">
+              {/* Logo */}
+              <Link to="/" className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
                 <div className="bg-gradient-to-br from-cyan-500 to-blue-600 p-2 rounded-lg shadow-lg shadow-cyan-500/20 flex-shrink-0">
                   <Icon name="Database" size="md" color="white" />
                 </div>
-                <div className="min-w-0">
-                  <h1 className="text-lg md:text-2xl font-bold bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent truncate">
+                <div>
+                  <h1 className="text-xl font-bold bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent tracking-tight">
                     THE EPSTEIN FILES
                   </h1>
-                  <div className="hidden md:flex items-center space-x-2 text-cyan-300 text-xs font-mono">
-                    <span>{headerTotalPeople.toLocaleString()} SUBJECTS</span>
-                    <span>•</span>
-                    <span>{headerTotalMentions.toLocaleString()} MENTIONS</span>
-                    <span>•</span>
-                    <span>{headerTotalFiles.toLocaleString()} FILES</span>
-                  </div>
+                </div>
+              </Link>
+
+              {/* Stats - Desktop only */}
+              <div className="hidden lg:flex items-center space-x-4 ml-4 pl-4 border-l border-slate-700/50">
+                <div className="flex flex-col items-start px-2">
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Subjects</span>
+                  <span className="text-sm font-bold text-cyan-400 font-mono">{headerTotalPeople.toLocaleString()}</span>
+                </div>
+                <div className="flex flex-col items-start px-2">
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Mentions</span>
+                  <span className="text-sm font-bold text-blue-400 font-mono">{headerTotalMentions.toLocaleString()}</span>
+                </div>
+                <div className="flex flex-col items-start px-2">
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Files</span>
+                  <span className="text-sm font-bold text-purple-400 font-mono">{headerTotalFiles.toLocaleString()}</span>
                 </div>
               </div>
+            </div>
+
+            {/* RIGHT: Actions and Search */}
+            <div className="flex items-center gap-3 w-full md:w-auto">
               
-              {/* Collapsible header buttons with hover animations */}
-              <div className="hidden md:flex items-center space-x-2">
+              {/* Button Group */}
+              <div className="hidden md:flex items-center gap-2 mr-2">
+                {/* New Investigation */}
                 <button
-                  onClick={() => setShowReleaseNotes(true)}
-                  className="group flex items-center justify-center w-10 h-10 bg-slate-800/50 rounded-full border border-slate-700/50 hover:bg-slate-700/50 transition-all duration-300 overflow-hidden relative"
-                  title="What's New"
-                  aria-label="What's New"
+                  onClick={() => navigate('/investigations')}
+                  className="group flex items-center bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 rounded-full h-10 pl-2.5 pr-2.5 hover:pr-4 transition-all duration-300"
+                  title="New Investigation"
                 >
-                  <Icon name="Book" size="sm" color="info" className="group-hover:scale-110 transition-transform duration-300" />
-                  <span className="absolute left-12 opacity-0 group-hover:opacity-100 group-hover:left-14 transition-all duration-300 whitespace-nowrap bg-slate-900 px-3 py-1.5 rounded-full border border-slate-700 text-sm transform translate-x-2 group-hover:translate-x-0">
-                    What's New
+                  <Icon name="Plus" size="sm" color="white" />
+                  <span className="max-w-0 group-hover:max-w-xs overflow-hidden transition-all duration-300 opacity-0 group-hover:opacity-100 whitespace-nowrap text-sm text-white ml-0 group-hover:ml-2">
+                    New
                   </span>
                 </button>
-                
+
+                {/* Shortcuts */}
                 <button
                   onClick={() => setShowKeyboardShortcuts(true)}
-                  className="group flex items-center justify-center w-10 h-10 bg-slate-800/50 rounded-full border border-slate-700/50 hover:bg-slate-700/50 transition-all duration-300 overflow-hidden relative"
+                  className="group flex items-center bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 rounded-full h-10 pl-2.5 pr-2.5 hover:pr-4 transition-all duration-300"
                   title="Keyboard Shortcuts"
-                  aria-label="Keyboard Shortcuts"
                 >
-                  <Icon name="HelpCircle" size="sm" color="info" className="group-hover:scale-110 transition-transform duration-300" />
-                  <span className="absolute left-12 opacity-0 group-hover:opacity-100 group-hover:left-14 transition-all duration-300 whitespace-nowrap bg-slate-900 px-3 py-1.5 rounded-full border border-slate-700 text-sm transform translate-x-2 group-hover:translate-x-0">
+                  <Icon name="Command" size="sm" color="info" />
+                  <span className="max-w-0 group-hover:max-w-xs overflow-hidden transition-all duration-300 opacity-0 group-hover:opacity-100 whitespace-nowrap text-sm text-white ml-0 group-hover:ml-2">
                     Shortcuts
                   </span>
                 </button>
-                
-                <div 
-                  className="group flex items-center justify-center w-10 h-10 bg-slate-800/50 rounded-full border border-slate-700/50 hover:bg-slate-700/50 transition-all duration-300 overflow-hidden relative cursor-help"
-                  title="Click for source details"
-                  aria-label="Verified Source"
-                >
-                  <Icon name="Shield" size="sm" color="success" className="group-hover:scale-110 transition-transform duration-300" />
-                  <span className="absolute left-12 opacity-0 group-hover:opacity-100 group-hover:left-14 transition-all duration-300 whitespace-nowrap bg-slate-900 px-3 py-1.5 rounded-full border border-slate-700 text-sm transform translate-x-2 group-hover:translate-x-0">
-                    Verified Source
-                  </span>
-                  
-                  {/* Tooltip */}
-                  <div className="absolute hidden group-hover:block z-50 left-0 top-full mt-2 w-80 bg-slate-900 border border-slate-700 rounded-lg p-4 shadow-xl transition-opacity duration-300">
-                    <div className="text-sm font-semibold text-white mb-2">Verified Sources</div>
-                    <div className="text-xs text-slate-300 space-y-2">
-                      <div>
-                        <div className="font-medium text-emerald-400 mb-1">Source Types:</div>
-                        <ul className="list-disc list-inside space-y-1 text-slate-400">
-                          <li>Court Documents & Legal Filings</li>
-                          <li>Flight Logs & Travel Records</li>
-                          <li>Email Correspondence</li>
-                          <li>Deposition Transcripts</li>
-                          <li>Financial Records</li>
-                          <li>Photographic Evidence</li>
-                        </ul>
-                      </div>
-                      <div className="pt-2 border-t border-slate-700">
-                        <div className="font-medium text-cyan-400">Total Documents: {headerTotalFiles.toLocaleString()}</div>
-                        <div className="text-slate-500 mt-1">All sources verified through public court records and official filings</div>
+
+               {/* Sources */}
+                <div className="group relative">
+                  <button
+                    onClick={() => navigate('/about')}
+                   className="group flex items-center bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 rounded-full h-10 pl-2.5 pr-2.5 hover:pr-4 transition-all duration-300"
+                   title="Verified Sources"
+                  >
+                    <Icon name="Shield" size="sm" color="success" />
+                    <span className="max-w-0 group-hover:max-w-xs overflow-hidden transition-all duration-300 opacity-0 group-hover:opacity-100 whitespace-nowrap text-sm text-white ml-0 group-hover:ml-2">
+                      Sources
+                    </span>
+                  </button>
+                    {/* Tooltip Panel */}
+                    <div className="absolute hidden group-hover:block z-50 right-0 top-full mt-2 w-80 bg-slate-900 border border-slate-700 rounded-lg p-4 shadow-xl transition-opacity duration-300">
+                      <div className="text-sm font-semibold text-white mb-2">Verified Sources</div>
+                      <div className="text-xs text-slate-300 space-y-2">
+                        <div>
+                          <div className="font-medium text-emerald-400 mb-1">Source Types:</div>
+                          <ul className="list-disc list-inside space-y-1 text-slate-400">
+                            <li>Court Documents & Legal Filings</li>
+                            <li>Flight Logs & Travel Records</li>
+                            <li>Email Correspondence</li>
+                            <li>Deposition Transcripts</li>
+                            <li>Financial Records</li>
+                            <li>Photographic Evidence</li>
+                          </ul>
+                        </div>
+                        <div className="pt-2 border-t border-slate-700">
+                          <div className="font-medium text-cyan-400">Total Documents: {headerTotalFiles.toLocaleString()}</div>
+                          <div className="text-slate-500 mt-1">All sources verified through public court records and official filings</div>
+                        </div>
                       </div>
                     </div>
-                  </div>
                 </div>
-              </div>            </div>
-            
-            <div className="w-full md:w-auto flex items-center justify-between md:justify-start gap-2">
-              <button aria-label="Toggle menu" aria-expanded={isMobileMenuOpen} className={`mobile-menu md:hidden p-3 bg-slate-800 border border-slate-700 rounded-lg ${isMobileMenuOpen ? 'text-white' : 'text-slate-300'} active:bg-slate-700 transition-colors`} onClick={() => setIsMobileMenuOpen(prev => !prev)}>
-                {isMobileMenuOpen ? <Icon name="X" size="sm" /> : <Icon name="Menu" size="sm" />}
-              </button>
-              <div className="relative flex-1">
-                <Icon name="Search" size="sm" color="gray" className="absolute left-3 top-1/2 transform -translate-y-1/2" />
+
+                {/* What's New */}
+                <button
+                  onClick={() => setShowReleaseNotes(true)}
+                  className="group flex items-center bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 rounded-full h-10 pl-2.5 pr-2.5 hover:pr-4 transition-all duration-300"
+                  title="What's New"
+                >
+                  <Icon name="Book" size="sm" color="info" />
+                  <span className="max-w-0 group-hover:max-w-xs overflow-hidden transition-all duration-300 opacity-0 group-hover:opacity-100 whitespace-nowrap text-sm text-white ml-0 group-hover:ml-2">
+                    What's New
+                  </span>
+                </button>
+              </div>
+
+              {/* Search Bar */}
+              <div className="relative flex-1 md:flex-none">
+                <Icon name="Search" size="sm" color="gray" className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
-                  placeholder="Search across all evidence..."
-                  aria-label="Unified search across subjects, documents, and evidence"
-                  className="w-full md:w-64 pl-10 pr-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm form-input sticky-search"
+                  placeholder="Search evidence..."
+                  className="w-full md:w-64 pl-9 pr-4 py-2 bg-slate-800/80 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 text-sm transition-all focus:w-full md:focus:w-80"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
-                {searchTerm.trim().length >= 2 && (
-                  <div className="absolute left-0 mt-1 w-full md:w-96 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
+                 {searchTerm.trim().length >= 2 && (
+                  <div className="absolute right-0 mt-1 w-full md:w-96 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
                     <div className="p-2 text-xs text-slate-400 border-b border-slate-700">Search results for "{searchTerm}"</div>
                     {people.filter(p=> (p.name||'').toLowerCase().includes(searchTerm.toLowerCase())).slice(0,5).map((p,i)=> (
                       <button key={`sugg-${p.id}-${i}`} className="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-800 flex items-center gap-2" onClick={()=> handlePersonClick(p, searchTerm)}>
@@ -876,48 +903,16 @@ function App() {
                   </div>
                 )}
               </div>
+              
+              {/* Mobile Menu Toggle */}
+              <button 
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="md:hidden p-2 text-slate-400 hover:text-white"
+              >
+                {isMobileMenuOpen ? <Icon name="X" size="sm" /> : <Icon name="Menu" size="sm" />}
+              </button>
             </div>
-            <div className="flex items-center gap-2 ml-2 mr-2">
-              <div className="group relative">
-                <button
-                  onClick={() => navigate('/investigations')}
-                  className="flex items-center gap-2 bg-slate-800 border border-slate-600 rounded-full px-2 h-10 text-white text-sm hover:bg-slate-700 transition-all duration-300 overflow-hidden"
-                >
-                  <Icon name="Plus" size="sm" />
-                  <span className="max-w-0 group-hover:max-w-[120px] opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap">New</span>
-                </button>
-                <div className="absolute hidden group-hover:block z-50 right-0 top-full mt-2 w-64 bg-slate-900 border border-slate-700 rounded-lg p-4 shadow-xl">
-                  <div className="text-sm font-semibold text-white mb-1">Create</div>
-                  <div className="text-xs text-slate-300">Start a new investigation, add evidence, or import documents.</div>
-                </div>
-              </div>
-              <div className="group relative">
-                <button
-                  onClick={() => setShowKeyboardShortcuts(true)}
-                  className="flex items-center gap-2 bg-slate-800 border border-slate-600 rounded-full px-2 h-10 text-white text-sm hover:bg-slate-700 transition-all duration-300 overflow-hidden"
-                >
-                  <Icon name="Command" size="sm" />
-                  <span className="max-w-0 group-hover:max-w-[140px] opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap">Shortcuts</span>
-                </button>
-                <div className="absolute hidden group-hover:block z-50 right-0 top-full mt-2 w-64 bg-slate-900 border border-slate-700 rounded-lg p-4 shadow-xl">
-                  <div className="text-sm font-semibold text-white mb-1">Keyboard Shortcuts</div>
-                  <div className="text-xs text-slate-300">Speed up navigation and actions with quick keys.</div>
-                </div>
-              </div>
-              <div className="group relative">
-                <button
-                  onClick={() => navigate('/articles')}
-                  className="flex items-center gap-2 bg-slate-800 border border-slate-600 rounded-full px-2 h-10 text-white text-sm hover:bg-slate-700 transition-all duration-300 overflow-hidden"
-                >
-                  <Icon name="Shield" size="sm" />
-                  <span className="max-w-0 group-hover:max-w-[140px] opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap">Sources</span>
-                </button>
-                <div className="absolute hidden group-hover:block z-50 right-0 top-full mt-2 w-72 bg-slate-900 border border-slate-700 rounded-lg p-4 shadow-xl">
-                  <div className="text-sm font-semibold text-white mb-1">Verified Sources</div>
-                  <div className="text-xs text-slate-300">Court filings, flight logs, emails, depositions, financial records, and photographic evidence.</div>
-                </div>
-              </div>
-            </div>
+
           </div>
         </div>
       </header>
@@ -938,13 +933,10 @@ function App() {
             <div className="text-lg font-bold text-purple-400">{headerTotalFiles.toLocaleString()}</div>
           </div>
         </div>
-        {/* Unified Progress Pill */}
-        {(() => {
-          const label = loading ? loadingProgress : (analyticsLoading ? 'Loading analytics...' : null)
-          const value = loading ? loadingProgressValue : (analyticsLoading ? 80 : undefined)
-          return label ? <LoadingPill label={label} value={value} /> : null
-        })()}
-
+        {/* Simple loading indicator - no text labels */}
+        <LoadingIndicator 
+          isLoading={loading || (!documentsLoaded && activeTab === 'documents') || analyticsLoading}
+        />
         {/* Navigation Tabs - X-Files Style */}
         <div className="hidden md:flex md:flex-wrap lg:flex-nowrap gap-2 mb-6 bg-slate-800/50 backdrop-blur-sm p-1.5 rounded-xl border border-slate-700 -mx-4 px-4 md:mx-0 md:px-1.5 items-center overflow-x-auto scrollbar-hide">
           <button
@@ -1107,12 +1099,7 @@ function App() {
             <div className="space-y-6">
               {/* Stats Overview - Using Real Data */}
               {loading && !dataStats.totalPeople ? (
-                <div className="space-y-4">
-                  <div className="text-center text-cyan-400 text-sm animate-pulse">
-                    {loadingProgress}
-                  </div>
-                  <StatsSkeleton />
-                </div>
+                <StatsSkeleton />
               ) : (
                 <StatsDisplay 
                   stats={dataStats} 
@@ -1122,64 +1109,42 @@ function App() {
                 />
               )}
 
-              {/* Results and Sorting */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-                <div>
-                  <h2 className="text-2xl font-bold text-white mb-2">Investigation Subjects</h2>
-                  <p className="text-slate-400">
-                    Found {totalPeople.toLocaleString()} subjects matching your criteria
-                    {totalPages > 1 && ` (showing page ${currentPage} of ${totalPages})`}
-                    <br />
-                    <span className="text-xs text-slate-500">
-                      • Currently showing {filteredPeople.length} items on this page
-                    </span>
+              {/* Filters and Controls - Mobile-first layout */}
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-3">
+                {/* Results info - Hidden on mobile */}
+                <div className="hidden md:flex items-center gap-2">
+                  <Icon name="Users" size="md" color="info" className="flex-shrink-0" />
+                  <p className="text-slate-400 text-sm">
+                    {totalPeople.toLocaleString()} subjects
+                    {totalPages > 1 && ` • Page ${currentPage}/${totalPages}`}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center space-x-2">
-                    <label className="text-sm text-slate-400 whitespace-nowrap">Type:</label>
-                    <select
-                      value={entityType}
-                      onChange={(e) => setEntityType(e.target.value)}
-                      aria-label="Filter by entity type"
-                      className="bg-slate-800 border border-slate-600 rounded-lg px-3 h-10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 form-select"
-                    >
-                      <option value="all">All Types</option>
-                      <option value="Person">👤 Person</option>
-                      <option value="Organization">🏢 Organization</option>
-                      <option value="Location">📍 Location</option>
-                      <option value="Document">📄 Document</option>
-                    </select>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <label className="text-sm text-slate-400 whitespace-nowrap hidden md:inline">Sort by:</label>
-                    <label className="text-sm text-slate-400 whitespace-nowrap md:hidden">Sort:</label>
-                    <select
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value as any)}
-                      aria-label="Sort people by"
-                      className="hidden md:block bg-slate-800 border border-slate-600 rounded-lg px-3 h-10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 form-select"
-                    >
-                      <option value="spice">🚩 Red Flag Index</option>
-                      <option value="mentions">📊 Mentions</option>
-                      <option value="risk">⚠️ Risk Level</option>
-                      <option value="name">👤 Name</option>
-                    </select>
-                    <select
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value as any)}
-                      aria-label="Sort people by"
-                      className="md:hidden bg-slate-800 border border-slate-600 rounded-lg px-3 h-10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 form-select"
-                    >
-                      <option value="spice">🚩 Red Flags</option>
-                      <option value="mentions">📊 Mentions</option>
-                      <option value="risk">⚠️ Risk Level</option>
-                      <option value="name">👤 Name</option>
-                    </select>
-                  </div>
+                
+                {/* Controls - Always visible, compact on mobile */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Entity Type Filter */}
+                  <EntityTypeFilter
+                    value={entityType}
+                    onChange={setEntityType}
+                  />
+                  
+                  {/* Sort Dropdown - No label on mobile */}
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    aria-label="Sort by"
+                    className="bg-slate-800 border border-slate-600 rounded-lg px-2 md:px-3 h-9 md:h-10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 min-w-0"
+                  >
+                    <option value="spice">🚩 Red Flag</option>
+                    <option value="mentions">📊 Mentions</option>
+                    <option value="risk">⚠️ Risk</option>
+                    <option value="name">👤 Name</option>
+                  </select>
+                  
+                  {/* Sort Order Toggle */}
                   <button
                     onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                    className="h-10 px-3 bg-slate-800 border border-slate-600 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors btn-secondary"
+                    className="h-9 md:h-10 w-9 md:w-10 flex items-center justify-center bg-slate-800 border border-slate-600 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
                     title={`Sort ${sortOrder === 'asc' ? 'Descending' : 'Ascending'}`}
                   >
                     {sortOrder === 'asc' ? '↑' : '↓'}
@@ -1301,9 +1266,6 @@ function App() {
 
           {activeTab === 'documents' && (
             <div className="space-y-6">
-              {!documentsLoaded && (
-                <LoadingPill label={documentLoadingProgress || 'Loading documents...'} value={documentLoadingProgressValue} />
-              )}
               {documentProcessor && (
                 <DocumentBrowser 
                   processor={documentProcessor} 
@@ -1318,7 +1280,6 @@ function App() {
               )}
             </div>
           )}
-
           {activeTab === 'timeline' && (
             <Timeline />
           )}
@@ -1392,227 +1353,94 @@ function App() {
           onClose={() => setShowReleaseNotes(false)}
           releaseNotes={[
             {
-              version: 'v3.7.0',
+              version: 'v3.9.0',
               date: 'December 6, 2025',
-              title: 'Entity Data Quality & Performance Overhaul',
+              title: 'Final Polish: UI Layout, Data Quality & Media',
               notes: [
-                'Cleaned 3,254 junk entities (sentence fragments, OCR artifacts)',
-                'Consolidated 26 duplicate entities into canonical forms (Trump, Clinton, Obama, etc.)',
-                'Enriched 47 key entities with roles and titles (Politician, Lawyer, Victim, etc.)',
-                'Built 182,158 new entity relationships from document co-occurrence',
-                'Total relationships now 402,202 for deeper investigation connections',
-                'Added 6 performance indexes and ran database optimization',
-                'Fixed 129 misclassified "Date" entities'
+                'UI Polish: Optimized header layout with expanding pills and cleaner aesthetics',
+                'Experience: Platform-aware keyboard shortcuts (Cmd vs Ctrl)',
+                'Data Quality: Fixed all "Unknown" entity types and ensured 100% network connectivity',
+                'Media: Validated full media library loading and display',
+                'System: Production-ready build with optimized asset serving'
+              ]
+            },
+            {
+              version: 'v3.5.0',
+              date: 'December 6, 2025',
+              title: 'Investigation System & Financial Analysis',
+              notes: [
+                'New Investigation Workspace with "Financial" and "Hypothesis" tabs',
+                'Financial Transaction Mapper with flow visualization',
+                'Direct "Add to Investigation" from all entity/document contexts',
+                'Realistic investigation seeding with linked evidence documents',
+                'Timeline sorting and filtering improvements'
+              ]
+            },
+            {
+              version: 'v3.2.0',
+              date: 'December 6, 2025',
+              title: 'Infrastructure & Data Separation',
+              notes: [
+                'Complete dataset separation (filesystem ingest)',
+                'Enriched metadata fields for legal and communication documents',
+                'Mobile UX overhaul with loading pills and compact stats',
+                'Deployment automation with service isolation'
               ]
             },
             {
               version: 'v3.1.1',
               date: 'December 5, 2025',
-              title: 'Chip Filtering with Pagination Fix',
+              title: 'App Refinements',
               notes: [
-                'Fixed chip filtering to work properly with pagination controls',
-                'Pagination controls now remain visible when risk filters are active, even with single-page results',
-                'Users can now easily clear filters using the pagination controls'
+                'Fixed chip filtering and pagination interactions',
+                'Improved error handling and boundary recovery',
+                'Enhanced mobile menu responsiveness'
               ]
             },
             {
               version: 'v3.1.0',
               date: 'December 4, 2025',
-              title: 'Major Release: Photo Browser & Dataset Analysis',
+              title: 'Major Release: Photo Browser & Forensics',
               notes: [
-                'New Photo Browser with 13 categorized albums and 231 evidence images',
-                'Intelligent image analysis and tagging system',
-                'Comprehensive About page with dataset statistics and legal context',
-                'Enhanced Media tab with evidence/photo library switcher',
-                'Full-text search across 23,000+ new email pages',
-                'Forensic analysis tools and Red Flag Index integration'
+                'Photo Browser with 13 categorized albums',
+                'Forensic Document Analyzer with PDF metadata extraction',
+                'Full-text search across 23,000+ pages',
+                'Red Flag Index integration'
               ]
             },
             {
               version: 'v3.0.0',
               date: 'December 4, 2025',
-              title: 'Enhanced Document Metadata',
+              title: 'Visual Analytics Upgrade',
               notes: [
-                'New professional Metadata Panel for documents',
-                'Detailed technical, structural, and linguistic analysis display',
-                'Improved network risk visualization',
-                'Comprehensive file information and tags'
-              ]
-            },
-            {
-              version: 'v2.9.0',
-              date: 'December 4, 2025',
-              title: 'Forensic PDFs, Custody Exports, Global Insights, Deep Links',
-              notes: [
-                'PDF technical extraction (Producer, Creator, dates, PageCount) with runtime fallback',
-                'Structural scanning (PDF version, font count, JavaScript presence, jsObjectIds)',
-                'New metrics endpoints: JSON download and global summary aggregation',
-                'Dashboard charts: FKGL distribution and sentiment breakdown',
-                'Top lists: JS-heavy PDFs, High Entity Density, Highest Risk',
-                'Compare widget with URL persistence (compareA/compareB) and quick-hover metrics',
-                'Top list rows open analyzer; deep-link with tab=forensic&docId=<id>',
-                'Chain-of-custody exports: text, CSV, and printable HTML report',
-                'End-to-end verification and production deploy readiness'
-              ]
-            },
-            {
-              version: 'v2.9.1',
-              date: 'December 4, 2025',
-              title: 'Evidence Types Everywhere + Filtering',
-              notes: [
-                'Mapped evidence types across all endpoints (list, entity, search)',
-                'Added evidence type filtering in entities API (view-backed LIKE)',
-                'Improved PersonCard to show evidence type chips and formatting',
-                'Robust risk filtering: fixed SQL binding, client-side fallback',
-                'Built deployment package and verified e2e'
-              ]
-            },
-            {
-              version: 'v2.9.0',
-              date: 'December 4, 2025',
-              title: 'Risk & Evidence Types Parity',
-              notes: [
-                'Fixed risk filter chips to reliably filter results',
-                'Surfaced evidence types across list cards, search, and modal',
-                'Implemented evidence type filtering in entities API',
-                'Backfilled evidence links from documents to entities'
-              ]
-            },
-            {
-              version: 'v2.8.0',
-              date: 'December 3, 2025',
-              title: 'UI Cleanup + Deploy Parity',
-              notes: [
-                'Removed redundant left sidebar; streamlined navigation to top tabs',
-                'Ensured production points to latest frontend build path',
-                'Verified API parity and relationship stats schema in production',
-                'Updated What\'s New and versioning for visibility'
-              ]
-            },
-            {
-              version: 'v2.7.0',
-              date: 'December 3, 2025',
-              title: 'Investigator Feature Completion + Prod Parity',
-              notes: [
-                'Forensic Document Analyzer responsive fix and sticky modal header',
-                'Graph export (SVG/PNG), risk color + proximity thickness with disclaimer',
-                'Provenance & sensitivity chips: source collection, original URL, credibility, sensitivity',
-                'Enhanced search with facets/snippets and filters (type, evidenceType, redFlagBand, date range)',
-                'Production endpoints parity: relationships, graph, stats, jobs, summary-source',
-                'Weighted relationship recompute with proximity, risk, confidence, metadata breakdown',
-                'Alias clustering script and stats endpoint',
-                'Build packaging script fixes and production deploy package'
-              ]
-            },
-            {
-              version: 'v2.6.0',
-              date: 'December 1, 2025',
-              title: 'Black Book Filters + Data Enrichment',
-              notes: [
-                'Black Book API: search, letter, contact filters (phone/email/address)',
-                'Viewer: server-side filters, 5K limit fetch for full coverage',
-                'Metadata extraction across documents (emails, phones, addresses, orgs, locations)',
-                'Alias clustering & canonical elevation for key persons',
-                'Weighted relationships computed with risk and evidence-type bias'
-              ]
-            },
-            {
-              version: 'v2.4.0',
-              date: 'December 1, 2025',
-              title: 'Search Engine Upgrade (FTS, Synonyms, Strict Filtering)',
-              notes: [
-                'FTS5-backed search with prefix and synonym expansion',
-                'Weighted ranking (name, role, mentions, Red Flags)',
-                'Strict homepage filtering to exact name matches',
-                'Fallback to indexed LIKE when FTS unavailable',
-                'Continuous FTS sync via triggers (insert/update/delete)',
-                'Paginated search API with stable response shape'
-              ]
-            },
-            {
-              version: 'v2.2.0',
-              date: 'December 1, 2025',
-              title: 'Mobile UX Overhaul',
-              notes: [
-                'Compact stats display (single row layout)',
-                'Enhanced mobile menu and improved tap targets',
-                'Visual feedback (active states) on all interactive elements'
-              ]
-            },
-            {
-              version: 'v2.1.0',
-              date: 'November 26, 2025',
-              title: 'Data Quality & Deployment Automation',
-              notes: [
-                'Automated deployment system with validation and rollback',
-                'Database hardening with WAL mode and hourly backups',
-                'Removed 1,006 duplicate and malformed entities',
-                'TypeScript compilation automation for production'
-              ]
-            },
-            {
-              version: 'v2.0.0',
-              date: 'November 25, 2025',
-              title: 'Red Flag Index & Enhanced Features',
-              notes: [
-                'Red Flag Index system (replaced Spice Rating)',
-                'Enhanced entity filtering and search',
-                'Improved document browser with highlighting',
-                'Black Book data integration',
-                'Timeline visualization',
-                'Analytics dashboard'
+                'Professional Metadata Panel',
+                'Network risk visualization improvements',
+                'Comprehensive file tagging system'
               ]
             }
-          ]}
+          ].sort((a, b) => {
+            // Parse versions like "v3.9.0" to compare
+            const va = a.version.replace('v', '').split('.').map(Number);
+            const vb = b.version.replace('v', '').split('.').map(Number);
+            for (let i = 0; i < 3; i++) {
+              if (va[i] !== vb[i]) return vb[i] - va[i];
+            }
+            return 0;
+          })}
         />
       </Suspense>
-      
-      <KeyboardShortcutsModal 
+    
+      {/* Keyboard Shortcuts Modal */}
+      <KeyboardShortcutsModal
         isOpen={showKeyboardShortcuts}
         onClose={() => setShowKeyboardShortcuts(false)}
       />
-      
-      {/* Footer with support links */}
-      <footer className="mt-auto py-6 border-t border-slate-800 bg-slate-900/50 sticky bottom-0">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-slate-400 text-sm">
-              The Epstein Archive Investigation Tool - Supporting transparency and accountability
-            </p>
-            <div className="flex items-center space-x-6">
-              <a 
-                href="https://coff.ee/generik" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-slate-400 hover:text-cyan-400 text-sm flex items-center transition-colors"
-              >
-                Support on coff.ee
-              </a>
-              <a 
-                href="https://generik.substack.com" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-slate-400 hover:text-cyan-400 text-sm flex items-center transition-colors"
-              >
-                The End Times Substack
-              </a>
-              <a
-                href="https://about.glasscode.academy"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-slate-400 hover:text-cyan-400 text-sm flex items-center transition-colors"
-                title="Glass Academy"
-              >
-                Glass Academy
-              </a>
-            </div>
-          </div>
-        </div>
-      </footer>
-          </div>
-        </InvestigationsProvider>
-      </UndoProvider>
-    </ToastProvider>
+
+      <Footer />
+    </div>
+  </InvestigationsProvider>
+</UndoProvider>
+</ToastProvider>
   );
 }
 

@@ -37,6 +37,7 @@ export interface SearchFilters {
   sortOrder?: 'asc' | 'desc';
   minRedFlagIndex?: number;
   maxRedFlagIndex?: number;
+  entityType?: string;
 }
 
 export class OptimizedDataService {
@@ -128,10 +129,10 @@ export class OptimizedDataService {
       evidence_types: entity.evidence_types || [],
       spicy_passages: entity.spicy_passages || [],
       likelihood_score: entity.likelihood_score || 'LOW',
-      spice_score: entity.spice_score || entity.mentions || 0,
-      spice_rating: entity.spice_rating || 1,
-      spice_peppers: entity.spice_peppers || '🌶️',
-      spice_description: entity.spice_description || 'Low',
+      red_flag_score: entity.red_flag_score || entity.mentions || 0,
+      red_flag_rating: entity.red_flag_rating || 1,
+      red_flag_peppers: entity.red_flag_peppers || '🚩',
+      red_flag_description: entity.red_flag_description || 'Low',
       keyEvidence: entity.keyEvidence || 'No specific evidence available',
       fileReferences: entity.fileReferences || [],
       connectionsToEpstein: entity.connectionsToEpstein || 'Various connections mentioned in documents'

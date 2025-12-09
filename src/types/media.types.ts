@@ -1,0 +1,90 @@
+// TypeScript interfaces for media system
+
+export interface ExifData {
+  cameraMake?: string;
+  cameraModel?: string;
+  lens?: string;
+  focalLength?: string;
+  aperture?: string;
+  shutterSpeed?: string;
+  iso?: number;
+  latitude?: number;
+  longitude?: number;
+  colorProfile?: string;
+  orientation?: number;
+}
+
+export interface MediaImage {
+  id: number;
+  filename: string;
+  originalFilename: string;
+  path: string;
+  thumbnailPath?: string;
+  title?: string;
+  description?: string;
+  albumId?: number;
+  albumName?: string;
+  width?: number;
+  height?: number;
+  fileSize: number;
+  format: string;
+  dateTaken?: string;
+  dateAdded: string;
+  dateModified: string;
+  
+  // EXIF data
+  cameraMake?: string;
+  cameraModel?: string;
+  lens?: string;
+  focalLength?: string;
+  aperture?: string;
+  shutterSpeed?: string;
+  iso?: number;
+  latitude?: number;
+  longitude?: number;
+  colorProfile?: string;
+  orientation?: number;
+  
+  // Related data
+  tags?: string[];
+}
+
+export interface Album {
+  id: number;
+  name: string;
+  description?: string;
+  coverImageId?: number;
+  coverImagePath?: string;
+  imageCount?: number;
+  dateCreated: string;
+  dateModified: string;
+}
+
+export interface MediaTag {
+  id: number;
+  name: string;
+  category?: string;
+  dateCreated: string;
+}
+
+export interface ImageFilter {
+  albumId?: number;
+  tags?: string[];
+  format?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  searchQuery?: string;
+}
+
+export interface ImageSort {
+  field: 'date_taken' | 'date_added' | 'filename' | 'file_size' | 'title';
+  order: 'asc' | 'desc';
+}
+
+export interface MediaStats {
+  totalImages: number;
+  totalAlbums: number;
+  totalSize: number;
+  formatBreakdown: Record<string, number>;
+  albumBreakdown: Record<string, number>;
+}

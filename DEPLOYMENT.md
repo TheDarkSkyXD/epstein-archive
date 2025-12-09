@@ -26,6 +26,40 @@ This script will remove:
 - Node modules cache
 - Dist folder
 
+## Server Cleanup Procedures
+
+For production servers experiencing disk space issues, additional cleanup scripts are available:
+
+### Emergency Server Cleanup
+
+When the server is critically low on disk space, use the emergency cleanup script:
+
+```bash
+# Run the emergency server cleanup script
+./server-cleanup.sh
+```
+
+This script will:
+- Remove all but the 5 most recent backups
+- Remove all but the 3 most recent database backups
+- Clean up all log files and temporary files
+- Remove test artifacts and cache files
+
+### Periodic Maintenance Cleanup
+
+For ongoing server maintenance, use the periodic cleanup script:
+
+```bash
+# Run the periodic maintenance cleanup script
+./maintenance-cleanup.sh
+```
+
+This script performs the same operations as the emergency cleanup but is designed for scheduled execution.
+
+### Automated Cleanup Setup
+
+See `PERIODIC_CLEANUP_SETUP.md` for instructions on setting up automated cleanup using cron jobs.
+
 ## Production Build and Deployment
 
 For production deployment, use the build-and-deploy script:

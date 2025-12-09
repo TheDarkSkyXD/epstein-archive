@@ -15,6 +15,7 @@ import {
   Area
 } from 'recharts';
 import { Person } from '../types';
+import { TreeMap } from './TreeMap';
 
 interface DataVisualizationProps {
   people: Person[];
@@ -58,7 +59,8 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
   analyticsData,
   loading, 
   error, 
-  onRetry 
+  onRetry,
+  onPersonSelect
 }) => {
   const [stats, setStats] = useState({
     totalPeople: 0,
@@ -78,9 +80,9 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
         uniqueRoles: analyticsData.roleDistribution?.length || 0
       });
     } else if (people.length > 0) {
-      const highRisk = people.filter(p => p.spice_rating >= 4).length;
+      const highRisk = people.filter(p => (p.red_flag_rating ?? 0) >= 4).length;
       const totalMentions = people.reduce((acc, p) => acc + (p.mentions || 0), 0);
-      const avgSpice = people.reduce((acc, p) => acc + (p.spice_rating || 0), 0) / people.length;
+      const avgSpice = people.reduce((acc, p) => acc + (p.red_flag_rating || 0), 0) / people.length;
       
       const uniqueRoles = new Set<string>();
       people.forEach(p => {
@@ -124,9 +126,9 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
 
   // Prepare Data
   const riskDistribution = [
-    { name: 'High Risk (4-5)', value: people.filter(p => p.spice_rating >= 4).length, color: COLORS.HIGH },
-    { name: 'Medium Risk (2-3)', value: people.filter(p => p.spice_rating >= 2 && p.spice_rating < 4).length, color: COLORS.MEDIUM },
-    { name: 'Low Risk (0-1)', value: people.filter(p => p.spice_rating < 2).length, color: COLORS.LOW }
+    { name: 'High Risk (4-5)', value: people.filter(p => (p.red_flag_rating ?? 0) >= 4).length, color: COLORS.HIGH },
+    { name: 'Medium Risk (2-3)', value: people.filter(p => (p.red_flag_rating ?? 0) >= 2 && (p.red_flag_rating ?? 0) < 4).length, color: COLORS.MEDIUM },
+    { name: 'Low Risk (0-1)', value: people.filter(p => (p.red_flag_rating ?? 0) < 2).length, color: COLORS.LOW }
   ];
 
   const topEntities = people
@@ -135,7 +137,7 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
     .map(p => ({
       name: p.name,
       mentions: p.mentions,
-      spice: p.spice_rating
+      spice: p.red_flag_rating ?? 0
     }));
 
   return (
@@ -149,6 +151,11 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
           </div>
           <div className="text-3xl font-bold text-white">{stats.totalPeople.toLocaleString()}</div>
           <div className="text-xs text-slate-500 mt-2">Tracked individuals</div>
+          {/* Microcopy for Total Entities */}
+          <div className="text-xs text-slate-400 mt-3 flex items-start gap-1">
+            <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
+            <span>Individuals, organizations, and locations tracked in the database</span>
+          </div>
         </div>
 
         <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700 backdrop-blur-sm">
@@ -158,6 +165,11 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
           </div>
           <div className="text-3xl font-bold text-white">{stats.highRisk.toLocaleString()}</div>
           <div className="text-xs text-slate-500 mt-2">Red Flag Index 4+</div>
+          {/* Microcopy for High Risk Targets */}
+          <div className="text-xs text-slate-400 mt-3 flex items-start gap-1">
+            <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
+            <span>Individuals with strong evidence connections and significant mentions</span>
+          </div>
         </div>
 
         <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700 backdrop-blur-sm">
@@ -167,6 +179,11 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
           </div>
           <div className="text-3xl font-bold text-white">{stats.totalMentions.toLocaleString()}</div>
           <div className="text-xs text-slate-500 mt-2">Across all documents</div>
+          {/* Microcopy for Total Mentions */}
+          <div className="text-xs text-slate-400 mt-3 flex items-start gap-1">
+            <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
+            <span>Total references to entities across all documents in the archive</span>
+          </div>
         </div>
 
         <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700 backdrop-blur-sm">
@@ -176,34 +193,52 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
           </div>
           <div className="text-3xl font-bold text-white">{stats.avgSpice.toFixed(1)}</div>
           <div className="text-xs text-slate-500 mt-2">Average severity score</div>
+          {/* Microcopy for Avg Red Flag Index */}
+          <div className="text-xs text-slate-400 mt-3 flex items-start gap-1">
+            <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
+            <span>Average evidence strength score across all tracked entities</span>
+          </div>
         </div>
       </div>
 
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Top Entities Bar Chart */}
-        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700 backdrop-blur-sm">
-          <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+        {/* Top Entities Bar Chart - Enhanced */}
+        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700 backdrop-blur-sm hover:border-slate-600 transition-all">
+          <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2 flex-wrap">
             <Users className="h-5 w-5 text-blue-400" />
-            Most Mentioned Individuals
+            Top 20 Most Mentioned Individuals
           </h3>
-          <div className="h-[300px]">
+          {/* Microcopy for Top Entities Chart */}
+          <div className="text-xs text-slate-400 mb-4 flex items-start gap-1">
+            <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
+            <span>Individuals with the highest number of references across all documents</span>
+          </div>
+          <div className="h-[500px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={topEntities} layout="vertical" margin={{ left: 20 }}>
+              <BarChart data={topEntities.slice(0, 20)} layout="vertical" margin={{ left: 20, right: 20 }}>
+                <defs>
+                  {topEntities.slice(0, 20).map((entry, index) => (
+                    <linearGradient key={`gradient-${index}`} id={`barGradient-${index}`} x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor={entry.spice >= 5 ? '#ec4899' : entry.spice >= 4 ? '#ef4444' : entry.spice >= 3 ? '#8b5cf6' : entry.spice >= 2 ? '#3b82f6' : '#06b6d4'} stopOpacity={0.8} />
+                      <stop offset="100%" stopColor={entry.spice >= 5 ? '#be185d' : entry.spice >= 4 ? '#dc2626' : entry.spice >= 3 ? '#6d28d9' : entry.spice >= 2 ? '#1d4ed8' : '#0e7490'} stopOpacity={1} />
+                    </linearGradient>
+                  ))}
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={false} />
                 <XAxis type="number" stroke="#94a3b8" fontSize={12} />
                 <YAxis 
                   dataKey="name" 
                   type="category" 
                   stroke="#94a3b8" 
-                  fontSize={12} 
-                  width={120}
+                  fontSize={11} 
+                  width={140}
                   tick={{ fill: '#e2e8f0' }}
                 />
                 <Tooltip content={<CustomTooltip />} cursor={{ fill: '#334155', opacity: 0.4 }} />
-                <Bar dataKey="mentions" fill="#3b82f6" radius={[0, 4, 4, 0]}>
-                  {topEntities.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.spice >= 4 ? COLORS.HIGH : COLORS.primary} />
+                <Bar dataKey="mentions" radius={[0, 8, 8, 0]} animationDuration={800}>
+                  {topEntities.slice(0, 20).map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={`url(#barGradient-${index})`} />
                   ))}
                 </Bar>
               </BarChart>
@@ -212,20 +247,25 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
         </div>
 
         {/* Risk Distribution Pie Chart */}
-        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700 backdrop-blur-sm">
+        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700 backdrop-blur-sm hover:border-slate-600 transition-all">
           <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-orange-400" />
             Risk Level Distribution
           </h3>
-          <div className="h-[300px]">
+          {/* Microcopy for Risk Distribution Chart */}
+          <div className="text-xs text-slate-400 mb-4 flex items-start gap-1">
+            <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
+            <span>Distribution of entities across risk levels based on evidence connections</span>
+          </div>
+          <div className="h-[500px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={riskDistribution}
                   cx="50%"
                   cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
+                  innerRadius={80}
+                  outerRadius={140}
                   paddingAngle={5}
                   dataKey="value"
                 >
@@ -238,6 +278,21 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
             </ResponsiveContainer>
           </div>
         </div>
+      </div>
+
+      {/* Interactive Tree Map */}
+      <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700 backdrop-blur-sm hover:border-slate-600 transition-all">
+        <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2 flex-wrap">
+          <Activity className="h-5 w-5 text-purple-400" />
+          Interactive Entity Tree Map
+          <span className="text-xs text-slate-400 font-normal ml-2">(Top 50 by mentions - hover for details, click to view)</span>
+        </h3>
+        {/* Microcopy for Tree Map */}
+        <div className="text-xs text-slate-400 mb-4 flex items-start gap-1">
+          <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
+          <span>Visual representation of entities sized by mention frequency. Click to view entity details.</span>
+        </div>
+        <TreeMap people={people} onPersonClick={onPersonSelect} />
       </div>
 
       {/* Summary Statistics */}

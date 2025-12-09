@@ -6,6 +6,8 @@ interface RedFlagIndexProps {
   showLabel?: boolean;
   showDescription?: boolean;
   showLegend?: boolean;
+  variant?: 'emoji' | 'text' | 'icon' | 'combined'; // Added combined variant
+  showTextLabel?: boolean; // New prop for color-blind friendly text labels
 }
 
 const sizeClasses = {
@@ -14,15 +16,7 @@ const sizeClasses = {
   lg: 'text-base'
 };
 
-const descriptions = {
-  0: 'No Red Flags',
-  1: 'Minor Concerns',
-  2: 'Moderate Red Flags',
-  3: 'Significant Red Flags',
-  4: 'High Red Flags',
-  5: 'Critical Red Flags'
-};
-
+// Consistent color scale for all risk levels with better contrast
 const colors = {
   0: 'text-gray-400',
   1: 'text-yellow-400',
@@ -32,34 +26,96 @@ const colors = {
   5: 'text-pink-500'
 };
 
+// Standardized labels for consistency
+const descriptions = {
+  0: 'No Red Flags',
+  1: 'Minor Concerns',
+  2: 'Moderate Red Flags',
+  3: 'Significant Red Flags',
+  4: 'High Red Flags',
+  5: 'Critical Red Flags'
+};
+
+// Risk categories for legend
+const riskCategories = {
+  0: 'Background noise',
+  1: 'Background noise',
+  2: 'Relevant',
+  3: 'Relevant',
+  4: 'Critical attention',
+  5: 'Critical attention'
+};
+
+// Text-based representations for accessibility
+const textLabels = {
+  0: 'None',
+  1: 'Low',
+  2: 'Medium',
+  3: 'High',
+  4: 'Very High',
+  5: 'Critical'
+};
+
 export const RedFlagIndex: React.FC<RedFlagIndexProps> = ({ 
   value, 
   size = 'md',
   showLabel = false,
   showDescription = false,
-  showLegend = false
+  showLegend = false,
+  variant = 'emoji', // Default to emoji for backward compatibility
+  showTextLabel = false // New prop for color-blind friendly text labels
 }) => {
   const normalizedValue = Math.max(0, Math.min(5, Math.round(value)));
-  const peppers = normalizedValue > 0 ? '🚩'.repeat(normalizedValue) : '⚪';
   const description = descriptions[normalizedValue as keyof typeof descriptions];
   const colorClass = colors[normalizedValue as keyof typeof colors];
+  const textLabel = textLabels[normalizedValue as keyof typeof textLabels];
+  const riskCategory = riskCategories[normalizedValue as keyof typeof riskCategories];
 
-  const getRiskCategory = (val: number) => {
-    if (val <= 1) return 'Background noise';
-    if (val <= 3) return 'Relevant';
-    return 'Critical attention';
+  // Show white flag for 0, red flags for 1-5
+  const peppers = normalizedValue > 0 ? '🚩'.repeat(normalizedValue) : '🏳️';
+
+  // Render based on variant
+  const renderContent = () => {
+    switch (variant) {
+      case 'text':
+        return (
+          <span className={`${sizeClasses[size]} font-medium`} aria-label={`${description} - Risk Level: ${textLabel}`}>
+            {textLabel}
+          </span>
+        );
+      case 'icon':
+        return (
+          <span className={`${sizeClasses[size]} ${colorClass}`} aria-hidden="true">
+            {peppers}
+          </span>
+        );
+      case 'combined':
+        return (
+          <div className="inline-flex items-center gap-1">
+            <span className={`${sizeClasses[size]} ${colorClass}`} aria-hidden="true">
+              {peppers}
+            </span>
+            {showTextLabel && (
+              <span className={`${sizeClasses[size]} font-medium`} aria-label={`${description} - Risk Level: ${textLabel}`}>
+                {textLabel}
+              </span>
+            )}
+          </div>
+        );
+      case 'emoji':
+      default:
+        return (
+          <span className={`${sizeClasses[size]} ${colorClass}`} aria-hidden="true">
+            {peppers}
+          </span>
+        );
+    }
   };
 
   return (
     <div className="inline-flex flex-col">
       <div className="inline-flex items-center gap-2">
-        <span 
-          className={`${sizeClasses[size]} ${colorClass}`}
-          title={`Red Flag Index: ${normalizedValue}/5 - ${description}`}
-          aria-label={`Red Flag Index: ${normalizedValue} out of 5 - ${description}`}
-        >
-          {peppers}
-        </span>
+        {renderContent()}
         {showLabel && (
           <span className={`${sizeClasses[size]} text-gray-400`}>
             {normalizedValue}/5
@@ -73,7 +129,7 @@ export const RedFlagIndex: React.FC<RedFlagIndexProps> = ({
       </div>
       {showLegend && (
         <div className="mt-1 text-xs text-gray-500">
-          {getRiskCategory(normalizedValue)}
+          {riskCategory}
         </div>
       )}
     </div>

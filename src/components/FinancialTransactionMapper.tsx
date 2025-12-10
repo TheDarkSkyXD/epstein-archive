@@ -35,7 +35,11 @@ interface FinancialPattern {
   severity: 'low' | 'medium' | 'high' | 'critical';
 }
 
-export default function FinancialTransactionMapper() {
+interface FinancialTransactionMapperProps {
+  investigationId?: string | number;
+}
+
+export default function FinancialTransactionMapper({ investigationId }: FinancialTransactionMapperProps = {}) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [flowAnalysis, setFlowAnalysis] = useState<TransactionFlow[]>([]);
@@ -45,156 +49,65 @@ export default function FinancialTransactionMapper() {
   const [filterAmount, setFilterAmount] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock Epstein financial data
+  // Fetch real transaction data from API
   useEffect(() => {
-    const mockTransactions: Transaction[] = [
-      {
-        id: 'tx-001',
-        fromEntity: 'Jeffrey Epstein',
-        toEntity: 'Ghislaine Maxwell',
-        amount: 15000000,
-        currency: 'USD',
-        date: '2004-03-15',
-        type: 'transfer',
-        method: 'wire',
-        riskLevel: 'critical',
-        description: 'Large transfer to co-conspirator',
-        suspiciousIndicators: ['Large amount', 'Co-conspirator', 'No clear business purpose'],
-        sourceDocuments: ['wire-transfer-001.pdf', 'bank-statement-2004.pdf']
-      },
-      {
-        id: 'tx-002',
-        fromEntity: 'Epstein Virgin Islands Trust',
-        toEntity: 'Southern Trust Company',
-        amount: 8500000,
-        currency: 'USD',
-        date: '2006-08-22',
-        type: 'investment',
-        method: 'wire',
-        riskLevel: 'high',
-        description: 'Investment in shell company',
-        suspiciousIndicators: ['Shell company', 'Offshore jurisdiction', 'Complex ownership'],
-        sourceDocuments: ['trust-documents.pdf', 'company-registration.pdf']
-      },
-      {
-        id: 'tx-003',
-        fromEntity: 'Leslie Wexner',
-        toEntity: 'Jeffrey Epstein',
-        amount: 47000000,
-        currency: 'USD',
-        date: '2008-11-03',
-        type: 'payment',
-        method: 'wire',
-        riskLevel: 'high',
-        description: 'Property transaction - below market value',
-        suspiciousIndicators: ['Below market value', 'High-profile individual', 'Questionable timing'],
-        sourceDocuments: ['property-deed.pdf', 'appraisal-report.pdf']
-      },
-      {
-        id: 'tx-004',
-        fromEntity: 'Jeffrey Epstein',
-        toEntity: 'Bank Leumi (Israel)',
-        amount: 25000000,
-        currency: 'USD',
-        date: '2010-06-18',
-        type: 'transfer',
-        method: 'wire',
-        riskLevel: 'critical',
-        description: 'Offshore account funding',
-        suspiciousIndicators: ['Large amount', 'Offshore bank', 'Secrecy jurisdiction'],
-        sourceDocuments: ['wire-instructions.pdf', 'account-opening.pdf']
-      },
-      {
-        id: 'tx-005',
-        fromEntity: 'Epstein Interests LLC',
-        toEntity: 'Ghislaine Maxwell',
-        amount: 2500000,
-        currency: 'USD',
-        date: '2012-09-07',
-        type: 'payment',
-        method: 'check',
-        riskLevel: 'medium',
-        description: 'Consulting payment',
-        suspiciousIndicators: ['Vague description', 'Related party', 'Round number'],
-        sourceDocuments: ['invoice-2012-09.pdf', 'check-image.pdf']
-      },
-      {
-        id: 'tx-006',
-        fromEntity: 'Jeffrey Epstein',
-        toEntity: 'Jean-Luc Brunel',
-        amount: 1000000,
-        currency: 'USD',
-        date: '2014-12-14',
-        type: 'payment',
-        method: 'wire',
-        riskLevel: 'high',
-        description: 'Modeling agency investment',
-        suspiciousIndicators: ['Associated with trafficking', 'Foreign national', 'Cash-intensive business'],
-        sourceDocuments: ['modeling-contract.pdf', 'wire-receipt.pdf']
-      },
-      {
-        id: 'tx-007',
-        fromEntity: 'Cypress Trust Company',
-        toEntity: 'Jeffrey Epstein',
-        amount: 12000000,
-        currency: 'USD',
-        date: '2015-04-22',
-        type: 'loan',
-        method: 'wire',
-        riskLevel: 'high',
-        description: 'Loan repayment - suspicious circular flow',
-        suspiciousIndicators: ['Circular transaction', 'Shell company', 'No interest terms'],
-        sourceDocuments: ['loan-agreement.pdf', 'repayment-schedule.pdf']
-      },
-      {
-        id: 'tx-008',
-        fromEntity: 'Jeffrey Epstein',
-        toEntity: 'Sarah Kellen',
-        amount: 750000,
-        currency: 'USD',
-        date: '2016-07-30',
-        type: 'payment',
-        method: 'wire',
-        riskLevel: 'medium',
-        description: 'Assistant salary payment',
-        suspiciousIndicators: ['High salary', 'Personal assistant', 'Cash payments'],
-        sourceDocuments: ['employment-contract.pdf', 'payroll-records.pdf']
-      },
-      {
-        id: 'tx-009',
-        fromEntity: 'Epstein Aviation LLC',
-        toEntity: 'Air Traffic Control Services',
-        amount: 150000,
-        currency: 'USD',
-        date: '2017-03-12',
-        type: 'payment',
-        method: 'check',
-        riskLevel: 'low',
-        description: 'Aviation services payment',
-        suspiciousIndicators: ['Legitimate business expense'],
-        sourceDocuments: ['aviation-invoice.pdf', 'flight-logs.pdf']
-      },
-      {
-        id: 'tx-010',
-        fromEntity: 'Jeffrey Epstein',
-        toEntity: 'Prince Andrew',
-        amount: 15000,
-        currency: 'USD',
-        date: '2019-01-05',
-        type: 'payment',
-        method: 'check',
-        riskLevel: 'medium',
-        description: 'Charity donation',
-        suspiciousIndicators: ['High-profile individual', 'Reputation management', 'Small amount'],
-        sourceDocuments: ['charity-receipt.pdf', 'thank-you-letter.pdf']
+    const fetchTransactions = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        // Use investigation-specific endpoint if ID provided, else global endpoint
+        const endpoint = investigationId 
+          ? `/api/investigations/${investigationId}/transactions`
+          : '/api/financial/transactions';
+        
+        const response = await fetch(endpoint);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch transactions');
+        }
+        
+        const data = await response.json();
+        
+        if (data && data.length > 0) {
+          // Map API response to Transaction interface
+          const mappedTransactions: Transaction[] = data.map((tx: any) => ({
+            id: `tx-${tx.id}`,
+            fromEntity: tx.from_entity,
+            toEntity: tx.to_entity,
+            amount: tx.amount,
+            currency: tx.currency || 'USD',
+            date: tx.transaction_date || '',
+            type: tx.transaction_type || 'transfer',
+            method: tx.method || 'wire',
+            riskLevel: tx.risk_level || 'medium',
+            description: tx.description || '',
+            suspiciousIndicators: tx.suspiciousIndicators || [],
+            sourceDocuments: tx.sourceDocumentIds || []
+          }));
+          
+          setTransactions(mappedTransactions);
+          analyzeTransactionFlows(mappedTransactions);
+          detectFinancialPatterns(mappedTransactions);
+        } else {
+          setTransactions([]);
+          setFlowAnalysis([]);
+          setDetectedPatterns([]);
+        }
+      } catch (err) {
+        console.error('Error fetching transactions:', err);
+        setError('Failed to load transaction data');
+        setTransactions([]);
+      } finally {
+        setLoading(false);
       }
-    ];
+    };
 
-    setTransactions(mockTransactions);
-    analyzeTransactionFlows(mockTransactions);
-    detectFinancialPatterns(mockTransactions);
-  }, []);
+    fetchTransactions();
+  }, [investigationId]);
 
   const analyzeTransactionFlows = (transactions: Transaction[]) => {
     const entityMap = new Map<string, TransactionFlow>();
@@ -560,12 +473,12 @@ export default function FinancialTransactionMapper() {
                   >
                     <div className="flex flex-col gap-2">
                       <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-2">
-                          <User className="w-4 h-4 text-gray-400" />
-                          <span className="font-medium text-gray-100 break-words max-w-[150px]" title={transaction.fromEntity}>{transaction.fromEntity}</span>
-                          <TrendingDown className="w-4 h-4 text-red-400" />
-                          <User className="w-4 h-4 text-gray-400" />
-                          <span className="font-medium text-gray-100 break-words max-w-[150px]" title={transaction.toEntity}>{transaction.toEntity}</span>
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <User className="w-4 h-4 text-gray-400 shrink-0" />
+                          <span className="font-medium text-gray-100 whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px]" title={transaction.fromEntity}>{transaction.fromEntity}</span>
+                          <TrendingDown className="w-4 h-4 text-red-400 shrink-0" />
+                          <User className="w-4 h-4 text-gray-400 shrink-0" />
+                          <span className="font-medium text-gray-100 whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px]" title={transaction.toEntity}>{transaction.toEntity}</span>
                         </div>
                         <div className="flex items-center gap-1" title={`Risk Level: ${transaction.riskLevel.toUpperCase()}`}>
                           {transaction.riskLevel === 'critical' && <ShieldAlert className="w-5 h-5 text-red-400" />}
@@ -650,9 +563,9 @@ export default function FinancialTransactionMapper() {
                       </span>
                     </div>
                     <div className="grid grid-cols-3 gap-1 text-xs text-gray-400">
-                      <div className="truncate" title={`In: ${formatCurrency(flow.inflow)}`}>In: {formatCurrency(flow.inflow)}</div>
-                      <div className="truncate" title={`Out: ${formatCurrency(flow.outflow)}`}>Out: {formatCurrency(flow.outflow)}</div>
-                      <div className="truncate" title={`Net: ${formatCurrency(Math.abs(flow.netFlow))}`}>Net: {formatCurrency(Math.abs(flow.netFlow))}</div>
+                      <div className="whitespace-nowrap overflow-hidden text-ellipsis" title={`In: ${formatCurrency(flow.inflow)}`}>In: {formatCurrency(flow.inflow)}</div>
+                      <div className="whitespace-nowrap overflow-hidden text-ellipsis" title={`Out: ${formatCurrency(flow.outflow)}`}>Out: {formatCurrency(flow.outflow)}</div>
+                      <div className="whitespace-nowrap overflow-hidden text-ellipsis" title={`Net: ${formatCurrency(Math.abs(flow.netFlow))}`}>Net: {formatCurrency(Math.abs(flow.netFlow))}</div>
                     </div>
                     <div className="text-xs text-gray-500 mt-1 truncate">
                       {flow.transactionCount} tx • {flow.connections.length} conn

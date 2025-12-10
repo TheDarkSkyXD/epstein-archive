@@ -26,6 +26,16 @@ interface MediaTabProps {
   // Props can be added as needed
 }
 
+// Helper function to format file size
+const formatFileSize = (bytes: number): string => {
+  if (!bytes || isNaN(bytes)) return '';
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+};
+
 export const MediaTab: React.FC<MediaTabProps> = () => {
   const [activeTab, setActiveTab] = useState<'evidence' | 'photos'>('evidence');
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
@@ -44,10 +54,11 @@ export const MediaTab: React.FC<MediaTabProps> = () => {
         setLoading(true);
         
         // Fetch media items from API
-        const response = await apiClient.get<any[]>('/api/media/images');
+        const response = await apiClient.get<any>('/api/media/images');
+        const data = response?.data || response;
         
-        if (response && Array.isArray(response.data)) {
-          const mediaItems: MediaItem[] = response.data.map((item: any) => ({
+        if (data && Array.isArray(data)) {
+          const mediaItems: MediaItem[] = data.map((item: any) => ({
             id: item.id.toString(),
             type: item.format && (item.format.toLowerCase() === 'mp4' || item.format.toLowerCase() === 'mov' || item.format.toLowerCase() === 'avi') ? 'video' : 'image',
             url: item.path || item.filePath || '',
@@ -59,7 +70,11 @@ export const MediaTab: React.FC<MediaTabProps> = () => {
             spiceRating: item.redFlagRating || item.spice_rating || 1,
             relatedEntities: [], // Would need to fetch related entities separately
             dateAdded: new Date(item.date_added || item.createdAt || Date.now()),
-            metadata: item.metadata || {}
+            metadata: {
+              resolution: item.width && item.height ? `${item.width}x${item.height}` : item.resolution,
+              duration: item.duration,
+              fileSize: item.file_size ? formatFileSize(item.file_size) : (item.fileSize || undefined)
+            }
           }));
           
           setMediaItems(mediaItems);
@@ -344,14 +359,41 @@ export const MediaTab: React.FC<MediaTabProps> = () => {
               onClick={() => setSelectedItem(item)}
             >
               {/* Thumbnail */}
-              <div className="relative aspect-video bg-slate-900">
-                {item.type === 'video' ? (
+              <div className="relative aspect-video bg-slate-900 overflow-hidden">
+                {item.thumbnail ? (
+                  <img 
+                    src={item.thumbnail.startsWith('/') ? item.thumbnail : `/${item.thumbnail}`}
+                    alt={item.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    onError={(e) => {
+                      // Fallback to icon if image fails
+                      (e.target as HTMLImageElement).style.display = 'none';
+                      const parent = (e.target as HTMLImageElement).parentElement;
+                      if (parent) {
+                        const icon = document.createElement('div');
+                        icon.className = 'absolute inset-0 flex items-center justify-center';
+                        icon.innerHTML = item.type === 'video' 
+                          ? '<svg class="h-16 w-16 text-slate-600" viewBox="0 0 24 24"><path fill="currentColor" d="M4 4h16v16H4z"/></svg>'
+                          : '<svg class="h-16 w-16 text-slate-600" viewBox="0 0 24 24"><rect fill="currentColor" x="3" y="3" width="18" height="18"/></svg>';
+                        parent.appendChild(icon);
+                      }
+                    }}
+                  />
+                ) : item.type === 'video' ? (
                   <div className="absolute inset-0 flex items-center justify-center">
                     <Video className="h-16 w-16 text-slate-600 group-hover:text-blue-500 transition-colors" />
                   </div>
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center">
                     <Image className="h-16 w-16 text-slate-600 group-hover:text-blue-500 transition-colors" />
+                  </div>
+                )}
+                {/* Play button overlay for videos */}
+                {item.type === 'video' && item.thumbnail && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-colors">
+                    <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
+                      <Video className="h-8 w-8 text-white" />
+                    </div>
                   </div>
                 )}
                 <div className="absolute top-2 right-2">

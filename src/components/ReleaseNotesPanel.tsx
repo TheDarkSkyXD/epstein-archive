@@ -26,6 +26,41 @@ export const ReleaseNotesPanel: React.FC<ReleaseNotesPanelProps> = ({
 }) => {
   const allReleaseNotes = [
     {
+      version: 'v4.6.0',
+      date: 'December 10, 2025',
+      title: 'Mobile Perfection & Analytics Power',
+      notes: [
+        'Interactive Mobile Stats: Stats cards are now clickable navigation buttons',
+        'Smart Tooltips: Fixed mobile overflow with intelligent "bottom-end" positioning',
+        'Media Metadata: Fixed "NaN MB" / "Unknown" dates in photo browser',
+        'Performance: Optimized thumbnail loading and image display',
+        'Analytics: Verified data flow and increased network visualization limit to 100 nodes',
+        'UI Polish: Removed redundant mobile search and fixed header alignment'
+      ]
+    },
+    {
+      version: 'v4.5.0',
+      date: 'December 9, 2025',
+      title: 'Smart OCR Paragraph Reconstruction',
+      notes: [
+        'Implemented heuristic algorithm to reconstruct logical paragraphs from broken OCR lines',
+        'Fixed "wall of text" readability issues by correctly handling newlines',
+        'Preserved list items, headers, and bullet points during text cleanup',
+        'Enhanced readability of historical documents with proper spacing'
+      ]
+    },
+    {
+      version: 'v4.4.0',
+      date: 'December 9, 2025',
+      title: 'Unified Document Rendering & OCR Prettifier',
+      notes: [
+        'Unified Document Content Renderer: Consistent specialized views for Emails, Spreadsheets, and Images across Browser and Modal',
+        'OCR Text Prettifier: Toggle between raw and cleaned text for better readability',
+        'Enhanced Email and Financial document support in full-screen modal',
+        'Improved image viewer with OCR text extraction details'
+      ]
+    },
+    {
       version: 'v4.2.0',
       date: 'December 9, 2025',
       title: 'Mobile UX Overhaul & Data Validation',

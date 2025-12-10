@@ -158,6 +158,8 @@
   transition: all 0.3s ease;
   text-align: left;
   width: 100%;
+  gap: 0.5rem;
+  overflow: hidden;
 }
 
 .album-item:hover {
@@ -173,6 +175,11 @@
 
 .album-name {
   font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
 }
 
 .album-count {
@@ -180,6 +187,8 @@
   padding: 0.25rem 0.5rem;
   border-radius: 12px;
   font-size: 0.85rem;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 /* Images Container */

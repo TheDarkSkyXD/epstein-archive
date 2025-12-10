@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Phone, Mail, MapPin, User, Book } from 'lucide-react';
+import { Search, Phone, Mail, MapPin, User, Book, Eye, FileText } from 'lucide-react';
+import { prettifyOCRText, extractCleanName, formatPhoneNumber } from '../utils/prettifyOCR';
 
 interface BlackBookEntry {
   id: number;
@@ -21,6 +22,7 @@ export const BlackBookViewer: React.FC = () => {
   const [hasPhone, setHasPhone] = useState<boolean>(false);
   const [hasEmail, setHasEmail] = useState<boolean>(false);
   const [hasAddress, setHasAddress] = useState<boolean>(false);
+  const [showRaw, setShowRaw] = useState<boolean>(false);
 
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
@@ -87,7 +89,7 @@ export const BlackBookViewer: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center space-x-3">
           <Book className="w-8 h-8 text-cyan-400" />
           <div>
@@ -97,6 +99,20 @@ export const BlackBookViewer: React.FC = () => {
             </p>
           </div>
         </div>
+        
+        {/* Pretty/Raw Toggle */}
+        <button
+          onClick={() => setShowRaw(!showRaw)}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+            showRaw 
+              ? 'bg-slate-700 text-slate-300 border border-slate-600' 
+              : 'bg-cyan-600 text-white border border-cyan-500'
+          }`}
+          title={showRaw ? 'Showing raw OCR text' : 'Showing cleaned text'}
+        >
+          {showRaw ? <FileText className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          <span className="text-sm font-medium">{showRaw ? 'Raw OCR' : 'Pretty'}</span>
+        </button>
       </div>
 
       {/* Search Bar */}
@@ -160,7 +176,8 @@ export const BlackBookViewer: React.FC = () => {
       {/* Entries Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredEntries.map(entry => {
-          const name = entry.person_name || extractName(entry.entry_text);
+          const rawName = entry.person_name || extractName(entry.entry_text);
+          const displayName = showRaw ? rawName : extractCleanName(entry.entry_text) || rawName;
           
           return (
             <div
@@ -170,7 +187,7 @@ export const BlackBookViewer: React.FC = () => {
               {/* Name */}
               <div className="flex items-center space-x-2 mb-3">
                 <User className="w-5 h-5 text-cyan-400" />
-                <h3 className="text-lg font-semibold text-white">{name}</h3>
+                <h3 className="text-lg font-semibold text-white">{displayName}</h3>
               </div>
 
               {/* Contact Info */}
@@ -182,7 +199,7 @@ export const BlackBookViewer: React.FC = () => {
                     <div className="flex-1">
                       {entry.phone_numbers.map((phone, idx) => (
                         <div key={idx} className="text-sm text-slate-300">
-                          {phone}
+                          {showRaw ? phone : formatPhoneNumber(phone)}
                         </div>
                       ))}
                     </div>

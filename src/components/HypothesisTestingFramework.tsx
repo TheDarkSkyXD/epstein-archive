@@ -3,10 +3,12 @@ import { Target, Plus, Edit3, Trash2, Link, TrendingUp, Calendar, User, FileText
 import { EvidenceItem, Hypothesis as BaseHypothesis } from '../types/investigation';
 
 // Extended Hypothesis type with additional fields for testing
-interface Hypothesis extends BaseHypothesis {
+// Extended Hypothesis type with additional fields for testing
+interface Hypothesis extends Omit<BaseHypothesis, 'status'> {
   status: 'draft' | 'testing' | 'supported' | 'refuted' | 'revised' | BaseHypothesis['status'];
   evidenceLinks: EvidenceLink[];
   revisions: HypothesisRevision[];
+  updatedAt: Date;
 }
 
 interface EvidenceLink {
@@ -58,26 +60,60 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
     notes: ''
   });
 
-  // Initialize with a default hypothesis if provided
+  // Fetch hypotheses from API on mount
   useEffect(() => {
-    if (initialHypothesis && hypotheses.length === 0) {
-      const defaultHypothesis: Hypothesis = {
-        id: 'hyp-1',
-        title: 'Initial Investigation Hypothesis',
-        description: initialHypothesis,
-        status: 'testing',
-        confidence: 50,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        createdBy: 'CurrentUser',
-        evidenceLinks: [],
-        revisions: []
-      };
-      setHypotheses([defaultHypothesis]);
-      setActiveHypothesis(defaultHypothesis);
-      onHypothesesUpdate([defaultHypothesis]);
+    const fetchHypotheses = async () => {
+      try {
+        const response = await fetch(`/api/investigations/${investigationId}/hypotheses`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.length > 0) {
+            const loadedHypotheses: Hypothesis[] = data.map((h: any) => ({
+              id: `hyp-${h.id}`,
+              title: h.title,
+              description: h.description || '',
+              status: h.status || 'proposed',
+              confidence: h.confidence || 50,
+              createdAt: new Date(h.created_at || Date.now()),
+              updatedAt: new Date(h.updated_at || Date.now()),
+              createdBy: 'System',
+              evidenceLinks: [],
+              revisions: []
+            }));
+            setHypotheses(loadedHypotheses);
+            setActiveHypothesis(loadedHypotheses[0]);
+            onHypothesesUpdate(loadedHypotheses);
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching hypotheses:', error);
+      }
+      
+      // Fallback: If no hypotheses from API and we have an initialHypothesis, create one
+      if (initialHypothesis && hypotheses.length === 0) {
+        const defaultHypothesis: Hypothesis = {
+          id: 'hyp-1',
+          title: 'Initial Investigation Hypothesis',
+          description: initialHypothesis,
+          status: 'testing',
+          confidence: 50,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          createdBy: 'CurrentUser',
+          evidenceLinks: [],
+          revisions: []
+        };
+        setHypotheses([defaultHypothesis]);
+        setActiveHypothesis(defaultHypothesis);
+        onHypothesesUpdate([defaultHypothesis]);
+      }
+    };
+    
+    if (investigationId) {
+      fetchHypotheses();
     }
-  }, [initialHypothesis, hypotheses.length]);
+  }, [investigationId]);
 
   const createHypothesis = () => {
     if (!newHypothesis.title.trim()) return;
@@ -262,7 +298,8 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
             className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            <span>New Hypothesis</span>
+            <span className="hidden sm:inline">New Hypothesis</span>
+            <span className="sm:hidden">New</span>
           </button>
         </div>
         <p className="text-slate-400 mt-2">

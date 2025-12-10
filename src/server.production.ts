@@ -36,7 +36,20 @@ app.use((req, res, next) => {
 // Serve static frontend from dist
 const distPath = path.join(process.cwd(), 'dist');
 if (fs.existsSync(distPath)) {
-  app.use(express.static(distPath));
+  // Serve static frontend from dist
+  app.use(express.static(distPath, {
+    setHeaders: (res, path) => {
+      // Don't cache index.html to ensure updates are seen immediately
+      if (path.endsWith('index.html')) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+      } else {
+        // Cache other assets (they have hash chunks)
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      }
+    }
+  }));
 }
 // Serve project data (images) statically
 const dataPath = path.join(process.cwd(), 'data');
@@ -831,6 +844,61 @@ app.get('/api/media/images/:id/file', async (req, res, next) => {
     next(error);
   }
 });
+
+// Get thumbnail for an image (smaller, faster loading)
+app.get('/api/media/images/:id/thumbnail', async (req, res, next) => {
+  try {
+    const imageId = parseInt(req.params.id);
+    if (isNaN(imageId)) {
+      return res.status(400).json({ error: 'Invalid image ID' });
+    }
+    const image = mediaService.getImageById(imageId);
+    if (!image) {
+      return res.status(404).json({ error: 'Image not found' });
+    }
+    
+    // Check for thumbnail path first
+    const thumbnailPath = ((image as any).thumbnail_path || '').toString();
+    let absPath = '';
+    
+    if (thumbnailPath && thumbnailPath.includes('thumbnails')) {
+      // Use the thumbnail
+      if (thumbnailPath.startsWith('/data/')) {
+        absPath = path.join(process.cwd(), thumbnailPath);
+      } else if (thumbnailPath.startsWith('data/')) {
+        absPath = path.join(process.cwd(), thumbnailPath);
+      } else {
+        absPath = path.join(process.cwd(), 'data', thumbnailPath);
+      }
+    }
+    
+    // Fall back to original image if thumbnail doesn't exist
+    if (!absPath || !fs.existsSync(absPath)) {
+      const p = ((image as any).path || (image as any).file_path || '').toString();
+      if (p.startsWith('/data/')) {
+        absPath = path.join(process.cwd(), p);
+      } else if (p.startsWith('data/')) {
+        absPath = path.join(process.cwd(), p);
+      } else {
+        absPath = path.join(process.cwd(), 'data', p);
+      }
+    }
+    
+    if (!absPath || !fs.existsSync(absPath)) {
+      return res.status(404).json({ error: 'Thumbnail not found' });
+    }
+    
+    // Set cache headers for thumbnails
+    res.set({
+      'Cache-Control': 'public, max-age=31536000',
+      'Content-Type': 'image/jpeg'
+    });
+    res.sendFile(absPath);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Search images
 app.get('/api/media/search', async (req, res, next) => {
   try {
@@ -995,11 +1063,21 @@ app.post('/api/investigations', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-app.get('/api/investigations/:id', async (req, res, next) => {
+// Get investigation by ID or UUID (for shareable URLs)
+app.get('/api/investigations/:idOrUuid', async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) return res.status(400).json({ error: 'Invalid investigation ID' });
-    const inv = await invService.getInvestigationById(id);
+    const param = req.params.idOrUuid;
+    let inv;
+    
+    // Check if param is numeric ID or UUID string
+    const numericId = parseInt(param);
+    if (!isNaN(numericId) && param === numericId.toString()) {
+      inv = await invService.getInvestigationById(numericId);
+    } else {
+      // Treat as UUID
+      inv = await invService.getInvestigationByUuid(param);
+    }
+    
     if (!inv) return res.status(404).json({ error: 'Investigation not found' });
     res.json(inv);
   } catch (e) { next(e); }
@@ -1062,8 +1140,127 @@ app.get('/api/investigations/:id/evidence', async (req, res, next) => {
   try {
     const id = parseInt(req.params.id);
     const db = databaseService.getDatabase();
-    const rows = db.prepare('SELECT * FROM evidence_items WHERE investigation_id = ? ORDER BY created_at DESC').all(id) as any[];
+    const rows = db.prepare('SELECT * FROM investigation_evidence WHERE investigation_id = ? ORDER BY id DESC').all(id) as any[];
     res.json(rows);
+  } catch (e) { next(e); }
+});
+
+// Get financial transactions for an investigation
+app.get('/api/investigations/:id/transactions', async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { riskLevel, type, minAmount, maxAmount } = req.query;
+    const db = databaseService.getDatabase();
+    
+    let query = 'SELECT * FROM financial_transactions WHERE investigation_id = ?';
+    const params: any[] = [id];
+    
+    if (riskLevel && riskLevel !== 'all') {
+      query += ' AND risk_level = ?';
+      params.push(riskLevel);
+    }
+    if (type && type !== 'all') {
+      query += ' AND transaction_type = ?';
+      params.push(type);
+    }
+    if (minAmount) {
+      query += ' AND amount >= ?';
+      params.push(parseFloat(minAmount as string));
+    }
+    if (maxAmount) {
+      query += ' AND amount <= ?';
+      params.push(parseFloat(maxAmount as string));
+    }
+    
+    query += ' ORDER BY amount DESC';
+    
+    const rows = db.prepare(query).all(...params) as any[];
+    
+    // Parse JSON fields
+    const transactions = rows.map(row => ({
+      ...row,
+      suspiciousIndicators: row.suspicious_indicators ? JSON.parse(row.suspicious_indicators) : [],
+      sourceDocumentIds: row.source_document_ids ? JSON.parse(row.source_document_ids) : []
+    }));
+    
+    res.json(transactions);
+  } catch (e) { next(e); }
+});
+
+// Get all financial transactions (for global financial analysis)
+app.get('/api/financial/transactions', async (req, res, next) => {
+  try {
+    const { riskLevel, limit } = req.query;
+    const db = databaseService.getDatabase();
+    
+    let query = 'SELECT * FROM financial_transactions';
+    const params: any[] = [];
+    
+    if (riskLevel && riskLevel !== 'all') {
+      query += ' WHERE risk_level = ?';
+      params.push(riskLevel);
+    }
+    
+    query += ' ORDER BY amount DESC';
+    
+    if (limit) {
+      query += ' LIMIT ?';
+      params.push(parseInt(limit as string));
+    }
+    
+    const rows = db.prepare(query).all(...params) as any[];
+    
+    const transactions = rows.map(row => ({
+      ...row,
+      suspiciousIndicators: row.suspicious_indicators ? JSON.parse(row.suspicious_indicators) : [],
+      sourceDocumentIds: row.source_document_ids ? JSON.parse(row.source_document_ids) : []
+    }));
+    
+    res.json(transactions);
+  } catch (e) { next(e); }
+});
+
+// Get hypotheses for an investigation
+app.get('/api/investigations/:id/hypotheses', async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id);
+    const db = databaseService.getDatabase();
+    const rows = db.prepare('SELECT * FROM investigation_hypotheses WHERE investigation_id = ? ORDER BY confidence DESC').all(id) as any[];
+    res.json(rows);
+  } catch (e) { next(e); }
+});
+
+// Create a new hypothesis
+app.post('/api/investigations/:id/hypotheses', async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { title, description, status, confidence } = req.body;
+    const db = databaseService.getDatabase();
+    const stmt = db.prepare('INSERT INTO investigation_hypotheses (investigation_id, title, description, status, confidence) VALUES (?,?,?,?,?)');
+    const result = stmt.run(id, title, description || '', status || 'proposed', confidence || 50);
+    res.status(201).json({ id: result.lastInsertRowid });
+  } catch (e) { next(e); }
+});
+
+// Update a hypothesis
+app.patch('/api/investigations/:invId/hypotheses/:hypId', async (req, res, next) => {
+  try {
+    const hypId = parseInt(req.params.hypId);
+    const { title, description, status, confidence } = req.body;
+    const db = databaseService.getDatabase();
+    const existing = db.prepare('SELECT * FROM investigation_hypotheses WHERE id = ?').get(hypId) as any;
+    if (!existing) return res.status(404).json({ error: 'Hypothesis not found' });
+    
+    const stmt = db.prepare('UPDATE investigation_hypotheses SET title = ?, description = ?, status = ?, confidence = ?, updated_at = ? WHERE id = ?');
+    stmt.run(
+      title || existing.title,
+      description || existing.description,
+      status || existing.status,
+      confidence !== undefined ? confidence : existing.confidence,
+      new Date().toISOString(),
+      hypId
+    );
+    res.json({ id: hypId, ...existing, title: title || existing.title, description: description || existing.description, status: status || existing.status, confidence: confidence !== undefined ? confidence : existing.confidence });
   } catch (e) { next(e); }
 });
 

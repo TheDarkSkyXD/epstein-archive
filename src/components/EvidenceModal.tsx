@@ -23,6 +23,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(({ person,
   const [documents, setDocuments] = useState<any[]>([]);
   const [loadingDocuments, setLoadingDocuments] = useState(false);
   const [selectedEvidenceType, setSelectedEvidenceType] = useState<string | null>(null);
+  const [filterQuery, setFilterQuery] = useState('');
   const { modalRef } = useModalFocusTrap(true);
 
   // Handle keyboard events for modal
@@ -85,10 +86,17 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(({ person,
       try {
         const personDocuments = await apiClient.getEntityDocuments(person.id);
         // Sort by Red Flag Index (descending)
-        const sortedDocuments = personDocuments.sort((a, b) => {
-          const aRating = a.redFlagRating || 0;
-          const bRating = b.redFlagRating || 0;
-          return bRating - aRating;
+        const sortedDocuments = personDocuments.map((doc: any) => ({
+          ...doc,
+          redFlagRating: Number(doc.redFlagRating || doc.red_flag_rating || 0),
+          mentions: Number(doc.mentions || doc.mentionCount || 0),
+          title: doc.title || doc.fileName || doc.filename || 'Untitled'
+        })).sort((a: any, b: any) => {
+          // Sort by Red Flag Index (desc)
+          const rfiDiff = b.redFlagRating - a.redFlagRating;
+          if (rfiDiff !== 0) return rfiDiff;
+          // Then by Mentions (desc)
+          return b.mentions - a.mentions;
         });
         setDocuments(sortedDocuments);
       } catch (error) {
@@ -133,20 +141,22 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(({ person,
         doc.evidence_type?.toLowerCase() === filterType
       );
     }
+
+    // Filter by search query
+    if (filterQuery) {
+      const query = filterQuery.toLowerCase();
+      docs = docs.filter(doc => 
+        (doc.title || doc.fileName || doc.filename || '').toLowerCase().includes(query) ||
+        (doc.summary || doc.contextText || doc.aiSummary || doc.content || '').toLowerCase().includes(query)
+      );
+    }
     
-    // Sort by Red Flag Index (desc) → mentions (desc)
-    docs.sort((a, b) => {
-      const aRFI = a.redFlagRating || a.red_flag_rating || 0;
-      const bRFI = b.redFlagRating || b.red_flag_rating || 0;
-      if (bRFI !== aRFI) return bRFI - aRFI;
-      
-      const aMentions = a.mentions || a.mentionCount || 0;
-      const bMentions = b.mentions || b.mentionCount || 0;
-      return bMentions - aMentions;
+    // Safety strict sort
+    return docs.sort((a, b) => {
+      if (b.redFlagRating !== a.redFlagRating) return b.redFlagRating - a.redFlagRating;
+      return b.mentions - a.mentions;
     });
-    
-    return docs;
-  }, [documents, selectedEvidenceType]);
+  }, [documents, selectedEvidenceType, filterQuery]);
 
   // Function to highlight search terms in text
   const highlightText = (text: string, term?: string) => {
@@ -253,7 +263,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(({ person,
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
             <div className="bg-slate-700 rounded-lg p-4 pr-10 sm:pr-4 text-center relative">
               <div className="absolute top-2 right-2">
-                <Tooltip content="Total number of times this subject is mentioned across all documents in the archive">
+                <Tooltip content="Total number of times this subject is mentioned across all documents in the archive" position="bottom-end">
                   <Icon name="Info" size="sm" color="gray" className="cursor-help" />
                 </Tooltip>
               </div>
@@ -262,7 +272,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(({ person,
             </div>
             <div className="bg-slate-700 rounded-lg p-4 pr-10 sm:pr-4 text-center relative">
               <div className="absolute top-2 right-2">
-                <Tooltip content="Number of documents that reference or mention this subject">
+                <Tooltip content="Number of documents that reference or mention this subject" position="bottom-end">
                   <Icon name="Info" size="sm" color="gray" className="cursor-help" />
                 </Tooltip>
               </div>
@@ -271,7 +281,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(({ person,
             </div>
             <div className="bg-slate-700 rounded-lg p-4 pr-10 sm:pr-4 text-center relative">
               <div className="absolute top-2 right-2">
-                <Tooltip content="Different categories of evidence associated with this subject" position="left">
+                <Tooltip content="Different categories of evidence associated with this subject" position="bottom-end">
                   <Icon name="Info" size="sm" color="gray" className="cursor-help" />
                 </Tooltip>
               </div>
@@ -401,6 +411,31 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(({ person,
                   )}
                 </button>
               </div>
+              
+              {/* Document Filter Input */}
+              {isSectionExpanded('documents') && (
+                <div className="mb-4">
+                  <div className="relative">
+                    <Icon name="Search" size="sm" className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <input 
+                      type="text" 
+                      placeholder="Filter documents..." 
+                      value={filterQuery}
+                      onChange={(e) => setFilterQuery(e.target.value)}
+                      className="w-full bg-slate-900/50 border border-slate-600 rounded-lg py-2 pl-14 pr-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
+                    />
+                    {filterQuery && (
+                      <button 
+                        onClick={() => setFilterQuery('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-3">
                 {(isSectionExpanded('documents') ? filteredDocuments : filteredDocuments.slice(0, 3)).map((doc, i) => (
                   <div 

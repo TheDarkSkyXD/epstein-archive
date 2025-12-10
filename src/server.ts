@@ -208,6 +208,12 @@ app.get('/api/documents', async (req, res) => {
     if (req.query.maxRedFlag) {
       filters.redFlagLevel = { ...filters.redFlagLevel, max: parseInt(req.query.maxRedFlag as string) };
     }
+    if (req.query.evidenceType) {
+      filters.evidenceType = req.query.evidenceType as string;
+    }
+    if (req.query.search) {
+      filters.search = req.query.search as string;
+    }
 
     const result = await databaseService.getDocuments(page, limit, filters, sortBy);
     

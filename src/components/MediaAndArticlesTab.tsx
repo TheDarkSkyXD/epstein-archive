@@ -6,7 +6,7 @@ const ArticlesTab = React.lazy(() => import('./ArticlesTab'));
 const MediaTab = React.lazy(() => import('./MediaTab'));
 
 export const MediaAndArticlesTab: React.FC = () => {
-  const [activeSubTab, setActiveSubTab] = useState<'articles' | 'media'>('articles');
+  const [activeSubTab, setActiveSubTab] = useState<'articles' | 'media'>('media');
 
   return (
     <div className="space-y-6">

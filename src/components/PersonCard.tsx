@@ -48,7 +48,7 @@ const PersonCard: React.FC<PersonCardProps> = ({ person, onClick, onDocumentClic
   };
 
   const files = person.files ?? (person.fileReferences?.length ?? 0);
-  const title = person.title || (person.evidence_types?.[0]?.toString().replace('_', ' ').toUpperCase()) || 'Unknown';
+  const title = person.title || person.role || (person as any).primaryRole || (person.evidence_types?.[0]?.toString().replace('_', ' ').toUpperCase()) || 'Unknown';
 
   return (
     <div 

@@ -67,7 +67,8 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
     highRisk: 0,
     totalMentions: 0,
     avgSpice: 0,
-    uniqueRoles: 0
+    uniqueRoles: 0,
+    activeInvestigations: 0
   });
 
   useEffect(() => {
@@ -76,8 +77,9 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
         totalPeople: analyticsData.totalEntities || 0,
         highRisk: analyticsData.likelihoodDistribution?.find((d: any) => d.level === 'HIGH')?.count || 0,
         totalMentions: analyticsData.totalMentions || 0,
-        avgSpice: analyticsData.avgSpiceRating || 0,
-        uniqueRoles: analyticsData.roleDistribution?.length || 0
+        avgSpice: analyticsData.averageSpiceRating || 0,
+        uniqueRoles: analyticsData.totalUniqueRoles || analyticsData.roleDistribution?.length || 0,
+        activeInvestigations: analyticsData.activeInvestigations || 0
       });
     } else if (people.length > 0) {
       const highRisk = people.filter(p => (p.red_flag_rating ?? 0) >= 4).length;
@@ -100,7 +102,8 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
         highRisk,
         totalMentions,
         avgSpice,
-        uniqueRoles: uniqueRoles.size
+        uniqueRoles: uniqueRoles.size,
+        activeInvestigations: 0
       });
     }
   }, [people, analyticsData]);
@@ -131,7 +134,7 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
     { name: 'Low Risk (0-1)', value: people.filter(p => (p.red_flag_rating ?? 0) < 2).length, color: COLORS.LOW }
   ];
 
-  const topEntities = people
+  const topEntities = analyticsData?.topEntities || people
     .sort((a, b) => (b.mentions || 0) - (a.mentions || 0))
     .slice(0, 10)
     .map(p => ({
@@ -188,15 +191,15 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
 
         <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700 backdrop-blur-sm">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-slate-400 text-sm font-medium">Avg Red Flag Index</h3>
-            <TrendingUp className="text-orange-500 h-5 w-5" />
+            <h3 className="text-slate-400 text-sm font-medium">Active Investigations</h3>
+            <FileText className="text-orange-500 h-5 w-5" />
           </div>
-          <div className="text-3xl font-bold text-white">{stats.avgSpice.toFixed(1)}</div>
-          <div className="text-xs text-slate-500 mt-2">Average severity score</div>
-          {/* Microcopy for Avg Red Flag Index */}
+          <div className="text-3xl font-bold text-white">{stats.activeInvestigations.toLocaleString()}</div>
+          <div className="text-xs text-slate-500 mt-2">Ongoing cases</div>
+          {/* Microcopy for Active Investigations */}
           <div className="text-xs text-slate-400 mt-3 flex items-start gap-1">
             <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
-            <span>Average evidence strength score across all tracked entities</span>
+            <span>Open investigations currently being pursued by researchers</span>
           </div>
         </div>
       </div>

@@ -242,7 +242,7 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
         </div>
         <div className="grid grid-cols-2 gap-3 max-h-48 overflow-y-auto">
           {entityCoverage.slice(0, 20).map(entity => {
-            const IconComponent = ENTITY_CATEGORY_ICONS[entity.entity_category] || User;
+            const IconComponent = (ENTITY_CATEGORY_ICONS as any)[entity.entity_category] || User;
             return (
               <div key={entity.id} className="flex items-center justify-between p-2 bg-slate-700 rounded">
                 <div className="flex items-center space-x-2 flex-1 min-w-0">
@@ -258,7 +258,7 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
 
       {/* Search and Filters */}
       <div className="border-b border-slate-700 p-6">
-        <div className="flex items-center space-x-3 mb-4">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center space-y-3 md:space-y-0 md:space-x-3 mb-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input
@@ -266,24 +266,30 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
               placeholder="Search evidence..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-slate-700 text-white"
+              className="w-full pl-10 pr-4 h-10 border border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-slate-700 text-white"
             />
           </div>
           <button
             onClick={() => setShowAddModal(true)}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="flex items-center justify-center space-x-2 px-4 h-10 bg-blue-600 text-white rounded-lg hover:bg-blue-700 w-full md:w-auto whitespace-nowrap"
           >
             <Plus className="w-5 h-5" />
             <span>Add Evidence</span>
           </button>
         </div>
 
-        <div className="flex items-center space-x-3">
-          <Filter className="w-5 h-5 text-slate-400" />
+        <div className="flex flex-col md:flex-row items-stretch md:items-center space-y-3 md:space-y-0 md:space-x-3">
+          <div className="hidden md:block">
+            <Filter className="w-5 h-5 text-slate-400" />
+          </div>
+          <div className="flex items-center space-x-2 md:hidden mb-1">
+             <Filter className="w-4 h-4 text-slate-400" />
+             <span className="text-sm text-slate-400 font-medium">Filters</span>
+          </div>
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
-            className="border border-slate-600 rounded-lg px-3 py-2 text-sm bg-slate-700 text-white"
+            className="border border-slate-600 rounded-lg px-3 h-10 text-sm bg-slate-700 text-white w-full md:w-auto"
           >
             <option value="all">All Types</option>
             {Object.keys(typeBreakdown).map(type => (
@@ -293,7 +299,7 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
           <select
             value={filterRelevance}
             onChange={(e) => setFilterRelevance(e.target.value)}
-            className="border border-slate-600 rounded-lg px-3 py-2 text-sm bg-slate-700 text-white"
+            className="border border-slate-600 rounded-lg px-3 h-10 text-sm bg-slate-700 text-white w-full md:w-auto"
           >
             <option value="all">All Relevance</option>
             <option value="high">High Relevance</option>

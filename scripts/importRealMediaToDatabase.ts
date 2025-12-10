@@ -4,8 +4,12 @@ import * as path from 'path';
 import Database from 'better-sqlite3';
 import { MediaService } from '../src/services/MediaService';
 import { execSync } from 'child_process';
+import ExifParser from 'exif-parser';
 
 const SOURCE_DIR = process.env.SOURCE_DIR || '/opt/epstein-archive/data/media/images';
+// ORIGINALS_DIR: Directory containing original (non-optimized) images for EXIF extraction
+// Defaults to SOURCE_DIR/../originals - the "originals" folder is gitignored and never deployed
+const ORIGINALS_DIR = process.env.ORIGINALS_DIR || path.join(path.dirname(SOURCE_DIR), 'originals');
 const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), 'epstein-archive.db');
 
 interface ImageMetadata {
@@ -23,17 +27,88 @@ interface ImageMetadata {
   format: string;
   dateTaken?: string;
   exifData?: any;
+  // Enhanced EXIF fields
+  cameraMake?: string;
+  cameraModel?: string;
+  lens?: string;
+  focalLength?: string;
+  aperture?: string;
+  shutterSpeed?: string;
+  iso?: number;
+  latitude?: number;
+  longitude?: number;
+  colorProfile?: string;
+  orientation?: number;
+  // Subject analysis
+  detectedSubjects?: string[];
 }
 
-// Extract EXIF data using exiftool if available
+// Extract EXIF data using exif-parser (pure Node.js)
 function extractEXIF(filepath: string): any {
   try {
-    const output = execSync(`exiftool -json "${filepath}"`, { encoding: 'utf-8' });
-    const data = JSON.parse(output);
-    return data[0] || {};
+    const buffer = fs.readFileSync(filepath);
+    const parser = ExifParser.create(buffer);
+    const result = parser.parse();
+    
+    const tags = result.tags || {};
+    const imageSize = result.imageSize || {};
+    
+    // Extract GPS coordinates
+    let latitude: number | undefined;
+    let longitude: number | undefined;
+    if (tags.GPSLatitude !== undefined && tags.GPSLongitude !== undefined) {
+      latitude = tags.GPSLatitude;
+      longitude = tags.GPSLongitude;
+      // Apply reference direction
+      if (tags.GPSLatitudeRef === 'S') latitude = -latitude;
+      if (tags.GPSLongitudeRef === 'W') longitude = -longitude;
+    }
+    
+    // Format shutter speed as fraction
+    let shutterSpeed: string | undefined;
+    if (tags.ExposureTime) {
+      if (tags.ExposureTime < 1) {
+        shutterSpeed = `1/${Math.round(1 / tags.ExposureTime)}s`;
+      } else {
+        shutterSpeed = `${tags.ExposureTime}s`;
+      }
+    }
+    
+    // Format focal length
+    let focalLength: string | undefined;
+    if (tags.FocalLength) {
+      focalLength = `${tags.FocalLength}mm`;
+    }
+    
+    return {
+      Make: tags.Make,
+      Model: tags.Model,
+      Lens: tags.LensModel || tags.LensMake,
+      FocalLength: focalLength,
+      Aperture: tags.FNumber?.toString(),
+      ShutterSpeed: shutterSpeed,
+      ISO: tags.ISO,
+      DateTimeOriginal: tags.DateTimeOriginal ? new Date(tags.DateTimeOriginal * 1000).toISOString() : undefined,
+      CreateDate: tags.CreateDate ? new Date(tags.CreateDate * 1000).toISOString() : undefined,
+      Latitude: latitude,
+      Longitude: longitude,
+      ColorSpace: tags.ColorSpace === 1 ? 'sRGB' : tags.ColorSpace === 2 ? 'Adobe RGB' : undefined,
+      Orientation: tags.Orientation,
+      Width: imageSize.width,
+      Height: imageSize.height,
+      Software: tags.Software,
+      Artist: tags.Artist,
+      Copyright: tags.Copyright
+    };
   } catch (error) {
-    // exiftool not available, use basic file info
-    return {};
+    // If exif-parser fails, try exiftool as fallback
+    try {
+      const output = execSync(`exiftool -json "${filepath}"`, { encoding: 'utf-8' });
+      const data = JSON.parse(output);
+      return data[0] || {};
+    } catch {
+      return {};
+    }
   }
 }
 
@@ -58,11 +133,31 @@ function analyzeImage(filepath: string, filename: string, category: string, stat
   const ext = path.extname(filename).toLowerCase();
   const format = ext.substring(1).toUpperCase();
   
-  // Get dimensions
+  // Get dimensions from the optimized image
   const { width, height } = getImageDimensions(filepath);
   
-  // Extract EXIF
-  const exif = extractEXIF(filepath);
+  // Determine where to read EXIF from
+  // If ORIGINALS_DIR is set, try to find the original file there for better EXIF data
+  let exifSourcePath = filepath;
+  if (ORIGINALS_DIR) {
+    // Try to find matching original file
+    // The original should be in ORIGINALS_DIR/category/filename (same structure)
+    const originalPath = path.join(ORIGINALS_DIR, category, filename);
+    if (fs.existsSync(originalPath)) {
+      exifSourcePath = originalPath;
+      console.log(`  📷 Reading EXIF from original: ${originalPath}`);
+    } else {
+      // Try without category (flat structure)
+      const flatOriginalPath = path.join(ORIGINALS_DIR, filename);
+      if (fs.existsSync(flatOriginalPath)) {
+        exifSourcePath = flatOriginalPath;
+        console.log(`  📷 Reading EXIF from original: ${flatOriginalPath}`);
+      }
+    }
+  }
+  
+  // Extract EXIF from original (or optimized if no original found)
+  const exif = extractEXIF(exifSourcePath);
   
   // Try to get date from EXIF
   let dateTaken: string | undefined;
@@ -150,6 +245,36 @@ function analyzeImage(filepath: string, filename: string, category: string, stat
   const sizeStr = width > 0 && height > 0 ? `_${width}x${height}` : '';
   const newFilename = `${datePrefix}_${categorySlug}_${titleSlug}${sizeStr}${ext}`;
   
+  // Detect subjects from filename/category for enhanced tagging
+  const detectedSubjects: string[] = [];
+  const lowerFilename = filename.toLowerCase();
+  const lowerTitle = title.toLowerCase();
+  
+  // Subject detection patterns
+  const subjectPatterns: [RegExp, string][] = [
+    [/epstein/i, 'Jeffrey Epstein'],
+    [/maxwell|ghislaine/i, 'Ghislaine Maxwell'],
+    [/trump/i, 'Donald Trump'],
+    [/clinton/i, 'Bill Clinton'],
+    [/prince.?andrew|andrew/i, 'Prince Andrew'],
+    [/wexner/i, 'Les Wexner'],
+    [/musk|elon/i, 'Elon Musk'],
+    [/gates|bill/i, 'Bill Gates'],
+    [/spacey|kevin/i, 'Kevin Spacey'],
+    [/dershowitz/i, 'Alan Dershowitz'],
+  ];
+  
+  for (const [pattern, subject] of subjectPatterns) {
+    if (pattern.test(lowerFilename) || pattern.test(lowerTitle) || pattern.test(category)) {
+      if (!detectedSubjects.includes(subject)) {
+        detectedSubjects.push(subject);
+      }
+    }
+  }
+  
+  // Add detected subjects to tags
+  const enhancedTags = [...tags, ...detectedSubjects.map(s => s.toLowerCase().replace(/\s+/g, '-'))];
+  
   return {
     originalPath: filepath,
     originalFilename: filename,
@@ -158,13 +283,26 @@ function analyzeImage(filepath: string, filename: string, category: string, stat
     description,
     category: categorySlug,
     albumName,
-    tags,
-    width,
-    height,
+    tags: enhancedTags,
+    width: exif.Width || width,
+    height: exif.Height || height,
     fileSize: stats.size,
     format,
     dateTaken,
-    exifData: exif
+    exifData: exif,
+    // Enhanced EXIF fields
+    cameraMake: exif.Make,
+    cameraModel: exif.Model,
+    lens: exif.Lens,
+    focalLength: exif.FocalLength,
+    aperture: exif.Aperture,
+    shutterSpeed: exif.ShutterSpeed,
+    iso: exif.ISO,
+    latitude: exif.Latitude,
+    longitude: exif.Longitude,
+    colorProfile: exif.ColorSpace,
+    orientation: exif.Orientation,
+    detectedSubjects
   };
 }
 
@@ -240,13 +378,19 @@ async function main() {
     }
     usedFilenames.add(newFilename);
     
-    // Create database entry
+    // Generate enhanced title with detected subjects
+    let enhancedTitle = analysis.title;
+    if (analysis.detectedSubjects && analysis.detectedSubjects.length > 0) {
+      enhancedTitle = `${analysis.detectedSubjects.join(' & ')} - ${analysis.title}`;
+    }
+    
+    // Create database entry with all EXIF data
     const image = mediaService.createImage({
       filename: newFilename,
       originalFilename: analysis.originalFilename,
       path: analysis.originalPath,
       thumbnailPath: `/data/media/thumbnails/${newFilename}`,
-      title: analysis.title,
+      title: enhancedTitle,
       description: analysis.description,
       albumId: albumMap.get(analysis.albumName),
       width: analysis.width,
@@ -254,10 +398,18 @@ async function main() {
       fileSize: analysis.fileSize,
       format: analysis.format,
       dateTaken: analysis.dateTaken,
-      cameraMake: analysis.exifData?.Make,
-      cameraModel: analysis.exifData?.Model,
-      dateAdded: new Date().toISOString(),
-      dateModified: new Date().toISOString()
+      // Full EXIF data
+      cameraMake: analysis.cameraMake,
+      cameraModel: analysis.cameraModel,
+      lens: analysis.lens,
+      focalLength: analysis.focalLength,
+      aperture: analysis.aperture,
+      shutterSpeed: analysis.shutterSpeed,
+      iso: analysis.iso,
+      latitude: analysis.latitude,
+      longitude: analysis.longitude,
+      colorProfile: analysis.colorProfile,
+      orientation: analysis.orientation
     });
     
     // Add tags

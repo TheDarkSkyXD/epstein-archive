@@ -3,7 +3,38 @@ import { MediaImage, Album } from '../types/media.types';
 import { PDFViewer } from './evidence/PDFViewer';
 import { AddToInvestigationButton } from './AddToInvestigationButton';
 import Icon from './Icon';
+import { Camera, MapPin, FileImage, Info, Settings, Clock, Folder, Download, Filter, User } from 'lucide-react';
+import JSZip from 'jszip';
 import './PhotoBrowser.css';
+
+// Helper to generate human-readable title from filename
+const generateDisplayTitle = (filename: string, title?: string, description?: string): string => {
+  // If we have a real description-based title, use it
+  if (title && title !== filename && !title.match(/^(DJI|IMG|DSC|DCIM|P\d+|_MG_|IMG_)/i)) {
+    return title;
+  }
+  
+  // Parse filename for context
+  const baseName = filename.replace(/\.[^/.]+$/, ''); // Remove extension
+  
+  // Pattern detection
+  if (baseName.match(/^DJI[_-]?\d+/i)) return `Drone Capture ${baseName.replace(/^DJI[_-]?/i, '#')}`;
+  if (baseName.match(/^IMG[_-]?\d+/i)) return `Photo ${baseName.replace(/^IMG[_-]?/i, '#')}`;
+  if (baseName.match(/^DSC[_-]?\d+/i)) return `Digital Photo ${baseName.replace(/^DSC[_-]?/i, '#')}`;
+  if (baseName.match(/^P\d+/i)) return `Photo ${baseName}`;
+  if (baseName.match(/^_MG_\d+/i)) return `Camera Photo ${baseName.replace(/^_MG_/i, '#')}`;
+  if (baseName.match(/^DCIM/i)) return `Camera Image ${baseName.replace(/^DCIM[_-]?/i, '')}`;
+  if (baseName.match(/screenshot/i)) return `Screenshot`;
+  if (baseName.match(/scan/i)) return `Scanned Document`;
+  
+  // If description available, use truncated version
+  if (description && description.length > 3) {
+    return description.length > 50 ? description.substring(0, 47) + '...' : description;
+  }
+  
+  // Fallback: clean up the filename
+  return baseName.replace(/[_-]/g, ' ').replace(/\s+/g, ' ').trim();
+};
 
 // Extended interface to support evidence fields
 interface EnhancedMediaImage extends MediaImage {
@@ -34,14 +65,17 @@ export const EvidenceMedia: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  
+  // Advanced Filters State
+  const [cameraFilter, setCameraFilter] = useState<string>('All');
+  const [showGpsOnly, setShowGpsOnly] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
-  // Future features list
+  // Future features list (Cleaned up)
   const futureFeatures = [
-    { name: 'EXIF Extraction', icon: 'Camera', description: 'Full metadata analysis' },
-    { name: 'Face Detection', icon: 'User', description: 'Automatic person tagging' },
     { name: 'Duplicate Detection', icon: 'Copy', description: 'Find similar images' },
-    { name: 'Advanced Filters', icon: 'Filter', description: 'Camera, location, date' },
-    { name: 'Export', icon: 'Download', description: 'Download albums as ZIP' }
+    // { name: 'Face Detection', icon: 'User', description: 'Implemented via Subject Tagging' }, // Done
+    // { name: 'EXIF Extraction', icon: 'Camera', description: 'Implemented' } // Done
   ];
 
   // Load persisted state from localStorage on mount
@@ -260,7 +294,7 @@ export const EvidenceMedia: React.FC = () => {
     const badge = badges[status] || badges.unverified;
     return (
       <span className={`${badge.color} text-white text-xs px-2 py-1 rounded-full flex items-center space-x-1`}>
-        <Icon name={badge.icon} size="xs" />
+        <Icon name={badge.icon as 'Check' | 'HelpCircle' | 'AlertCircle'} size="xs" />
         <span>{badge.text}</span>
       </span>
     );
@@ -301,6 +335,96 @@ export const EvidenceMedia: React.FC = () => {
       setSelectedIds(new Set());
     } catch (error) {
       console.warn('Failed to clear media state:', error);
+    }
+  };
+
+  // Filtered images with Advanced Filters
+  const filteredImages = React.useMemo(() => {
+    let result = images;
+    
+    // Album filter
+    if (selectedAlbum !== null && selectedAlbum !== EVIDENCE_ALBUM_ID) {
+      result = result.filter(img => img.albumId === selectedAlbum);
+    }
+    
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(img => 
+        img.title?.toLowerCase().includes(query) || 
+        img.originalFilename?.toLowerCase().includes(query) ||
+        img.tags?.some(tag => tag.toLowerCase().includes(query)) ||
+        img.relatedEntities?.some(entity => entity.toLowerCase().includes(query)) ||
+        img.cameraModel?.toLowerCase().includes(query)
+      );
+    }
+    
+    // Advanced Filters: Camera
+    if (cameraFilter !== 'All') {
+      result = result.filter(img => (img.cameraModel || 'Unknown') === cameraFilter);
+    }
+    
+    // Advanced Filters: GPS
+    if (showGpsOnly) {
+      result = result.filter(img => img.latitude !== undefined && img.longitude !== undefined);
+    }
+    
+    return result;
+  }, [images, selectedAlbum, searchQuery, cameraFilter, showGpsOnly]);
+
+  // Derived state: Available unique cameras
+  const availableCameras = React.useMemo(() => {
+    const cameras = new Set<string>();
+    const baseImages = selectedAlbum !== null 
+      ? images.filter(img => img.albumId === selectedAlbum) 
+      : images;
+      
+    baseImages.forEach(img => {
+      if (img.cameraModel) cameras.add(img.cameraModel);
+    });
+    return Array.from(cameras).sort();
+  }, [images, selectedAlbum]);
+
+  // Handle Export to ZIP
+  const handleExportZip = async () => {
+    setIsExporting(true);
+    try {
+      const zip = new JSZip();
+      let count = 0;
+      const folder = zip.folder("evidence-export");
+      
+      for (const img of filteredImages) {
+        try {
+          // Use the file serving endpoint
+          const response = await fetch(`/api/media/images/${img.id}/file`);
+          if (response.ok) {
+            const blob = await response.blob();
+            folder?.file(img.filename, blob);
+            count++;
+          }
+        } catch (e) {
+          console.error(`Failed to fetch image ${img.id}`, e);
+        }
+      }
+      
+      if (count > 0) {
+        const content = await zip.generateAsync({ type: "blob" });
+        const exportName = selectedAlbum 
+          ? albums.find(a => a.id === selectedAlbum)?.name || 'export'
+          : 'evidence-export';
+        
+        const url = window.URL.createObjectURL(content);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${exportName}-${new Date().toISOString().split('T')[0]}.zip`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Export failed. See console for details.');
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -495,21 +619,24 @@ export const EvidenceMedia: React.FC = () => {
             {sortOrder === 'asc' ? '↑' : '↓'}
           </button>
 
-          <div className="flex bg-slate-900 rounded-lg border border-slate-700 p-1 flex-shrink-0">
+          <div className="flex items-center gap-1 bg-slate-800 rounded p-1 mb-6">
             <button
-              className={`p-1.5 rounded ${viewMode === 'grid' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}
               onClick={() => setViewMode('grid')}
+              className={`p-1.5 rounded ${viewMode === 'grid' ? 'bg-slate-700 text-blue-400' : 'text-slate-400 hover:text-slate-200'}`}
               title="Grid View"
             >
-              <Icon name="Grid" size="sm" />
+              <Icon name="Grid" size="xs" />
             </button>
             <button
-              className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}
               onClick={() => setViewMode('list')}
+              className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-slate-700 text-blue-400' : 'text-slate-400 hover:text-slate-200'}`}
               title="List View"
             >
-              <Icon name="List" size="sm" />
+              <Icon name="List" size="xs" />
             </button>
+            <div className="ml-auto text-xs text-slate-500 px-2">
+              {filteredImages.length} items
+            </div>
           </div>
         </div>
       </div>
@@ -572,14 +699,69 @@ export const EvidenceMedia: React.FC = () => {
                     setSelectedAlbum(album.id);
                     setShowSidebar(false);
                   }}
+                  title={album.name}
                 >
-                  <span className="truncate">{album.name}</span>
+                  <span className="truncate">
+                    {album.name.includes('USVI') ? 'USVI' : album.name}
+                  </span>
                   <span className="text-xs bg-slate-900 px-2 py-0.5 rounded-full opacity-60">
                     {album.imageCount || 0}
                   </span>
                 </button>
               ))}
             </div>
+          </div>
+
+          <div className="mb-6">
+             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Filters & Actions</h3>
+             <div className="space-y-4">
+               {/* Camera Filter */}
+               <div>
+                  <label className="text-[10px] text-slate-400 mb-1 block">Camera Model</label>
+                  <select 
+                    value={cameraFilter}
+                    onChange={(e) => setCameraFilter(e.target.value)}
+                    className="w-full bg-slate-800 text-xs border border-slate-700 rounded px-2 py-1 text-slate-300 focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="All">All Cameras</option>
+                    {availableCameras.map(cam => (
+                      <option key={cam} value={cam}>{cam}</option>
+                    ))}
+                  </select>
+               </div>
+               
+               {/* GPS Filter */}
+               <label className="flex items-center gap-2 cursor-pointer group">
+                  <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${showGpsOnly ? 'bg-blue-600 border-blue-600' : 'border-slate-600 bg-slate-800'}`}>
+                    {showGpsOnly && <Icon name="Check" size="xs" className="text-white" />}
+                  </div>
+                  <input type="checkbox" className="hidden" checked={showGpsOnly} onChange={e => setShowGpsOnly(e.target.checked)} />
+                  <span className="text-xs text-slate-300 group-hover:text-white">Has GPS Location</span>
+               </label>
+               
+               {/* Export Button */}
+               <button
+                  onClick={handleExportZip}
+                  disabled={isExporting || filteredImages.length === 0}
+                  className={`w-full flex items-center justify-center gap-2 py-2 px-3 rounded text-xs font-medium transition-colors ${
+                    isExporting 
+                      ? 'bg-slate-700 text-slate-400 cursor-not-allowed' 
+                      : 'bg-blue-600 hover:bg-blue-500 text-white'
+                  }`}
+               >
+                  {isExporting ? (
+                    <>
+                      <div className="animate-spin h-3 w-3 border-b-2 border-white rounded-full"></div>
+                      <span>Zipping...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Icon name="Download" size="xs" />
+                      <span>Download {filteredImages.length} Images</span>
+                    </>
+                  )}
+               </button>
+             </div>
           </div>
 
           <div>
@@ -612,14 +794,14 @@ export const EvidenceMedia: React.FC = () => {
             <div className="flex items-center justify-center h-full">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
             </div>
-          ) : images.length === 0 ? (
+          ) : filteredImages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-slate-400">
               <Icon name="Image" className="h-16 w-16 mb-4 opacity-20" />
-              <p>No images found</p>
+              <p>No images found {searchQuery && 'matching search'}</p>
             </div>
           ) : (
             <div className={viewMode === 'grid' ? 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4' : 'space-y-2'}>
-              {images.map((image) => (
+              {filteredImages.map((image) => (
                 <div
                   key={image.id}
                   className={`group bg-slate-800 border border-slate-700 rounded-lg overflow-hidden hover:border-blue-500 transition-all cursor-pointer relative ${
@@ -662,8 +844,8 @@ export const EvidenceMedia: React.FC = () => {
 
                   <div className={`p-3 ${viewMode === 'list' ? 'flex-1 flex items-center justify-between' : ''}`}>
                     <div className="min-w-0">
-                      <h4 className="text-sm font-medium text-white truncate mb-1">
-                        {image.title || image.filename}
+                      <h4 className="text-sm font-medium text-white truncate mb-1" title={image.filename}>
+                        {generateDisplayTitle(image.filename, image.title, image.description)}
                       </h4>
                       {viewMode === 'list' && (
                         <p className="text-xs text-slate-400 truncate max-w-md">{image.description}</p>
@@ -802,96 +984,240 @@ export const EvidenceMedia: React.FC = () => {
               )}
             </div>
 
-            {/* Sidebar Info */}
-            <div className="w-full md:w-80 bg-slate-800 border-l border-slate-700 p-6 overflow-y-auto">
-              <div className="flex justify-between items-start mb-6">
-                <h2 className="text-lg font-bold text-white leading-tight">
-                  {selectedImage.title || selectedImage.filename}
-                </h2>
-                <div className="flex items-center gap-2">
-                  <AddToInvestigationButton 
-                    item={{
-                      id: selectedImage.id.toString(),
-                      title: selectedImage.title || selectedImage.filename,
-                      description: selectedImage.description || 'Media evidence',
-                      type: 'evidence',
-                      sourceId: selectedImage.id.toString()
-                    }}
-                    investigations={[]} // This needs to be populated from context or props
-                    onAddToInvestigation={(invId, item, relevance) => {
-                      console.log('Add to investigation', invId, item, relevance);
-                      const event = new CustomEvent('add-to-investigation', { 
-                        detail: { investigationId: invId, item, relevance } 
-                      });
-                      window.dispatchEvent(event);
-                    }}
-                    variant="icon"
-                    className="hover:bg-slate-700"
-                  />
-                  <button
-                    onClick={() => setSelectedImage(null)}
-                    className="text-slate-400 hover:text-white"
-                  >
-                    ✕
-                  </button>
+            {/* Sidebar Info - Professional Metadata Panel */}
+            <div className="w-full md:w-96 bg-slate-800 border-l border-slate-700 overflow-y-auto">
+              {/* Header with generated title */}
+              <div className="p-4 border-b border-slate-700 bg-slate-900/50">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1 min-w-0 mr-3">
+                    <h2 className="text-lg font-bold text-white leading-tight mb-1">
+                      {generateDisplayTitle(selectedImage.filename, selectedImage.title, selectedImage.description)}
+                    </h2>
+                    <p className="text-xs text-slate-500 truncate" title={selectedImage.filename}>
+                      {selectedImage.filename}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <AddToInvestigationButton 
+                      item={{
+                        id: selectedImage.id.toString(),
+                        title: generateDisplayTitle(selectedImage.filename, selectedImage.title, selectedImage.description),
+                        description: selectedImage.description || 'Media evidence',
+                        type: 'evidence',
+                        sourceId: selectedImage.id.toString()
+                      }}
+                      investigations={[]}
+                      onAddToInvestigation={(invId, item, relevance) => {
+                        console.log('Add to investigation', invId, item, relevance);
+                        const event = new CustomEvent('add-to-investigation', { 
+                          detail: { investigationId: invId, item, relevance } 
+                        });
+                        window.dispatchEvent(event);
+                      }}
+                      variant="icon"
+                      className="hover:bg-slate-700"
+                    />
+                    <button
+                      onClick={() => setSelectedImage(null)}
+                      className="text-slate-400 hover:text-white p-1"
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-6">
+              <div className="p-4 space-y-4">
+                {/* Description */}
                 {selectedImage.description && (
-                  <div>
-                    <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Description</h3>
+                  <div className="p-3 bg-slate-700/30 rounded-lg">
                     <p className="text-sm text-slate-300">{selectedImage.description}</p>
                   </div>
                 )}
 
+                {/* Analysis Status */}
                 {(selectedImage.verificationStatus || selectedImage.spiceRating !== undefined) && (
+                  <div className="p-3 bg-slate-700/30 rounded-lg space-y-2">
+                    {selectedImage.verificationStatus && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-slate-400">Verification</span>
+                        {getVerificationBadge(selectedImage.verificationStatus)}
+                      </div>
+                    )}
+                    {selectedImage.spiceRating !== undefined && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-slate-400">Red Flag Index</span>
+                        {getSpiceStars(selectedImage.spiceRating)}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* File Details Section */}
+                <div>
+                  <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                    <FileImage className="w-4 h-4 text-blue-400" />
+                    File Details
+                  </h3>
+                  <div className="space-y-2 text-sm bg-slate-700/20 rounded-lg p-3">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Original Name</span>
+                      <span className="text-slate-200 font-mono text-xs truncate max-w-[180px]" title={selectedImage.filename}>
+                        {selectedImage.filename}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">File Size</span>
+                      <span className="text-slate-200">{formatFileSize(selectedImage.fileSize)}</span>
+                    </div>
+                    {selectedImage.width && selectedImage.height && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Dimensions</span>
+                        <span className="text-slate-200">{selectedImage.width} × {selectedImage.height}px</span>
+                      </div>
+                    )}
+                    {selectedImage.format && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Format</span>
+                        <span className="text-slate-200 uppercase">{selectedImage.format}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Date Added</span>
+                      <span className="text-slate-200">{formatDate(selectedImage.dateAdded)}</span>
+                    </div>
+                    {selectedImage.dateTaken && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Date Taken</span>
+                        <span className="text-slate-200">{formatDate(selectedImage.dateTaken)}</span>
+                      </div>
+                    )}
+                    {selectedImage.albumName && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Album</span>
+                        <span className="text-slate-200">{selectedImage.albumName}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* EXIF / Camera Data Section */}
+                {(selectedImage.cameraMake || selectedImage.cameraModel || selectedImage.lens || 
+                  selectedImage.focalLength || selectedImage.aperture || selectedImage.shutterSpeed || 
+                  selectedImage.iso) && (
                   <div>
-                    <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Analysis</h3>
-                    <div className="flex flex-col gap-2">
-                      {selectedImage.verificationStatus && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-slate-400">Status</span>
-                          {getVerificationBadge(selectedImage.verificationStatus)}
+                    <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                      <Camera className="w-4 h-4 text-purple-400" />
+                      Camera & EXIF Data
+                    </h3>
+                    <div className="space-y-2 text-sm bg-slate-700/20 rounded-lg p-3">
+                      {selectedImage.cameraMake && (
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Camera Make</span>
+                          <span className="text-slate-200">{selectedImage.cameraMake}</span>
                         </div>
                       )}
-                      {selectedImage.spiceRating !== undefined && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-slate-400">Red Flag Index</span>
-                          {getSpiceStars(selectedImage.spiceRating)}
+                      {selectedImage.cameraModel && (
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Camera Model</span>
+                          <span className="text-slate-200">{selectedImage.cameraModel}</span>
+                        </div>
+                      )}
+                      {selectedImage.lens && (
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Lens</span>
+                          <span className="text-slate-200">{selectedImage.lens}</span>
+                        </div>
+                      )}
+                      {selectedImage.focalLength && (
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Focal Length</span>
+                          <span className="text-slate-200">{selectedImage.focalLength}</span>
+                        </div>
+                      )}
+                      {selectedImage.aperture && (
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Aperture</span>
+                          <span className="text-slate-200">ƒ/{selectedImage.aperture}</span>
+                        </div>
+                      )}
+                      {selectedImage.shutterSpeed && (
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Shutter Speed</span>
+                          <span className="text-slate-200">{selectedImage.shutterSpeed}</span>
+                        </div>
+                      )}
+                      {selectedImage.iso && (
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">ISO</span>
+                          <span className="text-slate-200">{selectedImage.iso}</span>
+                        </div>
+                      )}
+                      {selectedImage.colorProfile && (
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Color Profile</span>
+                          <span className="text-slate-200">{selectedImage.colorProfile}</span>
                         </div>
                       )}
                     </div>
                   </div>
                 )}
 
-                <div>
-                  <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Metadata</h3>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Size</span>
-                      <span className="text-slate-200">{formatFileSize(selectedImage.fileSize)}</span>
-                    </div>
-                    {selectedImage.width && (
+                {/* GPS Location Section */}
+                {selectedImage.latitude && selectedImage.longitude && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-green-400" />
+                      Location
+                    </h3>
+                    <div className="space-y-2 text-sm bg-slate-700/20 rounded-lg p-3">
                       <div className="flex justify-between">
-                        <span className="text-slate-400">Dimensions</span>
-                        <span className="text-slate-200">{selectedImage.width} × {selectedImage.height}</span>
+                        <span className="text-slate-400">Coordinates</span>
+                        <span className="text-slate-200 font-mono text-xs">
+                          {selectedImage.latitude.toFixed(6)}, {selectedImage.longitude.toFixed(6)}
+                        </span>
                       </div>
-                    )}
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Added</span>
-                      <span className="text-slate-200">{formatDate(selectedImage.dateAdded)}</span>
+                      <a 
+                        href={`https://www.google.com/maps?q=${selectedImage.latitude},${selectedImage.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 mt-2 px-3 py-2 bg-green-600/20 hover:bg-green-600/30 text-green-400 rounded-lg text-xs transition-colors"
+                      >
+                        <MapPin className="w-3 h-3" />
+                        View on Map
+                      </a>
                     </div>
                   </div>
-                </div>
+                )}
 
+                {/* Related Entities */}
                 {selectedImage.relatedEntities && selectedImage.relatedEntities.length > 0 && (
                   <div>
-                    <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Related Entities</h3>
+                    <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                      <Icon name="Users" size="sm" className="text-cyan-400" />
+                      Related Entities
+                    </h3>
                     <div className="flex flex-wrap gap-2">
                       {selectedImage.relatedEntities.map((entity, i) => (
-                        <span key={i} className="px-2 py-1 bg-slate-700 rounded text-xs text-slate-300">
+                        <span key={i} className="px-2 py-1 bg-cyan-900/30 text-cyan-300 rounded text-xs border border-cyan-800/50">
                           {entity}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tags */}
+                {selectedImage.tags && selectedImage.tags.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                      <Icon name="Tag" size="sm" className="text-amber-400" />
+                      Tags
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedImage.tags.map((tag, i) => (
+                        <span key={i} className="px-2 py-1 bg-amber-900/30 text-amber-300 rounded text-xs border border-amber-800/50">
+                          {tag}
                         </span>
                       ))}
                     </div>

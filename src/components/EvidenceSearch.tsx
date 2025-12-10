@@ -330,9 +330,15 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
         )}
         
         {/* Search Input */}
-        <FormField label="Search" id="search-query" helpText="Search by names, contexts, or evidence">
+        <FormField label={
+          <div className="flex items-center gap-2">
+            Search
+            <Tooltip content="Search by names, contexts, or evidence">
+              <Icon name="Info" size="sm" color="gray" className="cursor-help" />
+            </Tooltip>
+          </div>
+        } id="search-query">
           <div className="relative">
-            <Icon name="Search" size="sm" className="absolute left-3 top-1/2 transform -translate-y-1/2" color="gray" aria-hidden="true" />
             <input
               type="text"
               id="search-query"
@@ -340,19 +346,23 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               disabled={loading}
-              className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 form-input"
+              className="w-full pl-10 pr-4 h-10 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 form-input"
               aria-label="Search for evidence by names, contexts, or keywords"
             />
+            <Icon name="Search" size="sm" className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none" color="gray" aria-hidden="true" />
           </div>
         </FormField>
 
         {/* Filters */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
           <FormField label={
-            <HelpText text="Risk levels are determined by algorithmic analysis of evidence connections and document mentions">
+            <div className="flex items-center gap-2">
               Risk Level
-            </HelpText>
-          } id="risk-level" helpText="Filter results by subject risk assessment">
+              <Tooltip content="Filter results by subject risk assessment. Risk levels are determined by algorithmic analysis of evidence connections and document mentions.">
+                <Icon name="Info" size="sm" color="gray" className="cursor-help" />
+              </Tooltip>
+            </div>
+          } id="risk-level">
             <div className="relative">
               <select
                 id="risk-level"
@@ -360,21 +370,23 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
                 onChange={(e) => setSelectedRiskLevelWithUndo(e.target.value)}
                 disabled={loading}
                 aria-describedby="risk-level-description"
-                className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 form-select"
+                className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 h-10 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 form-select"
               >
                 {filterOptions.riskLevels.map(level => (
                   <option key={level.value} value={level.value}>{level.label}</option>
                 ))}
               </select>
-              <Icon name="Info" size="sm" className="absolute right-2 top-1/2 transform -translate-y-1/2" color="gray" aria-label="Information about risk level determination" />
             </div>
             <p id="risk-level-description" className="sr-only">Filter search results by risk level</p>
           </FormField>
 
           <FormField label={
-            <HelpText text="Evidence types categorize the nature of documents and references associated with subjects">
+            <div className="flex items-center gap-2">
               Evidence Type
-            </HelpText>
+              <Tooltip content="Evidence types categorize the nature of documents and references associated with subjects.">
+                <Icon name="Info" size="sm" color="gray" className="cursor-help" />
+              </Tooltip>
+            </div>
           } id="evidence-type">
             <select
               id="evidence-type"
@@ -382,7 +394,7 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
               onChange={(e) => setSelectedEvidenceTypeWithUndo(e.target.value)}
               disabled={loading}
               aria-describedby="evidence-type-description"
-              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 form-select"
+              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 h-10 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 form-select"
             >
               <option value="ALL">All Types</option>
               {allEvidenceTypes.map(type => (
@@ -393,10 +405,13 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
           </FormField>
 
           <FormField label={
-            <HelpText text="Red Flag Index measures the strength of evidence connections and potential significance of a subject">
+            <div className="flex items-center gap-2">
               Min Red Flag Rating
-            </HelpText>
-          } id="min-rating" helpText="Set minimum red flag severity threshold">
+              <Tooltip content="Set minimum red flag severity threshold. Red Flag Index measures the strength of evidence connections and potential significance of a subject.">
+                <Icon name="Info" size="sm" color="gray" className="cursor-help" />
+              </Tooltip>
+            </div>
+          } id="min-rating">
             <div className="relative">
               <select
                 id="min-rating"
@@ -404,22 +419,24 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
                 onChange={(e) => setMinRedFlagRatingWithUndo(Number(e.target.value))}
                 disabled={loading}
                 aria-describedby="min-rating-description"
-                className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 form-select"
+                className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 h-10 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 form-select"
               >
                 {filterOptions.redFlagRatings.map(rating => (
                   <option key={rating.value} value={rating.value}>{rating.label}</option>
                 ))}
               </select>
-              <Icon name="Info" size="sm" className="absolute right-2 top-1/2 transform -translate-y-1/2" color="gray" aria-label="Information about Red Flag Index" />
             </div>
             <p id="min-rating-description" className="sr-only">Filter search results by minimum red flag rating</p>
           </FormField>
 
           <FormField label={
-            <HelpText text="Red Flag Index measures the strength of evidence connections and potential significance of a subject">
+            <div className="flex items-center gap-2">
               Max Red Flag Rating
-            </HelpText>
-          } id="max-rating" helpText="Set maximum red flag severity threshold">
+              <Tooltip content="Set maximum red flag severity threshold. Red Flag Index measures the strength of evidence connections and potential significance of a subject.">
+                <Icon name="Info" size="sm" color="gray" className="cursor-help" />
+              </Tooltip>
+            </div>
+          } id="max-rating">
             <div className="relative">
               <select
                 id="max-rating"
@@ -427,22 +444,24 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
                 onChange={(e) => setMaxRedFlagRatingWithUndo(Number(e.target.value))}
                 disabled={loading}
                 aria-describedby="max-rating-description"
-                className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 form-select"
+                className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 h-10 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 form-select"
               >
                 {filterOptions.redFlagRatings.map(rating => (
                   <option key={rating.value} value={rating.value}>{rating.label}</option>
                 ))}
               </select>
-              <Icon name="Info" size="sm" className="absolute right-2 top-1/2 transform -translate-y-1/2" color="gray" aria-label="Information about Red Flag Index" />
             </div>
             <p id="max-rating-description" className="sr-only">Filter search results by maximum red flag rating</p>
           </FormField>
 
           <FormField label={
-            <HelpText text="Sorting affects how results are ordered, with relevance using algorithmic matching">
+            <div className="flex items-center gap-2">
               Sort By
-            </HelpText>
-          } id="sort-by" helpText="Order results by selected criteria">
+              <Tooltip content="Order results by selected criteria. Sorting affects how results are ordered, with relevance using algorithmic matching.">
+                <Icon name="Info" size="sm" color="gray" className="cursor-help" />
+              </Tooltip>
+            </div>
+          } id="sort-by">
             <div className="relative">
               <select
                 id="sort-by"
@@ -450,22 +469,24 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
                 onChange={(e) => setSortByWithUndo(e.target.value as any)}
                 disabled={loading}
                 aria-describedby="sort-by-description"
-                className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 form-select"
+                className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 h-10 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 form-select"
               >
                 {filterOptions.sortByOptions.map(option => (
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
-              <Icon name="Info" size="sm" className="absolute right-2 top-1/2 transform -translate-y-1/2" color="gray" aria-label="Information about sorting options" />
             </div>
             <p id="sort-by-description" className="sr-only">Sort search results by selected criteria</p>
           </FormField>
 
           <FormField label={
-            <HelpText text="Filter to show only subjects with flagged evidence">
+            <div className="flex items-center gap-2">
               Red Flag Only
-            </HelpText>
-          } id="red-flag-only" helpText="Show only results with red flags">
+              <Tooltip content="Show only results with red flags. Filter to show only subjects with flagged evidence.">
+                <Icon name="Info" size="sm" color="gray" className="cursor-help" />
+              </Tooltip>
+            </div>
+          } id="red-flag-only">
             <div className="flex items-center space-x-2">
               <input
                 type="checkbox"
@@ -477,7 +498,6 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
                 aria-label="Show only subjects with red flags"
               />
               <Icon name="Flag" size="sm" color="danger" aria-hidden="true" />
-              <Icon name="Info" size="sm" color="gray" aria-label="Information about red flag filter" />
             </div>
           </FormField>
         </div>

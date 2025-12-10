@@ -1,3 +1,147 @@
+# 🚀 Epstein Archive: Production Release Notes (v4.7.1)
+
+Email Document Viewer fix.
+
+## 🌟 Key Highlights
+
+### 1. Email Viewer Fixed
+- **Email Filter Working**: The "📧 Email" filter in Document Browser now correctly loads 3,581 email documents.
+- **Email Header Parsing**: Emails now display with parsed headers (From, To, Cc, Subject, Date) in a mock email client UI style, even when metadata is not pre-extracted.
+- **Database Query Fix**: Fixed column name errors (`file_name` → `title`, removed non-existent columns) that were causing the document API to fail.
+
+### 2. API Improvements
+- **evidenceType Filter**: `/api/documents` endpoint now supports filtering by evidence type (email, legal, deposition, etc.)
+- **search Filter**: Added search parameter support for filtering documents by title or content.
+
+---
+
+# 🚀 Epstein Archive: Production Release Notes (v4.7.0)
+
+Investigation feature enhancements and UI polish.
+
+## 🌟 Key Highlights
+
+### 1. Investigation Feature Improvements
+- **Financial Pane Text Fix**: Entity names in the Financial Transaction Mapper now use proper text truncation (`whitespace-nowrap` + `text-ellipsis`) instead of wrapping, with full text shown on hover via tooltips.
+- **Modal Scroll Fix**: New Investigation modal now includes `max-h-[90vh] overflow-y-auto` ensuring all content is accessible on smaller screens with visible action buttons.
+- **Database Schema Update**: Added missing `scope`, `collaborator_ids`, `created_at`, and `updated_at` columns to the investigations table.
+
+### 2. Example Investigation
+- **Maxwell-Epstein Financial Network**: Created a plausible example investigation tracing financial connections between Ghislaine Maxwell, Jeffrey Epstein, and their associates through shell companies and offshore accounts.
+
+### 3. Documentation
+- Added comprehensive Investigation feature walkthrough explaining how to create investigations, add evidence, test hypotheses, and use all 9 workspace tabs.
+
+---
+
+# 🚀 Epstein Archive: Production Release Notes (v4.5.9)
+
+Minor layout fix for document viewers.
+
+## 🌟 Key Highlights
+
+### 1. Bug Fixes
+- **Document Viewer Alignment**: Fixed an issue where the document viewer modal could appear off-center or clipped. It is now properly centered to the screen viewport using React Portals.
+
+---
+
+# 🚀 Epstein Archive: Production Release Notes (v4.5.8)
+
+Fine-tuning responsive layout for search.
+
+## 🌟 Key Highlights
+
+### 1. Visual Refinements
+- **Search Bar**: Optimized search input padding. Reduced excessive spacing on desktop while ensuring sufficient breathing room for the icon on mobile devices.
+
+---
+
+# 🚀 Epstein Archive: Production Release Notes (v4.5.7)
+
+Quick fix for search input visual regressions.
+
+## 🌟 Key Highlights
+
+### 1. Bug Fixes
+- **Search Bar**: Fixed an issue where the search icon was obscured and text alignment was incorrect due to invalid styling properties.
+
+---
+
+# 🚀 Epstein Archive: Production Release Notes (v4.5.6)
+
+UI decluttering and refinement.
+
+## 🌟 Key Highlights
+
+### 1. Evidence Search Polish
+- **Less Clutter**: Moved all descriptive help text into popover tooltips to clean up the search interface.
+- **Consistent Icons**: Standardized all help icons to use the application-standard info icon `(i)`.
+
+---
+
+# 🚀 Epstein Archive: Production Release Notes (v4.5.5)
+
+Responsive layout improvements for tablet and desktop users.
+
+## 🌟 Key Highlights
+
+### 1. Navigation Polish
+- **Better Wrapping**: Navigation tabs now fold gracefully to a second line on medium-sized screens (tablets/small laptops) instead of forcing a horizontal scroll. This improves accessibility and visibility of all menu items.
+
+---
+
+# 🚀 Epstein Archive: Production Release Notes (v4.5.4)
+
+Refinements to sorting logic and UI consistency.
+
+## 🌟 Key Highlights
+
+### 1. Entity Modal Sorting & Search
+- **Corrected Sorting**: Fixed an issue where documents were not sorting by Red Flag Index correctly.
+- **Mobile Search**: Increased padding on document filter input to prevent icon overlap.
+
+### 2. UI Polish
+- **Consistent Heights**: Standardized filter dropdowns and buttons to consistent height across the Evidence Search page.
+
+---
+
+# 🚀 Epstein Archive: Production Release Notes (v4.5.3)
+
+We have enhanced the Entity details view with better filtering and sorting capabilities.
+
+## 🌟 Key Highlights
+
+### 1. Entity Evidence Filtering
+- **Local Document Search**: Added a search filter within the Entity Modal to quickly find specific documents by title or content.
+- **Improved Sorting**: Verified default sorting prioritizes highly flagged documents (Red Flag Index) followed by mention count.
+
+---
+
+# 🚀 Epstein Archive: Production Release Notes (v4.5.2)
+
+We have deployed a quick fix to improve the search experience on mobile devices.
+
+## 🌟 Key Highlights
+
+### 1. Mobile Search Fix
+- **Search Input Layout**: Increased left padding in the search bar to prevent the search icon from overlapping with the placeholder text on some mobile devices.
+
+---
+
+# 🚀 Epstein Archive: Production Release Notes (v4.5.1)
+
+We have deployed a targeted update focusing on mobile UI optimization and sidebar improvements.
+
+## 🌟 Key Highlights
+
+### 1. Mobile UI Improvements
+- **Optimized Investigation Button**: Replaced the "New Investigation" button text with a clean "+" icon on mobile devices to save screen space while maintaining accessibility.
+
+### 2. Navigation Sidebar Fixes
+- **Sidebar Icons**: Fixed issue where sidebar icons appeared too small when the sidebar was collapsed. Icons now maintain proper sizing and visibility in all states.
+
+---
+
 # 🚀 Epstein Archive: Production Release Notes (v3.9.0)
 
 We have deployed a comprehensive update focusing on entity type icon improvements, UI enhancements, and bug fixes based on user feedback.

@@ -245,7 +245,7 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
                 <select
                   value={selectedInvestigationId}
                   onChange={(e) => setSelectedInvestigationId(e.target.value)}
-                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 h-10 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Choose an investigation...</option>
                   {investigations.map(inv => (
@@ -266,7 +266,7 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
                     <button
                       key={rel}
                       onClick={() => setRelevance(rel)}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      className={`px-3 h-10 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${
                         relevance === rel
                           ? getRelevanceColor(rel)
                           : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
@@ -282,14 +282,14 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
             <div className="border-t border-slate-700 p-6 flex justify-end gap-3">
               <button
                 onClick={() => setShowModal(false)}
-                className="px-4 py-2 text-slate-300 hover:text-white rounded-lg transition-colors"
+                className="px-4 h-10 flex items-center justify-center text-slate-300 hover:text-white rounded-lg transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddToInvestigation}
                 disabled={!selectedInvestigationId || isLoading}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center gap-2"
+                className="px-4 h-10 flex items-center justify-center bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center gap-2"
               >
                 {isLoading && (
                   <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />

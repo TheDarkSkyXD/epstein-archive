@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 interface TooltipProps {
   content: string;
   children: React.ReactNode;
-  position?: 'top' | 'right' | 'bottom' | 'left';
+  position?: 'top' | 'right' | 'bottom' | 'left' | 'top-end' | 'bottom-end';
   delay?: number;
   className?: string;
 }
@@ -66,10 +66,14 @@ const Tooltip: React.FC<TooltipProps> = ({
     switch (position) {
       case 'top':
         return `${baseClasses} bottom-full left-1/2 transform -translate-x-1/2 mb-2`;
+      case 'top-end':
+        return `${baseClasses} bottom-full right-0 mb-2`;
       case 'right':
         return `${baseClasses} left-full top-1/2 transform -translate-y-1/2 ml-2`;
       case 'bottom':
         return `${baseClasses} top-full left-1/2 transform -translate-x-1/2 mt-2`;
+      case 'bottom-end':
+        return `${baseClasses} top-full right-0 mt-2`;
       case 'left':
         return `${baseClasses} right-full top-1/2 transform -translate-y-1/2 mr-2`;
       default:
@@ -83,10 +87,14 @@ const Tooltip: React.FC<TooltipProps> = ({
     switch (position) {
       case 'top':
         return `${baseClasses} top-full left-1/2 transform -translate-x-1/2 -translate-y-1/2`;
+      case 'top-end':
+        return `${baseClasses} top-full right-3 transform -translate-y-1/2`;
       case 'right':
         return `${baseClasses} left-full top-1/2 transform -translate-y-1/2 -translate-x-1/2`;
       case 'bottom':
         return `${baseClasses} bottom-full left-1/2 transform -translate-x-1/2 translate-y-1/2`;
+      case 'bottom-end':
+        return `${baseClasses} bottom-full right-3 transform translate-y-1/2`;
       case 'left':
         return `${baseClasses} right-full top-1/2 transform -translate-y-1/2 translate-x-1/2`;
       default:

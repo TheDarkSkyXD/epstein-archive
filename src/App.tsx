@@ -6,7 +6,7 @@ import { Document } from './types/documents';
 import { OptimizedDataService, SearchFilters } from './services/OptimizedDataService';
 import { useNavigation } from './services/ContentNavigationService.tsx';
 import PersonCard from './components/PersonCard';
-import EvidenceMedia from './components/EvidenceMedia';
+import MediaAndArticlesTab from './components/MediaAndArticlesTab';
 import PersonCardSkeleton from './components/PersonCardSkeleton';
 import StatsSkeleton from './components/StatsSkeleton';
 import { StatsDisplay } from './components/StatsDisplay';
@@ -26,6 +26,7 @@ import { VirtualList } from './components/VirtualList';
 import Icon from './components/Icon';
 import { getEntityTypeIcon } from './utils/entityTypeIcons';
 import EntityTypeFilter from './components/EntityTypeFilter';
+import SortFilter from './components/SortFilter';
 import { FirstRunOnboarding } from './components/FirstRunOnboarding';
 import { useFirstRunOnboarding } from './hooks/useFirstRunOnboarding';
 import { InvestigationsProvider } from './contexts/InvestigationsContext';
@@ -920,28 +921,37 @@ function App() {
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8 relative z-10 flex-grow overflow-hidden">
         {/* Mobile Stats Row */}
         <div className="md:hidden grid grid-cols-3 gap-2 mb-6 text-center">
-          <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-2">
+          <button 
+            onClick={() => navigate('/search')}
+            className="bg-slate-800/50 border border-slate-700 rounded-lg p-2 hover:bg-slate-700/50 transition-colors cursor-pointer"
+          >
             <div className="text-xs text-slate-400 uppercase tracking-wider">Subjects</div>
             <div className="text-lg font-bold text-cyan-400">{headerTotalPeople.toLocaleString()}</div>
-          </div>
-          <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-2">
+          </button>
+          <button 
+            onClick={() => navigate('/search')}
+            className="bg-slate-800/50 border border-slate-700 rounded-lg p-2 hover:bg-slate-700/50 transition-colors cursor-pointer"
+          >
             <div className="text-xs text-slate-400 uppercase tracking-wider">Mentions</div>
             <div className="text-lg font-bold text-blue-400">{headerTotalMentions.toLocaleString()}</div>
-          </div>
-          <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-2">
+          </button>
+          <button 
+            onClick={() => navigate('/documents')}
+            className="bg-slate-800/50 border border-slate-700 rounded-lg p-2 hover:bg-slate-700/50 transition-colors cursor-pointer"
+          >
             <div className="text-xs text-slate-400 uppercase tracking-wider">Files</div>
             <div className="text-lg font-bold text-purple-400">{headerTotalFiles.toLocaleString()}</div>
-          </div>
+          </button>
         </div>
         {/* Simple loading indicator - no text labels */}
         <LoadingIndicator 
           isLoading={loading || (!documentsLoaded && activeTab === 'documents') || analyticsLoading}
         />
         {/* Navigation Tabs - X-Files Style */}
-        <div className="hidden md:flex md:flex-wrap lg:flex-nowrap gap-2 mb-6 bg-slate-800/50 backdrop-blur-sm p-1.5 rounded-xl border border-slate-700 -mx-4 px-4 md:mx-0 md:px-1.5 items-center overflow-x-auto scrollbar-hide">
+        <div className="hidden md:flex md:flex-wrap xl:flex-nowrap gap-2 mb-6 bg-slate-800/50 backdrop-blur-sm p-1.5 rounded-xl border border-slate-700 -mx-4 px-4 md:mx-0 md:px-1.5 items-center overflow-x-auto scrollbar-hide">
           <button
             onClick={() => navigate('/people')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap lg:flex-shrink-0 ${
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap xl:flex-shrink-0 ${
               activeTab === 'people'
                 ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg btn-primary'
                 : 'text-slate-400 hover:text-white hover:bg-slate-700/50 btn-secondary'
@@ -952,7 +962,7 @@ function App() {
           </button>
           <button
             onClick={() => navigate('/search')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap lg:flex-shrink-0 ${
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap xl:flex-shrink-0 ${
               activeTab === 'search'
                 ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg btn-primary'
                 : 'text-slate-400 hover:text-white hover:bg-slate-700/50 btn-secondary'
@@ -963,7 +973,7 @@ function App() {
           </button>
           <button
             onClick={() => navigate('/documents')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap lg:flex-shrink-0 ${
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap xl:flex-shrink-0 ${
               activeTab === 'documents'
                 ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-lg btn-primary'
                 : 'text-slate-400 hover:text-white hover:bg-slate-700/50 btn-secondary'
@@ -975,7 +985,7 @@ function App() {
           <div className="relative inline-block">
             <button
               onClick={() => { try { localStorage.setItem('investigate_attract_shown','true'); localStorage.setItem('investigate_popover_dismissed','true'); } catch (e) { console.warn('localStorage not available:', e); } setInvestigateAttract(false); setInvestigatePopoverOpen(false); navigate('/investigations'); }}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap lg:flex-shrink-0 ${
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap xl:flex-shrink-0 ${
                 activeTab === 'investigations'
                   ? 'bg-gradient-to-r from-red-600 to-pink-600 text-white shadow-lg btn-primary'
                   : `text-slate-400 hover:text-white hover:bg-slate-700/50 ${investigateAttract ? 'ring-2 ring-pink-500 shadow-lg shadow-pink-500/30 animate-pulse' : ''} btn-secondary`
@@ -1015,7 +1025,7 @@ function App() {
           </div>
           <button
             onClick={() => navigate('/blackbook')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap lg:flex-shrink-0 ${
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap xl:flex-shrink-0 ${
               activeTab === 'blackbook'
                 ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-lg btn-primary'
                 : 'text-slate-400 hover:text-white hover:bg-slate-700/50 btn-secondary'
@@ -1026,7 +1036,7 @@ function App() {
           </button>
           <button
             onClick={() => navigate('/timeline')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap lg:flex-shrink-0 ${
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap xl:flex-shrink-0 ${
               activeTab === 'timeline'
                 ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-lg btn-primary'
                 : 'text-slate-400 hover:text-white hover:bg-slate-700/50 btn-secondary'
@@ -1049,7 +1059,7 @@ function App() {
 
           <button
             onClick={() => navigate('/analytics')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap lg:flex-shrink-0 ${
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap xl:flex-shrink-0 ${
               activeTab === 'analytics'
                 ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg btn-primary'
                 : 'text-slate-400 hover:text-white hover:bg-slate-700/50 btn-secondary'
@@ -1060,7 +1070,7 @@ function App() {
           </button>
           <button
             onClick={() => navigate('/about')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap lg:flex-shrink-0 ${
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 whitespace-nowrap xl:flex-shrink-0 ${
               activeTab === 'about'
                 ? 'bg-gradient-to-r from-teal-600 to-cyan-600 text-white shadow-lg btn-primary'
                 : 'text-slate-400 hover:text-white hover:bg-slate-700/50 btn-secondary'
@@ -1129,22 +1139,21 @@ function App() {
                   />
                   
                   {/* Sort Dropdown - No label on mobile */}
-                  <select
+                  <SortFilter
                     value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as any)}
-                    aria-label="Sort by"
-                    className="bg-slate-800 border border-slate-600 rounded-lg px-2 md:px-3 h-9 md:h-10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 min-w-0"
-                  >
-                    <option value="spice">🚩 Red Flag</option>
-                    <option value="mentions">📊 Mentions</option>
-                    <option value="risk">⚠️ Risk</option>
-                    <option value="name">👤 Name</option>
-                  </select>
+                    onChange={(val) => setSortBy(val as any)}
+                    options={[
+                      { value: 'spice', label: 'Red Flag', icon: <div className="w-4 h-4 flex items-center justify-center text-base leading-none">🚩</div> },
+                      { value: 'mentions', label: 'Mentions', icon: <div className="w-4 h-4 flex items-center justify-center text-base leading-none">📊</div> },
+                      { value: 'risk', label: 'Risk', icon: <div className="w-4 h-4 flex items-center justify-center text-base leading-none">⚠️</div> },
+                      { value: 'name', label: 'Name', icon: <div className="w-4 h-4 flex items-center justify-center text-base leading-none">👤</div> }
+                    ]}
+                  />
                   
                   {/* Sort Order Toggle */}
                   <button
                     onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                    className="h-9 md:h-10 w-9 md:w-10 flex items-center justify-center bg-slate-800 border border-slate-600 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+                    className="h-10 w-10 flex items-center justify-center bg-slate-800 border border-slate-600 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
                     title={`Sort ${sortOrder === 'asc' ? 'Descending' : 'Ascending'}`}
                   >
                     {sortOrder === 'asc' ? '↑' : '↓'}
@@ -1286,7 +1295,7 @@ function App() {
 
           {activeTab === 'media' && (
             <ScopedErrorBoundary>
-              <EvidenceMedia />
+              <MediaAndArticlesTab />
             </ScopedErrorBoundary>
           )}
 
@@ -1296,19 +1305,25 @@ function App() {
             <AboutPage />
           )}
 
-          {activeTab === 'investigations' && (
-            <InvestigationWorkspace 
-              currentUser={{
-                id: '1',
-                name: 'Investigator',
-                email: 'investigator@example.com',
-                role: 'lead',
-                permissions: ['read', 'write', 'admin'],
-                joinedAt: new Date(),
-                expertise: ['investigative journalism', 'data analysis']
-              }}
-            />
-          )}
+          {activeTab === 'investigations' && (() => {
+            // Extract investigation ID from URL path (e.g., /investigations/maxwell-epstein-network-001)
+            const pathParts = location.pathname.split('/');
+            const investigationIdFromUrl = pathParts.length > 2 && pathParts[1] === 'investigations' && pathParts[2] ? pathParts[2] : undefined;
+            return (
+              <InvestigationWorkspace 
+                investigationId={investigationIdFromUrl}
+                currentUser={{
+                  id: '1',
+                  name: 'Investigator',
+                  email: 'investigator@example.com',
+                  role: 'lead',
+                  permissions: ['read', 'write', 'admin'],
+                  joinedAt: new Date(),
+                  expertise: ['investigative journalism', 'data analysis']
+                }}
+              />
+            );
+          })()}
 
           {activeTab === 'blackbook' && (
             <div className="mt-6">
@@ -1352,6 +1367,72 @@ function App() {
           isOpen={showReleaseNotes}
           onClose={() => setShowReleaseNotes(false)}
           releaseNotes={[
+            {
+              version: `v${__APP_VERSION__}`,
+              date: 'December 10, 2025',
+              title: 'Advanced Media Filters & Export',
+              notes: [
+                'New: Sidebar Filters - Filter by Camera Model (Hasselblad, Canon, etc.)',
+                'New: "Has GPS" Filter - Quickly find geolocated images',
+                'New: Export Feature - Download filtered album or selection as ZIP',
+                'Update: Streamlined "Future Features" list',
+              ]
+            },
+            {
+              version: 'v4.8.1',
+              date: 'December 10, 2025',
+              title: 'GPS & EXIF Updates - View in Maps',
+              notes: [
+                'New: "View in Maps" button for images with GPS data (e.g. USVI drone shots)',
+                'Enhanced EXIF: Support for updating existing images from original high-res files',
+                'Data Quality: Fixed EXIF extraction for lens, aperture, and camera model data',
+              ]
+            },
+            {
+              version: 'v4.8.0',
+              date: 'December 10, 2025',
+              title: 'Media Browser Enhancements',
+              notes: [
+                'New: Articles & Media subtabs - Browse articles and media separately',
+                'AI Titles: Smart title generation from filenames (DJI_0360 → "Drone Capture #0360")',
+                'Subject Detection: Auto-detect subjects (Epstein, Maxwell, Trump) from filenames',
+                'Professional Metadata Panel: EXIF data, GPS location with map links, camera info',
+                'Enhanced Ingestion: Full EXIF extraction (lens, aperture, ISO, GPS coordinates)',
+                'Document Viewers: Legal, Deposition, and Article specialized viewers'
+              ]
+            },
+            {
+              version: 'v4.7.1',
+              date: 'December 10, 2025',
+              title: 'UI Polish & Layout Fixes',
+              notes: [
+                'Search: Fixed overlapping icons and input padding issues',
+                'Navigation: Improved responsiveness for tablet wrapping',
+                'UI Cleanup: Moved help text to tooltips for cleaner forms',
+                'Fix: Centered document viewers to viewport (Portal fix)'
+              ]
+            },
+            {
+              version: 'v4.5.3',
+              date: 'December 10, 2025',
+              title: 'Entity Modal Improvements',
+              notes: [
+                'Entity Evidence Filtering: Added local document search filter',
+                'Improved Sorting: Default sort by RFI -> Mentions',
+                'Mobile UI: Fixed search icon overlap',
+                'Sidebar: Fixed collapsed icon sizing'
+              ]
+            },
+            {
+              version: 'v4.5.0',
+              date: 'December 9, 2025',
+              title: 'Performance & UI Optimization',
+              notes: [
+                'Mobile Optimization: Enhanced button layouts',
+                'Performance: Improved loading states',
+                'Bug Fixes: Resolved various UI inconsistencies'
+              ]
+            },
             {
               version: 'v3.9.0',
               date: 'December 6, 2025',

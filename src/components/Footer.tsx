@@ -87,9 +87,9 @@ const Footer: React.FC = () => {
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-slate-800/50 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-600">
             <div className="flex items-center gap-4">
-                <span>v3.9.0</span>
+                <span>v{__APP_VERSION__}</span>
                 <span className="w-1 h-1 bg-slate-700 rounded-full"></span>
-                <span>Last Updated: Dec 6, 2025</span>
+                <span>Last Updated: Dec 10, 2025</span>
             </div>
             <div className="flex items-center gap-6">
                 <a href="#" className="hover:text-slate-400 transition-colors">Privacy Policy</a>

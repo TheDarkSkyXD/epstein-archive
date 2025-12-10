@@ -1,8 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { FileText, Tag, Download } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { FileText, Tag, Download, Eye } from 'lucide-react'
+import { prettifyOCRText } from '../utils/prettifyOCR'
 import { apiClient } from '../services/apiClient'
 import { DocumentMetadataPanel } from './DocumentMetadataPanel'
 import { MediaViewer } from './MediaViewer'
+import { DocumentContentRenderer } from './DocumentContentRenderer'
 import { useModalFocusTrap } from '../hooks/useModalFocusTrap'
 
 interface Props {
@@ -25,6 +28,7 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
   const [doc, setDoc] = useState<any | null>(initialDoc || null)
   const [activeTab, setActiveTab] = useState<'content' | 'original' | 'metadata'>('content')
   const [showMediaViewer, setShowMediaViewer] = useState(false)
+  const [showRaw, setShowRaw] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
   const { modalRef } = useModalFocusTrap(true)
   
@@ -56,14 +60,15 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
     }
   }, [searchTerm, activeTab, doc?.content])
 
-  if (!doc) return (
-    <div className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4">
+  if (!doc) return createPortal(
+    <div className="fixed inset-0 bg-black/75 z-[100] flex items-center justify-center p-4">
       <div className="bg-slate-900 rounded-lg p-6 border border-slate-700">
         <div className="text-white font-semibold mb-2">Unable to load document</div>
         <div className="text-slate-400 mb-4">Please try again or open in the Document Browser.</div>
         <button onClick={onClose} className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white">Close</button>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 
   const downloadText = () => {
@@ -76,8 +81,8 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
     document.body.removeChild(a)
   }
 
-  return (
-    <div ref={modalRef} className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-0 md:p-4" role="dialog" aria-modal="true" aria-labelledby="document-modal-title">
+  return createPortal(
+    <div ref={modalRef} className="fixed inset-0 bg-black/75 z-[100] flex items-center justify-center p-0 md:p-4" role="dialog" aria-modal="true" aria-labelledby="document-modal-title">
       <div className="bg-slate-900 rounded-none md:rounded-lg w-full h-full md:max-w-6xl md:max-h-[95vh] overflow-hidden flex flex-col border-0 md:border border-slate-700">
         <div className="flex items-center justify-between p-4 border-b border-slate-700 bg-slate-800">
           <div className="flex items-center gap-2">
@@ -88,6 +93,13 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
           <div className="flex items-center gap-2">
             <button onClick={() => setActiveTab('metadata')} className="p-2 text-slate-300 hover:text-white" title="Metadata">
               <Tag className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setShowRaw(!showRaw)}
+              className={`p-2 hover:text-white ${showRaw ? 'text-slate-500' : 'text-cyan-400'}`}
+              title={showRaw ? 'Showing raw OCR text' : 'Showing cleaned text'}
+            >
+              {showRaw ? <FileText className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
             <button onClick={downloadText} className="p-2 text-slate-300 hover:text-white" title="Download Text">
               <Download className="w-4 h-4" />
@@ -104,11 +116,19 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
           {activeTab === 'content' && (
             <>
               {doc.content && doc.content.length > 0 ? (
-                <pre className="whitespace-pre-wrap text-sm text-slate-300 font-mono leading-relaxed" dangerouslySetInnerHTML={{ __html: searchTerm ? highlight(doc.content, searchTerm) : doc.content }} />
+                <DocumentContentRenderer 
+                  document={doc} 
+                  searchTerm={searchTerm} 
+                  showRaw={showRaw} 
+                />
               ) : (
                 <div className="text-slate-300">
                   <div className="mb-2">Full text not available. Showing preview:</div>
-                  <pre className="whitespace-pre-wrap text-sm text-slate-300 font-mono leading-relaxed" dangerouslySetInnerHTML={{ __html: searchTerm ? highlight(doc.contentPreview || '', searchTerm) : (doc.contentPreview || '') }} />
+                  <DocumentContentRenderer 
+                    document={{...doc, content: doc.contentPreview}} 
+                    searchTerm={searchTerm} 
+                    showRaw={showRaw} 
+                  />
                 </div>
               )}
             </>
@@ -167,7 +187,8 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

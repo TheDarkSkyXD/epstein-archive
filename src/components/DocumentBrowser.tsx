@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Document, BrowseFilters, DocumentCollection } from '../types/documents';
 import { DocumentProcessor } from '../services/documentProcessor';
-import { Search, Filter, Calendar, FileText, Users, Tag, ChevronDown, ChevronRight, Network, Download } from 'lucide-react';
+import { Search, Filter, Calendar, FileText, Users, Tag, ChevronDown, ChevronRight, Network, Download, Eye } from 'lucide-react';
 import { useNavigation } from '../services/ContentNavigationService.tsx';
 import { apiClient } from '../services/apiClient';
 import { DocumentAnnotationSystem } from './DocumentAnnotationSystem';
@@ -9,6 +10,8 @@ import { Breadcrumb } from './Breadcrumb';
 import { SourceBadge } from './SourceBadge';
 import DocumentSkeleton from './DocumentSkeleton';
 import { AddToInvestigationButton } from './AddToInvestigationButton';
+import { prettifyOCRText } from '../utils/prettifyOCR';
+import { DocumentContentRenderer } from './DocumentContentRenderer';
 
 interface DocumentBrowserProps {
   processor: DocumentProcessor;
@@ -463,7 +466,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
     const [activeTab, setActiveTab] = useState<'content' | 'original' | 'entities' | 'related' | 'annotations'>('content');
     const [pages, setPages] = useState<string[]>([]);
     const [loadingPages, setLoadingPages] = useState(false);
-    const [showAnnotations, setShowAnnotations] = useState(false);
+    const [showRaw, setShowRaw] = useState(false);
     const contentRef = React.useRef<HTMLDivElement>(null);
 
     // Reset pages when document changes
@@ -516,13 +519,13 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
       window.document.body.removeChild(element);
     };
 
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-0 md:p-4">
+    return createPortal(
+      <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[100] p-0 md:p-4">
       <div className="bg-gray-900 rounded-none md:rounded-lg w-full h-full md:w-auto md:h-auto md:max-w-6xl md:max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border-0 md:border border-gray-700">
         
-        <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-800">
+        <div className="flex flex-col p-4 border-b border-gray-700 bg-gray-800">
           {/* Breadcrumb */}
-          <div className="w-full mb-2">
+          <div className="mb-2">
             <Breadcrumb 
               items={[
                 { label: 'Documents', onClick: () => {} },
@@ -531,14 +534,24 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
             />
           </div>
           
-          <div className="flex items-center space-x-3">
-            <FileText className="w-5 h-5 text-blue-400" />
-            <h2 className="text-lg font-semibold text-white">
-              {searchTerm ? renderHighlightedText(document.title, searchTerm) : document.title}
-            </h2>
-            <span className="text-lg">{document.redFlagPeppers}</span>
-          </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <FileText className="w-5 h-5 text-blue-400 shrink-0" />
+              <h2 className="text-lg font-semibold text-white truncate">
+                {searchTerm ? renderHighlightedText(document.title, searchTerm) : document.title}
+              </h2>
+              <span className="text-lg shrink-0">{document.redFlagPeppers}</span>
+            </div>
+            </div>
+          <div className="flex items-center space-x-2 shrink-0">
+            {/* Pretty/Raw Toggle */}
+            <button
+              onClick={() => setShowRaw(!showRaw)}
+              className={`p-2 hover:text-white ${showRaw ? 'text-gray-500' : 'text-blue-400'}`}
+              title={showRaw ? 'Showing raw OCR text' : 'Showing cleaned text'}
+            >
+              {showRaw ? <FileText className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
             <button 
               onClick={() => setShowMetadata(!showMetadata)}
               className="md:hidden p-2 text-gray-400 hover:text-white"
@@ -631,152 +644,11 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
         <div className="flex-1 overflow-hidden flex">
           <div className="flex-1 overflow-y-auto p-6 bg-gray-900" ref={contentRef}>
             {activeTab === 'content' && (
-              <div className="prose prose-invert max-w-none">
-                <div className="mb-4 flex items-center justify-between">
-                  <div className="text-sm text-gray-400">
-                    {document.evidenceType === 'email' ? '📧 Email Message' : 
-                     document.evidenceType === 'legal' ? '⚖️ Legal Document' :
-                     document.evidenceType === 'deposition' ? '📜 Deposition' :
-                     document.evidenceType === 'financial' ? '💰 Financial Record' :
-                     document.fileType?.match(/jpe?g|png|gif|bmp|webp/i) ? '📷 Image' :
-                     document.fileType?.match(/csv|xls/i) ? '📊 Spreadsheet' :
-                     'Select text to add annotations and evidence'}
-                  </div>
-                  {!document.fileType?.match(/jpe?g|png|gif|bmp|webp|csv|xls/i) && (
-                    <button
-                      onClick={() => setShowAnnotations(!showAnnotations)}
-                      className={`px-3 py-1 text-xs rounded ${
-                        showAnnotations ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                      }`}
-                    >
-                      {showAnnotations ? 'Hide Annotations' : 'Show Annotations'}
-                    </button>
-                  )}
-                </div>
-                
-                {/* Email Headers Display */}
-                {document.evidenceType === 'email' && document.metadata?.emailHeaders && (
-                  <div className="bg-gray-800 rounded-lg p-4 mb-4 border border-gray-700">
-                    <div className="space-y-2 text-sm">
-                      {document.metadata.emailHeaders.from && (
-                        <div className="flex">
-                          <span className="text-gray-400 w-16">From:</span>
-                          <span className="text-white">{document.metadata.emailHeaders.from}</span>
-                        </div>
-                      )}
-                      {document.metadata.emailHeaders.to && (
-                        <div className="flex">
-                          <span className="text-gray-400 w-16">To:</span>
-                          <span className="text-white">{document.metadata.emailHeaders.to}</span>
-                        </div>
-                      )}
-                      {document.metadata.emailHeaders.cc && (
-                        <div className="flex">
-                          <span className="text-gray-400 w-16">Cc:</span>
-                          <span className="text-gray-300">{document.metadata.emailHeaders.cc}</span>
-                        </div>
-                      )}
-                      {document.metadata.emailHeaders.sentDate && (
-                        <div className="flex">
-                          <span className="text-gray-400 w-16">Date:</span>
-                          <span className="text-gray-300">{document.metadata.emailHeaders.sentDate}</span>
-                        </div>
-                      )}
-                      {document.metadata.emailHeaders.subject && (
-                        <div className="flex">
-                          <span className="text-gray-400 w-16">Subject:</span>
-                          <span className="text-white font-medium">{document.metadata.emailHeaders.subject}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-                
-                {/* Image Viewer for image files */}
-                {document.fileType?.match(/jpe?g|png|gif|bmp|webp/i) ? (
-                  <div className="flex flex-col items-center">
-                    <img 
-                      src={`/api/documents/${document.id}/file`} 
-                      alt={document.title}
-                      className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg"
-                      onError={(e) => {
-                        // Fallback to showing OCR text if image fails to load
-                        (e.target as HTMLImageElement).style.display = 'none';
-                        const parent = (e.target as HTMLImageElement).parentElement;
-                        if (parent) {
-                          parent.innerHTML = `<pre class="whitespace-pre-wrap text-sm text-gray-300 font-mono leading-relaxed">${document.content || 'No content available'}</pre>`;
-                        }
-                      }}
-                    />
-                    {document.content && document.content.trim() && (
-                      <div className="mt-4 w-full">
-                        <details className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-                          <summary className="cursor-pointer text-sm text-gray-400 hover:text-white">
-                            📝 OCR Extracted Text ({document.content.split(/\s+/).length} words)
-                          </summary>
-                          <pre className="mt-4 whitespace-pre-wrap text-xs text-gray-400 font-mono leading-relaxed max-h-48 overflow-y-auto">
-                            {document.content}
-                          </pre>
-                        </details>
-                      </div>
-                    )}
-                  </div>
-                ) : document.fileType?.match(/csv/i) || document.evidenceType === 'financial' ? (
-                  /* CSV/Financial Table Viewer */
-                  <div className="overflow-x-auto">
-                    <div className="bg-gray-800 rounded-lg p-4 border border-gray-700 mb-4">
-                      <div className="flex items-center gap-2 text-sm text-gray-400">
-                        <span>💰</span>
-                        <span>Financial Data / Spreadsheet</span>
-                      </div>
-                    </div>
-                    {(() => {
-                      const lines = (document.content || '').split('\n').filter(l => l.trim());
-                      if (lines.length === 0) return <p className="text-gray-400">No data available</p>;
-                      
-                      // Try to parse as CSV
-                      const rows = lines.map(line => line.split(/[,\t]/));
-                      const hasHeader = rows.length > 1;
-                      
-                      return (
-                        <table className="w-full text-sm text-left border-collapse">
-                          {hasHeader && (
-                            <thead className="bg-gray-800 text-gray-300 uppercase text-xs">
-                              <tr>
-                                {rows[0].map((cell, i) => (
-                                  <th key={i} className="px-4 py-3 border border-gray-700">{cell.trim()}</th>
-                                ))}
-                              </tr>
-                            </thead>
-                          )}
-                          <tbody>
-                            {rows.slice(hasHeader ? 1 : 0).map((row, rowIdx) => (
-                              <tr key={rowIdx} className={rowIdx % 2 === 0 ? 'bg-gray-900' : 'bg-gray-800'}>
-                                {row.map((cell, cellIdx) => (
-                                  <td key={cellIdx} className="px-4 py-2 border border-gray-700 text-gray-300">
-                                    {cell.trim()}
-                                  </td>
-                                ))}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      );
-                    })()}
-                  </div>
-                ) : showAnnotations ? (
-                  <DocumentAnnotationSystem
-                    documentId={document.id}
-                    content={document.content}
-                    searchTerm={searchTerm}
-                    renderHighlightedText={renderHighlightedText}
-                  />
-                ) : (
-                  <pre className="whitespace-pre-wrap text-sm text-gray-300 font-mono leading-relaxed">
-                    {searchTerm ? renderHighlightedText(document.content, searchTerm) : document.content}
-                  </pre>
-                )}
-              </div>
+              <DocumentContentRenderer 
+                document={document} 
+                searchTerm={searchTerm} 
+                showRaw={showRaw} 
+              />
             )}
 
             {activeTab === 'original' && (
@@ -1040,7 +912,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
         </div>
       </div>
     </div>
-    );
+    , window.document.body);
   };
 
   return (

@@ -25,17 +25,17 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({ open, searchTerm, onSear
   }
 
   return (
-    <div className={`mobile-nav fixed inset-0 z-50 transition-opacity duration-300 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+    <div className={`mobile-nav fixed inset-0 z-[60] transition-opacity duration-300 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
       {/* Backdrop overlay - closes menu when clicked */}
       <div 
         aria-label="Close menu overlay"
-        className="absolute inset-0 bg-black/70"
+        className="absolute inset-0 top-[60px] bg-black/70"
         onClick={onClose}
       />
       
       {/* Menu panel - on top of backdrop */}
       <div 
-        className={`absolute left-0 top-0 h-full w-4/5 max-w-sm bg-slate-900 border-r border-slate-700 shadow-xl transform transition-transform duration-300 ease-out z-10 ${open ? 'translate-x-0' : '-translate-x-full'}`}
+        className={`absolute left-0 top-[60px] h-[calc(100%-60px)] w-4/5 max-w-sm bg-slate-900 border-r border-slate-700 shadow-xl transform transition-transform duration-300 ease-out z-10 ${open ? 'translate-x-0' : '-translate-x-full'}`}
         onClick={(e) => e.stopPropagation()} // Prevent clicks inside menu from closing it
         onTouchStart={(e) => {
           const touch = e.touches[0];
@@ -57,19 +57,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({ open, searchTerm, onSear
             <Icon name="X" size="sm" className="w-5 h-5 text-slate-400" />
           </button>
         </div>
-        <div className="p-4 border-b border-slate-700">
-          <div className="relative">
-            <Icon name="Search" size="sm" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              className="w-full pl-9 pr-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              placeholder="Search"
-              aria-label="Search"
-              value={searchTerm}
-              onChange={(e) => onSearchTermChange(e.target.value)}
-            />
-          </div>
-        </div>
-        <div className="p-2 space-y-1">
+        <div className="p-2 space-y-1 overflow-y-auto max-h-[calc(100vh-80px)]">
           <button className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-white hover:bg-slate-800 active:bg-slate-700 transition-colors" onClick={() => handleNavigation('/people')}><Icon name="Users" size="sm" className="w-5 h-5" /><span>Subjects</span></button>
           <button className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-white hover:bg-slate-800 active:bg-slate-700 transition-colors" onClick={() => handleNavigation('/search')}><Icon name="Search" size="sm" className="w-5 h-5" /><span>Search</span></button>
           <button className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-white hover:bg-slate-800 active:bg-slate-700 transition-colors" onClick={() => handleNavigation('/documents')}><Icon name="FileText" size="sm" className="w-5 h-5" /><span>Documents</span></button>

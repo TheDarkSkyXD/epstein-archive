@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS entities (
   role TEXT,
   title_variants TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  risk_factor INTEGER DEFAULT 0
 );
 
 -- Evidence types lookup
@@ -85,12 +86,23 @@ CREATE TABLE IF NOT EXISTS timeline_events (
   FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE SET NULL
 );
 
+-- Investigations table
+CREATE TABLE IF NOT EXISTS investigations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  uuid TEXT UNIQUE,
+  title TEXT NOT NULL,
+  description TEXT,
+  status TEXT DEFAULT 'active',
+  owner_id TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Full-text search virtual table for entities
 CREATE VIRTUAL TABLE IF NOT EXISTS entities_fts USING fts5(
-  full_name,
-  primary_role,
-  secondary_roles,
-  connections_summary,
+  name,
+  role,
+  description,
   content='entities',
   content_rowid='id'
 );
@@ -107,16 +119,15 @@ CREATE VIRTUAL TABLE IF NOT EXISTS documents_fts USING fts5(
 
 -- Triggers to keep FTS tables in sync
 CREATE TRIGGER IF NOT EXISTS entities_fts_insert AFTER INSERT ON entities BEGIN
-  INSERT INTO entities_fts(rowid, full_name, primary_role, secondary_roles, connections_summary)
-  VALUES (NEW.id, NEW.full_name, NEW.primary_role, NEW.secondary_roles, NEW.connections_summary);
+  INSERT INTO entities_fts(rowid, name, role, description)
+  VALUES (NEW.id, NEW.name, NEW.role, NEW.description);
 END;
 
 CREATE TRIGGER IF NOT EXISTS entities_fts_update AFTER UPDATE ON entities BEGIN
   UPDATE entities_fts SET 
-    full_name = NEW.full_name,
-    primary_role = NEW.primary_role,
-    secondary_roles = NEW.secondary_roles,
-    connections_summary = NEW.connections_summary
+    name = NEW.name,
+    role = NEW.role,
+    description = NEW.description
   WHERE rowid = OLD.id;
 END;
 

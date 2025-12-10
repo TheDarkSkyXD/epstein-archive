@@ -633,13 +633,15 @@ export class DatabaseService {
       case 'spice':
       case 'risk':
       default:
-        // Primary: RFI, Secondary: document_count (computed), Tertiary: Name
-        // Note: document_count is computed in subquery and available in outer SELECT
-        orderByClause = 'ORDER BY e.red_flag_rating DESC, document_count DESC, e.name ASC';
+        // Primary: RFI, Secondary: Mentions, Tertiary: Name
+        // Use explicit COALESCE(e.mentions, 0) instead of alias to ensure correct sorting behavior
+        orderByClause = 'ORDER BY e.red_flag_rating DESC, COALESCE(e.mentions, 0) DESC, e.name ASC';
         break;
     }
+    
+    console.log(`[getEntities] Sort: ${sortBy}, OrderClause: ${orderByClause}`);
 
-    // Query directly from entities table - use pre-computed mentions_count for performance
+    // Query directly from entities table - use pre-computed mentions count for performance
     // The slow LIKE subquery was causing API timeouts
     const query = `
       SELECT 
@@ -649,7 +651,7 @@ export class DatabaseService {
         e.type as entity_type,
         e.red_flag_rating,
         e.description as red_flag_description,
-        COALESCE(e.mentions_count, 0) as document_count
+        COALESCE(e.mentions, 0) as document_count
       FROM entities e
       ${whereClause}
       ${orderByClause}
@@ -932,7 +934,12 @@ async getStatistics(): Promise<{
   totalDocuments: number;
   totalMentions: number;
   averageSpiceRating: number;
+  totalUniqueRoles: number; // Added this line
+  entitiesWithDocuments: number;
+  documentsWithMetadata: number;
+  activeInvestigations: number;
   topRoles: { role: string; count: number }[];
+  topEntities: { name: string; mentions: number; spice: number }[];
   likelihoodDistribution: { level: string; count: number }[];
   redFlagDistribution?: { rating: number; count: number }[];
 }> {
@@ -940,29 +947,22 @@ async getStatistics(): Promise<{
     SELECT 
       (SELECT COUNT(*) FROM entities) as totalEntities,
       (SELECT COUNT(*) FROM documents) as totalDocuments,
-      (SELECT COALESCE(SUM(mentions_count), 0) FROM entities) as totalMentions,
-      0 as averageSpiceRating
+      (SELECT COALESCE(SUM(mentions), 0) FROM entities) as totalMentions,
+      (SELECT AVG(red_flag_rating) FROM entities) as averageSpiceRating,
+      (SELECT COUNT(DISTINCT role) FROM entities WHERE role IS NOT NULL AND role != '') as totalUniqueRoles,
+      (SELECT COUNT(*) FROM entities WHERE mentions > 0) as entitiesWithDocuments,
+      (SELECT COUNT(*) FROM documents WHERE metadata_json IS NOT NULL AND Length(metadata_json) > 2) as documentsWithMetadata,
+      (SELECT COUNT(*) FROM investigations WHERE status = 'active') as activeInvestigations
   `).get() as any;
 
-  /*
   const topRoles = this.db.prepare(`
     SELECT role, COUNT(*) as count 
     FROM entities 
-    WHERE role IS NOT NULL 
+    WHERE role IS NOT NULL AND role != ''
     GROUP BY role 
-    ORDER BY count DESC 
-    LIMIT 5
-  `).all();
-  */
-  const topRolesQuery = `
-    SELECT role, COUNT(*) as count 
-    FROM entities 
-    WHERE role IS NOT NULL 
-    GROUP BY role 
-    ORDER BY count DESC 
-    LIMIT 5
-  `;
-  const topRoles = this.db.prepare(topRolesQuery).all() as { role: string; count: number }[];
+    ORDER BY count DESC
+    LIMIT 10
+  `).all() as { role: string; count: number }[];
 
   // Get red_flag_rating distribution (1-5 scale)
   const redFlagDistribution = this.db.prepare(`
@@ -970,37 +970,39 @@ async getStatistics(): Promise<{
     FROM entities
     WHERE red_flag_rating IS NOT NULL
     GROUP BY red_flag_rating
-    ORDER BY red_flag_rating
+    ORDER BY red_flag_rating ASC
   `).all() as { rating: number; count: number }[];
 
   // Compute likelihoodDistribution from red_flag_rating for better analytics
-  // HIGH = rating 4-5, MEDIUM = rating 2-3, LOW = rating 0-1
-  const likelihoodFromRedFlag = this.db.prepare(`
-    SELECT 
-      CASE 
-        WHEN red_flag_rating >= 4 THEN 'HIGH'
-        WHEN red_flag_rating >= 2 THEN 'MEDIUM'
-        ELSE 'LOW'
-      END as level,
-      COUNT(*) as count
+  const likelihoodDistribution = [
+    { level: 'HIGH', count: redFlagDistribution.filter(r => r.rating >= 4).reduce((a, b) => a + b.count, 0) },
+    { level: 'MEDIUM', count: redFlagDistribution.filter(r => r.rating >= 2 && r.rating < 4).reduce((a, b) => a + b.count, 0) },
+    { level: 'LOW', count: redFlagDistribution.filter(r => r.rating < 2).reduce((a, b) => a + b.count, 0) }
+  ];
+
+  // Get top entities by mentions
+  const topEntities = this.db.prepare(`
+    SELECT name, mentions, red_flag_rating as spice
     FROM entities
-    WHERE red_flag_rating IS NOT NULL
-    GROUP BY level
-    ORDER BY 
-      CASE level 
-        WHEN 'HIGH' THEN 1 
-        WHEN 'MEDIUM' THEN 2 
-        WHEN 'LOW' THEN 3 
-      END
-  `).all() as { level: string; count: number }[];
+    WHERE mentions > 0 
+    AND (type IS NULL OR type = 'Person')
+    AND name NOT LIKE 'The %'
+    ORDER BY mentions DESC
+    LIMIT 20
+  `).all() as { name: string; mentions: number; spice: number }[];
 
   return {
     totalEntities: stats.totalEntities,
     totalDocuments: stats.totalDocuments,
     totalMentions: stats.totalMentions,
     averageSpiceRating: Math.round(stats.averageSpiceRating * 100) / 100,
+    totalUniqueRoles: stats.totalUniqueRoles,
+    entitiesWithDocuments: stats.entitiesWithDocuments,
+    documentsWithMetadata: stats.documentsWithMetadata,
+    activeInvestigations: stats.activeInvestigations,
     topRoles,
-    likelihoodDistribution: likelihoodFromRedFlag,
+    topEntities, // Added field
+    likelihoodDistribution,
     redFlagDistribution
   };
 }
@@ -1055,6 +1057,18 @@ async getStatistics(): Promise<{
       }
     }
 
+    // Add evidenceType filter
+    if (filters?.evidenceType && filters.evidenceType !== 'ALL') {
+      whereConditions.push('evidence_type = @evidenceType');
+      params.evidenceType = filters.evidenceType.toLowerCase();
+    }
+
+    // Add search filter
+    if (filters?.search && filters.search.trim()) {
+      whereConditions.push('(title LIKE @searchPattern OR content LIKE @searchPattern)');
+      params.searchPattern = `%${filters.search.trim()}%`;
+    }
+
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
     // Build ORDER BY clause
@@ -1070,20 +1084,16 @@ async getStatistics(): Promise<{
     const query = `
       SELECT 
         id,
-        file_name as fileName,
+        title as fileName,
         file_path as filePath,
         file_type as fileType,
         file_size as fileSize,
         date_created as dateCreated,
-        date_modified as dateModified,
-        content_preview as contentPreview,
+        substr(content, 1, 200) as contentPreview,
         evidence_type as evidenceType,
         red_flag_rating as redFlagRating,
         word_count as wordCount,
         metadata_json as metadataJson,
-        source_collection,
-        source_original_url,
-        credibility_score,
         content
       FROM documents
       ${whereClause}

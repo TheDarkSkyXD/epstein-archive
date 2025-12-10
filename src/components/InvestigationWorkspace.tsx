@@ -55,7 +55,21 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
   const [networkNodes, setNetworkNodes] = useState<NetworkNode[]>([]);
   const [networkEdges, setNetworkEdges] = useState<NetworkEdge[]>([]);
   const [dbStats, setDbStats] = useState({ totalEntities: 0, totalDocuments: 0, entitiesWithDocuments: 0, documentsWithMetadata: 0 });
+  const [shareCopied, setShareCopied] = useState(false);
   const location = useLocation();
+
+  // Copy shareable URL to clipboard
+  const copyShareUrl = () => {
+    if (selectedInvestigation) {
+      // Use uuid if available (format: maxwell-epstein-network-001), otherwise use id
+      const shareId = (selectedInvestigation as any).uuid || selectedInvestigation.id;
+      const shareUrl = `${window.location.origin}/investigations/${shareId}`;
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        setShareCopied(true);
+        setTimeout(() => setShareCopied(false), 2000);
+      });
+    }
+  };
   useEffect(()=>{
     try {
       const params = new URLSearchParams(location.search);
@@ -83,10 +97,10 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                 type: entity.entity_type === 'ORGANIZATION' ? 'organization' : entity.entity_type === 'LOCATION' ? 'location' : 'person',
                 label: entity.full_name,
                 description: entity.primary_role || entity.title || 'Person of Interest',
-                importance: Math.min(5, Math.ceil((entity.red_flag_rating || 1) / 2)),
+                importance: entity.red_flag_rating || 0,
                 metadata: {
                   mentions: entity.mentions || 0,
-                  riskLevel: entity.red_flag_rating >= 8 ? 'critical' : entity.red_flag_rating >= 6 ? 'high' : entity.red_flag_rating >= 4 ? 'medium' : 'low',
+                  riskLevel: (entity.red_flag_rating || 0) >= 5 ? 'critical' : (entity.red_flag_rating || 0) >= 4 ? 'high' : (entity.red_flag_rating || 0) >= 2 ? 'medium' : 'low',
                   category: entity.primary_role || entity.title || 'Person of Interest',
                   documents: [],
                   connections: []
@@ -141,8 +155,8 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
   useEffect(() => {
     const fetchNetworkData = async () => {
       try {
-        // Fetch top entities for network visualization
-        const entitiesResp = await fetch('/api/entities?limit=25&sortBy=red_flag_rating&sortOrder=desc');
+        // Fetch top entities for network visualization (increased limit for better visualization)
+        const entitiesResp = await fetch('/api/entities?limit=100&sortBy=red_flag_rating&sortOrder=desc');
         const entitiesData = await entitiesResp.json();
         const entities = entitiesData.data || [];
         
@@ -152,10 +166,10 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
           type: e.entity_type === 'ORGANIZATION' ? 'organization' : e.entity_type === 'LOCATION' ? 'location' : 'person',
           label: e.full_name,
           description: e.primary_role || e.title || 'Person of Interest',
-          importance: Math.min(5, Math.ceil((e.red_flag_rating || 1) / 2)),
+          importance: e.red_flag_rating || 0,
           metadata: {
             mentions: e.mentions || 0,
-            riskLevel: e.red_flag_rating >= 8 ? 'critical' : e.red_flag_rating >= 6 ? 'high' : e.red_flag_rating >= 4 ? 'medium' : 'low',
+            riskLevel: (e.red_flag_rating || 0) >= 5 ? 'critical' : (e.red_flag_rating || 0) >= 4 ? 'high' : (e.red_flag_rating || 0) >= 2 ? 'medium' : 'low',
             category: e.primary_role || e.title || 'Person of Interest',
             documents: [],
             connections: []
@@ -210,8 +224,8 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
         setDbStats({
           totalEntities: stats.totalEntities || 0,
           totalDocuments: stats.totalDocuments || 0,
-          entitiesWithDocuments: Math.floor((stats.totalEntities || 0) * 0.85),
-          documentsWithMetadata: Math.floor((stats.totalDocuments || 0) * 0.93)
+          entitiesWithDocuments: stats.entitiesWithDocuments || 0,
+          documentsWithMetadata: stats.documentsWithMetadata || 0
         });
       } catch (error) {
         console.error('Error fetching network data:', error);
@@ -250,7 +264,8 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
         leadInvestigator: inv.owner_id,
         permissions: [],
         tags: [],
-        priority: 'medium'
+        priority: 'medium',
+        uuid: inv.uuid // Include UUID for shareable links
       }));
       setInvestigations(mapped);
     } catch (error) {
@@ -287,8 +302,9 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
           leadInvestigator: inv.owner_id,
           permissions: [],
           tags: [],
-          priority: 'medium'
-        };
+          priority: 'medium',
+          uuid: inv.uuid // Include UUID for shareable links
+        } as Investigation & { uuid?: string };
         setSelectedInvestigation(investigation);
         if (onInvestigationSelect) onInvestigationSelect(investigation);
       }
@@ -402,12 +418,12 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
               Collaborative investigation platform for journalists and researchers
             </p>
           </div>
-          <button
+                    <button
             onClick={() => setShowNewInvestigationModal(true)}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors shadow-lg shadow-blue-900/20"
+            className="flex items-center justify-center sm:justify-start px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors shadow-lg shadow-blue-900/20 h-10 whitespace-nowrap"
           >
-            <Plus className="w-4 h-4 mr-2" />
-            New Investigation
+            <Plus className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-2 shrink-0" />
+            <span className="hidden sm:inline">New Investigation</span>
           </button>
         </div>
       </div>
@@ -467,65 +483,125 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
         </div>
       )}
 
-      {/* Selected Investigation Workspace */}
-      {selectedInvestigation && (
-        <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
-          {/* Collapsible Sidebar */}
-          <div className={`${sidebarCollapsed ? 'w-16' : 'w-full md:w-64'} liquid-glass-sidebar shrink-0 overflow-x-auto md:overflow-x-visible transition-all duration-300`}>
-            <div className="p-4">
-              <div className="flex items-center justify-between mb-6">
-                <button
-                  onClick={() => setSelectedInvestigation(null)}
-                  className={`text-sm text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors ${sidebarCollapsed ? 'hidden' : ''}`}
-                >
-                  <ArrowRight className="w-5 h-5 rotate-180" />
-                  Back to Investigations
-                </button>
-                <button
-                  onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                  className="p-2 text-slate-400 hover:text-white transition-colors rounded-md hover:bg-slate-700"
-                  title={sidebarCollapsed ? "Expand menu" : "Collapse menu"}
-                >
-                  {sidebarCollapsed ? 
-                    <ArrowRight className="w-5 h-5" /> : 
-                    <ArrowRight className="w-5 h-5 rotate-180" />
-                  }
-                </button>
-              </div>
-              
-              <h3 className={`font-medium text-white mb-6 px-2 ${sidebarCollapsed ? 'hidden' : ''}`}>
-                {selectedInvestigation.title}
-              </h3>
-              
-              <nav className="space-y-1">
-                {[
-                  { id: 'overview', label: 'Overview', icon: Search },
-                  { id: 'evidence', label: 'Evidence', icon: FileText },
-                  { id: 'hypotheses', label: 'Hypotheses', icon: Target },
-                  { id: 'financial', label: 'Financial', icon: DollarSign },
-                  { id: 'timeline', label: 'Timeline', icon: Calendar },
-                  { id: 'forensic', label: 'Forensic Analysis', icon: Microscope },
-                  { id: 'team', label: 'Team', icon: Users },
-                  { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-                  { id: 'export', label: 'Export & Publish', icon: Download }
-                ].map((tab) => (
+          {/* Main Layout - Column on mobile, Row on desktop */}
+          {selectedInvestigation && (
+          <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
+            {/* Navigation - Horizontal scroll on mobile, Vertical sidebar on desktop */}
+            <div className={`
+              shrink-0 bg-slate-900/50 backdrop-blur-sm border-b md:border-b-0 md:border-r border-slate-700/50
+              md:transition-all md:duration-300
+              ${sidebarCollapsed ? 'md:w-16' : 'md:w-64'}
+              w-full overflow-x-auto md:overflow-x-visible
+            `}>
+              <div className="p-2 md:p-4 flex md:block items-center md:space-y-0 gap-2 md:gap-0">
+                {/* Desktop Expand/Collapse & Back - Hidden on Mobile */}
+                <div className="hidden md:flex items-center justify-between mb-6">
                   <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id as any)}
-                    className={`w-full flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all ${
-                      activeTab === tab.id
-                        ? 'liquid-glass-subtle text-blue-400 border border-blue-500/30'
-                        : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
-                    } ${sidebarCollapsed ? 'justify-center px-2 py-4' : ''}`}
-                    title={sidebarCollapsed ? tab.label : ''}
+                    onClick={() => setSelectedInvestigation(null)}
+                    className={`text-sm text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors h-10 px-2 ${sidebarCollapsed ? 'hidden' : ''}`}
                   >
-                    <tab.icon className={`${sidebarCollapsed ? 'w-6 h-6' : 'w-5 h-5 mr-3'}`} />
-                    {!sidebarCollapsed && tab.label}
+                    <ArrowRight className="w-5 h-5 rotate-180" />
+                    Back
                   </button>
-                ))}
-              </nav>
+                  <button
+                    onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                    className="p-2 text-slate-400 hover:text-white transition-colors rounded-md hover:bg-slate-700"
+                    title={sidebarCollapsed ? "Expand menu" : "Collapse menu"}
+                  >
+                    {sidebarCollapsed ? 
+                      <ArrowRight className="w-5 h-5" /> : 
+                      <ArrowRight className="w-5 h-5 rotate-180" />
+                    }
+                  </button>
+                </div>
+                
+                {/* Desktop Title - Hidden on Mobile */}
+                <div className={`hidden md:block mb-6 px-2 ${sidebarCollapsed ? 'hidden' : ''}`}>
+                  <h3 className="font-medium text-white truncate" title={selectedInvestigation.title}>
+                    {selectedInvestigation.title}
+                  </h3>
+                  <button
+                    onClick={copyShareUrl}
+                    className="mt-2 flex items-center gap-1.5 text-xs text-slate-400 hover:text-blue-400 transition-colors"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    {shareCopied ? 'Copied!' : 'Share'}
+                  </button>
+                </div>
+
+                {/* Mobile Back Button */}
+                  <button
+                    onClick={() => setSelectedInvestigation(null)}
+                    className="md:hidden p-2 text-slate-400 hover:text-white shrink-0 h-10 w-10 flex items-center justify-center rounded-lg hover:bg-slate-800"
+                  >
+                    <ArrowRight className="w-5 h-5 rotate-180" />
+                  </button>
+                
+                
+                {/* Mobile Navigation Dropdown */}
+                <div className="md:hidden px-4 py-2">
+                  <div className="relative">
+                    <select
+                      value={activeTab}
+                      onChange={(e) => setActiveTab(e.target.value as any)}
+                      className="w-full appearance-none bg-slate-800 border border-slate-700 text-white py-2 pl-3 pr-10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {[
+                        { id: 'overview', label: 'Overview' },
+                        { id: 'evidence', label: 'Evidence' },
+                        { id: 'hypotheses', label: 'Hypotheses' },
+                        { id: 'financial', label: 'Financial' },
+                        { id: 'timeline', label: 'Timeline' },
+                        { id: 'forensic', label: 'Forensic' },
+                        { id: 'team', label: 'Team' },
+                        { id: 'analytics', label: 'Analytics' },
+                        { id: 'export', label: 'Export' }
+                      ].map(option => (
+                        <option key={option.id} value={option.id}>{option.label}</option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                      <ArrowRight className="h-4 w-4 rotate-90" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Desktop Navigation Sidebar */}
+                <nav className="hidden md:block space-y-1 min-w-max p-1">
+                  {[
+                    { id: 'overview', label: 'Overview', icon: Search },
+                    { id: 'evidence', label: 'Evidence', icon: FileText },
+                    { id: 'hypotheses', label: 'Hypotheses', icon: Target },
+                    { id: 'financial', label: 'Financial', icon: DollarSign },
+                    { id: 'timeline', label: 'Timeline', icon: Calendar },
+                    { id: 'forensic', label: 'Forensic', icon: Microscope },
+                    { id: 'team', label: 'Team', icon: Users },
+                    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+                    { id: 'export', label: 'Export', icon: Download }
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id as any)}
+                      className={`
+                        flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all
+                        whitespace-nowrap
+                        ${activeTab === tab.id
+                          ? 'bg-blue-900/40 text-blue-400 border border-blue-500/30 shadow-sm relative z-10'
+                          : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
+                        }
+                        ${sidebarCollapsed ? 'justify-center px-2 py-4' : 'w-full'}
+                      `}
+                      title={tab.label}
+                    >
+                      <tab.icon className={`${sidebarCollapsed ? 'w-6 h-6 shrink-0' : 'w-5 h-5 mr-3 shrink-0'}`} />
+                      <span className={`${sidebarCollapsed ? 'hidden' : 'block'}`}>
+                         {tab.label}
+                      </span>
+                    </button>
+                  ))}
+                </nav>
+              </div>
             </div>
-          </div>
 
           {/* Main Content */}
           <div className="flex-1 p-6 overflow-y-auto bg-slate-900">
@@ -849,7 +925,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
       {/* New Investigation Modal */}
       {showNewInvestigationModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
-          <div className="liquid-glass-modal rounded-xl p-6 w-full max-w-md">
+          <div className="liquid-glass-modal rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-bold text-white mb-6">
               Create New Investigation
             </h3>
@@ -864,7 +940,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                   name="title"
                   value={newInvestigation.title}
                   onChange={(e) => setNewInvestigation({ ...newInvestigation, title: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-slate-500"
+                  className="w-full px-3 h-10 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-slate-500"
                   placeholder="Enter investigation title"
                 />
               </div>
@@ -904,7 +980,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                   <select
                   value={newInvestigation.priority}
                   onChange={(e) => setNewInvestigation({ ...newInvestigation, priority: e.target.value as any })}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
+                  className="w-full px-3 h-10 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
                   >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
@@ -921,7 +997,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                     type="date"
                     value={newInvestigation.dueDate}
                     onChange={(e) => setNewInvestigation({ ...newInvestigation, dueDate: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
+                    className="w-full px-3 h-10 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
                   />
                 </div>
               </div>
@@ -930,14 +1006,14 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
             <div className="flex justify-end gap-3 mt-8">
               <button
                 onClick={() => setShowNewInvestigationModal(false)}
-                className="px-4 py-2 text-sm font-medium text-slate-300 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors"
+                className="px-4 h-10 flex items-center justify-center text-sm font-medium text-slate-300 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={createInvestigation}
                 disabled={!newInvestigation.title || !newInvestigation.description}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-lg shadow-blue-900/20"
+                className="px-4 h-10 flex items-center justify-center text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-lg shadow-blue-900/20"
               >
                 Create Investigation
               </button>

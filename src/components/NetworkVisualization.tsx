@@ -532,31 +532,31 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   return (
     <div className="bg-gray-900 rounded-lg border border-gray-700 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-700">
-        <div className="flex items-center space-x-3">
-          <Network className="w-5 h-5 text-blue-400" />
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 p-4 border-b border-gray-700">
+        <div className="flex items-center gap-3 whitespace-nowrap flex-shrink-0">
+          <Network className="w-5 h-5 text-blue-400 flex-shrink-0" />
           <h3 className="text-lg font-semibold text-white">Network Analysis</h3>
           <span className="text-sm text-gray-400">
             {filteredNodes.length} nodes, {filteredEdges.length} connections
           </span>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
           {showFilters && (
             <>
-              <div className="relative">
+              <div className="relative flex-1 lg:flex-none min-w-[160px]">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
                   placeholder="Search nodes..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
+                  className="w-full h-10 pl-10 pr-4 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
                 />
               </div>
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
-                className="px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
+                className="h-10 px-3 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
               >
                 <option value="all">All Types</option>
                 <option value="person">People</option>
@@ -569,7 +569,7 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
               <select
                 value={filterRisk}
                 onChange={(e) => setFilterRisk(e.target.value)}
-                className="px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
+                className="h-10 px-3 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
               >
                 <option value="all">All Risk</option>
                 <option value="low">Low Risk</option>
@@ -581,7 +581,7 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           )}
           <button
             onClick={exportNetwork}
-            className="p-2 bg-gray-800 border border-gray-600 rounded-lg text-gray-300 hover:text-white hover:bg-gray-700"
+            className="h-10 w-10 flex items-center justify-center bg-gray-800 border border-gray-600 rounded-lg text-gray-300 hover:text-white hover:bg-gray-700 flex-shrink-0"
             title="Export Network Data"
           >
             <Download className="w-4 h-4" />

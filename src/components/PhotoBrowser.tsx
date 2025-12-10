@@ -61,14 +61,24 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
         description: img.description || '',
         albumId: img.album_id || img.albumId,
         albumName: img.albumName,
-        width: img.width,
-        height: img.height,
-        fileSize: img.file_size || img.fileSize,
-        format: img.format,
+        width: img.width || 0,
+        height: img.height || 0,
+        fileSize: img.file_size || img.fileSize || 0,
+        format: img.format || 'unknown',
         dateTaken: img.date_taken || img.dateTaken,
         dateAdded: img.date_added || img.dateAdded,
         dateModified: img.date_modified || img.dateModified,
-        tags: img.tags || []
+        tags: img.tags || [],
+        // EXIF data
+        cameraMake: img.camera_make || img.cameraMake,
+        cameraModel: img.camera_model || img.cameraModel,
+        lens: img.lens,
+        focalLength: img.focal_length || img.focalLength,
+        aperture: img.aperture,
+        shutterSpeed: img.shutter_speed || img.shutterSpeed,
+        iso: img.iso,
+        latitude: img.latitude,
+        longitude: img.longitude
       })) : [];
       setImages(normalized);
     } catch (error) {
@@ -85,20 +95,32 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
     }
   };
 
-  const formatFileSize = (bytes: number): string => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  const formatFileSize = (bytes: number | string | undefined): string => {
+    // Handle various falsy/invalid inputs
+    const numBytes = Number(bytes);
+    if (bytes === undefined || bytes === null || bytes === '' || !Number.isFinite(numBytes)) return 'Unknown';
+    
+    if (numBytes === 0) return '0 B';
+    if (numBytes < 1024) return `${numBytes} B`;
+    if (numBytes < 1024 * 1024) return `${(numBytes / 1024).toFixed(1)} KB`;
+    return `${(numBytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const formatDate = (dateString: string): string => {
+  const formatDate = (dateString: string | undefined | null): string => {
     if (!dateString) return 'Unknown';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
-    });
+    try {
+      const date = new Date(dateString);
+      // Check for Invalid Date
+      if (isNaN(date.getTime())) return 'Unknown';
+      
+      return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+      });
+    } catch (e) {
+      return 'Unknown';
+    }
   };
 
   return (
@@ -172,8 +194,9 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
                 key={album.id}
                 className={selectedAlbum === album.id ? 'album-item active' : 'album-item'}
                 onClick={() => setSelectedAlbum(album.id)}
+                title={album.name}
               >
-                <span className="album-name">{album.name}</span>
+                <span className="album-name">{album.name.includes('USVI') ? 'USVI' : album.name}</span>
                 <span className="album-count">{album.imageCount || 0}</span>
               </button>
             ))}
@@ -198,7 +221,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
                 >
                   <div className="image-thumbnail">
                     <img
-                      src={`/api/media/images/${image.id}/file`}
+                      src={`/api/media/images/${image.id}/thumbnail`}
                       alt={image.title || image.filename}
                       loading="lazy"
                       onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/data/media/images/placeholder.png'; }}
@@ -282,6 +305,63 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
                   )}
                 </dl>
               </div>
+              
+              {/* EXIF Data Section */}
+              {(selectedImage.cameraMake || selectedImage.cameraModel || selectedImage.focalLength || selectedImage.aperture || selectedImage.iso) && (
+                <div className="metadata-section">
+                  <h3>📷 EXIF Data</h3>
+                  <dl>
+                    {selectedImage.cameraMake && (
+                      <>
+                        <dt>Camera Make:</dt>
+                        <dd>{selectedImage.cameraMake}</dd>
+                      </>
+                    )}
+                    {selectedImage.cameraModel && (
+                      <>
+                        <dt>Camera Model:</dt>
+                        <dd>{selectedImage.cameraModel}</dd>
+                      </>
+                    )}
+                    {selectedImage.lens && (
+                      <>
+                        <dt>Lens:</dt>
+                        <dd>{selectedImage.lens}</dd>
+                      </>
+                    )}
+                    {selectedImage.focalLength && (
+                      <>
+                        <dt>Focal Length:</dt>
+                        <dd>{selectedImage.focalLength}</dd>
+                      </>
+                    )}
+                    {selectedImage.aperture && (
+                      <>
+                        <dt>Aperture:</dt>
+                        <dd>{selectedImage.aperture}</dd>
+                      </>
+                    )}
+                    {selectedImage.shutterSpeed && (
+                      <>
+                        <dt>Shutter Speed:</dt>
+                        <dd>{selectedImage.shutterSpeed}</dd>
+                      </>
+                    )}
+                    {selectedImage.iso && (
+                      <>
+                        <dt>ISO:</dt>
+                        <dd>{selectedImage.iso}</dd>
+                      </>
+                    )}
+                    {selectedImage.latitude && selectedImage.longitude && (
+                      <>
+                        <dt>GPS:</dt>
+                        <dd>{selectedImage.latitude.toFixed(6)}, {selectedImage.longitude.toFixed(6)}</dd>
+                      </>
+                    )}
+                  </dl>
+                </div>
+              )}
 
               {selectedImage.tags && selectedImage.tags.length > 0 && (
                 <div className="metadata-section">

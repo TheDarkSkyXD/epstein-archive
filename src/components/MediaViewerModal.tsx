@@ -5,6 +5,7 @@ import { X, ChevronLeft, ChevronRight, Info, Calendar, Camera, MapPin, Tag, File
 import { MediaImage } from '../types/media.types';
 import Icon from './Icon';
 import { useAuth } from '../contexts/AuthContext';
+import LocationMap from './LocationMap';
 
 interface MediaViewerModalProps {
   images: MediaImage[];
@@ -401,26 +402,13 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({ images, initialInde
                </div>
             </div>
 
-             {/* Location */}
-             {(currentImage.latitude || currentImage.longitude) && (
-               <div className="space-y-2">
-                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                     <MapPin size={14} /> Location
-                  </h4>
-                  <div className="bg-slate-800/50 p-3 rounded border border-slate-800 text-xs font-mono text-cyan-400 flex justify-between items-center gap-2">
-                     <span className="truncate">{currentImage.latitude?.toFixed(6)}, {currentImage.longitude?.toFixed(6)}</span>
-                     <a 
-                       href={`https://www.google.com/maps/search/?api=1&query=${currentImage.latitude},${currentImage.longitude}`} 
-                       target="_blank" 
-                       rel="noopener noreferrer"
-                       className="p-2 bg-cyan-900/50 hover:bg-cyan-800 text-cyan-300 rounded transition-colors flex items-center gap-1.5 shrink-0"
-                       title="Open in Google Maps"
-                     >
-                       <MapPin size={12} />
-                       <span className="text-[10px] font-bold">MAP</span>
-                     </a>
-                  </div>
-               </div>
+             {/* Location Map */}
+             {(currentImage.latitude && currentImage.longitude) && (
+               <LocationMap
+                 latitude={currentImage.latitude}
+                 longitude={currentImage.longitude}
+                 title={currentImage.title || 'Photo Location'}
+               />
              )}
          </div>
       </div>

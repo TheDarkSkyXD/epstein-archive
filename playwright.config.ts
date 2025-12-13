@@ -84,7 +84,7 @@ export default defineConfig({
       timeout: 120 * 1000,
     },
     {
-      command: 'npm run api',
+      command: 'npm run server',
       port: 3012,
       reuseExistingServer: !process.env.CI,
       timeout: 120 * 1000,

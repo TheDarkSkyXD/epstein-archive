@@ -5,7 +5,7 @@
  */
 
 import React, { useState } from 'react';
-import { Search, Copy, Check, Eye, FileText } from 'lucide-react';
+import { Search, Copy, Check, Eye, FileText, Download } from 'lucide-react';
 import { prettifyOCRText } from '../../utils/prettifyOCR';
 
 interface DocumentViewerProps {
@@ -56,6 +56,20 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
         </div>
         
         <div className="flex items-center gap-2">
+          {evidence.metadata?.source_original_url && (
+            <a
+              href={evidence.metadata.source_original_url}
+              download
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              title="Download original document"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Download Original
+            </a>
+          )}
+
           {/* Pretty/Raw Toggle */}
           <button
             onClick={() => setShowRaw(!showRaw)}

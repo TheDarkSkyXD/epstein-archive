@@ -47,13 +47,17 @@ function extractEXIF(filepath: string): any {
     const tags = result.tags || {};
     
     // Extract GPS coordinates
-    let latitude: number | undefined;
-    let longitude: number | undefined;
+    let latitude: number | null = null;
+    let longitude: number | null = null;
     if (tags.GPSLatitude !== undefined && tags.GPSLongitude !== undefined) {
-      latitude = tags.GPSLatitude;
-      longitude = tags.GPSLongitude;
-      if (tags.GPSLatitudeRef === 'S') latitude = -latitude;
-      if (tags.GPSLongitudeRef === 'W') longitude = -longitude;
+      const latValue = Number(tags.GPSLatitude);
+      const lonValue = Number(tags.GPSLongitude);
+      if (!isNaN(latValue)) {
+        latitude = (tags.GPSLatitudeRef === 'S') ? -latValue : latValue;
+      }
+      if (!isNaN(lonValue)) {
+        longitude = (tags.GPSLongitudeRef === 'W') ? -lonValue : lonValue;
+      }
     }
     
     // Format shutter speed
@@ -149,8 +153,7 @@ async function main() {
       longitude = COALESCE(?, longitude),
       color_profile = COALESCE(?, color_profile),
       orientation = COALESCE(?, orientation),
-      date_taken = COALESCE(?, date_taken),
-      date_modified = datetime('now')
+      date_taken = COALESCE(?, date_taken)
     WHERE id = ?
   `);
   

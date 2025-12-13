@@ -10,14 +10,16 @@ import { InvestigationExportTools } from './InvestigationExportTools';
 import { ForensicAnalysisWorkspace } from './ForensicAnalysisWorkspace';
 import { useInvestigationOnboarding } from '../hooks/useInvestigationOnboarding';
 import { InvestigationOnboarding } from './InvestigationOnboarding';
-import { ExampleInvestigationCard } from './ExampleInvestigationCard';
-import { useLocation } from 'react-router-dom';
+// import { ExampleInvestigationCard } from './ExampleInvestigationCard'; // Removed
+import { useLocation, useNavigate } from 'react-router-dom';
 import { DataIntegrityPanel } from './DataIntegrityPanel';
 import { EvidencePacketExporter } from './EvidencePacketExporter';
 import { InvestigationEvidencePanel } from './InvestigationEvidencePanel';
 import { HypothesisTestingFramework } from './HypothesisTestingFramework';
 import { InvestigationTeamManagement } from './InvestigationTeamManagement';
 import { AddToInvestigationButton } from './AddToInvestigationButton';
+import { useToasts } from './ToastProvider';
+import { CreateRelationshipModal } from './CreateRelationshipModal';
 
 interface InvestigationWorkspaceProps {
   investigationId?: string;
@@ -35,6 +37,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
   const [activeTab, setActiveTab] = useState<'overview' | 'evidence' | 'hypotheses' | 'financial' | 'timeline' | 'team' | 'analytics' | 'forensic' | 'export'>('overview');
   const [isLoading, setIsLoading] = useState(false);
   const [showNewInvestigationModal, setShowNewInvestigationModal] = useState(false);
+  const [showCreateRelationshipModal, setShowCreateRelationshipModal] = useState(false);
   const [newInvestigation, setNewInvestigation] = useState({
     title: '',
     description: '',
@@ -52,11 +55,15 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [forensicToolsCollapsed, setForensicToolsCollapsed] = useState(false);
   const [selectedNetworkNode, setSelectedNetworkNode] = useState<NetworkNode | null>(null);
+  const [selectedNetworkEdge, setSelectedNetworkEdge] = useState<NetworkEdge | null>(null);
   const [networkNodes, setNetworkNodes] = useState<NetworkNode[]>([]);
   const [networkEdges, setNetworkEdges] = useState<NetworkEdge[]>([]);
   const [dbStats, setDbStats] = useState({ totalEntities: 0, totalDocuments: 0, entitiesWithDocuments: 0, documentsWithMetadata: 0 });
   const [shareCopied, setShareCopied] = useState(false);
+  const [useGlobalContext, setUseGlobalContext] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { addToast } = useToasts();
 
   // Copy shareable URL to clipboard
   const copyShareUrl = () => {
@@ -120,6 +127,70 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
     }
   },[location.search, investigations.length]);
 
+  // Handle "Add to Investigation" custom event
+  useEffect(() => {
+    const handleAddToInvestigation = async (event: CustomEvent) => {
+      const { investigationId, item, relevance } = event.detail;
+      
+      // If no investigation ID provided, use the currently selected one if available
+      const targetInvestigationId = investigationId || selectedInvestigation?.id;
+      
+      if (!targetInvestigationId) {
+        // Prompt user to select investigation or create new one (could be improved)
+        addToast({ text: 'Please select an investigation first.', type: 'error' });
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/investigations/${targetInvestigationId}/evidence`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: item.title,
+            description: item.description,
+            type: item.type,
+            sourceId: item.sourceId,
+            documentId: item.sourceId, // Assuming sourceId is documentId for documents
+            relevance: relevance || 'high'
+          })
+        });
+
+        if (response.ok) {
+          // If we are currently viewing this investigation, refresh evidence
+          if (selectedInvestigation?.id === targetInvestigationId) {
+            const ev = await fetch(`/api/investigations/${targetInvestigationId}/evidence`).then(r => r.json());
+            setEvidenceItems(ev.map((row: any) => ({
+              id: String(row.id),
+              title: row.title,
+              description: row.description || '',
+              type: 'document',
+              sourceId: String(row.document_id || ''),
+              source: '',
+              relevance: row.relevance || 'high',
+              credibility: row.credibility || 'verified',
+              extractedAt: new Date(row.extracted_at),
+              extractedBy: row.extracted_by || 'system'
+            })));
+             addToast({ text: 'Item added to investigation successfully.', type: 'success' });
+          } else {
+             addToast({ text: 'Item added to investigation successfully.', type: 'success' });
+          }
+        } else {
+          console.error('Failed to add item to investigation');
+          addToast({ text: 'Failed to add item to investigation.', type: 'error' });
+        }
+      } catch (error) {
+        console.error('Error adding to investigation:', error);
+        addToast({ text: 'Error adding item to investigation.', type: 'error' });
+      }
+    };
+
+    window.addEventListener('add-to-investigation' as any, handleAddToInvestigation as any);
+    return () => {
+      window.removeEventListener('add-to-investigation' as any, handleAddToInvestigation as any);
+    };
+  }, [selectedInvestigation]);
+
   // Investigation onboarding hook
   const { hasSeenOnboarding, markOnboardingAsSeen } = useInvestigationOnboarding();
 
@@ -155,10 +226,25 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
   useEffect(() => {
     const fetchNetworkData = async () => {
       try {
-        // Fetch top entities for network visualization (increased limit for better visualization)
-        const entitiesResp = await fetch('/api/entities?limit=100&sortBy=red_flag_rating&sortOrder=desc');
-        const entitiesData = await entitiesResp.json();
-        const entities = entitiesData.data || [];
+        let entities: any[] = [];
+
+        if (useGlobalContext) {
+           // Fetch top global entities
+           const entitiesResp = await fetch('/api/entities?limit=100&sortBy=red_flag_rating&sortOrder=desc');
+           const entitiesData = await entitiesResp.json();
+           entities = entitiesData.data || [];
+        } else {
+           // Fetch entities scoped to investigation evidence
+           // Filter evidenceItems for entities
+           const entityEvidence = evidenceItems.filter(e => e.type === 'entity' || e.type === 'person' || e.type === 'organization');
+           
+           if (entityEvidence.length > 0) {
+             // Fetch details for each entity
+             const entityPromises = entityEvidence.map(e => fetch(`/api/entities/${e.sourceId}`).then(r => r.ok ? r.json() : null));
+             const results = await Promise.all(entityPromises);
+             entities = results.filter(e => e !== null);
+           }
+        }
         
         // Transform entities to network nodes
         const nodes: NetworkNode[] = entities.map((e: any) => ({
@@ -176,11 +262,12 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
           }
         }));
         
-        // Fetch real relationships for top entities
+        // Fetch real relationships for nodes
         const edges: NetworkEdge[] = [];
-        const topEntityIds = nodes.slice(0, 10).map(n => n.id);
+        // Limit to top nodes to prevent exploding requests if list is huge
+        const nodeIds = nodes.slice(0, 20).map(n => n.id);
         
-        for (const entityId of topEntityIds) {
+        for (const entityId of nodeIds) {
           try {
             const relResp = await fetch(`/api/relationships?entityId=${entityId}&limit=5`);
             const relData = await relResp.json();
@@ -235,8 +322,10 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
       }
     };
     
-    fetchNetworkData();
-  }, [selectedInvestigation?.id]);
+    if (selectedInvestigation) {
+        fetchNetworkData();
+    }
+  }, [selectedInvestigation?.id, evidenceItems, useGlobalContext]);
 
   const loadInvestigations = async () => {
     setIsLoading(true);
@@ -306,6 +395,32 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
           uuid: inv.uuid // Include UUID for shareable links
         } as Investigation & { uuid?: string };
         setSelectedInvestigation(investigation);
+        
+        // Update URL to shareable investigation path
+        const shareId = inv.uuid || inv.id;
+        navigate(`/investigations/${shareId}`, { replace: true });
+        
+        // Fetch timeline events
+        try {
+          const timelineResp = await fetch(`/api/investigations/${id}/timeline-events`);
+          if (timelineResp.ok) {
+            const timelineData = await timelineResp.json();
+            const events = timelineData.map((e: any) => ({
+              id: String(e.id),
+              title: e.title,
+              date: e.start_date, // Assuming backend returns start_date
+              description: e.description || '',
+              type: e.type,
+              confidence: e.confidence || 'medium', // Default to medium if not present
+              relatedEntities: JSON.parse(e.entities_json || '[]'),
+              relatedDocuments: JSON.parse(e.documents_json || '[]')
+            }));
+            setTimelineEvents(events);
+          }
+        } catch (err) {
+          console.error('Error fetching timeline events:', err);
+        }
+
         if (onInvestigationSelect) onInvestigationSelect(investigation);
       }
     } catch (error) {
@@ -389,6 +504,130 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
     }
   };
 
+  const deleteTimelineEvent = async (eventId: string) => {
+    if (!selectedInvestigation) return;
+    try {
+      await fetch(`/api/investigations/${selectedInvestigation.id}/timeline-events/${eventId}`, {
+        method: 'DELETE'
+      });
+      // Refresh
+      const timelineResp = await fetch(`/api/investigations/${selectedInvestigation.id}/timeline-events`);
+      if (timelineResp.ok) {
+        const timelineData = await timelineResp.json();
+        const events = timelineData.map((e: any) => ({
+          id: String(e.id),
+          title: e.title,
+          startDate: new Date(e.start_date),
+          description: e.description || '',
+          type: e.type,
+          confidence: e.confidence || 80,
+          documents: JSON.parse(e.documents_json || '[]'),
+          hypothesisIds: [], // Add if schema supports
+          entities: JSON.parse(e.entities_json || '[]'),
+          evidence: [],
+          importance: 'medium',
+          tags: [],
+          sources: [],
+          createdBy: 'system',
+          updatedAt: new Date()
+        }));
+        setTimelineEvents(events);
+      }
+    } catch (e) {
+      console.error('Error deleting event:', e);
+    }
+  };
+
+  const saveTimelineEvent = async (event: Partial<TimelineEvent>) => {
+    if (!selectedInvestigation) return;
+    try {
+      const isNew = !event.id || event.id.startsWith('event-');
+      const url = isNew 
+        ? `/api/investigations/${selectedInvestigation.id}/timeline-events`
+        : `/api/investigations/${selectedInvestigation.id}/timeline-events/${event.id}`;
+      
+      const method = isNew ? 'POST' : 'PATCH';
+      
+      await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: event.title,
+          description: event.description,
+          type: event.type,
+          startDate: event.startDate?.toISOString(),
+          confidence: event.confidence,
+          documents: event.documents,
+          entities: event.entities
+        })
+      });
+
+      // Refresh
+      const timelineResp = await fetch(`/api/investigations/${selectedInvestigation.id}/timeline-events`);
+      if (timelineResp.ok) {
+        const timelineData = await timelineResp.json();
+        const events = timelineData.map((e: any) => ({
+          id: String(e.id),
+          title: e.title,
+          startDate: new Date(e.start_date),
+          description: e.description || '',
+          type: e.type,
+          confidence: e.confidence || 80,
+          documents: JSON.parse(e.documents_json || '[]'),
+          hypothesisIds: [],
+          entities: JSON.parse(e.entities_json || '[]'),
+          evidence: [],
+          importance: 'medium',
+          tags: [],
+          sources: [],
+          createdBy: 'system',
+          updatedAt: new Date()
+        }));
+        setTimelineEvents(events);
+      }
+    } catch (e) {
+      console.error('Error saving event:', e);
+    }
+  };
+
+  const createExampleInvestigation = async () => {
+    try {
+      setIsLoading(true);
+      const exampleData = {
+        title: "Example: Flight logs and deposition cross-check",
+        description: "Demonstrates how Red Flag Index + evidence types can be used to build a case trail. Tracing connections between entities through documents and media.",
+        hypothesis: "High correlation between flight log dates and deposition inconsistencies indicates obscured meetings.",
+        priority: "medium",
+        dueDate: new Date().toISOString().split('T')[0]
+      };
+
+      const response = await fetch('/api/investigations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(exampleData)
+      });
+
+      if (response.ok) {
+        const newInv = await response.json();
+        // Add Investigations
+        setInvestigations(prev => [...prev, newInv]);
+        setSelectedInvestigation(newInv);
+        addToast({ text: 'Example investigation created successfully.', type: 'success' });
+        
+        // TODO: Populate with example evidence/timeline data if needed
+        // For now, just the shell is enough to "restore" it.
+        // We could chain deeper calls here to add entities/documents.
+      } else {
+        addToast({ text: 'Failed to create example investigation.', type: 'error' });
+      }
+    } catch (error) {
+      console.error('Error creating example:', error);
+      addToast({ text: 'Error creating example investigation.', type: 'error' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -407,6 +646,8 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
         />
       )}
 
+      {/* Example Investigation Link - REMOVED per user request */}
+
       {/* Header */}
       <div className="border-b border-slate-700 px-6 py-4 shrink-0">
         <div className="flex items-center justify-between">
@@ -418,13 +659,37 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
               Collaborative investigation platform for journalists and researchers
             </p>
           </div>
-                    <button
-            onClick={() => setShowNewInvestigationModal(true)}
-            className="flex items-center justify-center sm:justify-start px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors shadow-lg shadow-blue-900/20 h-10 whitespace-nowrap"
-          >
-            <Plus className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-2 shrink-0" />
-            <span className="hidden sm:inline">New Investigation</span>
-          </button>
+          
+          <div className="flex items-center gap-4">
+            {selectedInvestigation && (
+              <div className="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700">
+                <button
+                  onClick={() => setUseGlobalContext(false)}
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                    !useGlobalContext ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Investigation Scope
+                </button>
+                <button
+                  onClick={() => setUseGlobalContext(true)}
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                    useGlobalContext ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Global Context
+                </button>
+              </div>
+            )}
+
+            <button
+              onClick={() => setShowNewInvestigationModal(true)}
+              className="flex items-center justify-center sm:justify-start px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors shadow-lg shadow-blue-900/20 h-10 whitespace-nowrap"
+            >
+              <Plus className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-2 shrink-0" />
+              <span className="hidden sm:inline">New Investigation</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -461,19 +726,22 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                     <div className="text-right">
                       <p className="text-xs text-slate-500">Created {investigation.createdAt.toLocaleDateString()}</p>
                       <p className="text-xs text-slate-500 mt-1">Lead: {investigation.leadInvestigator}</p>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (confirm('Are you sure you want to delete this investigation?')) {
-                            // Call API to delete
-                            fetch(`/api/investigations/${investigation.id}`, { method: 'DELETE' })
-                              .then(() => loadInvestigations());
-                          }
-                        }}
-                        className="mt-2 text-xs text-red-400 hover:text-red-300 hover:underline"
-                      >
-                        Delete
-                      </button>
+                      {/* Only show delete button for admin/moderator users */}
+                      {currentUser.permissions?.includes('admin') && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm('Are you sure you want to delete this investigation?')) {
+                              // Call API to delete
+                              fetch(`/api/investigations/${investigation.id}`, { method: 'DELETE' })
+                                .then(() => loadInvestigations());
+                            }
+                          }}
+                          className="mt-2 text-xs text-red-400 hover:text-red-300 hover:underline"
+                        >
+                          Delete
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -690,7 +958,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
             )}
 
             {activeTab === 'financial' && (
-              <FinancialTransactionMapper />
+              <FinancialTransactionMapper investigationId={useGlobalContext ? undefined : selectedInvestigation?.id} />
             )}
 
             {activeTab === 'timeline' && selectedInvestigation && (
@@ -700,6 +968,8 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                 evidence={evidenceItems}
                 hypotheses={hypotheses}
                 onEventsUpdate={setTimelineEvents}
+                onSaveEvent={saveTimelineEvent}
+                onDeleteEvent={deleteTimelineEvent}
               />
             )}
 
@@ -709,6 +979,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                 evidence={evidenceItems}
                 onEvidenceUpdate={setEvidenceItems}
                 timelineEvents={timelineEvents}
+                useGlobalContext={useGlobalContext}
               />
             )}
 
@@ -754,7 +1025,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                         onExport={(format: 'json' | 'zip') => {
                           console.log(`Exporting investigation ${selectedInvestigation.id} as ${format}`);
                           // In a real implementation, this would trigger the actual export
-                          alert(`Exporting investigation as ${format.toUpperCase()} format`);
+                          addToast({ text: `Exporting investigation as ${format.toUpperCase()} format`, type: 'info' });
                         }}
                       />
                     </div>
@@ -765,9 +1036,18 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
 
             {activeTab === 'analytics' && (
               <div>
-                <h3 className="text-xl font-bold text-white mb-6">
-                  Investigation Analytics & Network Analysis
-                </h3>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-bold text-white">
+                    Investigation Analytics & Network Analysis
+                  </h3>
+                  <button
+                    onClick={() => setShowCreateRelationshipModal(true)}
+                    className="flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-sm font-medium shadow-lg shadow-purple-500/20"
+                  >
+                    <Network className="w-4 h-4" />
+                    <span>Add Connection</span>
+                  </button>
+                </div>
                 
                 {/* Network Visualization */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
@@ -778,11 +1058,15 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                       onNodeClick={(node) => {
                         console.log('Node clicked:', node);
                         setSelectedNetworkNode(node);
+                        setSelectedNetworkEdge(null);
                       }}
                       onEdgeClick={(edge) => {
                         console.log('Edge clicked:', edge);
+                        setSelectedNetworkEdge(edge);
+                        setSelectedNetworkNode(null);
                       }}
                       selectedNodeId={selectedNetworkNode?.id}
+                      selectedEdgeId={selectedNetworkEdge?.id}
                       height={500}
                       showFilters={true}
                       showLegend={true}
@@ -790,9 +1074,11 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                     />
                   </div>
 
-                  {/* Selected Node Details */}
+                  {/* Selected Node/Edge Details */}
                   <div className="liquid-glass-card rounded-xl p-6">
-                    <h4 className="text-lg font-semibold text-white mb-4">Node Details</h4>
+                    <h4 className="text-lg font-semibold text-white mb-4">
+                      {selectedNetworkNode ? 'Node Details' : selectedNetworkEdge ? 'Connection Details' : 'Details'}
+                    </h4>
                     {selectedNetworkNode ? (
                       <div className="space-y-4">
                         <div className="flex items-start justify-between">
@@ -860,10 +1146,49 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                           </div>
                         )}
                       </div>
+                    ) : selectedNetworkEdge ? (
+                      <div className="space-y-4">
+                        <div>
+                          <h5 className="text-base font-medium text-white capitalize">{selectedNetworkEdge.type}</h5>
+                          <p className="text-sm text-slate-400">
+                            Strength: {selectedNetworkEdge.strength}/10
+                          </p>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-slate-400">Confidence</span>
+                            <span className="text-white">{Math.round((selectedNetworkEdge.metadata.confidence || 0) * 100)}%</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-slate-400">Evidence Count</span>
+                            <span className="text-white">{(selectedNetworkEdge.metadata as any).evidence_count || 0}</span>
+                          </div>
+                          {(selectedNetworkEdge.metadata as any).date_range && (
+                             <div className="flex justify-between text-sm">
+                               <span className="text-slate-400">Timeframe</span>
+                               <span className="text-white">{(selectedNetworkEdge.metadata as any).date_range}</span>
+                             </div>
+                          )}
+                        </div>
+
+                        {(selectedNetworkEdge.metadata as any).evidence_types && (selectedNetworkEdge.metadata as any).evidence_types.length > 0 && (
+                          <div>
+                            <h6 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Evidence Types</h6>
+                            <div className="flex flex-wrap gap-2">
+                              {(selectedNetworkEdge.metadata as any).evidence_types.map((type: string, idx: number) => (
+                                <span key={idx} className="px-2 py-1 bg-slate-800 rounded text-xs text-slate-300 border border-slate-700">
+                                  {type}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     ) : (
                       <div className="text-center py-8 text-slate-500">
                         <Network className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                        <p>Select a node to view details</p>
+                        <p>Select a node or connection to view details</p>
                       </div>
                     )}
                   </div>
@@ -1020,6 +1345,20 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
             </div>
           </div>
         </div>
+      )}
+      
+      {showCreateRelationshipModal && (
+        <CreateRelationshipModal
+          onClose={() => setShowCreateRelationshipModal(false)}
+          onSuccess={() => {
+            // Refresh network data logic would go here
+            // Since we use useEffect based on selectedInvestigation, we might need to force a refresh
+            // But for now, user can manually refresh or navigate back/forth
+            // A better way would be to expose a refresh function from the effect
+            // or toggle a version counter
+          }}
+          initialSourceId={selectedNetworkNode?.id}
+        />
       )}
     </div>
   );

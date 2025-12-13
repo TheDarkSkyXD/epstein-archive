@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Info, Users, FileText, AlertTriangle, TrendingUp, Activity, ShieldAlert } from 'lucide-react';
+import { Info, Users, FileText, AlertTriangle, Activity, ShieldAlert } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -10,9 +10,7 @@ import {
   PieChart,
   Pie,
   Cell,
-  ResponsiveContainer,
-  AreaChart,
-  Area
+  ResponsiveContainer
 } from 'recharts';
 import { Person } from '../types';
 import { TreeMap } from './TreeMap';
@@ -39,13 +37,16 @@ const COLORS = {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-slate-900 p-4 rounded-lg shadow-xl border border-slate-700">
-        <p className="text-white font-bold mb-2">{label}</p>
+      <div className="bg-slate-900/95 backdrop-blur-md p-4 rounded-xl shadow-2xl border border-slate-700/50">
+        <p className="text-white font-bold mb-2 text-sm">{label}</p>
         {payload.map((entry: any, index: number) => (
-          <div key={index} className="flex items-center gap-2 text-sm">
-            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
-            <span className="text-slate-300">{entry.name}:</span>
-            <span className="text-white font-mono">{entry.value}</span>
+          <div key={index} className="flex items-center gap-3 text-sm">
+            <div 
+              className="w-2 h-2 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)]" 
+              style={{ backgroundColor: entry.color || entry.fill }} 
+            />
+            <span className="text-slate-300 font-medium">{entry.name}:</span>
+            <span className="text-white font-mono font-bold">{entry.value.toLocaleString()}</span>
           </div>
         ))}
       </div>
@@ -66,7 +67,7 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
     totalPeople: 0,
     highRisk: 0,
     totalMentions: 0,
-    avgSpice: 0,
+    avgRedFlag: 0,
     uniqueRoles: 0,
     activeInvestigations: 0
   });
@@ -77,14 +78,14 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
         totalPeople: analyticsData.totalEntities || 0,
         highRisk: analyticsData.likelihoodDistribution?.find((d: any) => d.level === 'HIGH')?.count || 0,
         totalMentions: analyticsData.totalMentions || 0,
-        avgSpice: analyticsData.averageSpiceRating || 0,
+        avgRedFlag: analyticsData.averageRedFlagRating || 0,
         uniqueRoles: analyticsData.totalUniqueRoles || analyticsData.roleDistribution?.length || 0,
         activeInvestigations: analyticsData.activeInvestigations || 0
       });
     } else if (people.length > 0) {
       const highRisk = people.filter(p => (p.red_flag_rating ?? 0) >= 4).length;
       const totalMentions = people.reduce((acc, p) => acc + (p.mentions || 0), 0);
-      const avgSpice = people.reduce((acc, p) => acc + (p.red_flag_rating || 0), 0) / people.length;
+      const avgRedFlag = people.reduce((acc, p) => acc + (p.red_flag_rating || 0), 0) / people.length;
       
       const uniqueRoles = new Set<string>();
       people.forEach(p => {
@@ -101,7 +102,7 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
         totalPeople: people.length,
         highRisk,
         totalMentions,
-        avgSpice,
+        avgRedFlag,
         uniqueRoles: uniqueRoles.size,
         activeInvestigations: 0
       });
@@ -111,17 +112,18 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.5)]"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-center py-12 text-red-400">
-        <p>{error}</p>
-        <button onClick={onRetry} className="mt-4 px-4 py-2 bg-slate-800 rounded hover:bg-slate-700">
-          Retry
+      <div className="text-center py-12 text-red-400 glass-panel rounded-xl">
+        <AlertTriangle className="mx-auto h-12 w-12 mb-4 opacity-80" />
+        <p className="text-lg mb-4">{error}</p>
+        <button onClick={onRetry} className="px-6 py-2 bg-slate-800 rounded-lg hover:bg-slate-700 border border-slate-600 transition-all hover:scale-105">
+          Retry Analysis
         </button>
       </div>
     );
@@ -140,108 +142,72 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
     .map(p => ({
       name: p.name,
       mentions: p.mentions,
-      spice: p.red_flag_rating ?? 0
+      redFlagRating: p.red_flag_rating ?? 0,
+      person: p
     }));
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Key Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700 backdrop-blur-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-slate-400 text-sm font-medium">Total Entities</h3>
-            <Users className="text-blue-500 h-5 w-5" />
-          </div>
-          <div className="text-3xl font-bold text-white">{stats.totalPeople.toLocaleString()}</div>
-          <div className="text-xs text-slate-500 mt-2">Tracked individuals</div>
-          {/* Microcopy for Total Entities */}
-          <div className="text-xs text-slate-400 mt-3 flex items-start gap-1">
-            <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
-            <span>Individuals, organizations, and locations tracked in the database</span>
-          </div>
-        </div>
-
-        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700 backdrop-blur-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-slate-400 text-sm font-medium">High Risk Targets</h3>
-            <ShieldAlert className="text-red-500 h-5 w-5" />
-          </div>
-          <div className="text-3xl font-bold text-white">{stats.highRisk.toLocaleString()}</div>
-          <div className="text-xs text-slate-500 mt-2">Red Flag Index 4+</div>
-          {/* Microcopy for High Risk Targets */}
-          <div className="text-xs text-slate-400 mt-3 flex items-start gap-1">
-            <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
-            <span>Individuals with strong evidence connections and significant mentions</span>
-          </div>
-        </div>
-
-        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700 backdrop-blur-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-slate-400 text-sm font-medium">Total Mentions</h3>
-            <Activity className="text-purple-500 h-5 w-5" />
-          </div>
-          <div className="text-3xl font-bold text-white">{stats.totalMentions.toLocaleString()}</div>
-          <div className="text-xs text-slate-500 mt-2">Across all documents</div>
-          {/* Microcopy for Total Mentions */}
-          <div className="text-xs text-slate-400 mt-3 flex items-start gap-1">
-            <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
-            <span>Total references to entities across all documents in the archive</span>
-          </div>
-        </div>
-
-        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700 backdrop-blur-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-slate-400 text-sm font-medium">Active Investigations</h3>
-            <FileText className="text-orange-500 h-5 w-5" />
-          </div>
-          <div className="text-3xl font-bold text-white">{stats.activeInvestigations.toLocaleString()}</div>
-          <div className="text-xs text-slate-500 mt-2">Ongoing cases</div>
-          {/* Microcopy for Active Investigations */}
-          <div className="text-xs text-slate-400 mt-3 flex items-start gap-1">
-            <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
-            <span>Open investigations currently being pursued by researchers</span>
-          </div>
-        </div>
-      </div>
-
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Top Entities Bar Chart - Enhanced */}
-        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700 backdrop-blur-sm hover:border-slate-600 transition-all">
-          <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2 flex-wrap">
-            <Users className="h-5 w-5 text-blue-400" />
-            Top 20 Most Mentioned Individuals
-          </h3>
-          {/* Microcopy for Top Entities Chart */}
-          <div className="text-xs text-slate-400 mb-4 flex items-start gap-1">
-            <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
-            <span>Individuals with the highest number of references across all documents</span>
+        <div className="glass-card p-6 rounded-xl shadow-lg relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <Activity className="h-24 w-24 text-cyan-500" />
           </div>
-          <div className="h-[500px]">
+          
+          <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2 flex-wrap relative z-10">
+            <Users className="h-5 w-5 text-cyan-400" />
+            <span className="neon-text-cyan">Top Mentioned Individuals</span>
+          </h3>
+          
+          {/* Microcopy for Top Entities Chart */}
+          <div className="text-xs text-slate-400 mb-6 flex items-start gap-2 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50 backdrop-blur-sm relative z-10">
+            <Info className="h-4 w-4 mt-0.5 flex-shrink-0 text-cyan-400" />
+            <span>Individuals with the highest frequency of appearances across all analyzed documents. Colors indicate risk level. Click to view details.</span>
+          </div>
+          
+          <div className="h-[400px] relative z-10">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={topEntities.slice(0, 20)} layout="vertical" margin={{ left: 20, right: 20 }}>
+              <BarChart data={topEntities.slice(0, 15)} layout="vertical" margin={{ left: 0, right: 30, top: 0, bottom: 0 }}>
                 <defs>
-                  {topEntities.slice(0, 20).map((entry, index) => (
+                  {topEntities.slice(0, 15).map((entry: any, index: number) => (
                     <linearGradient key={`gradient-${index}`} id={`barGradient-${index}`} x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor={entry.spice >= 5 ? '#ec4899' : entry.spice >= 4 ? '#ef4444' : entry.spice >= 3 ? '#8b5cf6' : entry.spice >= 2 ? '#3b82f6' : '#06b6d4'} stopOpacity={0.8} />
-                      <stop offset="100%" stopColor={entry.spice >= 5 ? '#be185d' : entry.spice >= 4 ? '#dc2626' : entry.spice >= 3 ? '#6d28d9' : entry.spice >= 2 ? '#1d4ed8' : '#0e7490'} stopOpacity={1} />
+                      <stop offset="0%" stopColor={entry.redFlagRating >= 5 ? '#581c87' : entry.redFlagRating >= 4 ? '#b91c1c' : '#1d4ed8'} stopOpacity={0.7} />
+                      <stop offset="100%" stopColor={entry.redFlagRating >= 5 ? '#7e22ce' : entry.redFlagRating >= 4 ? '#ef4444' : '#3b82f6'} stopOpacity={1} />
                     </linearGradient>
                   ))}
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={false} />
-                <XAxis type="number" stroke="#94a3b8" fontSize={12} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={false} vertical={true} opacity={0.3} />
+                <XAxis type="number" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
                 <YAxis 
                   dataKey="name" 
                   type="category" 
                   stroke="#94a3b8" 
                   fontSize={11} 
-                  width={140}
-                  tick={{ fill: '#e2e8f0' }}
+                  width={130}
+                  tick={{ fill: '#e2e8f0', cursor: 'pointer' }}
+                  tickLine={false}
+                  axisLine={false}
+                  onClick={(data) => {
+                     // Creating a map to find person by name since YAxis click returns simple data
+                     const person = topEntities.find((p: any) => p.name === data.value)?.person;
+                     if (person && onPersonSelect) onPersonSelect(person);
+                  }}
                 />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: '#334155', opacity: 0.4 }} />
-                <Bar dataKey="mentions" radius={[0, 8, 8, 0]} animationDuration={800}>
-                  {topEntities.slice(0, 20).map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={`url(#barGradient-${index})`} />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: '#ffffff', opacity: 0.05 }} />
+                <Bar 
+                  dataKey="mentions" 
+                  radius={[0, 4, 4, 0]} 
+                  barSize={18} 
+                  animationDuration={1000}
+                  onClick={(data) => {
+                    if (data.person && onPersonSelect) onPersonSelect(data.person);
+                  }}
+                  className="cursor-pointer"
+                >
+                  {topEntities.slice(0, 15).map((entry: any, index: number) => (
+                    <Cell key={`cell-${index}`} fill={`url(#barGradient-${index})`} className="hover:opacity-80 transition-opacity" />
                   ))}
                 </Bar>
               </BarChart>
@@ -250,17 +216,21 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
         </div>
 
         {/* Risk Distribution Pie Chart */}
-        <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700 backdrop-blur-sm hover:border-slate-600 transition-all">
-          <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+        <div className="glass-card p-6 rounded-xl shadow-lg relative overflow-hidden group">
+           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <ShieldAlert className="h-24 w-24 text-orange-500" />
+          </div>
+
+          <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2 relative z-10">
             <AlertTriangle className="h-5 w-5 text-orange-400" />
-            Risk Level Distribution
+            <span>Risk Level Distribution</span>
           </h3>
           {/* Microcopy for Risk Distribution Chart */}
-          <div className="text-xs text-slate-400 mb-4 flex items-start gap-1">
-            <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
-            <span>Distribution of entities across risk levels based on evidence connections</span>
+          <div className="text-xs text-slate-400 mb-6 flex items-start gap-2 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50 backdrop-blur-sm relative z-10">
+            <Info className="h-4 w-4 mt-0.5 flex-shrink-0 text-orange-400" />
+            <span>Breakdown of entities by Red Flag Index score (0-5), indicating the density of connection to illicit activities.</span>
           </div>
-          <div className="h-[500px]">
+          <div className="h-[400px] relative z-10">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -268,65 +238,86 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
                   cx="50%"
                   cy="50%"
                   innerRadius={80}
-                  outerRadius={140}
-                  paddingAngle={5}
+                  outerRadius={120}
+                  paddingAngle={4}
                   dataKey="value"
+                  stroke="none"
                 >
                   {riskDistribution.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip content={<CustomTooltip />} />
               </PieChart>
             </ResponsiveContainer>
+            {/* Center Text Overlay */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <span className="text-4xl font-bold text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">{stats.totalPeople.toLocaleString()}</span>
+              <span className="text-xs text-slate-400 uppercase tracking-wider mt-1 font-semibold">Entities</span>
+            </div>
+          </div>
+          {/* Legend */}
+          <div className="flex flex-wrap justify-center gap-4 mt-4 relative z-10">
+            {riskDistribution.map((item, index) => (
+              <div key={index} className="flex items-center gap-2 px-3 py-1 bg-slate-900/40 rounded-full border border-slate-700/30">
+                <div className="w-3 h-3 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)]" style={{ backgroundColor: item.color }} />
+                <span className="text-xs text-slate-300 font-medium">{item.name}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
       {/* Interactive Tree Map */}
-      <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700 backdrop-blur-sm hover:border-slate-600 transition-all">
-        <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2 flex-wrap">
-          <Activity className="h-5 w-5 text-purple-400" />
-          Interactive Entity Tree Map
-          <span className="text-xs text-slate-400 font-normal ml-2">(Top 50 by mentions - hover for details, click to view)</span>
-        </h3>
-        {/* Microcopy for Tree Map */}
-        <div className="text-xs text-slate-400 mb-4 flex items-start gap-1">
-          <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
-          <span>Visual representation of entities sized by mention frequency. Click to view entity details.</span>
+      <div className="glass-card p-6 rounded-xl shadow-lg relative overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4 relative z-10">
+          <h3 className="text-xl font-bold text-white flex items-center gap-2">
+            <Activity className="h-5 w-5 text-purple-400" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">Interactive Entity Map</span>
+          </h3>
+          <span className="text-xs font-medium px-3 py-1 bg-purple-500/10 text-purple-300 rounded-full border border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.2)]">
+            Top 50 by Mentions
+          </span>
         </div>
-        <TreeMap people={people} onPersonClick={onPersonSelect} />
+        
+        {/* Microcopy for Tree Map */}
+        <div className="text-xs text-slate-400 mb-6 flex items-start gap-2 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50 backdrop-blur-sm relative z-10">
+          <Info className="h-4 w-4 mt-0.5 flex-shrink-0 text-purple-400" />
+          <span>Visual representation of entity prominence. Box size correlates to mention frequency. Click any box to view detailed evidence.</span>
+        </div>
+        
+        <div className="relative z-10">
+          <TreeMap people={people} onPersonClick={onPersonSelect} />
+        </div>
       </div>
 
-      {/* Summary Statistics */}
+      {/* Summary Statistics Footer */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-purple-900 to-purple-700 p-4 rounded-lg shadow-lg">
-          <div className="text-2xl font-bold text-white">
+        <div className="glass-panel p-4 rounded-xl hover:bg-slate-800/60 transition-colors group">
+          <div className="text-3xl font-bold text-white font-mono group-hover:text-cyan-400 transition-colors">
             {stats.totalPeople.toLocaleString()}
           </div>
-          <div className="text-purple-200 text-sm mt-1">Total Individuals</div>
-          <div className="text-purple-300 text-xs mt-1">In the database</div>
+          <div className="text-slate-400 text-xs mt-1 font-medium uppercase tracking-wide flex items-center gap-1">
+            Total Individuals
+          </div>
         </div>
-        <div className="bg-gradient-to-br from-indigo-900 to-indigo-700 p-4 rounded-lg shadow-lg">
-          <div className="text-2xl font-bold text-white">
+        <div className="glass-panel p-4 rounded-xl hover:bg-slate-800/60 transition-colors group">
+          <div className="text-3xl font-bold text-white font-mono group-hover:text-blue-400 transition-colors">
             {stats.totalPeople > 0 ? Math.round(stats.totalMentions / stats.totalPeople) : 0}
           </div>
-          <div className="text-indigo-200 text-sm mt-1">Avg Mentions</div>
-          <div className="text-indigo-300 text-xs mt-1">Per individual</div>
+          <div className="text-slate-400 text-xs mt-1 font-medium uppercase tracking-wide">Avg Mentions</div>
         </div>
-        <div className="bg-gradient-to-br from-pink-900 to-pink-700 p-4 rounded-lg shadow-lg">
-          <div className="text-2xl font-bold text-white">
+        <div className="glass-panel p-4 rounded-xl hover:bg-slate-800/60 transition-colors group">
+          <div className="text-3xl font-bold text-white font-mono group-hover:text-purple-400 transition-colors">
             {stats.uniqueRoles.toLocaleString()}
           </div>
-          <div className="text-pink-200 text-sm mt-1">Unique Roles</div>
-          <div className="text-pink-300 text-xs mt-1">Job titles/positions</div>
+          <div className="text-slate-400 text-xs mt-1 font-medium uppercase tracking-wide">Unique Roles</div>
         </div>
-        <div className="bg-gradient-to-br from-teal-900 to-teal-700 p-4 rounded-lg shadow-lg">
-          <div className="text-2xl font-bold text-white">
+        <div className="glass-panel p-4 rounded-xl hover:bg-slate-800/60 transition-colors group">
+          <div className="text-3xl font-bold text-white font-mono group-hover:text-pink-400 transition-colors">
             {people.length > 0 ? Math.max(...people.map(p => p?.mentions || 0)).toLocaleString() : '0'}
           </div>
-          <div className="text-teal-200 text-sm mt-1">Max Mentions</div>
-          <div className="text-teal-300 text-xs mt-1">For a single individual</div>
+          <div className="text-slate-400 text-xs mt-1 font-medium uppercase tracking-wide">Max Mentions</div>
         </div>
       </div>
     </div>

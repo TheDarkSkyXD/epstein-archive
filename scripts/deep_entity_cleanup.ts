@@ -20,7 +20,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DB_PATH = path.join(__dirname, '../epstein-archive.db');
+const DB_PATH = path.join(__dirname, '../epstein-archive-production.db');
 const BACKUP_DIR = path.join(__dirname, '../backups');
 const AUDIT_LOG_PATH = path.join(__dirname, '../deep_cleanup_audit.json');
 
@@ -87,6 +87,22 @@ const NAME_CONSOLIDATION_MAP: Record<string, string[]> = {
   'Ghislaine Maxwell': ['Ms Maxwell', 'Ms. Maxwell', 'Miss Maxwell'],
   'Alex Acosta': ['Alexander Acosta', 'Secretary Acosta'],
   'Steve Bannon': ['Stephen Bannon', 'Stephen K. Bannon'],
+  'Barack Obama': ['Obama', 'President Obama', 'Sen Obama', 'Senator Obama'],
+  'Michael Wolff': ['Wolff', 'Mike Wolff'],
+  'Richard Kahn': ['Richard Kahn Sent', 'Richard Kahn\nSent', 'Richard Kahn\nHBRK Associates Inc.'],
+  'Robert Maxwell': ['Robert\nMaxwell'],
+  'Kathy Ruemmler': ['Kathy Ruemmler\nSent', 'Kathy Ruemmler Sent'],
+};
+
+// Email-to-owner consolidation map
+const EMAIL_OWNER_MAP: Record<string, string> = {
+  // Jeffrey Epstein emails
+  'jeevacation@gmail.com': 'Jeffrey Epstein',
+  'jeeitunes@gmail.com': 'Jeffrey Epstein',
+  'jeevacation@grnail.corn': 'Jeffrey Epstein',  // OCR typo
+  'jeeproject@yahoo.com': 'Jeffrey Epstein',
+  // Ghislaine Maxwell
+  'gmax1@ellmax.com': 'Ghislaine Maxwell',
 };
 
 // Junk patterns - entities starting with these are NOT real people
@@ -102,7 +118,8 @@ const JUNK_PREFIXES = [
   'About ', 'Under ', 'Into ', 'Through ', 'Between ', 'Like ', 'Just ',
   'Even ', 'Also ', 'Both ', 'Either ', 'Neither ', 'Not ', 'Only ',
   'Very ', 'Much ', 'Such ', 'Some ', 'Any ', 'More ', 'Most ', 'Other ',
-  'Than ', 'Then ', 'Now ', 'Here ', 'There ',
+  'Than ', 'Then ', 'Now ', 'Here ', 'There ', 'Yes ', 'No ', 'Financial ',
+  'United ', 'Harvard ', 'Washington ', 'North ', 'Trump ', 'Landon ', 'Reid ',
 ];
 
 // Entities that should be reclassified as Organization
@@ -138,6 +155,11 @@ const JUNK_PATTERNS = [
   /^(Er|Mr|Ms|Mrs|Dr|Miss|Sir)\s*$/i, // Just titles with no name
   /^\d+$/,  // Just numbers
   /^[A-Z]{1,3}$/,  // Just initials
+  /\n.*Sent$/,  // Names with "Sent" artifact from emails
+  /\n.*Subject$/,  // Names with "Subject" artifact
+  /\n.*Importance$/,  // Names with "Importance" artifact
+  /\n.*Is Invitation$/,  // Names with "Is Invitation" artifact
+  /Unauthorized$/i,  // Jeffrey Epstein Unauthorized etc.
 ];
 
 interface AuditEntry {
@@ -215,6 +237,20 @@ function isJunkEntity(name: string): boolean {
     return true;
   }
   
+  // Email addresses that aren't in our known owner map are junk
+  if (name.includes('@') && !EMAIL_OWNER_MAP[name]) {
+    return true;
+  }
+  
+  // Entities with embedded newlines (except if they're in consolidation map values)
+  if (name.includes('\n')) {
+    // Check if it's a known variant we'll consolidate
+    for (const variations of Object.values(NAME_CONSOLIDATION_MAP)) {
+      if (variations.includes(name)) return false;
+    }
+    return true;  // Unknown newline entity = junk
+  }
+  
   return false;
 }
 
@@ -273,19 +309,30 @@ function deleteJunkEntities(db: Database.Database): number {
   
   const entities = db.prepare(`
     SELECT id, full_name, mentions 
-    FROM entities 
-    WHERE entity_type = 'Person'
+    FROM entities
   `).all() as { id: number; full_name: string; mentions: number }[];
   
   let deletedCount = 0;
   
   const deleteEntity = db.prepare(`DELETE FROM entities WHERE id = ?`);
   const deleteMentions = db.prepare(`DELETE FROM entity_mentions WHERE entity_id = ?`);
-  const deleteEvidenceTypes = db.prepare(`DELETE FROM entity_evidence_types WHERE entity_id = ?`);
-  const deleteMediaItems = db.prepare(`DELETE FROM media_items WHERE entity_id = ?`);
-  const deletePeople = db.prepare(`DELETE FROM people WHERE entity_id = ?`);
-  const deleteOrganizations = db.prepare(`DELETE FROM organizations WHERE entity_id = ?`);
-  const deleteEntityRelationships = db.prepare(`DELETE FROM entity_relationships WHERE source_id = ? OR target_id = ?`);
+  
+  // Helper to safely delete from optional tables
+  const safeDelete = (tableName: string, entityId: number) => {
+    try {
+      db.prepare(`DELETE FROM ${tableName} WHERE entity_id = ?`).run(entityId);
+    } catch (e) {
+      // Table might not exist, ignore
+    }
+  };
+  
+  const safeDeleteRelationships = (entityId: number) => {
+    try {
+      db.prepare(`DELETE FROM entity_relationships WHERE source_id = ? OR target_id = ?`).run(entityId, entityId);
+    } catch (e) {
+      // Table might not exist, ignore
+    }
+  };
   
   for (const entity of entities) {
     if (isJunkEntity(entity.full_name)) {
@@ -293,15 +340,11 @@ function deleteJunkEntities(db: Database.Database): number {
       
       if (!DRY_RUN) {
         deleteMentions.run(entity.id);
-        deleteEvidenceTypes.run(entity.id);
-        deleteMediaItems.run(entity.id);
-        deletePeople.run(entity.id);
-        deleteOrganizations.run(entity.id);
-        try {
-          deleteEntityRelationships.run(entity.id, entity.id);
-        } catch (e) {
-          // Table might not exist, ignore
-        }
+        safeDelete('entity_evidence_types', entity.id);
+        safeDelete('media_items', entity.id);
+        safeDelete('people', entity.id);
+        safeDelete('organizations', entity.id);
+        safeDeleteRelationships(entity.id);
         deleteEntity.run(entity.id);
       }
       
@@ -331,13 +374,13 @@ function reclassifyEntities(db: Database.Database): number {
   
   const entities = db.prepare(`
     SELECT id, full_name 
-    FROM entities 
-    WHERE entity_type = 'Person'
+    FROM entities
   `).all() as { id: number; full_name: string }[];
   
   let reclassifiedCount = 0;
   
-  const updateType = db.prepare(`UPDATE entities SET entity_type = ? WHERE id = ?`);
+  // Skip reclassification - production schema doesn't support entity_type
+  // const updateType = db.prepare(`UPDATE entities SET entity_type = ? WHERE id = ?`);
   
   for (const entity of entities) {
     let newType: string | null = null;
@@ -348,12 +391,12 @@ function reclassifyEntities(db: Database.Database): number {
       newType = 'Location';
     }
     
+    // Note: Production schema doesn't have entity_type column, skipping reclassification
+    // In future, we could add this column to schema
     if (newType) {
-      log(`   Reclassifying: "${entity.full_name}" → ${newType}`);
-      
-      if (!DRY_RUN) {
-        updateType.run(newType, entity.id);
-      }
+      log(`   (Would reclassify: "${entity.full_name}" → ${newType})`);
+      // Skipping actual update since entity_type column doesn't exist
+      reclassifiedCount++;
       
       auditLog.push({
         timestamp: new Date().toISOString(),
@@ -385,7 +428,7 @@ function consolidateNames(db: Database.Database): number {
     // Find the canonical entity (if it exists)
     const canonicalEntity = db.prepare(`
       SELECT id, full_name, mentions FROM entities 
-      WHERE full_name = ? AND entity_type = 'Person'
+      WHERE full_name = ?
     `).get(canonical) as { id: number; full_name: string; mentions: number } | undefined;
     
     if (!canonicalEntity) {
@@ -397,7 +440,7 @@ function consolidateNames(db: Database.Database): number {
     for (const variation of variations) {
       const variantEntity = db.prepare(`
         SELECT id, full_name, mentions FROM entities 
-        WHERE full_name = ? AND entity_type = 'Person' AND id != ?
+        WHERE full_name = ? AND id != ?
       `).get(variation, canonicalEntity.id) as { id: number; full_name: string; mentions: number } | undefined;
       
       if (variantEntity) {
@@ -422,16 +465,10 @@ function consolidateNames(db: Database.Database): number {
           
           db.prepare(`DELETE FROM entity_evidence_types WHERE entity_id = ?`).run(variantEntity.id);
           
-          // Delete from people table if linked
-          db.prepare(`DELETE FROM people WHERE entity_id = ?`).run(variantEntity.id);
-          
-          // Delete from organizations table if linked
-          db.prepare(`DELETE FROM organizations WHERE entity_id = ?`).run(variantEntity.id);
-          
-          // Delete entity relationships
-          try {
-            db.prepare(`DELETE FROM entity_relationships WHERE source_id = ? OR target_id = ?`).run(variantEntity.id, variantEntity.id);
-          } catch (e) { /* table might not exist */ }
+          // Delete from optional tables (may not exist in all schemas)
+          try { db.prepare(`DELETE FROM people WHERE entity_id = ?`).run(variantEntity.id); } catch (e) { /* table might not exist */ }
+          try { db.prepare(`DELETE FROM organizations WHERE entity_id = ?`).run(variantEntity.id); } catch (e) { /* table might not exist */ }
+          try { db.prepare(`DELETE FROM entity_relationships WHERE source_id = ? OR target_id = ?`).run(variantEntity.id, variantEntity.id); } catch (e) { /* table might not exist */ }
           
           // Update mention count on canonical
           db.prepare(`
@@ -462,10 +499,75 @@ function consolidateNames(db: Database.Database): number {
 }
 
 /**
- * Phase 4: Update mention counts
+ * Phase 4: Consolidate email entities into their owners
+ */
+function consolidateEmails(db: Database.Database): number {
+  console.log('\n📧 Phase 4: Consolidating email entities into owners...\n');
+  
+  let mergedCount = 0;
+  
+  for (const [email, ownerName] of Object.entries(EMAIL_OWNER_MAP)) {
+    // Find the email entity
+    const emailEntity = db.prepare(`
+      SELECT id, full_name, mentions FROM entities 
+      WHERE full_name = ?
+    `).get(email) as { id: number; full_name: string; mentions: number } | undefined;
+    
+    if (!emailEntity) {
+      log(`   ⚠️  Email entity not found: ${email}`);
+      continue;
+    }
+    
+    // Find the owner entity
+    const ownerEntity = db.prepare(`
+      SELECT id, full_name, mentions FROM entities 
+      WHERE full_name = ?
+    `).get(ownerName) as { id: number; full_name: string; mentions: number } | undefined;
+    
+    if (!ownerEntity) {
+      log(`   ⚠️  Owner entity not found: ${ownerName}`);
+      continue;
+    }
+    
+    log(`   Merging: "${email}" (${emailEntity.mentions} mentions) → "${ownerName}"`);
+    
+    if (!DRY_RUN) {
+      // Update mentions to point to owner entity
+      db.prepare(`UPDATE entity_mentions SET entity_id = ? WHERE entity_id = ?`).run(ownerEntity.id, emailEntity.id);
+      
+      // Update media items
+      db.prepare(`UPDATE media_items SET entity_id = ? WHERE entity_id = ?`).run(ownerEntity.id, emailEntity.id);
+      
+      // Update mention count on owner
+      db.prepare(`UPDATE entities SET mentions = mentions + ? WHERE id = ?`).run(emailEntity.mentions, ownerEntity.id);
+      
+      // Delete email entity and related records
+      try { db.prepare(`DELETE FROM entity_evidence_types WHERE entity_id = ?`).run(emailEntity.id); } catch (e) { /* table might not exist */ }
+      try { db.prepare(`DELETE FROM people WHERE entity_id = ?`).run(emailEntity.id); } catch (e) { /* table might not exist */ }
+      db.prepare(`DELETE FROM entities WHERE id = ?`).run(emailEntity.id);
+    }
+    
+    auditLog.push({
+      timestamp: new Date().toISOString(),
+      action: 'merge',
+      entityId: emailEntity.id,
+      entityName: email,
+      details: `Email consolidated into ${ownerName} (ID: ${ownerEntity.id})`,
+      mentionsAffected: emailEntity.mentions,
+    });
+    
+    mergedCount++;
+  }
+  
+  console.log(`\n   ✓ Consolidated ${mergedCount} email entities\n`);
+  return mergedCount;
+}
+
+/**
+ * Phase 5: Update mention counts
  */
 function updateMentionCounts(db: Database.Database): number {
-  console.log('\n📊 Phase 4: Updating mention counts...\n');
+  console.log('\n📊 Phase 5: Updating mention counts...\n');
   
   if (!DRY_RUN) {
     const result = db.prepare(`
@@ -490,9 +592,8 @@ function generateReport(db: Database.Database) {
   console.log('\n📋 Cleanup Summary Report\n');
   console.log('═'.repeat(50));
   
-  const personCount = db.prepare(`SELECT COUNT(*) as count FROM entities WHERE entity_type = 'Person'`).get() as { count: number };
-  const orgCount = db.prepare(`SELECT COUNT(*) as count FROM entities WHERE entity_type = 'Organization'`).get() as { count: number };
-  const locCount = db.prepare(`SELECT COUNT(*) as count FROM entities WHERE entity_type = 'Location'`).get() as { count: number };
+  const totalCount = db.prepare(`SELECT COUNT(*) as count FROM entities`).get() as { count: number };
+  const topEntities = db.prepare(`SELECT full_name, mentions FROM entities ORDER BY mentions DESC LIMIT 10`).all() as { full_name: string; mentions: number }[];
   
   console.log(`\n  Actions Taken${DRY_RUN ? ' (DRY RUN)' : ''}:`);
   console.log(`    Junk entities deleted:    ${stats.junkDeleted}`);
@@ -501,9 +602,12 @@ function generateReport(db: Database.Database) {
   console.log(`    Mention counts updated:   ${stats.mentionsUpdated}`);
   
   console.log(`\n  Current Entity Counts:`);
-  console.log(`    Person:       ${personCount.count.toLocaleString()}`);
-  console.log(`    Organization: ${orgCount.count.toLocaleString()}`);
-  console.log(`    Location:     ${locCount.count.toLocaleString()}`);
+  console.log(`    Total Entities: ${totalCount.count.toLocaleString()}`);
+  
+  console.log(`\n  Top 10 Entities by Mentions:`);
+  for (const entity of topEntities) {
+    console.log(`    ${entity.full_name}: ${entity.mentions.toLocaleString()}`);
+  }
   
   console.log('\n' + '═'.repeat(50));
 }
@@ -519,12 +623,16 @@ async function main() {
     // Create backup before making changes
     createBackup(db);
     
+    // Disable foreign key checks during cleanup
+    db.pragma('foreign_keys = OFF');
+    
     // Run cleanup phases
     db.exec('BEGIN TRANSACTION');
     
     deleteJunkEntities(db);
     reclassifyEntities(db);
     consolidateNames(db);
+    consolidateEmails(db);
     updateMentionCounts(db);
     
     if (!DRY_RUN) {

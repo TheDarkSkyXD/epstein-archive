@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS entities (
     type TEXT CHECK(type IN ('Person', 'Organization', 'Location', 'Unknown')) DEFAULT 'Unknown',
     role TEXT,
     description TEXT,
+    mentions INTEGER DEFAULT 0,
     red_flag_rating INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -233,6 +234,36 @@ db.exec(SCHEMA);
 console.log('[Rebuild] Schema applied.');
 
 // 2. Ingest CSV Data
+
+
+// BUILD FILE MAP
+console.log('[Rebuild] Building File Map...');
+import { readdirSync, statSync } from 'fs';
+const fileMap = new Map<string, string>();
+
+function walkDir(dir: string) {
+    if (!existsSync(dir)) return;
+    const items = readdirSync(dir);
+    for (const item of items) {
+        if (item.startsWith('.')) continue;
+        const fullPath = join(dir, item);
+        const st = statSync(fullPath);
+        if (st.isDirectory()) {
+            walkDir(fullPath);
+        } else {
+            fileMap.set(item, fullPath);
+            fileMap.set(item.toLowerCase(), fullPath);
+        }
+    }
+}
+
+// Walk interesting directories
+walkDir(join(DATA_ROOT, 'text'));
+walkDir(join(DATA_ROOT, 'ocr_clean')); // Also include cleaned OCR if available
+
+console.log(`[Rebuild] File Map built. Found ${fileMap.size} files.`);
+
+// 2. Ingest CSV Data
 async function ingestInventory() {
     console.log('[Rebuild] Ingesting Inventory from CSV...');
     
@@ -292,39 +323,58 @@ interface CsvRow {
         const type = rawType.toLowerCase();
         
         // Path handling
-        let relPath = row['Text Link']; // e.g. \HOUSE_OVERSIGHT_009\TEXT\001\HOUSE_OVERSIGHT_010477.txt
+        let relPath = row['Text Link']; 
         let content = '';
         let filePath = '';
         let size = 0;
         let words = 0;
 
-        if (relPath) {
-            // Convert win to lin
-            const cleanPath = relPath.replace(/\\/g, '/').replace(/^\//, ''); // Remove leading slash
-            // cleanPath is now "HOUSE_OVERSIGHT_009/TEXT/001/..."
-            // We assume /data/text/ contains the text files or mirrors this structure?
-            // "data/csv" contains subdirs like "HOUSE_OVERSIGHT_016552".
-            // "data/text" dir listing showed children.
-            // Let's try matching filename in `data/text` directly if specific structure fails.
-            
-            const filename = cleanPath.split('/').pop();
-            const potentialPath = join(DATA_ROOT, 'text', filename!);
-            
-            if (existsSync(potentialPath)) {
-                filePath = `/data/text/${filename}`;
+        // Try to find file by filename
+        const filename = (row['Document Title'] || row['Original Filename'] || bates || '').toString();
+        // Also try extracting filename from Text Link if it exists
+        const linkFilename = relPath ? relPath.replace(/\\/g, '/').split('/').pop() : null;
+        
+        // Candidates for filename lookup
+        const candidates = [
+            linkFilename,
+            filename,
+            `${bates}.txt`,
+            `${filename}.txt`
+        ].filter(Boolean) as string[];
+
+        // Check file map for any candidate
+        let foundPath: string | undefined;
+        for (const c of candidates) {
+            const exact = fileMap.get(c!);
+            if (exact) {
+                foundPath = exact;
+                break;
+            }
+            // Try case insensitive
+            const lower = fileMap.get(c!.toLowerCase());
+            if (lower) {
+                foundPath = lower;
+                break;
+            }
+        }
+
+        if (foundPath) {
+             filePath = foundPath.replace(process.cwd(), ''); // relative path for DB
+             try {
+                content = readFileSync(foundPath, 'utf-8');
+             } catch (e) {
+                console.warn(`Failed to read content for ${foundPath}`);
+             }
+        } else if (relPath) {
+            // Fallback to legacy logic just in case
+            const cleanPath = relPath.replace(/\\/g, '/').replace(/^\//, ''); 
+            const potentialPath = join(DATA_ROOT, 'text', cleanPath.split('/').pop()!);
+             if (existsSync(potentialPath)) {
+                filePath = `/data/text/${cleanPath.split('/').pop()}`;
                 try {
                     content = readFileSync(potentialPath, 'utf-8');
-                } catch (e) {
-                    console.warn(`Failed to read content for ${filename}`);
-                }
-            } else {
-               // Fallback: Check if path exists inside data Root
-               const fullPath = join(DATA_ROOT, cleanPath);
-               if (existsSync(fullPath)) {
-                   filePath = `/data/${cleanPath}`;
-                   content = readFileSync(fullPath, 'utf-8');
-               }
-            }
+                } catch (e) {}
+             }
         }
         
         size = content.length;

@@ -37,7 +37,7 @@ export interface InvestigationFilters {
 }
 
 export class InvestigationService {
-  constructor(private db: Database.Database) {}
+  constructor(private db: any) {}
 
   async getInvestigations(filters: InvestigationFilters = {}) {
     const { status, ownerId, page = 1, limit = 20 } = filters;

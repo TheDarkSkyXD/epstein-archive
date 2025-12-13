@@ -47,10 +47,10 @@ export class DataLoaderService {
         evidence_types: person.keyEvidence?.split(',')?.map((e: string) => e.trim()) || [],
         spicy_passages: [],
         likelihood_score: this.mapLikelihood(person.likelihoodLevel),
-        spice_score: this.calculateSpiceScore(person),
-        spice_rating: this.calculateSpiceRating(person),
-        spice_peppers: this.generatePeppers(person),
-        spice_description: this.generateSpiceDescription(person),
+        red_flag_score: this.calculateRedFlagScore(person),
+        red_flag_rating: this.calculateRedFlagRating(person),
+        red_flag_peppers: this.generateRedFlagIndicators(person),
+        red_flag_description: this.generateRedFlagDescription(person),
         keyEvidence: person.keyEvidence,
         fileReferences: person.fileReferences,
         connectionsToEpstein: person.connectionsToEpstein
@@ -88,25 +88,25 @@ export class DataLoaderService {
     return 'LOW';
   }
 
-  private calculateSpiceScore(person: any): number {
-    // Calculate spice score based on mentions and evidence types
+  private calculateRedFlagScore(person: any): number {
+    // Calculate red flag score based on mentions and evidence types
     const mentionScore = Math.min(person.mentions / 1000, 10);
     const evidenceScore = (person.keyEvidence?.split(',')?.length || 0) * 2;
     return Math.min(mentionScore + evidenceScore, 10);
   }
 
-  private calculateSpiceRating(person: any): number {
-    const score = this.calculateSpiceScore(person);
+  private calculateRedFlagRating(person: any): number {
+    const score = this.calculateRedFlagScore(person);
     return Math.min(Math.max(Math.floor(score / 2), 1), 5);
   }
 
-  private generatePeppers(person: any): string {
-    const rating = this.calculateSpiceRating(person);
-    return '🌶️'.repeat(rating);
+  private generateRedFlagIndicators(person: any): string {
+    const rating = this.calculateRedFlagRating(person);
+    return '🚩'.repeat(rating);
   }
 
-  private generateSpiceDescription(person: any): string {
-    const rating = this.calculateSpiceRating(person);
+  private generateRedFlagDescription(person: any): string {
+    const rating = this.calculateRedFlagRating(person);
     const descriptions = {
       1: 'Mild - Basic mentions',
       2: 'Medium - Some involvement',

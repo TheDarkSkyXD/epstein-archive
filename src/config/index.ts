@@ -62,7 +62,7 @@ export const config: Config = {
   jwtSecret: getEnvVar('JWT_SECRET', 'default-jwt-secret'),
   sessionSecret: getEnvVar('SESSION_SECRET', 'default-session-secret'),
   rateLimitWindowMs: getEnvVarAsNumber('RATE_LIMIT_WINDOW_MS', 900000), // 15 minutes
-  rateLimitMaxRequests: getEnvVarAsNumber('RATE_LIMIT_MAX_REQUESTS', 100),
+  rateLimitMaxRequests: getEnvVarAsNumber('RATE_LIMIT_MAX_REQUESTS', 1000), // Increased from 100 for media app
   corsOrigin: getCorsOrigin(),
   corsCredentials: getEnvVarAsBoolean('CORS_CREDENTIALS', true),
   logLevel: getEnvVar('LOG_LEVEL', 'info'),

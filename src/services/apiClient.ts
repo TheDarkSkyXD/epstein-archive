@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import { Person } from '../types';
 import { PaginatedResponse, SearchFilters } from './optimizedDataLoader';
 
@@ -62,8 +63,8 @@ class ApiClient {
       fullName: e.fullName ?? e.name ?? e.full_name,
       red_flag_rating: e.red_flag_rating ?? e.redFlagRating ?? e.spiceRating ?? 0,
       files: e.files ?? e.documentCount ?? 0,
-    }));
-    return { ...(resp as any), data: normalized };
+      blackBookEntry: e.blackBookEntry || null,
+    }));    return { ...(resp as any), data: normalized };
   }
 
   async getEntity(id: string): Promise<Person> {
@@ -74,9 +75,9 @@ class ApiClient {
       name: e.name ?? e.fullName ?? e.full_name,
       fullName: e.fullName ?? e.name ?? e.full_name,
       red_flag_rating: e.red_flag_rating ?? e.redFlagRating ?? e.spiceRating ?? 0,
+      blackBookEntry: e.blackBookEntry || null,
     } as Person;
   }
-
   async search(query: string, limit: number = 20): Promise<{ entities: Person[], documents: any[] }> {
     const params = new URLSearchParams();
     params.append('q', query);
@@ -89,6 +90,7 @@ class ApiClient {
       name: e.name ?? e.fullName ?? e.full_name,
       fullName: e.fullName ?? e.name ?? e.full_name,
       red_flag_rating: e.red_flag_rating ?? e.redFlagRating ?? e.spiceRating ?? 0,
+      blackBookEntry: e.blackBookEntry || null,
     })) : [];
     return { entities: ents as Person[], documents: r.documents || [] };
   }
@@ -96,6 +98,20 @@ class ApiClient {
   async searchEntities(query: string, limit: number = 20): Promise<Person[]> {
     const result = await this.search(query, limit);
     return result.entities || [];
+  }
+
+  async createEntity(data: any): Promise<any> {
+    return this.fetchWithErrorHandling<any>(`${API_BASE_URL}/entities`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async createRelationship(data: any): Promise<any> {
+    return this.fetchWithErrorHandling<any>(`${API_BASE_URL}/relationships`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
   }
 
   async getStats(): Promise<any> {
@@ -129,7 +145,17 @@ class ApiClient {
   }
 
   async analyzeDocument(documentId: string): Promise<any> {
-    const url = `${API_BASE_URL}/forensic/analyze/${documentId}`;
+    const url = `${API_BASE_URL}/evidence/${documentId}/analyze`;
+    return this.fetchWithErrorHandling<any>(url, { method: 'POST' });
+  }
+
+  async getEvidenceMetrics(documentId: string): Promise<any> {
+    const url = `${API_BASE_URL}/evidence/${documentId}/metrics`;
+    return this.fetchWithErrorHandling<any>(url);
+  }
+
+  async getChainOfCustody(documentId: string): Promise<any> {
+    const url = `${API_BASE_URL}/evidence/${documentId}/custody`;
     return this.fetchWithErrorHandling<any>(url);
   }
 
@@ -182,6 +208,17 @@ class ApiClient {
   async healthCheck(): Promise<{ status: string; timestamp: string; database: string }> {
     const url = `${API_BASE_URL}/health`;
     return this.fetchWithErrorHandling<{ status: string; timestamp: string; database: string }>(url);
+  }
+
+  async getAllEntities(): Promise<any[]> {
+    const url = `${API_BASE_URL}/entities/all`;
+    try {
+      const response = await this.fetchWithErrorHandling<any[]>(url);
+      return response;
+    } catch (error) {
+      console.error('Error fetching all entities:', error);
+      return [];
+    }
   }
 }
 

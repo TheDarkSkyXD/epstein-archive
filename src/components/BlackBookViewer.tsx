@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Phone, Mail, MapPin, User, Book, Eye, FileText } from 'lucide-react';
+import { Search, Phone, Mail, MapPin, User, Book, Eye, FileText, ExternalLink } from 'lucide-react';
 import { prettifyOCRText, extractCleanName, formatPhoneNumber } from '../utils/prettifyOCR';
+import { EvidenceModal } from './EvidenceModal';
+import { apiClient } from '../services/apiClient';
 
 interface BlackBookEntry {
   id: number;
@@ -23,6 +25,8 @@ export const BlackBookViewer: React.FC = () => {
   const [hasEmail, setHasEmail] = useState<boolean>(false);
   const [hasAddress, setHasAddress] = useState<boolean>(false);
   const [showRaw, setShowRaw] = useState<boolean>(false);
+  const [selectedEntity, setSelectedEntity] = useState<any | null>(null);
+  const [loadingEntity, setLoadingEntity] = useState<number | null>(null);
 
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
@@ -50,13 +54,41 @@ export const BlackBookViewer: React.FC = () => {
       // API now returns {data: [...], total, page, pageSize, totalPages}
       const data = result.data || [];
       
-      // Parse JSON fields
-      const parsedEntries = data.map((entry: any) => ({
-        ...entry,
-        phone_numbers: entry.phone_numbers ? JSON.parse(entry.phone_numbers) : [],
-        addresses: entry.addresses ? JSON.parse(entry.addresses) : [],
-        email_addresses: entry.email_addresses ? JSON.parse(entry.email_addresses) : []
-      }));
+      // Parse JSON fields safely
+      const parsedEntries = data.map((entry: any) => {
+        let phone_numbers = [];
+        let addresses = [];
+        let email_addresses = [];
+
+        try {
+          phone_numbers = entry.phone_numbers ? JSON.parse(entry.phone_numbers) : [];
+        } catch (e) {
+          console.warn('Failed to parse phone_numbers for entry', entry.id, entry.phone_numbers);
+          // Fallback: if it looks like a string, wrap it
+          if (typeof entry.phone_numbers === 'string' && !entry.phone_numbers.startsWith('[')) {
+             phone_numbers = [entry.phone_numbers];
+          }
+        }
+
+        try {
+          addresses = entry.addresses ? JSON.parse(entry.addresses) : [];
+        } catch (e) {
+          console.warn('Failed to parse addresses for entry', entry.id);
+        }
+
+        try {
+          email_addresses = entry.email_addresses ? JSON.parse(entry.email_addresses) : [];
+        } catch (e) {
+          console.warn('Failed to parse email_addresses for entry', entry.id);
+        }
+
+        return {
+          ...entry,
+          phone_numbers,
+          addresses,
+          email_addresses
+        };
+      });
       
       setEntries(parsedEntries);
       setFilteredEntries(parsedEntries);
@@ -76,6 +108,19 @@ export const BlackBookViewer: React.FC = () => {
     // Extract name from first line
     const lines = entryText.split('\n');
     return lines[0]?.trim() || 'Unknown';
+  };
+
+  const handleEntityClick = async (personId: number, personName: string) => {
+    if (!personName) return; // Not a known entity
+    try {
+      setLoadingEntity(personId);
+      const entity = await apiClient.getEntity(String(personId));
+      setSelectedEntity(entity);
+    } catch (error) {
+      console.error('Error fetching entity:', error);
+    } finally {
+      setLoadingEntity(null);
+    }
   };
 
   if (loading) {
@@ -184,10 +229,28 @@ export const BlackBookViewer: React.FC = () => {
               key={entry.id}
               className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 hover:border-cyan-500/50 transition-all"
             >
-              {/* Name */}
+              {/* Name - clickable if known entity */}
               <div className="flex items-center space-x-2 mb-3">
                 <User className="w-5 h-5 text-cyan-400" />
-                <h3 className="text-lg font-semibold text-white">{displayName}</h3>
+                {entry.person_name ? (
+                  <button
+                    onClick={() => handleEntityClick(entry.person_id, entry.person_name!)}
+                    className="text-lg font-semibold text-cyan-400 hover:text-cyan-300 hover:underline flex items-center gap-1 transition-colors text-left"
+                    title="Click to view entity profile"
+                    disabled={loadingEntity === entry.person_id}
+                  >
+                    {loadingEntity === entry.person_id ? (
+                      <span className="animate-pulse">Loading...</span>
+                    ) : (
+                      <>
+                        {displayName}
+                        <ExternalLink className="w-3 h-3 opacity-60" />
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  <h3 className="text-lg font-semibold text-white">{displayName}</h3>
+                )}
               </div>
 
               {/* Contact Info */}
@@ -262,6 +325,14 @@ export const BlackBookViewer: React.FC = () => {
             Try adjusting your search or filter
           </p>
         </div>
+      )}
+
+      {/* Entity Modal */}
+      {selectedEntity && (
+        <EvidenceModal
+          person={selectedEntity}
+          onClose={() => setSelectedEntity(null)}
+        />
       )}
     </div>
   );

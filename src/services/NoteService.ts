@@ -26,7 +26,7 @@ export interface UpdateNoteInput {
 }
 
 export class NoteService {
-  constructor(private db: Database.Database) {}
+  constructor(private db: any) {}
 
   async getNotes(subjectType?: string, subjectId?: string, page: number = 1, limit: number = 20) {
     const offset = (page - 1) * limit;

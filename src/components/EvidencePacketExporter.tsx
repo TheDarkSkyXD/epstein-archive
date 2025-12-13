@@ -25,62 +25,62 @@ export const EvidencePacketExporter: React.FC<EvidencePacketExporterProps> = ({
   };
 
   return (
-    <div className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-4)]">
-      <h3 className="text-[var(--font-size-h4)] font-semibold text-[var(--text-primary)] mb-[var(--space-3)]">
+    <div className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 rounded-xl p-5 shadow-lg">
+      <h3 className="text-base font-semibold text-white mb-3">
         Export Evidence Packet
       </h3>
       
-      <p className="text-[var(--font-size-caption)] text-[var(--text-secondary)] mb-[var(--space-4)]">
+      <p className="text-sm text-slate-300 mb-5">
         Export this investigation as a comprehensive evidence packet containing entities, documents, 
         metadata, and Red Flag Index scores.
       </p>
       
-      <div className="space-y-[var(--space-4)]">
+      <div className="space-y-4">
         <div>
-          <label className="block text-[var(--font-size-caption)] font-medium text-[var(--text-primary)] mb-[var(--space-2)]">
+          <label className="block text-sm font-medium text-slate-200 mb-2">
             Export Format
           </label>
-          <div className="flex space-x-[var(--space-3)]">
+          <div className="flex gap-3">
             <button
               onClick={() => setSelectedFormat('json')}
               className={`
-                flex-1 flex items-center justify-center p-[var(--space-3)] rounded-[var(--radius-md)] border transition-colors
+                flex-1 flex items-center justify-center p-3 rounded-lg border-2 transition-all duration-200
                 ${selectedFormat === 'json' 
-                  ? 'border-[var(--accent-primary)] bg-[var(--accent-soft-primary)]' 
-                  : 'border-[var(--border-subtle)] hover:border-[var(--text-tertiary)]'}
+                  ? 'border-blue-500 bg-blue-500/20 text-blue-300' 
+                  : 'border-slate-600 bg-slate-700/50 text-slate-300 hover:border-slate-500 hover:bg-slate-700'}
               `}
             >
-              <FileJson className="h-5 w-5 mr-[var(--space-2)]" />
-              <span>JSON</span>
+              <FileJson className="h-5 w-5 mr-2" />
+              <span className="font-medium">JSON</span>
             </button>
             
             <button
               onClick={() => setSelectedFormat('zip')}
               className={`
-                flex-1 flex items-center justify-center p-[var(--space-3)] rounded-[var(--radius-md)] border transition-colors
+                flex-1 flex items-center justify-center p-3 rounded-lg border-2 transition-all duration-200
                 ${selectedFormat === 'zip' 
-                  ? 'border-[var(--accent-primary)] bg-[var(--accent-soft-primary)]' 
-                  : 'border-[var(--border-subtle)] hover:border-[var(--text-tertiary)]'}
+                  ? 'border-blue-500 bg-blue-500/20 text-blue-300' 
+                  : 'border-slate-600 bg-slate-700/50 text-slate-300 hover:border-slate-500 hover:bg-slate-700'}
               `}
             >
-              <FileArchive className="h-5 w-5 mr-[var(--space-2)]" />
-              <span>ZIP</span>
+              <FileArchive className="h-5 w-5 mr-2" />
+              <span className="font-medium">ZIP</span>
             </button>
           </div>
         </div>
         
-        <div className="pt-[var(--space-4)] border-t border-[var(--border-subtle)]">
+        <div className="pt-4 border-t border-slate-700/50">
           <button
             onClick={handleExport}
             disabled={isExporting}
             className={`
-              w-full flex items-center justify-center px-[var(--space-4)] py-[var(--space-3)] 
-              bg-[var(--accent-primary)] text-white rounded-[var(--radius-md)] 
-              hover:bg-[var(--accent-secondary)] transition-colors font-medium
+              w-full flex items-center justify-center px-4 py-3 
+              bg-blue-600 text-white rounded-lg font-medium
+              hover:bg-blue-500 transition-colors shadow-lg shadow-blue-900/30
               ${isExporting ? 'opacity-70 cursor-not-allowed' : ''}
             `}
           >
-            <Download className="h-5 w-5 mr-[var(--space-2)]" />
+            <Download className="h-5 w-5 mr-2" />
             {isExporting ? 'Exporting...' : `Export as ${selectedFormat.toUpperCase()}`}
           </button>
         </div>

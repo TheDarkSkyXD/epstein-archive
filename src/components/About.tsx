@@ -10,7 +10,7 @@ export const About: React.FC = () => {
           Epstein Archive Investigation Platform
         </h1>
         <p className="text-xl text-slate-400">
-          Version 3.1.0 - Comprehensive Evidence Analysis System
+          Version 3.2.0 - Comprehensive Evidence Analysis System
         </p>
       </div>
 
@@ -26,6 +26,58 @@ export const About: React.FC = () => {
           provide researchers, journalists, and the public with powerful tools to explore connections, 
           identify patterns, and uncover insights from thousands of documents, flight logs, and evidence records.
         </p>
+      </div>
+
+      {/* System Analysis & Improvements */}
+      <div className="bg-slate-800/50 rounded-xl p-8 mb-8 border border-slate-700">
+        <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+          <Shield className="h-6 w-6 text-emerald-500" />
+          System Analysis & Improvements
+        </h2>
+        <p className="text-slate-300 mb-6 leading-relaxed">
+          We have transformed the "chaotic archive" of disparate files described in recent analysis 
+          into a <strong>Forensic Intelligence Platform</strong>. By moving beyond static lists to a 
+          dynamic, interconnected system, we respect the complexity and legal nuance of the case.
+        </p>
+        
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr>
+                <th className="p-4 border-b border-slate-600 text-slate-200 font-semibold bg-slate-700/50 rounded-tl-lg">Article Concept</th>
+                <th className="p-4 border-b border-slate-600 text-slate-200 font-semibold bg-slate-700/50">Current "Status Quo"</th>
+                <th className="p-4 border-b border-slate-600 text-slate-200 font-semibold bg-slate-700/50 rounded-tr-lg">Platform Improvement</th>
+              </tr>
+            </thead>
+            <tbody className="text-slate-300">
+              <tr className="border-b border-slate-700 hover:bg-slate-700/30 transition-colors">
+                <td className="p-4 font-medium text-white">Data Structure</td>
+                <td className="p-4 text-slate-400">"Chaotic archive", "image scans"</td>
+                <td className="p-4 text-emerald-400 font-medium">Structured Database & Searchable Text (OCR)</td>
+              </tr>
+              <tr className="border-b border-slate-700 hover:bg-slate-700/30 transition-colors">
+                <td className="p-4 font-medium text-white">Flight Logs</td>
+                <td className="p-4 text-slate-400">Static lists, "Guilt by association"</td>
+                <td className="p-4 text-emerald-400 font-medium">Network Graph & Forensic Cross-Referencing</td>
+              </tr>
+              <tr className="border-b border-slate-700 hover:bg-slate-700/30 transition-colors">
+                <td className="p-4 font-medium text-white">Black Book</td>
+                <td className="p-4 text-slate-400">"Rolodex" conflated with "Client List"</td>
+                <td className="p-4 text-emerald-400 font-medium">Searchable Contact Database (distinct from criminal evidence)</td>
+              </tr>
+              <tr className="border-b border-slate-700 hover:bg-slate-700/30 transition-colors">
+                <td className="p-4 font-medium text-white">Emails</td>
+                <td className="p-4 text-slate-400">Massive unreadable cache</td>
+                <td className="p-4 text-emerald-400 font-medium">Communication Pattern Analysis (Frequency, Timing, Network)</td>
+              </tr>
+              <tr className="hover:bg-slate-700/30 transition-colors">
+                <td className="p-4 font-medium text-white">Nuance</td>
+                <td className="p-4 text-slate-400">Lost in public discussion</td>
+                <td className="p-4 text-emerald-400 font-medium">Red Flag Index (Quantified Risk vs. Association)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Features Grid */}
@@ -157,17 +209,101 @@ export const About: React.FC = () => {
 
       {/* Data Sources */}
       <div className="bg-slate-800/50 rounded-xl p-8 border border-slate-700 mb-8">
-        <h2 className="text-2xl font-bold text-white mb-4">Data Sources</h2>
-        <p className="text-slate-300 mb-4">
-          This archive aggregates publicly available information from various sources:
+        <h2 className="text-2xl font-bold text-white mb-6">Data Sources</h2>
+        <p className="text-slate-300 mb-6">
+          This archive aggregates publicly available information from various sources. 
+          Click on a source to explore the related documents and evidence within the platform.
         </p>
-        <ul className="text-slate-300 space-y-2">
-          <li>• Court documents and legal filings</li>
-          <li>• Flight logs and travel records</li>
-          <li>• News articles and media reports</li>
-          <li>• Public records and databases</li>
-          <li>• Photographic evidence</li>
-        </ul>
+        
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <a href="/blackbook" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+            <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
+              Unredacted Black Book
+              <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
+            </h3>
+            <p className="text-sm text-slate-400">Epstein's contact book containing thousands of names and phone numbers.</p>
+          </a>
+
+          <a href="/documents?q=Flight%20Log" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+            <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
+              Epstein Flight Logs
+              <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
+            </h3>
+            <p className="text-sm text-slate-400">Pilot logs documenting travel on Epstein's private aircraft ("Lolita Express").</p>
+          </a>
+
+          <a href="/documents?q=Unsealed" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+            <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
+              Giuffre v. Maxwell - Unsealed
+              <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
+            </h3>
+            <p className="text-sm text-slate-400">Thousands of pages of court filings unsealed in January 2024.</p>
+          </a>
+
+          <a href="/documents?q=Maxwell%20Deposition" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+            <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
+              Maxwell Deposition 2016
+              <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
+            </h3>
+            <p className="text-sm text-slate-400">Sworn testimony from Ghislaine Maxwell in the civil defamation case.</p>
+          </a>
+
+          <a href="/documents?q=Giuffre%20Deposition" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+            <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
+              Giuffre Deposition 2016
+              <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
+            </h3>
+            <p className="text-sm text-slate-400">Detailed testimony from Virginia Giuffre regarding her trafficking.</p>
+          </a>
+
+          <a href="/documents?q=Sjoberg" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+            <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
+              Sjoberg Deposition 2016
+              <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
+            </h3>
+            <p className="text-sm text-slate-400">Testimony from Johanna Sjoberg detailing abuse at Epstein's properties.</p>
+          </a>
+
+          <a href="/documents?q=Katie%20Johnson" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+            <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
+              Katie Johnson Lawsuit
+              <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
+            </h3>
+            <p className="text-sm text-slate-400">Federal lawsuit alleging abuse by Epstein and Donald Trump.</p>
+          </a>
+
+          <a href="/documents?q=Indictment" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+            <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
+              Federal Indictment
+              <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
+            </h3>
+            <p className="text-sm text-slate-400">The 2019 SDNY indictment charging Epstein with sex trafficking.</p>
+          </a>
+
+          <a href="/documents?q=FBI" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+            <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
+              FBI 'Phase 1' Release
+              <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
+            </h3>
+            <p className="text-sm text-slate-400">Bureau investigation files regarding Epstein's activities and networks.</p>
+          </a>
+
+          <a href="/documents?q=Birthday%20Book" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+            <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
+              The Birthday Book
+              <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
+            </h3>
+            <p className="text-sm text-slate-400">Photo book and messages given to Epstein for his 50th birthday.</p>
+          </a>
+
+          <a href="/documents?q=Oversight" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+            <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
+              Oversight Emails
+              <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
+            </h3>
+            <p className="text-sm text-slate-400">Communications released by the House Oversight Committee from the estate.</p>
+          </a>
+        </div>
       </div>
 
       {/* Disclaimer */}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Investigation, EvidenceItem, TimelineEvent, Hypothesis, Annotation } from '../types/investigation';
 import { FileText, Download, Share2, Eye, Lock, Globe, Newspaper, Gavel, FileSpreadsheet, Image, Code, Check, Copy, Printer, Microscope } from 'lucide-react';
 import { format } from 'date-fns';
+import { useToasts } from './ToastProvider';
 
 interface ExportToolsProps {
   investigation: Investigation;
@@ -129,6 +130,7 @@ export const InvestigationExportTools: React.FC<ExportToolsProps> = ({
   const [includeAnnotations, setIncludeAnnotations] = useState(true);
   const [includeTimeline, setIncludeTimeline] = useState(true);
   const [includeHypotheses, setIncludeHypotheses] = useState(true);
+  const { addToast } = useToasts();
 
   const generateInvestigationReport = (): string => {
     let report = `# ${investigation.title}\n\n`;
@@ -413,7 +415,7 @@ ${investigation.description}
       setExportProgress(100);
     } catch (error) {
       console.error('Export failed:', error);
-      alert('Export failed. Please try again.');
+      addToast({ text: 'Export failed. Please try again.', type: 'error' });
     } finally {
       setIsExporting(false);
       setTimeout(() => setExportProgress(0), 2000);

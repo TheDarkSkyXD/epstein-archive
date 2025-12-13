@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, SkipForward, AlertCircle, Save } from 'lucide-react';
+import { useToasts } from './ToastProvider';
 
 interface ReviewEntry {
   id: number;
@@ -20,6 +21,7 @@ export const BlackBookReview: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [stats, setStats] = useState({ total: 0, reviewed: 0, remaining: 0 });
+  const { addToast } = useToasts();
 
   useEffect(() => {
     fetchReviewEntries();
@@ -87,7 +89,7 @@ export const BlackBookReview: React.FC = () => {
       }));
     } catch (error) {
       console.error('Error saving review:', error);
-      alert('Failed to save. Please try again.');
+      addToast({ text: 'Failed to save. Please try again.', type: 'error' });
     } finally {
       setSaving(false);
     }

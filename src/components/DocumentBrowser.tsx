@@ -297,7 +297,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
 
   const sourceOptions = useMemo(() => {
     if (!collection) return [];
-    const sources = [...new Set(documents.map(doc => doc.metadata.source))];
+    const sources = [...new Set(documents.map(doc => doc.metadata?.source || 'Unknown'))];
     return sources.map(source => ({
       value: source,
       label: source
@@ -363,7 +363,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
         return firstSentence;
       }
       // Fallback to filename without extension
-      return document.filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' ');
+      return (document.filename || '').replace(/\.[^/.]+$/, '').replace(/_/g, ' ');
     };
 
     const displayTitle = getDisplayTitle();
@@ -384,7 +384,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
               <AddToInvestigationButton 
                 item={{
                   id: document.id,
-                  title: document.title || document.filename,
+                  title: document.title || document.filename || 'Untitled',
                   description: document.content?.substring(0, 100) || 'Document evidence',
                   type: 'document',
                   sourceId: document.id
@@ -407,7 +407,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
         <h3 className="font-semibold text-white mb-1 line-clamp-2">
           {effectiveSearchTerm ? renderHighlightedText(displayTitle, effectiveSearchTerm) : displayTitle}
         </h3>
-        <p className="text-xs text-gray-500 mb-2">({document.filename})</p>
+        <p className="text-xs text-gray-500 mb-2 truncate">({document.filename})</p>
         
         {summary && (
           <p className="text-sm text-gray-300 mb-3 line-clamp-3">
@@ -422,25 +422,25 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
           </div>
           <div className="flex items-center space-x-2">
             <Users className="w-3 h-3" />
-            <span>{document.entities.length} entities</span>
+            <span>{document.entities?.length || 0} entities</span>
           </div>
         </div>
         
         {/* Source badge for document card */}
         <div className="mt-2">
-          <SourceBadge source={document.metadata.source || 'Seventh Production'} />
+          <SourceBadge source={document.metadata?.source || 'Seventh Production'} />
         </div>
         
-        {document.entities.length > 0 && (
+        {(document.entities?.length || 0) > 0 && (
           <div className="mt-3 flex flex-wrap gap-1">
-            {document.entities.slice(0, 3).map((entity, index) => (
+            {(document.entities || []).slice(0, 3).map((entity, index) => (
               <span key={index} className="px-2 py-1 bg-gray-800 text-xs text-gray-300 rounded">
                 {effectiveSearchTerm ? renderHighlightedText(entity.name, effectiveSearchTerm) : entity.name}
               </span>
             ))}
-            {document.entities.length > 3 && (
+            {(document.entities?.length || 0) > 3 && (
               <span className="px-2 py-1 bg-gray-800 text-xs text-gray-400 rounded">
-                +{document.entities.length - 3} more
+                +{(document.entities?.length || 0) - 3} more
               </span>
             )}
           </div>
@@ -467,11 +467,14 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
     const [pages, setPages] = useState<string[]>([]);
     const [loadingPages, setLoadingPages] = useState(false);
     const [showRaw, setShowRaw] = useState(false);
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const [viewMode, setViewMode] = useState<'carousel' | 'list'>('carousel');
     const contentRef = React.useRef<HTMLDivElement>(null);
 
     // Reset pages when document changes
     useEffect(() => {
       setPages([]);
+      setCurrentImageIndex(0);
     }, [document.id]);
 
     // Fetch pages when tab is switched to original or document changes
@@ -482,6 +485,8 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
           try {
             const result = await apiClient.getDocumentPages(document.id);
             setPages(result.pages);
+            // Default to carousel if many pages, list if few
+            setViewMode(result.pages.length > 5 ? 'carousel' : 'list');
           } catch (error) {
             console.error('Error fetching pages:', error);
           } finally {
@@ -528,7 +533,10 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
           <div className="mb-2">
             <Breadcrumb 
               items={[
-                { label: 'Documents', onClick: () => {} },
+                { label: 'Documents', onClick: () => {
+                  setSelectedDocument(null);
+                  if (onDocumentClose) onDocumentClose();
+                } },
                 { label: document.title || 'Unknown Document' }
               ]} 
             />
@@ -542,58 +550,58 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
               </h2>
               <span className="text-lg shrink-0">{document.redFlagPeppers}</span>
             </div>
+            <div className="flex items-center space-x-2 shrink-0">
+              {/* Pretty/Raw Toggle */}
+              <button
+                onClick={() => setShowRaw(!showRaw)}
+                className={`p-2 hover:text-white ${showRaw ? 'text-gray-500' : 'text-blue-400'}`}
+                title={showRaw ? 'Showing raw OCR text' : 'Showing cleaned text'}
+              >
+                {showRaw ? <FileText className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+              <button 
+                onClick={() => setShowMetadata(!showMetadata)}
+                className="md:hidden p-2 text-gray-400 hover:text-white"
+                title="Toggle Metadata"
+              >
+                <Tag className="w-4 h-4" />
+              </button>
+              <button 
+                onClick={handleDownload}
+                className="p-2 text-gray-400 hover:text-white"
+                title="Download Text"
+              >
+                <Download className="w-4 h-4" />
+              </button>
+              <AddToInvestigationButton 
+                item={{
+                  id: document.id,
+                  title: document.title || document.filename,
+                  description: document.content?.substring(0, 100) || 'Document evidence',
+                  type: 'document',
+                  sourceId: document.id
+                }}
+                investigations={[]} // This needs to be populated from context or props
+                onAddToInvestigation={(invId, item, relevance) => {
+                  console.log('Add to investigation', invId, item, relevance);
+                  const event = new CustomEvent('add-to-investigation', { 
+                    detail: { investigationId: invId, item, relevance } 
+                  });
+                  window.dispatchEvent(event);
+                }}
+                variant="icon"
+                className="hover:bg-slate-700"
+              />
+              <button 
+                onClick={() => {
+                  setSelectedDocument(null);
+                  if (onDocumentClose) onDocumentClose();
+                }}
+                className="p-2 text-gray-400 hover:text-white"
+              >
+                ✕
+              </button>
             </div>
-          <div className="flex items-center space-x-2 shrink-0">
-            {/* Pretty/Raw Toggle */}
-            <button
-              onClick={() => setShowRaw(!showRaw)}
-              className={`p-2 hover:text-white ${showRaw ? 'text-gray-500' : 'text-blue-400'}`}
-              title={showRaw ? 'Showing raw OCR text' : 'Showing cleaned text'}
-            >
-              {showRaw ? <FileText className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-            <button 
-              onClick={() => setShowMetadata(!showMetadata)}
-              className="md:hidden p-2 text-gray-400 hover:text-white"
-              title="Toggle Metadata"
-            >
-              <Tag className="w-4 h-4" />
-            </button>
-            <button 
-              onClick={handleDownload}
-              className="p-2 text-gray-400 hover:text-white"
-              title="Download Text"
-            >
-              <Download className="w-4 h-4" />
-            </button>
-            <AddToInvestigationButton 
-              item={{
-                id: document.id,
-                title: document.title || document.filename,
-                description: document.content?.substring(0, 100) || 'Document evidence',
-                type: 'document',
-                sourceId: document.id
-              }}
-              investigations={[]} // This needs to be populated from context or props
-              onAddToInvestigation={(invId, item, relevance) => {
-                console.log('Add to investigation', invId, item, relevance);
-                const event = new CustomEvent('add-to-investigation', { 
-                  detail: { investigationId: invId, item, relevance } 
-                });
-                window.dispatchEvent(event);
-              }}
-              variant="icon"
-              className="hover:bg-slate-700"
-            />
-            <button 
-              onClick={() => {
-                setSelectedDocument(null);
-                if (onDocumentClose) onDocumentClose();
-              }}
-              className="p-2 text-gray-400 hover:text-white"
-            >
-              ✕
-            </button>
           </div>
         </div>
         
@@ -621,7 +629,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
               activeTab === 'entities' ? 'text-blue-400 border-b-2 border-blue-400 bg-gray-700' : 'text-gray-400 hover:text-white hover:bg-gray-700'
             }`}
           >
-            Entities ({document.entities.length})
+            Entities ({document.entities?.length || 0})
           </button>
           <button
             onClick={() => setActiveTab('related')}
@@ -652,23 +660,90 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
             )}
 
             {activeTab === 'original' && (
-              <div className="flex flex-col items-center space-y-4 min-h-full">
+              <div className="flex flex-col items-center space-y-4 min-h-full w-full">
                 {loadingPages ? (
                   <div className="flex items-center justify-center h-64">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400"></div>
                   </div>
                 ) : pages.length > 0 ? (
-                  pages.map((pageUrl, index) => (
-                    <div key={index} className="w-full max-w-3xl bg-white p-1 rounded shadow-lg">
-                      <img 
-                        src={pageUrl.startsWith('/') ? pageUrl : `/${pageUrl}`} 
-                        alt={`Page ${index + 1}`}
-                        className="w-full h-auto"
-                        loading="lazy"
-                      />
-                      <div className="text-center text-gray-500 text-xs py-1">Page {index + 1}</div>
+                  <>
+                    {/* View Mode Toggle */}
+                    <div className="flex justify-end w-full max-w-4xl px-4 sticky top-0 z-10 py-2 bg-gray-900/95 backdrop-blur">
+                      <div className="bg-gray-800 rounded-lg p-1 flex space-x-1">
+                        <button
+                          onClick={() => setViewMode('carousel')}
+                          className={`px-3 py-1 text-xs rounded transition-colors ${viewMode === 'carousel' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}
+                        >
+                          Carousel
+                        </button>
+                        <button
+                          onClick={() => setViewMode('list')}
+                          className={`px-3 py-1 text-xs rounded transition-colors ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}
+                        >
+                          List
+                        </button>
+                      </div>
                     </div>
-                  ))
+
+                    {viewMode === 'carousel' ? (
+                      <div className="flex flex-col items-center w-full">
+                        <div className="relative w-full max-w-4xl aspect-[3/4] md:aspect-auto md:h-[75vh] bg-black rounded-lg flex items-center justify-center overflow-hidden border border-gray-700">
+                           <img 
+                            src={pages[currentImageIndex].startsWith('/') ? pages[currentImageIndex] : `/${pages[currentImageIndex]}`} 
+                            alt={`Page ${currentImageIndex + 1}`}
+                            className="max-w-full max-h-full object-contain"
+                          />
+                          
+                          {/* Controls */}
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); setCurrentImageIndex(prev => Math.max(0, prev - 1)); }}
+                            disabled={currentImageIndex === 0}
+                            className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-black/50 text-white rounded-full hover:bg-black/80 disabled:opacity-30 transition-all backdrop-blur-sm"
+                          >
+                            <ChevronDown className="w-6 h-6 rotate-90" />
+                          </button>
+                          
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); setCurrentImageIndex(prev => Math.min(pages.length - 1, prev + 1)); }}
+                            disabled={currentImageIndex === pages.length - 1}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-black/50 text-white rounded-full hover:bg-black/80 disabled:opacity-30 transition-all backdrop-blur-sm"
+                          >
+                            <ChevronDown className="w-6 h-6 -rotate-90" />
+                          </button>
+                          
+                          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 px-4 py-1.5 rounded-full text-sm text-white backdrop-blur-sm">
+                            Page {currentImageIndex + 1} of {pages.length}
+                          </div>
+                        </div>
+                        
+                        {/* Thumbnail Strip */}
+                        <div className="mt-4 w-full max-w-4xl overflow-x-auto flex space-x-2 p-2 scrollbar-hide">
+                          {pages.map((page, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => setCurrentImageIndex(idx)}
+                              className={`flex-shrink-0 w-16 h-20 rounded overflow-hidden border-2 transition-all ${idx === currentImageIndex ? 'border-blue-500 opacity-100 ring-2 ring-blue-500/30' : 'border-transparent opacity-40 hover:opacity-80'}`}
+                            >
+                              <img src={page.startsWith('/') ? page : `/${page}`} className="w-full h-full object-cover" loading="lazy" />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      // List View
+                      pages.map((pageUrl, index) => (
+                        <div key={index} className="w-full max-w-3xl bg-white p-1 rounded shadow-lg">
+                          <img 
+                            src={pageUrl.startsWith('/') ? pageUrl : `/${pageUrl}`} 
+                            alt={`Page ${index + 1}`}
+                            className="w-full h-auto"
+                            loading="lazy"
+                          />
+                          <div className="text-center text-gray-500 text-xs py-1">Page {index + 1}</div>
+                        </div>
+                      ))
+                    )}
+                  </>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-64 text-gray-400">
                     <FileText className="w-16 h-16 mb-4 opacity-50" />
@@ -682,7 +757,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-white mb-4">Entities Found in Document</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {document.entities.map((entity, index) => (
+                  {(document.entities || []).map((entity, index) => (
                     <div key={index} className="bg-gray-800 rounded-lg p-4 border border-gray-700">
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="font-medium text-white">
@@ -747,7 +822,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
                         </div>
                         {/* Source badge for related document */}
                         <div className="mt-2">
-                          <SourceBadge source={relatedDoc.metadata.source || 'Seventh Production'} />
+                          <SourceBadge source={relatedDoc.metadata?.source || 'Seventh Production'} />
                         </div>
                       </div>
                     ))}
@@ -868,10 +943,10 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
                 <div>
                   <h3 className="text-sm font-semibold text-white mb-2 flex items-center">
                     <Users className="w-4 h-4 mr-2" />
-                    Entities ({document.entities.length})
+                    Entities ({document.entities?.length})
                   </h3>
                   <div className="space-y-2">
-                    {document.entities.slice(0, 10).map((entity, index) => (
+                    {document.entities?.slice(0, 10).map((entity, index) => (
                       <div key={index} className="text-sm">
                         <div className="flex justify-between items-center">
                           <span className="text-gray-300">
@@ -882,9 +957,9 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
                         <div className="text-xs text-gray-500 capitalize">{entity.type}</div>
                       </div>
                     ))}
-                    {document.entities.length > 10 && (
+                    {(document.entities?.length || 0) > 10 && (
                       <div className="text-xs text-gray-400">
-                        +{document.entities.length - 10} more entities
+                        +{(document.entities?.length || 0) - 10} more entities
                       </div>
                     )}
                   </div>
@@ -956,17 +1031,17 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
           </div>
 
           {/* Category Type Filter Buttons - Horizontal scroll on mobile */}
-          <div className="mobile-scroll-x -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex sm:flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 items-center">
             {[
-              { type: 'all', label: '📁 All Documents', icon: '📁' },
-              { type: 'legal', label: '⚖️ Legal', icon: '⚖️' },
-              { type: 'email', label: '📧 Email', icon: '📧' },
-              { type: 'deposition', label: '📜 Deposition', icon: '📜' },
-              { type: 'article', label: '📰 Article', icon: '📰' },
-              { type: 'photo', label: '📷 Photo', icon: '📷' },
-              { type: 'financial', label: '💰 Financial', icon: '💰' },
-              { type: 'document', label: '📄 Document', icon: '📄' },
-            ].map(({ type, label }) => (
+              { type: 'all', label: 'All Documents', icon: '📁' },
+              { type: 'legal', label: 'Legal', icon: '⚖️' },
+              { type: 'email', label: 'Email', icon: '📧' },
+              { type: 'deposition', label: 'Deposition', icon: '📜' },
+              { type: 'article', label: 'Article', icon: '📰' },
+              { type: 'photo', label: 'Photo', icon: '📷' },
+              { type: 'financial', label: 'Financial', icon: '💰' },
+              { type: 'document', label: 'Document', icon: '📄' },
+            ].map(({ type, label, icon }) => (
               <button
                 key={type}
                 onClick={() => {
@@ -976,16 +1051,77 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
                     handleFilterChange('categories', [type]);
                   }
                 }}
-                className={`mobile-chip mobile-chip-interactive touch-feedback shrink-0 ${
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all shadow-sm backdrop-blur-sm shrink-0 ${
                   (type === 'all' && (!filters.categories || filters.categories.length === 0)) ||
                   (filters.categories?.includes(type))
-                    ? 'bg-blue-600 text-white border border-blue-500'
+                    ? 'bg-blue-600 text-white border border-blue-500 shadow-blue-500/20'
                     : 'bg-gray-800 text-gray-300 border border-gray-700 hover:bg-gray-700 hover:text-white'
                 }`}
               >
-                {label}
+                <span>{icon}</span>
+                <span>{label}</span>
               </button>
             ))}
+          </div>
+
+          {/* Significance and Sort Chips */}
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+             {/* High Significance Filter */}
+             <button
+                onClick={() => {
+                  const isActive = filters.redFlagLevel?.min === 4 && filters.redFlagLevel?.max === 5;
+                  handleRedFlagLevelChange(isActive ? 0 : 4, 5);
+                }}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all shadow-sm backdrop-blur-sm shrink-0 ${
+                  filters.redFlagLevel?.min === 4
+                    ? 'bg-red-900/80 text-white border border-red-500 shadow-red-500/20'
+                    : 'bg-gray-800 text-gray-300 border border-gray-700 hover:bg-gray-700 hover:text-white'
+                }`}
+              >
+                <div className={`w-2 h-2 rounded-full ${filters.redFlagLevel?.min === 4 ? 'bg-red-400' : 'bg-red-600'}`}></div>
+                <span>High Significance</span>
+              </button>
+
+              {/* Medium Significance Filter */}
+              <button
+                onClick={() => {
+                  const isActive = filters.redFlagLevel?.min === 2 && filters.redFlagLevel?.max === 3;
+                  // If active, reset to default (0-5). If not, set to Medium (2-3)
+                  handleRedFlagLevelChange(isActive ? 0 : 2, isActive ? 5 : 3);
+                }}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all shadow-sm backdrop-blur-sm shrink-0 ${
+                  filters.redFlagLevel?.min === 2 && filters.redFlagLevel?.max === 3
+                    ? 'bg-amber-900/80 text-white border border-amber-500 shadow-amber-500/20'
+                    : 'bg-gray-800 text-gray-300 border border-gray-700 hover:bg-gray-700 hover:text-white'
+                }`}
+              >
+                <div className={`w-2 h-2 rounded-full ${filters.redFlagLevel?.min === 2 && filters.redFlagLevel?.max === 3 ? 'bg-amber-400' : 'bg-amber-600'}`}></div>
+                <span>Medium</span>
+              </button>
+
+              {/* Sort Chip - Pushed to Right */}
+              <div className="ml-auto">
+                <button
+                  onClick={() => {
+                    // Cycle sort: Date Desc -> Date Asc -> Red Flag Desc
+                    if (sortBy === 'date' && sortOrder === 'desc') {
+                       setSortBy('date'); setSortOrder('asc');
+                    } else if (sortBy === 'date' && sortOrder === 'asc') {
+                       setSortBy('red_flag'); setSortOrder('desc');
+                    } else {
+                       setSortBy('date'); setSortOrder('desc');
+                    }
+                  }}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium bg-slate-800 border border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700 transition-colors shadow-sm"
+                >
+                  {sortOrder === 'desc' ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3 -rotate-90" />}
+                  <span>
+                    {sortBy === 'date' && sortOrder === 'desc' ? 'Newest First' : 
+                     sortBy === 'date' && sortOrder === 'asc' ? 'Oldest First' :
+                     sortBy === 'red_flag' ? 'Highest Risk' : 'Sort'}
+                  </span>
+                </button>
+              </div>
           </div>
 
           {showFilters && (

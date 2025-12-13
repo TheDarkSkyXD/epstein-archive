@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Document } from '../types/documents';
 import { DocumentAnnotationSystem } from './DocumentAnnotationSystem';
 import { prettifyOCRText } from '../utils/prettifyOCR';
+import { apiClient } from '../services/apiClient';
 
 interface DocumentContentRendererProps {
   document: Document | any; // Accept any for flexibility with legacy types
@@ -10,11 +11,53 @@ interface DocumentContentRendererProps {
 }
 
 export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = ({ 
-  document, 
+  document: doc, 
   searchTerm, 
   showRaw = false 
 }) => {
   const [showAnnotations, setShowAnnotations] = useState(false);
+  // Optimize entity lookup map
+  const [entityMap, setEntityMap] = useState<Map<string, any>>(new Map());
+  const [entityRegex, setEntityRegex] = useState<RegExp | null>(null);
+
+  // Fetch all entities for linking - optimized
+  useEffect(() => {
+    let mounted = true;
+    const fetchEntities = async () => {
+      try {
+        const entityData = await apiClient.getAllEntities();
+        if (!mounted) return;
+        
+        setEntities(entityData);
+        
+        // Create lookup map and giant regex for single-pass replacement
+        const map = new Map();
+        // Sort by length desc to match longest names first
+        const sorted = [...entityData].sort((a, b) => b.full_name.length - a.full_name.length);
+        
+        const terms: string[] = [];
+        sorted.forEach(e => {
+          if (e.full_name && e.full_name.length > 3) { // Skip very short names to avoid noise
+             map.set(e.full_name.toLowerCase(), e);
+             terms.push(e.full_name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+          }
+        });
+        
+        setEntityMap(map);
+        
+        // chunk regex if too large, but for <5000 items usually OK. 
+        // If >10k, we might need Batched approach, but let's try single pass.
+        if (terms.length > 0) {
+           setEntityRegex(new RegExp(`\\b(${terms.join('|')})\\b`, 'gi'));
+        }
+      } catch (error) {
+        console.error('Error fetching entities for linking:', error);
+      }
+    };
+
+    fetchEntities();
+    return () => { mounted = false; };
+  }, []);
 
   // Helper to highlight text
   const highlightText = (text: string, term?: string) => {
@@ -22,6 +65,7 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
     
     try {
       const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // Only highlight words > 2 chars
       const terms = term.split(/\s+/).filter(t => t.length > 2);
       
       if (terms.length === 0) {
@@ -46,19 +90,59 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
     return <span dangerouslySetInnerHTML={{ __html: highlightText(text, term) }} />;
   };
 
+  // Optimized Helper function to link entities in text
+  const linkEntitiesInText = (text: string) => {
+    if (!text || !entityRegex || entityMap.size === 0) return text;
+    
+    // Single pass replacement
+    return text.replace(entityRegex, (match) => {
+       const entity = entityMap.get(match.toLowerCase());
+       if (!entity) return match;
+       
+       return `<span class="entity-link" data-entity-id="${entity.id}" data-entity-name="${entity.full_name}" style="color: #60a5fa; text-decoration: underline; cursor: pointer; border-bottom: 1px dotted #60a5fa; padding: 0 1px;" title="Click to view entity details">${match}</span>`;
+    });
+  };
+
+  // Add event listener for entity links
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      // Handle clicks on spans within the dangerous HTML
+      const link = target.closest('.entity-link');
+      if (link) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const entityId = link.getAttribute('data-entity-id');
+        const entityName = link.getAttribute('data-entity-name');
+        
+        if (entityId && entityName) {
+          const event = new CustomEvent('entityClick', {
+            detail: { id: entityId, name: entityName }
+          });
+          window.dispatchEvent(event);
+        }
+      }
+    };
+
+    const container = document.body; // or specific container if ref available
+    container.addEventListener('click', handleClick);
+    return () => container.removeEventListener('click', handleClick);
+  }, []);
+
   return (
     <div className="prose prose-invert max-w-none">
       <div className="mb-4 flex items-center justify-between">
         <div className="text-sm text-gray-400">
-          {document.evidenceType === 'email' ? '📧 Email Message' : 
-           document.evidenceType === 'legal' ? '⚖️ Legal Document' :
-           document.evidenceType === 'deposition' ? '📜 Deposition' :
-           document.evidenceType === 'financial' ? '💰 Financial Record' :
-           document.fileType?.match(/jpe?g|png|gif|bmp|webp/i) ? '📷 Image' :
-           document.fileType?.match(/csv|xls/i) ? '📊 Spreadsheet' :
+          {doc.evidenceType === 'email' ? '📧 Email Message' : 
+           doc.evidenceType === 'legal' ? '⚖️ Legal Document' :
+           doc.evidenceType === 'deposition' ? '📜 Deposition' :
+           doc.evidenceType === 'financial' ? '💰 Financial Record' :
+           doc.fileType?.match(/jpe?g|png|gif|bmp|webp/i) ? '📷 Image' :
+           doc.fileType?.match(/csv|xls/i) ? '📊 Spreadsheet' :
            'Select text to add annotations and evidence'}
         </div>
-        {!document.fileType?.match(/jpe?g|png|gif|bmp|webp|csv|xls/i) && (
+        {!doc.fileType?.match(/jpe?g|png|gif|bmp|webp|csv|xls/i) && (
           <button
             onClick={() => setShowAnnotations(!showAnnotations)}
             className={`px-3 py-1 text-xs rounded transition-colors ${
@@ -71,14 +155,14 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
       </div>
       
       {/* Email Headers Display */}
-      {document.evidenceType === 'email' && (() => {
+      {doc.evidenceType === 'email' && (() => {
         // Try to get email headers from metadata, or parse from content
-        let emailHeaders = document.metadata?.emailHeaders;
-        let emailBody = document.content || '';
+        let emailHeaders = doc.metadata?.emailHeaders;
+        let emailBody = doc.content || '';
         
         // If no emailHeaders in metadata, try to parse from content
         if (!emailHeaders || (!emailHeaders.from && !emailHeaders.to && !emailHeaders.subject)) {
-          const content = document.content || '';
+          const content = doc.content || '';
           const lines = content.split('\n').slice(0, 40);
           const headerText = lines.join('\n');
           
@@ -168,9 +252,9 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
               </div>
               
               {/* Email Body - show separated from headers */}
-              {emailBody && emailBody !== document.content && (
+              {emailBody && emailBody !== doc.content && (
                 <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
-                  <pre className="whitespace-pre-wrap text-sm text-slate-300 font-sans leading-relaxed">
+                  <pre className="whitespace-pre-wrap text-sm text-slate-300 font-sans leading-relaxed break-words">
                     {showRaw ? emailBody : prettifyOCRText(emailBody)}
                   </pre>
                 </div>
@@ -183,8 +267,8 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
       })()}
 
       {/* Legal Document Viewer */}
-      {document.evidenceType === 'legal' && (() => {
-        const content = document.content || '';
+      {doc.evidenceType === 'legal' && (() => {
+        const content = doc.content || '';
         
         // Parse legal document patterns
         const caseNumberMatch = content.match(/Case\s*No\.?\s*:?\s*([\w\d\-:]+)/i);
@@ -258,7 +342,7 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
               
               {/* Document Body */}
               <div className="bg-slate-800/30 rounded-lg p-4 border border-slate-700">
-                <pre className="whitespace-pre-wrap text-sm text-slate-300 font-serif leading-relaxed">
+                <pre className="whitespace-pre-wrap text-sm text-slate-300 font-serif leading-relaxed break-words">
                   {showRaw ? content : prettifyOCRText(content)}
                 </pre>
               </div>
@@ -269,8 +353,8 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
       })()}
 
       {/* Deposition Viewer */}
-      {document.evidenceType === 'deposition' && (() => {
-        const content = document.content || '';
+      {doc.evidenceType === 'deposition' && (() => {
+        const content = doc.content || '';
         
         // Parse deposition patterns
         const caseMatch = content.match(/Case\s*(?:No\.?)?\s*:?\s*([\w\d\-:]+)/i);
@@ -348,7 +432,7 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
                         {block.type === 'q' ? 'QUESTION' : 'ANSWER'}
                       </div>
                     )}
-                    <div className="text-sm text-slate-300 whitespace-pre-wrap">
+                    <div className="text-sm text-slate-300 whitespace-pre-wrap break-words">
                       {block.content.trim()}
                     </div>
                   </div>
@@ -356,7 +440,7 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
               </div>
             ) : (
               <div className="bg-slate-800/30 rounded-lg p-4 border border-slate-700">
-                <pre className="whitespace-pre-wrap text-sm text-slate-300 font-mono leading-relaxed">
+                <pre className="whitespace-pre-wrap text-sm text-slate-300 font-mono leading-relaxed break-words">
                   {showRaw ? content : prettifyOCRText(content)}
                 </pre>
               </div>
@@ -366,8 +450,8 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
       })()}
 
       {/* Article Viewer */}
-      {document.evidenceType === 'article' && (() => {
-        const content = document.content || '';
+      {doc.evidenceType === 'article' && (() => {
+        const content = doc.content || '';
         const lines = content.split('\n').filter((l: string) => l.trim());
         
         // Try to extract article metadata
@@ -415,7 +499,7 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
             
             {/* Article Body */}
             <div className="bg-slate-800/30 rounded-lg p-6 border border-slate-700">
-              <div className="prose prose-invert prose-lg max-w-none">
+              <div className="prose prose-invert prose-lg max-w-none break-words">
                 {body.split('\n\n').map((para: string, idx: number) => (
                   <p key={idx} className="text-slate-300 leading-relaxed mb-4 first-letter:text-2xl first-letter:font-bold first-letter:text-cyan-400">
                     {para.trim()}
@@ -428,35 +512,35 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
       })()}
       
       {/* Image Viewer for image files */}
-      {document.fileType?.match(/jpe?g|png|gif|bmp|webp/i) ? (
+      {doc.fileType?.match(/jpe?g|png|gif|bmp|webp/i) ? (
         <div className="flex flex-col items-center">
           <img 
-            src={`/api/documents/${document.id}/file`} 
-            alt={document.title}
+            src={`/api/documents/${doc.id}/file`} 
+            alt={doc.title}
             className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg"
             onError={(e) => {
               // Fallback to showing OCR text if image fails to load
               (e.target as HTMLImageElement).style.display = 'none';
               const parent = (e.target as HTMLImageElement).parentElement;
               if (parent) {
-                parent.innerHTML = `<pre class="whitespace-pre-wrap text-sm text-gray-300 font-mono leading-relaxed">${document.content || 'No content available'}</pre>`;
+                parent.innerHTML = `<pre class="whitespace-pre-wrap text-sm text-gray-300 font-mono leading-relaxed break-words">${doc.content || 'No content available'}</pre>`;
               }
             }}
           />
-          {document.content && document.content.trim() && (
+          {doc.content && doc.content.trim() && (
             <div className="mt-4 w-full">
               <details className="bg-gray-800 rounded-lg p-4 border border-gray-700">
                 <summary className="cursor-pointer text-sm text-gray-400 hover:text-white">
-                  📝 OCR Extracted Text ({document.content.split(/\s+/).length} words)
+                  📝 OCR Extracted Text ({doc.content.split(/\s+/).length} words)
                 </summary>
-                <pre className="mt-4 whitespace-pre-wrap text-xs text-gray-400 font-mono leading-relaxed max-h-48 overflow-y-auto">
-                  {showRaw ? document.content : prettifyOCRText(document.content)}
+                <pre className="mt-4 whitespace-pre-wrap text-xs text-gray-400 font-mono leading-relaxed max-h-48 overflow-y-auto break-words">
+                  {showRaw ? doc.content : prettifyOCRText(doc.content)}
                 </pre>
               </details>
             </div>
           )}
         </div>
-      ) : document.fileType?.match(/csv|xls/i) || document.evidenceType === 'financial' ? (
+      ) : doc.fileType?.match(/csv|xls/i) || doc.evidenceType === 'financial' ? (
         /* CSV/Financial Table Viewer */
         <div className="overflow-x-auto">
           <div className="bg-gray-800 rounded-lg p-4 border border-gray-700 mb-4">
@@ -466,7 +550,7 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
             </div>
           </div>
           {(() => {
-            const lines = (document.content || '').split('\n').filter((l: string) => l.trim());
+            const lines = (doc.content || '').split('\n').filter((l: string) => l.trim());
             if (lines.length === 0) return <p className="text-gray-400">No data available</p>;
             
             // Try to parse as CSV
@@ -501,19 +585,25 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
         </div>
       ) : showAnnotations ? (
         <DocumentAnnotationSystem
-          documentId={document.id}
-          content={document.content}
+          documentId={doc.id}
+          content={doc.content}
           searchTerm={searchTerm}
           renderHighlightedText={renderHighlightedText}
         />
       ) : (
-        <pre className="whitespace-pre-wrap text-sm text-gray-300 font-mono leading-relaxed">
-          {(() => {
-            // Apply prettifyOCRText unless showRaw is true
-            const content = showRaw ? document.content : prettifyOCRText(document.content);
-            return searchTerm ? renderHighlightedText(content, searchTerm) : content;
-          })()}
-        </pre>
+        <pre 
+          className="whitespace-pre-wrap text-sm text-gray-300 font-mono leading-relaxed break-words"
+          dangerouslySetInnerHTML={{
+            __html: React.useMemo(() => {
+              // Apply prettifyOCRText unless showRaw is true
+              const content = showRaw ? doc.content : prettifyOCRText(doc.content);
+              // Apply entity linking (now optimized single-pass)
+              // Only run linking if we have the regex ready
+              const contentWithEntities = entityRegex ? linkEntitiesInText(content) : content;
+              return searchTerm ? highlightText(contentWithEntities, searchTerm) : contentWithEntities;
+            }, [doc.content, showRaw, entityRegex, searchTerm]) // Dependencies ensure update only when needed
+          }}
+        />
       )}
     </div>
   );

@@ -1,8 +1,17 @@
+export interface User {
+  id: string;
+  username: string;
+  email: string;
+  role: 'admin' | 'investigator' | 'viewer';
+  lastActive?: string;
+}
+
 export interface Person {
   id?: string; // Add optional ID field
   name: string;
   title?: string; // Extracted title (e.g., "President", "Senator")
   role?: string; // Full role description (e.g., "President of the United States")
+  primaryRole?: string; // Primary role from DB
   secondary_roles?: string; // Comma-separated list of secondary roles
   secondaryRoles?: string[]; // Array of secondary roles from API
   status?: string; // Current status
@@ -29,6 +38,14 @@ export interface Person {
   red_flag_peppers?: string; // Red Flag Peppers visualization
   red_flag_description?: string; // Red Flag Description
   risk_level?: 'HIGH' | 'MEDIUM' | 'LOW'; // Risk level
+  entity_type?: string;
+  entityType?: string;
+  blackBookEntry?: {
+    phoneNumbers?: string[];
+    emailAddresses?: string[];
+    addresses?: string[];
+    notes?: string;
+  };
   fileReferences: {
     id?: string;
     filename: string;

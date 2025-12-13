@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback, useEffect } from 'react';
-import { X, ChevronUp, ChevronDown } from 'lucide-react';
+import { X, ChevronUp, ChevronDown, Network } from 'lucide-react';
 import { Person } from '../types';
 import { apiClient } from '../services/apiClient';
 import { ArticleFeed } from './ArticleFeed';
@@ -10,6 +10,7 @@ import FormField from './FormField';
 import Tooltip from './Tooltip';
 import Icon from './Icon';
 import { useModalFocusTrap } from '../hooks/useModalFocusTrap';
+import { CreateRelationshipModal } from './CreateRelationshipModal';
 
 interface EvidenceModalProps {
   person: Person;
@@ -24,6 +25,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(({ person,
   const [loadingDocuments, setLoadingDocuments] = useState(false);
   const [selectedEvidenceType, setSelectedEvidenceType] = useState<string | null>(null);
   const [filterQuery, setFilterQuery] = useState('');
+  const [showRelationshipModal, setShowRelationshipModal] = useState(false);
   const { modalRef } = useModalFocusTrap(true);
 
   // Handle keyboard events for modal
@@ -241,11 +243,21 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(({ person,
             >
               {searchTerm ? renderHighlightedText(person.name || 'Unknown', searchTerm) : (person.name || 'Unknown')}
             </h1>
+            <button
+              onClick={() => setShowRelationshipModal(true)}
+              className="hidden sm:flex items-center gap-2 px-3 h-8 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors shadow-lg shadow-purple-500/20"
+              title="Add Connection"
+            >
+              <Network className="w-4 h-4" />
+              <span className="hidden md:inline">Connect</span>
+            </button>
             <span 
-              className={`mobile-chip mobile-chip-sm shrink-0 ${
-                person.likelihood_score === 'HIGH' ? 'bg-red-900 text-red-200' :
-                person.likelihood_score === 'MEDIUM' ? 'bg-yellow-900 text-yellow-200' :
-                'bg-green-900 text-green-200'
+              className={`inline-flex items-center px-3 h-8 rounded-full text-xs font-bold border shadow-[0_0_10px_rgba(0,0,0,0.3)] backdrop-blur-sm ${
+                person.likelihood_score === 'HIGH' 
+                  ? 'bg-gradient-to-r from-red-950/80 to-red-900/60 border-red-500/50 text-red-200 shadow-red-900/20' 
+                  : person.likelihood_score === 'MEDIUM' 
+                  ? 'bg-gradient-to-r from-amber-950/80 to-amber-900/60 border-amber-500/50 text-amber-200 shadow-amber-900/20' 
+                  : 'bg-gradient-to-r from-emerald-950/80 to-emerald-900/60 border-emerald-500/50 text-emerald-200 shadow-emerald-900/20'
               }`}
               aria-label={`Risk level: ${(person.likelihood_score || 'UNKNOWN')}`}
             >
@@ -290,6 +302,70 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(({ person,
             </div>
           </div>
 
+          {/* Black Book Information */}
+          {person?.blackBookEntry && (
+            <div className="bg-gradient-to-r from-purple-900/30 to-indigo-900/30 border border-purple-700/50 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Icon name="Book" size="sm" color="purple" />
+                <h2 className="text-lg font-semibold text-purple-300 flex items-center gap-2" aria-level={2}>
+                  Black Book Entry
+                  <Tooltip content="This person appears in Jeffrey Epstein's personal contact book">
+                    <Icon name="Info" size="sm" color="gray" />
+                  </Tooltip>
+                </h2>
+              </div>
+              <div className="space-y-3">
+                {person.blackBookEntry.phoneNumbers && person.blackBookEntry.phoneNumbers.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-slate-300 mb-1">Phone Numbers</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {person.blackBookEntry.phoneNumbers.map((phone: string, index: number) => (
+                        <span key={index} className="inline-flex items-center gap-1 px-2 py-1 bg-purple-800/50 text-purple-200 rounded text-sm">
+                          <Icon name="Phone" size="xs" />
+                          {phone}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {person.blackBookEntry.emailAddresses && person.blackBookEntry.emailAddresses.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-slate-300 mb-1">Email Addresses</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {person.blackBookEntry.emailAddresses.map((email: string, index: number) => (
+                        <span key={index} className="inline-flex items-center gap-1 px-2 py-1 bg-purple-800/50 text-purple-200 rounded text-sm">
+                          <Icon name="Mail" size="xs" />
+                          {email}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {person.blackBookEntry.addresses && person.blackBookEntry.addresses.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-slate-300 mb-1">Addresses</h3>
+                    <div className="space-y-1">
+                      {person.blackBookEntry.addresses.map((address: string, index: number) => (
+                        <div key={index} className="flex items-start gap-2 text-sm text-slate-300">
+                          <Icon name="MapPin" size="xs" className="mt-0.5 flex-shrink-0" />
+                          <span>{address}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {person.blackBookEntry.notes && (
+                  <div>
+                    <h3 className="text-sm font-medium text-slate-300 mb-1">Notes</h3>
+                    <p className="text-sm text-slate-300 bg-slate-800/50 p-2 rounded">
+                      {person.blackBookEntry.notes}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Evidence Types - Horizontal scroll on mobile */}
           <div>
             <h2 
@@ -305,10 +381,10 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(({ person,
             <div className="mobile-scroll-x -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex sm:flex-wrap gap-2">
               <button
                 onClick={() => setSelectedEvidenceType(null)}
-                className={`mobile-chip mobile-chip-interactive touch-feedback shrink-0 ${
+                className={`mobile-chip mobile-chip-interactive touch-feedback shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-all shadow-sm backdrop-blur-sm border ${
                   selectedEvidenceType === null
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white border-blue-400 shadow-blue-500/30'
+                    : 'bg-gradient-to-r from-slate-800 to-slate-900 text-slate-300 border-slate-700 hover:border-slate-500 hover:text-white'
                 }`}
               >
                 ALL
@@ -317,10 +393,10 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(({ person,
                 <button
                   key={i}
                   onClick={() => setSelectedEvidenceType(type === selectedEvidenceType ? null : type)}
-                  className={`mobile-chip mobile-chip-interactive touch-feedback shrink-0 ${
+                  className={`mobile-chip mobile-chip-interactive touch-feedback shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-all shadow-sm backdrop-blur-sm border ${
                     selectedEvidenceType === type
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-blue-900 text-blue-200 hover:bg-blue-800'
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white border-blue-400 shadow-blue-500/30'
+                      : 'bg-gradient-to-r from-blue-900/40 to-blue-900/20 text-blue-200 border-blue-500/30 hover:bg-blue-900/60 hover:border-blue-400/50'
                   }`}
                 >
                   {type}
@@ -536,6 +612,15 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(({ person,
           )}
         </div>
       </div>
+      {showRelationshipModal && (
+        <CreateRelationshipModal
+          onClose={() => setShowRelationshipModal(false)}
+          onSuccess={() => {
+            // Optional: refresh data or show success message
+          }}
+          initialSourceId={person.id}
+        />
+      )}
     </div>
   );
 });

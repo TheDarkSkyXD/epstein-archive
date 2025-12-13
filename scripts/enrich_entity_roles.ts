@@ -13,7 +13,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DB_PATH = path.join(__dirname, '../epstein-archive.db');
+const DB_PATH = path.join(__dirname, '../epstein-archive-production.db');
 const DRY_RUN = process.argv.includes('--dry-run');
 
 // Comprehensive role/title mappings for known entities
@@ -30,10 +30,11 @@ const ENTITY_ENRICHMENTS: Record<string, EntityEnrichment> = {
   'Ghislaine Maxwell': { title: 'Socialite', role: 'Co-Conspirator', primary_role: 'Key Figure' },
   
   // U.S. Presidents & Politicians
-  'Donald Trump': { title: 'Former U.S. President', role: 'Associate', primary_role: 'Politician' },
+  'Donald Trump': { title: 'U.S. President', role: 'Associate', primary_role: 'Politician' },
   'Bill Clinton': { title: 'Former U.S. President', role: 'Associate', primary_role: 'Politician' },
   'Hillary Clinton': { title: 'Former Secretary of State', role: 'Political Figure', primary_role: 'Politician' },
   'President Obama': { title: 'Former U.S. President', role: 'Political Figure', primary_role: 'Politician' },
+  'Barack Obama': { title: 'Former U.S. President', role: 'Political Figure', primary_role: 'Politician' },
   'Al Gore': { title: 'Former Vice President', role: 'Political Figure', primary_role: 'Politician' },
   'Bill Richardson': { title: 'Former Governor', role: 'Associate', primary_role: 'Politician' },
   
@@ -126,7 +127,7 @@ function enrichEntities(db: Database.Database): void {
   const updateStmt = db.prepare(`
     UPDATE entities 
     SET title = ?, role = ?, primary_role = ?
-    WHERE full_name = ? AND entity_type = 'Person'
+    WHERE full_name = ?
   `);
   
   for (const [name, enrichment] of Object.entries(ENTITY_ENRICHMENTS)) {
@@ -134,7 +135,7 @@ function enrichEntities(db: Database.Database): void {
     const entity = db.prepare(`
       SELECT id, full_name, title, role, primary_role 
       FROM entities 
-      WHERE full_name = ? AND entity_type = 'Person'
+      WHERE full_name = ?
     `).get(name) as any;
     
     if (entity) {
@@ -162,7 +163,7 @@ function generateReport(db: Database.Database): void {
   const roles = db.prepare(`
     SELECT primary_role, COUNT(*) as count 
     FROM entities 
-    WHERE entity_type = 'Person' AND primary_role IS NOT NULL AND primary_role != ''
+    WHERE primary_role IS NOT NULL AND primary_role != ''
     GROUP BY primary_role 
     ORDER BY count DESC 
     LIMIT 15

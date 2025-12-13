@@ -43,6 +43,7 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
   const [loading, setLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState<string>('Initializing search...');
   const [loadingProgressValue, setLoadingProgressValue] = useState<number>(0);
+  const [showFilters, setShowFilters] = useState(false); // Mobile filter toggle
   
   // Use undo functionality
   const { addUndoAction } = useUndo();
@@ -353,8 +354,23 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
           </div>
         </FormField>
 
-        {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+        {/* Filters - Collapsible on mobile */}
+        <div className="md:hidden mb-4">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="w-full flex items-center justify-between px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white"
+          >
+            <span className="flex items-center gap-2">
+              <Icon name="Filter" size="sm" />
+              Filters
+            </span>
+            <Icon name={showFilters ? 'ChevronUp' : 'ChevronDown'} size="sm" />
+          </button>
+        </div>
+        
+        {/* Filters Grid - Hidden on mobile unless expanded */}
+        <div className={`${showFilters ? 'block' : 'hidden'} md:block`}>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-6">
           <FormField label={
             <div className="flex items-center gap-2">
               Risk Level
@@ -500,6 +516,7 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
               <Icon name="Flag" size="sm" color="danger" aria-hidden="true" />
             </div>
           </FormField>
+          </div>
         </div>
 
         <div className="flex justify-between items-center">
@@ -564,46 +581,52 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
 
             {searchResults.map((result, index) => (
               <div key={index} className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
-                {/* Person Header */}
-                <div className="bg-gradient-to-r from-gray-900 to-gray-800 p-4 border-b border-gray-700">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Icon name="User" size="sm" color="primary" />
-                      <button
-                        onClick={() => handlePersonClick(result.person)}
-                        className="text-lg font-bold text-white hover:text-blue-400 transition-colors duration-200 text-left"
-                        title="Click to view full profile"
-                      >
-                        {result.person.name}
-                      </button>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
-                        result.person.likelihood_score === 'HIGH' ? 'bg-red-900 text-red-200' :
-                        result.person.likelihood_score === 'MEDIUM' ? 'bg-yellow-900 text-yellow-200' :
-                        'bg-green-900 text-green-200'
+                {/* Person Header - Mobile-optimized with stacked layout */}
+                <div className="bg-gradient-to-r from-gray-900 to-gray-800 px-4 py-3 border-b border-gray-700">
+                  {/* Entity Name - Always prominent at top */}
+                  <button
+                    onClick={() => handlePersonClick(result.person)}
+                    className="text-lg md:text-base font-bold text-white hover:text-blue-400 transition-colors mb-2 md:mb-0 block text-left w-full"
+                    title="Click to view full profile"
+                  >
+                    {result.person.name}
+                  </button>
+                  
+                  {/* Metadata - Stacked on mobile, inline on desktop */}
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                    {/* Tags row */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Icon name="User" size="sm" color="primary" className="shrink-0 hidden md:block" />
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase shrink-0 ${
+                        result.person.likelihood_score === 'HIGH' ? 'bg-red-900/80 text-red-200' :
+                        result.person.likelihood_score === 'MEDIUM' ? 'bg-yellow-900/80 text-yellow-200' :
+                        'bg-green-900/80 text-green-200'
                       }`}>
-                        {result.person.likelihood_score} RISK
+                        {result.person.likelihood_score}
                       </span>
                       {result.person.red_flag_rating !== undefined && (
-                        <RedFlagIndex value={result.person.red_flag_rating} size="sm" variant="combined" showTextLabel={true} />
+                        <RedFlagIndex value={result.person.red_flag_rating} size="sm" variant="combined" showTextLabel={false} />
                       )}
                     </div>
-                    <div className="text-right flex flex-col items-end gap-1">
-                      <div className="text-sm text-gray-400">{result.person.mentions} mentions</div>
-                      <div className="text-xs text-gray-500">{result.person.files} files</div>
-                      <div className="text-xs text-orange-400">{result.person.red_flag_score} red flag points</div>
-                      <div className="mt-1">
-                        <AddToInvestigationButton 
-                          item={{
-                            id: result.person.id || '',
-                            title: result.person.name,
-                            description: result.person.role || 'Person of interest',
-                            type: 'entity',
-                            sourceId: result.person.id || ''
-                          }}
-                          variant="quick"
-                          className="hover:bg-slate-700"
-                        />
+                    
+                    {/* Stats and actions - stacked text on mobile */}
+                    <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3">
+                      <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-2 text-xs text-gray-400">
+                        <span>{result.person.mentions?.toLocaleString()} mentions</span>
+                        <span className="hidden md:inline text-gray-600">•</span>
+                        <span>{result.person.files} files</span>
                       </div>
+                      <AddToInvestigationButton 
+                        item={{
+                          id: result.person.id || '',
+                          title: result.person.name,
+                          description: result.person.role || 'Person of interest',
+                          type: 'entity',
+                          sourceId: result.person.id || ''
+                        }}
+                        variant="quick"
+                        className="hover:bg-slate-700 self-start md:self-auto"
+                      />
                     </div>
                   </div>
                 </div>

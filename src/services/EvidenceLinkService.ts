@@ -22,7 +22,7 @@ export interface CreateEvidenceLinkInput {
 }
 
 export class EvidenceLinkService {
-  constructor(private db: Database.Database) {}
+  constructor(private db: any) {}
 
   async getEvidenceLinks(hypothesisId: number): Promise<EvidenceLink[]> {
     const links = this.db.prepare(`

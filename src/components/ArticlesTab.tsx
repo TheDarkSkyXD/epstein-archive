@@ -1,19 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Newspaper, ExternalLink, Calendar, User, Tag, Search, Filter } from 'lucide-react';
+import { Newspaper, Search, Filter } from 'lucide-react';
 import ArticleViewerModal from './ArticleViewerModal';
-
-interface Article {
-  id: number;
-  title: string;
-  url: string;
-  author: string;
-  publication: string;
-  published_date: string;
-  summary: string;
-  tags: string;
-  redFlagRating: number;
-  created_at: string;
-}
+import { ArticleCard, Article } from './ArticleCard';
 
 export const ArticlesTab: React.FC = () => {
   const [articles, setArticles] = useState<Article[]>([]);
@@ -91,35 +79,10 @@ export const ArticlesTab: React.FC = () => {
 
   const publications = ['all', ...Array.from(new Set((articles || []).map(a => a.publication).filter(Boolean)))];
 
-  const getSpicePeppers = (rating: number) => {
-    return '🚩'.repeat(rating);
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-slate-400">Loading articles...</div>
-      </div>
-    );
-  }
-
-  if (articles.length === 0 && !loading) {
-    return (
-      <div className="space-y-6">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-white mb-2 flex items-center gap-2">
-            <Newspaper className="w-8 h-8" />
-            Investigative Articles
-          </h2>
-          <p className="text-slate-400">
-            Curated journalism from Miami Herald and independent investigators
-          </p>
-        </div>
-        <div className="text-center py-12 bg-slate-800/50 rounded-lg border border-slate-700">
-          <Newspaper className="h-16 w-16 mx-auto mb-4 text-slate-600" />
-          <p className="text-slate-400 mb-2">No articles available yet.</p>
-          <p className="text-slate-500 text-sm">Articles will appear here once they are imported.</p>
-        </div>
       </div>
     );
   }
@@ -148,7 +111,7 @@ export const ArticlesTab: React.FC = () => {
               placeholder="Search articles by title, summary, or tags..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+              className="w-full pl-10 pr-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-cyan-500 transition-colors"
             />
           </div>
 
@@ -158,7 +121,7 @@ export const ArticlesTab: React.FC = () => {
             <select
               value={selectedPublication}
               onChange={(e) => setSelectedPublication(e.target.value)}
-              className="px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+              className="px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-cyan-500 transition-colors"
             >
               {publications.map(pub => (
                 <option key={pub} value={pub}>
@@ -175,105 +138,28 @@ export const ArticlesTab: React.FC = () => {
         Showing {filteredArticles.length} of {articles.length} articles
       </div>
 
-      {/* Articles Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Articles Grid - New Substack-style Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
         {filteredArticles.map((article) => (
-          <div
-            key={article.id}
-            className="bg-slate-800/50 rounded-lg border border-slate-700 hover:border-blue-500 transition-all overflow-hidden"
-          >
-            <div className="p-6 space-y-4">
-              {/* Header */}
-              <div className="flex items-start justify-between gap-4">
-                <h3 className="text-xl font-semibold text-white line-clamp-2 flex-1">
-                  {article.title}
-                </h3>
-                <span className="text-2xl flex-shrink-0" title={`Red Flag Index: ${article.redFlagRating}/5`}>
-                  {getSpicePeppers(article.redFlagRating)}
-                </span>
-              </div>
-
-              {/* Metadata */}
-              <div className="flex flex-wrap gap-3 text-sm text-slate-400">
-                <div className="flex items-center gap-1">
-                  <User className="h-4 w-4" />
-                  <span>{article.author}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Newspaper className="h-4 w-4" />
-                  <span>{article.publication}</span>
-                </div>
-                {article.published_date && (
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-4 w-4" />
-                    <span>{new Date(article.published_date).toLocaleDateString()}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Summary */}
-              <p className="text-slate-300 line-clamp-3">
-                {article.summary}
-              </p>
-
-              {/* Tags */}
-              {article.tags && (
-                <div className="flex flex-wrap gap-2">
-                  {article.tags.split(',').map((tag, idx) => (
-                    <span
-                      key={idx}
-                      className="inline-flex items-center gap-1 px-2 py-1 bg-slate-700 text-slate-300 text-xs rounded"
-                    >
-                      <Tag className="h-3 w-3" />
-                      {tag.trim()}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="flex gap-2">
-                <button
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg transition-colors"
-                  onClick={async () => {
-                    try {
-                      const resp = await fetch(`/api/articles/${article.id}`)
-                      if (resp.ok) {
-                        const data = await resp.json()
-                        setViewerArticle(data)
-                      } else {
-                        // Fallback: open external
-                        window.open(article.url, '_blank')
-                      }
-                    } catch {
-                      window.open(article.url, '_blank')
-                    }
-                  }}
-                >
-                  <span>View In App</span>
-                </button>
-                <a
-                  href={article.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                >
-                  <span>Open Source</span>
-                  <ExternalLink className="h-4 w-4" />
-                </a>
-              </div>
-            </div>
-          </div>
+          <ArticleCard 
+            key={article.id} 
+            article={article} 
+            onClick={(a) => {
+              setViewerArticle(a);
+            }}
+          />
         ))}
       </div>
 
       {/* Empty State */}
       {filteredArticles.length === 0 && (
-        <div className="text-center py-12 text-slate-400">
+        <div className="text-center py-12 text-slate-400 bg-slate-800/30 rounded-xl border border-slate-700/50">
           <Newspaper className="h-16 w-16 mx-auto mb-4 text-slate-600" />
-          <p>No articles found matching your criteria.</p>
+          <p className="text-lg text-slate-300">No articles found matching your criteria.</p>
+          <p className="text-sm mt-2">Try adjusting your filters or search term.</p>
         </div>
       )}
+      
       <ArticleViewerModal article={viewerArticle} highlight={searchTerm} onClose={() => setViewerArticle(null)} />
     </div>
   );

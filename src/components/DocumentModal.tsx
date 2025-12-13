@@ -7,6 +7,7 @@ import { DocumentMetadataPanel } from './DocumentMetadataPanel'
 import { MediaViewer } from './MediaViewer'
 import { DocumentContentRenderer } from './DocumentContentRenderer'
 import { useModalFocusTrap } from '../hooks/useModalFocusTrap'
+import { EvidenceModal } from './EvidenceModal'
 
 interface Props {
   id: string
@@ -29,6 +30,7 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
   const [activeTab, setActiveTab] = useState<'content' | 'original' | 'metadata'>('content')
   const [showMediaViewer, setShowMediaViewer] = useState(false)
   const [showRaw, setShowRaw] = useState(false)
+  const [selectedEntity, setSelectedEntity] = useState<any | null>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const { modalRef } = useModalFocusTrap(true)
   
@@ -53,6 +55,29 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
     };
   }, [doc?.title, doc?.fileName]);
 
+  // Handle entity click events
+  useEffect(() => {
+    const handleEntityClick = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail && customEvent.detail.id) {
+        // Fetch entity data and open modal
+        apiClient.getEntity(customEvent.detail.id)
+          .then(entity => {
+            setSelectedEntity(entity);
+          })
+          .catch(error => {
+            console.error('Error fetching entity:', error);
+          });
+      }
+    };
+
+    window.addEventListener('entityClick', handleEntityClick);
+    
+    return () => {
+      window.removeEventListener('entityClick', handleEntityClick);
+    };
+  }, []);
+
   useEffect(() => {
     if (searchTerm && activeTab === 'content' && contentRef.current) {
       const t = setTimeout(() => { const m = contentRef.current?.querySelector('mark'); if (m) m.scrollIntoView({ behavior: 'smooth', block: 'center' }) }, 150)
@@ -61,8 +86,8 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
   }, [searchTerm, activeTab, doc?.content])
 
   if (!doc) return createPortal(
-    <div className="fixed inset-0 bg-black/75 z-[100] flex items-center justify-center p-4">
-      <div className="bg-slate-900 rounded-lg p-6 border border-slate-700">
+    <div className="fixed inset-0 bg-black/75 z-[1050] flex items-center justify-center p-4">
+      <div className="bg-slate-900 rounded-lg p-6 border border-slate-700 pointer-events-auto">
         <div className="text-white font-semibold mb-2">Unable to load document</div>
         <div className="text-slate-400 mb-4">Please try again or open in the Document Browser.</div>
         <button onClick={onClose} className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white">Close</button>
@@ -81,9 +106,19 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
     document.body.removeChild(a)
   }
 
-  return createPortal(
-    <div ref={modalRef} className="fixed inset-0 bg-black/75 z-[100] flex items-center justify-center p-0 md:p-4" role="dialog" aria-modal="true" aria-labelledby="document-modal-title">
-      <div className="bg-slate-900 rounded-none md:rounded-lg w-full h-full md:max-w-6xl md:max-h-[95vh] overflow-hidden flex flex-col border-0 md:border border-slate-700">
+  const portal = createPortal(
+    <div 
+      ref={modalRef} 
+      className="fixed inset-0 bg-black/75 z-[1050] flex items-center justify-center p-0 md:p-4" 
+      role="dialog" 
+      aria-modal="true" 
+      aria-labelledby="document-modal-title"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-slate-900 rounded-none md:rounded-lg w-full h-full md:max-w-6xl md:max-h-[95vh] overflow-hidden flex flex-col border-0 md:border border-slate-700 pointer-events-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between p-4 border-b border-slate-700 bg-slate-800">
           <div className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-cyan-400" />
@@ -112,7 +147,7 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
           <button onClick={() => setActiveTab('original')} className={`px-4 py-3 text-sm ${activeTab==='original'?'text-cyan-400 border-b-2 border-cyan-400 bg-slate-700':'text-slate-400 hover:text-white hover:bg-slate-700'}`}>View Original</button>
           <button onClick={() => setActiveTab('metadata')} className={`px-4 py-3 text-sm ${activeTab==='metadata'?'text-cyan-400 border-b-2 border-cyan-400 bg-slate-700':'text-slate-400 hover:text-white hover:bg-slate-700'}`}>Metadata</button>
         </div>
-        <div className="flex-1 overflow-y-auto p-6" ref={contentRef}>
+        <div className={`flex-1 overflow-y-auto ${activeTab === 'original' ? 'p-0 overflow-hidden bg-black/20' : 'p-6'}`} ref={contentRef}>
           {activeTab === 'content' && (
             <>
               {doc.content && doc.content.length > 0 ? (
@@ -134,52 +169,38 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
             </>
           )}
           {activeTab === 'original' && (
-            <div className="space-y-4">
-              {doc.source_original_url ? (
+            <div className="h-full flex flex-col">
+              {doc.originalFileUrl ? (
                 <>
-                  <div className="text-slate-300">
-                    This document has an original file available. You can view or download it using the options below:
+                  <div className="flex-1 relative overflow-hidden">
+                    <MediaViewer
+                      filePath={doc.originalFileUrl}
+                      fileName={doc.fileName || 'document'}
+                      fileType={doc.fileType || 'pdf'}
+                      onClose={() => {}} // No-op since we handled it inline
+                      inline={true}
+                    />
                   </div>
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <button 
-                      onClick={() => setShowMediaViewer(true)}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                      View Original Document
-                    </button>
-                    <a 
-                      href={doc.source_original_url} 
-                      download
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm7.293-9.707a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 9.414V17a1 1 0 11-2 0V9.414L7.707 11.707a1 1 0 01-1.414-1.414l3-3z" clipRule="evenodd" />
-                      </svg>
-                      Download Original
-                    </a>
-                  </div>
-                  <div className="text-sm text-slate-400 mt-2">
-                    Note: The original document may contain additional information not present in the text version.
+                  <div className="p-4 bg-slate-900 border-t border-slate-700 flex flex-col sm:flex-row justify-between items-center gap-3 z-30">
+                     <span className="text-slate-400 text-sm text-center sm:text-left">
+                       Note: The original document may contain additional information not present in the text version.
+                     </span>
+                     <a 
+                       href={doc.originalFileUrl} 
+                       download
+                       className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors shrink-0"
+                     >
+                       <Download className="w-4 h-4" />
+                       Download Original
+                     </a>
                   </div>
                 </>
               ) : (
-                <div className="text-slate-400">
+                <div className="flex-1 flex items-center justify-center text-slate-400">
                   No original file is available for this document.
                 </div>
               )}
             </div>
-          )}
-
-          {showMediaViewer && doc.source_original_url && (
-            <MediaViewer
-              filePath={doc.source_original_url}
-              fileName={doc.fileName || 'document'}
-              fileType={doc.fileType || 'pdf'}
-              onClose={() => setShowMediaViewer(false)}
-            />
           )}
           
           {activeTab === 'metadata' && (
@@ -190,6 +211,15 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
     </div>,
     document.body
   )
+
+  // Render EvidenceModal when an entity is selected
+  return selectedEntity ? (
+    <EvidenceModal 
+      person={selectedEntity} 
+      onClose={() => setSelectedEntity(null)} 
+      searchTerm={searchTerm}
+    />
+  ) : portal;
 }
 
 export default DocumentModal

@@ -1,8 +1,5 @@
-# Multi-stage build for production
+# Use Node.js LTS (Long Term Support)
 FROM node:20-alpine AS builder
-
-# Install build dependencies
-RUN apk add --no-cache python3 make g++
 
 # Set working directory
 WORKDIR /app
@@ -10,54 +7,51 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Install dependencies (including dev for building)
+RUN npm ci
 
 # Copy source code
 COPY . .
 
 # Build the application
+# This runs vite build (frontend) and tsc (backend)
 RUN npm run build:prod
 
-# Production stage
-FROM node:20-alpine AS production
+# --- Production Stage ---
+FROM node:20-alpine
 
-# Install runtime dependencies
-RUN apk add --no-cache \
-    dumb-init \
-    sqlite \
-    && addgroup -g 1001 -S nodejs \
-    && adduser -S epstein-archive -u 1001
-
-# Set working directory
 WORKDIR /app
 
-# Copy built application from builder stage
-COPY --from=builder --chown=epstein-archive:nodejs /app/dist ./dist
-COPY --from=builder --chown=epstein-archive:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=epstein-archive:nodejs /app/package*.json ./
-COPY --from=builder --chown=epstein-archive:nodejs /app/src/server.production.ts ./src/
-COPY --from=builder --chown=epstein-archive:nodejs /app/src/config ./src/config
-COPY --from=builder --chown=epstein-archive:nodejs /app/src/middleware ./src/middleware
-COPY --from=builder --chown=epstein-archive:nodejs /app/src/services ./src/services
-COPY --from=builder --chown=epstein-archive:nodejs /app/src/types ./src/types
+# Install production dependencies only
+COPY package*.json ./
+RUN npm ci --omit=dev
 
-# Create necessary directories
-RUN mkdir -p logs backups uploads && \
-    chown -R epstein-archive:nodejs /app
+# Copy built assets from builder
+COPY --from=builder /app/dist ./dist
 
-# Switch to non-root user
-USER epstein-archive
+# Copy database schema/migrations if needed (for runtime migrations)
+COPY --from=builder /app/src/server/db/schema ./src/server/db/schema
+COPY --from=builder /app/scripts ./scripts
+
+# Copy tsconfig for tsx scripts (if needed for migrations) or pre-compile them
+# Ideally we should compile scripts too, but for simplicity we can use tsx in prod if needed, 
+# or just copy them. tsx is a dev dep usually, so we might need it in prod if we run migrations via tsx.
+# Let's verify if we need tsx in prod. 'npm run migrate' uses tsx.
+# So we either need tsx in prod deps or compile scripts.
+# For now, let's install tsx globally or locally in prod.
+RUN npm install -g tsx
+
+# Environment variables (defaults, can be overridden)
+ENV NODE_ENV=production
+ENV PORT=3012
+ENV DB_PATH=/data/epstein-archive.db
+
+# Create data directory
+RUN mkdir -p /data
+VOLUME /data
 
 # Expose port
 EXPOSE 3012
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD node -e "fetch('http://localhost:3012/api/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
-
-# Use dumb-init to handle signals properly
-ENTRYPOINT ["dumb-init", "--"]
-
-# Start the application
-CMD ["node", "dist/server.production.js"]
+# Start the server
+CMD ["npm", "start"]

@@ -12,6 +12,11 @@ CREATE TABLE IF NOT EXISTS entities (
   spice_score INTEGER DEFAULT 0,
   title TEXT,
   role TEXT,
+  date_taken DATETIME,
+  date_added DATETIME DEFAULT CURRENT_TIMESTAMP,
+  date_modified DATETIME,
+  
+  -- EXIF Data
   title_variants TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,

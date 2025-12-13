@@ -76,6 +76,7 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [lastPan, setLastPan] = useState({ x: 0, y: 0 });
+  const [showTableView, setShowTableView] = useState(false);
 
   // Initialize with force-directed layout
   useEffect(() => {
@@ -393,6 +394,52 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     
     if (clickedNode) {
       onNodeClick?.(clickedNode);
+      return;
+    }
+
+    // Check if click is on an edge
+    const clickedEdge = filteredEdges.find(edge => {
+      const source = filteredNodes.find(n => n.id === edge.source);
+      const target = filteredNodes.find(n => n.id === edge.target);
+      
+      if (!source?.position || !target?.position) return false;
+      
+      // Distance from point to line segment
+      const A = x - source.position.x;
+      const B = y - source.position.y;
+      const C = target.position.x - source.position.x;
+      const D = target.position.y - source.position.y;
+      
+      const dot = A * C + B * D;
+      const len_sq = C * C + D * D;
+      let param = -1;
+      if (len_sq !== 0) // in case of 0 length line
+          param = dot / len_sq;
+      
+      let xx, yy;
+      
+      if (param < 0) {
+        xx = source.position.x;
+        yy = source.position.y;
+      }
+      else if (param > 1) {
+        xx = target.position.x;
+        yy = target.position.y;
+      }
+      else {
+        xx = source.position.x + param * C;
+        yy = source.position.y + param * D;
+      }
+      
+      const dx = x - xx;
+      const dy = y - yy;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      return distance < 5; // 5px tolerance
+    });
+
+    if (clickedEdge) {
+      onEdgeClick?.(clickedEdge);
     }
   };
 
@@ -586,10 +633,113 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           >
             <Download className="w-4 h-4" />
           </button>
+          <button
+            onClick={() => setShowTableView(!showTableView)}
+            className={`h-10 px-3 flex items-center justify-center border rounded-lg text-sm font-medium transition-colors ${
+              showTableView 
+                ? 'bg-blue-600 border-blue-500 text-white' 
+                : 'bg-gray-800 border-gray-600 text-gray-300 hover:text-white hover:bg-gray-700'
+            }`}
+            title={showTableView ? "Show Graph View" : "Show Text View"}
+          >
+            {showTableView ? <Network className="w-4 h-4 mr-2" /> : <FileText className="w-4 h-4 mr-2" />}
+            {showTableView ? "Graph" : "Table"}
+          </button>
         </div>
       </div>
 
-      {/* Canvas */}
+      {/* Table View (Accessible) */}
+      {showTableView ? (
+        <div className="overflow-x-auto p-4 bg-slate-900" style={{ height: height, overflowY: 'auto' }}>
+          <h4 className="text-white font-medium mb-4">Network Nodes ({filteredNodes.length})</h4>
+          <table className="w-full text-left border-collapse mb-8" aria-label="Network Nodes Table">
+            <thead>
+              <tr className="border-b border-gray-700 text-gray-400 text-sm">
+                <th className="p-2">Name</th>
+                <th className="p-2">Type</th>
+                <th className="p-2">Importance</th>
+                <th className="p-2">Mentions</th>
+                <th className="p-2">Risk Level</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredNodes.map(node => (
+                <tr 
+                  key={node.id} 
+                  className={`border-b border-gray-800 hover:bg-slate-800 cursor-pointer ${selectedNodeId === node.id ? 'bg-blue-900/30' : ''}`}
+                  onClick={() => onNodeClick?.(node)}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      onNodeClick?.(node);
+                    }
+                  }}
+                >
+                  <td className="p-2 text-white font-medium">{node.label}</td>
+                  <td className="p-2 text-gray-300 capitalize">{node.type}</td>
+                  <td className="p-2 text-gray-300">
+                    <div className="flex">
+                      {[...Array(5)].map((_, i) => (
+                        <div key={i} className={`w-2 h-2 rounded-full mr-1 ${i < node.importance ? 'bg-blue-500' : 'bg-gray-700'}`} />
+                      ))}
+                    </div>
+                  </td>
+                  <td className="p-2 text-gray-300">{node.metadata.mentions || 0}</td>
+                  <td className="p-2">
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                      node.metadata.riskLevel === 'critical' ? 'bg-red-900 text-red-200' :
+                      node.metadata.riskLevel === 'high' ? 'bg-orange-900 text-orange-200' :
+                      node.metadata.riskLevel === 'medium' ? 'bg-yellow-900 text-yellow-200' :
+                      'bg-green-900 text-green-200'
+                    }`}>
+                      {(node.metadata.riskLevel || 'low').toUpperCase()}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <h4 className="text-white font-medium mb-4">Network Connections ({filteredEdges.length})</h4>
+          <table className="w-full text-left border-collapse" aria-label="Network Connections Table">
+            <thead>
+              <tr className="border-b border-gray-700 text-gray-400 text-sm">
+                <th className="p-2">Source</th>
+                <th className="p-2">Target</th>
+                <th className="p-2">Type</th>
+                <th className="p-2">Strength</th>
+                <th className="p-2">Confidence</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredEdges.map(edge => {
+                const source = nodes.find(n => n.id === edge.source);
+                const target = nodes.find(n => n.id === edge.target);
+                return (
+                  <tr 
+                    key={edge.id} 
+                    className={`border-b border-gray-800 hover:bg-slate-800 cursor-pointer ${selectedEdgeId === edge.id ? 'bg-blue-900/30' : ''}`}
+                    onClick={() => onEdgeClick?.(edge)}
+                    tabIndex={0}
+                     onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        onEdgeClick?.(edge);
+                      }
+                    }}
+                  >
+                    <td className="p-2 text-white">{source?.label || edge.source}</td>
+                    <td className="p-2 text-white">{target?.label || edge.target}</td>
+                    <td className="p-2 text-gray-300 capitalize">{edge.type}</td>
+                    <td className="p-2 text-gray-300">{edge.strength}/10</td>
+                    <td className="p-2 text-gray-300">{Math.round((edge.metadata.confidence || 0) * 100)}%</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+      /* Canvas */
       <div className="relative" style={{ height }}>
         <canvas
           ref={canvasRef}
@@ -603,7 +753,11 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
           style={{ maxWidth: '100%', height: 'auto' }}
-        />
+          role="img"
+          aria-label={`Network visualization of ${filteredNodes.length} nodes and ${filteredEdges.length} connections. Use mouse wheel to zoom, drag to pan.`}
+        >
+          <p>Your browser does not support the canvas element. This visualization shows connections between entities.</p>
+        </canvas>
         
         {/* Controls */}
         {interactive && (
@@ -612,6 +766,7 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
               onClick={() => setZoom(prev => Math.min(3, prev * 1.2))}
               className="p-2 bg-gray-800 border border-gray-600 rounded-lg text-white hover:bg-gray-700"
               title="Zoom In"
+              aria-label="Zoom In"
             >
               +
             </button>
@@ -619,6 +774,7 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
               onClick={() => setZoom(prev => Math.max(0.1, prev * 0.8))}
               className="p-2 bg-gray-800 border border-gray-600 rounded-lg text-white hover:bg-gray-700"
               title="Zoom Out"
+              aria-label="Zoom Out"
             >
               -
             </button>
@@ -626,6 +782,7 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
               onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
               className="p-2 bg-gray-800 border border-gray-600 rounded-lg text-white hover:bg-gray-700 text-xs"
               title="Reset View"
+              aria-label="Reset View"
             >
               Reset
             </button>
@@ -633,12 +790,14 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
               onClick={centerNetwork}
               className="p-2 bg-gray-800 border border-gray-600 rounded-lg text-white hover:bg-gray-700 text-xs"
               title="Center Network"
+              aria-label="Center Network"
             >
               Center
             </button>
           </div>
         )}
       </div>
+      )}
 
       {/* Legend */}
       {showLegend && (

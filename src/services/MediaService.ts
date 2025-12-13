@@ -3,15 +3,18 @@ import { MediaImage, Album, MediaTag, ImageFilter, ImageSort, MediaStats } from 
 import fs from 'fs';
 import path from 'path';
 import sharp from 'sharp';
-// @ts-expect-error exif-parser has no TypeScript types available
 import exifParser from 'exif-parser';
 import archiver from 'archiver';
 
 export class MediaService {
-  private db: Database.Database;
+  private db: any;
 
-  constructor(dbPath: string) {
-    this.db = new Database(dbPath);
+  constructor(dbOrPath: string | any) {
+    if (typeof dbOrPath === 'string') {
+      this.db = new Database(dbOrPath);
+    } else {
+      this.db = dbOrPath;
+    }
   }
 
   // ============ ALBUM OPERATIONS ============
@@ -221,7 +224,8 @@ export class MediaService {
       title: 'title',
       description: 'description',
       albumId: 'album_id',
-      thumbnailPath: 'thumbnail_path'
+      thumbnailPath: 'thumbnail_path',
+      orientation: 'orientation'
     };
 
     Object.entries(updates).forEach(([key, value]) => {
@@ -344,11 +348,11 @@ export class MediaService {
 
   // ============ ADVANCED OPERATIONS ============
 
-  async generateThumbnail(imagePath: string, outputDir: string): Promise<string> {
+  async generateThumbnail(imagePath: string, outputDir: string, options: { force?: boolean; orientation?: number } = {}): Promise<string> {
     const filename = path.basename(imagePath);
     const thumbnailPath = path.join(outputDir, `thumb_${filename}`);
 
-    if (fs.existsSync(thumbnailPath)) {
+    if (fs.existsSync(thumbnailPath) && !options.force) {
       return thumbnailPath;
     }
 
@@ -357,9 +361,26 @@ export class MediaService {
     }
 
     try {
-      await sharp(imagePath)
+      let pipeline = sharp(imagePath).rotate(); // Auto-orient based on original file EXIF first
+
+      // Apply DB-specified orientation if provided
+      // 1: 0deg, 3: 180deg, 6: 90deg, 8: 270deg
+      if (options.orientation) {
+        let degrees = 0;
+        switch (options.orientation) {
+          case 3: degrees = 180; break;
+          case 6: degrees = 90; break;
+          case 8: degrees = 270; break;
+        }
+        if (degrees > 0) {
+          pipeline = pipeline.rotate(degrees);
+        }
+      }
+
+      await pipeline
         .resize(300, 300, { fit: 'cover' })
         .toFile(thumbnailPath);
+      
       return thumbnailPath;
     } catch (error) {
       console.error('Error generating thumbnail:', error);
@@ -388,13 +409,14 @@ export class MediaService {
         width, height, date_taken, album_id,
         camera_make, camera_model, focal_length, aperture,
         shutter_speed, iso, latitude, longitude,
-        date_added, date_modified
+        shutter_speed, iso, latitude, longitude,
+        date_added
       ) VALUES (
         ?, ?, ?, ?, ?,
         ?, ?, ?, ?,
         ?, ?, ?, ?,
         ?, ?, ?, ?,
-        datetime('now'), datetime('now')
+        datetime('now')
       )
     `);
 

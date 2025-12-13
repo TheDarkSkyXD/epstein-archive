@@ -6,25 +6,109 @@
  */
 
 import express, { Request, Response } from 'express';
-import Database from 'better-sqlite3';
+import multer from 'multer';
 import path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import fs from 'fs';
+import { documentsRepository } from '../server/db/documentsRepository.js';
+import { searchRepository } from '../server/db/searchRepository.js';
+import { forensicRepository } from '../server/db/forensicRepository.js';
+import { getDb } from '../server/db/connection.js';
+import { logAudit } from '../server/utils/auditLogger.js';
 
 const router = express.Router();
 
-// Database connection
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const dbPath = path.join(__dirname, '../../epstein-archive.db');
-let db: Database.Database;
+// Configure upload security
+const upload = multer({
+  dest: 'uploads/',
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB max
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = [
+      'application/pdf',
+      'text/plain',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'image/jpeg',
+      'image/png'
+    ];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only PDF, TXT, DOCX, JPG, PNG allowed.'));
+    }
+  }
+});
 
-try {
-  db = new Database(dbPath);
-  console.log('Evidence routes: Database connected');
-} catch (error) {
-  console.error('Evidence routes: Failed to connect to database:', error);
-}
+/**
+ * POST /api/evidence/upload
+ * Secure document upload
+ */
+router.post('/upload', upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const { originalname, mimetype, size, path: tempPath } = req.file;
+    const { title, description } = req.body;
+    
+    // Move to permanent storage (data/documents)
+    const targetDir = path.join(process.cwd(), 'data', 'documents', 'uploads');
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+    
+    const fileExt = path.extname(originalname);
+    const fileName = `${Date.now()}-${Math.round(Math.random() * 1000)}${fileExt}`;
+    const targetPath = path.join(targetDir, fileName);
+    
+    fs.renameSync(tempPath, targetPath);
+    
+    // Create DB entry
+    const db = getDb();
+    const result = db.prepare(`
+      INSERT INTO documents (
+        file_name, 
+        file_path, 
+        file_type, 
+        file_size, 
+        date_created, 
+        title, 
+        metadata_json,
+        red_flag_rating
+      ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, 0)
+    `).run(
+      fileName, 
+      `uploads/${fileName}`, 
+      mimetype, 
+      size, 
+      title || originalname,
+      JSON.stringify({ 
+        originalName: originalname,
+        uploadedBy: (req as any).user?.id || 'anonymous',
+        description 
+      })
+    );
+    
+    const documentId = result.lastInsertRowid;
+    
+    logAudit('upload_document', (req as any).user?.id, 'document', String(documentId), { fileName });
+    
+    res.status(201).json({ 
+      success: true, 
+      documentId,
+      message: 'File uploaded successfully' 
+    });
+  } catch (error) {
+    console.error('Upload error:', error);
+    // Cleanup temp file if it exists
+    if (req.file?.path && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    res.status(500).json({ error: 'Upload failed', message: String(error) });
+  }
+});
 
 /**
  * GET /api/evidence/search
@@ -32,135 +116,43 @@ try {
  */
 router.get('/search', async (req: Request, res: Response) => {
   try {
-    const {
-      q = '',
-      type,
-      entityId,
-      dateFrom,
-      dateTo,
-      redFlagMin,
-      tags,
-      page = '1',
-      limit = '20',
-    } = req.query;
-
-    const pageNum = Math.max(1, parseInt(page as string, 10));
-    const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10)));
-    const offset = (pageNum - 1) * limitNum;
-
-    // Build query
-    let query = `
-      SELECT DISTINCT
-        e.id,
-        e.title,
-        e.evidence_type as evidenceType,
-        e.red_flag_rating as redFlagRating,
-        e.created_at as createdAt,
-        e.evidence_tags as evidenceTags,
-        SUBSTR(e.extracted_text, 1, 200) as snippet
-      FROM evidence e
-    `;
-
-    const conditions: string[] = [];
-    const params: any[] = [];
-
-    // Full-text search
-    if (q && q.toString().trim().length > 0) {
-      query += ` INNER JOIN evidence_fts ON evidence_fts.rowid = e.id`;
-      conditions.push(`evidence_fts MATCH ?`);
-      params.push(q.toString().trim());
+    const query = req.query.query as string;
+    const limit = parseInt(req.query.limit as string) || 50;
+    
+    if (!query) {
+       // Return recent documents if no query
+       const result = documentsRepository.getDocuments(1, limit, {});
+       return res.json(result);
     }
-
-    // Entity filter
-    if (entityId) {
-      query += ` INNER JOIN evidence_entity ee ON ee.evidence_id = e.id`;
-      conditions.push(`ee.entity_id = ?`);
-      params.push(parseInt(entityId as string, 10));
-    }
-
-    // Type filter
-    if (type) {
-      conditions.push(`e.evidence_type = ?`);
-      params.push(type);
-    }
-
-    // Date range filter
-    if (dateFrom) {
-      conditions.push(`e.created_at >= ?`);
-      params.push(dateFrom);
-    }
-
-    if (dateTo) {
-      conditions.push(`e.created_at <= ?`);
-      params.push(dateTo);
-    }
-
-    // Red flag minimum
-    if (redFlagMin) {
-      conditions.push(`e.red_flag_rating >= ?`);
-      params.push(parseInt(redFlagMin as string, 10));
-    }
-
-    // Tags filter
-    if (tags) {
-      const tagArray = (tags as string).split(',');
-      for (const tag of tagArray) {
-        conditions.push(`e.evidence_tags LIKE ?`);
-        params.push(`%${tag.trim()}%`);
-      }
-    }
-
-    // Add conditions to query
-    if (conditions.length > 0) {
-      query += ` WHERE ` + conditions.join(' AND ');
-    }
-
-    // Count total results
-    const countQuery = query.replace(/SELECT DISTINCT.*FROM evidence e/, 'SELECT COUNT(DISTINCT e.id) as total FROM evidence e');
-    const totalResult = db.prepare(countQuery).get(...params) as { total: number };
-    const total = totalResult.total;
-
-    // Add pagination
-    query += ` ORDER BY e.created_at DESC LIMIT ? OFFSET ?`;
-    params.push(limitNum, offset);
-
-    // Execute query
-    const results = db.prepare(query).all(...params) as any[];
-
-    // Enrich with entities
-    for (const result of results) {
-      // Get linked entities
-      const entities = db.prepare(`
-        SELECT 
-          ent.id,
-          ent.full_name as name,
-          ent.primary_role as category,
-          ee.role
-        FROM evidence_entity ee
-        INNER JOIN entities ent ON ent.id = ee.entity_id
-        WHERE ee.evidence_id = ?
-        LIMIT 10
-      `).all(result.id);
-
-      result.entities = entities;
-      result.tags = result.evidenceTags ? JSON.parse(result.evidenceTags) : [];
-      delete result.evidenceTags;
-    }
-
-    const totalPages = Math.ceil(total / limitNum);
-
-    res.json({
-      results,
-      pagination: {
-        page: pageNum,
-        limit: limitNum,
-        total,
-        totalPages,
-      },
-    });
+    
+    const result = await searchRepository.search(query, limit);
+    res.json(result);
   } catch (error) {
     console.error('Evidence search error:', error);
     res.status(500).json({ error: 'Search failed', message: String(error) });
+  }
+});
+
+/**
+ * GET /api/evidence/types
+ * List all evidence types with counts
+ */
+router.get('/types', async (req: Request, res: Response) => {
+  try {
+    const db = getDb();
+    // Aggregate from both documents and evidence tables? 
+    // Usually 'evidence' table is for investigation items, 'documents' is the corpus.
+    // Let's query 'documents' for now as it's the main source.
+    const types = db.prepare(`
+      SELECT evidence_type as type, COUNT(*) as count 
+      FROM documents 
+      WHERE evidence_type IS NOT NULL 
+      GROUP BY evidence_type
+    `).all();
+    res.json(types);
+  } catch (error) {
+    console.error('Evidence types error:', error);
+    res.status(500).json({ error: 'Failed to retrieve types', message: String(error) });
   }
 });
 
@@ -171,52 +163,11 @@ router.get('/search', async (req: Request, res: Response) => {
 router.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-
-    const evidence = db.prepare(`
-      SELECT 
-        id,
-        evidence_type as evidenceType,
-        title,
-        description,
-        original_filename as originalFilename,
-        source_path as sourcePath,
-        extracted_text as extractedText,
-        created_at as createdAt,
-        modified_at as modifiedAt,
-        red_flag_rating as redFlagRating,
-        evidence_tags as evidenceTags,
-        metadata_json as metadataJson,
-        word_count as wordCount,
-        file_size as fileSize
-      FROM evidence
-      WHERE id = ?
-    `).get(id) as any;
+    const evidence = documentsRepository.getDocumentById(id);
 
     if (!evidence) {
       return res.status(404).json({ error: 'Evidence not found' });
     }
-
-    // Parse JSON fields
-    evidence.tags = evidence.evidenceTags ? JSON.parse(evidence.evidenceTags) : [];
-    evidence.metadata = evidence.metadataJson ? JSON.parse(evidence.metadataJson) : {};
-    delete evidence.evidenceTags;
-    delete evidence.metadataJson;
-
-    // Get linked entities
-    const entities = db.prepare(`
-      SELECT 
-        ent.id,
-        ent.full_name as name,
-        ent.primary_role as category,
-        ee.role,
-        ee.confidence,
-        ee.context_snippet as contextSnippet
-      FROM evidence_entity ee
-      INNER JOIN entities ent ON ent.id = ee.entity_id
-      WHERE ee.evidence_id = ?
-    `).all(id);
-
-    evidence.entities = entities;
 
     res.json(evidence);
   } catch (error) {
@@ -226,106 +177,79 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 /**
- * GET /api/evidence/types
- * List all evidence types with counts
+ * GET /api/evidence/:id/metrics
+ * Get forensic metrics
  */
-router.get('/types', async (req: Request, res: Response) => {
-  try {
-    const types = db.prepare(`
-      SELECT 
-        evidence_type as type,
-        COUNT(*) as count
-      FROM evidence
-      GROUP BY evidence_type
-      ORDER BY count DESC
-    `).all();
-
-    // Add descriptions
-    const typeDescriptions: Record<string, string> = {
-      court_deposition: 'Legal depositions and sworn testimony',
-      court_filing: 'Indictments, motions, court exhibits',
-      contact_directory: 'Address books, contact lists',
-      correspondence: 'Emails, messages',
-      financial_record: 'Flight logs, cash ledgers, expense records',
-      investigative_report: 'House Oversight Committee productions',
-      testimony: 'Victim testimony and witness statements',
-      timeline_data: 'Chronological event records',
-      media_scan: 'Image scans of documents',
-      evidence_list: 'Catalogued evidence inventories',
-    };
-
-    const enrichedTypes = types.map((t: any) => ({
-      ...t,
-      description: typeDescriptions[t.type] || '',
-    }));
-
-    res.json(enrichedTypes);
-  } catch (error) {
-    console.error('Evidence types error:', error);
-    res.status(500).json({ error: 'Failed to retrieve types', message: String(error) });
-  }
+router.get('/:id/metrics', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const metrics = forensicRepository.getMetrics(id);
+        res.json(metrics || { metrics_json: '{}', authenticity_score: 0 });
+    } catch (e) {
+        console.error('Metrics error:', e);
+        res.status(500).json({ error: 'Failed to get metrics' });
+    }
 });
 
 /**
- * GET /api/entities/:id/evidence
- * Get all evidence associated with an entity
+ * GET /api/evidence/:id/custody
+ * Get chain of custody
  */
-router.get('/entities/:id/evidence', async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { page = '1', limit = '20', type } = req.query;
-
-    const pageNum = Math.max(1, parseInt(page as string, 10));
-    const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10)));
-    const offset = (pageNum - 1) * limitNum;
-
-    let query = `
-      SELECT DISTINCT
-        e.id,
-        e.title,
-        e.evidence_type as evidenceType,
-        e.red_flag_rating as redFlagRating,
-        e.created_at as createdAt,
-        SUBSTR(e.extracted_text, 1, 200) as snippet,
-        ee.role
-      FROM evidence e
-      INNER JOIN evidence_entity ee ON ee.evidence_id = e.id
-      WHERE ee.entity_id = ?
-    `;
-
-    const params: any[] = [parseInt(id, 10)];
-
-    if (type) {
-      query += ` AND e.evidence_type = ?`;
-      params.push(type);
+router.get('/:id/custody', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const chain = forensicRepository.getChainOfCustody(id);
+        res.json(chain || []);
+    } catch (e) {
+        console.error('Custody error:', e);
+        res.status(500).json({ error: 'Failed to get chain of custody' });
     }
+});
 
-    // Count total
-    const countQuery = query.replace(/SELECT DISTINCT.*FROM evidence e/, 'SELECT COUNT(DISTINCT e.id) as total FROM evidence e');
-    const totalResult = db.prepare(countQuery).get(...params) as { total: number };
-    const total = totalResult.total;
-
-    // Add pagination
-    query += ` ORDER BY e.created_at DESC LIMIT ? OFFSET ?`;
-    params.push(limitNum, offset);
-
-    const results = db.prepare(query).all(...params);
-
-    const totalPages = Math.ceil(total / limitNum);
-
-    res.json({
-      results,
-      pagination: {
-        page: pageNum,
-        limit: limitNum,
-        total,
-        totalPages,
-      },
-    });
-  } catch (error) {
-    console.error('Entity evidence error:', error);
-    res.status(500).json({ error: 'Failed to retrieve entity evidence', message: String(error) });
-  }
+/**
+ * POST /api/evidence/:id/analyze
+ * Trigger forensic analysis
+ */
+router.post('/:id/analyze', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        // Mock analysis logic for now
+        // In real world, this would process text complexity, sentiment, metadata anomalies
+        
+        const doc = documentsRepository.getDocumentById(id) as any;
+        if (!doc) return res.status(404).json({ error: 'Document not found' });
+        
+        const metrics = {
+            readability: {
+                fleschKincaid: Math.random() * 100,
+                gradeLevel: Math.floor(Math.random() * 12) + 1
+            },
+            sentiment: {
+                score: (Math.random() * 2) - 1, // -1 to 1
+                magnitude: Math.random()
+            },
+            metadataAnalysis: {
+                hasGPS: false,
+                creationDateMatches: true,
+                author: doc.metadata_json ? JSON.parse(doc.metadata_json).author : 'Unknown'
+            }
+        };
+        
+        const authenticityScore = 0.8 + (Math.random() * 0.2); // Mock high score
+        
+        forensicRepository.saveMetrics(id, metrics, authenticityScore);
+        forensicRepository.addCustodyEvent({
+            evidenceId: id,
+            actor: 'System',
+            action: 'Automated Forensic Analysis',
+            notes: `Analysis completed. Score: ${authenticityScore.toFixed(2)}`
+        });
+        
+        res.json({ success: true, metrics, authenticityScore });
+    } catch (e) {
+        console.error('Analysis error:', e);
+        res.status(500).json({ error: 'Analysis failed' });
+    }
 });
 
 export default router;

@@ -4,6 +4,7 @@ import { Person } from '../types';
 import { RedFlagIndex } from './RedFlagIndex';
 import { BaseCard } from './BaseCard';
 import { getEntityTypeIcon } from '../utils/entityTypeIcons';
+import { ArrowRight } from 'lucide-react';
 
 interface PersonCardProps {
   person: Person;
@@ -21,7 +22,7 @@ export const PersonCardRefined: React.FC<PersonCardProps> = ({
   // Get entity type icon
   const getEntityIcon = () => {
     const entityType = (person as any).entity_type || (person as any).entityType;
-    return getEntityTypeIcon(entityType, 'md');
+    return getEntityTypeIcon(entityType, 'md', person.title); 
   };
 
   // Get role icon
@@ -51,7 +52,7 @@ export const PersonCardRefined: React.FC<PersonCardProps> = ({
         // If no valid terms after filtering, try the full term if it's short but not empty
         if (term.trim().length > 0) {
            const regex = new RegExp(`(${escapeRegExp(term)})`, 'gi');
-           return text.replace(regex, '<mark class="bg-[var(--accent-warning)] text-black px-1 rounded">$1</mark>');
+           return text.replace(regex, '<mark class="bg-yellow-500/30 text-white px-1 rounded">$1</mark>');
         }
         return text;
       }
@@ -60,7 +61,7 @@ export const PersonCardRefined: React.FC<PersonCardProps> = ({
       const pattern = `(${terms.join('|')})`;
       const regex = new RegExp(pattern, 'gi');
       
-      return text.replace(regex, '<mark class="bg-[var(--accent-warning)] text-black px-1 rounded">$1</mark>');
+      return text.replace(regex, '<mark class="bg-yellow-500/30 text-white px-1 rounded">$1</mark>');
     } catch (e) {
       console.warn('Error highlighting text:', e);
       return text;
@@ -83,37 +84,45 @@ export const PersonCardRefined: React.FC<PersonCardProps> = ({
   };
 
   return (
-    <BaseCard onClick={onClick} className="group">
-      <div className="flex items-start justify-between mb-[var(--space-3)]">
-        <div className="flex items-center space-x-[var(--space-3)]">
-          <div className="bg-[var(--bg-subtle)] rounded-[var(--radius-md)] p-[var(--space-3)] group-hover:bg-[var(--accent-soft-primary)] transition-all duration-300">
+    <BaseCard onClick={onClick} className="group hover:ring-1 hover:ring-blue-500/50 transition-all duration-300">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
+        {/* Left: Icon & Name */}
+        <div className="flex items-start space-x-3">
+          <div className="bg-slate-800 rounded-lg p-3 group-hover:bg-blue-500/10 group-hover:text-blue-400 transition-all duration-300 shrink-0 border border-slate-700">
             {getEntityIcon()}
           </div>
-          <div>
-            <h3 className="text-[var(--font-size-h3)] font-semibold text-[var(--text-primary)] group-hover:text-[var(--accent-primary)] transition-colors">
+          <div className="min-w-0">
+            <h3 className="text-lg font-semibold text-white group-hover:text-blue-400 transition-colors truncate pr-2">
               {searchTerm ? renderHighlightedText(person.name, searchTerm) : person.name}
             </h3>
             {person.title && (
-              <div className="flex items-center space-x-[var(--space-2)] mt-[var(--space-1)]">
-                <div className="text-[var(--text-tertiary)]">
+              <div className="flex items-center space-x-2 mt-1">
+                <div className="text-slate-500 shrink-0">
                   {getRoleIcon(person.title)}
                 </div>
-                <p className="text-[var(--font-size-caption)] text-[var(--text-secondary)]">
+                <p className="text-sm text-slate-400 truncate">
                   {searchTerm ? renderHighlightedText(person.title, searchTerm) : person.title}
                 </p>
               </div>
             )}
+            {/* Black Book Indicator */}
+            {person?.blackBookEntry && (
+              <div className="flex items-center gap-1 mt-1 text-purple-400 text-xs" title="This person appears in the Black Book">
+                <Icon name="Book" size="xs" />
+                <span>Black Book Entry</span>
+              </div>
+            )}
           </div>
         </div>
-        <div className="text-right">
-          <div className="flex flex-col items-end gap-[var(--space-1)]">
-            <RedFlagIndex value={person.red_flag_rating !== undefined ? person.red_flag_rating : 0} size="sm" showLabel variant="combined" showTextLabel={true} />
-            <div className="flex items-center text-[var(--font-size-small)] text-[var(--text-tertiary)]">
+
+        {/* Right: Stats (Stacked on mobile, aligned right on desktop) */}
+        <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 pl-12 sm:pl-0">
+          <RedFlagIndex value={person.red_flag_rating !== undefined ? person.red_flag_rating : 0} size="sm" showLabel variant="combined" showTextLabel={true} />
+          
+          <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
+            <div className="flex items-center">
               <Icon name="TrendingUp" size="xs" className="h-3 w-3 mr-1" />
               <span>{person.mentions} mentions</span>
-            </div>
-            <div className="text-[var(--font-size-small)] text-[var(--text-disabled)]">
-              {(person.files !== undefined ? person.files : (person.fileReferences ? person.fileReferences.length : 0))} documents
             </div>
           </div>
         </div>
@@ -121,18 +130,18 @@ export const PersonCardRefined: React.FC<PersonCardProps> = ({
 
       {/* Evidence types badges */}
       {person.evidence_types && person.evidence_types.length > 0 && (
-        <div className="flex flex-wrap gap-[var(--space-2)] mb-[var(--space-3)]">
+        <div className="flex flex-wrap gap-2 mb-4 pl-0 sm:pl-[3.25rem]">
           {person.evidence_types.slice(0, 3).map((type, index) => (
             <span 
               key={index} 
-              className="px-[var(--space-2)] py-[var(--space-1)] bg-[var(--accent-soft-primary)] text-[var(--accent-primary)] rounded-full text-[var(--font-size-small)]"
+              className="px-2 py-0.5 bg-slate-800 border border-slate-700 text-slate-300 rounded-full text-xs font-medium uppercase tracking-wide"
             >
-              {type.replace('_', ' ').toUpperCase()}
+              {type.replace('_', ' ')}
             </span>
           ))}
           {person.evidence_types.length > 3 && (
-            <span className="px-[var(--space-2)] py-[var(--space-1)] bg-[var(--bg-subtle)] text-[var(--text-secondary)] rounded-full text-[var(--font-size-small)]">
-              +{person.evidence_types.length - 3} more
+            <span className="px-2 py-0.5 bg-slate-800/50 text-slate-500 rounded-full text-xs font-medium">
+              +{person.evidence_types.length - 3}
             </span>
           )}
         </div>
@@ -140,23 +149,24 @@ export const PersonCardRefined: React.FC<PersonCardProps> = ({
 
       {/* Key Evidence Preview */}
       {person.red_flag_description && (
-        <div className="bg-[var(--bg-subtle)] rounded-[var(--radius-md)] p-[var(--space-3)] mb-[var(--space-3)]">
-          <p className="text-[var(--font-size-caption)] text-[var(--text-secondary)] leading-relaxed">
+        <div className="bg-slate-800/30 rounded-lg p-3 mb-4 ml-0 sm:ml-[3.25rem] border border-slate-700/30">
+          <p className="text-sm text-slate-400 leading-relaxed line-clamp-2">
             {searchTerm ? 
-              renderHighlightedText(person.red_flag_description.substring(0, 140) + (person.red_flag_description.length > 140 ? '...' : ''), searchTerm) : 
-              person.red_flag_description.substring(0, 140) + (person.red_flag_description.length > 140 ? '...' : '')}
+              renderHighlightedText(person.red_flag_description, searchTerm) : 
+              person.red_flag_description}
           </p>
         </div>
       )}
 
-      {/* Action Buttons */}
-      <div className="flex items-center justify-between pt-[var(--space-4)] border-t border-[var(--border-subtle)]">
-        <div className="flex items-center space-x-[var(--space-2)] text-[var(--font-size-small)] text-[var(--text-tertiary)]">
-          <Icon name="FileText" size="sm" className="h-4 w-4" />
+      {/* Action Footer */}
+      <div className="flex items-center justify-between pt-4 border-t border-slate-800 pl-0 sm:pl-[3.25rem]">
+        <div className="flex items-center space-x-2 text-xs text-slate-500 font-medium">
+          <Icon name="FileText" size="sm" className="h-3.5 w-3.5" />
           <span>{(person.files !== undefined ? person.files : (person.fileReferences ? person.fileReferences.length : 0))} documents</span>
         </div>
-        <button className="text-[var(--accent-primary)] text-[var(--font-size-caption)] font-medium hover:text-[var(--accent-secondary)] transition-colors">
+        <button className="flex items-center gap-1 text-blue-400 text-xs font-medium hover:text-blue-300 transition-colors bg-blue-500/10 hover:bg-blue-500/20 px-3 py-1.5 rounded-full border border-blue-500/20">
           View Details
+          <ArrowRight className="w-3 h-3" />
         </button>
       </div>
     </BaseCard>

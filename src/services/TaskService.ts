@@ -30,7 +30,7 @@ export interface UpdateTaskInput {
 }
 
 export class TaskService {
-  constructor(private db: Database.Database) {}
+  constructor(private db: any) {}
 
   async getTasks(investigationId?: number, status?: string, assigneeId?: string, page: number = 1, limit: number = 20) {
     const offset = (page - 1) * limit;

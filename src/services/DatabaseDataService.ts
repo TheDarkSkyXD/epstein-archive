@@ -86,7 +86,7 @@ export class DatabaseDataService {
     totalEntities: number;
     totalDocuments: number;
     totalMentions: number;
-    averageSpiceRating: number;
+    averageRedFlagRating: number;
     topRoles: { role: string; count: number }[];
     likelihoodDistribution: { level: string; count: number }[];
   }> {
@@ -118,9 +118,9 @@ export class DatabaseDataService {
   }
 
   /**
-   * Get top entities by spice rating
+   * Get top entities by Red Flag rating
    */
-  async getTopSpicyEntities(
+  async getTopRedFlagEntities(
     page: number = 1,
     limit: number = 24
   ): Promise<{ entities: any[]; total: number }> {

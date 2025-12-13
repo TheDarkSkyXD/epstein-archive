@@ -74,7 +74,9 @@ export function ImageViewer({ evidence }: ImageViewerProps) {
         <div className="flex items-center justify-center min-h-full p-4">
           <div style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'center' }}>
             <img
-              src={`/data/${evidence.sourcePath.replace('/Users/veland/Downloads/Epstein Files/data/', '')}`}
+              src={evidence.sourcePath.startsWith('/data/') || evidence.sourcePath.startsWith('data/') 
+                ? evidence.sourcePath.replace(/^\/?(data\/)/, '/data/') 
+                : `/data/${evidence.sourcePath.replace(/^.*\/data\//, '')}`}
               alt={evidence.originalFilename}
               className="max-w-full h-auto shadow-lg"
             />

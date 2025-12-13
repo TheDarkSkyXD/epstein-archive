@@ -48,7 +48,7 @@ const Icon: React.FC<IconProps> = ({
     inherit: ''
   };
 
-  const combinedClasses = `${sizeClasses[size]} ${colorClasses[color]} ${className}`;
+  const combinedClasses = `${sizeClasses[size]} ${colorClasses[color]} ${className} shrink-0`;
 
   return (
     <IconComponent

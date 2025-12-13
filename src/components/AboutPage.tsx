@@ -1,7 +1,177 @@
-import React from 'react';
-import { Database, Search, Shield, FileText, Image as ImageIcon, Network, AlertTriangle } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Database, Search, Shield, FileText, Image as ImageIcon, Network, AlertTriangle, Eye, Download } from 'lucide-react';
+
+const DOCUMENT_SOURCES = [
+  {
+    title: "Unredacted Black Book",
+    description: "Jeffrey Epstein's personal address book (2004-2005).",
+    redactionStatus: "Unredacted (0%)",
+    redactionColor: "red",
+    impact: "CRITICAL",
+    impactColor: "purple",
+    link: "/blackbook",
+    search: null
+  },
+  {
+    title: "Flight Logs",
+    description: "Pilot logs for Epstein's aircraft (1991-2003).",
+    redactionStatus: "Unredacted (0%)",
+    redactionColor: "red",
+    impact: "CRITICAL",
+    impactColor: "purple",
+    link: null,
+    search: "Flight Log"
+  },
+  {
+    title: "Giuffre v. Maxwell Unsealed",
+    description: "Jan 2024 unsealing of court motions and exhibits.",
+    redactionStatus: "Minimal (~5%)",
+    redactionColor: "yellow",
+    impact: "HIGH",
+    impactColor: "blue",
+    link: null,
+    search: "Unsealed"
+  },
+  {
+    title: "Maxwell Deposition 2016",
+    description: "Deposition of Ghislaine Maxwell in Giuffre v. Maxwell.",
+    redactionStatus: "Unredacted (0%)",
+    redactionColor: "red",
+    impact: "HIGH",
+    impactColor: "blue",
+    link: null,
+    search: "Maxwell Deposition"
+  },
+  {
+    title: "Giuffre Deposition 2016",
+    description: "Transcript of Virginia Giuffre's testimony.",
+    redactionStatus: "Unredacted (0%)",
+    redactionColor: "red",
+    impact: "HIGH",
+    impactColor: "blue",
+    link: null,
+    search: "Giuffre Deposition"
+  },
+  {
+    title: "Sjoberg Deposition 2016",
+    description: "Testimony regarding Prince Andrew and Maxwell.",
+    redactionStatus: "Unredacted (0%)",
+    redactionColor: "red",
+    impact: "HIGH",
+    impactColor: "blue",
+    link: null,
+    search: "Sjoberg"
+  },
+  {
+    title: "Katie Johnson Complaint",
+    description: "2016 lawsuit against Epstein and Trump.",
+    redactionStatus: "Unredacted (0%)",
+    redactionColor: "red",
+    impact: "HIGH",
+    impactColor: "blue",
+    link: null,
+    search: "Katie Johnson"
+  },
+  {
+    title: "Federal Indictment 2019",
+    description: "SDNY indictment charging sex trafficking.",
+    redactionStatus: "Unredacted (0%)",
+    redactionColor: "red",
+    impact: "HIGH",
+    impactColor: "blue",
+    link: null,
+    search: "Indictment"
+  },
+  {
+    title: "FBI Files 'Phase 1'",
+    description: "FBI interview summaries and internal memos.",
+    redactionStatus: "Heavily Redacted (~40%)",
+    redactionColor: "slate",
+    impact: "MEDIUM",
+    impactColor: "slate",
+    link: null,
+    search: "FBI"
+  },
+  {
+    title: "Estate Emails",
+    description: "Post-2008 correspondence (House Oversight).",
+    redactionStatus: "Partial (~15%)",
+    redactionColor: "yellow",
+    impact: "MEDIUM",
+    impactColor: "slate",
+    link: null,
+    search: "Oversight"
+  },
+  {
+    title: "The Birthday Book",
+    description: "2003 Birthday messages and photos.",
+    redactionStatus: "Unredacted (0%)",
+    redactionColor: "red",
+    impact: "MEDIUM",
+    impactColor: "slate",
+    link: null,
+    search: "Birthday Book"
+  }
+];
+
+const timelineEvents = [
+  { date: "Jan 3, 2024", source: "Giuffre v. Maxwell", content: "Depositions naming Prince Andrew, Clinton, Trump, Copperfield." },
+  { date: "July 7, 2025", source: "DOJ / FBI Review", content: "Memo stating no \"client list\" exists and no evidence for 3rd party prosecution." },
+  { date: "Sept 8, 2025", source: "House Oversight", content: "\"Birthday Book\" (2003) with photos and notes." },
+  { date: "Nov 12, 2025", source: "House Oversight", content: "23k+ pages of Estate Emails (2009-2019)." }
+];
+
+// Helper to get color classes
+const getStatusColor = (color: string) => {
+  switch (color) {
+    case 'red': return { bg: 'bg-red-400', text: 'text-red-300' };
+    case 'yellow': return { bg: 'bg-yellow-400', text: 'text-yellow-300' };
+    case 'slate': return { bg: 'bg-slate-400', text: 'text-slate-300' };
+    default: return { bg: 'bg-slate-400', text: 'text-slate-300' };
+  }
+};
+
+const getImpactColor = (color: string) => {
+  switch (color) {
+    case 'purple': return 'bg-purple-500/20 text-purple-300 border-purple-500/30';
+    case 'blue': return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
+    case 'slate': return 'bg-slate-700 text-slate-300 border-slate-600';
+    default: return 'bg-slate-700 text-slate-300 border-slate-600';
+  }
+};
 
 export const AboutPage: React.FC = () => {
+  const [stats, setStats] = useState({
+    documents: 0,
+    entities: 0,
+    blackBook: 0,
+    media: 0,
+    albums: 0
+  });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [statsRes, blackBookRes, mediaRes] = await Promise.all([
+          fetch('/api/stats').then(r => r.json()),
+          fetch('/api/black-book?limit=1').then(r => r.json()),
+          fetch('/api/media/stats').then(r => r.json())
+        ]);
+
+        setStats({
+          documents: statsRes.totalDocuments || 0,
+          entities: statsRes.totalEntities || 0,
+          blackBook: blackBookRes.total || 0,
+          media: mediaRes.totalImages || 0,
+          albums: mediaRes.totalAlbums || 0
+        });
+      } catch (e) {
+        console.error('Failed to fetch about page stats', e);
+      }
+    };
+    fetchData();
+  }, []);
+
   return (
     <div className="max-w-4xl mx-auto px-6 py-12 space-y-12">
       {/* Header */}
@@ -40,49 +210,258 @@ export const AboutPage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-slate-800/50 rounded-lg p-6">
             <h3 className="text-xl font-semibold text-white mb-3">📄 Documents</h3>
-            <p className="text-3xl font-bold text-blue-400 mb-2">2,331</p>
+            <p className="text-3xl font-bold text-blue-400 mb-2">{stats.documents.toLocaleString()}</p>
             <p className="text-slate-400">Court documents, depositions, emails, and exhibits from multiple sources</p>
           </div>
 
           <div className="bg-slate-800/50 rounded-lg p-6">
             <h3 className="text-xl font-semibold text-white mb-3">👥 Entities</h3>
-            <p className="text-3xl font-bold text-green-400 mb-2">47,189</p>
+            <p className="text-3xl font-bold text-green-400 mb-2">{stats.entities.toLocaleString()}</p>
             <p className="text-slate-400">People, organizations, and locations extracted from documents</p>
           </div>
 
           <div className="bg-slate-800/50 rounded-lg p-6">
             <h3 className="text-xl font-semibold text-white mb-3">📞 Black Book</h3>
-            <p className="text-3xl font-bold text-purple-400 mb-2">1,414</p>
+            <p className="text-3xl font-bold text-purple-400 mb-2">{stats.blackBook.toLocaleString()}</p>
             <p className="text-slate-400">Contact entries from Epstein's address book</p>
           </div>
 
           <div className="bg-slate-800/50 rounded-lg p-6">
             <h3 className="text-xl font-semibold text-white mb-3">🖼️ Media</h3>
-            <p className="text-3xl font-bold text-orange-400 mb-2">231</p>
-            <p className="text-slate-400">Images across 13 categorized albums (369 MB)</p>
+            <p className="text-3xl font-bold text-orange-400 mb-2">{stats.media.toLocaleString()}</p>
+            <p className="text-slate-400">Images across {stats.albums.toLocaleString()} categorized albums</p>
           </div>
         </div>
 
-        <div className="bg-slate-800/50 rounded-lg p-6 space-y-3">
-          <h3 className="text-xl font-semibold text-white">Document Sources</h3>
-          <ul className="space-y-2 text-slate-300">
-            <li className="flex items-start gap-2">
-              <span className="text-blue-400 mt-1">•</span>
-              <span><strong>Giuffre v. Maxwell (Jan 2024)</strong> - Civil suit unsealing with depositions naming key figures</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-blue-400 mt-1">•</span>
-              <span><strong>USVI Court Production (Dec 2025)</strong> - 177 images from Virgin Islands legal proceedings</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-blue-400 mt-1">•</span>
-              <span><strong>House Oversight Releases</strong> - Estate emails, birthday book, correspondence</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-blue-400 mt-1">•</span>
-              <span><strong>Flight Logs & Black Book</strong> - Travel records and contact information</span>
-            </li>
-          </ul>
+        <div className="bg-slate-800/50 rounded-lg p-6 space-y-6">
+          <div className="flex items-center gap-3">
+            <h3 className="text-xl font-semibold text-white">Document Sources</h3>
+            <span className="px-2 py-1 rounded-full bg-blue-500/20 text-blue-300 text-xs font-medium">Verified Sources</span>
+          </div>
+          
+          {/* Mobile Card View (< md) */}
+          <div className="space-y-4 md:hidden">
+            {DOCUMENT_SOURCES.map((source, idx) => (
+              <div key={idx} className="bg-slate-700/30 p-4 rounded-lg border border-slate-700/50 space-y-3 shadow-sm">
+                <div className="flex justify-between items-start gap-3">
+                  <h4 className="font-bold text-white text-lg leading-tight">{source.title}</h4>
+                   <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded text-xs font-bold border ${getImpactColor(source.impactColor)}`}>
+                    {source.impact}
+                  </span>
+                </div>
+                
+                <p className="text-slate-300 text-sm leading-relaxed">{source.description}</p>
+                
+                <div className="flex items-center justify-between pt-3 border-t border-slate-700/50">
+                   <div className="flex items-center gap-2 text-xs">
+                     <span className={`h-1.5 w-1.5 rounded-full ${getStatusColor(source.redactionColor).bg}`}></span>
+                     <span className={getStatusColor(source.redactionColor).text}>{source.redactionStatus}</span>
+                   </div>
+                   
+                   <div className="flex gap-2">
+                     {source.link ? (
+                        <a href={source.link} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors text-xs font-medium border border-blue-500/20">
+                          <Eye className="w-3.5 h-3.5" /> View
+                        </a>
+                     ) : (
+                        <a href={`/documents?search=${encodeURIComponent(source.search || '')}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors text-xs font-medium border border-blue-500/20">
+                          <Eye className="w-3.5 h-3.5" /> View
+                        </a>
+                     )}
+                   </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop Table View (>= md) */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-700 text-slate-400 text-sm">
+                  <th className="py-3 px-4 font-medium">Title</th>
+                  <th className="py-3 px-4 font-medium max-w-sm">Description</th>
+                  <th className="py-3 px-4 font-medium whitespace-nowrap">Redaction Status</th>
+                  <th className="py-3 px-4 font-medium whitespace-nowrap">Impact</th>
+                  <th className="py-3 px-4 font-medium text-right whitespace-nowrap">Action</th>
+                </tr>
+              </thead>
+              <tbody className="text-sm divide-y divide-slate-700/50">
+                {DOCUMENT_SOURCES.map((source, idx) => (
+                  <tr key={idx} className="hover:bg-slate-700/30 transition-colors">
+                    <td className="py-3 px-4 font-medium text-white">{source.title}</td>
+                    <td className="py-3 px-4 text-slate-300">{source.description}</td>
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <span className="flex items-center gap-2">
+                         <span className={`h-1.5 w-1.5 rounded-full ${getStatusColor(source.redactionColor).bg}`}></span>
+                         <span className={getStatusColor(source.redactionColor).text}>{source.redactionStatus}</span>
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getImpactColor(source.impactColor)}`}>
+                        {source.impact}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-2">
+                        {source.link ? (
+                          <a href={source.link} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 transition-colors text-xs font-medium border border-blue-500/20">
+                            <Eye className="w-3.5 h-3.5" />
+                            View
+                          </a>
+                        ) : (
+                          <a href={`/documents?search=${encodeURIComponent(source.search || '')}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 transition-colors text-xs font-medium border border-blue-500/20">
+                            <Eye className="w-3.5 h-3.5" />
+                            View
+                          </a>
+                        )}
+                        <button className="inline-flex items-center justify-center p-1.5 rounded-md bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white transition-colors border border-slate-700" title="Download Original">
+                          <Download className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      {/* Analysis Article */}
+      <section className="bg-slate-900/50 rounded-lg p-8 space-y-6 border border-slate-700/50">
+        <div className="flex items-center gap-3 mb-6 pb-6 border-b border-slate-700">
+          <FileText className="h-8 w-8 text-blue-400" />
+          <div>
+            <h2 className="text-3xl font-bold text-white">The Epstein Files: Analysis</h2>
+            <p className="text-slate-400 mt-1">What Documents Exist and What They Prove | Updated Dec 05, 2025</p>
+          </div>
+        </div>
+
+        <div className="prose prose-invert prose-lg max-w-none text-slate-300 space-y-6">
+          <p className="lead text-xl text-slate-200">
+            The criminal enterprise of Jeffrey Epstein has created one of the most persistent myths in modern American history: the existence of a singular, definitive "Client List." A forensic examination of the investigative materials available as of late 2025 reveals a different reality.
+          </p>
+
+          <h3 className="text-2xl font-bold text-white mt-8 mb-4">What Documents Actually Exist</h3>
+          <p>
+            The public discourse often conflates distinct datasets—flight logs, contact books, civil lawsuit depositions, and estate emails—into a monolithic "Epstein List." In reality, the evidence comprises several disparate categories of information, each with unique evidentiary value.
+          </p>
+          
+          <h4 className="text-xl font-semibold text-white mt-4">The Flight Logs</h4>
+          <p>
+            Pilot-recorded manifests for Epstein’s private aircraft fleet. These are logistical records, not criminal ledgers. The presence of a name establishes only presence, not purpose. As legal experts note, "being on the flight log doesn’t prove a crime" without corroborating testimony.
+          </p>
+
+          <h4 className="text-xl font-semibold text-white mt-4">The Black Book</h4>
+          <p>
+            A compilation of phone numbers and addresses. It represents the infrastructure of Epstein's social climbing. Inclusion indicates Epstein had their contact info, not that they were "clients."
+          </p>
+
+          <h4 className="text-xl font-semibold text-white mt-4">The Birthday Book</h4>
+          <p>
+            Released in Sept 2025 by House Oversight. A gift for Epstein's 50th birthday containing photos, notes, and ephemera. It offers insight into his social intimacy with the elite after initial concerns had arisen.
+          </p>
+
+          <h4 className="text-xl font-semibold text-white mt-4">The Estate Emails (2009-2019)</h4>
+          <p>
+            A massive cache of 23,000+ pages released in Nov 2025. These cover the post-conviction era, revealing who remained in his orbit. Key exchanges include Epstein describing Trump as "the dog that hasn’t barked," and routine correspondence with figures like Larry Summers and Noam Chomsky.
+          </p>
+
+          <h3 className="text-2xl font-bold text-white mt-8 mb-4">Key Document Releases Timeline</h3>
+          
+          <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
+            {/* Mobile Timeline */}
+            <div className="md:hidden space-y-4">
+              {timelineEvents.map((event, idx) => (
+                <div key={idx} className="bg-slate-700/30 p-4 rounded-lg border border-slate-600/50 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-blue-500/50"></div>
+                  <div className="flex flex-col gap-1 pl-2">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-blue-400 font-mono text-xs font-bold uppercase tracking-wider bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">{event.date}</span>
+                    </div>
+                    <div className="text-white font-bold text-lg">{event.source}</div>
+                    <div className="text-slate-300 text-sm leading-relaxed mt-1">{event.content}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Timeline */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="text-slate-400 border-b border-slate-700">
+                  <tr>
+                    <th className="pb-2 text-left">Date</th>
+                    <th className="pb-2 text-left">Source</th>
+                    <th className="pb-2 text-left">Key Content</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-700">
+                  {timelineEvents.map((event, idx) => (
+                    <tr key={idx}>
+                      <td className="py-2 text-slate-300 whitespace-nowrap pr-4">{event.date}</td>
+                      <td className="py-2 text-slate-300 pr-4">{event.source}</td>
+                      <td className="py-2 text-slate-400">{event.content}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="bg-slate-800/50 rounded-lg p-6 mt-8 border border-slate-700/50">
+            <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+              <Shield className="h-6 w-6 text-emerald-400" />
+              Legal Thresholds: Association vs. Complicity
+            </h3>
+
+            <div className="grid gap-4 md:grid-cols-3 mb-6">
+              {/* Mere Presence */}
+              <div className="bg-slate-700/30 p-4 rounded-lg border border-slate-600/30">
+                <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-600 text-slate-200 mb-2">
+                  Mere Presence
+                </div>
+                <p className="text-sm text-slate-300">
+                  Being at a scene (e.g., flight) without participating is not a crime.
+                </p>
+              </div>
+
+              {/* Complicity */}
+              <div className="bg-slate-700/30 p-4 rounded-lg border border-slate-600/30">
+                <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-900/50 text-orange-300 border border-orange-700/50 mb-2">
+                  Complicity
+                </div>
+                <p className="text-sm text-slate-300">
+                  Requires proof of specific intent to aid the trafficking.
+                </p>
+              </div>
+
+              {/* Conspiracy */}
+              <div className="bg-slate-700/30 p-4 rounded-lg border border-slate-600/30">
+                <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-900/50 text-red-300 border border-red-700/50 mb-2">
+                  Conspiracy
+                </div>
+                <p className="text-sm text-slate-300">
+                  Requires proof of an agreement to commit a crime.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-blue-900/20 border border-blue-500/20 rounded-lg p-4 mb-6">
+              <h4 className="text-blue-300 font-semibold mb-2 flex items-center gap-2">
+                DOJ Findings (July 2025)
+              </h4>
+              <p className="text-sm text-blue-100/80 leading-relaxed">
+                Concluded that while many powerful men associated with Epstein, obtaining evidence sufficient for federal prosecution of third parties remains legally distinct from proving social association.
+              </p>
+            </div>
+
+            <div className="text-slate-400 text-sm italic border-t border-slate-700/50 pt-4">
+              <strong className="text-slate-300 not-italic">How we use this:</strong> These legal thresholds directly inform our <strong>Red Flag Index</strong>. 
+              Entities with mere "Flight Log" appearances receive a low risk score (1-2), while those with sworn testimony alleging participation or specific knowledge are flagged with higher risk scores (4-5).
+            </div>
+          </div>
         </div>
       </section>
 

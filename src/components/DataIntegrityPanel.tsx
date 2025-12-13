@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle, AlertTriangle, Clock, Database } from 'lucide-react';
+import { AlertTriangle, Clock, Database } from 'lucide-react';
 
 interface DataIntegrityStats {
   entitiesWithDocuments: number;
@@ -23,62 +23,67 @@ export const DataIntegrityPanel: React.FC<DataIntegrityPanelProps> = ({ stats })
     : 0;
 
   return (
-    <div className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-[var(--space-4)]">
-      <div className="flex items-center justify-between mb-[var(--space-4)]">
-        <h3 className="text-[var(--font-size-h4)] font-semibold text-[var(--text-primary)] flex items-center">
-          <Database className="h-5 w-5 mr-[var(--space-2)] text-[var(--accent-primary)]" />
+    <div className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 rounded-xl p-5 shadow-lg">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-5">
+        <h3 className="text-base font-semibold text-white flex items-center">
+          <Database className="h-5 w-5 mr-2 text-blue-400" />
           Data Integrity
         </h3>
-        <span className="text-[var(--font-size-caption)] text-[var(--text-tertiary)] flex items-center">
+        <span className="text-xs text-slate-400 flex items-center">
           <Clock className="h-4 w-4 mr-1" />
           {stats.lastRefresh}
         </span>
       </div>
       
-      <div className="space-y-[var(--space-4)]">
+      {/* Progress Bars */}
+      <div className="space-y-5">
+        {/* Entities with document links */}
         <div>
-          <div className="flex justify-between text-[var(--font-size-caption)] mb-[var(--space-2)]">
-            <span className="text-[var(--text-secondary)]">Entities with document links</span>
-            <span className="text-[var(--text-primary)] font-medium">{entityLinkPercentage}%</span>
+          <div className="flex justify-between text-sm mb-2">
+            <span className="text-slate-300">Entities with document links</span>
+            <span className="text-white font-semibold">{entityLinkPercentage}%</span>
           </div>
-          <div className="w-full bg-[var(--bg-subtle)] rounded-full h-2">
+          <div className="w-full bg-slate-700/60 rounded-full h-2.5 overflow-hidden">
             <div 
-              className={`h-2 rounded-full ${
-                entityLinkPercentage >= 95 ? 'bg-[var(--accent-success)]' : 
-                entityLinkPercentage >= 80 ? 'bg-[var(--accent-warning)]' : 'bg-[var(--accent-danger)]'
+              className={`h-2.5 rounded-full transition-all duration-500 ${
+                entityLinkPercentage >= 95 ? 'bg-emerald-500' : 
+                entityLinkPercentage >= 80 ? 'bg-amber-500' : 'bg-rose-500'
               }`}
               style={{ width: `${entityLinkPercentage}%` }}
             ></div>
           </div>
-          <div className="text-[var(--font-size-small)] text-[var(--text-tertiary)] mt-[var(--space-1)]">
-            {stats.entitiesWithDocuments} of {stats.totalEntities} entities linked
+          <div className="text-xs text-slate-400 mt-1.5">
+            {stats.entitiesWithDocuments.toLocaleString()} of {stats.totalEntities.toLocaleString()} entities linked
           </div>
         </div>
         
+        {/* Documents with complete metadata */}
         <div>
-          <div className="flex justify-between text-[var(--font-size-caption)] mb-[var(--space-2)]">
-            <span className="text-[var(--text-secondary)]">Documents with complete metadata</span>
-            <span className="text-[var(--text-primary)] font-medium">{documentMetadataPercentage}%</span>
+          <div className="flex justify-between text-sm mb-2">
+            <span className="text-slate-300">Documents with complete metadata</span>
+            <span className="text-white font-semibold">{documentMetadataPercentage}%</span>
           </div>
-          <div className="w-full bg-[var(--bg-subtle)] rounded-full h-2">
+          <div className="w-full bg-slate-700/60 rounded-full h-2.5 overflow-hidden">
             <div 
-              className={`h-2 rounded-full ${
-                documentMetadataPercentage >= 95 ? 'bg-[var(--accent-success)]' : 
-                documentMetadataPercentage >= 80 ? 'bg-[var(--accent-warning)]' : 'bg-[var(--accent-danger)]'
+              className={`h-2.5 rounded-full transition-all duration-500 ${
+                documentMetadataPercentage >= 95 ? 'bg-emerald-500' : 
+                documentMetadataPercentage >= 80 ? 'bg-amber-500' : 'bg-rose-500'
               }`}
               style={{ width: `${documentMetadataPercentage}%` }}
             ></div>
           </div>
-          <div className="text-[var(--font-size-small)] text-[var(--text-tertiary)] mt-[var(--space-1)]">
-            {stats.documentsWithMetadata} of {stats.totalDocuments} documents complete
+          <div className="text-xs text-slate-400 mt-1.5">
+            {stats.documentsWithMetadata.toLocaleString()} of {stats.totalDocuments.toLocaleString()} documents complete
           </div>
         </div>
       </div>
       
-      <div className="mt-[var(--space-4)] pt-[var(--space-4)] border-t border-[var(--border-subtle)]">
-        <button className="text-[var(--font-size-caption)] text-[var(--accent-primary)] hover:text-[var(--accent-secondary)] transition-colors flex items-center">
+      {/* Footer */}
+      <div className="mt-5 pt-4 border-t border-slate-700/50">
+        <button className="text-xs text-blue-400 hover:text-blue-300 transition-colors flex items-center group">
           Methodology & Sources
-          <AlertTriangle className="h-4 w-4 ml-1" />
+          <AlertTriangle className="h-3.5 w-3.5 ml-1.5 text-amber-400 group-hover:text-amber-300" />
         </button>
       </div>
     </div>

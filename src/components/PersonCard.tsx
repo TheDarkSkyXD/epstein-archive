@@ -20,16 +20,18 @@ const PersonCard: React.FC<PersonCardProps> = ({ person, onClick, onDocumentClic
   // Get entity type icon
   const getEntityIcon = () => {
     const entityType = (person as any).entity_type || (person as any).entityType;
-    return getEntityTypeIcon(entityType, 'md');
+    // Pass title or role for icon determination
+    const role = person.title || person.role || (person as any).primaryRole;
+    return getEntityTypeIcon(entityType, 'md', role);
   };
 
   // Get risk color based on rating
   const getRiskColor = (r: number) => {
-    if (r >= 5) return 'text-purple-400 bg-purple-500/20 border-purple-500/40';
-    if (r >= 4) return 'text-red-400 bg-red-500/20 border-red-500/40';
-    if (r >= 3) return 'text-orange-400 bg-orange-500/20 border-orange-500/40';
-    if (r >= 2) return 'text-yellow-400 bg-yellow-500/20 border-yellow-500/40';
-    return 'text-slate-400 bg-slate-500/20 border-slate-500/40';
+    if (r >= 5) return 'text-purple-100 bg-gradient-to-r from-purple-900/80 to-purple-800/60 border-purple-500/50 shadow-[0_0_10px_rgba(168,85,247,0.2)]';
+    if (r >= 4) return 'text-red-100 bg-gradient-to-r from-red-900/80 to-red-800/60 border-red-500/50 shadow-[0_0_10px_rgba(239,68,68,0.2)]';
+    if (r >= 3) return 'text-orange-100 bg-gradient-to-r from-orange-900/80 to-orange-800/60 border-orange-500/50 shadow-[0_0_10px_rgba(249,115,22,0.2)]';
+    if (r >= 2) return 'text-yellow-100 bg-gradient-to-r from-yellow-900/80 to-yellow-800/60 border-yellow-500/50 shadow-[0_0_10px_rgba(234,179,8,0.2)]';
+    return 'text-slate-300 bg-slate-800/80 border-slate-600/50';
   };
 
   // Highlight search term in text
@@ -93,6 +95,13 @@ const PersonCard: React.FC<PersonCardProps> = ({ person, onClick, onDocumentClic
           <Icon name="Folder" size="sm" />
           <span>{files} docs</span>
         </div>
+        {/* Black Book Indicator */}
+        {person?.blackBookEntry && (
+          <div className="flex items-center gap-1.5 text-purple-400" title="This person appears in the Black Book">
+            <Icon name="Book" size="sm" />
+            <span>Black Book</span>
+          </div>
+        )}
       </div>
       
       {/* Description - truncated to 2 lines */}
@@ -107,7 +116,7 @@ const PersonCard: React.FC<PersonCardProps> = ({ person, onClick, onDocumentClic
       {person.evidence_types && person.evidence_types.length > 1 && (
         <div className="flex items-center gap-1.5 mb-3 overflow-hidden">
           {person.evidence_types.slice(0, 3).map((type, i) => (
-            <span key={i} className="flex-shrink-0 px-2 py-0.5 bg-blue-900/40 text-blue-300 rounded text-[10px] uppercase tracking-wide">
+            <span key={i} className="flex-shrink-0 px-2 py-0.5 bg-gradient-to-r from-blue-900/60 to-blue-800/40 border border-blue-500/30 text-blue-200 rounded text-[10px] uppercase tracking-wide shadow-sm backdrop-blur-sm">
               {type.toString().replace('_', ' ')}
             </span>
           ))}

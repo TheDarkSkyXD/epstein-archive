@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Investigation, Investigator } from '../types/investigation';
 import { Users, Plus, Mail, UserPlus, Crown, Shield, User, Building, Eye } from 'lucide-react';
+import { useToasts } from './ToastProvider';
 
 interface InvestigationTeamManagementProps {
   investigation: Investigation;
@@ -17,6 +18,7 @@ export const InvestigationTeamManagement: React.FC<InvestigationTeamManagementPr
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'researcher' | 'analyst' | 'reviewer'>('researcher');
   const [inviteMessage, setInviteMessage] = useState('');
+  const { addToast } = useToasts();
 
   // Ensure current user is first author if team is empty
   const ensureFirstAuthor = () => {
@@ -115,9 +117,9 @@ export const InvestigationTeamManagement: React.FC<InvestigationTeamManagementPr
       setShowInviteModal(false);
       
       // Show success message
-      alert(`Invitation sent to ${inviteEmail}. They will be added to the team once they accept.`);
+      addToast({ text: `Invitation sent to ${inviteEmail}. They will be added to the team once they accept.`, type: 'success' });
     } else {
-      alert('Failed to send invitation. Please try again.');
+      addToast({ text: 'Failed to send invitation. Please try again.', type: 'error' });
     }
   };
 

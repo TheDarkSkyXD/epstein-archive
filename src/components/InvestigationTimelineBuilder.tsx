@@ -9,6 +9,8 @@ interface TimelineBuilderProps {
   evidence: EvidenceItem[];
   hypotheses: Hypothesis[];
   onEventsUpdate: (events: TimelineEvent[]) => void;
+  onSaveEvent?: (event: Partial<TimelineEvent>) => Promise<void>;
+  onDeleteEvent?: (eventId: string) => Promise<void>;
 }
 
 interface TimelineGroup {
@@ -21,7 +23,9 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
   events,
   evidence,
   hypotheses,
-  onEventsUpdate
+  onEventsUpdate,
+  onSaveEvent,
+  onDeleteEvent
 }) => {
   const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null);
   const [isAddingEvent, setIsAddingEvent] = useState(false);
@@ -168,30 +172,45 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
     }
   }, [hypotheses.length]);
 
-  const handleAddEvent = () => {
+  const handleAddEvent = async () => {
     if (!newEvent.title || !newEvent.startDateString) return;
 
-    const event: TimelineEvent = {
-      id: `event-${Date.now()}`,
-      title: newEvent.title,
-      description: newEvent.description || '',
-      startDate: new Date(newEvent.startDateString),
-      type: newEvent.type || 'document',
-      confidence: newEvent.confidence || 80,
-      documents: newEvent.documents || [],
-      hypothesisIds: newEvent.hypothesisIds || [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      layerId: 'default',
-      entities: [],
-      evidence: [],
-      importance: 'medium',
-      tags: [],
-      sources: [],
-      createdBy: 'current-user'
-    };
+    if (onSaveEvent) {
+      await onSaveEvent({
+        title: newEvent.title,
+        description: newEvent.description || '',
+        startDate: new Date(newEvent.startDateString),
+        type: newEvent.type || 'document',
+        confidence: newEvent.confidence || 80,
+        documents: newEvent.documents || [],
+        hypothesisIds: newEvent.hypothesisIds || [],
+        importance: 'medium',
+        tags: [],
+        entities: []
+      });
+    } else {
+      const event: TimelineEvent = {
+        id: `event-${Date.now()}`,
+        title: newEvent.title,
+        description: newEvent.description || '',
+        startDate: new Date(newEvent.startDateString),
+        type: newEvent.type || 'document',
+        confidence: newEvent.confidence || 80,
+        documents: newEvent.documents || [],
+        hypothesisIds: newEvent.hypothesisIds || [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        layerId: 'default',
+        entities: [],
+        evidence: [],
+        importance: 'medium',
+        tags: [],
+        sources: [],
+        createdBy: 'current-user'
+      };
+      onEventsUpdate([...events, event]);
+    }
 
-    onEventsUpdate([...events, event]);
     setNewEvent({
       title: '',
       description: '',
@@ -217,23 +236,36 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
     });
   };
 
-  const handleUpdateEvent = () => {
+  const handleUpdateEvent = async () => {
     if (!editingEvent || !newEvent.title || !newEvent.startDateString) return;
 
-    const updatedEvent: TimelineEvent = {
-      ...editingEvent,
-      title: newEvent.title,
-      description: newEvent.description || '',
-      startDate: new Date(newEvent.startDateString),
-      type: newEvent.type || 'document',
-      confidence: newEvent.confidence || 80,
-      documents: newEvent.documents || [],
-      hypothesisIds: newEvent.hypothesisIds || [],
-      updatedAt: new Date()
-    };
+    if (onSaveEvent) {
+       await onSaveEvent({
+        id: editingEvent.id,
+        title: newEvent.title,
+        description: newEvent.description || '',
+        startDate: new Date(newEvent.startDateString),
+        type: newEvent.type || 'document',
+        confidence: newEvent.confidence || 80,
+        documents: newEvent.documents || [],
+        hypothesisIds: newEvent.hypothesisIds || [],
+      });
+    } else {
+      const updatedEvent: TimelineEvent = {
+        ...editingEvent,
+        title: newEvent.title,
+        description: newEvent.description || '',
+        startDate: new Date(newEvent.startDateString),
+        type: newEvent.type || 'document',
+        confidence: newEvent.confidence || 80,
+        documents: newEvent.documents || [],
+        hypothesisIds: newEvent.hypothesisIds || [],
+        updatedAt: new Date()
+      };
 
-    const updatedEvents = events.map(e => e.id === editingEvent.id ? updatedEvent : e);
-    onEventsUpdate(updatedEvents);
+      const updatedEvents = events.map(e => e.id === editingEvent.id ? updatedEvent : e);
+      onEventsUpdate(updatedEvents);
+    }
     setEditingEvent(null);
     setNewEvent({
       title: '',
@@ -246,11 +278,15 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
     });
   };
 
-  const handleDeleteEvent = (eventId: string) => {
+  const handleDeleteEvent = async (eventId: string) => {
     if (window.confirm('Are you sure you want to delete this timeline event?')) {
-      onEventsUpdate(events.filter(e => e.id !== eventId));
-      // Also remove from auto-milestones if it exists there
-      setAutoMilestones(autoMilestones.filter(m => m.id !== eventId));
+      if (onDeleteEvent) {
+        await onDeleteEvent(eventId);
+      } else {
+        onEventsUpdate(events.filter(e => e.id !== eventId));
+        // Also remove from auto-milestones if it exists there
+        setAutoMilestones(autoMilestones.filter(m => m.id !== eventId));
+      }
     }
   };
 

@@ -32,7 +32,7 @@ export interface UpdateHypothesisInput {
 }
 
 export class HypothesisService {
-  constructor(private db: Database.Database) {}
+  constructor(private db: any) {}
 
   async getHypotheses(investigationId?: number, page: number = 1, limit: number = 20) {
     const offset = (page - 1) * limit;

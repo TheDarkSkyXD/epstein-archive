@@ -10,9 +10,10 @@ interface EntityTypeOption {
 interface EntityTypeFilterProps {
   value: string;
   onChange: (value: string) => void;
+  className?: string;
 }
 
-const EntityTypeFilter: React.FC<EntityTypeFilterProps> = ({ value, onChange }) => {
+const EntityTypeFilter: React.FC<EntityTypeFilterProps> = ({ value, onChange, className = '' }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   
@@ -41,11 +42,11 @@ const EntityTypeFilter: React.FC<EntityTypeFilterProps> = ({ value, onChange }) 
   const selectedOption = options.find(option => option.value === value) || options[0];
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className={`relative ${className}`} ref={dropdownRef}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="bg-slate-800 border border-slate-600 rounded-lg px-3 h-10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 flex items-center gap-2 min-w-[120px] justify-between"
+        className={`bg-slate-800 border border-slate-600 rounded-lg px-3 h-10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 flex items-center gap-2 justify-between w-full min-w-[120px]`}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
       >

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DB_PATH = path.join(__dirname, '../epstein-archive.db');
+const DB_PATH = path.join(__dirname, '../epstein-archive-production.db');
 const db = new Database(DB_PATH);
 
 console.log('🚀 Starting Entity Enrichment and Categorization...\n');

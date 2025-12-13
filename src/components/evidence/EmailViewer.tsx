@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { Mail, User, Calendar, Paperclip, Copy } from 'lucide-react';
+import { Mail, User, Calendar, Paperclip, Copy, Download } from 'lucide-react';
 
 interface EmailViewerProps {
   evidence: {
@@ -17,6 +17,7 @@ interface EmailViewerProps {
       subject?: string;
       sentDate?: string;
       attachmentCount?: number;
+      source_original_url?: string;
     };
   };
 }
@@ -50,9 +51,24 @@ export function EmailViewer({ evidence }: EmailViewerProps) {
     <div className="p-6">
       {/* Email Header */}
       <div className="border-b border-gray-200 pb-6 mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">
-          {metadata.subject || 'No Subject'}
-        </h2>
+        <div className="flex items-start justify-between mb-4">
+          <h2 className="text-2xl font-bold text-gray-900">
+            {metadata.subject || 'No Subject'}
+          </h2>
+          {metadata.source_original_url && (
+            <a
+              href={metadata.source_original_url}
+              download
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ml-4 shrink-0"
+              title="Download original email"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Original
+            </a>
+          )}
+        </div>
         
         <div className="space-y-3">
           {metadata.from && (

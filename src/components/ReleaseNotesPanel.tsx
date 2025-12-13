@@ -24,201 +24,85 @@ export const ReleaseNotesPanel: React.FC<ReleaseNotesPanelProps> = ({
   isLoading = false,
   error = null
 }) => {
-  const allReleaseNotes = [
-    {
-      version: 'v4.6.0',
-      date: 'December 10, 2025',
-      title: 'Mobile Perfection & Analytics Power',
-      notes: [
-        'Interactive Mobile Stats: Stats cards are now clickable navigation buttons',
-        'Smart Tooltips: Fixed mobile overflow with intelligent "bottom-end" positioning',
-        'Media Metadata: Fixed "NaN MB" / "Unknown" dates in photo browser',
-        'Performance: Optimized thumbnail loading and image display',
-        'Analytics: Verified data flow and increased network visualization limit to 100 nodes',
-        'UI Polish: Removed redundant mobile search and fixed header alignment'
-      ]
-    },
-    {
-      version: 'v4.5.0',
-      date: 'December 9, 2025',
-      title: 'Smart OCR Paragraph Reconstruction',
-      notes: [
-        'Implemented heuristic algorithm to reconstruct logical paragraphs from broken OCR lines',
-        'Fixed "wall of text" readability issues by correctly handling newlines',
-        'Preserved list items, headers, and bullet points during text cleanup',
-        'Enhanced readability of historical documents with proper spacing'
-      ]
-    },
-    {
-      version: 'v4.4.0',
-      date: 'December 9, 2025',
-      title: 'Unified Document Rendering & OCR Prettifier',
-      notes: [
-        'Unified Document Content Renderer: Consistent specialized views for Emails, Spreadsheets, and Images across Browser and Modal',
-        'OCR Text Prettifier: Toggle between raw and cleaned text for better readability',
-        'Enhanced Email and Financial document support in full-screen modal',
-        'Improved image viewer with OCR text extraction details'
-      ]
-    },
-    {
-      version: 'v4.2.0',
-      date: 'December 9, 2025',
-      title: 'Mobile UX Overhaul & Data Validation',
-      notes: [
-        'Complete mobile-first redesign: 530+ lines of responsive CSS utilities',
-        'EvidenceModal: restructured header, single-column stats on mobile, horizontal scrollable chips with 44px touch targets',
-        'DocumentBrowser: stacking search/filter on mobile, horizontally scrollable category chips',
-        'Data integrity validated: 4,711 documents, 12,447 entities, 44,722 relationships',
-        'Code cleanup: removed duplicate console.logs and debug statements'
-      ]
-    },
-    {
-      version: 'v4.1.0',
-      date: 'December 8, 2025',
-      title: 'Risk Filtering & UX Polish',
-      notes: [
-        'Fixed risk filter chips: HIGH (RFI 4-5), MEDIUM (RFI 2-3), LOW (RFI 0-1) now correctly filter subjects',
-        'Removed cluttered toast notifications for cleaner loading experience',
-        'End-to-end data verification with proper filter passthrough from frontend to API',
-        'Improved entity statistics with accurate risk distribution counts'
-      ]
-    },
-    {
-      version: 'v4.0.0',
-      date: 'December 7, 2025',
-      title: 'Document Classification & Email Thread Splitting',
-      notes: [
-        'Intelligent document classification: 3,513 emails, 1,100 documents, 53 photos, 25 legal, 12 depositions',
-        'Email thread splitting: 1,791 individual emails extracted from multi-email files',
-        'Email viewer with parsed headers (From, To, Cc, Date, Subject) displayed in document viewer',
-        'Evidence type indicators in document browser (📧 Email, ⚖️ Legal, 📜 Deposition)',
-        'Thread navigation support for related email conversations'
-      ]
-    },
-    {
-      version: 'v3.9.1',
-      date: 'December 7, 2025',
-      title: 'Platform Stabilization & Media Fixes',
-      notes: [
-        'Restored missing Media Gallery tables and functionality',
-        'Fixed persistent server errors on Documents and Statistics endpoints',
-        'Verified end-to-end data integrity for production deployment',
-        'Optimized database schema for improved query performance'
-      ]
-    },
-    {
-      version: 'v3.9.0',
-      date: 'December 6, 2025',
-      title: 'Global Platform Upgrade & Database Re-architecture',
-      notes: [
-        'Complete database schema overhaul to strict relational model',
-        'Full CSV data ingestion pipeline validated and deployed',
-        'Enhanced entity risk scoring (Red Flag 🚩) implementation',
-        'Backend service alignment with new optimized schema'
-      ]
-    },
-    {
-      version: 'v3.8.0',
-      date: 'December 6, 2025',
-      title: 'Investigation Integration & UI Refinements',
-      notes: [
-        'Add evidence to investigations directly from entities, documents, or search results throughout the app',
-        'Action buttons (New, Shortcuts, Sources) moved next to search field with smooth hover-expand animations',
-        'Timeline now supports ascending/descending sort toggle for flexible event ordering',
-        'Sources button navigates to About page with detailed source information on hover',
-        'Cleaner UI with subtle styling for original filenames and improved component reliability'
-      ]
-    },
-    {
-      version: 'v3.7.0',
-      date: 'December 6, 2025',
-      title: 'Dataset Separation, Mobile UX polish, Release-ready build',
-      notes: [
-        'Filesystem ingest + classification + enrichment for clean evidence types',
-        'Structured fields for emails/legal; metadata headers and contacts extraction',
-        'Mobile: subtle loading pill and compact "Red Flags" sort label',
-        'Header actions aligned to search with pill expansion and hover popups',
-        'Scoped error boundaries and toasts for resilient panels and feedback'
-      ]
-    },
-    {
-      version: 'v3.5.0',
-      date: 'December 5, 2025',
-      title: 'Legacy Feature Set',
-      notes: [
-        'Core search and entity browsing functionality',
-        'Initial implementation of network graph visualization',
-        'Basic document viewer integration'
-      ]
-    },
-    ...releaseNotes
-  ];
+  // Use the passed releaseNotes prop directly as the single source of truth
+  const allReleaseNotes = releaseNotes;
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50 p-4">
-      <div className="bg-[var(--bg-elevated)] rounded-[var(--radius-lg)] w-full max-w-md h-full md:h-auto md:max-h-[90vh] border border-[var(--border-strong)] flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50 p-0 md:p-4">
+      <div className="bg-slate-900 rounded-none md:rounded-2xl w-full max-w-md h-full md:h-auto md:max-h-[90vh] border-l md:border border-slate-700 flex flex-col shadow-2xl animate-in slide-in-from-right duration-200 overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-[var(--space-4)] border-b border-[var(--border-subtle)]">
-          <h2 className="text-[var(--font-size-h3)] font-bold text-[var(--text-primary)] flex items-center">
-            <BookOpen className="h-5 w-5 mr-[var(--space-2)] text-[var(--accent-primary)]" />
+        <div className="flex items-center justify-between p-4 border-b border-slate-700 bg-slate-900 sticky top-0 z-10 md:rounded-t-2xl">
+          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <BookOpen className="h-5 w-5 text-cyan-400" />
             What's New
           </h2>
           <button
             onClick={onClose}
-            className="p-[var(--space-2)] hover:bg-[var(--bg-subtle)] rounded-[var(--radius-md)] transition-colors"
+            className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
+            aria-label="Close"
           >
-            <X className="h-5 w-5 text-[var(--text-tertiary)]" />
+            <X className="h-6 w-6" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-[var(--space-4)]">
+        <div className="flex-1 overflow-y-auto p-4 bg-slate-900">
           {isLoading ? (
             <div className="flex items-center justify-center h-full">
-              <div className="text-[var(--text-secondary)]">Loading release notes...</div>
+              <div className="text-slate-400 animate-pulse">Loading release notes...</div>
             </div>
           ) : error ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-[var(--accent-danger)] text-center">
-                <p className="font-medium mb-[var(--space-2)]">Could not load release notes</p>
-                <p className="text-[var(--font-size-caption)]">{error}</p>
+            <div className="flex items-center justify-center h-full p-4">
+              <div className="text-red-400 text-center bg-red-900/20 p-4 rounded-lg border border-red-900/50">
+                <p className="font-medium mb-2">Could not load release notes</p>
+                <p className="text-sm opacity-80">{error}</p>
               </div>
             </div>
           ) : allReleaseNotes.length === 0 ? (
             <div className="flex items-center justify-center h-full">
-              <div className="text-[var(--text-secondary)] text-center">
+              <div className="text-slate-500 text-center italic">
                 <p>No release notes available</p>
               </div>
             </div>
           ) : (
-            <div className="space-y-[var(--space-6)]">
+            <div className="space-y-8 pb-8">
               {allReleaseNotes.map((release, index) => (
-                <div key={index} className="pb-[var(--space-6)] border-b border-[var(--border-subtle)] last:border-b-0 last:pb-0">
-                  <div className="flex items-start justify-between mb-[var(--space-3)]">
-                    <div>
-                      <h3 className="text-[var(--font-size-h4)] font-semibold text-[var(--text-primary)]">
-                        {release.title}
-                      </h3>
-                      <div className="flex items-center text-[var(--font-size-caption)] text-[var(--text-tertiary)] mt-[var(--space-1)]">
-                        <span className="font-mono">{release.version}</span>
-                        <span className="mx-[var(--space-2)]">•</span>
-                        <span className="flex items-center">
-                          <Calendar className="h-4 w-4 mr-1" />
-                          {release.date}
-                        </span>
-                      </div>
+                <div key={index} className="relative pl-4 border-l-2 border-slate-800 last:border-l-0">
+                  {/* Timeline Dot */}
+                  <div className={`absolute -left-[9px] top-0 w-4 h-4 rounded-full border-2 ${index === 0 ? 'bg-cyan-500 border-cyan-900 shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'bg-slate-800 border-slate-600'}`}></div>
+                  
+                  <div className="mb-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`text-sm font-mono font-bold ${index === 0 ? 'text-cyan-400' : 'text-slate-400'}`}>
+                        {release.version}
+                      </span>
+                      <span className="text-xs text-slate-500 flex items-center gap-1 bg-slate-800/50 px-2 py-0.5 rounded-full border border-slate-700/50">
+                        <Calendar className="h-3 w-3" />
+                        {release.date}
+                      </span>
                     </div>
+                    <h3 className="text-lg font-semibold text-white leading-tight">
+                      {release.title}
+                    </h3>
                   </div>
                   
-                  <ul className="space-y-[var(--space-2)]">
+                  <ul className="space-y-3 bg-slate-800/30 rounded-lg p-4 border border-slate-700/50">
                     {release.notes.map((note, noteIndex) => (
-                      <li key={noteIndex} className="flex items-start">
-                        <span className="text-[var(--accent-primary)] mr-[var(--space-2)] mt-1">•</span>
-                        <span className="text-[var(--font-size-body)] text-[var(--text-secondary)]">
-                          {note}
-                        </span>
+                      <li key={noteIndex} className="flex items-start gap-3">
+                        <span className="text-cyan-500/70 mt-1.5 text-[10px]">●</span>
+                        <div className="text-sm text-slate-300 leading-relaxed">
+                          {note.split(/(\*\*.*?\*\*)/).map((part, i) => 
+                            part.startsWith('**') && part.endsWith('**') ? (
+                              <strong key={i} className="font-semibold text-cyan-100">
+                                {part.slice(2, -2)}
+                              </strong>
+                            ) : (
+                              <span key={i}>{part}</span>
+                            )
+                          )}
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -229,8 +113,8 @@ export const ReleaseNotesPanel: React.FC<ReleaseNotesPanelProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-[var(--space-4)] border-t border-[var(--border-subtle)] text-center">
-          <p className="text-[var(--font-size-caption)] text-[var(--text-tertiary)]">
+        <div className="p-4 border-t border-slate-800 bg-slate-900 text-center sticky bottom-0 z-10">
+          <p className="text-xs text-slate-500">
             Epstein Archive Investigation Tool
           </p>
         </div>

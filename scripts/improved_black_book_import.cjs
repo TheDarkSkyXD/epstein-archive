@@ -11,7 +11,7 @@ const Database = require('better-sqlite3');
 const fs = require('fs');
 const path = require('path');
 
-const DB_PATH = './epstein-archive.db';
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, '../epstein-archive.db');
 const BLACK_BOOK_PATH = path.join(__dirname, '../data/text/Jeffrey Epstein\'s Black Book (OCR).txt');
 
 class ImprovedBlackBookImporter {
@@ -257,14 +257,14 @@ class ImprovedBlackBookImporter {
       // Create new person in entities table
       try {
         const result = this.db.prepare(`
-          INSERT INTO entities (name, type, mentions_count)
-          VALUES (?, 'Person', 0)
+          INSERT INTO entities (full_name, mentions)
+          VALUES (?, 1)
         `).run(cleanedName);
         personId = result.lastInsertRowid;
         this.stats.peopleCreated++;
       } catch (e) {
         // Entity may already exist
-        const existing = this.db.prepare(`SELECT id FROM entities WHERE name = ?`).get(cleanedName);
+        const existing = this.db.prepare(`SELECT id FROM entities WHERE full_name = ?`).get(cleanedName);
         if (existing) {
           personId = existing.id;
           this.stats.peopleMatched++;
@@ -302,8 +302,8 @@ class ImprovedBlackBookImporter {
     
     // Try exact match
     let person = this.db.prepare(`
-      SELECT id, name FROM entities 
-      WHERE type = 'Person' AND LOWER(REPLACE(name, ',', '')) = ?
+      SELECT id, full_name as name FROM entities 
+      WHERE LOWER(REPLACE(full_name, ',', '')) = ?
       LIMIT 1
     `).get(normalized);
     
@@ -316,9 +316,8 @@ class ImprovedBlackBookImporter {
       const lastName = parts[parts.length - 1];
       
       person = this.db.prepare(`
-        SELECT id, name FROM entities
-        WHERE type = 'Person' 
-        AND LOWER(name) LIKE ? AND LOWER(name) LIKE ?
+        SELECT id, full_name as name FROM entities
+        WHERE LOWER(full_name) LIKE ? AND LOWER(full_name) LIKE ?
         LIMIT 1
       `).get(`%${firstName}%`, `%${lastName}%`);
     }

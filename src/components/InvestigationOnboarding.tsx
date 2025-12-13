@@ -1,5 +1,7 @@
+
 import React, { useState } from 'react';
-import { X, ArrowRight, Filter, Search, FileText } from 'lucide-react';
+import { X, ArrowRight, Filter, Search, FileText, CheckCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface InvestigationOnboardingProps {
   onComplete: () => void;
@@ -21,113 +23,133 @@ export const InvestigationOnboarding: React.FC<InvestigationOnboardingProps> = (
     }
   };
 
-  const handleSkip = () => {
-    onSkip();
-  };
-
-  const getStepContent = () => {
-    switch (step) {
-      case 1:
-        return {
-          title: "Start an Investigation",
-          description: "Begin by creating a new investigation. Give it a meaningful name and description to help you stay organized.",
-          icon: <Search className="h-8 w-8 text-[var(--accent-primary)]" />
-        };
-      case 2:
-        return {
-          title: "Filter by Red Flag Index",
-          description: "Use the Red Flag Index to cut through noise and focus on the most significant entities and documents in your investigation.",
-          icon: <Filter className="h-8 w-8 text-[var(--accent-danger)]" />
-        };
-      case 3:
-        return {
-          title: "Trace Everything Back to Source Documents",
-          description: "Every entity, connection, and insight can be traced back to its source documents, ensuring complete auditability.",
-          icon: <FileText className="h-8 w-8 text-[var(--accent-secondary)]" />
-        };
-      default:
-        return {
-          title: "",
-          description: "",
-          icon: null
-        };
+  const steps = [
+    {
+      id: 1,
+      title: "Start an Investigation",
+      description: "Begin by creating a new investigation. Give it a meaningful name and description to help you stay organized.",
+      icon: Search,
+      color: "text-blue-400",
+      bg: "bg-blue-500/10",
+      border: "border-blue-500/20",
+      glow: "shadow-blue-500/20"
+    },
+    {
+      id: 2,
+      title: "Filter by Red Flag Index",
+      description: "Cut through noise using the Red Flag Index to focus on the most significant entities and documents.",
+      icon: Filter,
+      color: "text-red-400",
+      bg: "bg-red-500/10",
+      border: "border-red-500/20",
+      glow: "shadow-red-500/20"
+    },
+    {
+      id: 3,
+      title: "Verify Source Documents",
+      description: "Every insight is linked to its source. Trace connections back to original documents for complete auditability.",
+      icon: FileText,
+      color: "text-emerald-400",
+      bg: "bg-emerald-500/10",
+      border: "border-emerald-500/20",
+      glow: "shadow-emerald-500/20"
     }
-  };
+  ];
 
-  const { title, description, icon } = getStepContent();
+  const currentStep = steps[step - 1];
+  const Icon = currentStep.icon;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-      <div className="bg-[var(--bg-elevated)] rounded-[var(--radius-xl)] w-full max-w-2xl border border-[var(--border-strong)]">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-slate-950/60 backdrop-blur-md flex items-center justify-center z-50 p-4"
+    >
+      <motion.div 
+        initial={{ scale: 0.95, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        transition={{ type: "spring", duration: 0.5, bounce: 0.3 }}
+        className="relative bg-slate-900/90 border border-white/10 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden backdrop-blur-xl"
+      >
+        {/* Decorative Background Gradients */}
+        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+
         {/* Header */}
-        <div className="flex items-center justify-between p-[var(--space-6)] pb-[var(--space-4)]">
-          <h2 className="text-[var(--font-size-h2)] font-bold text-[var(--text-primary)]">
-            Investigation Onboarding
-          </h2>
+        <div className="relative flex items-center justify-between p-6 pb-2">
+          {/* Progress Indicators */}
+          <div className="flex gap-1.5">
+            {steps.map((s) => (
+              <div 
+                key={s.id}
+                className={`h-1.5 rounded-full transition-all duration-500 ${
+                  s.id === step ? 'w-8 bg-blue-400' : 
+                  s.id < step ? 'w-1.5 bg-blue-400/50' : 'w-1.5 bg-slate-700'
+                }`}
+              />
+            ))}
+          </div>
+          
           <button
-            onClick={handleSkip}
-            className="p-[var(--space-2)] hover:bg-[var(--bg-subtle)] rounded-[var(--radius-md)] transition-colors"
+            onClick={onSkip}
+            className="text-slate-500 hover:text-white transition-colors p-2 hover:bg-white/5 rounded-full"
+            aria-label="Close"
           >
-            <X className="h-5 w-5 text-[var(--text-tertiary)]" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Progress */}
-        <div className="px-[var(--space-6)] pb-[var(--space-4)]">
-          <div className="flex items-center justify-between text-[var(--font-size-caption)] text-[var(--text-tertiary)] mb-[var(--space-2)]">
-            <span>Step {step} of {totalSteps}</span>
-            <span>{Math.round((step / totalSteps) * 100)}% complete</span>
-          </div>
-          <div className="w-full bg-[var(--bg-subtle)] rounded-full h-2">
-            <div 
-              className="bg-[var(--accent-primary)] h-2 rounded-full transition-all duration-300" 
-              style={{ width: `${(step / totalSteps) * 100}%` }}
-            ></div>
-          </div>
-        </div>
+        {/* Content Area */}
+        <div className="relative px-8 py-8 min-h-[320px] flex flex-col items-center justify-center text-center">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={step}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+                className="flex flex-col items-center"
+              >
+                {/* Icon Container */}
+                <div className={`mb-8 p-6 rounded-2xl ${currentStep.bg} ${currentStep.border} border shadow-[0_0_30px_-5px] ${currentStep.glow} ring-1 ring-white/5`}>
+                  <Icon className={`h-10 w-10 ${currentStep.color}`} />
+                </div>
 
-        {/* Content */}
-        <div className="px-[var(--space-6)] py-[var(--space-4)]">
-          <div className="flex items-center justify-center mb-[var(--space-6)]">
-            <div className="bg-[var(--bg-subtle)] rounded-full p-[var(--space-4)]">
-              {icon}
-            </div>
-          </div>
-          <h3 className="text-[var(--font-size-h3)] font-semibold text-[var(--text-primary)] text-center mb-[var(--space-3)]">
-            {title}
-          </h3>
-          <p className="text-[var(--font-size-body)] text-[var(--text-secondary)] text-center mb-[var(--space-6)]">
-            {description}
-          </p>
+                <h2 className="text-2xl font-bold text-white mb-3">
+                  {currentStep.title}
+                </h2>
+                <p className="text-slate-400 text-lg leading-relaxed max-w-xs mx-auto">
+                  {currentStep.description}
+                </p>
+              </motion.div>
+            </AnimatePresence>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-[var(--space-6)] pt-[var(--space-4)] border-t border-[var(--border-subtle)]">
-          <button
-            onClick={handleSkip}
-            className="px-[var(--space-4)] py-[var(--space-2)] text-[var(--font-size-caption)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors whitespace-nowrap"
+        <div className="relative p-6 pt-0 flex flex-col gap-3">
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={handleNext}
+            className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-medium shadow-lg shadow-blue-900/20 border border-t-white/10 flex items-center justify-center gap-2 transition-all group"
           >
-            Skip Tour
-          </button>
-          <div className="flex items-center space-x-[var(--space-3)]">
-            {step > 1 && (
-              <button
-                onClick={() => setStep(step - 1)}
-                className="px-[var(--space-4)] py-[var(--space-2)] text-[var(--font-size-caption)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors whitespace-nowrap"
-              >
-                Previous
-              </button>
+            <span>{step === totalSteps ? 'Get Started' : 'Continue'}</span>
+            {step === totalSteps ? (
+               <CheckCircle className="w-4 h-4 text-white/90" />
+            ) : (
+               <ArrowRight className="w-4 h-4 text-white/80 group-hover:translate-x-0.5 transition-transform" />
             )}
-            <button
-              onClick={handleNext}
-              className="px-[var(--space-6)] py-[var(--space-2)] bg-[var(--accent-primary)] text-white rounded-[var(--radius-md)] hover:bg-[var(--accent-secondary)] transition-colors flex items-center whitespace-nowrap"
-            >
-              {step === totalSteps ? 'Get Started' : 'Next'}
-              {step !== totalSteps && <ArrowRight className="h-4 w-4 ml-[var(--space-2)]" />}
-            </button>
-          </div>
+          </motion.button>
+          
+          <button
+            onClick={onSkip}
+            className="text-sm text-slate-500 hover:text-slate-400 py-2 transition-colors"
+          >
+            Skip Introduction
+          </button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };

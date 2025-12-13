@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Download, ZoomIn, ZoomOut, RotateCw } from 'lucide-react';
 
 interface MediaViewerProps {
@@ -6,13 +7,15 @@ interface MediaViewerProps {
   fileName: string;
   fileType: string;
   onClose: () => void;
+  inline?: boolean;
 }
 
 export const MediaViewer: React.FC<MediaViewerProps> = ({ 
   filePath, 
   fileName, 
   fileType,
-  onClose 
+  onClose,
+  inline = false
 }) => {
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
@@ -49,7 +52,15 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({
     // Reset zoom and rotation when file changes
     setZoom(1);
     setRotation(0);
-  }, [filePath]);
+    
+    // If not supported (fallback view), we won't get an onLoad event, so stop loading immediately
+    const isSupported = isPdf || isImage;
+    if (!isSupported) {
+      setIsLoading(false);
+    } else {
+      setIsLoading(true);
+    }
+  }, [filePath, isPdf, isImage]);
 
   const renderMedia = () => {
     if (isPdf) {
@@ -69,7 +80,7 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({
 
     if (isImage) {
       return (
-        <div className="flex items-center justify-center w-full h-full overflow-auto">
+        <div className="flex items-center justify-center w-full h-full overflow-auto bg-black/50">
           <img
             src={filePath}
             alt={fileName}
@@ -97,22 +108,24 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({
           <h3 className="text-xl font-semibold mb-2">File Preview Unavailable</h3>
           <p className="mb-4">This file type cannot be previewed in the browser.</p>
         </div>
-        <a
-          href={filePath}
-          download={fileName}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-        >
-          <Download className="w-4 h-4" />
-          Download File
-        </a>
+        {!inline && (
+          <a
+            href={filePath}
+            download={fileName}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Download File
+          </a>
+        )}
       </div>
     );
   };
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex flex-col">
+  const content = (
+    <div className={`${inline ? 'relative w-full h-full' : 'fixed inset-0 bg-black bg-opacity-90 z-[1100]'} flex flex-col`}>
       {/* Header */}
-      <div className="flex items-center justify-between p-4 bg-slate-900 border-b border-slate-700">
+      <div className={`flex items-center justify-between p-4 bg-slate-900 border-b border-slate-700 z-20 ${inline ? 'py-2 px-4' : ''}`}>
         <div className="flex items-center gap-3">
           <div className="bg-slate-800 p-2 rounded-lg">
             {isPdf ? (
@@ -163,64 +176,77 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({
               </button>
             </>
           )}
-          <button 
-            onClick={handleDownload}
-            className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
-            title="Download"
-          >
-            <Download className="w-5 h-5" />
-          </button>
-          <button 
-            onClick={onClose}
-            className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
-            title="Close"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          {!inline && (
+            <>
+              <button 
+                onClick={handleDownload}
+                className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+                title="Download"
+              >
+                <Download className="w-5 h-5" />
+              </button>
+              <button 
+                onClick={onClose}
+                className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+                title="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Loading/Error States */}
-      {isLoading && (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
-            <p className="text-slate-400">Loading media...</p>
+      <div className="flex-1 relative overflow-hidden bg-slate-900/50">
+        {/* Loading Spinner Overlay */}
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-slate-900 z-10">
+            <div className="text-center">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+              <p className="text-slate-400">Loading media...</p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {error && (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center text-red-400">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <h3 className="text-xl font-semibold mb-2">Error Loading Media</h3>
-            <p className="mb-4">{error}</p>
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
-            >
-              Close Viewer
-            </button>
+        {/* Error State */}
+        {error ? (
+          <div className="flex-1 flex items-center justify-center h-full">
+            <div className="text-center text-red-400">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <h3 className="text-xl font-semibold mb-2">Error Loading Media</h3>
+              <p className="mb-4">{error}</p>
+              {!inline && (
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+                >
+                  Close Viewer
+                </button>
+              )}
+            </div>
           </div>
-        </div>
-      )}
-
-      {/* Media Content */}
-      {!isLoading && !error && (
-        <div className="flex-1 overflow-hidden">
-          {renderMedia()}
-        </div>
-      )}
-
-      {/* Footer */}
-      <div className="p-3 bg-slate-900 border-t border-slate-700 text-center text-sm text-slate-400">
-        {isPdf ? 'PDF Document Viewer' : isImage ? 'Image Viewer' : 'File Viewer'} • {fileName}
+        ) : (
+          /* Media Content - Always rendered to allow loading to start */
+          <div className={`w-full h-full ${isLoading ? 'opacity-0' : 'opacity-100'} transition-opacity ${isImage ? '' : 'p-4'}`}>
+             {renderMedia()}
+          </div>
+        )}
       </div>
+
+      {/* Footer - only show if NOT inline */}
+      {!inline && (
+        <div className="p-3 bg-slate-900 border-t border-slate-700 text-center text-sm text-slate-400">
+          {isPdf ? 'PDF Document Viewer' : isImage ? 'Image Viewer' : 'File Viewer'} • {fileName}
+        </div>
+      )}
     </div>
   );
+  
+  // Render via portal if not inline, otherwise just render content
+  if (inline) return content;
+  return typeof document !== 'undefined' ? createPortal(content, document.body) : null;
 };
 
 export default MediaViewer;

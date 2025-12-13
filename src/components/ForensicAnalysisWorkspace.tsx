@@ -14,13 +14,15 @@ interface ForensicAnalysisWorkspaceProps {
   evidence: EvidenceItem[];
   onEvidenceUpdate: (evidence: EvidenceItem[]) => void;
   timelineEvents: TimelineEvent[];
+  useGlobalContext?: boolean;
 }
 
 export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps> = ({
   investigation,
   evidence,
   onEvidenceUpdate,
-  timelineEvents
+  timelineEvents,
+  useGlobalContext = false
 }) => {
   const [activeTool, setActiveTool] = useState<'documents' | 'entities' | 'financial' | 'correlation' | 'reports'>('documents');
   const [showToolSettings, setShowToolSettings] = useState(false);
@@ -312,13 +314,13 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
               />
             )}
             {activeTool === 'financial' && (
-              <FinancialTransactionMapper />
+              <FinancialTransactionMapper investigationId={useGlobalContext ? undefined : investigation.id} />
             )}
             {activeTool === 'correlation' && (
               <MultiSourceCorrelationEngine />
             )}
             {activeTool === 'reports' && (
-              <ForensicReportGenerator />
+              <ForensicReportGenerator investigationId={useGlobalContext ? undefined : Number(investigation.id)} />
             )}
           </div>
         </div>

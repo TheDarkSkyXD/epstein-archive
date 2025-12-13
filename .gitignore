@@ -69,3 +69,12 @@ yarn-error.log*
 # Original high-res images (for EXIF extraction only, never deploy)
 data/media/originals/
 originals/
+
+# Backup and report directories
+backups/
+database_backups/
+logs/
+analysis/
+consolidation_reports/
+validation_reports/
+uploads/

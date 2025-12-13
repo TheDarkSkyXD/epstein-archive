@@ -1611,6 +1611,186 @@ app.get('/api/media/stats', async (_req, res, next) => {
   }
 });
 
+// ============================================
+// TAGS API - Global tagging system
+// ============================================
+
+// Get all tags
+app.get('/api/tags', async (_req, res, next) => {
+  try {
+    const db = getDb();
+    const tags = db.prepare('SELECT * FROM tags ORDER BY name ASC').all();
+    res.json(tags);
+  } catch (error) {
+    console.error('Error fetching tags:', error);
+    next(error);
+  }
+});
+
+// Create a new tag
+app.post('/api/tags', authenticateRequest, async (req, res, next) => {
+  try {
+    const { name, color } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Tag name is required' });
+    }
+    
+    const db = getDb();
+    const result = db.prepare('INSERT INTO tags (name, color) VALUES (?, ?)').run(
+      name.trim(),
+      color || '#6366f1'
+    );
+    
+    res.status(201).json({ id: result.lastInsertRowid, name: name.trim(), color: color || '#6366f1' });
+  } catch (error: any) {
+    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      return res.status(409).json({ error: 'Tag already exists' });
+    }
+    console.error('Error creating tag:', error);
+    next(error);
+  }
+});
+
+// Delete a tag
+app.delete('/api/tags/:id', authenticateRequest, requireRole('admin'), async (req, res, next) => {
+  try {
+    const tagId = parseInt(req.params.id);
+    if (isNaN(tagId)) return res.status(400).json({ error: 'Invalid tag ID' });
+    
+    const db = getDb();
+    const result = db.prepare('DELETE FROM tags WHERE id = ?').run(tagId);
+    
+    if (result.changes === 0) return res.status(404).json({ error: 'Tag not found' });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting tag:', error);
+    next(error);
+  }
+});
+
+// ============================================
+// MEDIA TAGS API
+// ============================================
+
+// Get tags for an image
+app.get('/api/media/images/:id/tags', async (req, res, next) => {
+  try {
+    const imageId = parseInt(req.params.id);
+    if (isNaN(imageId)) return res.status(400).json({ error: 'Invalid image ID' });
+    
+    const db = getDb();
+    const tags = db.prepare(`
+      SELECT t.* FROM tags t
+      JOIN media_tags mt ON t.id = mt.tag_id
+      WHERE mt.media_id = ?
+      ORDER BY t.name ASC
+    `).all(imageId);
+    
+    res.json(tags);
+  } catch (error) {
+    console.error('Error fetching image tags:', error);
+    next(error);
+  }
+});
+
+// Add tag to image
+app.post('/api/media/images/:id/tags', authenticateRequest, async (req, res, next) => {
+  try {
+    const imageId = parseInt(req.params.id);
+    const { tagId } = req.body;
+    
+    if (isNaN(imageId) || !tagId) return res.status(400).json({ error: 'Invalid image or tag ID' });
+    
+    const db = getDb();
+    db.prepare('INSERT OR IGNORE INTO media_tags (media_id, tag_id) VALUES (?, ?)').run(imageId, tagId);
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error adding tag to image:', error);
+    next(error);
+  }
+});
+
+// Remove tag from image
+app.delete('/api/media/images/:id/tags/:tagId', authenticateRequest, async (req, res, next) => {
+  try {
+    const imageId = parseInt(req.params.id);
+    const tagId = parseInt(req.params.tagId);
+    
+    if (isNaN(imageId) || isNaN(tagId)) return res.status(400).json({ error: 'Invalid IDs' });
+    
+    const db = getDb();
+    db.prepare('DELETE FROM media_tags WHERE media_id = ? AND tag_id = ?').run(imageId, tagId);
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error removing tag from image:', error);
+    next(error);
+  }
+});
+
+// ============================================
+// MEDIA PEOPLE API - Link entities to images
+// ============================================
+
+// Get people in an image
+app.get('/api/media/images/:id/people', async (req, res, next) => {
+  try {
+    const imageId = parseInt(req.params.id);
+    if (isNaN(imageId)) return res.status(400).json({ error: 'Invalid image ID' });
+    
+    const db = getDb();
+    const people = db.prepare(`
+      SELECT e.id, e.full_name as name, e.primary_role as role, e.red_flag_rating as redFlagRating
+      FROM entities e
+      JOIN media_people mp ON e.id = mp.entity_id
+      WHERE mp.media_id = ?
+      ORDER BY e.full_name ASC
+    `).all(imageId);
+    
+    res.json(people);
+  } catch (error) {
+    console.error('Error fetching image people:', error);
+    next(error);
+  }
+});
+
+// Add person to image
+app.post('/api/media/images/:id/people', authenticateRequest, async (req, res, next) => {
+  try {
+    const imageId = parseInt(req.params.id);
+    const { entityId } = req.body;
+    
+    if (isNaN(imageId) || !entityId) return res.status(400).json({ error: 'Invalid image or entity ID' });
+    
+    const db = getDb();
+    db.prepare('INSERT OR IGNORE INTO media_people (media_id, entity_id) VALUES (?, ?)').run(imageId, entityId);
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error adding person to image:', error);
+    next(error);
+  }
+});
+
+// Remove person from image
+app.delete('/api/media/images/:id/people/:entityId', authenticateRequest, async (req, res, next) => {
+  try {
+    const imageId = parseInt(req.params.id);
+    const entityId = parseInt(req.params.entityId);
+    
+    if (isNaN(imageId) || isNaN(entityId)) return res.status(400).json({ error: 'Invalid IDs' });
+    
+    const db = getDb();
+    db.prepare('DELETE FROM media_people WHERE media_id = ? AND entity_id = ?').run(imageId, entityId);
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error removing person from image:', error);
+    next(error);
+  }
+});
+
 // Error handling middleware (must be last)
 app.use(globalErrorHandler);
 

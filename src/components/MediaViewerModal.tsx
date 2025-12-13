@@ -6,6 +6,8 @@ import { MediaImage } from '../types/media.types';
 import Icon from './Icon';
 import { useAuth } from '../contexts/AuthContext';
 import LocationMap from './LocationMap';
+import TagSelector from './TagSelector';
+import PeopleSelector from './PeopleSelector';
 
 interface MediaViewerModalProps {
   images: MediaImage[];
@@ -48,6 +50,27 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({ images, initialInde
   
   // Local rotation state (for immediate feedback)
   const [rotation, setRotation] = useState(0);
+  
+  // Tags and people state
+  const [imageTags, setImageTags] = useState<any[]>([]);
+  const [imagePeople, setImagePeople] = useState<any[]>([]);
+
+  // Fetch tags and people when image changes
+  useEffect(() => {
+    if (!currentImage) return;
+    
+    // Fetch tags
+    fetch(`/api/media/images/${currentImage.id}/tags`)
+      .then(res => res.json())
+      .then(setImageTags)
+      .catch(() => setImageTags([]));
+    
+    // Fetch people
+    fetch(`/api/media/images/${currentImage.id}/people`)
+      .then(res => res.json())
+      .then(setImagePeople)
+      .catch(() => setImagePeople([]));
+  }, [currentImage]);
 
   const handleRotate = async (direction: 'left' | 'right') => {
     if (!currentImage) return;
@@ -410,6 +433,25 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({ images, initialInde
                  title={currentImage.title || 'Photo Location'}
                />
              )}
+
+             {/* Tags Section */}
+             <div className="space-y-2">
+               <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                 <Tag size={14} /> Tags
+               </h4>
+               <TagSelector
+                 selectedTags={imageTags}
+                 onTagsChange={setImageTags}
+                 mediaId={currentImage.id}
+               />
+             </div>
+
+             {/* People in Photo Section */}
+             <PeopleSelector
+               selectedPeople={imagePeople}
+               onPeopleChange={setImagePeople}
+               mediaId={currentImage.id}
+             />
          </div>
       </div>
     </div>,

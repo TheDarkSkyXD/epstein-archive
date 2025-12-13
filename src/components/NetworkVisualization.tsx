@@ -577,75 +577,78 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   };
 
   return (
-    <div className="bg-gray-900 rounded-lg border border-gray-700 overflow-hidden">
+    <div className="bg-slate-900 rounded-xl border border-slate-700/50 overflow-hidden">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 p-4 border-b border-gray-700">
-        <div className="flex items-center gap-3 whitespace-nowrap flex-shrink-0">
-          <Network className="w-5 h-5 text-blue-400 flex-shrink-0" />
-          <h3 className="text-lg font-semibold text-white">Network Analysis</h3>
-          <span className="text-sm text-gray-400">
-            {filteredNodes.length} nodes, {filteredEdges.length} connections
-          </span>
+      <div className="p-4 border-b border-slate-700/50">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Network className="w-5 h-5 text-blue-400" />
+            <h3 className="text-lg font-semibold text-white">Network Analysis</h3>
+            <span className="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">
+              {filteredNodes.length} nodes • {filteredEdges.length} connections
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={exportNetwork}
+              className="h-9 w-9 flex items-center justify-center bg-slate-800 border border-slate-600 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700"
+              title="Export Network Data"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setShowTableView(!showTableView)}
+              className={`h-9 px-3 flex items-center gap-2 border rounded-lg text-sm font-medium transition-colors ${
+                showTableView 
+                  ? 'bg-blue-600 border-blue-500 text-white' 
+                  : 'bg-slate-800 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700'
+              }`}
+            >
+              {showTableView ? <Network className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+              <span className="hidden sm:inline">{showTableView ? "Graph" : "Table"}</span>
+            </button>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-          {showFilters && (
-            <>
-              <div className="relative flex-1 lg:flex-none min-w-[160px]">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search nodes..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full h-10 pl-10 pr-4 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
-                />
-              </div>
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="h-10 px-3 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
-              >
-                <option value="all">All Types</option>
-                <option value="person">People</option>
-                <option value="document">Documents</option>
-                <option value="organization">Organizations</option>
-                <option value="location">Locations</option>
-                <option value="event">Events</option>
-                <option value="evidence">Evidence</option>
-              </select>
-              <select
-                value={filterRisk}
-                onChange={(e) => setFilterRisk(e.target.value)}
-                className="h-10 px-3 bg-gray-800 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
-              >
-                <option value="all">All Risk</option>
-                <option value="low">Low Risk</option>
-                <option value="medium">Medium Risk</option>
-                <option value="high">High Risk</option>
-                <option value="critical">Critical Risk</option>
-              </select>
-            </>
-          )}
-          <button
-            onClick={exportNetwork}
-            className="h-10 w-10 flex items-center justify-center bg-gray-800 border border-gray-600 rounded-lg text-gray-300 hover:text-white hover:bg-gray-700 flex-shrink-0"
-            title="Export Network Data"
-          >
-            <Download className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setShowTableView(!showTableView)}
-            className={`h-10 px-3 flex items-center justify-center border rounded-lg text-sm font-medium transition-colors ${
-              showTableView 
-                ? 'bg-blue-600 border-blue-500 text-white' 
-                : 'bg-gray-800 border-gray-600 text-gray-300 hover:text-white hover:bg-gray-700'
-            }`}
-            title={showTableView ? "Show Graph View" : "Show Text View"}
-          >
-            {showTableView ? <Network className="w-4 h-4 mr-2" /> : <FileText className="w-4 h-4 mr-2" />}
-            {showTableView ? "Graph" : "Table"}
-          </button>
-        </div>
+        
+        {/* Filters */}
+        {showFilters && (
+          <div className="flex flex-wrap gap-2">
+            <div className="relative flex-1 min-w-[150px] max-w-[250px]">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search nodes..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full h-9 pl-9 pr-3 bg-slate-800 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="h-9 px-3 bg-slate-800 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
+            >
+              <option value="all">All Types</option>
+              <option value="person">People</option>
+              <option value="document">Documents</option>
+              <option value="organization">Organizations</option>
+              <option value="location">Locations</option>
+              <option value="event">Events</option>
+              <option value="evidence">Evidence</option>
+            </select>
+            <select
+              value={filterRisk}
+              onChange={(e) => setFilterRisk(e.target.value)}
+              className="h-9 px-3 bg-slate-800 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
+            >
+              <option value="all">All Risk</option>
+              <option value="low">Low Risk</option>
+              <option value="medium">Medium Risk</option>
+              <option value="high">High Risk</option>
+              <option value="critical">Critical</option>
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Table View (Accessible) */}

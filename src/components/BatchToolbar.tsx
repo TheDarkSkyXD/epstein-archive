@@ -1,47 +1,147 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Icon from './Icon';
 
 interface BatchToolbarProps {
   selectedCount: number;
   onRotate: (direction: 'left' | 'right') => void;
   onAssignTags: (tags: number[]) => void;
+  onAssignPeople: (people: number[]) => void;
   onAssignRating: (rating: number) => void;
   onEditMetadata: (field: string, value: string) => void;
   onCancel: () => void;
+}
+
+interface Tag {
+  id: number;
+  name: string;
+  color: string;
+}
+
+interface Person {
+  id: number;
+  name: string;
+  role: string;
+  redFlagRating: number;
 }
 
 export const BatchToolbar: React.FC<BatchToolbarProps> = ({ 
   selectedCount, 
   onRotate,
   onAssignTags,
+  onAssignPeople,
   onAssignRating,
   onEditMetadata,
   onCancel
 }) => {
   const [showRotateMenu, setShowRotateMenu] = useState(false);
   const [showTagsMenu, setShowTagsMenu] = useState(false);
+  const [showPeopleMenu, setShowPeopleMenu] = useState(false);
   const [showRatingMenu, setShowRatingMenu] = useState(false);
   const [showMetadataMenu, setShowMetadataMenu] = useState(false);
   
+  // Tag and people state
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [people, setPeople] = useState<Person[]>([]);
+  const [selectedTags, setSelectedTags] = useState<number[]>([]);
+  const [selectedPeople, setSelectedPeople] = useState<number[]>([]);
+  const [loadingTags, setLoadingTags] = useState(false);
+  const [loadingPeople, setLoadingPeople] = useState(false);
+  
+  // Fetch tags and people when menus are opened
+  useEffect(() => {
+    if (showTagsMenu && tags.length === 0) {
+      fetchTags();
+    }
+  }, [showTagsMenu, tags.length]);
+  
+  useEffect(() => {
+    if (showPeopleMenu && people.length === 0) {
+      fetchPeople();
+    }
+  }, [showPeopleMenu, people.length]);
+  
+  const fetchTags = async () => {
+    setLoadingTags(true);
+    try {
+      const response = await fetch('/api/tags');
+      const data = await response.json();
+      setTags(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Failed to fetch tags:', error);
+      setTags([]);
+    } finally {
+      setLoadingTags(false);
+    }
+  };
+  
+  const fetchPeople = async () => {
+    setLoadingPeople(true);
+    try {
+      const response = await fetch('/api/entities?limit=100');
+      const data = await response.json();
+      const entities = Array.isArray(data.data) ? data.data : Array.isArray(data) ? data : [];
+      const formattedPeople: Person[] = entities.map((e: any) => ({
+        id: e.id,
+        name: e.fullName || e.name,
+        role: e.primaryRole || e.role || 'Unknown',
+        redFlagRating: e.red_flag_rating || e.redFlagRating || 0
+      }));
+      setPeople(formattedPeople);
+    } catch (error) {
+      console.error('Failed to fetch people:', error);
+      setPeople([]);
+    } finally {
+      setLoadingPeople(false);
+    }
+  };
+  
+  const toggleTagSelection = (tagId: number) => {
+    setSelectedTags(prev => 
+      prev.includes(tagId) 
+        ? prev.filter(id => id !== tagId) 
+        : [...prev, tagId]
+    );
+  };
+  
+  const togglePersonSelection = (personId: number) => {
+    setSelectedPeople(prev => 
+      prev.includes(personId) 
+        ? prev.filter(id => id !== personId) 
+        : [...prev, personId]
+    );
+  };
+  
+  const handleApplyTags = () => {
+    onAssignTags(selectedTags);
+    setShowTagsMenu(false);
+    setSelectedTags([]);
+  };
+  
+  const handleApplyPeople = () => {
+    onAssignPeople(selectedPeople);
+    setShowPeopleMenu(false);
+    setSelectedPeople([]);
+  };
+  
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-xl shadow-2xl">
+    <div className="bg-slate-800/95 backdrop-blur-sm border border-slate-700 rounded-xl shadow-2xl max-w-full">
       <div className="flex items-center gap-1 p-2">
         {/* Selected count */}
-        <div className="px-3 py-2 bg-slate-700 rounded-lg text-sm font-medium text-cyan-400">
+        <div className="px-3 py-2 bg-slate-700 rounded-lg text-sm font-medium text-cyan-400 whitespace-nowrap h-8 flex items-center shrink-0">
           {selectedCount} selected
         </div>
         
         {/* Divider */}
-        <div className="w-px h-6 bg-slate-700"></div>
+        <div className="w-px h-6 bg-slate-700 shrink-0"></div>
         
         {/* Rotate actions */}
-        <div className="relative">
+        <div className="relative shrink-0">
           <button 
             onClick={() => setShowRotateMenu(!showRotateMenu)}
-            className="flex items-center gap-2 px-3 py-2 hover:bg-slate-700 rounded-lg text-sm transition-colors"
+            className="flex items-center gap-2 px-3 py-2 hover:bg-slate-700 rounded-lg text-sm transition-colors h-8"
           >
             <Icon name="RotateCw" size="sm" />
-            <span>Rotate</span>
+            <span className="hidden sm:inline">Rotate</span>
           </button>
           
           {showRotateMenu && (
@@ -71,42 +171,150 @@ export const BatchToolbar: React.FC<BatchToolbarProps> = ({
         </div>
         
         {/* Tags action */}
-        <div className="relative">
+        <div className="relative shrink-0">
           <button 
             onClick={() => setShowTagsMenu(!showTagsMenu)}
-            className="flex items-center gap-2 px-3 py-2 hover:bg-slate-700 rounded-lg text-sm transition-colors"
+            className="flex items-center gap-2 px-3 py-2 hover:bg-slate-700 rounded-lg text-sm transition-colors h-8"
           >
             <Icon name="Tag" size="sm" />
-            <span>Tags</span>
+            <span className="hidden sm:inline">Tags</span>
           </button>
           
           {showTagsMenu && (
-            <div className="absolute bottom-full left-0 mb-2 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 w-64">
+            <div className="absolute bottom-full left-0 mb-2 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 w-80">
               <div className="p-3 border-b border-slate-700">
                 <h3 className="text-sm font-medium text-white mb-2">Assign Tags</h3>
                 <p className="text-xs text-slate-400">Select tags to apply to {selectedCount} images</p>
               </div>
-              <div className="p-2 max-h-40 overflow-y-auto">
-                {/* Placeholder for tags - would be populated from API */}
-                <div className="text-center py-4 text-sm text-slate-500">
-                  Tag selection interface would appear here
-                </div>
+              <div className="p-2 max-h-60 overflow-y-auto">
+                {loadingTags ? (
+                  <div className="text-center py-4 text-sm text-slate-500">
+                    Loading tags...
+                  </div>
+                ) : tags.length === 0 ? (
+                  <div className="text-center py-4 text-sm text-slate-500">
+                    No tags available
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {tags.map(tag => (
+                      <button
+                        key={tag.id}
+                        onClick={() => toggleTagSelection(tag.id)}
+                        className={`flex items-center gap-2 p-2 rounded text-sm text-left transition-colors ${
+                          selectedTags.includes(tag.id)
+                            ? 'bg-cyan-600 text-white'
+                            : 'bg-slate-700 hover:bg-slate-600 text-slate-200'
+                        }`}
+                      >
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: tag.color }}
+                        ></div>
+                        <span className="truncate">{tag.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="p-2 border-t border-slate-700 flex justify-end gap-2">
                 <button 
-                  onClick={() => setShowTagsMenu(false)}
-                  className="px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 rounded-lg"
+                  onClick={() => {
+                    setShowTagsMenu(false);
+                    setSelectedTags([]);
+                  }}
+                  className="px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 rounded-lg h-8"
                 >
                   Cancel
                 </button>
                 <button 
-                  onClick={() => {
-                    onAssignTags([]);
-                    setShowTagsMenu(false);
-                  }}
-                  className="px-3 py-1.5 text-sm bg-cyan-600 hover:bg-cyan-500 rounded-lg"
+                  onClick={handleApplyTags}
+                  disabled={selectedTags.length === 0}
+                  className={`px-3 py-1.5 text-sm rounded-lg ${
+                    selectedTags.length === 0
+                      ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                      : 'bg-cyan-600 hover:bg-cyan-500 text-white'
+                  } h-8`}
                 >
-                  Apply
+                  Apply ({selectedTags.length})
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+        
+        {/* People action */}
+        <div className="relative shrink-0">
+          <button 
+            onClick={() => setShowPeopleMenu(!showPeopleMenu)}
+            className="flex items-center gap-2 px-3 py-2 hover:bg-slate-700 rounded-lg text-sm transition-colors h-8"
+          >
+            <Icon name="User" size="sm" />
+            <span className="hidden sm:inline">People</span>
+          </button>
+          
+          {showPeopleMenu && (
+            <div className="absolute bottom-full left-0 mb-2 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 w-80">
+              <div className="p-3 border-b border-slate-700">
+                <h3 className="text-sm font-medium text-white mb-2">Assign People</h3>
+                <p className="text-xs text-slate-400">Select people to tag in {selectedCount} images</p>
+              </div>
+              <div className="p-2 max-h-60 overflow-y-auto">
+                {loadingPeople ? (
+                  <div className="text-center py-4 text-sm text-slate-500">
+                    Loading people...
+                  </div>
+                ) : people.length === 0 ? (
+                  <div className="text-center py-4 text-sm text-slate-500">
+                    No people available
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {people.map(person => (
+                      <button
+                        key={person.id}
+                        onClick={() => togglePersonSelection(person.id)}
+                        className={`flex items-center gap-2 w-full p-2 rounded text-sm text-left transition-colors ${
+                          selectedPeople.includes(person.id)
+                            ? 'bg-cyan-600 text-white'
+                            : 'bg-slate-700 hover:bg-slate-600 text-slate-200'
+                        }`}
+                      >
+                        <div className="w-6 h-6 rounded-full bg-slate-600 flex items-center justify-center text-xs">
+                          {person.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">{person.name}</div>
+                          <div className="text-xs opacity-75 truncate">{person.role}</div>
+                        </div>
+                        <div className="text-xs">
+                          {person.redFlagRating > 0 && '🚩'.repeat(person.redFlagRating)}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="p-2 border-t border-slate-700 flex justify-end gap-2">
+                <button 
+                  onClick={() => {
+                    setShowPeopleMenu(false);
+                    setSelectedPeople([]);
+                  }}
+                  className="px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 rounded-lg h-8"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleApplyPeople}
+                  disabled={selectedPeople.length === 0}
+                  className={`px-3 py-1.5 text-sm rounded-lg ${
+                    selectedPeople.length === 0
+                      ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                      : 'bg-cyan-600 hover:bg-cyan-500 text-white'
+                  } h-8`}
+                >
+                  Apply ({selectedPeople.length})
                 </button>
               </div>
             </div>
@@ -114,13 +322,13 @@ export const BatchToolbar: React.FC<BatchToolbarProps> = ({
         </div>
         
         {/* Rating action */}
-        <div className="relative">
+        <div className="relative shrink-0">
           <button 
             onClick={() => setShowRatingMenu(!showRatingMenu)}
-            className="flex items-center gap-2 px-3 py-2 hover:bg-slate-700 rounded-lg text-sm transition-colors"
+            className="flex items-center gap-2 px-3 py-2 hover:bg-slate-700 rounded-lg text-sm transition-colors h-8"
           >
             <Icon name="Star" size="sm" />
-            <span>Rating</span>
+            <span className="hidden sm:inline">Rating</span>
           </button>
           
           {showRatingMenu && (
@@ -147,13 +355,13 @@ export const BatchToolbar: React.FC<BatchToolbarProps> = ({
         </div>
         
         {/* Metadata action */}
-        <div className="relative">
+        <div className="relative shrink-0">
           <button 
             onClick={() => setShowMetadataMenu(!showMetadataMenu)}
-            className="flex items-center gap-2 px-3 py-2 hover:bg-slate-700 rounded-lg text-sm transition-colors"
+            className="flex items-center gap-2 px-3 py-2 hover:bg-slate-700 rounded-lg text-sm transition-colors h-8"
           >
             <Icon name="Edit3" size="sm" />
-            <span>Edit</span>
+            <span className="hidden sm:inline">Edit</span>
           </button>
           
           {showMetadataMenu && (
@@ -168,7 +376,7 @@ export const BatchToolbar: React.FC<BatchToolbarProps> = ({
                   <input 
                     type="text" 
                     placeholder="Enter new title"
-                    className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                    className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-500 h-8"
                   />
                 </div>
                 <div>
@@ -183,16 +391,24 @@ export const BatchToolbar: React.FC<BatchToolbarProps> = ({
               <div className="p-2 border-t border-slate-700 flex justify-end gap-2">
                 <button 
                   onClick={() => setShowMetadataMenu(false)}
-                  className="px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 rounded-lg"
+                  className="px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 rounded-lg h-8"
                 >
                   Cancel
                 </button>
                 <button 
                   onClick={() => {
-                    onEditMetadata('', '');
+                    const titleInput = document.querySelector<HTMLInputElement>('.absolute.bottom-full.left-0.mb-2.bg-slate-800.border.border-slate-700.rounded-lg.shadow-xl.z-50.w-80 input');
+                    const descInput = document.querySelector<HTMLTextAreaElement>('.absolute.bottom-full.left-0.mb-2.bg-slate-800.border.border-slate-700.rounded-lg.shadow-xl.z-50.w-80 textarea');
+                    
+                    if (titleInput?.value) {
+                      onEditMetadata('title', titleInput.value);
+                    }
+                    if (descInput?.value) {
+                      onEditMetadata('description', descInput.value);
+                    }
                     setShowMetadataMenu(false);
                   }}
-                  className="px-3 py-1.5 text-sm bg-cyan-600 hover:bg-cyan-500 rounded-lg"
+                  className="px-3 py-1.5 text-sm bg-cyan-600 hover:bg-cyan-500 rounded-lg h-8"
                 >
                   Apply to All
                 </button>
@@ -202,15 +418,15 @@ export const BatchToolbar: React.FC<BatchToolbarProps> = ({
         </div>
         
         {/* Divider */}
-        <div className="w-px h-6 bg-slate-700"></div>
+        <div className="w-px h-6 bg-slate-700 shrink-0"></div>
         
         {/* Cancel button */}
         <button 
           onClick={onCancel}
-          className="flex items-center gap-2 px-3 py-2 hover:bg-slate-700 rounded-lg text-sm transition-colors text-rose-400"
+          className="flex items-center gap-2 px-3 py-2 hover:bg-slate-700 rounded-lg text-sm transition-colors text-rose-400 h-8 shrink-0"
         >
           <Icon name="X" size="sm" />
-          <span>Cancel</span>
+          <span className="hidden sm:inline">Cancel</span>
         </button>
       </div>
     </div>

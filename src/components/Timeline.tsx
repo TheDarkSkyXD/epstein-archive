@@ -21,15 +21,32 @@ export const Timeline: React.FC<TimelineProps> = ({ className = "" }) => {
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [filteredSignificance, setFilteredSignificance] = useState<('high' | 'medium' | 'low')[]>(['high', 'medium', 'low']); // Default to show all
+
+  // Filter events based on significance
+  const filteredEvents = useMemo(() => {
+    return events.filter(event => filteredSignificance.includes(event.significance));
+  }, [events, filteredSignificance]);
 
   // Sort events based on current sort order
   const sortedEvents = useMemo(() => {
-    return [...events].sort((a, b) => {
+    return [...filteredEvents].sort((a, b) => {
       const dateA = a.date.getTime();
       const dateB = b.date.getTime();
       return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
     });
-  }, [events, sortOrder]);
+  }, [filteredEvents, sortOrder]);
+
+  // Toggle significance filter
+  const toggleSignificanceFilter = (significance: 'high' | 'medium' | 'low') => {
+    setFilteredSignificance(prev => {
+      if (prev.includes(significance)) {
+        return prev.filter(s => s !== significance);
+      } else {
+        return [...prev, significance];
+      }
+    });
+  };
 
   useEffect(() => {
     loadTimelineData();
@@ -47,18 +64,19 @@ export const Timeline: React.FC<TimelineProps> = ({ className = "" }) => {
         console.log(`Loaded ${data.length} timeline events from API`);
         
         const timelineEvents: TimelineEvent[] = data.map((event: any) => ({
-          date: new Date(event.event_date),
-          title: event.title,
-          description: event.description,
-          type: (event.event_type?.toLowerCase() as any) || 'document',
+          date: new Date(event.date),
+          title: event.title || 'Untitled Event',
+          description: event.description || `Document: ${event.title || 'Untitled'}`,
+          type: (event.type?.toLowerCase() as any) || 'document',
           file: '', // Optional in new schema
-          entities: event.entities || [],
-          significance: event.significance_score >= 8 ? 'high' : event.significance_score >= 5 ? 'medium' : 'low'
-        }));
+          entities: event.entities || (event.primary_entity ? [event.primary_entity] : []),
+          significance: event.significance_score || 'medium'
+        })).filter(event => !isNaN(event.date.getTime())); // Filter out invalid dates
         
         setEvents(timelineEvents);
       } else {
         console.warn('No timeline events found in API, using sample data');
+        console.log('API response was:', data);
         setEvents(generateSampleEvents());
       }
     } catch (error) {
@@ -535,7 +553,7 @@ export const Timeline: React.FC<TimelineProps> = ({ className = "" }) => {
       <div className={`bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl p-8 ${className}`}>
         <div className="flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400 mr-3"></div>
-          <span className="text-white">Building timeline from evidence data...</span>
+          <span className="text-white">Loading timeline data from evidence database...</span>
         </div>
       </div>
     );
@@ -544,38 +562,75 @@ export const Timeline: React.FC<TimelineProps> = ({ className = "" }) => {
   return (
     <div className={`space-y-8 ${className}`}>
       {/* Timeline Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-        <div>
-          <h2 className="text-3xl font-bold text-white mb-2">Investigation Timeline</h2>
-          <p className="text-slate-400">
-            Chronological sequence of {events.length} significant events extracted from the evidence files.
-          </p>
+      <div className="flex flex-col gap-4 mb-8">
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">Investigation Timeline</h2>
+            <p className="text-sm md:text-base text-slate-400">
+              Chronological sequence of {events.length} significant events extracted from evidence files.
+            </p>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Sort Toggle */}
+        
+        {/* Filters and Sort - Sticky bar */}
+        <div className="sticky top-0 z-20 bg-slate-900/95 backdrop-blur-sm py-3 -mx-4 px-4 md:-mx-6 md:px-6 border-b border-slate-700/50">
+          <div className="flex flex-wrap items-center gap-2">
+          {/* Significance Filters */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => toggleSignificanceFilter('high')}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 border rounded-full transition-all duration-200 text-xs h-7 ${
+                filteredSignificance.includes('high') 
+                  ? 'bg-red-900/40 border-red-500/50 text-red-200' 
+                  : 'bg-red-900/20 border-red-500/30 text-red-300/60 hover:bg-red-900/30'
+              }`}
+            >
+              <div className="w-2 h-2 rounded-full bg-red-500"></div>
+              <span className="hidden sm:inline">High</span>
+            </button>
+            <button
+              onClick={() => toggleSignificanceFilter('medium')}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 border rounded-full transition-all duration-200 text-xs h-7 ${
+                filteredSignificance.includes('medium') 
+                  ? 'bg-yellow-900/40 border-yellow-500/50 text-yellow-200' 
+                  : 'bg-yellow-900/20 border-yellow-500/30 text-yellow-300/60 hover:bg-yellow-900/30'
+              }`}
+            >
+              <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+              <span className="hidden sm:inline">Medium</span>
+            </button>
+            <button
+              onClick={() => toggleSignificanceFilter('low')}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 border rounded-full transition-all duration-200 text-xs h-7 ${
+                filteredSignificance.includes('low') 
+                  ? 'bg-green-900/40 border-green-500/50 text-green-200' 
+                  : 'bg-green-900/20 border-green-500/30 text-green-300/60 hover:bg-green-900/30'
+              }`}
+            >
+              <div className="w-2 h-2 rounded-full bg-green-500"></div>
+              <span className="hidden sm:inline">Low</span>
+            </button>
+          </div>
+          
+          {/* Spacer to push sort button right */}
+          <div className="flex-grow"></div>
+          
+          {/* Sort Toggle - Far Right */}
           <button
             onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
-            className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 border border-slate-600 rounded-full hover:bg-slate-700 hover:border-slate-500 transition-all duration-200 text-sm text-slate-200"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 border border-slate-600 rounded-full hover:bg-slate-700 hover:border-slate-500 transition-all duration-200 text-xs text-slate-200 h-7 whitespace-nowrap"
             title={sortOrder === 'desc' ? 'Showing newest first' : 'Showing oldest first'}
           >
             {sortOrder === 'desc' ? (
-              <><ArrowDown className="w-4 h-4" /><span>Newest First</span></>
+              <><ArrowDown className="w-3.5 h-3.5" /><span>Newest First</span></>
             ) : (
-              <><ArrowUp className="w-4 h-4" /><span>Oldest First</span></>
+              <><ArrowUp className="w-3.5 h-3.5" /><span>Oldest First</span></>
             )}
           </button>
-          
-          {/* Significance Legend */}
-          <div className="flex items-center gap-2 px-3 py-1 bg-red-900/20 border border-red-500/30 rounded-full">
-            <div className="w-2 h-2 rounded-full bg-red-500"></div>
-            <span className="text-xs text-red-200">High Significance</span>
-          </div>
-          <div className="flex items-center gap-2 px-3 py-1 bg-yellow-900/20 border border-yellow-500/30 rounded-full">
-            <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
-            <span className="text-xs text-yellow-200">Medium</span>
           </div>
         </div>
       </div>
+
 
       <div className="relative border-l-2 border-slate-700 ml-4 md:ml-6 space-y-8">
         {sortedEvents.map((event, index) => (

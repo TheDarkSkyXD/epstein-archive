@@ -1300,6 +1300,9 @@ app.get('/api/media/images', async (req, res, next) => {
     if (req.query.personId) {
        filter.personId = parseInt(req.query.personId as string);
     }
+    if (req.query.hasPeople === 'true') {
+       filter.hasPeople = true;
+    }
     
     if (req.query.sortField) {
       sort.field = req.query.sortField as string;
@@ -1478,71 +1481,10 @@ app.get('/api/media/images/:id/thumbnail', async (req, res, next) => {
 
 // Search images
 
-// Update image metadata (Admin only)
-app.put('/api/media/images/:id', authenticateRequest, requireRole('admin'), async (req, res, next) => {
-  try {
-    const imageId = parseInt(req.params.id);
-    if (isNaN(imageId)) {
-      return res.status(400).json({ error: 'Invalid image ID' });
-    }
-    
-    // Only allow specific fields to be updated
-    const updates: any = {};
-    if (req.body.title !== undefined) updates.title = req.body.title;
-    if (req.body.description !== undefined) updates.description = req.body.description;
-    
-    mediaService.updateImage(imageId, updates);
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error updating image:', error);
-    next(error);
-  }
-});
 
-// Rotate image (Admin only)
-app.put('/api/media/images/:id/rotate', authenticateRequest, requireRole('admin'), async (req, res, next) => {
-  try {
-    const imageId = parseInt(req.params.id);
-    const direction = req.body.direction === 'left' ? -90 : 90; // Default to right/clockwise
-    
-    if (isNaN(imageId)) {
-      return res.status(400).json({ error: 'Invalid image ID' });
-    }
-    
-    const image = mediaService.getImageById(imageId);
-    if (!image) {
-      return res.status(404).json({ error: 'Image not found' });
-    }
-    
-    // Use MediaService to physically rotate the image file
-    // This solves the "Double Rotation" display issues by normalizing 
-    // the image pixels and resetting EXIF orientation to 1.
-    await mediaService.rotateImage(imageId, direction);
-    
-    // Regenerate thumbnail with new orientation
-    const thumbnailDir = path.dirname((image as any).thumbnail_path || image.thumbnailPath || path.join(path.dirname(image.path), 'thumbnails'));
-    // Ensure we have a valid thumbnail directory. If image.thumbnail_path exists, use its dir. 
-    // If not, assume 'thumbnails' subdir of image path (standard structure)
-    
-    try {
-      await mediaService.generateThumbnail(
-        image.path, 
-        thumbnailDir, 
-        { force: true, orientation: 1 }
-      );
-    } catch (err) {
-      console.error('Failed to regenerate thumbnail during rotation:', err);
-      // Continue, as the DB update was successful
-    }
-    
-    // Return the updated image so frontend can reflect changes immediately
-    const updatedImage = mediaService.getImageById(imageId);
-    res.json(updatedImage);
-  } catch (error) {
-    console.error('Error rotating image:', error);
-    next(error);
-  }
-});
+// ============================================================================
+// BATCH OPERATIONS (Must be defined BEFORE single image routes with :id)
+// ============================================================================
 
 // Batch rotate images (Admin only)
 app.put('/api/media/images/batch/rotate', authenticateRequest, requireRole('admin'), async (req, res, next) => {
@@ -1755,6 +1697,128 @@ app.put('/api/media/images/batch/metadata', authenticateRequest, requireRole('ad
   }
 });
 
+// Batch tag people in images (Admin only)
+app.put('/api/media/images/batch/people', authenticateRequest, requireRole('admin'), async (req, res, next) => {
+  try {
+    const { imageIds, entityIds, action } = req.body; // action: 'add' or 'remove'
+    
+    if (!Array.isArray(imageIds) || imageIds.length === 0) {
+      return res.status(400).json({ error: 'Invalid image IDs' });
+    }
+    
+    if (!Array.isArray(entityIds) || entityIds.length === 0) {
+      return res.status(400).json({ error: 'Invalid entity IDs' });
+    }
+    
+    if (!['add', 'remove'].includes(action)) {
+      return res.status(400).json({ error: 'Invalid action' });
+    }
+    
+    const results = [];
+    const db = getDb();
+    
+    // Process each image
+    for (const imageId of imageIds) {
+      try {
+        const id = parseInt(imageId.toString());
+        if (isNaN(id)) continue;
+        
+        // Process each entity
+        for (const entityId of entityIds) {
+          const eid = parseInt(entityId.toString());
+          if (isNaN(eid)) continue;
+          
+          if (action === 'add') {
+            // Add person to image
+            db.prepare('INSERT OR IGNORE INTO media_people (media_id, entity_id) VALUES (?, ?)').run(id, eid);
+          } else {
+            // Remove person from image
+            db.prepare('DELETE FROM media_people WHERE media_id = ? AND entity_id = ?').run(id, eid);
+          }
+        }
+        
+        results.push({ id, success: true });
+      } catch (err) {
+        console.error(`Error tagging people in image ${imageId}:`, err);
+        results.push({ id: imageId, success: false, error: err.message });
+      }
+    }
+    
+    res.json({ results });
+  } catch (error) {
+    console.error('Error batch tagging people in images:', error);
+    next(error);
+  }
+});
+
+
+app.put('/api/media/images/:id', authenticateRequest, requireRole('admin'), async (req, res, next) => {
+  try {
+    const imageId = parseInt(req.params.id);
+    if (isNaN(imageId)) {
+      return res.status(400).json({ error: 'Invalid image ID' });
+    }
+    
+    // Only allow specific fields to be updated
+    const updates: any = {};
+    if (req.body.title !== undefined) updates.title = req.body.title;
+    if (req.body.description !== undefined) updates.description = req.body.description;
+    
+    mediaService.updateImage(imageId, updates);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating image:', error);
+    next(error);
+  }
+});
+
+// Rotate image (Admin only)
+app.put('/api/media/images/:id/rotate', authenticateRequest, requireRole('admin'), async (req, res, next) => {
+  try {
+    const imageId = parseInt(req.params.id);
+    const direction = req.body.direction === 'left' ? -90 : 90; // Default to right/clockwise
+    
+    if (isNaN(imageId)) {
+      return res.status(400).json({ error: 'Invalid image ID' });
+    }
+    
+    const image = mediaService.getImageById(imageId);
+    if (!image) {
+      return res.status(404).json({ error: 'Image not found' });
+    }
+    
+    // Use MediaService to physically rotate the image file
+    // This solves the "Double Rotation" display issues by normalizing 
+    // the image pixels and resetting EXIF orientation to 1.
+    await mediaService.rotateImage(imageId, direction);
+    
+    // Regenerate thumbnail with new orientation
+    const thumbnailDir = path.dirname((image as any).thumbnail_path || image.thumbnailPath || path.join(path.dirname(image.path), 'thumbnails'));
+    // Ensure we have a valid thumbnail directory. If image.thumbnail_path exists, use its dir. 
+    // If not, assume 'thumbnails' subdir of image path (standard structure)
+    
+    try {
+      await mediaService.generateThumbnail(
+        image.path, 
+        thumbnailDir, 
+        { force: true, orientation: 1 }
+      );
+    } catch (err) {
+      console.error('Failed to regenerate thumbnail during rotation:', err);
+      // Continue, as the DB update was successful
+    }
+    
+    // Return the updated image so frontend can reflect changes immediately
+    const updatedImage = mediaService.getImageById(imageId);
+    res.json(updatedImage);
+  } catch (error) {
+    console.error('Error rotating image:', error);
+    next(error);
+  }
+});
+
+
+
 // Delete image (Admin only)
 app.delete('/api/media/images/:id', authenticateRequest, requireRole('admin'), async (req, res, next) => {
   try {
@@ -1783,6 +1847,17 @@ app.get('/api/media/search', async (req, res, next) => {
     res.json(images);
   } catch (error) {
     console.error('Error searching images:', error);
+    next(error);
+  }
+});
+
+// Get all media tags
+app.get('/api/media/tags', async (_req, res, next) => {
+  try {
+    const tags = mediaService.getAllTags();
+    res.json(tags);
+  } catch (error) {
+    console.error('Error fetching tags:', error);
     next(error);
   }
 });

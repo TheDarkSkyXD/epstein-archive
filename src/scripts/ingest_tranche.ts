@@ -4,8 +4,12 @@ import fs from 'fs';
 import path from 'path';
 import sharp from 'sharp';
 import exifParser from 'exif-parser';
+import { createCanvas, loadImage } from 'canvas';
+import * as tf from '@tensorflow/tfjs';
+import '@tensorflow/tfjs-backend-cpu';
+import * as cocoSsd from '@tensorflow-models/coco-ssd';
 
-const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), 'epstein-archive.db');
+const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), 'epstein-archive-production.db'); // Use PRODUCTION DB by default
 const db = new Database(DB_PATH);
 
 const TARGET_DIR = '/home/deploy/epstein-archive/data/media/images/12.11.25 Estate Production';
@@ -18,23 +22,29 @@ async function run() {
       process.exit(1);
   }
 
+  // Load Model
+  console.log('Loading TensorFlow model...');
+  await tf.setBackend('cpu');
+  const model = await cocoSsd.load();
+  console.log('Model loaded.');
+
   const files = fs.readdirSync(TARGET_DIR);
   const imageFiles = files.filter(f => f.match(/\.(jpg|jpeg|png)$/i) && !f.startsWith('thumb_'));
 
   console.log(`Found ${imageFiles.length} images to process.`);
 
-  for (const filename of imageFiles) {
+  for (const [index, filename] of imageFiles.entries()) {
     const filePath = path.join(TARGET_DIR, filename);
-    await processFile(filePath);
+    await processFile(filePath, model);
+    if ((index + 1) % 10 === 0) console.log(`Processed ${index + 1}/${imageFiles.length}...`);
   }
   
   console.log('Ingestion complete.');
 }
 
-async function processFile(filePath: string) {
+async function processFile(filePath: string, model: cocoSsd.ObjectDetection) {
     const filename = path.basename(filePath);
-    // console.log(`Processing ${filename}...`);
-
+    
     // 1. Parse EXIF and Metadata
     const buffer = fs.readFileSync(filePath);
     let tags: any = {};
@@ -58,7 +68,6 @@ async function processFile(filePath: string) {
             orientation = meta.orientation || orientation;
         }
     } catch (e) {
-        // console.warn(`Metadata parse failed for ${filename}:`, e.message);
          try {
             const meta = await sharp(buffer).metadata();
             width = meta.width || 0;
@@ -69,11 +78,10 @@ async function processFile(filePath: string) {
     const stat = fs.statSync(filePath);
     
     // 2. Check if exists in DB
+    let imageId: number | bigint;
     const existing = db.prepare('SELECT id, path FROM media_images WHERE filename = ?').get(filename) as any;
     
     if (existing) {
-        // console.log(`Updating existing record ID ${existing.id}...`);
-        // Update
         db.prepare(`
             UPDATE media_images SET 
                 file_size = ?,
@@ -90,17 +98,9 @@ async function processFile(filePath: string) {
             tags.DateTimeOriginal ? new Date(tags.DateTimeOriginal * 1000).toISOString() : null,
             existing.id
         );
-        
-        // Regenerate thumbnail if missing
-        const thumbDir = path.join(path.dirname(filePath), 'thumbnails');
-        const thumbPath = path.join(thumbDir, `thumb_${filename}`);
-        if (!fs.existsSync(thumbPath)) {
-            await generateThumbnail(existing.id, filePath);
-        }
-        
+        imageId = existing.id;
     } else {
         console.log(`Inserting new record: ${filename}`);
-        // Insert
         const info = db.prepare(`
            INSERT INTO media_images (
             filename, original_filename, path, file_size, format,
@@ -123,9 +123,49 @@ async function processFile(filePath: string) {
             null,
             orientation
         );
-        
-        await generateThumbnail(info.lastInsertRowid as number, filePath);
+        imageId = info.lastInsertRowid;
     }
+
+    // 3. Generate Thumbnail
+    const thumbDir = path.join(path.dirname(filePath), 'thumbnails');
+    const thumbPath = path.join(thumbDir, `thumb_${filename}`);
+    if (!fs.existsSync(thumbPath)) {
+        await generateThumbnail(Number(imageId), filePath);
+    }
+    
+    // 4. Enrich with Object Detection
+    try {
+        const img = await loadImage(buffer);
+        // TensorFlow expects HTMLImageElement or Canvas. Node canvas is compatible.
+        // But coco-ssd strict typing might complain. Cast to any.
+        const predictions = await model.detect(img as any);
+        
+        const validPredictions = predictions.filter(p => p.score > 0.6);
+        if (validPredictions.length > 0) {
+            // console.log(`  Found ${validPredictions.length} objects: ${validPredictions.map(p => p.class).join(', ')}`);
+            for (const p of validPredictions) {
+                await addTagToImage(Number(imageId), p.class);
+            }
+        }
+    } catch (e) {
+        console.error(`Object detection failed for ${filename}:`, e);
+    }
+}
+
+async function addTagToImage(imageId: number, tagName: string) {
+    const normalized = tagName.toLowerCase();
+    
+    // Ensure tag exists
+    let tag = db.prepare('SELECT id FROM tags WHERE name = ?').get(normalized) as any;
+    if (!tag) {
+        const info = db.prepare(`INSERT INTO tags (name, category) VALUES (?, 'auto')`).run(normalized);
+        tag = { id: info.lastInsertRowid };
+    }
+    
+    // Link to image
+    try {
+        db.prepare('INSERT OR IGNORE INTO image_tags (image_id, tag_id) VALUES (?, ?)').run(imageId, tag.id);
+    } catch (e) {}
 }
 
 async function generateThumbnail(id: number, filePath: string) {
@@ -144,7 +184,6 @@ async function generateThumbnail(id: number, filePath: string) {
             
         // Update DB with thumb path
         db.prepare('UPDATE media_images SET thumbnail_path = ? WHERE id = ?').run(thumbPath, id);
-        // console.log('Thumbnail generated.');
     } catch (e) {
         console.error(`Thumbnail generation failed for ${path.basename(filePath)}:`, e);
     }

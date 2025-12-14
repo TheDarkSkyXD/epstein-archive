@@ -1,8 +1,7 @@
 {
   "name": "epstein-archive",
   "private": true,
-  "version": "6.7.0"
-  "description": "Epstein Archive Analyzer",
+  "version": "7.0.0",  "description": "Epstein Archive Analyzer",
   "type": "module",
   "scripts": {
     "dev": "DB_PATH=./epstein-archive-production.db vite",

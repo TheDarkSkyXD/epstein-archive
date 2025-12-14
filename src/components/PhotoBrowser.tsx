@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { MediaImage, Album } from '../types/media.types';
 import Icon from './Icon';
 import MediaViewerModal from './MediaViewerModal';
@@ -25,6 +26,9 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
   const [loading, setLoading] = useState(true);
   const [viewerStartIndex, setViewerStartIndex] = useState<number | null>(null);
   const [showAlbumDropdown, setShowAlbumDropdown] = useState(false); // Mobile album dropdown
+  const [hasPeopleOnly, setHasPeopleOnly] = useState(false); // Filter: Has people
+  const [availableTags, setAvailableTags] = useState<any[]>([]);
+  const [availablePeople, setAvailablePeople] = useState<any[]>([]);
   
   // Batch selection state
   const [selectedImages, setSelectedImages] = useState<Set<number>>(new Set());
@@ -37,10 +41,37 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
     const albumId = params.get('albumId');
     const tagId = params.get('tagId');
     const personId = params.get('personId');
+    const hasPeople = params.get('hasPeople');
     
     if (albumId) setSelectedAlbum(parseInt(albumId));
     if (tagId) setSelectedTag(parseInt(tagId));
     if (personId) setSelectedPerson(parseInt(personId));
+    if (hasPeople === 'true') setHasPeopleOnly(true);
+  }, []);
+
+  // Load available tags and people
+  useEffect(() => {
+    const loadFilters = async () => {
+      try {
+        const [tagsRes, peopleRes] = await Promise.all([
+          fetch('/api/media/tags'),
+          fetch('/api/entities/all')
+        ]);
+        
+        if (tagsRes.ok) {
+          const tags = await tagsRes.json();
+          setAvailableTags(tags);
+        }
+        
+        if (peopleRes.ok) {
+          const people = await peopleRes.json();
+          setAvailablePeople(people);
+        }
+      } catch (error) {
+        console.error('Failed to load filters:', error);
+      }
+    };
+    loadFilters();
   }, []);
 
   useEffect(() => {
@@ -61,9 +92,12 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
     if (selectedPerson) url.searchParams.set('personId', selectedPerson.toString());
     else url.searchParams.delete('personId');
 
+    if (hasPeopleOnly) url.searchParams.set('hasPeople', 'true');
+    else url.searchParams.delete('hasPeople');
+
     window.history.replaceState({}, '', url);
     loadImages();
-  }, [selectedAlbum, selectedTag, selectedPerson]);
+  }, [selectedAlbum, selectedTag, selectedPerson, hasPeopleOnly]);
   
   // Keyboard shortcuts
   useEffect(() => {
@@ -122,6 +156,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
       if (selectedAlbum) params.append('albumId', selectedAlbum.toString());
       if (selectedTag) params.append('tagId', selectedTag.toString());
       if (selectedPerson) params.append('personId', selectedPerson.toString());
+      if (hasPeopleOnly) params.append('hasPeople', 'true');
       if (sortField) params.append('sortField', sortField);
       if (sortOrder) params.append('sortOrder', sortOrder);
       if (searchQuery) params.append('search', searchQuery);
@@ -296,7 +331,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
       setImages(updatedImages);
       
       // Show success message
-      console.log(`Successfully rotated ${results.filter(r => r.success).length} images`);
+      console.log(`Successfully rotated ${results.filter((r: any) => r.success).length} images`);
     } catch (error) {
       console.error('Error batch rotating images:', error);
       alert('Failed to rotate images');
@@ -337,7 +372,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
       setImages(updatedImages);
       
       // Show success message
-      console.log(`Successfully rated ${results.filter(r => r.success).length} images`);
+      console.log(`Successfully tagged ${results.filter((r: any) => r.success).length} images`);
     } catch (error) {
       console.error('Error batch rating images:', error);
       alert('Failed to rate images');
@@ -377,6 +412,39 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
     }
   };
   
+  const handleBatchPeople = async (entityIds: number[], action: 'add' | 'remove') => {
+    if (selectedImages.size === 0) return;
+    
+    try {
+      const response = await fetch('/api/media/images/batch/people', {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          imageIds: Array.from(selectedImages),
+          entityIds,
+          action
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to batch ${action} people`);
+      }
+      
+      const { results } = await response.json();
+      
+      // For simplicity, we're not updating the UI with people changes
+      // In a real implementation, we might want to refetch people for affected images
+      
+      // Show success message
+      console.log(`Successfully tagged people for ${results.filter((r: any) => r.success).length} images`);
+    } catch (error) {
+      console.error(`Error batch ${action}ing people:`, error);
+      alert(`Failed to ${action} people`);
+    }
+  };
+  
   const handleBatchMetadata = async (updates: { title?: string; description?: string }) => {
     if (selectedImages.size === 0) return;
     
@@ -411,7 +479,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
       setImages(updatedImages);
       
       // Show success message
-      console.log(`Successfully updated metadata for ${results.filter(r => r.success).length} images`);
+      console.log(`Successfully updated metadata for ${results.filter((r: any) => r.success).length} images`);
     } catch (error) {
       console.error('Error batch updating metadata:', error);
       alert('Failed to update metadata');
@@ -457,7 +525,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
         <div className="md:hidden">
           <button
             onClick={() => setShowAlbumDropdown(!showAlbumDropdown)}
-            className="w-full flex items-center justify-between px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm"
+            className="w-full flex items-center justify-between px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm h-8"
           >
             <span className="flex items-center gap-2">
               <Icon name="Folder" size="sm" />
@@ -497,13 +565,13 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
               placeholder="Search images..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg text-slate-200 pl-9 pr-3 py-2 md:py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500 placeholder-slate-500 transition-all"
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg text-slate-200 pl-9 pr-3 py-2 md:py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-cyan-500 placeholder-slate-500 transition-all h-8"
             />
           </div>
            {/* Mobile share button */}
            <button 
               onClick={handleShare}
-              className="md:hidden flex items-center justify-center w-10 bg-slate-800 border border-slate-700 rounded-lg text-slate-400 hover:text-white"
+              className="md:hidden flex items-center justify-center w-10 bg-slate-800 border border-slate-700 rounded-lg text-slate-400 hover:text-white h-8"
            >
               {showCopied ? <Icon name="Check" size="sm" className="text-green-500"/> : <Icon name="Share2" size="sm" />}
            </button>
@@ -513,18 +581,55 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
         <div className="hidden md:flex items-center gap-3">
           <button 
              onClick={handleShare}
-             className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 rounded text-xs transition-colors"
+             className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 rounded text-xs transition-colors h-8"
           >
              {showCopied ? <Icon name="Check" size="sm" className="text-green-500" /> : <Icon name="Share2" size="sm" />}
              Share
           </button>
+
+
+          {/* Filters */}
+          <div className="flex items-center gap-2">
+            <select
+              value={selectedTag || ''}
+              onChange={(e) => setSelectedTag(e.target.value ? parseInt(e.target.value) : null)}
+              className="bg-slate-800 border border-slate-700 rounded text-slate-300 text-xs px-2 py-1 focus:outline-none focus:border-cyan-500 h-8 max-w-[100px]"
+            >
+              <option value="">All Tags</option>
+              {availableTags.map(tag => (
+                <option key={tag.id} value={tag.id}>{tag.name}</option>
+              ))}
+            </select>
+
+            <select
+              value={selectedPerson || ''}
+              onChange={(e) => setSelectedPerson(e.target.value ? parseInt(e.target.value) : null)}
+              className="bg-slate-800 border border-slate-700 rounded text-slate-300 text-xs px-2 py-1 focus:outline-none focus:border-cyan-500 h-8 max-w-[100px]"
+            >
+              <option value="">All People</option>
+              {availablePeople.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+
+            <button
+               onClick={() => setHasPeopleOnly(!hasPeopleOnly)}
+               className={`flex items-center gap-2 px-3 py-1.5 border rounded text-xs transition-colors h-8 ${hasPeopleOnly ? 'bg-cyan-900/50 border-cyan-500 text-cyan-400' : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white'}`}
+               title="Show only images with people"
+            >
+               <Icon name="Users" size="sm" />
+            </button>
+          </div>
+
+          <div className="w-px h-6 bg-slate-700 mx-1"></div>
+
 
           <div className="flex items-center gap-2">
             <span className="text-xs text-slate-500 font-medium">Sort by:</span>
             <select
               value={sortField}
               onChange={(e) => setSortField(e.target.value as SortField)}
-              className="bg-slate-800 border border-slate-700 rounded text-slate-300 text-xs px-2 py-1 focus:outline-none focus:border-cyan-500"
+              className="bg-slate-800 border border-slate-700 rounded text-slate-300 text-xs px-2 py-1 focus:outline-none focus:border-cyan-500 h-8"
             >
               <option value="date_added">Date Added</option>
               <option value="date_taken">Date Taken</option>
@@ -542,16 +647,16 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
             <Icon name={sortOrder === 'asc' ? 'ArrowUp' : 'ArrowDown'} size="sm" />
           </button>
 
-          <div className="flex bg-slate-800 p-0.5 rounded border border-slate-700">
+          <div className="flex bg-slate-800 p-0.5 rounded border border-slate-700 h-8">
             <button
-              className={`w-8 h-7 flex items-center justify-center rounded ${viewMode === 'grid' ? 'bg-slate-600 text-white' : 'text-slate-400 hover:text-white'}`}
+              className={`w-8 h-full flex items-center justify-center rounded ${viewMode === 'grid' ? 'bg-slate-600 text-white' : 'text-slate-400 hover:text-white'}`}
               onClick={() => setViewMode('grid')}
               title="Grid View"
             >
               <Icon name="Grid" size="sm" />
             </button>
             <button
-               className={`w-8 h-7 flex items-center justify-center rounded ${viewMode === 'list' ? 'bg-slate-600 text-white' : 'text-slate-400 hover:text-white'}`}
+               className={`w-8 h-full flex items-center justify-center rounded ${viewMode === 'list' ? 'bg-slate-600 text-white' : 'text-slate-400 hover:text-white'}`}
               onClick={() => setViewMode('list')}
               title="List View"
             >
@@ -562,7 +667,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
           {/* Batch Mode Toggle */}
           <button
             onClick={isBatchMode ? exitBatchMode : enterBatchMode}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs font-medium transition-colors ${isBatchMode ? 'bg-cyan-600 hover:bg-cyan-500 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700'}`}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs font-medium transition-colors ${isBatchMode ? 'bg-cyan-600 hover:bg-cyan-500 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700'} h-8`}
           >
             <Icon name="CheckSquare" size="sm" />
             {isBatchMode ? 'Exit Batch Mode' : 'Batch Edit'}
@@ -726,10 +831,10 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
                     </div>
                 )}
                             
-                {/* Batch Toolbar */}
-                {isBatchMode && (
-                  <div className="sticky bottom-0 left-0 right-0 flex justify-center p-4 bg-gradient-to-t from-slate-950 to-transparent pointer-events-none">
-                    <div className="pointer-events-auto">
+                {/* Batch Toolbar - Rendered via Portal for true viewport positioning */}
+                {isBatchMode && createPortal(
+                  <div className="fixed bottom-8 left-0 right-0 flex justify-center z-[1000] pointer-events-none">
+                    <div className="mx-4 max-w-[calc(100vw-2rem)] md:max-w-fit pointer-events-auto">
                       <BatchToolbar 
                         selectedCount={selectedImages.size}
                         onRotate={handleBatchRotate}
@@ -737,10 +842,14 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
                           // For now, we'll just add tags
                           handleBatchTag(tags, 'add');
                         }}
+                        onAssignPeople={(people) => {
+                          // For now, we'll just add people
+                          handleBatchPeople(people, 'add');
+                        }}
                         onAssignRating={handleBatchRate}
                         onEditMetadata={(field, value) => {
                           // Create updates object based on field
-                          const updates = {};
+                          const updates: any = {};
                           if (field === 'title') {
                             updates.title = value;
                           } else if (field === 'description') {
@@ -751,7 +860,8 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
                         onCancel={exitBatchMode}
                       />
                     </div>
-                  </div>
+                  </div>,
+                  document.body
                 )}
             </div>
         </div>
@@ -769,6 +879,14 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
           images={images}
           initialIndex={viewerStartIndex}
           onClose={handleCloseViewer}
+          onImageUpdate={(updatedImage) => {
+            const newImages = [...images];
+            const index = newImages.findIndex(img => img.id === updatedImage.id);
+            if (index !== -1) {
+              newImages[index] = updatedImage;
+              setImages(newImages);
+            }
+          }}
         />
       )}
     </div>

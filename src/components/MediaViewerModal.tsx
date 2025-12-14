@@ -14,9 +14,10 @@ interface MediaViewerModalProps {
   images: MediaImage[];
   initialIndex: number;
   onClose: () => void;
+  onImageUpdate?: (updatedImage: MediaImage) => void;
 }
 
-const MediaViewerModal: React.FC<MediaViewerModalProps> = ({ images, initialIndex, onClose }) => {
+const MediaViewerModal: React.FC<MediaViewerModalProps> = ({ images, initialIndex, onClose, onImageUpdate }) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [showSidebar, setShowSidebar] = useState(true);
   const [isZoomed, setIsZoomed] = useState(false);
@@ -62,6 +63,13 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({ images, initialInde
   const [imagePeople, setImagePeople] = useState<any[]>([]);
 
   // Fetch tags and people when image changes
+  useEffect(() => {
+    // Close sidebar on mobile by default
+    if (window.innerWidth < 768) {
+      setShowSidebar(false);
+    }
+  }, []); // Run once on mount
+
   useEffect(() => {
     if (!currentImage) return;
     
@@ -110,7 +118,13 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({ images, initialInde
         }
         // Update images array in parent component if possible
         if (images && images[currentIndex]) {
-          images[currentIndex] = {...images[currentIndex], ...updatedImage};
+          const newImage = {...images[currentIndex], ...updatedImage};
+          images[currentIndex] = newImage;
+          
+          // Notify parent of update to refresh grid/thumbnails
+          if (onImageUpdate) {
+            onImageUpdate(newImage);
+          }
         }
       }
     } catch (e) {
@@ -140,6 +154,11 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({ images, initialInde
         currentImage.title = editTitle;
         currentImage.description = editDesc;
         setIsEditing(false);
+        
+        // Notify parent
+        if (onImageUpdate) {
+            onImageUpdate({...currentImage});
+        }
       } else {
         console.error('Failed to save');
         alert('Failed to save changes');
@@ -228,7 +247,7 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({ images, initialInde
   return createPortal(
     <div className="fixed inset-0 z-[1100] bg-black flex overflow-hidden">
       {/* Main Image Area */}
-      <div className={`relative flex-1 flex flex-col h-full transition-all duration-300 ${showSidebar ? 'mr-80' : 'mr-0'}`}>
+      <div className={`relative flex-1 flex flex-col h-full transition-all duration-300 ${showSidebar ? 'md:mr-80' : 'mr-0'}`}>
         
         {/* Toolbar */}
         <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-black/80 to-transparent p-4 flex justify-between items-start z-20 pointer-events-none">
@@ -299,7 +318,7 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({ images, initialInde
       </div>
 
       {/* Sidebar */}
-      <div className={`fixed right-0 top-0 bottom-0 w-80 bg-slate-900 border-l border-slate-800 transition-transform duration-300 ease-in-out z-30 overflow-y-auto ${showSidebar ? 'translate-x-0' : 'translate-x-full'}`}>
+      <div className={`fixed right-0 top-0 bottom-0 w-full md:w-80 bg-slate-900 border-l border-slate-800 transition-transform duration-300 ease-in-out z-30 overflow-y-auto ${showSidebar ? 'translate-x-0' : 'translate-x-full'}`}>
          <div className="p-6 space-y-8">
             {/* Header */}
             <div>
@@ -314,17 +333,25 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({ images, initialInde
                    />
                  </div>
                ) : (
-                 <>
-                   <div className="flex justify-between items-start gap-2">
-                     <h3 className="text-xl font-bold text-white mb-2 break-words">{currentImage.title}</h3>
-                     {isAdmin && (
-                       <button onClick={() => setIsEditing(true)} className="text-slate-500 hover:text-cyan-400">
-                         <Edit2 size={16} />
-                       </button>
-                     )}
-                   </div>
-                   <p className="text-sm text-slate-400 truncate" title={currentImage.filename}>{currentImage.filename}</p>
-                 </>
+                  <>
+                    <div className="flex justify-between items-start gap-2">
+                      <h3 className="text-xl font-bold text-white mb-2 break-words">{currentImage.title}</h3>
+                      <div className="flex items-center gap-2">
+                        {isAdmin && (
+                          <button onClick={() => setIsEditing(true)} className="text-slate-500 hover:text-cyan-400">
+                            <Edit2 size={16} />
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => setShowSidebar(false)} 
+                          className="md:hidden text-slate-500 hover:text-white"
+                        >
+                          <X size={20} />
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-sm text-slate-400 truncate" title={currentImage.filename}>{currentImage.filename}</p>
+                  </>
                )}
             </div>
             

@@ -16,6 +16,18 @@ interface PersonCardProps {
 const PersonCard: React.FC<PersonCardProps> = ({ person, onClick, onDocumentClick, searchTerm }) => {
   const navigate = useNavigate();
   const rating = Number((person as any).red_flag_rating ?? (person as any).redFlagRating ?? (person as any).spiceRating ?? 0);
+  const [photos, setPhotos] = React.useState<any[]>([]);
+  
+  React.useEffect(() => {
+    if (person.id) {
+        fetch(`/api/media/images?personId=${person.id}`)
+            .then(res => res.json())
+            .then(data => {
+                if (Array.isArray(data)) setPhotos(data.slice(0, 5)); // Limit to 5 thumbs
+            })
+            .catch(err => console.error('Failed to load person photos', err));
+    }
+  }, [person.id]);
   
   // Get entity type icon
   const getEntityIcon = () => {
@@ -126,6 +138,48 @@ const PersonCard: React.FC<PersonCardProps> = ({ person, onClick, onDocumentClic
         </div>
       )}
       
+      {/* Photos Preview - New Section */}
+      {photos.length > 0 && (
+        <div className="mb-3">
+             <div className="flex items-center gap-1 text-xs text-slate-500 mb-1.5 font-medium uppercase tracking-wider">
+                <Icon name="Image" size="xs" /> Photos ({photos.length})
+             </div>
+             <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                {photos.map(photo => (
+                    <div 
+                        key={photo.id}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            // Open photo in viewer (navigate to media with photoId)
+                            // We can use the global viewer if we navigate to /media
+                            navigate(`/media?photoId=${photo.id}`);
+                        }}
+                        className="relative flex-shrink-0 w-12 h-12 rounded overflow-hidden border border-slate-700/50 hover:border-cyan-500/50 cursor-pointer transition-colors"
+                        title={photo.title}
+                    >
+                         <img 
+                            src={`/api/media/images/${photo.id}/thumbnail`} 
+                            alt={photo.title}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                         />
+                    </div>
+                ))}
+                {photos.length >= 5 && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/media?personId=${person.id}`);
+                        }}
+                        className="flex-shrink-0 w-12 h-12 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-xs text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+                    >
+                        <Icon name="ArrowRight" size="xs" />
+                    </button>
+                )}
+             </div>
+        </div>
+      )}
+
       {/* Footer - action buttons */}      <div className="flex items-center justify-between pt-2 border-t border-slate-700/30">
         <div className="flex items-center gap-1">
           <button 

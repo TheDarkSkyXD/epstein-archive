@@ -10,6 +10,7 @@ interface TagData {
 interface TagSelectorProps {
   selectedTags: TagData[];
   onTagsChange: (tags: TagData[]) => void;
+  onTagClick?: (tag: TagData) => void;
   mediaId: number;
   className?: string;
 }
@@ -17,6 +18,7 @@ interface TagSelectorProps {
 export const TagSelector: React.FC<TagSelectorProps> = ({
   selectedTags,
   onTagsChange,
+  onTagClick,
   mediaId,
   className = ''
 }) => {
@@ -111,13 +113,23 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
         {selectedTags.map(tag => (
           <span
             key={tag.id}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-white"
+            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-white ${onTagClick ? 'cursor-pointer hover:opacity-90' : ''}`}
             style={{ backgroundColor: tag.color }}
+            onClick={(e) => {
+              if (onTagClick) {
+                e.preventDefault();
+                e.stopPropagation();
+                onTagClick(tag);
+              }
+            }}
           >
             {tag.name}
             <button
-              onClick={() => handleToggleTag(tag)}
-              className="hover:opacity-70"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleToggleTag(tag);
+              }}
+              className="hover:opacity-70 ml-1"
             >
               <X className="w-3 h-3" />
             </button>

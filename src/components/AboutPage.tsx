@@ -547,8 +547,8 @@ export const AboutPage: React.FC = () => {
         </p>
         <div className="bg-blue-900/30 border border-blue-500/30 rounded-lg p-4 mt-4">
           <p className="text-blue-200 text-sm">
-            <strong>Recent Addition:</strong> December 2025 - Imported 177 images from USVI court production, 
-            bringing total media library to 231 images across 13 categorized albums.
+            <strong>Recent Addition:</strong> December 2025 - Imported 95 images from Estate Production (House Oversight), 
+            bringing total media library to 326 images.
           </p>
         </div>
       </section>

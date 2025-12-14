@@ -298,10 +298,29 @@ export const About: React.FC = () => {
 
           <a href="/documents?q=Oversight" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
             <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
-              Oversight Emails
+              House Oversight Production
+              <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-emerald-500/20 text-emerald-400 rounded-full border border-emerald-500/30">NEW</span>
               <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
             </h3>
-            <p className="text-sm text-slate-400">Communications released by the House Oversight Committee from the estate.</p>
+            <p className="text-sm text-slate-400">Comprehensive release of 33,000+ pages from the House Oversight Committee (Dec 2025).</p>
+          </a>
+
+          <a href="/documents?q=Ehud%20Barak" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+            <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
+              Ehud Barak Emails
+              <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-emerald-500/20 text-emerald-400 rounded-full border border-emerald-500/30">NEW</span>
+              <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
+            </h3>
+            <p className="text-sm text-slate-400">Over 700 emails exchanged with Ehud Barak (2013-2016).</p>
+          </a>
+
+          <a href="/documents?q=Jeeproject" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+            <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
+              The Estate Emails
+              <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-emerald-500/20 text-emerald-400 rounded-full border border-emerald-500/30">NEW</span>
+              <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
+            </h3>
+            <p className="text-sm text-slate-400">"Jeeproject" Yahoo email archive containing 13,000+ messages (2007-2019).</p>
           </a>
         </div>
       </div>

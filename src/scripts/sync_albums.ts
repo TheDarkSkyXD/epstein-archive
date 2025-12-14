@@ -107,11 +107,11 @@ async function run() {
       const filePath = path.join(albumPath, file);
       const webPath = `/data/media/images/${dirName}/${file}`;
       
-      // Check if already exists
-      const existing = db.prepare('SELECT id FROM media_images WHERE path = ?').get(webPath) as any;
+      // STRICT: Only insert if path doesn't exist - NEVER update existing
+      const existing = db.prepare('SELECT id, title FROM media_images WHERE path = ?').get(webPath) as any;
       if (existing) {
         totalExisting++;
-        continue;
+        continue; // Skip - preserve existing titles and orientations
       }
 
       // Get file info

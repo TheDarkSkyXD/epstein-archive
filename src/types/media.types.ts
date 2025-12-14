@@ -46,7 +46,9 @@ export interface MediaImage {
   orientation?: number;
   
   // Related data
+  // Related data
   tags?: string[];
+  rating?: number;
 }
 
 export interface Album {
@@ -69,11 +71,14 @@ export interface MediaTag {
 
 export interface ImageFilter {
   albumId?: number;
+  tagId?: number;
+  personId?: number;
   tags?: string[];
   format?: string;
   dateFrom?: string;
   dateTo?: string;
   searchQuery?: string;
+  hasPeople?: boolean;
 }
 
 export interface ImageSort {

@@ -11,6 +11,7 @@ interface PersonData {
 interface PeopleSelectorProps {
   selectedPeople: PersonData[];
   onPeopleChange: (people: PersonData[]) => void;
+  onPersonClick?: (person: PersonData) => void;
   mediaId: number;
   className?: string;
 }
@@ -18,6 +19,7 @@ interface PeopleSelectorProps {
 export const PeopleSelector: React.FC<PeopleSelectorProps> = ({
   selectedPeople,
   onPeopleChange,
+  onPersonClick,
   mediaId,
   className = ''
 }) => {
@@ -110,7 +112,8 @@ export const PeopleSelector: React.FC<PeopleSelectorProps> = ({
         {selectedPeople.map(person => (
           <div
             key={person.id}
-            className="flex items-center justify-between p-2 bg-slate-800/50 rounded-lg border border-slate-700/50"
+            className={`flex items-center justify-between p-2 bg-slate-800/50 rounded-lg border border-slate-700/50 ${onPersonClick ? 'cursor-pointer hover:bg-slate-800 transition-colors' : ''}`}
+            onClick={() => onPersonClick && onPersonClick(person)}
           >
             <div>
               <div className="text-sm text-white font-medium">{person.name}</div>
@@ -120,7 +123,10 @@ export const PeopleSelector: React.FC<PeopleSelectorProps> = ({
               </div>
             </div>
             <button
-              onClick={() => handleRemovePerson(person)}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleRemovePerson(person);
+              }}
               className="p-1 hover:bg-slate-700 rounded text-slate-400 hover:text-red-400 transition-colors"
             >
               <X className="w-4 h-4" />

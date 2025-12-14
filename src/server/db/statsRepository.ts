@@ -99,20 +99,53 @@ export const statsRepository = {
   getTimelineEvents: () => {
     const db = getDb();
     try {
-      return db.prepare(`
+      // First try to get actual timeline events
+      let rows = db.prepare(`
         SELECT 
-          id, 
-          title, 
-          date, 
-          description, 
-          event_type as type,
-          confidence
-        FROM investigation_timeline_events 
-        ORDER BY date DESC 
-        LIMIT 50
+          te.event_date as date,
+          te.event_description as description,
+          te.event_type as type,
+          d.file_name as title,
+          d.id as document_id,
+          e.full_name as primary_entity,
+          CASE 
+            WHEN CAST(te.event_date AS INTEGER) >= 8 THEN 'high'
+            WHEN CAST(te.event_date AS INTEGER) >= 5 THEN 'medium'
+            ELSE 'low'
+          END as significance_score
+        FROM timeline_events te
+        LEFT JOIN documents d ON te.document_id = d.id
+        LEFT JOIN entities e ON te.entity_id = e.id
+        WHERE te.event_date IS NOT NULL
+        ORDER BY te.event_date DESC
+        LIMIT 100
       `).all();
+      
+      // If no timeline events, try to generate from documents
+      if (rows.length === 0) {
+        rows = db.prepare(`
+          SELECT 
+            d.date_created as date,
+            d.content_preview as description,
+            d.evidence_type as type,
+            d.file_name as title,
+            d.id as document_id,
+            NULL as primary_entity,
+            CASE 
+              WHEN d.red_flag_rating >= 8 THEN 'high'
+              WHEN d.red_flag_rating >= 5 THEN 'medium'
+              ELSE 'low'
+            END as significance_score
+          FROM documents d
+          WHERE d.date_created IS NOT NULL AND d.date_created != ''
+          ORDER BY d.date_created DESC
+          LIMIT 50
+        `).all();
+      }
+      
+      return rows;
     } catch (e) {
-      console.warn('Failed to fetch timeline events (table might be missing):', e);
+      console.warn('Failed to fetch timeline events:', e);
       return [];
     }
   }

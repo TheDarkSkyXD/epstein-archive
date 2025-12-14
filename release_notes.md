@@ -1,3 +1,32 @@
+## Version 6.7.0 (December 14, 2025)
+
+Media Browser Batch Editing & Enhanced Rotation
+
+- **Batch Editing**: Added comprehensive batch editing capabilities to the media browser, allowing users to select multiple images and apply operations in bulk:
+  - Multi-select with Shift+Click (range selection) and Ctrl/Cmd+Click (toggle selection)
+  - Batch rotation (left/right)
+  - Batch tagging
+  - Batch rating assignment
+  - Batch metadata updates (titles/descriptions)
+- **Enhanced Rotation Persistence**: Fixed image rotation functionality to properly persist rotation values across navigation and sessions
+- **Batch Toolbar**: Added specialized toolbar for batch operations with intuitive controls
+- **Keyboard Shortcuts**: Added keyboard shortcuts for batch operations (Ctrl/Cmd+B to enter batch mode, Esc to exit, Ctrl/Cmd+A to select all)
+- **Visual Selection Indicators**: Added clear visual indicators for selected images in both grid and list views
+
+---
+
+## Version 6.6.0 (December 13, 2025)
+
+Media Navigation & UX Improvements
+
+- **Advanced Media Filtering**: Users can now filter the media gallery by specific Tags or People.
+- **Smart Navigation**: Clickable tags and person names in the Media Viewer now instantly filter the gallery.
+- **Entity Photo Integration**: Entity Cards now feature a "Photos" section displaying associated images.
+- **Image Rotation Fix**: Resolved orientation issues for specific images.
+- **Navigation UX**: Active filters are clearly displayed in the gallery with one-click removal.
+
+---
+
 ## Version 6.5.0 (December 13, 2025)
 
 Investigation Data & Admin Polish

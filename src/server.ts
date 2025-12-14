@@ -1294,6 +1294,12 @@ app.get('/api/media/images', async (req, res, next) => {
     if (req.query.search) {
       filter.searchQuery = req.query.search as string;
     }
+    if (req.query.tagId) {
+       filter.tagId = parseInt(req.query.tagId as string);
+    }
+    if (req.query.personId) {
+       filter.personId = parseInt(req.query.personId as string);
+    }
     
     if (req.query.sortField) {
       sort.field = req.query.sortField as string;
@@ -1508,40 +1514,10 @@ app.put('/api/media/images/:id/rotate', authenticateRequest, requireRole('admin'
       return res.status(404).json({ error: 'Image not found' });
     }
     
-    // Calculate new orientation based on current EXIF orientation
-    // Standard EXIF Orientations:
-    // 1: Normal (0 deg)
-    // 3: 180 deg
-    // 6: 90 deg CW
-    // 8: 90 deg CCW (270 deg CW)
-    
-    let currentOrientation = image.orientation || 1;
-    let newOrientation = 1;
-
-    // Simple state machine for rotation
-    // 1 -> (CW) -> 6 -> (CW) -> 3 -> (CW) -> 8 -> (CW) -> 1
-    // 1 -> (CCW) -> 8 -> (CCW) -> 3 -> (CCW) -> 6 -> (CCW) -> 1
-    
-    if (direction === 90) { // Clockwise
-      switch (currentOrientation) {
-        case 1: newOrientation = 6; break;
-        case 6: newOrientation = 3; break;
-        case 3: newOrientation = 8; break;
-        case 8: newOrientation = 1; break;
-        default: newOrientation = 6; // Reset to 90 if unknown
-      }
-    } else { // Counter-clockwise
-      switch (currentOrientation) {
-        case 1: newOrientation = 8; break;
-        case 8: newOrientation = 3; break;
-        case 3: newOrientation = 6; break;
-        case 6: newOrientation = 1; break;
-        default: newOrientation = 8; // Reset to 270 if unknown
-      }
-    }
-    
-    // Save new orientation
-    mediaService.updateImage(imageId, { orientation: newOrientation });
+    // Use MediaService to physically rotate the image file
+    // This solves the "Double Rotation" display issues by normalizing 
+    // the image pixels and resetting EXIF orientation to 1.
+    await mediaService.rotateImage(imageId, direction);
     
     // Regenerate thumbnail with new orientation
     const thumbnailDir = path.dirname((image as any).thumbnail_path || image.thumbnailPath || path.join(path.dirname(image.path), 'thumbnails'));
@@ -1552,7 +1528,7 @@ app.put('/api/media/images/:id/rotate', authenticateRequest, requireRole('admin'
       await mediaService.generateThumbnail(
         image.path, 
         thumbnailDir, 
-        { force: true, orientation: newOrientation }
+        { force: true, orientation: 1 }
       );
     } catch (err) {
       console.error('Failed to regenerate thumbnail during rotation:', err);
@@ -1564,6 +1540,217 @@ app.put('/api/media/images/:id/rotate', authenticateRequest, requireRole('admin'
     res.json(updatedImage);
   } catch (error) {
     console.error('Error rotating image:', error);
+    next(error);
+  }
+});
+
+// Batch rotate images (Admin only)
+app.put('/api/media/images/batch/rotate', authenticateRequest, requireRole('admin'), async (req, res, next) => {
+  try {
+    const { imageIds, direction } = req.body;
+    
+    if (!Array.isArray(imageIds) || imageIds.length === 0) {
+      return res.status(400).json({ error: 'Invalid image IDs' });
+    }
+    
+    if (!['left', 'right'].includes(direction)) {
+      return res.status(400).json({ error: 'Invalid rotation direction' });
+    }
+    
+    const rotationAngle = direction === 'left' ? -90 : 90;
+    const results = [];
+    
+    // Rotate each image
+    for (const imageId of imageIds) {
+      try {
+        const id = parseInt(imageId.toString());
+        if (isNaN(id)) continue;
+        
+        const image = mediaService.getImageById(id);
+        if (!image) continue;
+        
+        // Rotate the image
+        await mediaService.rotateImage(id, rotationAngle);
+        
+        // Regenerate thumbnail
+        const thumbnailDir = path.dirname((image as any).thumbnail_path || image.thumbnailPath || path.join(path.dirname(image.path), 'thumbnails'));
+        await mediaService.generateThumbnail(
+          image.path, 
+          thumbnailDir, 
+          { force: true, orientation: 1 }
+        );
+        
+        // Get updated image
+        const updatedImage = mediaService.getImageById(id);
+        results.push({ id, success: true, image: updatedImage });
+      } catch (err) {
+        console.error(`Error rotating image ${imageId}:`, err);
+        results.push({ id: imageId, success: false, error: err.message });
+      }
+    }
+    
+    res.json({ results });
+  } catch (error) {
+    console.error('Error batch rotating images:', error);
+    next(error);
+  }
+});
+
+// Batch rate images
+app.put('/api/media/images/batch/rate', authenticateRequest, requireRole('admin'), async (req, res, next) => {
+  try {
+    const { imageIds, rating } = req.body;
+    
+    if (!Array.isArray(imageIds) || imageIds.length === 0) {
+      return res.status(400).json({ error: 'Invalid image IDs' });
+    }
+    
+    if (typeof rating !== 'number' || rating < 1 || rating > 5) {
+      return res.status(400).json({ error: 'Invalid rating value' });
+    }
+    
+    const results = [];
+    
+    // Rate each image
+    for (const imageId of imageIds) {
+      try {
+        const id = parseInt(imageId.toString());
+        if (isNaN(id)) continue;
+        
+        // Update rating in database
+        const db = getDb();
+        const result = db.prepare('UPDATE images SET rating = ? WHERE id = ?').run(rating, id);
+        
+        if (result.changes === 0) {
+          results.push({ id, success: false, error: 'Image not found' });
+        } else {
+          results.push({ id, success: true });
+        }
+      } catch (err) {
+        console.error(`Error rating image ${imageId}:`, err);
+        results.push({ id: imageId, success: false, error: err.message });
+      }
+    }
+    
+    res.json({ results });
+  } catch (error) {
+    console.error('Error batch rating images:', error);
+    next(error);
+  }
+});
+
+// Batch tag images
+app.put('/api/media/images/batch/tags', authenticateRequest, requireRole('admin'), async (req, res, next) => {
+  try {
+    const { imageIds, tagIds, action } = req.body; // action: 'add' or 'remove'
+    
+    if (!Array.isArray(imageIds) || imageIds.length === 0) {
+      return res.status(400).json({ error: 'Invalid image IDs' });
+    }
+    
+    if (!Array.isArray(tagIds) || tagIds.length === 0) {
+      return res.status(400).json({ error: 'Invalid tag IDs' });
+    }
+    
+    if (!['add', 'remove'].includes(action)) {
+      return res.status(400).json({ error: 'Invalid action' });
+    }
+    
+    const results = [];
+    const db = getDb();
+    
+    // Process each image
+    for (const imageId of imageIds) {
+      try {
+        const id = parseInt(imageId.toString());
+        if (isNaN(id)) continue;
+        
+        // Process each tag
+        for (const tagId of tagIds) {
+          const tid = parseInt(tagId.toString());
+          if (isNaN(tid)) continue;
+          
+          if (action === 'add') {
+            // Add tag to image
+            db.prepare('INSERT OR IGNORE INTO image_tags (image_id, tag_id) VALUES (?, ?)').run(id, tid);
+          } else {
+            // Remove tag from image
+            db.prepare('DELETE FROM image_tags WHERE image_id = ? AND tag_id = ?').run(id, tid);
+          }
+        }
+        
+        results.push({ id, success: true });
+      } catch (err) {
+        console.error(`Error tagging image ${imageId}:`, err);
+        results.push({ id: imageId, success: false, error: err.message });
+      }
+    }
+    
+    res.json({ results });
+  } catch (error) {
+    console.error('Error batch tagging images:', error);
+    next(error);
+  }
+});
+
+// Batch update metadata
+app.put('/api/media/images/batch/metadata', authenticateRequest, requireRole('admin'), async (req, res, next) => {
+  try {
+    const { imageIds, updates } = req.body; // updates: { title?, description? }
+    
+    if (!Array.isArray(imageIds) || imageIds.length === 0) {
+      return res.status(400).json({ error: 'Invalid image IDs' });
+    }
+    
+    if (!updates || typeof updates !== 'object') {
+      return res.status(400).json({ error: 'Invalid updates' });
+    }
+    
+    const results = [];
+    const db = getDb();
+    
+    // Build update query dynamically based on provided fields
+    const fields = [];
+    const values = [];
+    
+    if (updates.title !== undefined) {
+      fields.push('title = ?');
+      values.push(updates.title);
+    }
+    
+    if (updates.description !== undefined) {
+      fields.push('description = ?');
+      values.push(updates.description);
+    }
+    
+    if (fields.length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' });
+    }
+    
+    // Process each image
+    for (const imageId of imageIds) {
+      try {
+        const id = parseInt(imageId.toString());
+        if (isNaN(id)) continue;
+        
+        // Update image metadata
+        const stmt = db.prepare(`UPDATE images SET ${fields.join(', ')} WHERE id = ?`);
+        const result = stmt.run(...values, id);
+        
+        if (result.changes === 0) {
+          results.push({ id, success: false, error: 'Image not found' });
+        } else {
+          results.push({ id, success: true });
+        }
+      } catch (err) {
+        console.error(`Error updating metadata for image ${imageId}:`, err);
+        results.push({ id: imageId, success: false, error: err.message });
+      }
+    }
+    
+    res.json({ results });
+  } catch (error) {
+    console.error('Error batch updating metadata:', error);
     next(error);
   }
 });
@@ -1681,8 +1868,8 @@ app.get('/api/media/images/:id/tags', async (req, res, next) => {
     const db = getDb();
     const tags = db.prepare(`
       SELECT t.* FROM tags t
-      JOIN media_tags mt ON t.id = mt.tag_id
-      WHERE mt.media_id = ?
+      JOIN image_tags it ON t.id = it.tag_id
+      WHERE it.image_id = ?
       ORDER BY t.name ASC
     `).all(imageId);
     
@@ -1702,7 +1889,7 @@ app.post('/api/media/images/:id/tags', authenticateRequest, async (req, res, nex
     if (isNaN(imageId) || !tagId) return res.status(400).json({ error: 'Invalid image or tag ID' });
     
     const db = getDb();
-    db.prepare('INSERT OR IGNORE INTO media_tags (media_id, tag_id) VALUES (?, ?)').run(imageId, tagId);
+    db.prepare('INSERT OR IGNORE INTO image_tags (image_id, tag_id) VALUES (?, ?)').run(imageId, tagId);
     
     res.json({ success: true });
   } catch (error) {
@@ -1720,7 +1907,7 @@ app.delete('/api/media/images/:id/tags/:tagId', authenticateRequest, async (req,
     if (isNaN(imageId) || isNaN(tagId)) return res.status(400).json({ error: 'Invalid IDs' });
     
     const db = getDb();
-    db.prepare('DELETE FROM media_tags WHERE media_id = ? AND tag_id = ?').run(imageId, tagId);
+    db.prepare('DELETE FROM image_tags WHERE image_id = ? AND tag_id = ?').run(imageId, tagId);
     
     res.json({ success: true });
   } catch (error) {

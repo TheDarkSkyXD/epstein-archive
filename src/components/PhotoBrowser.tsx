@@ -728,26 +728,30 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
                             
                 {/* Batch Toolbar */}
                 {isBatchMode && (
-                  <BatchToolbar 
-                    selectedCount={selectedImages.size}
-                    onRotate={handleBatchRotate}
-                    onAssignTags={(tags) => {
-                      // For now, we'll just add tags
-                      handleBatchTag(tags, 'add');
-                    }}
-                    onAssignRating={handleBatchRate}
-                    onEditMetadata={(field, value) => {
-                      // Create updates object based on field
-                      const updates = {};
-                      if (field === 'title') {
-                        updates.title = value;
-                      } else if (field === 'description') {
-                        updates.description = value;
-                      }
-                      handleBatchMetadata(updates);
-                    }}
-                    onCancel={exitBatchMode}
-                  />
+                  <div className="sticky bottom-0 left-0 right-0 flex justify-center p-4 bg-gradient-to-t from-slate-950 to-transparent pointer-events-none">
+                    <div className="pointer-events-auto">
+                      <BatchToolbar 
+                        selectedCount={selectedImages.size}
+                        onRotate={handleBatchRotate}
+                        onAssignTags={(tags) => {
+                          // For now, we'll just add tags
+                          handleBatchTag(tags, 'add');
+                        }}
+                        onAssignRating={handleBatchRate}
+                        onEditMetadata={(field, value) => {
+                          // Create updates object based on field
+                          const updates = {};
+                          if (field === 'title') {
+                            updates.title = value;
+                          } else if (field === 'description') {
+                            updates.description = value;
+                          }
+                          handleBatchMetadata(updates);
+                        }}
+                        onCancel={exitBatchMode}
+                      />
+                    </div>
+                  </div>
                 )}
             </div>
         </div>

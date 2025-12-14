@@ -24,7 +24,7 @@ export const BatchToolbar: React.FC<BatchToolbarProps> = ({
   const [showMetadataMenu, setShowMetadataMenu] = useState(false);
   
   return (
-    <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-50">
+    <div className="bg-slate-800 border border-slate-700 rounded-xl shadow-2xl">
       <div className="flex items-center gap-1 p-2">
         {/* Selected count */}
         <div className="px-3 py-2 bg-slate-700 rounded-lg text-sm font-medium text-cyan-400">

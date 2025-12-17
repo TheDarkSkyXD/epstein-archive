@@ -60,7 +60,7 @@ export const Card: React.FC<CardProps> = ({
             <div className="min-w-0">
               {title && (
                 <h3 
-                  className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors line-clamp-2 leading-tight" 
+                  className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors line-clamp-2 leading-tight break-all" 
                   title={title}
                 >
                   {title}

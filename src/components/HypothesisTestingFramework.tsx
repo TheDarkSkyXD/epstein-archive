@@ -70,15 +70,18 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
           if (data && data.length > 0) {
             const loadedHypotheses: Hypothesis[] = data.map((h: any) => ({
               id: `hyp-${h.id}`,
+              investigationId,
               title: h.title,
               description: h.description || '',
-              status: h.status || 'proposed',
+              status: (h.status || 'proposed') as Hypothesis['status'],
               confidence: h.confidence || 50,
               createdAt: new Date(h.created_at || Date.now()),
               updatedAt: new Date(h.updated_at || Date.now()),
               createdBy: 'System',
               evidenceLinks: [],
-              revisions: []
+              revisions: [],
+              evidence: [],
+              relatedHypotheses: []
             }));
             setHypotheses(loadedHypotheses);
             setActiveHypothesis(loadedHypotheses[0]);
@@ -94,6 +97,7 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
       if (initialHypothesis && hypotheses.length === 0) {
         const defaultHypothesis: Hypothesis = {
           id: 'hyp-1',
+          investigationId,
           title: 'Initial Investigation Hypothesis',
           description: initialHypothesis,
           status: 'testing',
@@ -102,7 +106,9 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
           updatedAt: new Date(),
           createdBy: 'CurrentUser',
           evidenceLinks: [],
-          revisions: []
+          revisions: [],
+          evidence: [],
+          relatedHypotheses: []
         };
         setHypotheses([defaultHypothesis]);
         setActiveHypothesis(defaultHypothesis);
@@ -120,6 +126,7 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
 
     const hypothesis: Hypothesis = {
       id: `hyp-${Date.now()}`,
+      investigationId,
       title: newHypothesis.title,
       description: newHypothesis.description,
       status: 'draft',
@@ -128,7 +135,9 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
       updatedAt: new Date(),
       createdBy: 'CurrentUser',
       evidenceLinks: [],
-      revisions: []
+      revisions: [],
+      evidence: [],
+      relatedHypotheses: []
     };
 
     const updatedHypotheses = [...hypotheses, hypothesis];
@@ -247,7 +256,7 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
             description: revisionData.description,
             revisions: [...hyp.revisions, revision],
             updatedAt: new Date(),
-            status: 'revised'
+            status: 'revised' as Hypothesis['status']
           } 
         : hyp
     );
@@ -260,7 +269,7 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
         description: revisionData.description,
         revisions: [...activeHypothesis.revisions, revision],
         updatedAt: new Date(),
-        status: 'revised'
+        status: 'revised' as Hypothesis['status']
       });
     }
     onHypothesesUpdate(updatedHypotheses);
@@ -384,7 +393,7 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-2">
-                        <h3 className="text-lg font-semibold text-white">{hypothesis.title}</h3>
+                        <h3 className="text-lg font-semibold text-white truncate">{hypothesis.title}</h3>
                         <span className={`px-2 py-1 text-xs rounded-full ${
                           hypothesis.status === 'draft' ? 'bg-gray-700 text-gray-300' :
                           hypothesis.status === 'testing' ? 'bg-blue-900 text-blue-300' :
@@ -395,7 +404,7 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
                           {hypothesis.status}
                         </span>
                       </div>
-                      <p className="text-slate-300 text-sm mb-3">{hypothesis.description}</p>
+                      <p className="text-slate-300 text-sm mb-3 break-words">{hypothesis.description}</p>
                       
                       {/* Confidence Meter */}
                       <div className="flex items-center space-x-3 mb-3">
@@ -557,7 +566,7 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
                                   <div>
                                     <div className="flex items-center space-x-2">
                                       <FileText className="w-4 h-4 text-slate-400" />
-                                      <span className="text-sm font-medium text-white">
+                                      <span className="text-sm font-medium text-white truncate">
                                         {evidenceItem?.title || 'Unknown Evidence'}
                                       </span>
                                       <span className={`text-xs px-2 py-0.5 rounded ${
@@ -611,8 +620,8 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
                               </div>
                               <p className="text-xs text-slate-400 mb-2">{revision.reason}</p>
                               <div className="text-sm text-slate-300">
-                                <p className="font-medium">{revision.title}</p>
-                                <p className="mt-1">{revision.description}</p>
+                                <p className="font-medium truncate">{revision.title}</p>
+                                <p className="mt-1 break-words">{revision.description}</p>
                               </div>
                             </div>
                           ))}

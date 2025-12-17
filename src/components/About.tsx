@@ -221,7 +221,7 @@ export const About: React.FC = () => {
               Unredacted Black Book
               <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
             </h3>
-            <p className="text-sm text-slate-400">Epstein's contact book containing thousands of names and phone numbers.</p>
+            <p className="text-sm text-slate-400">1,101 contacts from Epstein's original 1990s address book.</p>
           </a>
 
           <a href="/documents?q=Flight%20Log" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
@@ -232,36 +232,68 @@ export const About: React.FC = () => {
             <p className="text-sm text-slate-400">Pilot logs documenting travel on Epstein's private aircraft ("Lolita Express").</p>
           </a>
 
-          <a href="/documents?q=Unsealed" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+          <a href="/documents?q=Jeeproject" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
             <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
-              Giuffre v. Maxwell - Unsealed
-              <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
+              The Estate Emails ("Jeeproject")
+              <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-emerald-500/20 text-emerald-400 rounded-full border border-emerald-500/30">26,020 MSGs</span>
             </h3>
-            <p className="text-sm text-slate-400">Thousands of pages of court filings unsealed in January 2024.</p>
+            <p className="text-sm text-slate-400">Massive archive of Yahoo emails (2007-2019) from the "Jeeproject" account.</p>
           </a>
 
-          <a href="/documents?q=Maxwell%20Deposition" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+          <a href="/documents?q=Oversight" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
             <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
-              Maxwell Deposition 2016
-              <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
+              House Oversight Production
+              <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-emerald-500/20 text-emerald-400 rounded-full border border-emerald-500/30">~15,500 FILES</span>
             </h3>
-            <p className="text-sm text-slate-400">Sworn testimony from Ghislaine Maxwell in the civil defamation case.</p>
+            <p className="text-sm text-slate-400">"Seventh Production" release containing photos and documents.</p>
           </a>
 
-          <a href="/documents?q=Giuffre%20Deposition" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+          <a href="/documents?q=Ehud%20Barak" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
             <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
-              Giuffre Deposition 2016
-              <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
+              Ehud Barak Emails
+              <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-emerald-500/20 text-emerald-400 rounded-full border border-emerald-500/30">1,411 MSGs</span>
             </h3>
-            <p className="text-sm text-slate-400">Detailed testimony from Virginia Giuffre regarding her trafficking.</p>
+            <p className="text-sm text-slate-400">Correspondence exchanged with former Israeli PM Ehud Barak (2013-2016).</p>
           </a>
 
-          <a href="/documents?q=Sjoberg" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+          <a href="/documents?q=Indictment" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
             <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
-              Sjoberg Deposition 2016
+              Legal Indictments
               <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
             </h3>
-            <p className="text-sm text-slate-400">Testimony from Johanna Sjoberg detailing abuse at Epstein's properties.</p>
+            <p className="text-sm text-slate-400">2019 SDNY Sex Trafficking Indictment and related federal filings.</p>
+          </a>
+
+          <a href="/documents?q=FBI" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+            <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
+              FBI Investigation Files
+              <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
+            </h3>
+            <p className="text-sm text-slate-400">Bureau 'Phase 1' release files regarding Epstein's activities.</p>
+          </a>
+
+          <a href="/documents?q=Masseuse" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+            <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
+              Masseuse List
+              <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-red-500/20 text-red-400 rounded-full border border-red-500/30">KEY</span>
+            </h3>
+            <p className="text-sm text-slate-400">Detailed schedule and contact list of massage staff.</p>
+          </a>
+
+          <a href="/documents?q=Incriminating" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+            <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
+              "Incriminating" Docs
+              <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-red-500/20 text-red-400 rounded-full border border-red-500/30">KEY</span>
+            </h3>
+            <p className="text-sm text-slate-400">Documents explicitly marked as incriminating in the archive.</p>
+          </a>
+
+          <a href="/documents?q=Deposition" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+            <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
+              Civil Depositions
+              <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
+            </h3>
+            <p className="text-sm text-slate-400">Testimony from Maxwell, Giuffre, Sjoberg, and others (2016).</p>
           </a>
 
           <a href="/documents?q=Katie%20Johnson" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
@@ -269,23 +301,7 @@ export const About: React.FC = () => {
               Katie Johnson Lawsuit
               <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
             </h3>
-            <p className="text-sm text-slate-400">Federal lawsuit alleging abuse by Epstein and Donald Trump.</p>
-          </a>
-
-          <a href="/documents?q=Indictment" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
-            <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
-              Federal Indictment
-              <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
-            </h3>
-            <p className="text-sm text-slate-400">The 2019 SDNY indictment charging Epstein with sex trafficking.</p>
-          </a>
-
-          <a href="/documents?q=FBI" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
-            <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
-              FBI 'Phase 1' Release
-              <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
-            </h3>
-            <p className="text-sm text-slate-400">Bureau investigation files regarding Epstein's activities and networks.</p>
+            <p className="text-sm text-slate-400">Federal complaint alleging abuse by Epstein and Trump.</p>
           </a>
 
           <a href="/documents?q=Birthday%20Book" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
@@ -294,33 +310,6 @@ export const About: React.FC = () => {
               <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
             </h3>
             <p className="text-sm text-slate-400">Photo book and messages given to Epstein for his 50th birthday.</p>
-          </a>
-
-          <a href="/documents?q=Oversight" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
-            <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
-              House Oversight Production
-              <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-emerald-500/20 text-emerald-400 rounded-full border border-emerald-500/30">NEW</span>
-              <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
-            </h3>
-            <p className="text-sm text-slate-400">Comprehensive release of 33,000+ pages from the House Oversight Committee (Dec 2025).</p>
-          </a>
-
-          <a href="/documents?q=Ehud%20Barak" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
-            <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
-              Ehud Barak Emails
-              <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-emerald-500/20 text-emerald-400 rounded-full border border-emerald-500/30">NEW</span>
-              <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
-            </h3>
-            <p className="text-sm text-slate-400">Over 700 emails exchanged with Ehud Barak (2013-2016).</p>
-          </a>
-
-          <a href="/documents?q=Jeeproject" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
-            <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
-              The Estate Emails
-              <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-emerald-500/20 text-emerald-400 rounded-full border border-emerald-500/30">NEW</span>
-              <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
-            </h3>
-            <p className="text-sm text-slate-400">"Jeeproject" Yahoo email archive containing 13,000+ messages (2007-2019).</p>
           </a>
         </div>
       </div>

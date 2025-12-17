@@ -544,14 +544,14 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
                           <div className={`w-8 h-8 rounded-full ${getEventTypeColor(event.type)} flex items-center justify-center`}>
                             {React.createElement(getEventTypeIcon(event.type), { className: 'w-4 h-4 text-white' })}
                           </div>
-                          <h3 className="text-lg font-semibold text-white">{event.title}</h3>
+                          <h3 className="text-lg font-semibold text-white truncate">{event.title}</h3>
                           <span className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">
                             {Math.round(event.confidence)}% confidence
                           </span>
                         </div>
                         
                         {event.description && (
-                          <p className="text-gray-300 mb-3 ml-11">{event.description}</p>
+                          <p className="text-gray-300 mb-3 ml-11 break-words">{event.description}</p>
                         )}
 
                         <div className="flex items-center gap-4 text-sm text-gray-400 ml-11">
@@ -688,7 +688,7 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
                           }}
                           className="rounded"
                         />
-                        <span className="text-sm text-gray-300">{ev.title}</span>
+                        <span className="text-sm text-gray-300 truncate">{ev.title}</span>
                       </label>
                     ))}
                   </div>
@@ -712,7 +712,7 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
                           }}
                           className="rounded"
                         />
-                        <span className="text-sm text-gray-300">{hyp.title}</span>
+                        <span className="text-sm text-gray-300 truncate">{hyp.title}</span>
                       </label>
                     ))}
                   </div>

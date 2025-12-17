@@ -150,7 +150,7 @@ export const PersonCardRefined: React.FC<PersonCardProps> = ({
       {/* Key Evidence Preview */}
       {person.red_flag_description && (
         <div className="bg-slate-800/30 rounded-lg p-3 mb-4 ml-0 sm:ml-[3.25rem] border border-slate-700/30">
-          <p className="text-sm text-slate-400 leading-relaxed line-clamp-2">
+          <p className="text-sm text-slate-400 leading-relaxed line-clamp-2 break-all">
             {searchTerm ? 
               renderHighlightedText(person.red_flag_description, searchTerm) : 
               person.red_flag_description}

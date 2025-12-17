@@ -43,6 +43,7 @@ const Timeline = lazy(() => import('./components/Timeline').then(module => ({ de
 const DocumentUploader = lazy(() => import('./components/DocumentUploader').then(module => ({ default: module.DocumentUploader })));
 const InvestigationWorkspace = lazy(() => import('./components/InvestigationWorkspace').then(module => ({ default: module.InvestigationWorkspace })));
 const ReleaseNotesPanel = lazy(() => import('./components/ReleaseNotesPanel').then(module => ({ default: module.ReleaseNotesPanel })));
+const EmailClient = lazy(() => import('./components/email/EmailClient').then(module => ({ default: module.default })));
 const AboutPage = lazy(() => import('./components/AboutPage').then(module => ({ default: module.default })));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(module => ({ default: module.AdminDashboard })));
 
@@ -108,6 +109,7 @@ function App() {
   // Determine active tab from URL
   const getTabFromPath = (pathname: string): Tab => {
     if (pathname === '/' || pathname === '/people') return 'people';
+    if (pathname.startsWith('/entity/')) return 'people'; // Entity modal opens on people tab
     if (pathname.startsWith('/search')) return 'search';
     if (pathname.startsWith('/documents')) return 'documents';
     if (pathname.startsWith('/media')) return 'media';
@@ -116,12 +118,13 @@ function App() {
     if (pathname.startsWith('/analytics')) return 'analytics';
     if (pathname.startsWith('/blackbook')) return 'blackbook';
     if (pathname.startsWith('/about')) return 'about';
+    if (pathname.startsWith('/emails')) return 'emails';
     if (pathname === '/login') return 'login';
     if (pathname.startsWith('/admin')) return 'admin';
     return 'people'; // default
   };
   
-  type Tab = 'people' | 'search' | 'documents' | 'media' | 'timeline' | 'investigations' | 'analytics' | 'blackbook' | 'about' | 'login' | 'admin';
+  type Tab = 'people' | 'search' | 'documents' | 'media' | 'timeline' | 'investigations' | 'analytics' | 'blackbook' | 'about' | 'emails' | 'login' | 'admin';
   const activeTab = getTabFromPath(location.pathname);
   
   const [people, setPeople] = useState<Person[]>(() => {
@@ -168,6 +171,44 @@ function App() {
   const navigation = useNavigation();
   const { searchTerm, setSearchTerm } = navigation;
   
+  // Search suggestions from API (not limited to current page)
+  const [searchSuggestions, setSearchSuggestions] = useState<Person[]>([]);
+  const [searchSuggestionsLoading, setSearchSuggestionsLoading] = useState(false);
+  
+  // Fetch search suggestions from API when search term changes
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      if (searchTerm.trim().length < 2) {
+        setSearchSuggestions([]);
+        return;
+      }
+      
+      setSearchSuggestionsLoading(true);
+      try {
+        const response = await fetch(`/api/search?q=${encodeURIComponent(searchTerm)}&limit=10`);
+        const data = await response.json();
+        const entities = data.entities || [];
+        const normalized: Person[] = entities.map((e: any) => ({
+          id: e.id,
+          name: e.fullName || e.name,
+          role: e.primaryRole || e.role || 'Unknown',
+          mentions: e.mention_count || e.mentions || 0,
+          red_flag_rating: e.red_flag_rating || e.redFlagRating || 0,
+          files: e.document_count || e.files || 0
+        }));
+        setSearchSuggestions(normalized);
+      } catch (error) {
+        console.error('Error fetching search suggestions:', error);
+        setSearchSuggestions([]);
+      } finally {
+        setSearchSuggestionsLoading(false);
+      }
+    };
+    
+    const debounceTimeout = setTimeout(fetchSuggestions, 200);
+    return () => clearTimeout(debounceTimeout);
+  }, [searchTerm]);
+  
   // First run onboarding
   const { shouldShowOnboarding, completeOnboarding, skipOnboarding } = useFirstRunOnboarding();
 
@@ -178,6 +219,36 @@ function App() {
       setSelectedDocumentId('');
     }
   }, [activeTab]);
+  
+  // Load entity from URL on page load (for shareable links)
+  useEffect(() => {
+    const entityMatch = location.pathname.match(/^\/entity\/(\d+)/);
+    if (entityMatch && !selectedPerson) {
+      const entityId = parseInt(entityMatch[1], 10);
+      // Fetch entity data from API
+      fetch(`/api/entities/${entityId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.id) {
+            const person: Person = {
+              id: data.id,
+              name: data.fullName || data.full_name || 'Unknown',
+              role: data.primaryRole || data.primary_role || 'Unknown',
+              mentions: data.mentions || data.mention_count || 0,
+              red_flag_rating: data.redFlagRating || data.red_flag_rating || 0,
+              files: data.documentCount || data.document_count || 0,
+              contexts: [],
+              evidence_types: data.evidenceTypes || [],
+              spicy_passages: [],
+              likelihood_score: data.likelihoodLevel || 'MEDIUM',
+              fileReferences: []
+            };
+            setSelectedPerson(person);
+          }
+        })
+        .catch(err => console.error('Error loading entity from URL:', err));
+    }
+  }, [location.pathname, selectedPerson]);
   
   // Update navigation context when search term changes
   useEffect(() => {
@@ -727,6 +798,11 @@ function App() {
     setSelectedPerson(person);
     setSearchTermForModal(searchTerm || '');
     
+    // Update URL for shareable link
+    if (person.id) {
+      window.history.pushState({}, '', `/entity/${person.id}`);
+    }
+    
     // Announce navigation for screen readers
     const announcement = document.createElement('div');
     announcement.setAttribute('aria-live', 'polite');
@@ -966,14 +1042,20 @@ function App() {
                  {searchTerm.trim().length >= 2 && (
                   <div className="absolute right-0 mt-1 w-full md:w-96 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
                     <div className="p-2 text-xs text-slate-400 border-b border-slate-700">Search results for "{searchTerm}"</div>
-                    {people.filter(p=> (p.name||'').toLowerCase().includes(searchTerm.toLowerCase())).slice(0,5).map((p,i)=> (
-                      <button key={`sugg-${p.id}-${i}`} className="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-800 flex items-center gap-2" onClick={()=> handlePersonClick(p, searchTerm)}>
-                        <Icon name="User" size="sm" color="gray" />
-                        <span className="truncate">{p.name}</span>
-                        <span className="text-xs text-slate-500 ml-auto">Subject</span>
-                      </button>
-                    ))}
-                    {people.filter(p=> (p.name||'').toLowerCase().includes(searchTerm.toLowerCase())).length===0 && (
+                    {searchSuggestionsLoading ? (
+                      <div className="px-3 py-4 text-sm text-slate-400 flex items-center gap-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-cyan-400"></div>
+                        Searching...
+                      </div>
+                    ) : searchSuggestions.length > 0 ? (
+                      searchSuggestions.slice(0, 8).map((p, i) => (
+                        <button key={`sugg-${p.id}-${i}`} className="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-800 flex items-center gap-2" onClick={() => handlePersonClick(p, searchTerm)}>
+                          <Icon name="User" size="sm" color="gray" />
+                          <span className="truncate flex-1">{p.name}</span>
+                          <span className="text-xs text-slate-500">{p.role !== 'Unknown' ? p.role : 'Subject'}</span>
+                        </button>
+                      ))
+                    ) : (
                       <div className="px-3 py-2 text-sm text-slate-400">No subjects found</div>
                     )}
                     <div className="border-t border-slate-700 mt-1 pt-1">
@@ -1157,6 +1239,18 @@ function App() {
           >
             <Icon name="Newspaper" size="sm" />
             <span className="truncate">Media</span>
+          </button>
+
+          <button
+            onClick={() => navigate('/emails')}
+            className={`flex-auto flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
+              activeTab === 'emails'
+                ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white border border-blue-400/50 shadow-blue-500/20'
+                : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
+            }`}
+          >
+            <Icon name="Mail" size="sm" />
+            <span className="truncate">Emails</span>
           </button>
 
           <button
@@ -1408,6 +1502,12 @@ function App() {
             <Timeline />
           )}
 
+          {activeTab === 'emails' && (
+            <div className="h-full">
+               <EmailClient />
+            </div>
+          )}
+
           {activeTab === 'media' && (
             <ScopedErrorBoundary>
               <MediaAndArticlesTab />
@@ -1478,7 +1578,7 @@ function App() {
           <ScopedErrorBoundary>
             <EvidenceModal
               person={selectedPerson}
-              onClose={() => setSelectedPerson(null)}
+              onClose={() => { setSelectedPerson(null); window.history.pushState({}, '', '/people'); }}
               searchTerm={searchTermForModal}
               onDocumentClick={handleDocumentClick}
             />

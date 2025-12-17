@@ -586,7 +586,7 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
                   {/* Entity Name - Always prominent at top */}
                   <button
                     onClick={() => handlePersonClick(result.person)}
-                    className="text-lg md:text-base font-bold text-white hover:text-blue-400 transition-colors mb-2 md:mb-0 block text-left w-full"
+                    className="text-lg md:text-base font-bold text-white hover:text-blue-400 transition-colors mb-2 md:mb-0 block text-left w-full truncate"
                     title="Click to view full profile"
                   >
                     {result.person.name}
@@ -658,9 +658,9 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
                   {result.matchingContexts.map((context, i) => (
                     <div key={i} className="bg-gray-900 p-3 rounded-lg">
                       <div className="text-sm text-gray-300 mb-2">{context.context}</div>
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <Icon name="FileText" size="xs" />
-                        <span>{context.file}</span>
+                      <div className="flex items-center gap-2 text-xs text-gray-500 overflow-hidden">
+                        <Icon name="FileText" size="xs" className="shrink-0" />
+                        <span className="truncate">{context.file}</span>
                         {context.date !== 'Unknown' && (
                           <>
                             <span>•</span>
@@ -717,7 +717,7 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
                 <div className="space-y-3">
                   {docSnippets.map(d => (
                     <div key={d.id} className="bg-gray-900 p-3 rounded-lg">
-                      <div className="text-sm text-gray-200 mb-1">{d.title}</div>
+                      <div className="text-sm text-gray-200 mb-1 truncate">{d.title}</div>
                       {d.snippet && (
                         <div className="text-xs text-gray-400" dangerouslySetInnerHTML={{ __html: d.snippet }} />
                       )}

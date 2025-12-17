@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, DollarSign, Clock, User, Building, AlertTriangle, Filter, Download, Search, Calendar, MapPin, Shield, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Clock, User, Building, AlertTriangle, Filter, Download, Search, Calendar, MapPin, Shield, ShieldAlert, ShieldCheck, X } from 'lucide-react';
+import Icon from './Icon';
 import { AddToInvestigationButton } from './AddToInvestigationButton';
 
 interface Transaction {
@@ -408,7 +409,7 @@ export default function FinancialTransactionMapper({ investigationId }: Financia
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-gray-800 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -605,10 +606,21 @@ export default function FinancialTransactionMapper({ investigationId }: Financia
               </div>
             )}
 
-            {/* Transaction Details */}
+            {/* Transaction Details - Modal on Mobile, Inline on Desktop */}
             {selectedTransaction && (
-              <div className="bg-gray-800 rounded-lg p-6">
-                <div className="flex items-center justify-between mb-4">
+              <div className={`
+                fixed inset-0 z-50 bg-gray-900/95 backdrop-blur-sm p-4 overflow-y-auto flex items-center justify-center md:static md:bg-transparent md:backdrop-blur-none md:p-0 md:block
+              `}>
+                <div className="bg-gray-800 rounded-lg p-6 w-full max-w-lg md:max-w-none shadow-2xl md:shadow-none border border-gray-700 md:border-0 relative">
+                  {/* Mobile Close Button */}
+                  <button 
+                    onClick={() => setSelectedTransaction(null)}
+                    className="absolute top-4 right-4 p-2 bg-gray-700 rounded-full text-gray-400 hover:text-white md:hidden"
+                  >
+                    <Icon name="X" className="w-5 h-5" />
+                  </button>
+                  
+                  <div className="flex items-center justify-between mb-4 pr-10 md:pr-0">
                   <h3 className="text-lg font-semibold text-gray-100">Transaction Details</h3>
                   <AddToInvestigationButton 
                     item={{
@@ -684,6 +696,7 @@ export default function FinancialTransactionMapper({ investigationId }: Financia
                       </div>
                     </div>
                   )}
+                </div>
                 </div>
               </div>
             )}

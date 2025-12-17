@@ -806,31 +806,34 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                   </button>
                 
                 
-                {/* Mobile Navigation Dropdown */}
-                <div className="md:hidden px-4 py-2">
-                  <div className="relative">
-                    <select
-                      value={activeTab}
-                      onChange={(e) => setActiveTab(e.target.value as any)}
-                      className="w-full appearance-none bg-slate-800 border border-slate-700 text-white py-2 pl-3 pr-10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      {[
-                        { id: 'overview', label: 'Overview' },
-                        { id: 'evidence', label: 'Evidence' },
-                        { id: 'hypotheses', label: 'Hypotheses' },
-                        { id: 'financial', label: 'Financial' },
-                        { id: 'timeline', label: 'Timeline' },
-                        { id: 'forensic', label: 'Forensic' },
-                        { id: 'team', label: 'Team' },
-                        { id: 'analytics', label: 'Analytics' },
-                        { id: 'export', label: 'Export' }
-                      ].map(option => (
-                        <option key={option.id} value={option.id}>{option.label}</option>
-                      ))}
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
-                      <ArrowRight className="h-4 w-4 rotate-90" />
-                    </div>
+                {/* Mobile Navigation - Horizontal Scrollable Pills */}
+                <div className="md:hidden w-full overflow-x-auto border-b border-slate-700/50 bg-slate-900/95 no-scrollbar">
+                  <div className="flex px-4 py-3 gap-2 min-w-max">
+                    {[
+                      { id: 'overview', label: 'Overview' },
+                      { id: 'evidence', label: 'Evidence' },
+                      { id: 'hypotheses', label: 'Hypotheses' },
+                      { id: 'financial', label: 'Financial' },
+                      { id: 'timeline', label: 'Timeline' },
+                      { id: 'forensic', label: 'Forensic' },
+                      { id: 'team', label: 'Team' },
+                      { id: 'analytics', label: 'Analytics' },
+                      { id: 'export', label: 'Export' }
+                    ].map(option => (
+                      <button
+                        key={option.id}
+                        onClick={() => setActiveTab(option.id as any)}
+                        className={`
+                          px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all
+                          ${activeTab === option.id 
+                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30' 
+                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white border border-slate-700'
+                          }
+                        `}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
 

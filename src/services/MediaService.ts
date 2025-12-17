@@ -20,7 +20,7 @@ export class MediaService {
   // ============ TAG OPERATIONS ============
   
   getAllTags(): MediaTag[] {
-    const stmt = this.db.prepare('SELECT * FROM tags ORDER BY name');
+    const stmt = this.db.prepare('SELECT * FROM media_tags ORDER BY name');
     return stmt.all() as MediaTag[];
   }
 
@@ -275,11 +275,19 @@ export class MediaService {
     
     // Resolve image path - DB stores paths like /data/... which need to be 
     // resolved relative to the app root (process.cwd())
+    // Resolve image path
     let imagePath = image.path;
-    if (imagePath.startsWith('/data/') || imagePath.startsWith('/')) {
-      // Strip leading slash and resolve relative to cwd
-      const relativePath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
-      imagePath = path.join(process.cwd(), relativePath);
+    
+    // Check if the path exists as-is (absolute path)
+    if (!fs.existsSync(imagePath)) {
+      // If not, try resolving relative to app root (for /data/ paths)
+      if (imagePath.startsWith('/data/') || imagePath.startsWith('/')) {
+        const relativePath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
+        const resolvedPath = path.join(process.cwd(), relativePath);
+        if (fs.existsSync(resolvedPath)) {
+          imagePath = resolvedPath;
+        }
+      }
     }
     
     // Verify file exists
@@ -433,9 +441,15 @@ export class MediaService {
     
     // Resolve image path for production (relative to app root)
     let resolvedPath = imagePath;
-    if (imagePath.startsWith('/data/') || imagePath.startsWith('/')) {
-      const relativePath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
-      resolvedPath = path.join(process.cwd(), relativePath);
+    
+    if (!fs.existsSync(resolvedPath)) {
+      if (imagePath.startsWith('/data/') || imagePath.startsWith('/')) {
+        const relativePath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
+        const candidatePath = path.join(process.cwd(), relativePath);
+        if (fs.existsSync(candidatePath)) {
+          resolvedPath = candidatePath;
+        }
+      }
     }
     
     if (!fs.existsSync(resolvedPath)) {

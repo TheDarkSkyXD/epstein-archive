@@ -6,7 +6,7 @@
 import Database from 'better-sqlite3';
 import { resolve } from 'path';
 
-const DB_PATH = resolve(process.cwd(), 'epstein-archive.db');
+const DB_PATH = process.env.DB_PATH || resolve(process.cwd(), 'epstein-archive.db');
 
 console.log('[Fix] Starting Data Quality Fix...');
 console.log(`[Fix] DB Path: ${DB_PATH}`);
@@ -14,10 +14,54 @@ console.log(`[Fix] DB Path: ${DB_PATH}`);
 const db = new Database(DB_PATH);
 db.pragma('journal_mode = WAL');
 
+// Detect columns dynamically to handle schema divergence (Local vs Production)
+const columns = db.pragma('table_info(entities)') as any[];
+const getCol = (possibleNames: string[]) => {
+    const found = columns.find((c: any) => possibleNames.includes(c.name));
+    return found ? found.name : possibleNames[0]; // Default to first if not found (fallback)
+};
+
+const nameCol = getCol(['full_name', 'name']);
+const roleCol = getCol(['primary_role', 'role']);
+const secondaryRoleCol = getCol(['secondary_roles']); // Might be undefined
+const descCol = getCol(['connections_summary', 'description']);
+const typeCol = getCol(['entity_type', 'type']);
+
+console.log(`[Fix] Detected Schema:`);
+console.log(`  - Name: ${nameCol}`);
+console.log(`  - Role: ${roleCol}`);
+console.log(`  - Type: ${typeCol}`);
+console.log(`  - Secondary Role: ${secondaryRoleCol || '(Missing)'}`);
+console.log(`  - Description: ${descCol}`);
+
+// Detect relationship columns
+const relColumns = db.pragma('table_info(entity_relationships)') as any[];
+const getRelCol = (possibleNames: string[]) => {
+    const found = relColumns.find((c: any) => possibleNames.includes(c.name));
+    return found ? found.name : possibleNames[0];
+};
+
+const sourceCol = getRelCol(['source_entity_id', 'source_id']);
+const targetCol = getRelCol(['target_entity_id', 'target_id']);
+console.log(`  - Source ID: ${sourceCol}, Target ID: ${targetCol}`);
+
+// ============================================================================
+// 0. DROP BROKEN TRIGGERS & FTS (Safe Mode)
+// ============================================================================
+console.log('\n[Fix] Dropping potential broken FTS triggers/tables to verify updates...');
+try {
+    db.exec(`DROP TRIGGER IF EXISTS entities_fts_insert`);
+    db.exec(`DROP TRIGGER IF EXISTS entities_fts_update`);
+    db.exec(`DROP TRIGGER IF EXISTS entities_fts_delete`);
+    db.exec(`DROP TABLE IF EXISTS entities_fts`);
+    console.log('  Dropped FTS artifacts successfully');
+} catch (e: any) {
+    console.warn('  Warning dropping FTS artifacts:', e.message);
+}
+
 // ============================================================================
 // 1. FIX RED FLAG INDEX SCORES
 // ============================================================================
-
 console.log('\n[Fix] Updating Red Flag Index scores...');
 
 // Key perpetrators should have RFI = 5
@@ -46,7 +90,7 @@ const associates = [
     'George Mitchell',
 ];
 
-const updateRFI = db.prepare('UPDATE entities SET red_flag_rating = ? WHERE LOWER(name) = LOWER(?)');
+const updateRFI = db.prepare(`UPDATE entities SET red_flag_rating = ? WHERE LOWER(${nameCol}) = LOWER(?)`);
 
 for (const name of keyPerpetrators) {
     const result = updateRFI.run(5, name);
@@ -65,8 +109,8 @@ for (const name of associates) {
 
 // Also update partial matches for Epstein/Maxwell variations
 db.exec(`
-    UPDATE entities SET red_flag_rating = 5 WHERE name LIKE 'Jeffrey Epstein%' OR name LIKE 'Jeffrey E. Epstein%';
-    UPDATE entities SET red_flag_rating = 5 WHERE name LIKE 'Ghislaine Maxwell%';
+    UPDATE entities SET red_flag_rating = 5 WHERE ${nameCol} LIKE 'Jeffrey Epstein%' OR ${nameCol} LIKE 'Jeffrey E. Epstein%';
+    UPDATE entities SET red_flag_rating = 5 WHERE ${nameCol} LIKE 'Ghislaine Maxwell%';
 `);
 console.log('  Updated Epstein/Maxwell variations to RFI=5');
 
@@ -102,11 +146,11 @@ const junkPatterns = [
 ];
 
 const unknownEntities = db.prepare(`
-    SELECT id, name FROM entities WHERE type = 'Unknown'
+    SELECT id, ${nameCol} as name FROM entities WHERE ${typeCol} = 'Unknown'
 `).all() as any[];
 
 const deleteEntity = db.prepare('DELETE FROM entities WHERE id = ?');
-const deleteRelationships = db.prepare('DELETE FROM entity_relationships WHERE source_id = ? OR target_id = ?');
+const deleteRelationships = db.prepare(`DELETE FROM entity_relationships WHERE ${sourceCol} = ? OR ${targetCol} = ?`);
 
 let deleted = 0;
 for (const entity of unknownEntities) {
@@ -135,107 +179,93 @@ for (const entity of unknownEntities) {
 console.log(`  Deleted ${deleted} junk entities`);
 
 // ============================================================================
-// 4. RECLASSIFY OBVIOUS PERSON NAMES IN UNKNOWN
+// 4. RECLASSIFY & 5. CONSOLIDATE
 // ============================================================================
-
-console.log('\n[Fix] Reclassifying Unknown entities with obvious person names...');
-
-// Pattern: Two or more capitalized words = likely person name
+// ... (Keeping existing logic but using nameCol) ...
+console.log('\n[Fix] Reclassifying/Consolidating...');
 const personNamePattern = /^[A-Z][a-z]+\s+[A-Z][a-z]+/;
-
-const reclassifyPerson = db.prepare(`
-    UPDATE entities SET type = 'Person' WHERE id = ?
-`);
-
-const remainingUnknowns = db.prepare(`
-    SELECT id, name FROM entities WHERE type = 'Unknown'
-`).all() as any[];
-
+const reclassifyPerson = db.prepare(`UPDATE entities SET ${typeCol} = 'Person' WHERE id = ?`);
+const remainingUnknowns = db.prepare(`SELECT id, ${nameCol} as name FROM entities WHERE ${typeCol} = 'Unknown'`).all() as any[];
 let reclassified = 0;
 for (const entity of remainingUnknowns) {
-    const name = entity.name || '';
-    
-    if (personNamePattern.test(name)) {
+    if (personNamePattern.test(entity.name || '')) {
         reclassifyPerson.run(entity.id);
         reclassified++;
     }
 }
-console.log(`  Reclassified ${reclassified} entities as Person`);
+console.log(`  Reclassified ${reclassified} entities`);
 
-// ============================================================================
-// 5. CONSOLIDATE DUPLICATE ENTITIES
-// ============================================================================
-
-console.log('\n[Fix] Consolidating duplicate entities...');
-
-// Find potential duplicates (same name, different entries)
 const duplicates = db.prepare(`
-    SELECT name, COUNT(*) as count, GROUP_CONCAT(id) as ids
-    FROM entities
-    GROUP BY LOWER(name)
-    HAVING COUNT(*) > 1
+    SELECT ${nameCol} as name, COUNT(*) as count, GROUP_CONCAT(id) as ids
+    FROM entities GROUP BY LOWER(${nameCol}) HAVING COUNT(*) > 1
 `).all() as any[];
-
 let consolidated = 0;
 for (const dup of duplicates) {
-    const ids = dup.ids.split(',').map((id: string) => parseInt(id));
+    const ids = dup.ids.split(',').map(Number);
     const primaryId = ids[0];
-    const duplicateIds = ids.slice(1);
-    
-    // Move relationships to primary entity
-    for (const dupId of duplicateIds) {
-        db.prepare('UPDATE entity_relationships SET source_id = ? WHERE source_id = ?').run(primaryId, dupId);
-        db.prepare('UPDATE entity_relationships SET target_id = ? WHERE target_id = ?').run(primaryId, dupId);
-        db.prepare('DELETE FROM entities WHERE id = ?').run(dupId);
+    const dropIds = ids.slice(1);
+    for (const dId of dropIds) {
+        db.prepare(`UPDATE entity_relationships SET ${sourceCol} = ? WHERE ${sourceCol} = ?`).run(primaryId, dId);
+        db.prepare(`UPDATE entity_relationships SET ${targetCol} = ? WHERE ${targetCol} = ?`).run(primaryId, dId);
+        db.prepare(`DELETE FROM entities WHERE id = ?`).run(dId);
         consolidated++;
     }
 }
-console.log(`  Consolidated ${consolidated} duplicate entities`);
+console.log(`  Consolidated ${consolidated} duplicates`);
 
 // ============================================================================
-// 6. REBUILD FTS INDEX
+// 6. REBUILD FTS & TRIGGERS (THE FIX)
 // ============================================================================
+console.log('\n[Fix] Rebuilding FTS and Triggers...');
 
-console.log('\n[Fix] Rebuilding FTS index...');
+// Construct columns list for FTS
+const ftsCols = [nameCol, roleCol, descCol];
+if (secondaryRoleCol) ftsCols.push(secondaryRoleCol);
 
-try {
-    db.exec(`
-        DELETE FROM entities_fts;
-        INSERT INTO entities_fts(rowid, name, role, description)
-        SELECT id, name, role, description FROM entities;
-    `);
-    console.log('  FTS rebuilt successfully');
-} catch (e) {
-    console.log('  FTS rebuild skipped (might already be up to date)');
-}
+const createFtsSql = `CREATE VIRTUAL TABLE IF NOT EXISTS entities_fts USING fts5(${ftsCols.join(', ')}, content='entities', content_rowid='id')`;
+db.exec(createFtsSql);
+
+// Re-populate
+const populateSql = `INSERT INTO entities_fts(rowid, ${ftsCols.join(', ')}) SELECT id, ${ftsCols.join(', ')} FROM entities`;
+db.exec(populateSql);
+console.log('  Re-populated entities_fts');
+
+// Re-create Triggers (Dynamic)
+const triggerCols = ftsCols.map(c => `${c} = NEW.${c}`).join(', ');
+const triggerVals = ftsCols.map(c => `NEW.${c}`).join(', ');
+const headerList = ftsCols.join(', ');
+
+db.exec(`
+    CREATE TRIGGER IF NOT EXISTS entities_fts_insert AFTER INSERT ON entities BEGIN
+        INSERT INTO entities_fts(rowid, ${headerList}) VALUES (NEW.id, ${triggerVals});
+    END;
+    CREATE TRIGGER IF NOT EXISTS entities_fts_update AFTER UPDATE ON entities BEGIN
+        UPDATE entities_fts SET ${triggerCols} WHERE rowid = OLD.id;
+    END;
+    CREATE TRIGGER IF NOT EXISTS entities_fts_delete AFTER DELETE ON entities BEGIN
+        DELETE FROM entities_fts WHERE rowid = OLD.id;
+    END;
+`);
+console.log('  Re-created Triggers successfully');
 
 // ============================================================================
 // FINAL STATS
 // ============================================================================
-
-console.log('\n========================================');
-console.log('[Fix] Data Quality Fix Complete!');
-console.log('========================================');
-
+console.log('\n[Fix] Complete. Final Stats:');
 const stats = db.prepare(`
     SELECT 
-        (SELECT COUNT(*) FROM entities) as total_entities,
-        (SELECT COUNT(*) FROM entities WHERE type = 'Unknown') as unknowns,
-        (SELECT COUNT(*) FROM entities WHERE red_flag_rating >= 4) as high_rfi,
-        (SELECT COUNT(*) FROM entity_relationships) as relationships
+        (SELECT COUNT(*) FROM entities) as total,
+        (SELECT COUNT(*) FROM entities WHERE ${typeCol} = 'Unknown') as unknowns,
+        (SELECT COUNT(*) FROM entities WHERE red_flag_rating >= 4) as high_risk
 `).get() as any;
-
-console.log(`Entities:       ${stats.total_entities}`);
-console.log(`Unknowns:       ${stats.unknowns}`);
-console.log(`High RFI (4+):  ${stats.high_rfi}`);
-console.log(`Relationships:  ${stats.relationships}`);
+console.log(`  Entities: ${stats.total}, Unknowns: ${stats.unknowns}, High Risk: ${stats.high_risk}`);
 
 // Show top 10 by RFI
 console.log('\nTop 10 by Red Flag Index:');
 const top10 = db.prepare(`
-    SELECT name, red_flag_rating, role, type 
+    SELECT ${nameCol} as name, red_flag_rating, role, type 
     FROM entities 
-    ORDER BY red_flag_rating DESC, name ASC 
+    ORDER BY red_flag_rating DESC, ${nameCol} ASC 
     LIMIT 10
 `).all() as any[];
 

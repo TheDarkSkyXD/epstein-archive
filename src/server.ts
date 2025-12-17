@@ -711,7 +711,7 @@ app.get('/api/forensic/metrics-summary', async (_req, res, next) => {
 app.get('/api/documents', async (req, res, next) => {
   try {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 50));
+    const limit = Math.min(50000, Math.max(1, parseInt(req.query.limit as string) || 50));
     const sortBy = (req.query.sortBy as string) || 'red_flag';
     const search = req.query.search as string;
     const fileType = req.query.fileType as string;

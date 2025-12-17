@@ -17,6 +17,7 @@ build/
 *.log.*
 
 # Database files
+*.db
 *.db-shm
 *.db-wal
 
@@ -25,6 +26,10 @@ build/
 *.temp
 *.bak
 *.old
+*.backup
+*.backup-*
+*.corrupted
+*.part*
 
 # OS generated files
 .DS_Store
@@ -39,7 +44,6 @@ Thumbs.db
 .vscode/
 .idea/
 
-
 # Test results
 test-results/
 playwright-report/
@@ -49,28 +53,20 @@ playwright-report/
 *.tar.gz
 *.zip
 
-# Backup files
-*.backup
-*.backup-*
-
-# Large SQL dumps (use production DB directly)
+# Large SQL dumps
 *.sql
-deploy*.db
-epstein-archive.db.backup*
-
-# SQLite databases
-*.db
 
 # Node debug logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Original high-res images (for EXIF extraction only, never deploy)
+# Original high-res images (for EXIF extraction only)
 data/media/originals/
 originals/
 
-# Backup and report directories
+# Old/temporary directories
+data_old/
 backups/
 database_backups/
 logs/
@@ -78,3 +74,4 @@ analysis/
 consolidation_reports/
 validation_reports/
 uploads/
+tmp/

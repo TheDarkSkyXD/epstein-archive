@@ -322,7 +322,7 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
                 <div className="flex-1">
                   <div className="flex items-center space-x-2 mb-1">
                     <FileText className="w-4 h-4 text-slate-400" />
-                    <h4 className="font-semibold text-white">{item.title || 'Untitled'}</h4>
+                    <h4 className="font-semibold text-white truncate">{item.title || 'Untitled'}</h4>
                   </div>
                   <p className="text-sm text-slate-300 line-clamp-2">{item.description}</p>
                 </div>
@@ -409,7 +409,7 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
                           }`}>
                             {result.source}
                           </span>
-                          <h4 className="font-semibold text-white">{result.title || result.full_name || 'Untitled'}</h4>
+                          <h4 className="font-semibold text-white truncate">{result.title || result.full_name || 'Untitled'}</h4>
                         </div>
                         <p className="text-sm text-slate-300 line-clamp-2">{result.description}</p>
                         {result.source === 'entity' && (

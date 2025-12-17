@@ -9,6 +9,7 @@ interface BatchToolbarProps {
   onAssignRating: (rating: number) => void;
   onEditMetadata: (field: string, value: string) => void;
   onCancel: () => void;
+  onDeselect?: () => void;
 }
 
 interface Tag {
@@ -31,7 +32,8 @@ export const BatchToolbar: React.FC<BatchToolbarProps> = ({
   onAssignPeople,
   onAssignRating,
   onEditMetadata,
-  onCancel
+  onCancel,
+  onDeselect
 }) => {
   const [showRotateMenu, setShowRotateMenu] = useState(false);
   const [showTagsMenu, setShowTagsMenu] = useState(false);
@@ -46,6 +48,7 @@ export const BatchToolbar: React.FC<BatchToolbarProps> = ({
   const [selectedPeople, setSelectedPeople] = useState<number[]>([]);
   const [loadingTags, setLoadingTags] = useState(false);
   const [loadingPeople, setLoadingPeople] = useState(false);
+  const [peopleFilter, setPeopleFilter] = useState('');
   
   // Fetch tags and people when menus are opened
   useEffect(() => {
@@ -63,7 +66,7 @@ export const BatchToolbar: React.FC<BatchToolbarProps> = ({
   const fetchTags = async () => {
     setLoadingTags(true);
     try {
-      const response = await fetch('/api/tags');
+      const response = await fetch('/api/media/tags');
       const data = await response.json();
       setTags(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -126,9 +129,20 @@ export const BatchToolbar: React.FC<BatchToolbarProps> = ({
   return (
     <div className="bg-slate-800/95 backdrop-blur-sm border border-slate-700 rounded-xl shadow-2xl max-w-full">
       <div className="flex items-center gap-1 p-2">
-        {/* Selected count */}
-        <div className="px-3 py-2 bg-slate-700 rounded-lg text-sm font-medium text-cyan-400 whitespace-nowrap h-8 flex items-center shrink-0">
-          {selectedCount} selected
+        {/* Selected count with deselect button */}
+        <div className="flex items-center gap-1 bg-slate-700 rounded-lg px-1 py-1 h-8 shrink-0">
+          <span className="px-2 text-sm font-medium text-cyan-400 whitespace-nowrap">
+            {selectedCount} selected
+          </span>
+          {onDeselect && (
+            <button
+              onClick={onDeselect}
+              className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-slate-600 text-slate-400 hover:text-white transition-colors"
+              title="Clear selection"
+            >
+              <Icon name="X" size="sm" />
+            </button>
+          )}
         </div>
         
         {/* Divider */}
@@ -257,7 +271,14 @@ export const BatchToolbar: React.FC<BatchToolbarProps> = ({
             <div className="absolute bottom-full left-0 mb-2 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 w-80">
               <div className="p-3 border-b border-slate-700">
                 <h3 className="text-sm font-medium text-white mb-2">Assign People</h3>
-                <p className="text-xs text-slate-400">Select people to tag in {selectedCount} images</p>
+                <p className="text-xs text-slate-400 mb-2">Select people to tag in {selectedCount} images</p>
+                <input
+                  type="text"
+                  placeholder="Filter people..."
+                  value={peopleFilter}
+                  onChange={(e) => setPeopleFilter(e.target.value)}
+                  className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-1.5 text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                />
               </div>
               <div className="p-2 max-h-60 overflow-y-auto">
                 {loadingPeople ? (
@@ -270,7 +291,13 @@ export const BatchToolbar: React.FC<BatchToolbarProps> = ({
                   </div>
                 ) : (
                   <div className="space-y-1">
-                    {people.map(person => (
+                    {people
+                      .filter(person => 
+                        peopleFilter === '' || 
+                        person.name.toLowerCase().includes(peopleFilter.toLowerCase()) ||
+                        person.role.toLowerCase().includes(peopleFilter.toLowerCase())
+                      )
+                      .map(person => (
                       <button
                         key={person.id}
                         onClick={() => togglePersonSelection(person.id)}

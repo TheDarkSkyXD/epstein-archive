@@ -380,8 +380,11 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     if (!canvas) return;
     
     const rect = canvas.getBoundingClientRect();
-    const x = (event.clientX - rect.left - pan.x) / zoom;
-    const y = (event.clientY - rect.top - pan.y) / zoom;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    const x = ((event.clientX - rect.left) * scaleX - pan.x) / zoom;
+    const y = ((event.clientY - rect.top) * scaleY - pan.y) / zoom;
     
     // Check if click is on a node
     const clickedNode = filteredNodes.find(node => {
@@ -443,6 +446,57 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     }
   };
 
+  // Touch Event Handlers for Mobile Support
+  const handleTouchStart = (event: React.TouchEvent<HTMLCanvasElement>) => {
+    if (!interactive) return;
+    // Prevent scrolling page while panning canvas
+    if (event.cancelable) event.preventDefault();
+    
+    if (event.touches.length === 1) {
+      const touch = event.touches[0];
+      setIsDragging(true);
+      setDragStart({ x: touch.clientX, y: touch.clientY });
+      setLastPan({ x: pan.x, y: pan.y });
+    }
+  };
+
+  const handleTouchMove = (event: React.TouchEvent<HTMLCanvasElement>) => {
+    if (!interactive || !isDragging) return;
+    if (event.cancelable) event.preventDefault();
+    
+    if (event.touches.length === 1) {
+      const touch = event.touches[0];
+      const deltaX = (touch.clientX - dragStart.x); // Drag factor 1:1 on screen pixels
+      const deltaY = (touch.clientY - dragStart.y);
+      
+      // Need to account for canvas scaling if we want 1:1 visual movement
+      // But typically pan is in logical canvas coords. 
+      // If we move finger 100px, we want canvas to shift 100px visually.
+      // So we map screen delta to canvas scale? 
+      // current pan is in canvas units.
+      // We want to update canvas units.
+      
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+
+      setPan({
+        x: lastPan.x + (deltaX * scaleX),
+        y: lastPan.y + (deltaY * scaleY)
+      });
+    }
+  };
+
+  const handleTouchEnd = (event: React.TouchEvent<HTMLCanvasElement>) => {
+    // If it was a tap (no drag), handle it as a click
+    // Simple heuristic: if drag distance is small
+    // For now just stop dragging
+    setIsDragging(false);
+  };
+
   const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
     if (!interactive) return;
     
@@ -487,16 +541,20 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
     
+    // Scale for internal resolution
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
     // Convert screen coordinates to world coordinates
-    const worldMouseX = (mouseX - pan.x) / zoom;
-    const worldMouseY = (mouseY - pan.y) / zoom;
+    const worldMouseX = (mouseX * scaleX - pan.x) / zoom;
+    const worldMouseY = (mouseY * scaleY - pan.y) / zoom;
     
     // Apply zoom
     const newZoom = Math.max(0.1, Math.min(3, zoom * delta));
     
     // Adjust pan to keep mouse position fixed
-    const newPanX = mouseX - worldMouseX * newZoom;
-    const newPanY = mouseY - worldMouseY * newZoom;
+    const newPanX = (mouseX * scaleX) - worldMouseX * newZoom;
+    const newPanY = (mouseY * scaleY) - worldMouseY * newZoom;
     
     setZoom(newZoom);
     setPan({ x: newPanX, y: newPanY });
@@ -543,8 +601,12 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
     if (!interactive || !isDragging) return;
     
-    const deltaX = event.clientX - dragStart.x;
-    const deltaY = event.clientY - dragStart.y;
+    const rect = (event.target as HTMLCanvasElement).getBoundingClientRect();
+    const scaleX = (event.target as HTMLCanvasElement).width / rect.width;
+    const scaleY = (event.target as HTMLCanvasElement).height / rect.height;
+
+    const deltaX = (event.clientX - dragStart.x) * scaleX;
+    const deltaY = (event.clientY - dragStart.y) * scaleY;
     
     setPan({
       x: lastPan.x + deltaX,
@@ -755,7 +817,10 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
-          style={{ maxWidth: '100%', height: 'auto' }}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          style={{ maxWidth: '100%', height: 'auto', touchAction: 'none' }}
           role="img"
           aria-label={`Network visualization of ${filteredNodes.length} nodes and ${filteredEdges.length} connections. Use mouse wheel to zoom, drag to pan.`}
         >

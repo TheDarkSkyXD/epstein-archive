@@ -1,21 +1,61 @@
-## Version 7.0.0 (December 15, 2025)
 
-House Oversight Production Data Ingestion
+# 📣 Epstein Archive V7.2.0 - Minor Release
 
-- **New Data Source**: Successfully ingested **2,897 documents** from the **House Oversight Committee** production (December 2025).
-- **Data Integration**:
-  - Full OCR text indexing for all new documents.
-  - Linked native files (PDFs) where available.
-  - Resolved file path discrepancies via intelligent filename-based lookup.
-- **UI Enhancements**:
-  - Updated- **New Data Source**: Ingested "House Oversight Production" (33k+ pages, Dec 2025).
-- **New Data Source**: Ingested "The Estate Emails" (Jeeproject Yahoo, 13k messages).
-- **New Data Source**: Ingested "Ehud Barak Emails" (700+ messages).
-- **Search**: Added new evidence types to search filters.
-- **UI**: Detailed data source breakdown on the About page.r.
-  - Added specific filters for the new evidence type.
+*Released: Dec 17, 2025*
+
+## 🚀 Key Highlights
+
+### 1. Shareable Entity URLs 🔗
+*   **Direct Entity Links**: Share direct links to any entity profile (e.g., `epstein.academy/entity/2357`)
+*   **URL Sync**: Opening an entity updates the browser URL for easy sharing
+*   **Deep Linking**: Visiting a shared link opens the entity modal directly
+
+### 2. Search Improvements 🔍
+*   **API-Based Search**: Search suggestions now query the full database (45K+ entities) instead of filtering current page
+*   **Debounced Requests**: 200ms debounce prevents excessive API calls while typing
+*   **Loading Indicator**: Shows spinner while searching
+
+### 3. Database Integrity Fixes 🛠️
+*   **FTS Corruption Resolved**: Fixed corrupted Full-Text Search triggers that caused write failures
+*   **Reid Hoffman Consolidated**: Merged duplicate entities into single profile with correct role
+*   **Production Sync**: Fresh database uploaded with full write capability
+
+### 4. Repository Cleanup 🧹
+*   **10+ Unused Files Removed**: Deleted old/duplicate databases, backups, partial files
+*   **Code Quality**: Removed tech debt (.backup, .part, .updated files)
 
 ---
+
+# 📣 Epstein Archive V7.0.0 - Major Release
+
+*Released: Dec 15, 2025*
+
+## 🚀 Key Highlights
+
+### 1. Data Integrity & Recovery (Critical Fixes)
+*   **Database Verified**: Resolved persistent database corruption issues. The active production database now contains **4,769** fully recovered emails and **358** media items, independently verified.
+*   **Schema Stability**: Fixed critical schema mismatches ("missing columns") that were causing application crashes on startup.
+*   **Media Paths Corrected**: Fixed absolute path errors that prevented images from loading in the Media Tab. All media paths now correctly point to the server file system.
+
+### 2. Email Client Overhaul 📧
+A completely redesigned Email experience modelled after native desktop and iOS clients.
+*   **Classic "Outlook" Layout**: 3-pane view (Folders, Thread List, Reading Pane) for efficient browsing.
+*   **Advanced Sorting**: Sort by **Sender**, **Subject**, and **Date** with ascending/descending toggles.
+*   **Floating Window**: Multitask with a draggable, resizable pop-out window for reading emails while browsing other evidence.
+*   **iOS Mobile Experience**: Native-feeling slide transitions on mobile devices for seamless navigation.
+*   **Data Completeness**: "Bubba" email (ID 1374) and other heavily redacted/complex emails are now correctly parsed and searchable.
+
+### 3. Mobile Experience Upgrade 📱
+*   **Touch-Native Visualisation**: Network graphs and timelines now support pinch-to-zoom and pan on mobile.
+*   **Responsive Navigation**: New horizontal pill-based navigation for workspaces and optimised menus.
+*   **Grid Optimisation**: Financial Transaction Mapper and other data grids are now fully responsive on small screens.
+
+### 4. Search & Discovery
+*   **Unified Search**: Search across Emails, Documents, and Entity Graph simultaneously.
+*   **Source Transparency**: "About" page updated with real-time counts from all data sources (Black Book, Flight Logs, Estate Production, etc.).
+
+---
+
 ## Version 6.9.0 (December 14, 2025)
 
 Batch Toolbar & Mobile UI Polish
@@ -101,12 +141,16 @@ Entity cleanup, new Estate photos, and UI bug fixes.
 
 ---
 
+**Status**: ✅ Stable Production Release
+**Access**: [epstein.academy](https://epstein.academy)
+# Epstein Archive: Release Notes
+
 ## Version 6.3.0 (December 12, 2025)
 
 Introduces comprehensive Admin Authentication and In-Place Media Editing capabilities.
 
 **Authentication System**
-- **Admin Login**: Secure login portal (`/login`) for authorized administrators.
+- **Admin Login**: Secure login portal (`/login`) for authorised administrators.
 - **Admin Role**: Role-based access control protecting sensitive operations.
 - **Session Management**: Secure JWT-based sessions with persistent login state.
 
@@ -132,7 +176,7 @@ Major entity data quality overhaul with comprehensive consolidation and cleanup.
 
 **New Entities & Role Fixes**
 - Created "Bubba" entity with "Unknown private individual" role
-- Fixed Trump Organization type: Organization/Corporation (was incorrectly Person)
+- Fixed Trump Organization type: Organisation/Corporation (was incorrectly Person)
 - Pattern-based role assignment for titles (Dr., Det., Prof., etc.)
 
 **New Tooling**

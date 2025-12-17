@@ -200,6 +200,7 @@ class ApiClient {
     if (filters.redFlagLevel?.min) params.append('minRedFlag', filters.redFlagLevel.min.toString());
     if (filters.redFlagLevel?.max) params.append('maxRedFlag', filters.redFlagLevel.max.toString());
     if (filters.sortBy) params.append('sortBy', filters.sortBy);
+    if (filters.evidenceType) params.append('evidenceType', filters.evidenceType);
 
     const url = `${API_BASE_URL}/documents?${params.toString()}`;
     return this.fetchWithErrorHandling<any>(url);

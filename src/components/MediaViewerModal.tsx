@@ -19,7 +19,8 @@ interface MediaViewerModalProps {
 
 const MediaViewerModal: React.FC<MediaViewerModalProps> = ({ images, initialIndex, onClose, onImageUpdate }) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const [showSidebar, setShowSidebar] = useState(true);
+  // Initialize sidebar state based on screen width to prevent it covering image on mobile
+  const [showSidebar, setShowSidebar] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 768 : false);
   const [isZoomed, setIsZoomed] = useState(false);
   const navigate = useNavigate();
   
@@ -63,12 +64,24 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({ images, initialInde
   const [imagePeople, setImagePeople] = useState<any[]>([]);
 
   // Fetch tags and people when image changes
+  // Handle screen resize to auto-manage sidebar visibility
   useEffect(() => {
-    // Close sidebar on mobile by default
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setShowSidebar(false);
+      } else {
+        setShowSidebar(true);
+      }
+    };
+
+    // Set initial state (redundant but safe)
     if (window.innerWidth < 768) {
       setShowSidebar(false);
     }
-  }, []); // Run once on mount
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     if (!currentImage) return;
@@ -125,6 +138,10 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({ images, initialInde
           if (onImageUpdate) {
             onImageUpdate(newImage);
           }
+          
+          // Reset CSS rotation since the new image source is physically rotated
+          setRotation(0);
+          rotationRef.current = 0;
         }
       }
     } catch (e) {
@@ -276,14 +293,14 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({ images, initialInde
                <button onClick={() => setIsZoomed(!isZoomed)} className="p-2 rounded-full bg-black/40 hover:bg-black/60 text-white/80 hover:text-white transition-colors">
                   {isZoomed ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
                </button>
-               <button onClick={() => setShowSidebar(!showSidebar)} className={`p-2 rounded-full hover:bg-black/60 transition-colors ${showSidebar ? 'bg-cyan-500/20 text-cyan-400' : 'bg-black/40 text-white/80'}`}>
-                  <Info size={20} />
-               </button>
                {isAdmin && (
                  <button onClick={() => handleRotate('right')} className="p-2 rounded-full bg-black/40 hover:bg-black/60 text-white/80 hover:text-white transition-colors" title="Rotate 90° CW">
                    <RotateCw size={20} />
                  </button>
                )}
+               <button onClick={() => setShowSidebar(!showSidebar)} className={`p-2 rounded-full hover:bg-black/60 transition-colors ${showSidebar ? 'bg-cyan-500/20 text-cyan-400' : 'bg-black/40 text-white/80'}`}>
+                  <Info size={20} />
+               </button>
            </div>
         </div>
 

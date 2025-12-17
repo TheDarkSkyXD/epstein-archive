@@ -212,17 +212,17 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
   };
 
   const toggleImageSelection = (imageId: number, index: number, event: React.MouseEvent) => {
-    const newSelectedImages = new Set(selectedImages);
+    let newSelectedImages = new Set(selectedImages);
     
     if (event.shiftKey && lastSelectedIndex !== null) {
-      // Shift+click: Select range
+      // Shift+click: Select range (add to existing selection)
       const start = Math.min(lastSelectedIndex, index);
       const end = Math.max(lastSelectedIndex, index);
       for (let i = start; i <= end; i++) {
         newSelectedImages.add(images[i].id);
       }
     } else if (event.ctrlKey || event.metaKey) {
-      // Ctrl/Cmd+click: Toggle selection
+      // Ctrl/Cmd+click: Toggle selection (add/remove from existing)
       if (newSelectedImages.has(imageId)) {
         newSelectedImages.delete(imageId);
       } else {
@@ -230,13 +230,9 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
       }
       setLastSelectedIndex(index);
     } else {
-      // Regular click: If in batch mode, toggle selection, otherwise open viewer
+      // Regular click: If in batch mode, deselect all and select only this one
       if (isBatchMode) {
-        if (newSelectedImages.has(imageId)) {
-          newSelectedImages.delete(imageId);
-        } else {
-          newSelectedImages.add(imageId);
-        }
+        newSelectedImages = new Set([imageId]);
         setLastSelectedIndex(index);
       } else {
         // If external handler provided, use it (legacy), otherwise open viewer
@@ -858,6 +854,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
                           handleBatchMetadata(updates);
                         }}
                         onCancel={exitBatchMode}
+                        onDeselect={clearSelection}
                       />
                     </div>
                   </div>,

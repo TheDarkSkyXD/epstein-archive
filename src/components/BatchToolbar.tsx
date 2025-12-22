@@ -10,6 +10,8 @@ interface BatchToolbarProps {
   onEditMetadata: (field: string, value: string) => void;
   onCancel: () => void;
   onDeselect?: () => void;
+  onUndo?: () => void;
+  canUndo?: boolean;
 }
 
 interface Tag {
@@ -33,7 +35,9 @@ export const BatchToolbar: React.FC<BatchToolbarProps> = ({
   onAssignRating,
   onEditMetadata,
   onCancel,
-  onDeselect
+  onDeselect,
+  onUndo,
+  canUndo = false
 }) => {
   const [showRotateMenu, setShowRotateMenu] = useState(false);
   const [showTagsMenu, setShowTagsMenu] = useState(false);
@@ -199,6 +203,25 @@ export const BatchToolbar: React.FC<BatchToolbarProps> = ({
               <div className="p-3 border-b border-slate-700">
                 <h3 className="text-sm font-medium text-white mb-2">Assign Tags</h3>
                 <p className="text-xs text-slate-400">Select tags to apply to {selectedCount} images</p>
+                {selectedTags.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {selectedTags.map(id => {
+                      const tag = tags.find(t => t.id === id);
+                      return tag ? (
+                        <span 
+                          key={id}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs text-white"
+                          style={{ backgroundColor: tag.color || '#06b6d4' }}
+                        >
+                          {tag.name}
+                          <button onClick={() => toggleTagSelection(id)} className="hover:text-slate-200">
+                            ×
+                          </button>
+                        </span>
+                      ) : null;
+                    })}
+                  </div>
+                )}
               </div>
               <div className="p-2 max-h-60 overflow-y-auto">
                 {loadingTags ? (
@@ -215,42 +238,51 @@ export const BatchToolbar: React.FC<BatchToolbarProps> = ({
                       <button
                         key={tag.id}
                         onClick={() => toggleTagSelection(tag.id)}
-                        className={`flex items-center gap-2 p-2 rounded text-sm text-left transition-colors ${
+                        className={`flex items-center gap-2 p-2 rounded-lg text-sm text-left transition-all border-2 ${
                           selectedTags.includes(tag.id)
-                            ? 'bg-cyan-600 text-white'
-                            : 'bg-slate-700 hover:bg-slate-600 text-slate-200'
+                            ? 'border-white shadow-lg scale-105'
+                            : 'border-transparent hover:border-slate-500'
                         }`}
+                        style={{ 
+                          backgroundColor: selectedTags.includes(tag.id) 
+                            ? tag.color || '#06b6d4'
+                            : `${tag.color}40` || '#06b6d440'
+                        }}
                       >
                         <div 
-                          className="w-3 h-3 rounded-full" 
+                          className="w-4 h-4 rounded-full border-2 border-white/50 flex items-center justify-center" 
                           style={{ backgroundColor: tag.color }}
-                        ></div>
-                        <span className="truncate">{tag.name}</span>
+                        >
+                          {selectedTags.includes(tag.id) && <span className="text-white text-xs">✓</span>}
+                        </div>
+                        <span className={`truncate font-medium ${selectedTags.includes(tag.id) ? 'text-white' : 'text-slate-200'}`}>
+                          {tag.name}
+                        </span>
                       </button>
                     ))}
                   </div>
                 )}
               </div>
-              <div className="p-2 border-t border-slate-700 flex justify-end gap-2">
+              <div className="p-3 border-t border-slate-700 flex justify-between items-center gap-2">
                 <button 
                   onClick={() => {
                     setShowTagsMenu(false);
                     setSelectedTags([]);
                   }}
-                  className="px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 rounded-lg h-8"
+                  className="px-4 py-2 text-sm bg-slate-700 hover:bg-slate-600 rounded-lg"
                 >
                   Cancel
                 </button>
                 <button 
                   onClick={handleApplyTags}
                   disabled={selectedTags.length === 0}
-                  className={`px-3 py-1.5 text-sm rounded-lg ${
+                  className={`px-6 py-2 text-sm rounded-lg font-semibold transition-all ${
                     selectedTags.length === 0
                       ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
-                      : 'bg-cyan-600 hover:bg-cyan-500 text-white'
-                  } h-8`}
+                      : 'bg-green-600 hover:bg-green-500 text-white shadow-lg shadow-green-600/30'
+                  }`}
                 >
-                  Apply ({selectedTags.length})
+                  💾 Save Tags ({selectedTags.length})
                 </button>
               </div>
             </div>
@@ -446,6 +478,23 @@ export const BatchToolbar: React.FC<BatchToolbarProps> = ({
         
         {/* Divider */}
         <div className="w-px h-6 bg-slate-700 shrink-0"></div>
+        
+        {/* Undo button */}
+        {onUndo && (
+          <button 
+            onClick={onUndo}
+            disabled={!canUndo}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors h-8 shrink-0 ${
+              canUndo 
+                ? 'hover:bg-slate-700 text-amber-400' 
+                : 'text-slate-600 cursor-not-allowed'
+            }`}
+            title={canUndo ? 'Undo last action' : 'Nothing to undo'}
+          >
+            <Icon name="Undo2" size="sm" />
+            <span className="hidden sm:inline">Undo</span>
+          </button>
+        )}
         
         {/* Cancel button */}
         <button 

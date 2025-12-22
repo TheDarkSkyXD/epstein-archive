@@ -140,9 +140,10 @@ export const entitiesRepository = {
         
         if (!entity) return null;
 
-        // Get documents mentioning this entity using LIKE pattern
-        // This matches DatabaseService.ts logic as entity_mentions table is deprecated
-        const searchPattern = `%${entity.full_name}%`;
+        // Use FTS for more accurate document matching (avoiding "chieftan" matching "EFTA")
+        // Sanitize name for FTS query: wrap in quotes for exact phrase, escape existing quotes
+        const ftsQuery = `"${entity.full_name.replace(/"/g, '""')}"`;
+        
         const fileReferences = db.prepare(`
             SELECT 
                 d.id, 
@@ -153,10 +154,11 @@ export const entitiesRepository = {
                 d.red_flag_rating as redFlagRating,
                 d.date_created as dateCreated
             FROM documents d
-            WHERE d.content LIKE ? OR d.file_name LIKE ?
+            JOIN documents_fts fts ON d.id = fts.rowid
+            WHERE fts.documents_fts MATCH ?
             ORDER BY d.red_flag_rating DESC, d.date_created DESC
             LIMIT 50
-        `).all(searchPattern, searchPattern); 
+        `).all(ftsQuery); 
         
         // Check if this entity has an entry in the Black Book
         const blackBookEntry = db.prepare(`
@@ -297,12 +299,12 @@ export const entitiesRepository = {
             throw new Error('Invalid entity ID format');
         }
         
-        // Simplified query using LIKE operator since entity_mentions table is removed
+        // Fetch entity name for FTS query
         const entityNameObj = db.prepare('SELECT full_name as name FROM entities WHERE id = ?').get(entityId) as { name: string };
         
         if (!entityNameObj) return [];
-        
-        // Simple search for documents containing the entity name
+
+        // Use FTS for more accurate matching
         const filesQuery = `
           SELECT 
             d.id,
@@ -323,13 +325,14 @@ export const entitiesRepository = {
             0 as pageNumber,
             0 as position
           FROM documents d
-          WHERE d.content LIKE ? OR d.file_name LIKE ?
+          JOIN documents_fts fts ON d.id = fts.rowid
+          WHERE fts.documents_fts MATCH ?
           ORDER BY d.red_flag_rating DESC, d.date_created DESC
           LIMIT 50
         `;
         
-        const searchPattern = `%${entityNameObj.name}%`;
-        const fileReferences = db.prepare(filesQuery).all(searchPattern, searchPattern) as any[];
+        const ftsQuery = `"${entityNameObj.name.replace(/"/g, '""')}"`;
+        const fileReferences = db.prepare(filesQuery).all(ftsQuery) as any[];
         return fileReferences.map(file => {
             let metadata = {};
             try {

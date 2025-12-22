@@ -70,6 +70,17 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
             </a>
           )}
 
+          {evidence.metadata?.unredacted_version_id && (
+            <a
+              href={`/document/${evidence.metadata.unredacted_version_id}`}
+              className="flex items-center px-4 py-2 text-sm font-medium text-white bg-purple-600 border border-purple-600 rounded-lg hover:bg-purple-700 shadow-sm"
+              title="View the unredacted version of this document"
+            >
+              <Eye className="h-4 w-4 mr-2" />
+              View Unredacted
+            </a>
+          )}
+
           {/* Pretty/Raw Toggle */}
           <button
             onClick={() => setShowRaw(!showRaw)}

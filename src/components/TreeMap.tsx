@@ -43,14 +43,14 @@ export const TreeMap: React.FC<TreeMapProps> = ({ people, onPersonClick }) => {
   // Simple squarified treemap layout
   const layout = squarify(nodes, WIDTH, HEIGHT);
 
-  // Color based on Red Flag rating
-  const getColor = (rating: number) => {
-    if (rating >= 5) return 'from-pink-600 to-red-600';
-    if (rating >= 4) return 'from-purple-600 to-pink-600';
-    if (rating >= 3) return 'from-blue-600 to-purple-600';
-    if (rating >= 2) return 'from-cyan-600 to-blue-600';
-    if (rating >= 1) return 'from-teal-600 to-cyan-600';
-    return 'from-slate-600 to-slate-500';
+  // Hex colors for SVG gradients
+  const getGradientColors = (rating: number) => {
+    if (rating >= 5) return ['#db2777', '#dc2626']; // pink-600 to red-600
+    if (rating >= 4) return ['#9333ea', '#db2777']; // purple-600 to pink-600
+    if (rating >= 3) return ['#2563eb', '#9333ea']; // blue-600 to purple-600
+    if (rating >= 2) return ['#0891b2', '#2563eb']; // cyan-600 to blue-600
+    if (rating >= 1) return ['#0d9488', '#0891b2']; // teal-600 to cyan-600
+    return ['#475569', '#64748b']; // slate-600 to slate-500
   };
 
   const handleWheel = (e: React.WheelEvent) => {
@@ -113,6 +113,7 @@ export const TreeMap: React.FC<TreeMapProps> = ({ people, onPersonClick }) => {
             {layout.map((node, index) => {
               const isHovered = hoveredNode?.name === node.name;
               const percentage = ((node.value / total) * 100).toFixed(1);
+              const [stop1, stop2] = getGradientColors(node.redFlagRating);
               
               return (
                 <g
@@ -128,8 +129,8 @@ export const TreeMap: React.FC<TreeMapProps> = ({ people, onPersonClick }) => {
                 >
                   <defs>
                     <linearGradient id={`gradient-${index}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" className={getColor(node.redFlagRating).split(' ')[0].replace('from-', '')} />
-                      <stop offset="100%" className={getColor(node.redFlagRating).split(' ')[1].replace('to-', '')} />
+                      <stop offset="0%" stopColor={stop1} />
+                      <stop offset="100%" stopColor={stop2} />
                     </linearGradient>
                   </defs>
                   
@@ -138,7 +139,6 @@ export const TreeMap: React.FC<TreeMapProps> = ({ people, onPersonClick }) => {
                     y={node.y}
                     width={node.width}
                     height={node.height}
-                    className={`bg-gradient-to-br ${getColor(node.redFlagRating)}`}
                     fill={`url(#gradient-${index})`}
                     stroke="#1e293b"
                     strokeWidth={isHovered ? 2 / transform.k : 1 / transform.k}

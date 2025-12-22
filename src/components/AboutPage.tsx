@@ -85,7 +85,7 @@ const DOCUMENT_SOURCES = [
   {
     title: "FBI Files 'Phase 1'",
     description: "FBI interview summaries and internal memos.",
-    redactionStatus: "Heavily Redacted (~40%)",
+    redactionStatus: "Moderately Redacted (~35%)",
     redactionColor: "slate",
     impact: "MEDIUM",
     impactColor: "slate",
@@ -95,7 +95,7 @@ const DOCUMENT_SOURCES = [
   {
     title: "Estate Emails",
     description: "Post-2008 correspondence (House Oversight).",
-    redactionStatus: "Partial (~15%)",
+    redactionStatus: "Low Redaction (~12%)",
     redactionColor: "yellow",
     impact: "MEDIUM",
     impactColor: "slate",
@@ -111,6 +111,36 @@ const DOCUMENT_SOURCES = [
     impactColor: "slate",
     link: null,
     search: "Birthday Book"
+  },
+  {
+    title: "DOJ Discovery VOL00001",
+    description: "FBI evidence from July 2019 NY mansion search (3,158 items).",
+    redactionStatus: "Unredacted (0%)",
+    redactionColor: "red",
+    impact: "CRITICAL",
+    impactColor: "purple",
+    link: null,
+    search: "EFTA"
+  },
+  {
+    title: "DOJ Discovery VOL00002-6",
+    description: "Additional discovery volumes containing heavily redacted documents.",
+    redactionStatus: "Heavy Redaction (~95%)",
+    redactionColor: "slate",
+    impact: "LOW",
+    impactColor: "slate",
+    link: null,
+    search: "DOJ VOL0000"
+  },
+  {
+    title: "USVI Property Evidence",
+    description: "Photos from Little Saint James island properties.",
+    redactionStatus: "Unredacted (0%)",
+    redactionColor: "red",
+    impact: "HIGH",
+    impactColor: "blue",
+    link: "/media",
+    search: null
   }
 ];
 
@@ -118,7 +148,8 @@ const timelineEvents = [
   { date: "Jan 3, 2024", source: "Giuffre v. Maxwell", content: "Depositions naming Prince Andrew, Clinton, Trump, Copperfield." },
   { date: "July 7, 2025", source: "DOJ / FBI Review", content: "Memo stating no \"client list\" exists and no evidence for 3rd party prosecution." },
   { date: "Sept 8, 2025", source: "House Oversight", content: "\"Birthday Book\" (2003) with photos and notes." },
-  { date: "Nov 12, 2025", source: "House Oversight", content: "23k+ pages of Estate Emails (2009-2019)." }
+  { date: "Nov 12, 2025", source: "House Oversight", content: "23k+ pages of Estate Emails (2009-2019)." },
+  { date: "Dec 20, 2025", source: "DOJ Discovery", content: "VOL00001: 3,158 FBI evidence items from 2019 NY search." }
 ];
 
 // Helper to get color classes
@@ -315,9 +346,21 @@ export const AboutPage: React.FC = () => {
                             View
                           </a>
                         )}
-                        <button className="inline-flex items-center justify-center p-1.5 rounded-md bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white transition-colors border border-slate-700" title="Download Original">
-                          <Download className="w-3.5 h-3.5" />
-                        </button>
+                        {source.title === "Unredacted Black Book" && (
+                          <a href="/api/downloads/release/black-book" download className="inline-flex items-center justify-center p-1.5 rounded-md bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white transition-colors border border-slate-700" title="Download Original">
+                            <Download className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                        {source.title === "Flight Logs" && (
+                           <a href="/api/downloads/release/flight-logs" download className="inline-flex items-center justify-center p-1.5 rounded-md bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white transition-colors border border-slate-700" title="Download Original">
+                             <Download className="w-3.5 h-3.5" />
+                           </a>
+                        )}
+                        {source.title !== "Unredacted Black Book" && source.title !== "Flight Logs" && (
+                          <button disabled className="inline-flex items-center justify-center p-1.5 rounded-md bg-slate-800/50 text-slate-600 cursor-not-allowed border border-slate-700/50" title="Download not available">
+                            <Download className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -366,6 +409,16 @@ export const AboutPage: React.FC = () => {
           <h4 className="text-xl font-semibold text-white mt-4">The Estate Emails (2009-2019)</h4>
           <p>
             A massive cache of 23,000+ pages released in Nov 2025. These cover the post-conviction era, revealing who remained in his orbit. Key exchanges include Epstein describing Trump as "the dog that hasn’t barked," and routine correspondence with figures like Larry Summers and Noam Chomsky.
+          </p>
+
+          <h4 className="text-xl font-semibold text-white mt-4">DOJ Discovery (VOL00001)</h4>
+          <p>
+            Ingested Dec 21, 2025. This volume contains 3,158 raw digital evidence files seized during the July 2019 FBI raid of Epstein's Manhattan mansion. It includes unredacted images, metadata, and financial records that were previously held under seal.
+          </p>
+
+          <h4 className="text-xl font-semibold text-white mt-4">DOJ Discovery (VOL00002-6)</h4>
+          <p>
+            Subsequent volumes contain heavily redacted document productions. Unlike Vol 1's raw digital evidence, these volumes consist primarily of procedural documents and correspondence where most substantive content has been blacked out under privacy protective orders.
           </p>
 
           <h3 className="text-2xl font-bold text-white mt-8 mb-4">Key Document Releases Timeline</h3>
@@ -547,8 +600,8 @@ export const AboutPage: React.FC = () => {
         </p>
         <div className="bg-blue-900/30 border border-blue-500/30 rounded-lg p-4 mt-4">
           <p className="text-blue-200 text-sm">
-            <strong>Recent Addition:</strong> December 2025 - Imported 95 images from Estate Production (House Oversight), 
-            bringing total media library to 326 images.
+            <strong>Latest Addition:</strong> December 20, 2025 - Ingested DOJ Discovery VOL00001 containing 3,158 FBI evidence items 
+            from the July 2019 search of Epstein's New York mansion. Archive now contains {stats.documents.toLocaleString()}+ documents.
           </p>
         </div>
       </section>
@@ -584,7 +637,7 @@ export const AboutPage: React.FC = () => {
 
       {/* Footer */}
       <div className="text-center text-slate-500 text-sm pt-8 border-t border-slate-700">
-        <p>Last updated: December 2025</p>
+        <p>Last updated: December 20, 2025</p>
         <p className="mt-2">Built with transparency and accountability in mind</p>
       </div>
     </div>

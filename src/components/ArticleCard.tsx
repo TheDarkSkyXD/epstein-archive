@@ -1,5 +1,6 @@
 import React from 'react';
 import { Calendar, Clock, ArrowUpRight, User } from 'lucide-react';
+import LazyImage from './LazyImage';
 
 export interface Article {
   id: number;
@@ -43,15 +44,10 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, onClick }) =>
       {/* Hero Image with Zoom Effect */}
       <div className={`absolute inset-0 h-full w-full bg-gradient-to-br ${getPlaceholderGradient(article.id)}`}>
         {article.imageUrl && (
-          <img
+          <LazyImage
             src={article.imageUrl}
             alt={article.title}
             className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-80 group-hover:opacity-60"
-            loading="lazy"
-            onError={(e) => {
-              // Fallback if image fails to load
-              (e.target as HTMLImageElement).style.display = 'none';
-            }}
           />
         )}
         {/* Gradient Overlay: Dark at bottom for text readability */}

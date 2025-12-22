@@ -19,7 +19,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { createHash } from 'crypto';
 import Database from 'better-sqlite3';
-import pdfParse from 'pdf-parse';
+import { CompetitiveOCRService } from '../src/services/ocr/OCRService.js';
+import { prettifyOCRText } from '../src/utils/prettifyOCR.js';
+
+// Initialize OCR Service
+const ocrService = new CompetitiveOCRService();
 
 // Type definitions
 type EvidenceType =
@@ -135,34 +139,64 @@ function classifyEvidenceType(filePath: string, filename: string): EvidenceType 
 async function extractText(
   filePath: string,
   evidenceType: EvidenceType
-): Promise<string> {
+): Promise<{ text: string; hasRedactions?: boolean; redactionRatio?: number }> {
   const ext = path.extname(filePath).toLowerCase();
 
   // For text files, prefer cleaned OCR if available
   if (ext === '.txt' || ext === '.rtf') {
+    let content = '';
     const cleanedPath = filePath.replace('/data/text/', '/data/ocr_clean/text/');
     
     if (fs.existsSync(cleanedPath)) {
-      return fs.readFileSync(cleanedPath, 'utf-8');
+      content = fs.readFileSync(cleanedPath, 'utf-8');
+    } else {
+      // Fallback to original
+      try {
+        content = fs.readFileSync(filePath, 'utf-8');
+      } catch {
+        content = fs.readFileSync(filePath, 'latin1');
+      }
     }
     
-    // Fallback to original
-    try {
-      return fs.readFileSync(filePath, 'utf-8');
-    } catch {
-      return fs.readFileSync(filePath, 'latin1');
-    }
+    // Apply normalization (ensure Trump/Entity fixes are applied even to existing text)
+    // We use prettifyOCRText which now includes the entity normalization
+    return { text: prettifyOCRText(content) };
   }
 
-  // For PDFs, extract text
-  if (ext === '.pdf') {
+  // Use Competitive OCR Service for PDFs and Images
+  if (['.pdf', '.jpg', '.jpeg', '.png', '.tiff', '.gif', '.bmp'].includes(ext)) {
     try {
-      const dataBuffer = fs.readFileSync(filePath);
-      const data = await pdfParse(dataBuffer);
-      return data.text;
+      // Determine mime type
+      const mimeTypes: Record<string, string> = {
+        '.pdf': 'application/pdf',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.tiff': 'image/tiff',
+        '.gif': 'image/gif',
+        '.bmp': 'image/bmp',
+      };
+      const mimeType = mimeTypes[ext] || 'application/octet-stream';
+      
+      const result = await ocrService.process(filePath, mimeType);
+      
+      // If result is high quality, return it
+      if (result.confidence > 0) {
+        // Store redaction status in metadata via side-effect or return tuple?
+        // extractText returns string. We need to pass metadata back.
+        // We can attach it to a global or context? 
+        // Or update extractText to return object?
+        // Refactoring extractText is better.
+        return { 
+          text: result.text, 
+          hasRedactions: result.hasRedactions,
+          redactionRatio: result.redactionRatio
+        };
+      }
+      
+      console.warn(`OCR returned empty/low confidence for ${filePath}`);
     } catch (error) {
-      console.warn(`Failed to extract PDF text: ${error}`);
-      return '';
+      console.warn(`OCR failed for ${filePath}: ${error}`);
     }
   }
 
@@ -171,18 +205,18 @@ async function extractText(
     try {
       const content = fs.readFileSync(filePath, 'utf-8');
       const lines = content.split('\n').slice(0, 100);
-      return lines.join('\n');
+      return { text: lines.join('\n') };
     } catch (error) {
-      return '';
+      return { text: '' };
     }
   }
 
-  // For images, placeholder text
+  // Fallback placeholder
   if (['.jpg', '.jpeg', '.png', '.tiff', '.gif', '.bmp'].includes(ext)) {
-    return `[Image file: ${path.basename(filePath)}]`;
+    return { text: `[Image file: ${path.basename(filePath)}] (OCR Failed)` };
   }
 
-  return '';
+  return { text: '' };
 }
 
 /**
@@ -191,9 +225,10 @@ async function extractText(
 function extractMetadata(
   text: string,
   evidenceType: EvidenceType,
-  filePath: string
+  filePath: string,
+  extraMetadata: Record<string, any> = {}
 ): Record<string, any> {
-  const metadata: Record<string, any> = {};
+  const metadata: Record<string, any> = { ...extraMetadata };
 
   switch (evidenceType) {
     case 'correspondence': {
@@ -283,11 +318,20 @@ function generateTitle(filename: string, evidenceType: EvidenceType): string {
 }
 
 /**
- * Calculate content hash for idempotency
+ * Calculate content hash for idempotency using streams (memory efficient)
  */
-function calculateHash(sourcePath: string, stats: fs.Stats): string {
-  const hashInput = `${sourcePath}:${stats.mtimeMs}:${stats.size}`;
-  return createHash('sha256').update(hashInput).digest('hex');
+async function calculateHash(sourcePath: string, stats: fs.Stats): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const hash = createHash('sha256');
+    // Include metadata in hash
+    hash.update(`${sourcePath}:${stats.mtimeMs}:${stats.size}`);
+    
+    const stream = fs.createReadStream(sourcePath);
+    
+    stream.on('data', (data) => hash.update(data));
+    stream.on('end', () => resolve(hash.digest('hex')));
+    stream.on('error', (err) => reject(err));
+  });
 }
 
 /**
@@ -304,27 +348,23 @@ async function processFile(
     const filename = path.basename(filePath);
     
     // Calculate hash
-    const contentHash = calculateHash(filePath, stats);
+    const contentHash = await calculateHash(filePath, stats);
     
-    // Check if already ingested
-    const existing = db.prepare('SELECT id FROM evidence WHERE content_hash = ?').get(contentHash);
-    if (existing) {
-      metrics.filesSkipped++;
-      console.log(`  ⏭ Skipping (already ingested): ${filename}`);
-      return;
-    }
-
     // Classify evidence type
     const evidenceType = classifyEvidenceType(filePath, filename);
     
     // Extract text
-    const extractedText = await extractText(filePath, evidenceType);
+    const extractionResult = await extractText(filePath, evidenceType);
+    const extractedText = extractionResult.text;
     
     // Calculate word count
     const wordCount = extractedText.split(/\s+/).filter(w => w.length > 0).length;
     
     // Extract metadata
-    const metadata = extractMetadata(extractedText, evidenceType, filePath);
+    const metadata = extractMetadata(extractedText, evidenceType, filePath, {
+      hasRedactions: extractionResult.hasRedactions || false,
+      redactionRatio: extractionResult.redactionRatio || 0
+    });
     metadata.readingTime = estimateReadingTime(wordCount);
     
     // Generate title
@@ -369,36 +409,78 @@ async function processFile(
       contentHash,
     };
 
+    // Check if already ingested
+    const existing = db.prepare('SELECT id FROM documents WHERE content_hash = ?').get(contentHash) as { id: number } | undefined;
+    
+    if (existing) {
+      console.log(`  ↻ Updating (Re-ingestion): ${filename}`);
+      // Update existing record with improved OCR/Metadata
+      const updateStmt = db.prepare(`
+        UPDATE documents SET
+          evidence_type = @evidenceType,
+          original_file_path = @sourcePath,
+          file_path = @filePath,
+          file_name = @originalFilename,
+          file_type = @fileType,
+          title = @title,
+          content = @extractedText,
+          metadata_json = @metadataJson,
+          word_count = @wordCount,
+          file_size = @fileSize,
+          content_hash = @contentHash
+        WHERE id = @id
+      `);
+      
+      updateStmt.run({
+        ...record,
+        id: existing.id,
+        filePath: record.cleanedPath || record.sourcePath, // Prefer cleaned path if available
+        fileType: record.mimeType.split('/')[1] || 'unknown',
+        metadataJson: JSON.stringify(record.metadataJson)
+      });
+      
+      metrics.filesProcessed++;
+      return;
+    }
+
     // Insert into database
     const stmt = db.prepare(`
-      INSERT INTO evidence (
-        evidence_type, source_path, cleaned_path, original_filename, mime_type,
-        title, description, extracted_text, created_at, modified_at,
-        red_flag_rating, evidence_tags, metadata_json, word_count, file_size, content_hash
+      INSERT INTO documents (
+        evidence_type,
+        original_file_path,
+        file_path,
+        file_name,
+        file_type,
+        title,
+        content,
+        created_at,
+        metadata_json,
+        word_count,
+        file_size,
+        content_hash,
+        red_flag_rating
       ) VALUES (
-        @evidenceType, @sourcePath, @cleanedPath, @originalFilename, @mimeType,
-        @title, @description, @extractedText, @createdAt, @modifiedAt,
-        @redFlagRating, @evidenceTags, @metadataJson, @wordCount, @fileSize, @contentHash
+        @evidenceType,
+        @sourcePath,
+        @filePath,
+        @originalFilename,
+        @fileType,
+        @title,
+        @extractedText,
+        @createdAt,
+        @metadataJson,
+        @wordCount,
+        @fileSize,
+        @contentHash,
+        @redFlagRating
       )
     `);
 
     stmt.run({
-      evidenceType: record.evidenceType,
-      sourcePath: record.sourcePath,
-      cleanedPath: record.cleanedPath,
-      originalFilename: record.originalFilename,
-      mimeType: record.mimeType,
-      title: record.title,
-      description: record.description,
-      extractedText: record.extractedText,
-      createdAt: record.createdAt,
-      modifiedAt: record.modifiedAt,
-      redFlagRating: record.redFlagRating,
-      evidenceTags: JSON.stringify(record.evidenceTags),
-      metadataJson: JSON.stringify(record.metadataJson),
-      wordCount: record.wordCount,
-      fileSize: record.fileSize,
-      contentHash: record.contentHash,
+      ...record,
+      filePath: record.cleanedPath || record.sourcePath,
+      fileType: record.mimeType.split('/')[1] || 'unknown',
+      metadataJson: JSON.stringify(record.metadataJson)
     });
 
     metrics.filesProcessed++;
@@ -488,9 +570,9 @@ function generateReport(metrics: IngestionMetrics, outputPath: string, db: Datab
  */
 async function main() {
   const workspaceRoot = '/Users/veland/Downloads/Epstein Files';
-  const dataDir = path.join(workspaceRoot, 'data');
-  const dbPath = path.join(workspaceRoot, 'epstein-archive', 'epstein.db');
-  const reportPath = path.join(workspaceRoot, 'data', 'ingestion_report.json');
+  const dataDir = path.join(workspaceRoot, 'epstein-archive', 'data');
+  const dbPath = path.join(workspaceRoot, 'epstein-archive', 'epstein-archive.db');
+  const reportPath = path.join(workspaceRoot, 'epstein-archive', 'data', 'ingestion_report_full.json');
 
   console.log('📂 Evidence Ingestion Pipeline');
   console.log('━'.repeat(50));
@@ -508,6 +590,7 @@ async function main() {
 
   // Open database
   const db = new Database(dbPath);
+  db.pragma('journal_mode = WAL'); // Enable WAL for better concurrency
 
   // Initialize metrics
   const metrics: IngestionMetrics = {

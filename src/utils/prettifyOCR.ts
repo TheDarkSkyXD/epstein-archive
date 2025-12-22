@@ -52,6 +52,18 @@ export function prettifyOCRText(rawText: string): string {
     .replace(/[\u0000-\u0009\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, '') // Control characters excluding \n (0x0A) and \r (0x0D - already norm'd)
     .replace(/[฿€£¥]/g, '');          // Currency symbols that are OCR errors
 
+  // Step 3.5: Targeted Entity Normalization (De-obfuscation)
+  // Fix specific patterns where names are obfuscated or misspelled by OCR
+  
+  // Trump Obfuscation & Misspellings
+  // 1. Spaced out: T r u m p (with optional extra spaces)
+  text = text.replace(/t\s+r\s+u\s+m\s+p/gi, 'Trump');
+  // 2. Common OCR Misreads
+  text = text.replace(/\bTrurnp\b/g, 'Trump'); // rn -> m
+  text = text.replace(/\bTromp\b/g, 'Trump');  // o -> u
+  text = text.replace(/\bTrunp\b/g, 'Trump');  // n -> m
+  text = text.replace(/\bTrmp\b/g, 'Trump');   // missing u
+
   // Step 4: Paragraph Reconstruction
   const lines = text.split('\n');
   const paragraphs: string[] = [];

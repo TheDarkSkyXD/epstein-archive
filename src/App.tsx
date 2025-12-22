@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, Suspense, lazy, useRef } from 'react';
+import { preloader } from './utils/ResourcePreloader';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { Search, User, Users, FileText, TrendingUp, BarChart3, Newspaper, Calendar, Database as DatabaseIcon, Globe, Clock, ChevronLeft, ChevronRight, Book, CheckCircle2, Target, Shield, Image, Menu, X, Camera, HelpCircle } from 'lucide-react';import { Person } from './types';
@@ -24,6 +25,7 @@ import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
 import { Breadcrumb } from './components/Breadcrumb';
 import { VirtualList } from './components/VirtualList';
 import Icon from './components/Icon';
+import { RedactedLogo } from './components/RedactedLogo';
 import { getEntityTypeIcon } from './utils/entityTypeIcons';
 import EntityTypeFilter from './components/EntityTypeFilter';
 import SortFilter from './components/SortFilter';
@@ -46,26 +48,39 @@ const ReleaseNotesPanel = lazy(() => import('./components/ReleaseNotesPanel').th
 const EmailClient = lazy(() => import('./components/email/EmailClient').then(module => ({ default: module.default })));
 const AboutPage = lazy(() => import('./components/AboutPage').then(module => ({ default: module.default })));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(module => ({ default: module.AdminDashboard })));
+const EnhancedAnalytics = lazy(() => import('./components/EnhancedAnalytics').then(module => ({ default: module.EnhancedAnalytics })));
 
 import releaseNotesRaw from '../release_notes.md?raw';
 
 // Helper to parse markdown release notes
 const parseReleaseNotes = (markdown: string) => {
   try {
-    // Split on ## Version headers
-    const sections = markdown.split(/^## Version /m).filter(Boolean);
+    // Split on ## Version headers or the new fancy header format
+    const sections = markdown.split(/^## Version |^# 📣 Epstein Archive V/m).filter(Boolean);
     
     return sections.map(section => {
       const lines = section.split('\n').map(l => l.trim());
       if (lines.length === 0) return null;
 
-      // Line 0: "X.X.X (Date)"
+      // Line 0: "X.X.X (Date)" or "X.X.X - Title"
       const headerLine = lines[0];
       const versionMatch = headerLine.match(/^([\d\.]+)/);
       const version = versionMatch ? `v${versionMatch[1]}` : 'Update';
       
-      const dateMatch = headerLine.match(/\(([^)]+)\)/);
-      const date = dateMatch ? dateMatch[1] : 'Unknown Date';
+      let dateMatch = headerLine.match(/\(([^)]+)\)/);
+      let date = dateMatch ? dateMatch[1] : null;
+      
+      // Fallback: look for *Released: Date*
+      if (!date) {
+        for (const line of lines) {
+           const releasedMatch = line.match(/^\*Released: (.+)\*$/);
+           if (releasedMatch) {
+             date = releasedMatch[1];
+             break;
+           }
+        }
+      }
+      if (!date) date = 'Recent';
 
       // Find title (first non-empty line after header, not starting with ** or ---)
       let title = 'Maintenance Update';
@@ -80,7 +95,7 @@ const parseReleaseNotes = (markdown: string) => {
       // Find all bullet points
       const notes: string[] = [];
       for (const line of lines) {
-        if (line.startsWith('- ')) {
+        if (line.startsWith('- ') || line.startsWith('* ')) {
           notes.push(line.substring(2));
         }
       }
@@ -914,11 +929,7 @@ function App() {
                 <div className="bg-gradient-to-br from-cyan-500 to-blue-600 p-2 rounded-lg shadow-lg shadow-cyan-500/20 flex-shrink-0">
                   <Icon name="Database" size="md" color="white" />
                 </div>
-                <div>
-                  <h1 className="text-xl font-bold bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent tracking-tight">
-                    THE EPSTEIN FILES
-                  </h1>
-                </div>
+                <RedactedLogo text="THE EPSTEIN FILES" />
               </Link>
 
               {/* Stats - Desktop only */}
@@ -1209,6 +1220,7 @@ function App() {
           </div>
           <button
             onClick={() => navigate('/blackbook')}
+            onMouseEnter={() => preloader.prefetchJson('/api/media/albums')}
             className={`flex-auto flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
               activeTab === 'blackbook'
                 ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-white border border-amber-400/50 shadow-amber-500/20'
@@ -1220,6 +1232,7 @@ function App() {
           </button>
           <button
             onClick={() => navigate('/timeline')}
+            onMouseEnter={() => preloader.prefetchJson('/api/timeline')}
             className={`flex-auto flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
               activeTab === 'timeline'
                 ? 'bg-gradient-to-r from-orange-600 to-orange-500 text-white border border-orange-400/50 shadow-orange-500/20'
@@ -1231,6 +1244,10 @@ function App() {
           </button>
           <button
             onClick={() => navigate('/media')}
+            onMouseEnter={() => {
+              preloader.prefetchJson('/api/media/albums');
+              preloader.prefetchJson('/api/media/images?limit=24');
+            }}
             className={`flex-auto flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
               activeTab === 'media'
                 ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white border border-indigo-400/50 shadow-indigo-500/20'
@@ -1243,6 +1260,7 @@ function App() {
 
           <button
             onClick={() => navigate('/emails')}
+            onMouseEnter={() => preloader.prefetchJson('/api/emails')}
             className={`flex-auto flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
               activeTab === 'emails'
                 ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white border border-blue-400/50 shadow-blue-500/20'
@@ -1458,22 +1476,44 @@ function App() {
             <ScopedErrorBoundary>
             <div className="space-y-8">
               <div className="mb-8">
-                <h2 className="text-3xl font-bold text-white mb-2">Data Analytics</h2>
+                <h2 className="text-3xl font-bold text-white mb-2">Enhanced Analytics</h2>
                 <p className="text-slate-400">
-                  Comprehensive statistical analysis of the Epstein Investigation dataset
+                  Interactive visualizations of the Epstein Investigation dataset
                 </p>
               </div>
-              <DataVisualization 
-                people={filteredPeople} 
-                analyticsData={analyticsData}
-                loading={analyticsLoading}
-                error={analyticsError}
-                onRetry={fetchAnalyticsData}
-                onPersonSelect={(person) => {
-                  setSelectedPerson(person);
-                  setSearchTermForModal('');
+              <EnhancedAnalytics 
+                onEntitySelect={(entityId) => {
+                  const person = filteredPeople.find(p => Number(p.id) === entityId);
+                  if (person) {
+                    setSelectedPerson(person);
+                    setSearchTermForModal('');
+                  }
+                }}
+                onTypeFilter={(type) => {
+                  // Could filter to documents tab with this type
+                  console.log('Filter by type:', type);
                 }}
               />
+              
+              {/* Classic Analytics - Always Visible */}
+              <div className="glass-card p-6 rounded-xl">
+                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">
+                    Classic Analytics
+                  </span>
+                </h3>
+                <DataVisualization 
+                  people={filteredPeople} 
+                  analyticsData={analyticsData}
+                  loading={analyticsLoading}
+                  error={analyticsError}
+                  onRetry={fetchAnalyticsData}
+                  onPersonSelect={(person) => {
+                    setSelectedPerson(person);
+                    setSearchTermForModal('');
+                  }}
+                />
+              </div>
             </div>
             </ScopedErrorBoundary>
           )}

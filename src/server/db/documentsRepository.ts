@@ -165,7 +165,7 @@ export const documentsRepository = {
         d.content,
         d.evidence_type as evidenceType,
         d.original_file_id as originalFileId,
-        orig.file_path as original_file_path
+        COALESCE(orig.file_path, d.original_file_path) as original_file_path
       FROM documents d
       LEFT JOIN documents orig ON d.original_file_id = orig.id
       WHERE d.id = ?

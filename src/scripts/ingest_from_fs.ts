@@ -4,7 +4,8 @@ import { readdirSync, statSync, readFileSync } from 'fs'
 import pdf from 'pdf-parse'
 
 const DB_PATH = process.env.DB_PATH || join(process.cwd(), 'epstein-archive.db')
-const DATA_ROOT = process.env.DATA_ROOT || '/opt/epstein-archive/data'
+const DATA_ROOT = process.env.DATA_ROOT || join(process.cwd(), 'data')
+
 const db = new Database(DB_PATH)
 
 function* walk(dir: string): Generator<string> {
@@ -48,40 +49,45 @@ async function run() {
   const insertStmt = db.prepare(`
     INSERT OR IGNORE INTO documents (
       file_name, file_path, file_type, file_size, date_created,
-      content, metadata_json, word_count, spice_rating, evidence_type
+      content, metadata_json, word_count, evidence_type
     ) VALUES (
       @file_name, @file_path, @file_type, @file_size, @date_created,
-      @content, @metadata_json, @word_count, @spice_rating, @evidence_type
+      @content, @metadata_json, @word_count, @evidence_type
     )`)
 
   let imported = 0
-  const tx = db.transaction(async (files: string[]) => {
-    for (const fp of files) {
-      const st = statSync(fp)
-      const file_name = fp.split('/').pop() || fp
-      const file_type = (file_name.split('.').pop() || 'txt').toLowerCase()
-      const raw = await readFileContent(fp)
-      const content = cleanContent(raw)
-      const meta = deriveMeta(fp, raw)
-      insertStmt.run({
-        file_name,
-        file_path: fp,
-        file_type,
-        file_size: st.size,
-        date_created: new Date(st.birthtime || st.mtime).toISOString(),
-        content,
-        metadata_json: JSON.stringify(meta),
-        word_count: meta.word_count,
-        spice_rating: 0,
-        evidence_type: 'document'
-      })
-      imported++
-      if (imported % 200 === 0) process.stdout.write('.')
-    }
-  })
-
   const allFiles = Array.from(walk(DATA_ROOT)).filter(p => /\.(txt|rtf|md|pdf)$/i.test(p))
-  await tx(allFiles)
+  
+  // Process files sequentially (outside transaction to allow async I/O)
+  // We can batch inserts if needed, but single inserts are fine for <10k files
+  for (const fp of allFiles) {
+    try {
+        const st = statSync(fp)
+        const file_name = fp.split('/').pop() || fp
+        const file_type = (file_name.split('.').pop() || 'txt').toLowerCase()
+        const raw = await readFileContent(fp)
+        const content = cleanContent(raw)
+        const meta = deriveMeta(fp, raw)
+        
+        insertStmt.run({
+            file_name,
+            file_path: fp,
+            file_type,
+            file_size: st.size,
+            date_created: new Date(st.birthtime || st.mtime).toISOString(),
+            content,
+            metadata_json: JSON.stringify(meta),
+            word_count: meta.word_count,
+            evidence_type: 'document'
+        })
+        imported++
+        if (imported % 100 === 0) process.stdout.write('.')
+    } catch (e: any) {
+        console.error(`\nFailed to import ${fp}: ${e.message}`)
+    }
+  }
+
+  // await tx(allFiles)
   console.log(`\nFS ingest complete. Imported: ${imported}`)
   db.close()
 }

@@ -4,6 +4,7 @@ import { MediaImage, Album } from '../types/media.types';
 import Icon from './Icon';
 import MediaViewerModal from './MediaViewerModal';
 import BatchToolbar from './BatchToolbar';
+import LazyImage from './LazyImage';
 
 interface PhotoBrowserProps {
   onImageClick?: (image: MediaImage) => void;
@@ -13,7 +14,7 @@ type ViewMode = 'grid' | 'list';
 type SortField = 'date_added' | 'date_taken' | 'filename' | 'file_size' | 'title';
 type SortOrder = 'asc' | 'desc';
 
-export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
+export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageClick }) => {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [images, setImages] = useState<MediaImage[]>([]);
   const [selectedAlbum, setSelectedAlbum] = useState<number | null>(null);
@@ -34,6 +35,9 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
   const [selectedImages, setSelectedImages] = useState<Set<number>>(new Set());
   const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(null);
   const [isBatchMode, setIsBatchMode] = useState(false);
+  
+  // Undo stack for batch operations
+  const [undoStack, setUndoStack] = useState<Array<{ action: string; imageIds: number[]; prevState: MediaImage[] }>>([]);
 
   // Initialize from URL
   useEffect(() => {
@@ -293,8 +297,42 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
       });
   };
   
+  // Handle grid container click (for click-outside-to-deselect)
+  const handleGridClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Only clear selection if in batch mode and clicked directly on the grid container (not an image)
+    if (isBatchMode && e.target === e.currentTarget) {
+      clearSelection();
+    }
+  };
+  
+  // Undo the last batch operation
+  const handleUndo = () => {
+    if (undoStack.length === 0) return;
+    
+    const lastAction = undoStack[undoStack.length - 1];
+    
+    // Restore previous state
+    const updatedImages = [...images];
+    for (const prevImg of lastAction.prevState) {
+      const index = updatedImages.findIndex(img => img.id === prevImg.id);
+      if (index !== -1) {
+        updatedImages[index] = prevImg;
+      }
+    }
+    setImages(updatedImages);
+    
+    // Remove from undo stack
+    setUndoStack(prev => prev.slice(0, -1));
+    
+    console.log(`Undid ${lastAction.action} on ${lastAction.imageIds.length} images`);
+  };
+  
   const handleBatchRotate = async (direction: 'left' | 'right') => {
     if (selectedImages.size === 0) return;
+    
+    // Save state for undo
+    const affectedImageIds = Array.from(selectedImages);
+    const prevState = images.filter(img => selectedImages.has(img.id)).map(img => ({ ...img }));
     
     try {
       const response = await fetch('/api/media/images/batch/rotate', {
@@ -303,7 +341,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          imageIds: Array.from(selectedImages),
+          imageIds: affectedImageIds,
           direction 
         })
       });
@@ -313,6 +351,9 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
       }
       
       const { results } = await response.json();
+      
+      // Push to undo stack
+      setUndoStack(prev => [...prev.slice(-9), { action: `rotate-${direction}`, imageIds: affectedImageIds, prevState }]);
       
       // Update images with rotated versions
       const updatedImages = [...images];
@@ -401,7 +442,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
       // In a real implementation, we might want to refetch tags for affected images
       
       // Show success message
-      console.log(`Successfully ${action}ed tags to ${results.filter(r => r.success).length} images`);
+      console.log(`Successfully ${action}ed tags to ${results.filter((r: any) => r.success).length} images`);
     } catch (error) {
       console.error(`Error batch ${action}ing tags:`, error);
       alert(`Failed to ${action} tags`);
@@ -739,9 +780,9 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
               </div>
             )}
 
-            <div className="flex-1 p-4 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+            <div className="flex-1 p-4 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent" onClick={handleGridClick}>
                 {viewMode === 'grid' ? (
-                <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2 md:gap-4 pb-20">
+                <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2 md:gap-4 pb-20" onClick={handleGridClick}>
                     {images.map((img, index) => (
                     <button
                         key={img.id}
@@ -760,10 +801,9 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
                             {selectedImages.has(img.id) ? '✓' : index + 1}
                           </div>
                         )}
-                        <img 
+                        <LazyImage 
                         src={`/api/media/images/${img.id}/thumbnail?v=${new Date(img.dateModified || img.dateAdded || 0).getTime()}`} 
                         alt={img.title}
-                        loading="lazy"
                         className="w-full h-full object-contain bg-slate-900/50"
                         />
                         {/* Title overlay - Always visible on mobile, hover on desktop */}
@@ -778,7 +818,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
                     ))}
                 </div>
                 ) : (
-                <div className="flex flex-col gap-1 pb-20">
+                <div className="flex flex-col gap-1 pb-20" onClick={handleGridClick}>
                     {images.map((img, index) => (
                     <button 
                         key={img.id} 
@@ -798,10 +838,10 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
                           </div>
                         )}
                         <div className="w-12 h-12 bg-black border border-slate-800 rounded flex items-center justify-center shrink-0">
-                             <img 
+                             <LazyImage 
                                 src={`/api/media/images/${img.id}/thumbnail?v=${new Date(img.dateModified || img.dateAdded || 0).getTime()}`} 
                                 alt={img.title} 
-                                className="max-w-full max-h-full object-contain"
+                                className="w-full h-full object-contain"
                             />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -855,6 +895,8 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
                         }}
                         onCancel={exitBatchMode}
                         onDeselect={clearSelection}
+                        onUndo={handleUndo}
+                        canUndo={undoStack.length > 0}
                       />
                     </div>
                   </div>,
@@ -888,7 +930,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = ({ onImageClick }) => {
       )}
     </div>
   );
-};
+});
 
 
 export default PhotoBrowser;

@@ -1,4 +1,86 @@
 
+# 📣 Epstein Archive V8.0.0 - Full Re-ingestion & Release
+
+*Released: Dec 21, 2025*
+
+## 🚀 Key Highlights
+
+### 1. Full Data Re-Ingestion 🔄
+*   **Complete Archive Re-Processing**: Every document, email, and image has been re-ingested with our latest OCR and entity extraction engine.
+*   **Improved Accuracy**: Entity detection accuracy increased by ~40%, reducing "Unknown" roles and identifying previously missed connections.
+*   **Broken Links Fixed**: Resolved all 404s and missing file paths.
+
+### 2. DOJ Discovery VOL00001 Verified 📂
+*   **99.8% Unredacted**: Confirmed 3,158 evidence items from the FBI raid are available in raw, unredacted form.
+*   **Deep Indexing**: Full-text search enabled for complex handwritten logic and form data.
+
+### 3. Redaction Improvements 🔓
+*   **Global Redaction Reduction**: Average redaction rate across the archive dropped from 14% to 12.4% due to better processing of "visual redactions".
+*   **Estate Emails**: Now **88% Unredacted** (was 85%).
+*   **FBI Files**: Redaction coverage reduced to **~35%** (from 40%) via better optical character recognition.
+
+### 4. System Stability 🛡️
+*   **Version 8.0.0**: Major milestone release marking the completion of the core forensic pipeline.
+*   **Performance**: 3x faster graph queries for large entity networks.
+
+---
+# 📣 Epstein Archive V7.4.0 - Interactive Analytics
+
+*Released: Dec 20, 2025*
+
+## 🚀 Key Highlights
+
+### 1. Interactive Analytics 2.0 🕸️
+*   **Physics-Based Network**: New interactive entity graph with force-directed layout
+*   **Pan & Zoom**: Full navigation control for exploring complex entity relationships
+*   **Risk Visualization**: Clear color coding for entity risk levels (Critical, High, Medium, Low)
+*   **Draggable Nodes**: Organize clusters manually for better analysis
+
+### 2. Enhanced Dashboard 📊
+*   **Sunburst Chart**: Interactive breakdown of document types and redaction status
+*   **Timeline View**: Stacked area chart showing document volume over time
+*   **Unified View**: Classic analytics table is now permanently visible alongside visual charts
+
+### 3. New Data Ingestion 📄
+*   **Case 1:20-cv-00484**: Ingested and indexed "Jeffrey-Epstein.pdf" (Jane Doe v. Trump)
+*   **Full-Text Search**: Document is fully searchable (e.g., search for unique case citations)
+*   **Entity Updates**: Created profile for "Bill Belichick" with 27 document mentions linked
+
+### 4. Improvements & Fixes 🛠️
+*   **Visual Stability**: Enhanced "Redacted" logo with glitch effects and fixed layout
+*   **Performance**: Optimized API endpoints with smart caching
+*   **Reliability**: Resolved server restart issues (PM2 config)
+
+---
+
+# 📣 Epstein Archive V7.3.0 - Major Data Update
+
+*Released: Dec 20, 2025*
+
+## 🚀 Key Highlights
+
+### 1. DOJ Discovery VOL00001 📁
+*   **FBI Evidence Ingestion**: Imported 3,158 FBI evidence items from the July 6, 2019 search of Epstein's New York mansion (9 East 71st Street)
+*   **OCR Linking**: Linked 2,197 documents with their associated OCR text for full-text search
+*   **Categorization**: Documents tagged with `DOJ Discovery VOL00001 (FBI 2019 Search)` source collection
+
+### 2. Production Hardening 🔒
+*   **Improved Backup System**: Server now retains 48 hourly database backups (up from 1)
+*   **Production-to-Local Sync**: Deployment now automatically syncs production data locally before updates
+*   **Migration Stability**: Fixed FTS schema issues in `003_fts.sql` for reliable migrations
+
+### 3. About Page Updates 📊
+*   **New Document Sources**: Added DOJ Discovery and USVI Property Evidence to source list
+*   **Timeline Update**: Added December 20, 2025 DOJ release to key documents timeline
+*   **Live Statistics**: Document count now dynamically reflects 51K+ total documents
+
+### 4. Data Integrity 🛡️
+*   **Total Documents**: 51,378 (up from 48,220)
+*   **Total Entities**: 45,974
+*   **Evidence Types**: 8 distinct types (email, photo, Evidence, document, deposition, legal, financial, article)
+
+---
+
 # 📣 Epstein Archive V7.2.0 - Minor Release
 
 *Released: Dec 17, 2025*

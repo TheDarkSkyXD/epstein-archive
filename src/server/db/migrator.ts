@@ -10,6 +10,15 @@ export function runMigrations() {
   const db = getDb();
   const schemaDir = path.join(__dirname, 'schema');
   
+  // 0. Ensure migration history table exists
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS migration_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      filename TEXT UNIQUE,
+      executed_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
   console.log(`[Migrator] Checking for migrations in ${schemaDir}...`);
   
   let dirToScan = schemaDir;
@@ -24,42 +33,38 @@ export function runMigrations() {
   }
 
   const files = fs.readdirSync(dirToScan)
-    .filter(file => file.endsWith('.sql'))
+    .filter(file => file.endsWith('.sql') && !file.startsWith('.'))
     .sort();
 
   for (const file of files) {
-    console.log(`[Migrator] Processing: ${file}`);
+    // Check if migration already executed
+    const alreadyRun = db.prepare('SELECT 1 FROM migration_history WHERE filename = ?').get(file);
+    if (alreadyRun) {
+      continue;
+    }
+
+    console.log(`[Migrator] 🚀 Executing migration: ${file}`);
     const filePath = path.join(dirToScan, file);
     const sql = fs.readFileSync(filePath, 'utf-8');
     
-    // Split by semicolon to execute statements individually
-    // This allows "ALTER TABLE" to fail (if column exists) without stopping the whole script
-    const statements = sql
-      .split(';')
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
+    // Execute as a single transaction
+    const transaction = db.transaction(() => {
+      // We use .exec() as it handles multi-statement strings correctly in better-sqlite3
+      db.exec(sql);
+      db.prepare('INSERT INTO migration_history (filename) VALUES (?)').run(file);
+    });
 
-    for (const statement of statements) {
-      try {
-        db.exec(statement);
-      } catch (error: any) {
-        // Ignore "duplicate column name" errors
-        if (error.message.includes('duplicate column name')) {
-           // console.log(`[Migrator] Skipped existing column: ${statement.substring(0, 50)}...`);
-        } else if (error.message.includes('no such column')) {
-            // This might happen if we try to UPDATE a column we just failed to ADD.
-            // But we should try to add it.
-            console.warn(`[Migrator] Warning executing statement in ${file}: ${error.message}`);
-        } else if (error.message.includes('already exists')) {
-            // Table/Index already exists
-        } else {
-            console.error(`[Migrator] ❌ Error in ${file}:`, error.message);
-            // console.error(`Statement: ${statement}`);
-        }
+    try {
+      transaction();
+      console.log(`[Migrator] ✅ ${file} completed successfully.`);
+    } catch (error: any) {
+      console.error(`[Migrator] ❌ Critical failure in ${file}:`, error.message);
+      // In production, we might want to stop startup if a migration fails
+      if (process.env.NODE_ENV === 'production') {
+        process.exit(1);
       }
     }
-    console.log(`[Migrator] ✅ ${file} processed.`);
   }
   
-  console.log('[Migrator] All migrations completed.');
+  console.log('[Migrator] Database is up to date.');
 }

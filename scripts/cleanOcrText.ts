@@ -36,11 +36,40 @@ interface CleaningResult {
 }
 
 /**
+ * Repairs common OCR split names for high-profile entities
+ */
+function repairSplitNames(text: string): string {
+  let repaired = text;
+  
+  // High-profile specific repairs
+  const repairs = [
+    { pattern: /(Trum)\s+(p)/gi, replacement: 'Trump' },
+    { pattern: /(Epste)\s+(in)/gi, replacement: 'Epstein' }, // Epste in
+    { pattern: /(Epst)\s+(ein)/gi, replacement: 'Epstein' }, // Epst ein
+    { pattern: /(Max)\s+(well)/gi, replacement: 'Maxwell' }, // Max well
+    { pattern: /(Clint)\s+(on)/gi, replacement: 'Clinton' }, // Clint on
+    { pattern: /(Dershow)\s+(itz)/gi, replacement: 'Dershowitz' },
+    { pattern: /(Wex)\s+(ner)/gi, replacement: 'Wexner' },
+    { pattern: /(Jeff)\s+(rey)/gi, replacement: 'Jeffrey' }, // Jeff rey
+    { pattern: /(Ghis)\s+(laine)/gi, replacement: 'Ghislaine' }, // Ghis laine
+  ];
+
+  for (const { pattern, replacement } of repairs) {
+    repaired = repaired.replace(pattern, replacement);
+  }
+
+  return repaired;
+}
+
+/**
  * Main cleaning function that applies all OCR fixes
  */
 function cleanOcrText(text: string): CleaningResult {
   const originalLength = text.length;
-  let cleanedText = text;
+  
+  // 0. Repair split names (New Aggressive Step)
+  let cleanedText = repairSplitNames(text);
+  
   let wordsAffected = 0;
 
   // 1. Fix OCR ligature errors

@@ -75,3 +75,7 @@ consolidation_reports/
 validation_reports/
 uploads/
 tmp/
+
+# Large binaries
+eng.traineddata
+data/media/images/

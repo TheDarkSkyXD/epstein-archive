@@ -16,7 +16,7 @@ interface TimelineProps {
   className?: string;
 }
 
-export const Timeline: React.FC<TimelineProps> = ({ className = "" }) => {
+export const Timeline: React.FC<TimelineProps> = React.memo(({ className = "" }) => {
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null);
@@ -770,4 +770,5 @@ export const Timeline: React.FC<TimelineProps> = ({ className = "" }) => {
       )}
     </div>
   );
-};
+});
+export default Timeline;

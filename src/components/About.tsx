@@ -10,7 +10,7 @@ export const About: React.FC = () => {
           Epstein Archive Investigation Platform
         </h1>
         <p className="text-xl text-slate-400">
-          Version 3.2.0 - Comprehensive Evidence Analysis System
+          Version 8.0.0 - Comprehensive Evidence Analysis System
         </p>
       </div>
 
@@ -80,6 +80,51 @@ export const About: React.FC = () => {
         </div>
       </div>
 
+      <div className="bg-slate-800/50 rounded-xl p-8 mb-8 border border-slate-700">
+        <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+          <FileText className="h-6 w-6 text-cyan-500" />
+          How We Process Data
+        </h2>
+        <div className="grid md:grid-cols-4 gap-6">
+          <div className="bg-slate-700/30 p-4 rounded-lg border border-slate-600">
+            <h4 className="font-bold text-white mb-2 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs">1</span>
+              Ingestion
+            </h4>
+            <p className="text-sm text-slate-400">
+              We ingest raw PDFs, images, and emails from varied sources. Every file is registered, hashed for integrity, and categorized.
+            </p>
+          </div>
+          <div className="bg-slate-700/30 p-4 rounded-lg border border-slate-600">
+            <h4 className="font-bold text-white mb-2 flex items-center gap-2">
+               <span className="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs">2</span>
+              Digitization (OCR)
+            </h4>
+            <p className="text-sm text-slate-400">
+              Scanning software reads every page. We use <strong>Competitive OCR</strong> to compare results from different engines and extract the most accurate text possible.
+            </p>
+          </div>
+          <div className="bg-slate-700/30 p-4 rounded-lg border border-slate-600">
+            <h4 className="font-bold text-white mb-2 flex items-center gap-2">
+               <span className="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs">3</span>
+              Analysis
+            </h4>
+            <p className="text-sm text-slate-400">
+              Our system scans for <strong>Visual Redactions</strong> (black boxes) to flag hidden info, and uses AI to identify people in photos.
+            </p>
+          </div>
+          <div className="bg-slate-700/30 p-4 rounded-lg border border-slate-600">
+            <h4 className="font-bold text-white mb-2 flex items-center gap-2">
+               <span className="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs">4</span>
+              Connection
+            </h4>
+            <p className="text-sm text-slate-400">
+              We link people, organizations, and events across documents to build a searchable knowledge graph.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Features Grid */}
       <div className="grid md:grid-cols-2 gap-6 mb-12">
         <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
@@ -88,7 +133,7 @@ export const About: React.FC = () => {
             <h3 className="text-xl font-bold text-white">Evidence Pipeline</h3>
           </div>
           <ul className="text-slate-300 space-y-2">
-            <li>• 18,054+ enriched evidence records</li>
+            <li>• 51,379+ enriched evidence records</li>
             <li>• OCR processing for scanned documents</li>
             <li>• Automated entity extraction</li>
             <li>• Red Flag Index (0-5 scale) for evidence rating</li>
@@ -102,7 +147,7 @@ export const About: React.FC = () => {
             <h3 className="text-xl font-bold text-white">Entity Network</h3>
           </div>
           <ul className="text-slate-300 space-y-2">
-            <li>• 50,370+ entity-evidence connections</li>
+            <li>• 45,968+ identified entities</li>
             <li>• Person and organization tracking</li>
             <li>• Relationship mapping</li>
             <li>• Connection strength analysis</li>
@@ -246,6 +291,22 @@ export const About: React.FC = () => {
               <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-emerald-500/20 text-emerald-400 rounded-full border border-emerald-500/30">~15,500 FILES</span>
             </h3>
             <p className="text-sm text-slate-400">"Seventh Production" release containing photos and documents.</p>
+            <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+              <span className="inline-block w-2 h-2 bg-rose-500/50 rounded-sm"></span>
+              Average Redaction: 12.4% (Calculated via OCR)
+            </div>
+          </a>
+
+          <a href="/documents?q=DOJ%20VOL00001" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+            <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
+              DOJ Evidence Vol. 1
+              <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-amber-500/20 text-amber-400 rounded-full border border-amber-500/30">NEW</span>
+            </h3>
+            <p className="text-sm text-slate-400">Raw digital evidence from the 2019 FBI raid of the NYC residence.</p>
+            <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+              <span className="inline-block w-2 h-2 bg-emerald-500/50 rounded-sm"></span>
+              99.8% Unredacted (Raw Evidence)
+            </div>
           </a>
 
           <a href="/documents?q=Ehud%20Barak" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">

@@ -288,5 +288,24 @@ console.log(`Entities: ${stats.totalEntities}`);
 console.log(`  With mentions: ${stats.entitiesWithMentions}`);
 console.log(`Relationships: ${stats.totalRelationships}`);
 
+
+// ============================================
+// 6. Aggressive Entity Consolidation (Standardized)
+// ============================================
+console.log('🧹 Phase 6: Running Aggressive Entity Consolidation...');
+
+try {
+  const { execSync } = require('child_process');
+  const scriptPath = path.resolve('./scripts/aggressive_entity_consolidation.ts');
+  
+  console.log(`   Executing: ${scriptPath}`);
+  const output = execSync(`npx tsx "${scriptPath}"`, { stdio: 'inherit' });
+  
+  console.log('   ✓ Aggressive consolidation complete.');
+} catch (error: any) {
+  console.error('   ❌ Error running aggressive consolidation:', error.message);
+  // Don't fail the whole script, just log error
+}
+
 db.close();
 console.log('\n✅ Enrichment complete!');

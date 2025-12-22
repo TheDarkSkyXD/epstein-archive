@@ -66,16 +66,33 @@ export const timelineRepository = {
   getTimelineEvents: () => {
     const db = getDb();
     try {
-      // Query documents with dates for timeline
-      const events = db.prepare(`
+      // 1. Fetch Curated Global Events
+      const globalEvents = db.prepare(`
+        SELECT 
+          id,
+          title,
+          date as start_date,
+          description,
+          type,
+          significance,
+          entities,
+          related_document_id,
+          'event' as source
+        FROM global_timeline_events
+        ORDER BY date DESC
+      `).all();
+
+      // 2. Fetch High-Significance Documents (limit to prevent clutter)
+      const docEvents = db.prepare(`
         SELECT 
           d.id,
           d.title,
           d.date_created as start_date,
           d.evidence_type as type,
-          SUBSTR(d.content, 1, 500) as content,
+          SUBSTR(d.content, 1, 300) as content,
           d.word_count,
           d.file_path,
+          d.original_file_path,
           d.red_flag_rating,
           (SELECT COUNT(*) FROM entity_document_mentions WHERE document_id = d.id) as entity_count,
           COALESCE(
@@ -84,27 +101,51 @@ export const timelineRepository = {
              JOIN entities e ON edm.entity_id = e.id 
              WHERE edm.document_id = d.id
              LIMIT 8), ''
-          ) as entities_csv
+          ) as entities_csv,
+          'document' as source
         FROM documents d
         WHERE d.date_created IS NOT NULL 
           AND d.date_created != ''
-          AND d.title IS NOT NULL
-          AND d.title != ''
+          AND (d.red_flag_rating >= 4 OR d.word_count > 15000 OR (d.title LIKE '%Epstein%' AND d.title LIKE '%Arrest%'))
         ORDER BY d.date_created DESC
-        LIMIT 500
+        LIMIT 50
       `).all();
-      
-      return events.map((event: any) => ({
-        id: event.id,
-        title: event.title || 'Untitled Document',
-        description: generateDescription(event),
-        type: mapEvidenceType(event.type),
-        date: event.start_date,
-        entities: event.entities_csv ? event.entities_csv.split('|||').filter(Boolean).slice(0, 8) : [],
-        significance_score: calculateSignificance(event),
-        file_path: event.file_path,
-        primary_entity: event.entities_csv ? event.entities_csv.split('|||')[0] : null
+
+      // Transform Global Events
+      const mappedGlobal = globalEvents.map((e: any) => ({
+        id: `evt-${e.id}`,
+        title: e.title,
+        description: e.description,
+        type: e.type,
+        date: e.start_date,
+        entities: e.entities ? JSON.parse(e.entities) : [],
+        significance_score: e.significance,
+        file_path: null,
+        original_file_path: null,
+        is_curated: true
       }));
+
+      // Transform Document Events
+      const mappedDocs = docEvents.map((e: any) => ({
+        id: `doc-${e.id}`,
+        title: e.title || 'Untitled Document',
+        description: generateDescription(e),
+        type: mapEvidenceType(e.type),
+        date: e.start_date,
+        entities: e.entities_csv ? e.entities_csv.split('|||').filter(Boolean).slice(0, 8) : [],
+        significance_score: calculateSignificance(e),
+        file_path: e.file_path,
+        original_file_path: e.original_file_path, // CRITICAL FIX: Return original path
+        primary_entity: e.entities_csv ? e.entities_csv.split('|||')[0] : null,
+        is_curated: false
+      }));
+
+      // Merge and Sort
+      const allEvents = [...mappedGlobal, ...mappedDocs].sort((a, b) => {
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+      });
+      
+      return allEvents;
     } catch (error) {
       console.error('Error getting timeline events:', error);
       return [];

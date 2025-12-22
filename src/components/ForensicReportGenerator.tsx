@@ -188,7 +188,7 @@ export default function ForensicReportGenerator({ investigationId }: ForensicRep
         id: 'exec-summary',
         title: 'Executive Summary',
         type: 'executive_summary',
-        content: `This forensic analysis report presents a comprehensive examination of the network based on ${documentCount} analyzed documents, financial records, and entity relationships. The investigation has identified ${entityCount} entities, with ${highRiskEntities} classified as high-risk.
+        content: `This forensic analysis report presents a comprehensive examination of the network based on ${documentCount} analysed documents, financial records, and entity relationships. The investigation has identified ${entityCount} entities, with ${highRiskEntities} classified as high-risk.
         
 Key findings include:
 • Identification of key figures including: ${topEntitiesList}
@@ -217,7 +217,7 @@ Risk Assessment:
 Entities were assigned a "Red Flag Rating" based on keyword analysis, proximity to known risk factors, and network centrality. ${highRiskEntities} entities were flagged for elevated risk.
 
 Financial Analysis:
-Transaction data was normalized and analyzed for patterns indicative of layering or structuring. ${suspiciousTransactions.length} transactions were flagged as high-risk based on amount, frequency, or counterparties.`,
+Transaction data was normalised and analysed for patterns indicative of layering or structuring. ${suspiciousTransactions.length} transactions were flagged as high-risk based on amount, frequency, or counterparties.`,
         evidence: ['System logs', 'Processing metrics', 'Risk scoring algorithms'],
         confidence: 95,
         sources: ['System Architecture', 'Data Processing Pipeline']
@@ -229,13 +229,13 @@ Transaction data was normalized and analyzed for patterns indicative of layering
         id: 'findings',
         title: 'Primary Findings',
         type: 'findings',
-        content: `The investigation reveals a network centered around key individuals with significant financial flows.
+        content: `The investigation reveals a network centred around key individuals with significant financial flows.
 
 Entity Network:
-The most prominent entities identified include ${topEntitiesList}. The network analysis shows dense connections between these individuals and various organizations.
+The most prominent entities identified include ${topEntitiesList}. The network analysis shows dense connections between these individuals and various organisations.
 
 Financial Activity:
-A total of ${formattedAmount} in transactions was analyzed. ${suspiciousTransactions.length} transactions were identified as potentially suspicious, requiring further scrutiny.
+A total of ${formattedAmount} in transactions was analysed. ${suspiciousTransactions.length} transactions were identified as potentially suspicious, requiring further scrutiny.
 ${suspiciousTransactions.length > 0 ? `Notable high-risk transactions include transfers involving ${suspiciousTransactions.slice(0, 3).map((t: any) => t.to_entity || 'unknown').join(', ')}.` : ''}
 
 Documentary Evidence:
@@ -275,7 +275,7 @@ The entity graph demonstrates significant redundancy, suggesting that the networ
 2. Financial flows are significant and contain indicators of potential illicit activity.
 3. High-risk entities are central to both the social and financial networks.
 
-It is concluded that the identified patterns are consistent with complex organizational structures often seen in high-profile investigations.`,
+It is concluded that the identified patterns are consistent with complex organisational structures often seen in high-profile investigations.`,
         evidence: ['Comprehensive dataset analysis'],
         confidence: 90,
         sources: ['Integrated Analysis']
@@ -287,7 +287,7 @@ It is concluded that the identified patterns are consistent with complex organiz
         id: 'recommendations',
         title: 'Recommendations',
         type: 'recommendations',
-        content: `1. Prioritize deep-dive investigation into the ${highRiskEntities} high-risk entities.
+        content: `1. Prioritise deep-dive investigation into the ${highRiskEntities} high-risk entities.
 2. Conduct a targeted audit of the ${suspiciousTransactions.length} flagged financial transactions.
 3. Expand data collection to include more external financial records if available.
 4. Interview associates linked to the top 5 identified key figures.`,

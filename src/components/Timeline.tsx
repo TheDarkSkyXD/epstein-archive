@@ -6,10 +6,12 @@ interface TimelineEvent {
   date: Date;
   title: string;
   description: string;
-  type: 'email' | 'document' | 'flight' | 'legal' | 'financial' | 'testimony';
+  type: 'email' | 'document' | 'flight' | 'legal' | 'financial' | 'testimony' | 'incident' | 'other';
   file: string;
+  original_file_path?: string; // New field
   entities: string[];
   significance: 'high' | 'medium' | 'low';
+  is_curated?: boolean; // New field
 }
 
 interface TimelineProps {
@@ -68,9 +70,11 @@ export const Timeline: React.FC<TimelineProps> = React.memo(({ className = "" })
           title: event.title || 'Untitled Event',
           description: event.description || `Document: ${event.title || 'Untitled'}`,
           type: (event.type?.toLowerCase() as any) || 'document',
-          file: '', // Optional in new schema
+          file: event.file_path || '', 
+          original_file_path: event.original_file_path || '', // Map new field
           entities: event.entities || (event.primary_entity ? [event.primary_entity] : []),
-          significance: event.significance_score || 'medium'
+          significance: event.significance_score || 'medium',
+          is_curated: event.is_curated || false // Map new field
         })).filter(event => !isNaN(event.date.getTime())); // Filter out invalid dates
         
         setEvents(timelineEvents);
@@ -647,7 +651,11 @@ export const Timeline: React.FC<TimelineProps> = React.memo(({ className = "" })
 
             {/* Event Card */}
             <div 
-              className={`rounded-xl border p-5 cursor-pointer transition-all duration-300 ${getSignificanceColor(event.significance)}`}
+              className={`rounded-xl border p-5 cursor-pointer transition-all duration-300 ${
+                event.is_curated 
+                  ? 'border-amber-500/50 bg-amber-900/10 hover:bg-amber-900/20' 
+                  : getSignificanceColor(event.significance)
+              }`}
               onClick={() => setSelectedEvent(event)}
             >
               <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
@@ -660,11 +668,17 @@ export const Timeline: React.FC<TimelineProps> = React.memo(({ className = "" })
                       event.type === 'legal' ? 'bg-purple-900/30 text-purple-300' :
                       event.type === 'flight' ? 'bg-blue-900/30 text-blue-300' :
                       event.type === 'financial' ? 'bg-emerald-900/30 text-emerald-300' :
+                      event.type === 'incident' ? 'bg-amber-900/30 text-amber-300' : // New styling
                       'bg-slate-700 text-slate-300'
                     }`}>
                       {getTypeIcon(event.type)}
                       <span>{event.type}</span>
                     </div>
+                    {event.is_curated && (
+                      <span className="text-xs font-bold text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded bg-amber-900/20">
+                        KEY EVENT
+                      </span>
+                    )}
                   </div>
                   
                   <h3 className="text-xl font-bold text-white mb-2 group-hover:text-cyan-400 transition-colors">
@@ -696,7 +710,9 @@ export const Timeline: React.FC<TimelineProps> = React.memo(({ className = "" })
                   <div className="w-32 h-24 bg-slate-800 rounded-lg border border-slate-700 flex items-center justify-center overflow-hidden relative group">
                     <FileText className="w-8 h-8 text-slate-600 group-hover:text-slate-400 transition-colors" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-2">
-                      <span className="text-xs text-white font-medium">View Source</span>
+                       <span className="text-xs text-white font-medium">
+                        {event.is_curated ? 'View Details' : 'View Source'}
+                       </span>
                     </div>
                   </div>
                 </div>
@@ -742,14 +758,30 @@ export const Timeline: React.FC<TimelineProps> = React.memo(({ className = "" })
               </div>
 
               <div>
-                <span className="text-slate-400 text-xs uppercase tracking-wider block mb-2">Source Document</span>
-                <div className="flex items-center gap-3 bg-slate-800 p-3 rounded-lg border border-slate-700">
-                  <FileText className="w-5 h-5 text-cyan-400" />
-                  <span className="text-cyan-300 font-mono text-sm truncate flex-1">{selectedEvent.file}</span>
-                  <button className="px-3 py-1 bg-cyan-900/30 text-cyan-300 text-xs rounded hover:bg-cyan-900/50 transition-colors border border-cyan-500/30">
-                    Open
-                  </button>
-                </div>
+                <span className="text-slate-400 text-xs uppercase tracking-wider block mb-2">
+                  {selectedEvent.is_curated ? 'Related Documentation' : 'Source Document'}
+                </span>
+                
+                {selectedEvent.file ? (
+                  <div className="flex items-center gap-3 bg-slate-800 p-3 rounded-lg border border-slate-700">
+                    <FileText className="w-5 h-5 text-cyan-400" />
+                    <span className="text-cyan-300 font-mono text-sm truncate flex-1">
+                      {selectedEvent.file.split('/').pop()}
+                    </span>
+                    <a 
+                      href={selectedEvent.original_file_path ? `/files/${selectedEvent.original_file_path.replace('/data/originals/', '')}` : '#'} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="px-3 py-1 bg-cyan-900/30 text-cyan-300 text-xs rounded hover:bg-cyan-900/50 transition-colors border border-cyan-500/30 flex items-center gap-1"
+                    >
+                      Open PDF
+                    </a>
+                  </div>
+                ) : (
+                  <div className="text-slate-400 italic text-sm">
+                    No direct document linked to this event.
+                  </div>
+                )}
               </div>
 
               {selectedEvent.entities.length > 0 && (

@@ -63,7 +63,7 @@ export default function MultiSourceCorrelationEngine() {
         const stats = await statsResp.json().catch(() => ({}));
         const ds: DataSource[] = [
           { id: 'documents', type: 'document', name: 'Documents', description: 'Indexed evidence documents', lastUpdated: new Date().toISOString().slice(0,10), reliability: 'verified', recordCount: stats?.totalDocuments || 0, coverage: 100 },
-          { id: 'entities', type: 'legal', name: 'Entities', description: 'People and organizations with mentions', lastUpdated: new Date().toISOString().slice(0,10), reliability: 'high', recordCount: stats?.totalEntities || 0, coverage: 100 }
+          { id: 'entities', type: 'legal', name: 'Entities', description: 'People and organisations with mentions', lastUpdated: new Date().toISOString().slice(0,10), reliability: 'high', recordCount: stats?.totalEntities || 0, coverage: 100 }
         ];
         setDataSources(ds);
 

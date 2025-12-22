@@ -21,8 +21,8 @@ export const About: React.FC = () => {
           Mission
         </h2>
         <p className="text-slate-300 text-lg leading-relaxed">
-          The Epstein Archive is a comprehensive investigative platform designed to organize, 
-          analyze, and present evidence related to the Jeffrey Epstein case. Our mission is to 
+          The Epstein Archive is a comprehensive investigative platform designed to organise, 
+          analyse, and present evidence related to the Jeffrey Epstein case. Our mission is to 
           provide researchers, journalists, and the public with powerful tools to explore connections, 
           identify patterns, and uncover insights from thousands of documents, flight logs, and evidence records.
         </p>
@@ -92,7 +92,7 @@ export const About: React.FC = () => {
               Ingestion
             </h4>
             <p className="text-sm text-slate-400">
-              We ingest raw PDFs, images, and emails from varied sources. Every file is registered, hashed for integrity, and categorized.
+              We ingest raw PDFs, images, and emails from varied sources. Every file is registered, hashed for integrity, and categorised.
             </p>
           </div>
           <div className="bg-slate-700/30 p-4 rounded-lg border border-slate-600">
@@ -119,7 +119,7 @@ export const About: React.FC = () => {
               Connection
             </h4>
             <p className="text-sm text-slate-400">
-              We link people, organizations, and events across documents to build a searchable knowledge graph.
+              We link people, organisations, and events across documents to build a searchable knowledge graph.
             </p>
           </div>
         </div>
@@ -148,7 +148,7 @@ export const About: React.FC = () => {
           </div>
           <ul className="text-slate-300 space-y-2">
             <li>• 45,968+ identified entities</li>
-            <li>• Person and organization tracking</li>
+            <li>• Person and organisation tracking</li>
             <li>• Relationship mapping</li>
             <li>• Connection strength analysis</li>
             <li>• Social network visualization</li>
@@ -175,7 +175,7 @@ export const About: React.FC = () => {
             <h3 className="text-xl font-bold text-white">Media Browser</h3>
           </div>
           <ul className="text-slate-300 space-y-2">
-            <li>• Photo album organization</li>
+            <li>• Photo album organisation</li>
             <li>• Image metadata extraction</li>
             <li>• Advanced search and filtering</li>
             <li>• Format and date-based sorting</li>

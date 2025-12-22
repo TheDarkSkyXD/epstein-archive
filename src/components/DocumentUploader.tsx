@@ -135,7 +135,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({ processor, o
             />
           </div>
           <p className="text-gray-400 text-sm mt-3">
-            Supported formats: .txt, .md files. Upload actual Epstein documents to analyze them.
+            Supported formats: .txt, .md files. Upload actual Epstein documents to analyse them.
           </p>
         </div>
       )}

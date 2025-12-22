@@ -248,7 +248,7 @@ export const AboutPage: React.FC = () => {
           <div className="bg-slate-800/50 rounded-lg p-6">
             <h3 className="text-xl font-semibold text-white mb-3">👥 Entities</h3>
             <p className="text-3xl font-bold text-green-400 mb-2">{stats.entities.toLocaleString()}</p>
-            <p className="text-slate-400">People, organizations, and locations extracted from documents</p>
+            <p className="text-slate-400">People, organisations, and locations extracted from documents</p>
           </div>
 
           <div className="bg-slate-800/50 rounded-lg p-6">
@@ -260,7 +260,7 @@ export const AboutPage: React.FC = () => {
           <div className="bg-slate-800/50 rounded-lg p-6">
             <h3 className="text-xl font-semibold text-white mb-3">🖼️ Media</h3>
             <p className="text-3xl font-bold text-orange-400 mb-2">{stats.media.toLocaleString()}</p>
-            <p className="text-slate-400">Images across {stats.albums.toLocaleString()} categorized albums</p>
+            <p className="text-slate-400">Images across {stats.albums.toLocaleString()} categorised albums</p>
           </div>
         </div>
 
@@ -576,7 +576,7 @@ export const AboutPage: React.FC = () => {
             </li>
             <li className="flex items-center gap-2">
               <span className="text-green-400">✓</span>
-              Categorized media library with 231 images
+              Categorised media library with {stats.media.toLocaleString()} images
             </li>
           </ul>
         </div>
@@ -589,7 +589,7 @@ export const AboutPage: React.FC = () => {
           <h2 className="text-3xl font-bold text-white">Built for Future Releases</h2>
         </div>
         <p className="text-slate-300 leading-relaxed">
-          This archive is designed to rapidly ingest and analyze new document releases as they are unsealed. 
+          This archive is designed to rapidly ingest and analyse new document releases as they are unsealed. 
           Our automated pipeline can process thousands of pages, extract entities, and update the relationship 
           graph within hours of new documents becoming available.
         </p>

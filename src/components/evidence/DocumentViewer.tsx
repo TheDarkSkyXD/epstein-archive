@@ -13,6 +13,7 @@ interface DocumentViewerProps {
     title: string;
     extractedText: string;
     metadata: any;
+    original_file_path?: string;
   };
 }
 
@@ -56,9 +57,9 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
         </div>
         
         <div className="flex items-center gap-2">
-          {evidence.metadata?.source_original_url && (
+          {(evidence.original_file_path || evidence.metadata?.source_original_url) && (
             <a
-              href={evidence.metadata.source_original_url}
+              href={evidence.original_file_path || evidence.metadata.source_original_url}
               download
               target="_blank"
               rel="noopener noreferrer"

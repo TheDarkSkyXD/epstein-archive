@@ -185,9 +185,35 @@ export const documentsRepository = {
       }
     }
 
+    // Transform original_file_path to URL
+    if (document && document.original_file_path) {
+       // Assume /data/ is mapped to /files/data/ or similar.
+       // The server maps RAW_CORPUS_BASE_PATH to /files.
+       // If standard path is /data/originals/..., we want /files/originals/... if RAW_CORPUS_BASE_PATH is /data
+       // OR if full path is /app/data/originals, and CORPUS is /app/data.
+       // Safest bet for now: If it starts with /data/, map to /files/data/ (or just /files/ if it's relative).
+       // Actually, looking at Timeline.tsx: event.original_file_path.replace('/data/originals/', '')
+       // and href={`/files/${...}`}
+       
+       // Let's standardise on returning a usable URL path if possible, OR just passed the raw path and let frontend handle it?
+       // The plan said "transform... into a web-accessible URL".
+       
+       const rawPath = document.original_file_path;
+       // Quick fix for standard /data/originals structure
+       if (rawPath.includes('/data/originals/')) {
+           document.source_original_url = `/files/${rawPath.split('/data/originals/')[1]}`;
+       } else {
+           // Fallback or leave as is
+           document.source_original_url = `/files/${rawPath}`; 
+       }
+       // Also keep the raw path
+    }
+
     return {
       ...document,
-      source_collection: 'Epstein Files'
+      source_collection: 'Epstein Files',
+      // Ensure top-level access to the URL
+      original_file_path: document.source_original_url || document.original_file_path
     };
   },
   

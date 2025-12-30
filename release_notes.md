@@ -8,10 +8,12 @@
 *   **Fuzzy Linking**: Automated association of 2,980+ OCR text files with their original source PDFs.
 *   **In-App PDF Viewer**: Direct PDF rendering with page-level linking support for forensic analysis.
 
-### 2. Persona-Based UX Analysis 🧩
-*   **User Journey Handbook**: Comprehensive walkthroughs for Developer, Casual, and Researcher personas.
-*   **UX Pattern & Rationale Guide**: Documenting the "Context-First" navigation and "Red Flag Hierarchy" design patterns.
-*   **System Mental Model**: Narrative and architectural mapping of the data-to-UX pipeline.
+### 2. Institutional Memory Suite 🧠
+*   **The Archive Wiki (`docs/wiki.md`)**: A centralized source of truth for system architecture, logic, and roadmap.
+*   **Technical Reference Guide**: Deep dive into APIs, schema mapping, and deployment operations.
+*   **User Journey Handbook**: Persona-based analysis (Journalist, Casual User, Developer) documenting mental models.
+*   **Forensic Search Guide**: End-user documentation for maximizing the new Red Flag Index and Side-by-Side tools.
+*   **System Mental Model**: Narratives explaining the evolution from messy archival data to structured forensic insights.
 
 ### 3. Technical & Media Integrity 🛠️
 *   **Zero 404s**: 100% resolution of missing media files and thumbnails through standardized path re-mapping.

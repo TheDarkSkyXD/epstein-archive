@@ -18,12 +18,13 @@ const PersonCard: React.FC<PersonCardProps> = ({ person, onClick, onDocumentClic
   const rating = Number((person as any).red_flag_rating ?? (person as any).redFlagRating ?? (person as any).spiceRating ?? 0);
   const [photos, setPhotos] = React.useState<any[]>([]);
   
+  // Fetch associated photos
   React.useEffect(() => {
     if (person.id) {
         fetch(`/api/media/images?personId=${person.id}`)
             .then(res => res.json())
             .then(data => {
-                if (Array.isArray(data)) setPhotos(data.slice(0, 5)); // Limit to 5 thumbs
+                if (Array.isArray(data)) setPhotos(data.slice(0, 5));
             })
             .catch(err => console.error('Failed to load person photos', err));
     }

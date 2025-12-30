@@ -98,6 +98,35 @@ export class MediaService {
     stmt.run(id);
   }
 
+  /**
+   * Get existing album by name or create a new one (idempotent)
+   */
+  getOrCreateAlbum(name: string, description?: string): Album {
+    const stmt = this.db.prepare('SELECT id FROM media_albums WHERE name = ?');
+    const existing = stmt.get(name) as { id: number } | undefined;
+    
+    if (existing) {
+      return this.getAlbumById(existing.id)!;
+    }
+    
+    return this.createAlbum(name, description);
+  }
+
+  /**
+   * Check if an image already exists by original filename and album
+   */
+  imageExists(originalFilename: string, albumId?: number): boolean {
+    const stmt = albumId 
+      ? this.db.prepare('SELECT id FROM media_images WHERE original_filename = ? AND album_id = ?')
+      : this.db.prepare('SELECT id FROM media_images WHERE original_filename = ?');
+    
+    const result = albumId 
+      ? stmt.get(originalFilename, albumId)
+      : stmt.get(originalFilename);
+    
+    return !!result;
+  }
+
   // ============ IMAGE OPERATIONS ============
 
   getAllImages(filter?: ImageFilter, sort?: ImageSort): MediaImage[] {
@@ -108,9 +137,8 @@ export class MediaService {
         GROUP_CONCAT(t.name, ', ') as tags
       FROM media_images i
       LEFT JOIN media_albums a ON i.album_id = a.id
-      LEFT JOIN image_tags it ON i.id = it.image_id
-      LEFT JOIN tags t ON it.tag_id = t.id
-      LEFT JOIN media_people mp ON i.id = mp.media_id
+      LEFT JOIN media_image_tags it ON i.id = it.image_id
+      LEFT JOIN media_tags t ON it.tag_id = t.id
     `;
 
     const conditions: string[] = [];
@@ -122,7 +150,7 @@ export class MediaService {
         params.push(filter.albumId);
       }
       if (filter.tagId) {
-        conditions.push('i.id IN (SELECT image_id FROM image_tags WHERE tag_id = ?)');
+        conditions.push('i.id IN (SELECT image_id FROM media_image_tags WHERE tag_id = ?)');
         params.push(filter.tagId);
       }
       if (filter.personId) {
@@ -148,9 +176,9 @@ export class MediaService {
         )`);
         params.push(filter.searchQuery);
       }
-      if (filter.hasPeople) {
-        conditions.push('i.id IN (SELECT media_id FROM media_people)');
-      }
+      // if (filter.hasPeople) {
+      //   conditions.push('i.id IN (SELECT media_id FROM media_people)');
+      // }
     }
 
     if (conditions.length > 0) {
@@ -163,6 +191,14 @@ export class MediaService {
       query += ` ORDER BY i.${sort.field} ${sort.order.toUpperCase()}`;
     } else {
       query += ' ORDER BY i.date_added DESC';
+    }
+
+    // Add pagination if specified
+    if (filter?.limit) {
+      query += ` LIMIT ${filter.limit}`;
+      if (filter?.offset) {
+        query += ` OFFSET ${filter.offset}`;
+      }
     }
 
     const stmt = this.db.prepare(query);
@@ -182,8 +218,8 @@ export class MediaService {
         GROUP_CONCAT(t.name, ', ') as tags
       FROM media_images i
       LEFT JOIN media_albums a ON i.album_id = a.id
-      LEFT JOIN image_tags it ON i.id = it.image_id
-      LEFT JOIN tags t ON it.tag_id = t.id
+      LEFT JOIN media_image_tags it ON i.id = it.image_id
+      LEFT JOIN media_tags t ON it.tag_id = t.id
       WHERE i.id = ?
       GROUP BY i.id
     `);

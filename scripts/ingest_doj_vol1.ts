@@ -21,21 +21,26 @@ async function run() {
 
     // 1. Parse OCR Files
     const ocrMap = new Map<string, string>();
-    const ocrFiles = fs.readdirSync(OCR_DIR).filter(f => f.endsWith('.txt'));
     
-    console.log(`📄 Parsing ${ocrFiles.length} OCR files...`);
-    for (const file of ocrFiles) {
-        const content = fs.readFileSync(path.join(OCR_DIR, file), 'utf-8');
-        // The EFTA ID usually follows the text for that page in these productions
-        const regex = /([\s\S]*?)(EFTA\d{8})/g;
-        let match;
-        while ((match = regex.exec(content)) !== null) {
-            const text = match[1].trim();
-            const id = match[2];
-            ocrMap.set(id, text);
+    if (fs.existsSync(OCR_DIR)) {
+        const ocrFiles = fs.readdirSync(OCR_DIR).filter(f => f.endsWith('.txt'));
+        
+        console.log(`📄 Parsing ${ocrFiles.length} OCR files...`);
+        for (const file of ocrFiles) {
+            const content = fs.readFileSync(path.join(OCR_DIR, file), 'utf-8');
+            // The EFTA ID usually follows the text for that page in these productions
+            const regex = /([\s\S]*?)(EFTA\d{8})/g;
+            let match;
+            while ((match = regex.exec(content)) !== null) {
+                const text = match[1].trim();
+                const id = match[2];
+                ocrMap.set(id, text);
+            }
         }
+        console.log(`✅ Parsed OCR for ${ocrMap.size} documents.`);
+    } else {
+        console.log(`⚠️  OCR directory not found: ${OCR_DIR}. Skipping OCR parsing.`);
     }
-    console.log(`✅ Parsed OCR for ${ocrMap.size} documents.`);
 
     // 2. Find all PDFs
     const pdfFiles: string[] = [];

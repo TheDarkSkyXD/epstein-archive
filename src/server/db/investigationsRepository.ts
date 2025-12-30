@@ -126,6 +126,30 @@ export const investigationsRepository = {
 
   addEvidence: async (investigationId: number, data: any) => {
     const db = getDb();
+    
+    // Handle frontend format where evidence is nested inside data.evidence
+    const evidenceData = data.evidence || data;
+    const relevance = data.relevance || evidenceData.relevance || 'high';
+    
+    // Determine the type and extract appropriate ID
+    // Support: documents, media (images), or generic evidence
+    const type = evidenceData.type || (evidenceData.thumbnailPath ? 'media' : 'document');
+    
+    // Get the ID based on type
+    const documentId = type === 'media' 
+      ? null 
+      : (evidenceData.id || evidenceData.documentId || null);
+    const mediaId = type === 'media' 
+      ? (evidenceData.id || evidenceData.mediaId || null) 
+      : null;
+    
+    // Build title from available fields
+    const title = evidenceData.title 
+      || evidenceData.file_name 
+      || evidenceData.filename 
+      || evidenceData.name 
+      || 'Untitled Evidence';
+    
     const stmt = db.prepare(`
       INSERT INTO evidence_items (
         investigation_id, document_id, title, type, source_id, source, 
@@ -140,16 +164,16 @@ export const investigationsRepository = {
     
     const result = stmt.run({
       investigation_id: investigationId,
-      document_id: data.documentId || null,
-      title: data.title || '',
-      type: data.type || 'document',
-      source_id: data.sourceId || '',
-      source: data.source || '',
-      description: data.description || '',
-      relevance: data.relevance || 'high',
-      credibility: data.credibility || 'verified',
-      extracted_at: new Date().toISOString(),
-      extracted_by: 'system',
+      document_id: documentId || mediaId, // Store either doc or media ID
+      title: title,
+      type: type,
+      source_id: evidenceData.sourceId || evidenceData.id?.toString() || '',
+      source: evidenceData.source || evidenceData.file_path || evidenceData.path || '',
+      description: evidenceData.description || evidenceData.snippet || '',
+      relevance: relevance,
+      credibility: evidenceData.credibility || 'verified',
+      extracted_at: data.addedAt || new Date().toISOString(),
+      extracted_by: 'user',
       authenticity_score: null,
       hash: null,
       sensitivity: 'public'

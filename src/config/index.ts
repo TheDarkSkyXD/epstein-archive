@@ -56,7 +56,7 @@ const getCorsOrigin = (): string | string[] => {
 
 export const config: Config = {
   nodeEnv: getEnvVar('NODE_ENV', 'development'),
-  apiPort: getEnvVarAsNumber('API_PORT', 3012),
+  apiPort: getEnvVarAsNumber('PORT', 3012),
   databaseUrl: getEnvVar('DATABASE_URL', './epstein-archive.db'),
   dbEncryptionKey: getEnvVar('DB_ENCRYPTION_KEY', 'default-encryption-key'),
   jwtSecret: getEnvVar('JWT_SECRET', 'default-jwt-secret'),

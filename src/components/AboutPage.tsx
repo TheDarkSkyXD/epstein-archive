@@ -133,6 +133,16 @@ const DOCUMENT_SOURCES = [
     search: "DOJ VOL0000"
   },
   {
+    title: "DOJ Discovery VOL00007-8",
+    description: "Dec 2025 release: Financial records, witness statements, and communications.",
+    redactionStatus: "Moderate Redaction (~40%)",
+    redactionColor: "yellow",
+    impact: "HIGH",
+    impactColor: "blue",
+    link: null,
+    search: "DOJ VOL00007 OR DOJ VOL00008"
+  },
+  {
     title: "USVI Property Evidence",
     description: "Photos from Little Saint James island properties.",
     redactionStatus: "Unredacted (0%)",
@@ -149,7 +159,9 @@ const timelineEvents = [
   { date: "July 7, 2025", source: "DOJ / FBI Review", content: "Memo stating no \"client list\" exists and no evidence for 3rd party prosecution." },
   { date: "Sept 8, 2025", source: "House Oversight", content: "\"Birthday Book\" (2003) with photos and notes." },
   { date: "Nov 12, 2025", source: "House Oversight", content: "23k+ pages of Estate Emails (2009-2019)." },
-  { date: "Dec 20, 2025", source: "DOJ Discovery", content: "VOL00001: 3,158 FBI evidence items from 2019 NY search." }
+  { date: "Dec 20, 2025", source: "DOJ Discovery", content: "VOL00001: 3,158 FBI evidence items from 2019 NY search." },
+  { date: "Dec 24, 2025", source: "DOJ Discovery", content: "VOL00007-8: Financial records, JPM correspondence, and new witness statements." },
+  { date: "Dec 30, 2025", source: "Epstein Archive", content: "V9.0.0: Integrated Side-by-Side PDF Viewer and fuzzy document source linking." }
 ];
 
 // Helper to get color classes
@@ -377,7 +389,7 @@ export const AboutPage: React.FC = () => {
           <FileText className="h-8 w-8 text-blue-400" />
           <div>
             <h2 className="text-3xl font-bold text-white">The Epstein Files: Analysis</h2>
-            <p className="text-slate-400 mt-1">What Documents Exist and What They Prove | Updated Dec 05, 2025</p>
+            <p className="text-slate-400 mt-1">What Documents Exist and What They Prove | Updated Dec 30, 2025</p>
           </div>
         </div>
 
@@ -570,6 +582,10 @@ export const AboutPage: React.FC = () => {
               <span className="text-green-400">✓</span>
               Forensic document analysis
             </li>
+            <li className="flex items-center gap-2 text-blue-300 font-semibold">
+              <span className="text-blue-400">✨</span>
+              Integrated Side-by-Side PDF Viewer
+            </li>
             <li className="flex items-center gap-2">
               <span className="text-green-400">✓</span>
               Investigation workspace with hypothesis tracking
@@ -600,8 +616,16 @@ export const AboutPage: React.FC = () => {
         </p>
         <div className="bg-blue-900/30 border border-blue-500/30 rounded-lg p-4 mt-4">
           <p className="text-blue-200 text-sm">
-            <strong>Latest Addition:</strong> December 20, 2025 - Ingested DOJ Discovery VOL00001 containing 3,158 FBI evidence items 
-            from the July 2019 search of Epstein's New York mansion. Archive now contains {stats.documents.toLocaleString()}+ documents.
+            <strong>Latest Addition:</strong> December 30, 2025 - V9.0.0 Major Release: Integrated Document Viewing (Side-by-Side), 
+            Fuzzy Source Linking (2,980+ documents), and complete Media Integrity resolution (Zero 404s). 
+            System now features hardened production security and persona-based documentation.
+          </p>
+        </div>
+        <div className="bg-purple-900/30 border border-purple-500/30 rounded-lg p-4 mt-4">
+          <p className="text-purple-200 text-sm">
+            <strong>🔥 Find High-Impact Documents:</strong> Use the Document Browser and filter by "Red Flag Rating" (highest first) 
+            to discover the most significant documents. High-risk documents (4-5) contain keywords related to victims, trafficking, 
+            key figures, and financial transactions.
           </p>
         </div>
       </section>
@@ -637,7 +661,7 @@ export const AboutPage: React.FC = () => {
 
       {/* Footer */}
       <div className="text-center text-slate-500 text-sm pt-8 border-t border-slate-700">
-        <p>Last updated: December 20, 2025</p>
+        <p>Last updated: December 30, 2025</p>
         <p className="mt-2">Built with transparency and accountability in mind</p>
       </div>
     </div>

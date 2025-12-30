@@ -79,6 +79,8 @@ export interface ImageFilter {
   dateTo?: string;
   searchQuery?: string;
   hasPeople?: boolean;
+  limit?: number;
+  offset?: number;
 }
 
 export interface ImageSort {

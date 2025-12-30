@@ -27,15 +27,19 @@ npm run build:prod
 
 ## Features
 
-- **46,000+ Entities** with relationship mapping and risk scoring
-- **18,000+ Documents** with full-text search and OCR processing
-- **350+ Media Files** organized in albums with EXIF metadata
+- [x] **44,000+ Entities** with relationship mapping and risk scoring
+- [x] **123,000+ Documents** with full-text search and integrated PDF viewing
+- [x] **912 Media Files** with 100% verified integrity (Zero 404s)
 - **Investigation Workspace** for hypothesis testing and evidence linking
 - **Timeline Visualization** with confidence scoring
 - **Network Graphs** showing entity relationships
 
 ## Documentation
 
+- [Comprehensive Wiki](docs/wiki.md) - Core memory for how the app works
+- [User Journey Mapping](docs/user-journey-mapping.md) - User experience analysis
+- [Technical Reference](docs/technical-reference.md) - Developer-focused technical guide
+- [User Guide](docs/wiki-user-guide.md) - End-user documentation
 - [API Reference](docs/API.md) - REST API endpoints
 - [Deployment Guide](docs/DEPLOYMENT.md) - Production deployment
 - [Development Setup](docs/DEPLOY.md) - Local development

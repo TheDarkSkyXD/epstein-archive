@@ -131,6 +131,12 @@ export class ExternalManualOCREngine implements OCREngine {
         };
     }
 
-    throw new Error('No external OCR file found');
+    // Return a neutral/empty result instead of throwing, so other engines can try
+    return {
+        text: '',
+        confidence: 0,
+        engine: this.name,
+        durationMs: 0
+    };
   }
 }

@@ -9,6 +9,7 @@ export class TesseractEngine implements OCREngine {
   supports(mimeType: string): boolean {
     return [
       'image/jpeg',
+      'image/jpg',
       'image/png',
       'image/bmp',
       'image/webp',

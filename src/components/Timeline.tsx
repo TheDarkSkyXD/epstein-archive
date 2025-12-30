@@ -2,6 +2,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Clock, FileText, Calendar, Users, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
 
+interface EntityLink {
+  id: number;
+  name: string;
+}
+
 interface TimelineEvent {
   date: Date;
   title: string;
@@ -9,7 +14,7 @@ interface TimelineEvent {
   type: 'email' | 'document' | 'flight' | 'legal' | 'financial' | 'testimony' | 'incident' | 'other';
   file: string;
   original_file_path?: string; // New field
-  entities: string[];
+  entities: (string | EntityLink)[];
   significance: 'high' | 'medium' | 'low';
   is_curated?: boolean; // New field
 }
@@ -694,7 +699,7 @@ export const Timeline: React.FC<TimelineProps> = React.memo(({ className = "" })
                       {event.entities.slice(0, 4).map((entity, i) => (
                         <span key={i} className="px-2 py-1 bg-slate-800 border border-slate-600 text-slate-300 rounded text-xs flex items-center gap-1">
                           <Users className="w-3 h-3" />
-                          {entity}
+                          {typeof entity === 'string' ? entity : entity.name}
                         </span>
                       ))}
                       {event.entities.length > 4 && (
@@ -790,7 +795,7 @@ export const Timeline: React.FC<TimelineProps> = React.memo(({ className = "" })
                   <div className="flex flex-wrap gap-2">
                     {selectedEvent.entities.map((entity, i) => (
                       <span key={i} className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg border border-slate-700 text-sm hover:border-slate-500 transition-colors cursor-default">
-                        {entity}
+                        {typeof entity === 'string' ? entity : entity.name}
                       </span>
                     ))}
                   </div>

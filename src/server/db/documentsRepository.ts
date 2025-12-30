@@ -53,32 +53,10 @@ export const documentsRepository = {
     }
 
     // Default to hiding child pages unless specifically requested or searching deeply
-    // If we are searching, we might want to find pages.
-    // If we are browsing (no search term), we should hide pages.
-    // However, the user might WANT to see pages.
-    // Let's hide pages by default if no search term is present, OR if a specific filter is set.
-    // Actually, "is_hidden" is 1 for pages.
-    // We should add a filter option to show hidden docs?
-    // For now, let's just exclude hidden docs by default.
-    // If someone searches, we might want to include them?
-    // Let's exclude hidden docs unless explicitly asked for.
-    // But wait, if I search for "Trump", and it's on page 50, I want to see page 50.
-    // So:
-    // - If search term is present: Include hidden docs? OR return the parent?
-    // - If no search term: Exclude hidden docs.
-    
-    // Better approach:
-    // Always exclude hidden docs from the main browse list.
-    // If search term is present, we still search them?
-    // The FTS index includes them.
-    // If we return a hidden doc, the UI should handle it (maybe show "Page 50 of ...").
-    // But for "Hardening", let's just filter them out of the default view.
-    
     if (!filters.search) {
-        whereConditions.push('(is_hidden = 0 OR is_hidden IS NULL)');
-    } else {
-        // If searching, we might want to group results by parent?
-        // That's complex. For now, let's just show them if they match.
+        // whereConditions.push('(is_hidden = 0 OR is_hidden IS NULL)');
+        // Temporarily disable hiding pages to debug email count regression (Issue #4769)
+        // Many emails might be marked as hidden pages incorrectly?
     }
     
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';

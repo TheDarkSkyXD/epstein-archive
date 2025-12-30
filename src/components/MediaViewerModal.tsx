@@ -43,10 +43,16 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({ images, initialInde
 
   useEffect(() => {
     if (currentImage) {
+      setImageLoading(true);
       setEditTitle(currentImage.title || '');
       setEditDesc(currentImage.description || '');
       setEditDesc(currentImage.description || '');
       setIsEditing(false);
+      // Skip rotation initialization if we just finished rotating
+      if (justRotatedRef.current) {
+        justRotatedRef.current = false;
+        return;
+      }
       // Initialize rotation from saved orientation
       const initialRotation = getRotationFromOrientation(currentImage.orientation);
       setRotation(initialRotation);
@@ -58,6 +64,11 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({ images, initialInde
   // Using a ref to persist rotation value across component re-renders
   const rotationRef = useRef(0);
   const [rotation, setRotation] = useState(0);
+  // Flag to prevent re-initialization after successful rotation
+  const justRotatedRef = useRef(false);
+  const [imageLoading, setImageLoading] = useState(true);
+  // Cache-buster version to force image refresh after rotation
+  const [imageVersion, setImageVersion] = useState(0);
   
   // Tags and people state
   const [imageTags, setImageTags] = useState<any[]>([]);
@@ -122,27 +133,26 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({ images, initialInde
         console.error('Failed to rotate image');
       } else {
         const updatedImage = await res.json();
-        // Update the image object in the parent list
-        if (updatedImage.orientation) {
-            currentImage.orientation = updatedImage.orientation;
+        // Mark that we just rotated to prevent useEffect re-initialization
+        justRotatedRef.current = true;
+        
+        // Create updated image with new data from server
+        const newImage = {...currentImage, ...updatedImage};
+        
+        // Notify parent of update to refresh grid/thumbnails
+        if (onImageUpdate) {
+          onImageUpdate(newImage);
         }
-        if (updatedImage.date_modified) {
-            currentImage.dateModified = updatedImage.date_modified;
-        }
-        // Update images array in parent component if possible
-        if (images && images[currentIndex]) {
-          const newImage = {...images[currentIndex], ...updatedImage};
-          images[currentIndex] = newImage;
-          
-          // Notify parent of update to refresh grid/thumbnails
-          if (onImageUpdate) {
-            onImageUpdate(newImage);
-          }
-          
-          // Reset CSS rotation since the new image source is physically rotated
-          setRotation(0);
-          rotationRef.current = 0;
-        }
+        
+        // Set loading state to hide the transition
+        setImageLoading(true);
+        
+        // Increment version to force image URL refresh (cache-bust)
+        setImageVersion(v => v + 1);
+        
+        // Reset CSS rotation since the new image source is physically rotated
+        setRotation(0);
+        rotationRef.current = 0;
       }
     } catch (e) {
       console.error('Error rotating image:', e);
@@ -324,10 +334,16 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({ images, initialInde
 
         {/* Image Container */}
         <div className="flex-1 flex items-center justify-center p-4 overflow-hidden relative" onClick={() => setShowSidebar(false)}>
+            {imageLoading && (
+               <div className="absolute inset-0 flex items-center justify-center z-10">
+                  <div className="w-12 h-12 border-4 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin"></div>
+               </div>
+            )}
             <img 
-               src={`/api/media/images/${currentImage.id}/raw?t=${(currentImage as any).date_modified || (currentImage as any).dateModified ? new Date((currentImage as any).date_modified || (currentImage as any).dateModified).getTime() : Date.now()}`} 
+               src={`/api/media/images/${currentImage.id}/raw?v=${imageVersion}&t=${Date.now()}`} 
                alt={currentImage.title}
-               className={`transition-all duration-300 ${isZoomed ? 'w-full h-full object-cover cursor-move' : 'max-w-full max-h-full object-contain'}`}
+               onLoad={() => setImageLoading(false)}
+               className={`transition-all duration-300 ${isZoomed ? 'w-full h-full object-cover cursor-move' : 'max-w-full max-h-full object-contain'} ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
                style={{ transform: `rotate(${rotation}deg)` }}
                draggable={false}
             />

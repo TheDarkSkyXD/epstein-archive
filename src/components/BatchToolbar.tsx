@@ -8,10 +8,12 @@ interface BatchToolbarProps {
   onAssignPeople: (people: number[]) => void;
   onAssignRating: (rating: number) => void;
   onEditMetadata: (field: string, value: string) => void;
+  onSave?: () => void;
   onCancel: () => void;
   onDeselect?: () => void;
   onUndo?: () => void;
   canUndo?: boolean;
+  hasChanges?: boolean;
 }
 
 interface Tag {
@@ -34,10 +36,12 @@ export const BatchToolbar: React.FC<BatchToolbarProps> = ({
   onAssignPeople,
   onAssignRating,
   onEditMetadata,
+  onSave,
   onCancel,
   onDeselect,
   onUndo,
-  canUndo = false
+  canUndo = false,
+  hasChanges = false
 }) => {
   const [showRotateMenu, setShowRotateMenu] = useState(false);
   const [showTagsMenu, setShowTagsMenu] = useState(false);
@@ -364,16 +368,16 @@ export const BatchToolbar: React.FC<BatchToolbarProps> = ({
                 >
                   Cancel
                 </button>
-                <button 
+              <button 
                   onClick={handleApplyPeople}
                   disabled={selectedPeople.length === 0}
-                  className={`px-3 py-1.5 text-sm rounded-lg ${
+                  className={`px-4 py-1.5 text-sm rounded-lg font-semibold transition-all ${
                     selectedPeople.length === 0
                       ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
-                      : 'bg-cyan-600 hover:bg-cyan-500 text-white'
+                      : 'bg-green-600 hover:bg-green-500 text-white shadow-lg shadow-green-600/30'
                   } h-8`}
                 >
-                  Apply ({selectedPeople.length})
+                  💾 Save People ({selectedPeople.length})
                 </button>
               </div>
             </div>
@@ -493,6 +497,23 @@ export const BatchToolbar: React.FC<BatchToolbarProps> = ({
           >
             <Icon name="Undo2" size="sm" />
             <span className="hidden sm:inline">Undo</span>
+          </button>
+        )}
+        
+        {/* Save button */}
+        {onSave && (
+          <button 
+            onClick={onSave}
+            disabled={!hasChanges}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all h-8 shrink-0 ${
+              hasChanges 
+                ? 'bg-green-600 hover:bg-green-500 text-white shadow-lg shadow-green-600/30' 
+                : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+            }`}
+            title={hasChanges ? 'Save all changes' : 'No changes to save'}
+          >
+            <Icon name="Save" size="sm" />
+            <span className="hidden sm:inline">Save</span>
           </button>
         )}
         

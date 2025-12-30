@@ -25,7 +25,7 @@ export const entitiesRepository = {
         if (filters?.searchTerm) {
             whereConditions.push(`(
                 full_name LIKE @searchTerm OR 
-                role LIKE @searchTerm
+                primary_role LIKE @searchTerm
             )`);
             params.searchTerm = `%${filters.searchTerm}%`;
         }

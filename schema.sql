@@ -56,6 +56,8 @@ CREATE TABLE IF NOT EXISTS documents (
   word_count INTEGER,
   spice_rating INTEGER,
   content_hash TEXT,
+  original_file_id INTEGER,
+  original_file_path TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -104,10 +106,11 @@ CREATE TABLE IF NOT EXISTS investigations (
 );
 
 -- Full-text search virtual table for entities
+-- FIXED: Use actual column names (full_name, primary_role, connections_summary)
 CREATE VIRTUAL TABLE IF NOT EXISTS entities_fts USING fts5(
-  name,
-  role,
-  description,
+  full_name,
+  primary_role,
+  connections_summary,
   content='entities',
   content_rowid='id'
 );
@@ -123,16 +126,17 @@ CREATE VIRTUAL TABLE IF NOT EXISTS documents_fts USING fts5(
 );
 
 -- Triggers to keep FTS tables in sync
+-- FIXED: Use correct column names for entities table
 CREATE TRIGGER IF NOT EXISTS entities_fts_insert AFTER INSERT ON entities BEGIN
-  INSERT INTO entities_fts(rowid, name, role, description)
-  VALUES (NEW.id, NEW.name, NEW.role, NEW.description);
+  INSERT INTO entities_fts(rowid, full_name, primary_role, connections_summary)
+  VALUES (NEW.id, NEW.full_name, NEW.primary_role, NEW.connections_summary);
 END;
 
 CREATE TRIGGER IF NOT EXISTS entities_fts_update AFTER UPDATE ON entities BEGIN
   UPDATE entities_fts SET 
-    name = NEW.name,
-    role = NEW.role,
-    description = NEW.description
+    full_name = NEW.full_name,
+    primary_role = NEW.primary_role,
+    connections_summary = NEW.connections_summary
   WHERE rowid = OLD.id;
 END;
 

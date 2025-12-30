@@ -1,5 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { FixedSizeGrid as Grid, FixedSizeList as List, GridChildComponentProps, ListChildComponentProps, areEqual } from 'react-window';
+import AutoSizer from './AutoSizer';
 import { MediaImage, Album } from '../types/media.types';
 import Icon from './Icon';
 import MediaViewerModal from './MediaViewerModal';
@@ -13,6 +15,112 @@ interface PhotoBrowserProps {
 type ViewMode = 'grid' | 'list';
 type SortField = 'date_added' | 'date_taken' | 'filename' | 'file_size' | 'title';
 type SortOrder = 'asc' | 'desc';
+
+// --- Virtualized Renderers ---
+
+interface ItemData {
+  images: MediaImage[];
+  selectedImages: Set<number>;
+  isBatchMode: boolean;
+  onImageClick: (image: MediaImage, index: number, event: React.MouseEvent) => void;
+  onToggleSelection: (imageId: number, index: number, event: React.MouseEvent) => void;
+  columnCount?: number;
+  formatDate: (d: string | undefined | null) => string;
+  formatFileSize: (b: number | string | undefined) => string;
+}
+
+const GridCell = React.memo(({ columnIndex, rowIndex, style, data }: GridChildComponentProps<ItemData>) => {
+  const { images, selectedImages, isBatchMode, onImageClick, onToggleSelection, columnCount = 1, formatDate, formatFileSize } = data;
+  const index = rowIndex * columnCount + columnIndex;
+  
+  // Handle empty cells in the last row
+  if (index >= images.length) return null;
+  
+  const img = images[index];
+  const isSelected = selectedImages.has(img.id);
+
+  return (
+    <div style={{ ...style, padding: '4px' }}>
+      <button
+        className={`w-full h-full group relative bg-black border rounded-lg overflow-hidden transition-all shadow-lg hover:shadow-cyan-900/20 ${isSelected ? 'border-cyan-500 ring-2 ring-cyan-500/30' : 'border-slate-800 hover:border-cyan-500/50'}`}
+        onClick={(e) => onImageClick(img, index, e)}
+        onKeyDown={(e) => {
+            if (isBatchMode && e.key === 'Enter') {
+            onToggleSelection(img.id, index, e as any);
+            }
+        }}
+        tabIndex={isBatchMode ? 0 : -1}
+      >
+        {/* Selection indicator */}
+        {isBatchMode && (
+            <div className="absolute top-2 left-2 w-6 h-6 flex items-center justify-center rounded-full bg-cyan-500 text-white text-xs font-bold z-10">
+            {isSelected ? '✓' : index + 1}
+            </div>
+        )}
+        <LazyImage 
+            src={`/api/media/images/${img.id}/thumbnail?v=${new Date(img.dateModified || img.dateAdded || 0).getTime()}`} 
+            alt={img.title}
+            className="w-full h-full object-contain bg-slate-900/50"
+        />
+        {/* Title overlay */}
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-3 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
+            <div className="text-xs text-white font-medium truncate" title={img.title}>{img.title}</div>
+            <div className="text-[10px] text-slate-400 flex justify-between mt-1">
+                <span>{formatDate(img.dateTaken)}</span>
+                <span>{formatFileSize(img.fileSize)}</span>
+            </div>
+        </div>
+      </button>
+    </div>
+  );
+}, areEqual);
+
+const ListRow = React.memo(({ index, style, data }: ListChildComponentProps<ItemData>) => {
+  const { images, selectedImages, isBatchMode, onImageClick, onToggleSelection, formatDate, formatFileSize } = data;
+  const img = images[index];
+  const isSelected = selectedImages.has(img.id);
+
+  return (
+    <div style={style}>
+      <button 
+        className={`flex items-center gap-4 p-2 border-b border-slate-800/50 w-full text-left group transition-colors h-full ${isSelected ? 'bg-cyan-900/20 border-cyan-500/30' : 'hover:bg-slate-900'}`}
+        onClick={(e) => onImageClick(img, index, e)}
+        onKeyDown={(e) => {
+            if (isBatchMode && e.key === 'Enter') {
+            onToggleSelection(img.id, index, e as any);
+            }
+        }}
+        tabIndex={isBatchMode ? 0 : -1}
+      >
+        {/* Selection indicator */}
+        {isBatchMode && (
+            <div className="w-6 h-6 flex items-center justify-center rounded-full bg-cyan-500 text-white text-xs font-bold mr-2">
+            {isSelected ? '✓' : index + 1}
+            </div>
+        )}
+        <div className="w-12 h-12 bg-black border border-slate-800 rounded flex items-center justify-center shrink-0">
+            <LazyImage 
+                src={`/api/media/images/${img.id}/thumbnail?v=${new Date(img.dateModified || img.dateAdded || 0).getTime()}`} 
+                alt={img.title} 
+                className="w-full h-full object-contain"
+            />
+        </div>
+        <div className="flex-1 min-w-0">
+            <div className="text-sm text-slate-300 font-medium truncate group-hover:text-cyan-400 transition-colors" title={img.title}>{img.title}</div>
+            <div className="text-xs text-slate-500 truncate">{img.title !== img.filename ? img.filename : ''}</div>
+        </div>
+        
+        <div className="w-32 text-xs text-slate-500 text-right shrink-0">
+            {formatDate(img.dateTaken || img.dateAdded)}
+        </div>
+        <div className="w-20 text-xs text-slate-500 text-right shrink-0 font-mono">
+            {formatFileSize(img.fileSize)}
+        </div>
+      </button>
+    </div>
+  );
+}, areEqual);
+
 
 export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageClick }) => {
   const [albums, setAlbums] = useState<Album[]>([]);
@@ -38,8 +146,11 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
   
   // Undo stack for batch operations
   const [undoStack, setUndoStack] = useState<Array<{ action: string; imageIds: number[]; prevState: MediaImage[] }>>([]);
+  
+  // Track if URL params have been initialized
+  const [initialized, setInitialized] = useState(false);
 
-  // Initialize from URL
+  // Initialize from URL - runs first
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const albumId = params.get('albumId');
@@ -51,6 +162,9 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
     if (tagId) setSelectedTag(parseInt(tagId));
     if (personId) setSelectedPerson(parseInt(personId));
     if (hasPeople === 'true') setHasPeopleOnly(true);
+    
+    // Mark as initialized after URL params are processed
+    setInitialized(true);
   }, []);
 
   // Load available tags and people
@@ -80,11 +194,12 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
 
   useEffect(() => {
     loadAlbums();
-    loadImages();
   }, []);
 
-  // Sync URL with filters
+  // Sync URL with filters and load images - only after initialized
   useEffect(() => {
+    if (!initialized) return; // Don't run until URL params are parsed
+    
     const url = new URL(window.location.href);
     
     if (selectedAlbum) url.searchParams.set('albumId', selectedAlbum.toString());
@@ -101,7 +216,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
 
     window.history.replaceState({}, '', url);
     loadImages();
-  }, [selectedAlbum, selectedTag, selectedPerson, hasPeopleOnly]);
+  }, [initialized, selectedAlbum, selectedTag, selectedPerson, hasPeopleOnly]);
   
   // Keyboard shortcuts
   useEffect(() => {
@@ -135,8 +250,9 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
   }, [isBatchMode]);
 
   useEffect(() => {
+    if (!initialized) return; // Don't run until URL params are parsed
     loadImages();
-  }, [sortField, sortOrder, searchQuery]);
+  }, [initialized, sortField, sortOrder, searchQuery]);
 
   const loadAlbums = async () => {
     try {
@@ -164,6 +280,9 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
       if (sortField) params.append('sortField', sortField);
       if (sortOrder) params.append('sortOrder', sortOrder);
       if (searchQuery) params.append('search', searchQuery);
+      
+      // Request slim response for faster grid view loading
+      params.append('slim', 'true');
 
       params.append('_t', Date.now().toString()); // Cache busting
       const response = await fetch(`/api/media/images?${params}`);
@@ -361,7 +480,16 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
         if (result.success) {
           const index = updatedImages.findIndex(img => img.id === result.id);
           if (index !== -1) {
-            updatedImages[index] = { ...updatedImages[index], ...result.image };
+            // Normalize backend response to match frontend model
+            const raw = result.image;
+            const normalizedUpdate = {
+                ...raw,
+                dateModified: raw.date_modified || raw.dateModified,
+                width: raw.width,
+                height: raw.height,
+                orientation: raw.orientation
+            };
+            updatedImages[index] = { ...updatedImages[index], ...normalizedUpdate };
           }
         }
       }
@@ -746,6 +874,23 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
                 </div>
             ) : null}
 
+            {/* Warning Banner for Fake/Unconfirmed Albums */}
+            {(selectedAlbum && albums.find(a => a.id === selectedAlbum)?.name.match(/Fake|Unconfirmed/i)) && (
+                <div className="bg-red-900/80 border-b border-red-700 px-4 py-3 flex items-start gap-3">
+                    <Icon name="AlertTriangle" className="text-red-400 shrink-0 mt-0.5" />
+                    <div>
+                        <h4 className="text-red-200 font-bold text-sm uppercase tracking-wider">
+                            {albums.find(a => a.id === selectedAlbum)?.name.includes('Fake') ? 'Confirmed Fake Media' : 'Unconfirmed / Unverified Content'}
+                        </h4>
+                        <p className="text-red-300/90 text-sm mt-1">
+                            {albums.find(a => a.id === selectedAlbum)?.name.includes('Fake') 
+                                ? 'These images have been confirmed as AI-generated or photoshopped. They are distributed to spread misinformation and discredit survivors. Viewing them may be harmful.'
+                                : 'These images currently lack provenance or verification. Treat with extreme caution as they may be manipulated or out of context.'}
+                        </p>
+                    </div>
+                </div>
+            )}
+
             {/* Active Filters */}
             {(selectedTag || selectedPerson) && (
               <div className="flex items-center gap-2 px-4 py-2 bg-slate-900 border-b border-slate-800">
@@ -780,91 +925,78 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
               </div>
             )}
 
-            <div className="flex-1 p-4 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent" onClick={handleGridClick}>
-                {viewMode === 'grid' ? (
-                <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2 md:gap-4 pb-20" onClick={handleGridClick}>
-                    {images.map((img, index) => (
-                    <button
-                        key={img.id}
-                        className={`group relative aspect-[4/3] md:aspect-[3/2] bg-black border rounded-lg overflow-hidden transition-all shadow-lg hover:shadow-cyan-900/20 ${selectedImages.has(img.id) ? 'border-cyan-500 ring-2 ring-cyan-500/30' : 'border-slate-800 hover:border-cyan-500/50'}`}
-                        onClick={(e) => handleImageClick(img, index, e)}
-                        onKeyDown={(e) => {
-                          if (isBatchMode && e.key === 'Enter') {
-                            toggleImageSelection(img.id, index, e as any);
-                          }
-                        }}
-                        tabIndex={isBatchMode ? 0 : -1}
-                    >
-                        {/* Selection indicator */}
-                        {isBatchMode && (
-                          <div className="absolute top-2 left-2 w-6 h-6 flex items-center justify-center rounded-full bg-cyan-500 text-white text-xs font-bold z-10">
-                            {selectedImages.has(img.id) ? '✓' : index + 1}
-                          </div>
-                        )}
-                        <LazyImage 
-                        src={`/api/media/images/${img.id}/thumbnail?v=${new Date(img.dateModified || img.dateAdded || 0).getTime()}`} 
-                        alt={img.title}
-                        className="w-full h-full object-contain bg-slate-900/50"
-                        />
-                        {/* Title overlay - Always visible on mobile, hover on desktop */}
-                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-3 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
-                            <div className="text-xs text-white font-medium truncate" title={img.title}>{img.title}</div>
-                            <div className="text-[10px] text-slate-400 flex justify-between mt-1">
-                                <span>{formatDate(img.dateTaken)}</span>
-                                <span>{formatFileSize(img.fileSize)}</span>
-                            </div>
-                        </div>
-                    </button>
-                    ))}
-                </div>
-                ) : (
-                <div className="flex flex-col gap-1 pb-20" onClick={handleGridClick}>
-                    {images.map((img, index) => (
-                    <button 
-                        key={img.id} 
-                        className={`flex items-center gap-4 p-2 border-b border-slate-800/50 w-full text-left group transition-colors ${selectedImages.has(img.id) ? 'bg-cyan-900/20 border-cyan-500/30' : 'hover:bg-slate-900'}`}
-                         onClick={(e) => handleImageClick(img, index, e)}
-                        onKeyDown={(e) => {
-                          if (isBatchMode && e.key === 'Enter') {
-                            toggleImageSelection(img.id, index, e as any);
-                          }
-                        }}
-                        tabIndex={isBatchMode ? 0 : -1}
-                    >
-                        {/* Selection indicator for list view */}
-                        {isBatchMode && (
-                          <div className="w-6 h-6 flex items-center justify-center rounded-full bg-cyan-500 text-white text-xs font-bold mr-2">
-                            {selectedImages.has(img.id) ? '✓' : index + 1}
-                          </div>
-                        )}
-                        <div className="w-12 h-12 bg-black border border-slate-800 rounded flex items-center justify-center shrink-0">
-                             <LazyImage 
-                                src={`/api/media/images/${img.id}/thumbnail?v=${new Date(img.dateModified || img.dateAdded || 0).getTime()}`} 
-                                alt={img.title} 
-                                className="w-full h-full object-contain"
-                            />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <div className="text-sm text-slate-300 font-medium truncate group-hover:text-cyan-400 transition-colors" title={img.title}>{img.title}</div>
-                             <div className="text-xs text-slate-500 truncate">{img.title !== img.filename ? img.filename : ''}</div>
-                        </div>
-                        
-                         <div className="w-32 text-xs text-slate-500 text-right shrink-0">
-                             {formatDate(img.dateTaken || img.dateAdded)}
-                        </div>
-                         <div className="w-20 text-xs text-slate-500 text-right shrink-0 font-mono">
-                             {formatFileSize(img.fileSize)}
-                        </div>
-                    </button>
-                    ))}
-                </div>
-                )}
-                
-                {!loading && images.length === 0 && (
-                     <div className="flex flex-col items-center justify-center h-64 text-slate-500">
+            <div className="flex-1 overflow-hidden relative bg-slate-950" onClick={handleGridClick}>
+                {!loading && images.length === 0 ? (
+                     <div className="flex flex-col items-center justify-center h-full text-slate-500">
                         <Icon name="Image" size="lg" className="mb-2 opacity-50" />
                         <p>No images found</p>
                     </div>
+                ) : (
+                  <AutoSizer>
+                    {({ width, height }) => {
+                      if (viewMode === 'grid') {
+                        const minColumnWidth = 200;
+                        const gap = 16; // gap-4
+                        const availableWidth = width - 32; // p-4 equivalent padding
+                        const columnCount = Math.max(1, Math.floor((availableWidth + gap) / (minColumnWidth + gap)));
+                        const columnWidth = (availableWidth - (gap * (columnCount - 1))) / columnCount;
+                        const rowCount = Math.ceil(images.length / columnCount);
+                        // Aspect ratio 3:2 roughly plus padding
+                        const rowHeight = (columnWidth / 1.5) + 8; 
+
+                        const itemData = {
+                          images,
+                          selectedImages,
+                          isBatchMode,
+                          onImageClick: handleImageClick,
+                          onToggleSelection: toggleImageSelection,
+                          columnCount,
+                          formatDate,
+                          formatFileSize
+                        };
+
+                        return (
+                          <Grid
+                            columnCount={columnCount}
+                            columnWidth={columnWidth + gap}
+                            height={height}
+                            rowCount={rowCount}
+                            rowHeight={rowHeight + gap}
+                            width={width}
+                            itemData={itemData}
+                            className="scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent p-4"
+                            style={{ overflowX: 'hidden' }}
+                          >
+                            {GridCell}
+                          </Grid>
+                        );
+                      } else {
+                        // List View
+                        const itemData = {
+                          images,
+                          selectedImages,
+                          isBatchMode,
+                          onImageClick: handleImageClick,
+                          onToggleSelection: toggleImageSelection,
+                          formatDate,
+                          formatFileSize
+                        };
+
+                        return (
+                          <List
+                            height={height}
+                            itemCount={images.length}
+                            itemSize={72} // Height of list item
+                            width={width}
+                            itemData={itemData}
+                            className="scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent p-4"
+                          >
+                            {ListRow}
+                          </List>
+                        );
+                      }
+                    }}
+                  </AutoSizer>
                 )}
                             
                 {/* Batch Toolbar - Rendered via Portal for true viewport positioning */}

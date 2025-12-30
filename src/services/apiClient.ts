@@ -4,15 +4,76 @@ import { PaginatedResponse, SearchFilters } from './optimizedDataLoader';
 
 const API_BASE_URL = (typeof window !== 'undefined' && typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || (typeof process !== 'undefined' && process.env?.VITE_API_URL) || '/api';
 
+// --- In-Memory Cache with TTL ---
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+  ttl: number;
+}
+
+const cache = new Map<string, CacheEntry<unknown>>();
+const DEFAULT_CACHE_TTL = 30000; // 30 seconds
+
+function getCachedData<T>(key: string): T | null {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  
+  // Check if expired
+  if (Date.now() - entry.timestamp > entry.ttl) {
+    cache.delete(key);
+    return null;
+  }
+  
+  return entry.data as T;
+}
+
+function setCachedData<T>(key: string, data: T, ttl: number = DEFAULT_CACHE_TTL): void {
+  cache.set(key, {
+    data,
+    timestamp: Date.now(),
+    ttl
+  });
+}
+
+function invalidateCache(pattern?: string): void {
+  if (!pattern) {
+    cache.clear();
+    return;
+  }
+  
+  // Invalidate entries matching pattern
+  for (const key of cache.keys()) {
+    if (key.includes(pattern)) {
+      cache.delete(key);
+    }
+  }
+}
+
 class ApiClient {
-  private async fetchWithErrorHandling<T>(url: string, options?: RequestInit): Promise<T> {
+  private async fetchWithErrorHandling<T>(
+    url: string, 
+    options?: RequestInit & { useCache?: boolean; cacheTtl?: number }
+  ): Promise<T> {
+    // Check cache for GET requests
+    const shouldCache = options?.useCache !== false && (!options?.method || options.method === 'GET');
+    
+    if (shouldCache) {
+      const cached = getCachedData<T>(url);
+      if (cached) {
+        return cached;
+      }
+    }
+    
+    // Extract our custom options before passing to fetch
+    const { useCache: _, cacheTtl, ...fetchOptions } = options || {};
+    
     try {
       const response = await fetch(url, {
         headers: {
           'Content-Type': 'application/json',
-          ...options?.headers,
+          ...fetchOptions?.headers,
         },
-        ...options,
+        ...fetchOptions,
       });
 
       if (!response.ok) {
@@ -20,7 +81,14 @@ class ApiClient {
         throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
       }
 
-      return await response.json();
+      const data = await response.json();
+      
+      // Cache the response
+      if (shouldCache) {
+        setCachedData(url, data, cacheTtl);
+      }
+      
+      return data;
     } catch (error) {
       if (error instanceof Error) {
         throw error;
@@ -29,9 +97,14 @@ class ApiClient {
     }
   }
 
-  async get<T>(endpoint: string): Promise<T> {
+  async get<T>(endpoint: string, options?: { useCache?: boolean; cacheTtl?: number }): Promise<T> {
     const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
-    return this.fetchWithErrorHandling<T>(url);
+    return this.fetchWithErrorHandling<T>(url, options);
+  }
+  
+  // Clear cache (useful after mutations)
+  clearCache(pattern?: string): void {
+    invalidateCache(pattern);
   }
 
   async getEntities(filters: SearchFilters = {}, page: number = 1, limit: number = 24): Promise<PaginatedResponse> {

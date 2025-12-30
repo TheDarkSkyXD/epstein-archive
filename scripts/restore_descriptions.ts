@@ -27,7 +27,7 @@ const ALBUM_DESCRIPTIONS: Record<string, string> = {
     'Aircraft': 'Images of Epstein\'s private fleet, including the Boeing 727 (N908JE) and Gulfstream jets.',
     'Properties': 'Various properties owned by Jeffrey Epstein, including the New York mansion (9 E 71st St), Palm Beach estate, and Zorro Ranch in New Mexico.',
     'Survivors': 'Images related to the brave survivors who have come forward to testify about the abuse they suffered.',
-    'Perpretrators': 'Individuals alleged to have participated in or facilitated the trafficking network.',
+    'Perpetrators': 'Individuals alleged to have participated in or facilitated the trafficking network.',
     'Evidence': 'Physical and digital evidence collected during investigations.'
 };
 

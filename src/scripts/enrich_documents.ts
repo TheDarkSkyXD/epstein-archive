@@ -146,11 +146,11 @@ console.log();
 // ============================================
 console.log('👥 Phase 3: Computing entity mentions in documents...\n');
 
-// Get all entities (just name, no aliases column exists)
+// Get all entities (use full_name column)
 const entities = db.prepare(`
-  SELECT id, name 
+  SELECT id, full_name as name 
   FROM entities 
-  WHERE name NOT LIKE '%Unknown%'
+  WHERE full_name NOT LIKE '%Unknown%'
 `).all() as any[];
 
 console.log(`Processing mentions for ${entities.length} entities...`);

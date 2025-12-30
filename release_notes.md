@@ -1,4 +1,164 @@
 
+# 📣 Epstein Archive V9.0.0 - Full System UX Analysis & Documentation
+
+*Released: Dec 30, 2025*
+
+### 1. Integrated Document Viewing 📄
+*   **Side-by-Side View**: Dual-pane renderer showing extracted text alongside original PDF/source documents.
+*   **Fuzzy Linking**: Automated association of 2,980+ OCR text files with their original source PDFs.
+*   **In-App PDF Viewer**: Direct PDF rendering with page-level linking support for forensic analysis.
+
+### 2. Persona-Based UX Analysis 🧩
+*   **User Journey Handbook**: Comprehensive walkthroughs for Developer, Casual, and Researcher personas.
+*   **UX Pattern & Rationale Guide**: Documenting the "Context-First" navigation and "Red Flag Hierarchy" design patterns.
+*   **System Mental Model**: Narrative and architectural mapping of the data-to-UX pipeline.
+
+### 3. Technical & Media Integrity 🛠️
+*   **Zero 404s**: 100% resolution of missing media files and thumbnails through standardized path re-mapping.
+*   **Photo Reliability**: Implemented strict filtering for "AI Generated" and "Confirmed Fake" tags in `PersonCard` components.
+*   **`pdf-parse` Fix**: Migrated to new class-based `PDFParse` API for robust document extraction.
+
+### 4. API & Performance 📊
+*   **Redundancy Removal**: Consolidated legacy data-quality endpoints into a high-performance `/api/data-quality/metrics` route.
+*   **Optimized Junk Detection**: Replaced 40+ iterative loops with a single, high-speed SQL pattern-matching query.
+
+### 4. Advanced Entity Integrity 🛡️
+*   **Deep Cleanup**: Final removal of OCR artifacts (e.g. "Because Epstein", "Beyond Clinton") using aggressive pattern matching.
+*   **Mention & Relationship Sync**: All entities now correctly reflect their true mention counts across the entire archive.
+
+---
+
+# 📣 Epstein Archive V8.2.0 - Flight Tracker & Timeline Integration
+
+*Released: Dec 28, 2025*
+
+## 🚀 Key Highlights
+
+### 1. Flight Tracker with Real Data ✈️
+*   **87 Documented Flights**: Real flight data from court documents (1991-2006).
+*   **13 Unique Passengers**: Ghislaine Maxwell (66), Sarah Kellen (11), Prince Andrew (9), Donald Trump (8), Bill Clinton (3), and more.
+*   **International Routes**: Palm Beach, St. Thomas, London, Paris, Morocco, Portugal.
+*   **Access via Timeline tab**: Events and Flight Logs views available as tabs.
+
+### 2. Timeline with 39 Historical Events 📅
+*   **Real Events Added**: Curated timeline from 1953-2025 covering career, network building, flights, investigations, arrest, death, Maxwell trial, and document releases.
+*   **Entity Linked**: Events linked to Jeffrey Epstein, Maxwell, Clinton, Trump, Prince Andrew, Dershowitz, Giuffre, Wexner.
+
+### 3. Massive Entity Cleanup 🧹
+*   **786+ Junk Entities Deleted**: OCR/NLP extraction errors like "Because Trump", "Beyond Clinton", "Actually Epstein" removed.
+*   **Trump Family Cleaned**: Only 4 legitimate Trump entities remain (Donald, Fred C., Ivanka, Melania).
+*   **Related References Cleaned**: 2,088 mentions, 2,870 relationships, 409 media_people tags cleaned.
+
+### 4. UI/UX Improvements 🎨
+*   **Timeline Tab Enhanced**: Now includes "Events" and "Flight Logs" view mode tabs.
+*   **No Nav Clutter**: Flights integrated into existing Timeline rather than adding new nav item.
+
+---
+
+# 📣 Epstein Archive V8.1.9 - Document Enrichment & Data Quality
+
+*Released: Dec 26, 2025*
+
+## 🚀 Key Highlights
+
+### 1. Document Metadata Enrichment 📊
+*   **AI Red Flag Ratings**: All 100K+ documents analyzed with keyword-based risk scoring (1-5 scale).
+*   **High-Risk Detection**: 1,600+ documents flagged as high-risk (4-5) based on victim, trafficking, financial keywords.
+*   **Content Hashes**: SHA-256 hash generated for each document for deduplication.
+*   **Word Counts**: Accurate word counts for all text documents.
+
+### 2. Entity Consolidation 🔗
+*   **41 Duplicates Merged**: "Billionaire Jeffrey Epstein", "Sex Offender Jeffrey", "Defendant Epstein" → Jeffrey Epstein.
+*   **Other Merges**: Profile cleanup for Trump, Clinton, Dershowitz, Maxwell, Acosta, and more.
+*   **Cleaner Search**: Entity search now returns consolidated results without duplicates.
+
+### 3. About Page Updates 📝
+*   **DOJ Vol 7-8 Added**: December 2025 release of financial records, witness statements, JPM correspondence.
+*   **New Timeline Entry**: Dec 24, 2025 DOJ Discovery Vol 00007-8 release documented.
+*   **"Find High-Impact Docs"**: New guidance section for discovering significant documents using Red Flag filter.
+
+### 4. Media Sync System 🖼️
+*   **Foolproof Sync Script**: `scripts/sync_media_to_prod.sh` with checksum-based transfer and `--delete` orphan cleanup.
+*   **Bidirectional Support**: `--pull` option to sync from production to local.
+*   **Obsolete Folder Cleanup**: Removed 5 duplicate image folders and 4 outdated numbered files.
+
+---
+
+# 📣 Epstein Archive V8.1.8 - Performance & Mobile Email Overhaul
+
+*Released: Dec 26, 2025*
+
+## 🚀 Key Highlights
+
+### 1. iOS Mail-Style Email Client 📧
+*   **Complete Mobile Redesign**: Email client rebuilt from scratch with native iOS Mail appearance on mobile devices.
+*   **Dark Mode Mobile UI**: Slate-950 dark backgrounds with proper contrast and readability.
+*   **Mailbox Selection Drawer**: Bottom sheet drawer slides up to show all mailboxes with counts.
+*   **iOS-Style Navigation**: Back button shows "< Mailbox Name", action bar at bottom with Archive, Delete, Reply, Forward.
+*   **Sender Avatars**: Colorful gradient avatars with sender initials in the message list.
+*   **Preserved Desktop Experience**: Desktop layout remains unchanged with glass-morphism styling.
+
+### 2. Performance Optimizations ⚡
+*   **DocumentBrowser Virtualization**: Implemented `react-window` for grid/list views with memoized `DocumentGridCell` and `DocumentListRow` components.
+*   **Timeline Virtualization**: Added `FixedSizeList` (220px rows) with memoized `TimelineEventRow` component.
+*   **API Request Caching**: In-memory cache with 30-second TTL for all GET requests, reducing redundant API calls.
+*   **EmailClient Search Debounce**: 300ms debounced search term to prevent filtering lag on large datasets.
+*   **Component Memoization**: `GlassMessageItem` wrapped with `React.memo` for efficient re-renders.
+
+### 3. Fake Image Ingestion 🖼️
+*   **New Confirmed Fakes**: Ingested AI6.JPG and AI7.JPG with full watermarking and database entries.
+*   **FAKE Watermark Applied**: Both images display "FAKE" overlay and warning banner in PhotoBrowser.
+
+---
+
+# 📣 Epstein Archive V8.1.4 - 100% Data Integrity Restoration
+
+*Released: Dec 22, 2025*
+
+
+## 🛡️ Key Highlights
+
+### 1. Data Integrity & Restoration (45K+ Entities)
+*   **Massive Restoration**: Successfully recovered 45,957 entities from the 1.5GB master database.
+*   **Corruption Resolution**: Fixed "malformed database" errors by correctly handling stale WAL/SHM journal files.
+*   **Entity Consolidation**: Every entity has been run through the latest consolidation engine, merging duplicates and verifying links for high-profile figures (Giuffre, Kellen, etc.).
+
+### 2. High-Quality Alias Search
+*   **91+ Seeded Aliases**: Key figures are now searchable by nicknames, initials, and alternative names (e.g., "Jeff Epstein", "Duke of York", "WJC").
+*   **FTS Integration**: The Global Search index now fully supports entity aliases for instant discovery.
+
+### 3. Automated Quality Gates
+*   **`verify_data_integrity.ts`**: New standalone integrity validator that performs SQLite health checks, schema verification, and critical entity presence audits.
+*   **Pipeline Protection**: Data integrity checks are now hard-wired into the ingestion pipeline (`ingest_enrich_verify.sh`), ensuring no data ships without 100% quality verification.
+
+---
+
+# 📣 Epstein Archive V8.1.3 - 100% Hardened Deployment
+
+*Released: Dec 22, 2025*
+
+## 🛡️ Key Highlights
+
+### 1. Fool-Proof Deployment Pipeline
+*   **Pre-Deployment Verification**: Schema, columns, ports, and config validated before any code ships
+*   **Schema Sync**: Compares local vs production schemas, blocks deployment if mismatched
+*   **Automatic Backup**: Creates timestamped backups of `dist/` and `epstein-archive.db` before every deploy
+*   **Automatic Rollback**: If health checks fail post-deploy, system auto-restores previous version
+*   **Multi-Endpoint Health Gates**: Tests `/api/health`, `/api/stats`, `/api/entities` - fails deployment if any return non-200
+*   **Frontend Smoke Test**: Verifies glasscode.academy loads expected content
+
+### 2. PM2 Hardening
+*   **Restart Limits**: `max_restarts: 10`, `min_uptime: 10s` prevents infinite crash loops
+*   **Restart Delay**: 5s backoff between restarts to prevent resource hammering
+*   **Port Documentation**: Clear inline comments marking PORT=8080 as critical for Nginx
+
+### 3. New Scripts
+*   **`verify_deployment.ts`**: Pre-flight schema/config checker
+*   **`sync_schema.sh`**: Local↔Production schema comparison
+*   **`health_check_all_services.sh`**: Comprehensive monitoring script
+
+---
+
 # 📣 Epstein Archive V8.0.0 - Full Re-ingestion & Release
 
 *Released: Dec 21, 2025*

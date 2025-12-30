@@ -33,7 +33,7 @@ const TITLE_TEMPLATES = {
     }
     return `${cleanName} - Survivor`;
   },
-  'Perpretrators': (filename) => { // Note: typo in folder name preserved
+  'Perpetrators': (filename) => { // Note: typo in folder name preserved
     const cleanName = filename.replace(/[-_]/g, ' ').replace(/\.(jpg|jpeg|png|gif|webp)$/i, '');
     if (cleanName.match(/^[a-f0-9-]+/i)) {
       return 'Perpetrator in Epstein Network';

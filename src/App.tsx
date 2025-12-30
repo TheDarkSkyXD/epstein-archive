@@ -13,7 +13,7 @@ import StatsSkeleton from './components/StatsSkeleton';
 import { StatsDisplay } from './components/StatsDisplay';
 import { apiClient } from './services/apiClient';
 import { DocumentProcessor } from './services/documentProcessor';
-import { generateSampleDocuments } from './data/sampleDocuments';
+// SECURITY: Removed synthetic sample documents import - never fall back to fake data
 import { useCountUp } from './hooks/useCountUp';
 import MobileMenu from './components/MobileMenu';
 import UndoProvider from './components/UndoManager';
@@ -49,6 +49,7 @@ const EmailClient = lazy(() => import('./components/email/EmailClient').then(mod
 const AboutPage = lazy(() => import('./components/AboutPage').then(module => ({ default: module.default })));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(module => ({ default: module.AdminDashboard })));
 const EnhancedAnalytics = lazy(() => import('./components/EnhancedAnalytics').then(module => ({ default: module.EnhancedAnalytics })));
+const TimelineWithFlights = lazy(() => import('./components/TimelineWithFlights').then(module => ({ default: module.default })));
 
 import releaseNotesRaw from '../release_notes.md?raw';
 
@@ -136,6 +137,7 @@ function App() {
     if (pathname.startsWith('/emails')) return 'emails';
     if (pathname === '/login') return 'login';
     if (pathname.startsWith('/admin')) return 'admin';
+    if (pathname.startsWith('/flights')) return 'timeline'; // Flights now in timeline
     return 'people'; // default
   };
   
@@ -423,7 +425,12 @@ function App() {
   const [analyticsData, setAnalyticsData] = useState<any>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => {
+    // If we have cached people, don't show loading skeleton
+    const cached = localStorage.getItem('epstein_archive_people_page1_v5_3_4');
+    return !cached;
+  });
+  const [isInitializing, setIsInitializing] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState<string>('Initializing...');
   const [loadingProgressValue, setLoadingProgressValue] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState(1);
@@ -437,7 +444,10 @@ function App() {
     // Initialize optimized data service
     const initializeDataService = async () => {
       try {
-        setLoading(true);
+        if (people.length === 0) {
+          setLoading(true);
+        }
+        setIsInitializing(true);
         setLoadingProgress('Connecting to database...');
         setLoadingProgressValue(10);
         const service = OptimizedDataService.getInstance();
@@ -488,6 +498,7 @@ function App() {
         addToast({ text: 'Failed to load subjects', type: 'error' })
       } finally {
         setLoading(false);
+        setIsInitializing(false);
       }
     };
 
@@ -666,15 +677,11 @@ function App() {
       } catch (error) {
         console.error('Error loading documents:', error);
         console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
-        console.log('Falling back to sample documents due to error');
-        setDocumentLoadingProgress('Loading sample documents...');
-        setDocumentLoadingProgressValue(50);
-        const processor = new DocumentProcessor();
-        const sampleDocs = generateSampleDocuments();
-        await processor.loadDocuments(sampleDocs);
-        setDocumentLoadingProgress('Sample documents ready');
-        setDocumentLoadingProgressValue(100);
-        setDocumentProcessor(processor);
+        // SECURITY: Never fall back to sample/synthetic data - show clear error
+        setDocumentLoadingProgress('Failed to load documents from server');
+        setDocumentLoadingProgressValue(0);
+        setDocumentProcessor(null);
+        addToast({ text: 'Could not load documents. Please check server connection.', type: 'error' });
       } finally {
         setDocumentsLoaded(true);
       }
@@ -1122,7 +1129,8 @@ function App() {
         </div>
         {/* Simple loading indicator - no text labels */}
         <LoadingIndicator 
-          isLoading={loading || (!documentsLoaded && activeTab === 'documents') || analyticsLoading}
+          isLoading={isInitializing || (!documentsLoaded && activeTab === 'documents') || analyticsLoading}
+          label={isInitializing ? loadingProgress : (!documentsLoaded && activeTab === 'documents') ? documentLoadingProgress : undefined}
         />
         {/* Navigation Tabs - Flexbox Layout for Edge-to-Edge with Content-Proportional Widths */}
         <div className="hidden md:flex flex-nowrap gap-1 mb-6 text-sm font-medium w-full">
@@ -1539,7 +1547,7 @@ function App() {
             </div>
           )}
           {activeTab === 'timeline' && (
-            <Timeline />
+            <TimelineWithFlights />
           )}
 
           {activeTab === 'emails' && (
@@ -1559,6 +1567,8 @@ function App() {
           {activeTab === 'about' && (
             <AboutPage />
           )}
+
+
 
           {activeTab === 'login' && (
             <LoginPage />

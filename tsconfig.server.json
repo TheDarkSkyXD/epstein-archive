@@ -14,6 +14,6 @@
     "allowSyntheticDefaultImports": true,
     "jsx": "react-jsx"
   },
-  "include": ["src/server.ts", "src/services/**/*", "src/types/**/*"],
+  "include": ["src/server.ts", "src/server/**/*", "src/services/**/*", "src/types/**/*"],
   "exclude": ["node_modules", "dist", "src/components", "src/hooks"]
 }

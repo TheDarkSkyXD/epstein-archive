@@ -14,6 +14,7 @@ import { relationshipsRepository } from './server/db/relationshipsRepository.js'
 import { investigationsRepository } from './server/db/investigationsRepository.js';
 import { statsRepository } from './server/db/statsRepository.js';
 import { searchRepository } from './server/db/searchRepository.js';
+import { timelineRepository } from './server/db/timelineRepository.js';
 import { jobsRepository } from './server/db/jobsRepository.js';
 import { forensicRepository } from './server/db/forensicRepository.js';
 import { runMigrations } from './server/db/migrator.js';
@@ -30,7 +31,8 @@ import evidenceRoutes from './routes/evidenceRoutes.js';
 import crypto from 'crypto';
 import multer from 'multer';
 import fs from 'fs';
-import pdf from 'pdf-parse';
+// @ts-ignore
+import { PDFParse } from 'pdf-parse';
 import bcrypt from 'bcryptjs';
 import { SearchFilters, SortOption } from './types';
 import { config } from './config/index.js';
@@ -79,6 +81,7 @@ app.use(helmet({
     }
   },
   crossOriginEmbedderPolicy: false, // Required for some media
+  crossOriginResourcePolicy: false, // Required for mobile image loading
 }));
 
 // Compress all responses
@@ -97,6 +100,10 @@ app.use('/api/', apiLimiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Input validation and sanitization middleware
+import { inputValidationMiddleware } from './server/middleware/validation.js';
+app.use(inputValidationMiddleware);
+
 // Mount specialized routes
 import downloadRoutes from './server/routes/downloads.js';
 app.use('/api/downloads', downloadRoutes);
@@ -105,6 +112,8 @@ app.use('/api/downloads', downloadRoutes);
 app.use('/api/investigations', investigationsRouter);
 app.use('/api/investigation', investigationEvidenceRoutes);
 app.use('/api/evidence', evidenceRoutes);
+import emailRoutes from './server/routes/emailRoutes.js';
+app.use('/api/emails', emailRoutes);
 app.use('/api/auth', authRoutes);
 
 // Protected Media Routes
@@ -510,8 +519,34 @@ app.get('/api/entities', async (req, res, next) => {
   }
 });
 
+// Entity name validation patterns - reject common extraction artifacts
+const JUNK_ENTITY_PATTERNS = [
+  /^(The|A|An|Of|To|In|For|And|Or|But|With|At|By|From|On|As|Is|Was|Although|Actually)\s/i,
+  /^.{1,2}$/,  // Too short (1-2 chars)
+  /^\d+$/,     // Numbers only
+  /^[^a-zA-Z]*$/,  // No letters
+  /^Page\s+\d+/i,
+  /^Section\s+\d+/i,
+  /^Document\s+/i,
+  /^(Unknown|None|Null|N\/A|TBD)$/i,
+];
+
 app.post('/api/entities', async (req, res, next) => {
     try {
+        const { full_name } = req.body;
+        
+        // Validate entity name to prevent junk data
+        if (full_name) {
+          for (const pattern of JUNK_ENTITY_PATTERNS) {
+            if (pattern.test(full_name)) {
+              return res.status(400).json({ 
+                error: 'Invalid entity name', 
+                message: 'Name appears to be an extraction artifact rather than a valid entity' 
+              });
+            }
+          }
+        }
+        
         const id = entitiesRepository.createEntity(req.body);
         logAudit('create_entity', (req as any).user?.id, 'entity', String(id), { name: req.body.full_name });
         res.status(201).json({ id });
@@ -736,6 +771,186 @@ app.get('/api/stats', async (_req, res, next) => {
   }
 });
 
+// ============ DATA QUALITY & PROVENANCE APIs ============
+// These endpoints support the audit/trust features of the platform
+
+// Get comprehensive data quality metrics
+app.get('/api/data-quality/metrics', async (_req, res, next) => {
+  try {
+    const db = getDb();
+    
+    // 1. Basic Document Stats
+    const totalDocs = db.prepare('SELECT COUNT(*) as c FROM documents').get() as { c: number };
+    const docsWithProvenance = db.prepare(
+      "SELECT COUNT(*) as c FROM documents WHERE source_collection IS NOT NULL AND source_collection != ''"
+    ).get() as { c: number };
+    
+    const sourceCollections = db.prepare(`
+      SELECT COALESCE(source_collection, 'Unknown/Untagged') as name, COUNT(*) as count
+      FROM documents GROUP BY source_collection ORDER BY count DESC LIMIT 20
+    `).all();
+    
+    const evidenceTypes = db.prepare(`
+      SELECT COALESCE(evidence_type, 'unclassified') as type, COUNT(*) as count
+      FROM documents GROUP BY evidence_type ORDER BY count DESC
+    `).all();
+    
+    // 2. Entity Quality Metrics
+    const entityStats = db.prepare(`
+      SELECT 
+        COUNT(*) as total,
+        SUM(CASE WHEN primary_role IS NOT NULL AND primary_role != 'Unknown' AND primary_role != '' THEN 1 ELSE 0 END) as withRoles,
+        SUM(CASE WHEN red_flag_description IS NOT NULL AND red_flag_description != '' THEN 1 ELSE 0 END) as withDescription,
+        SUM(CASE WHEN (red_flag_rating IS NULL OR red_flag_rating = 0) AND mentions > 0 THEN 1 ELSE 0 END) as missingRatings,
+        SUM(CASE WHEN red_flag_rating IS NULL THEN 1 ELSE 0 END) as nullRedFlagRating
+      FROM entities
+    `).get() as any;
+    
+    // 3. Data Integrity & Junk Detection
+    const orphanedMentions = db.prepare(`
+      SELECT COUNT(*) as c FROM entity_mentions em
+      LEFT JOIN entities e ON em.entity_id = e.id
+      WHERE e.id IS NULL
+    `).get() as { c: number };
+    
+    // Optimized junk detection (one query instead of many)
+    const junkPatterns = [
+      'On %', 'And %', 'The %', 'Although %', 'Actually %', 'Mr %', 'Ms %', 'Dr %', 
+      'However %', 'But %', 'If %', 'When %', 'Then %', 'So %', 'Yet %', 'Or %', 
+      'As %', 'At %', 'In %', 'To %', 'For %', 'Of %', 'With %', 'By %', 'About %',
+      'Into %', 'Through %', 'During %', 'Before %', 'After %', 'Above %', 'Below %',
+      'Between %', 'Among %', 'Within %', 'Without %', 'Under %', 'Over %', 'Near %',
+      'Since %', 'Until %', 'Against %', 'Throughout %', 'Despite %', 'Upon %',
+      'Besides %', 'Beyond %', 'Inside %', 'Outside %'
+    ];
+    
+    // Build a single query to count all junk patterns at once
+    const junkWhereClause = junkPatterns.map(() => 'full_name LIKE ?').join(' OR ');
+    const junkEntities = db.prepare(`
+      SELECT COUNT(*) as c FROM entities
+      WHERE LENGTH(full_name) <= 2
+        OR ${junkWhereClause}
+        OR full_name GLOB '[0-9]*' -- Starts with a number
+    `).get(...junkPatterns) as { c: number };
+    
+    // 4. Score Calculation
+    const totalEntities = entityStats.total || 1;
+    const junkRatio = junkEntities.c / totalEntities;
+    const orphanedRatio = orphanedMentions.c / Math.max(1, totalDocs.c);
+    
+    const dataQualityScore = Math.max(0, Math.min(100, 
+      100 - (junkRatio * 50) - (orphanedRatio * 30)
+    ));
+    
+    res.json({
+      totalDocuments: totalDocs.c,
+      documentsWithProvenance: docsWithProvenance.c,
+      provenanceCoverage: totalDocs.c > 0 ? Math.round((docsWithProvenance.c / totalDocs.c) * 100 * 10) / 10 : 0,
+      sourceCollections,
+      evidenceTypeDistribution: evidenceTypes,
+      entityQuality: {
+        total: entityStats.total,
+        withRoles: entityStats.withRoles,
+        withRedFlagDescription: entityStats.withDescription,
+        nullRedFlagRating: entityStats.nullRedFlagRating || 0,
+        missingRedFlagRatings: entityStats.missingRatings
+      },
+      dataIntegrity: {
+        orphanedEntityMentions: orphanedMentions.c,
+        potentialJunkEntities: junkEntities.c,
+        dataQualityScore: Math.round(dataQualityScore * 10) / 10
+      },
+      lastUpdated: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching data quality metrics:', error);
+    next(error);
+  }
+});
+
+// Get document lineage/provenance
+app.get('/api/documents/:id/lineage', async (req, res, next) => {
+  try {
+    const db = getDb();
+    const docId = req.params.id;
+    
+    const doc = db.prepare(`
+      SELECT d.*, orig.file_name as original_file_name, orig.file_path as original_file_path
+      FROM documents d
+      LEFT JOIN documents orig ON d.original_file_id = orig.id
+      WHERE d.id = ?
+    `).get(docId) as any;
+    
+    if (!doc) return res.status(404).json({ error: 'Document not found' });
+    
+    const children = db.prepare(`
+      SELECT id, file_name, page_number FROM documents WHERE parent_id = ? ORDER BY page_number ASC
+    `).all(docId);
+    
+    const auditEntries = db.prepare(`
+      SELECT timestamp, user_id, action, payload_json FROM audit_log
+      WHERE object_type = 'document' AND object_id = ? ORDER BY timestamp DESC LIMIT 20
+    `).all(String(docId));
+    
+    res.json({
+      document: {
+        id: doc.id,
+        fileName: doc.file_name,
+        sourceCollection: doc.source_collection,
+        sourceOriginalUrl: doc.source_original_url,
+        credibilityScore: doc.credibility_score,
+        ocrEngine: doc.ocr_engine,
+        ocrQualityScore: doc.ocr_quality_score,
+        processedAt: doc.ocr_processed_at
+      },
+      originalDocument: doc.original_file_id ? { id: doc.original_file_id, fileName: doc.original_file_name } : null,
+      childDocuments: children,
+      auditTrail: auditEntries.map((e: any) => ({
+        timestamp: e.timestamp, user: e.user_id, action: e.action,
+        details: e.payload_json ? JSON.parse(e.payload_json) : null
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching document lineage:', error);
+    next(error);
+  }
+});
+
+// Get entity confidence scoring
+app.get('/api/entities/:id/confidence', async (req, res, next) => {
+  try {
+    const db = getDb();
+    const entityId = req.params.id;
+    
+    const entity = db.prepare('SELECT id, full_name FROM entities WHERE id = ?').get(entityId) as any;
+    if (!entity) return res.status(404).json({ error: 'Entity not found' });
+    
+    const mentionsByType = db.prepare(`
+      SELECT d.evidence_type, COUNT(*) as count FROM entity_mentions em
+      JOIN documents d ON em.document_id = d.id WHERE em.entity_id = ? GROUP BY d.evidence_type
+    `).all(entityId) as { evidence_type: string; count: number }[];
+    
+    const typeWeights: Record<string, number> = { legal:1.0, testimony:0.9, flight_log:0.85, financial:0.8, email:0.7, document:0.6, photo:0.5 };
+    let weightedScore = 0, totalWeight = 0;
+    for (const m of mentionsByType) {
+      const w = typeWeights[m.evidence_type] || 0.5;
+      weightedScore += w * m.count;
+      totalWeight += m.count;
+    }
+    const confidence = totalWeight > 0 ? Math.min(100, Math.round((weightedScore / totalWeight) * 100)) : 0;
+    
+    res.json({
+      entityId, entityName: entity.full_name, confidenceScore: confidence,
+      evidenceBreakdown: mentionsByType, totalMentions: totalWeight,
+      confidenceLevel: confidence >= 80 ? 'High' : confidence >= 50 ? 'Medium' : 'Low'
+    });
+  } catch (error) {
+    console.error('Error calculating entity confidence:', error);
+    next(error);
+  }
+});
+
+
 // Enhanced Analytics API - Aggregated data for visualizations
 app.get('/api/analytics/enhanced', async (_req, res, next) => {
   try {
@@ -910,6 +1125,11 @@ app.get('/api/documents', async (req, res, next) => {
       params.push(minRedFlag, maxRedFlag);
     }
     
+    // Filter for documents with failed redactions
+    if (req.query.hasFailedRedactions === 'true') {
+      whereConditions.push('has_failed_redactions = 1');
+    }
+    
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
     
     // Build ORDER BY clause
@@ -1016,6 +1236,12 @@ app.get('/api/documents/:id', async (req, res, next) => {
              doc.originalFileUrl = doc.original_file_path.replace(/^.*[/\\]data[/\\]/, '/data/').replace(/\\/g, '/');
         } else if (doc.original_file_path.startsWith(CORPUS_BASE_PATH)) {
             doc.originalFileUrl = doc.original_file_path.replace(CORPUS_BASE_PATH, '/files');
+        } else if (doc.original_file_path.startsWith('data/')) {
+            // Handle relative paths like 'data/originals/filename.pdf'
+            doc.originalFileUrl = '/' + doc.original_file_path;
+        } else {
+            // Fallback: serve from /files
+            doc.originalFileUrl = '/files/' + doc.original_file_path;
         }
     }
     
@@ -1027,6 +1253,51 @@ app.get('/api/documents/:id', async (req, res, next) => {
     res.json(doc);
   } catch (error) {
     console.error('Error fetching document by id:', error);
+    next(error);
+  }
+});
+
+// Get failed redactions for a document
+app.get('/api/documents/:id/redactions', async (req, res, next) => {
+  try {
+    const id = req.params.id as string;
+    
+    const doc = getDb().prepare(`
+      SELECT 
+        id,
+        has_failed_redactions,
+        failed_redaction_count,
+        failed_redaction_data
+      FROM documents
+      WHERE id = ?
+    `).get(id) as any;
+    
+    if (!doc) {
+      return res.status(404).json({ error: 'not_found' });
+    }
+    
+    if (!doc.has_failed_redactions) {
+      return res.json({
+        hasFailedRedactions: false,
+        count: 0,
+        redactions: []
+      });
+    }
+    
+    let redactions = [];
+    try {
+      redactions = doc.failed_redaction_data ? JSON.parse(doc.failed_redaction_data) : [];
+    } catch (e) {
+      console.error('Error parsing redaction data:', e);
+    }
+    
+    res.json({
+      hasFailedRedactions: true,
+      count: doc.failed_redaction_count || redactions.length,
+      redactions
+    });
+  } catch (error) {
+    console.error('Error fetching document redactions:', error);
     next(error);
   }
 });
@@ -1377,7 +1648,7 @@ app.get('/api/analytics', async (_req, res, next) => {
 // Get timeline events
 app.get('/api/timeline', async (_req, res, next) => {
   try {
-    const events = statsRepository.getTimelineEvents();
+    const events = timelineRepository.getTimelineEvents();
     res.set('Cache-Control', 'public, max-age=300'); // 5 min cache
     res.json(events);
   } catch (error) {
@@ -1437,12 +1708,23 @@ app.get('/api/media/albums/:id/images', async (req, res, next) => {
     next(error);
   }
 });
-
 // Get all images with filtering and sorting
 app.get('/api/media/images', async (req, res, next) => {
   try {
     const filter: any = {};
     const sort: any = {};
+    
+    // Pagination params - only apply if explicitly requested
+    const hasPagination = req.query.page || req.query.limit;
+    const slim = req.query.slim === 'true'; // Return minimal fields for grid view
+    
+    if (hasPagination) {
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
+      const limit = Math.min(1000, Math.max(1, parseInt(req.query.limit as string) || 100));
+      const offset = (page - 1) * limit;
+      filter.limit = limit;
+      filter.offset = offset;
+    }
     
     if (req.query.albumId) {
       filter.albumId = parseInt(req.query.albumId as string);
@@ -1477,6 +1759,21 @@ app.get('/api/media/images', async (req, res, next) => {
     }
     
     const images = mediaService.getAllImages(filter, sort);
+    
+    // If slim mode, return only essential fields for grid view
+    if (slim && Array.isArray(images)) {
+      const slimImages = images.map((img: any) => ({
+        id: img.id,
+        path: img.path,
+        thumbnail_path: img.thumbnail_path,
+        title: img.title,
+        album_id: img.album_id,
+        width: img.width,
+        height: img.height
+      }));
+      return res.json(slimImages);
+    }
+    
     res.json(images);
   } catch (error) {
     console.error('Error fetching images:', error);
@@ -2218,6 +2515,88 @@ app.delete('/api/media/images/:id/people/:entityId', authenticateRequest, async 
   }
 });
 
+
+
+// ============ FLIGHT TRACKER API ============
+import { flightsRepository } from './server/db/flightsRepository.js';
+
+// Get flights with filtering and pagination
+app.get('/api/flights', async (req, res, next) => {
+  try {
+    const filters = {
+      page: parseInt(req.query.page as string) || 1,
+      limit: Math.min(100, parseInt(req.query.limit as string) || 50),
+      startDate: req.query.startDate as string,
+      endDate: req.query.endDate as string,
+      passenger: req.query.passenger as string,
+      airport: req.query.airport as string,
+    };
+    
+    const result = flightsRepository.getFlights(filters);
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching flights:', error);
+    next(error);
+  }
+});
+
+// Get flight statistics
+app.get('/api/flights/stats', async (req, res, next) => {
+  try {
+    const stats = flightsRepository.getFlightStats();
+    res.json(stats);
+  } catch (error) {
+    console.error('Error fetching flight stats:', error);
+    next(error);
+  }
+});
+
+// Get airport coordinates for map
+app.get('/api/flights/airports', async (req, res, next) => {
+  try {
+    const coords = flightsRepository.getAirportCoords();
+    res.json(coords);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get unique passengers list
+app.get('/api/flights/passengers', async (req, res, next) => {
+  try {
+    const passengers = flightsRepository.getUniquePassengers();
+    res.json(passengers);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get single flight by ID
+app.get('/api/flights/:id', async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid flight ID' });
+    
+    const flight = flightsRepository.getFlightById(id);
+    if (!flight) return res.status(404).json({ error: 'Flight not found' });
+    
+    res.json(flight);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get flights for specific passenger
+app.get('/api/flights/passenger/:name', async (req, res, next) => {
+  try {
+    const name = decodeURIComponent(req.params.name);
+    const flights = flightsRepository.getPassengerFlights(name);
+    res.json(flights);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Error handling middleware (must be last)
 app.use(globalErrorHandler);
 
@@ -2238,7 +2617,7 @@ app.get('*', async (req, res, next) => {
           if (image) {
             let html = fs.readFileSync(indexFile, 'utf8');
             const baseUrl = `${req.protocol}://${req.get('host')}`;
-            const imageUrl = `${baseUrl}/api/media/images/${id}/thumbnail?v=${new Date(image.dateModified || image.dateAdded || 0).getTime()}`;
+            const imageUrl = `${baseUrl}/api/media/images/${id}/raw?v=${new Date(image.dateModified || image.dateAdded || 0).getTime()}`;
             const title = image.title || image.filename;
             const description = image.description || `Photo from Epstein Archive - ${image.filename}`;
             
@@ -2305,6 +2684,55 @@ try {
 const server = app.listen(config.apiPort, () => {
   console.log(`🚀 Production API server running on port ${config.apiPort}`);
   console.log(`📊 Environment: ${config.nodeEnv}`);
+  
+  // CRITICAL STARTUP ASSERTIONS
+  if (config.nodeEnv === 'production' && config.apiPort !== 8080 && config.apiPort !== 3012) {
+    console.warn(`⚠️  [DEPLOYMENT WARNING] Production expects PORT 8080 or 3012!`);
+    console.warn(`⚠️  Current PORT is ${config.apiPort} - API calls may return 404!`);
+  }
+  
+  // Log startup diagnostics for debugging
+  console.log('--- Startup Warnings ---');
+  const isProduction = process.env.NODE_ENV === 'production';
+  if (isProduction) {
+    console.log('[INFO] Production mode: Authentication is FORCED regardless of ENABLE_AUTH setting.');
+  }
+  console.log('[INFO] Authentication is now forced to be enabled in all environments');
+  console.log('------------------------');
 });
 
+// === GRACEFUL SHUTDOWN ===
+// Close database connection properly to prevent "database is locked" errors
+const gracefulShutdown = (signal: string) => {
+  console.log(`\n${signal} received. Shutting down gracefully...`);
+  
+  server.close(() => {
+    console.log('HTTP server closed.');
+    
+    try {
+      // Close database connection
+      const db = getDb();
+      if (db) {
+        db.close();
+        console.log('Database connection closed.');
+      }
+    } catch (e) {
+      console.error('Error closing database:', e);
+    }
+    
+    console.log('Graceful shutdown complete.');
+    process.exit(0);
+  });
+  
+  // Force exit after 10 seconds if graceful shutdown fails
+  setTimeout(() => {
+    console.error('Forced shutdown after timeout.');
+    process.exit(1);
+  }, 10000);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
 export default server;
+

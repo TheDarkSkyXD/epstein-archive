@@ -21,12 +21,9 @@ export const authenticateRequest = (req: Request, res: Response, next: NextFunct
   const authReq = req as AuthRequest;
   
   // Check if Auth is enabled
-  const enableAuth = process.env.ENABLE_AUTH !== 'false'; // Default to true if not specified? Or false? 
-  // Previous code said: process.env.ENABLE_AUTH === 'true';
-  // Let's stick to explicit enable for now to avoid breaking Dev if they don't have it set.
-  // Actually, for "Set up auth system", we want it ENABLED by default or explicitly.
-  // Let's assume dev env might set ENABLE_AUTH=true.
-  const isAuthEnabled = process.env.ENABLE_AUTH === 'true';
+  // SECURITY: Production always requires authentication, regardless of ENABLE_AUTH
+  const isProduction = process.env.NODE_ENV === 'production';
+  const isAuthEnabled = true; // Force authentication to be enabled in all environments
 
   if (!isAuthEnabled) {
     // Development mode default user

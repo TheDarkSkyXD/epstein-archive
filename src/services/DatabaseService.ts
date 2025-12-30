@@ -26,12 +26,13 @@ export class DatabaseService {
     console.log(`[DatabaseService] Current working directory: ${process.cwd()}`);
     this.db = new Database(this.DB_PATH, {
       verbose: process.env.NODE_ENV === 'development' ? console.log : undefined,
-      timeout: 30000, // 30 second timeout for large operations
+      timeout: 60000, // 60 second timeout for large operations (increased from 30s)
     });
     
     // Enable foreign keys and optimize for performance
     this.db.pragma('foreign_keys = ON');
     this.db.pragma('journal_mode = WAL'); // Write-Ahead Logging for better concurrency
+    this.db.pragma('busy_timeout = 60000'); // Wait up to 60s (was 30s) if DB is locked before throwing
     this.db.pragma('synchronous = NORMAL'); // Balance between safety and performance
     this.db.pragma('cache_size = -1000000'); // 1GB cache size in KB
     this.db.pragma('temp_store = MEMORY'); // Use memory for temp tables
@@ -129,10 +130,12 @@ export class DatabaseService {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           full_name TEXT NOT NULL UNIQUE,
           type TEXT CHECK(type IN ('Person', 'Organization', 'Location', 'Unknown')) DEFAULT 'Unknown',
-          role TEXT,
+          primary_role TEXT,
+          secondary_roles TEXT,
           description TEXT,
           red_flag_rating INTEGER DEFAULT 0,
           red_flag_score INTEGER DEFAULT 0,
+          connections_summary TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { peopleData } from '../src/data/peopleData';
+// SECURITY: Removed unused import of hardcoded peopleData (file deleted)
 
 async function navigateTo(page: any, label: string) {
   const desktopBtn = page.locator(`button:has-text("${label}")`).first();

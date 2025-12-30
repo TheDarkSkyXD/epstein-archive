@@ -1096,25 +1096,37 @@ export class DocumentProcessor {
   async loadDocuments(documents: Document[]): Promise<void> {
     console.log(`DocumentProcessor: Loading ${documents.length} documents...`);
     
-    for (const doc of documents) {
-      // Store document in the Map
-      this.documents.set(doc.id, doc);
+    const BATCH_SIZE = 50;
+    
+    for (let i = 0; i < documents.length; i += BATCH_SIZE) {
+      const batch = documents.slice(i, i + BATCH_SIZE);
       
-      // Build all indexes for this document
-      this.buildSearchIndex(doc);
-      this.buildInvertedIndex(doc);
-      this.buildEntityIndex(doc);
-      this.buildDateIndex(doc);
-      this.buildCategoryIndex(doc);
-      
-      // Update entity index if document has entities
-      if (doc.entities && doc.entities.length > 0) {
-        this.updateEntityIndex(doc.entities);
+      // Process batch synchronously
+      for (const doc of batch) {
+        // Store document in the Map
+        this.documents.set(doc.id, doc);
+        
+        // Build all indexes for this document
+        this.buildSearchIndex(doc);
+        this.buildInvertedIndex(doc);
+        this.buildEntityIndex(doc);
+        this.buildDateIndex(doc);
+        this.buildCategoryIndex(doc);
+        
+        // Update entity index if document has entities
+        if (doc.entities && doc.entities.length > 0) {
+          this.updateEntityIndex(doc.entities);
+        }
+        
+        // Store passages if available
+        if (doc.passages && doc.passages.length > 0) {
+          this.passages.set(doc.id, doc.passages);
+        }
       }
       
-      // Store passages if available
-      if (doc.passages && doc.passages.length > 0) {
-        this.passages.set(doc.id, doc.passages);
+      // Yield to main thread to allow UI updates
+      if (i + BATCH_SIZE < documents.length) {
+        await new Promise(resolve => setTimeout(resolve, 0));
       }
     }
     

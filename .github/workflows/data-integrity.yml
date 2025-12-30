@@ -1,0 +1,120 @@
+name: Data Integrity Guard
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+
+jobs:
+  data-integrity-check:
+    name: 🔒 Data Integrity Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check for forbidden sample data files
+        run: |
+          echo "🔍 Checking for forbidden sample data files..."
+          
+          FORBIDDEN_FILES=(
+            "src/data/sampleDocuments.ts"
+            "src/data/peopleData.ts"
+          )
+          
+          FOUND=0
+          for file in "${FORBIDDEN_FILES[@]}"; do
+            if [ -f "$file" ]; then
+              echo "❌ BLOCKED: $file exists"
+              FOUND=1
+            fi
+          done
+          
+          if [ $FOUND -eq 1 ]; then
+            echo ""
+            echo "These files contained fabricated data and were removed during the security audit."
+            exit 1
+          fi
+          
+          echo "✅ No forbidden files found"
+      
+      - name: Scan for fabricated content patterns
+        run: |
+          echo "🔍 Scanning for fabricated content patterns..."
+          
+          # Check for fake email addresses
+          if grep -r "@clintonfoundation.org\|@epstein.com" src/ --include="*.ts" --include="*.tsx" 2>/dev/null; then
+            echo "❌ BLOCKED: Found fabricated email addresses in source"
+            exit 1
+          fi
+          
+          # Check for fallback to sample documents
+          if grep -r "generateSampleDocuments\|fallback.*sample" src/ --include="*.ts" --include="*.tsx" 2>/dev/null; then
+            echo "❌ BLOCKED: Found fallback to sample documents"
+            exit 1
+          fi
+          
+          # Check for hardcoded incriminating content
+          if grep -r "fabricated\|fake.*email\|fake.*deposition" src/data/ --include="*.ts" 2>/dev/null; then
+            echo "❌ BLOCKED: Found fabricated content in src/data/"
+            exit 1
+          fi
+          
+          echo "✅ No fabricated content patterns found"
+      
+      - name: Validate data quality tests exist
+        run: |
+          echo "🔍 Checking for API-based tests..."
+          
+          if ! grep -q "baseUrl" tests/data-validation.spec.ts 2>/dev/null; then
+            echo "⚠️ WARNING: data-validation tests may not be API-based"
+          fi
+          
+          if grep -q "from.*peopleData" tests/ -r --include="*.ts" 2>/dev/null; then
+            echo "❌ BLOCKED: Tests still import hardcoded peopleData"
+            exit 1
+          fi
+          
+          echo "✅ Test validation passed"
+      
+      - name: Check FTS schema integrity
+        run: |
+          echo "🔍 Checking FTS schema for correct column names..."
+          
+          # Ensure FTS triggers use correct columns
+          if grep -q "NEW.name, NEW.role, NEW.description" schema.sql 2>/dev/null; then
+            echo "❌ BLOCKED: FTS triggers reference wrong column names"
+            echo "   Should use: full_name, primary_role, connections_summary"
+            exit 1
+          fi
+          
+          echo "✅ FTS schema check passed"
+
+  build-verification:
+    name: 🏗️ Build Verification
+    runs-on: ubuntu-latest
+    needs: data-integrity-check
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build application
+        run: npm run build
+      
+      - name: Verify build output
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "❌ Build failed - no dist directory"
+            exit 1
+          fi
+          echo "✅ Build successful"

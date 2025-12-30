@@ -28,7 +28,7 @@ const ALBUM_RENAMES: Record<string, string> = {
   'Musk Epstein': 'Elon Musk',
   'Epstein Wexner': 'Les Wexner',
   '4 December 2025': '12.11.25 Estate Production', // Likely the same batch
-  'Perpretrators': 'Perpetrators', // Fix typo
+  'Perpetrators': 'Perpetrators', // Fix typo
 };
 
 async function run() {

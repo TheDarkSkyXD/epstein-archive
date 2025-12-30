@@ -1,5 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { FixedSizeGrid as Grid, FixedSizeList as List, GridChildComponentProps, ListChildComponentProps, areEqual } from 'react-window';
+import AutoSizer from './AutoSizer';
 import { Document, BrowseFilters, DocumentCollection } from '../types/documents';
 import { DocumentProcessor } from '../services/documentProcessor';
 import { Search, Filter, Calendar, FileText, Users, Tag, ChevronDown, ChevronRight, Network, Download, Eye } from 'lucide-react';
@@ -12,6 +14,119 @@ import DocumentSkeleton from './DocumentSkeleton';
 import { AddToInvestigationButton } from './AddToInvestigationButton';
 import { prettifyOCRText } from '../utils/prettifyOCR';
 import { DocumentContentRenderer } from './DocumentContentRenderer';
+
+// --- Virtualized Renderers for DocumentBrowser ---
+
+interface DocItemData {
+  documents: Document[];
+  onDocumentSelect: (doc: Document) => void;
+  formatFileSize: (bytes: number) => string;
+  formatDate: (dateString?: string) => string;
+  searchTerm?: string;
+  columnCount?: number;
+}
+
+// Helper to highlight search terms
+const highlightSearchTerm = (text: string, term?: string): React.ReactNode => {
+  if (!term || !text || typeof text !== 'string') return text;
+  try {
+    const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const terms = term.split(/\s+/).filter(t => t.length > 2);
+    if (terms.length === 0) return text;
+    const pattern = `(${terms.map(escapeRegExp).join('|')})`;
+    const regex = new RegExp(pattern, 'gi');
+    const highlighted = text.replace(regex, '<mark class="bg-yellow-500 text-black px-1 rounded">$1</mark>');
+    if (highlighted === text) return text;
+    return <span dangerouslySetInnerHTML={{ __html: highlighted }} />;
+  } catch {
+    return text;
+  }
+};
+
+// Memoized Grid Cell for document grid view
+const DocumentGridCell = React.memo(({ columnIndex, rowIndex, style, data }: GridChildComponentProps<DocItemData>) => {
+  const { documents, onDocumentSelect, formatFileSize, formatDate, searchTerm, columnCount = 1 } = data;
+  const index = rowIndex * columnCount + columnIndex;
+  
+  if (index >= documents.length) return null;
+  
+  const doc = documents[index];
+  const displayTitle = doc.title && doc.title !== doc.filename 
+    ? doc.title 
+    : (doc.filename || '').replace(/\.[^/.]+$/, '').replace(/_/g, ' ');
+  const summary = (doc.content || '').substring(0, 200).trim();
+
+  return (
+    <div style={{ ...style, padding: '8px' }}>
+      <div 
+        className="h-full bg-gray-900 border border-gray-700 rounded-lg p-4 hover:border-gray-500 transition-colors cursor-pointer flex flex-col"
+        onClick={() => onDocumentSelect(doc)}
+      >
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center space-x-2">
+            <FileText className="w-4 h-4 text-blue-400" />
+            <span className="text-xs text-gray-400 uppercase">{doc.fileType}</span>
+          </div>
+          <div className="flex items-center space-x-1">
+            <span className="text-xs text-gray-400">{formatFileSize(doc.fileSize)}</span>
+            <span className="text-lg">{doc.redFlagPeppers}</span>
+          </div>
+        </div>
+        
+        <h3 className="font-semibold text-white mb-1 line-clamp-2 text-sm">
+          {searchTerm ? highlightSearchTerm(displayTitle, searchTerm) : displayTitle}
+        </h3>
+        
+        {summary && (
+          <p className="text-xs text-gray-300 mb-2 line-clamp-2 flex-grow">
+            {searchTerm ? highlightSearchTerm(summary + '...', searchTerm) : summary + '...'}
+          </p>
+        )}
+        
+        <div className="flex items-center justify-between text-xs text-gray-400 mt-auto">
+          <span>{formatDate(doc.dateCreated)}</span>
+          <span>{doc.entities?.length || 0} entities</span>
+        </div>
+      </div>
+    </div>
+  );
+}, areEqual);
+
+// Memoized List Row for document list view
+const DocumentListRow = React.memo(({ index, style, data }: ListChildComponentProps<DocItemData>) => {
+  const { documents, onDocumentSelect, formatFileSize, formatDate, searchTerm } = data;
+  const doc = documents[index];
+
+  return (
+    <div style={style}>
+      <div 
+        className="mx-2 bg-gray-900 border border-gray-700 rounded-lg p-4 hover:border-gray-500 transition-colors cursor-pointer"
+        onClick={() => onDocumentSelect(doc)}
+      >
+        <div className="flex items-start justify-between">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center space-x-2 mb-2">
+              <FileText className="w-4 h-4 text-blue-400" />
+              <span className="text-xs text-gray-400 uppercase">{doc.fileType}</span>
+              <span className="text-lg">{doc.redFlagPeppers}</span>
+            </div>
+            <h3 className="font-semibold text-white mb-2 truncate">
+              {searchTerm ? highlightSearchTerm(doc.title || '', searchTerm) : doc.title}
+            </h3>
+            <p className="text-sm text-gray-300 mb-3 line-clamp-2">
+              {searchTerm ? highlightSearchTerm((doc.content || '').substring(0, 200) + '...', searchTerm) : (doc.content || '').substring(0, 200) + '...'}
+            </p>
+            <div className="flex items-center space-x-4 text-xs text-gray-400">
+              <span>{formatFileSize(doc.fileSize)}</span>
+              <span>{formatDate(doc.dateCreated)}</span>
+              <span>{doc.entities?.length || 0} entities</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}, areEqual);
 
 interface DocumentBrowserProps {
   processor: DocumentProcessor;
@@ -463,13 +578,22 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
 
 
   const DocumentViewer: React.FC<{ document: Document; searchTerm?: string }> = ({ document, searchTerm }) => {
-    const [activeTab, setActiveTab] = useState<'content' | 'original' | 'entities' | 'related' | 'annotations'>('content');
+    const [activeTab, setActiveTab] = useState<'content' | 'original' | 'entities' | 'related' | 'annotations' | 'redactions'>('content');
     const [pages, setPages] = useState<string[]>([]);
     const [loadingPages, setLoadingPages] = useState(false);
     const [showRaw, setShowRaw] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [viewMode, setViewMode] = useState<'carousel' | 'list'>('carousel');
     const contentRef = React.useRef<HTMLDivElement>(null);
+    
+    // Failed redactions state
+    const [redactionData, setRedactionData] = useState<{
+      hasFailedRedactions: boolean;
+      count: number;
+      redactions: Array<{ page: number; text: string; bbox: number[] }>;
+    } | null>(null);
+    const [loadingRedactions, setLoadingRedactions] = useState(false);
+    const [revealedRedactions, setRevealedRedactions] = useState<Set<number>>(new Set());
 
     // Reset pages when document changes
     useEffect(() => {
@@ -496,6 +620,27 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
         fetchPages();
       }
     }, [activeTab, document.id]);
+    
+    // Fetch redaction data when document changes or redactions tab is opened
+    useEffect(() => {
+      const fetchRedactions = async () => {
+        setLoadingRedactions(true);
+        try {
+          const response = await fetch(`/api/documents/${document.id}/redactions`);
+          if (response.ok) {
+            const data = await response.json();
+            setRedactionData(data);
+            setRevealedRedactions(new Set()); // Reset revealed state
+          }
+        } catch (error) {
+          console.error('Error fetching redaction data:', error);
+        } finally {
+          setLoadingRedactions(false);
+        }
+      };
+      
+      fetchRedactions();
+    }, [document.id]);
 
     // Scroll to first highlight when content or search term changes
     useEffect(() => {
@@ -646,6 +791,20 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
             }`}
           >
             Annotations
+          </button>
+          {/* Hidden Redactions Tab - only show prominently if redactions found */}
+          <button
+            onClick={() => setActiveTab('redactions')}
+            className={`px-4 py-3 text-sm font-medium transition-colors flex items-center gap-2 ${
+              activeTab === 'redactions' 
+                ? 'text-red-400 border-b-2 border-red-400 bg-red-900/30' 
+                : redactionData?.hasFailedRedactions 
+                  ? 'text-red-400 hover:text-red-300 hover:bg-red-900/20 animate-pulse' 
+                  : 'text-gray-500 hover:text-gray-400 hover:bg-gray-700'
+            }`}
+          >
+            {redactionData?.hasFailedRedactions && <span className="text-lg">🔓</span>}
+            {loadingRedactions ? '...' : redactionData?.hasFailedRedactions ? `Hidden Text (${redactionData.count})` : 'Hidden Text'}
           </button>
         </div>
         
@@ -849,6 +1008,121 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
                   renderHighlightedText={renderHighlightedText}
                   mode="full"
                 />
+              </div>
+            )}
+
+            {activeTab === 'redactions' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-2xl font-bold text-red-400 flex items-center gap-3">
+                    <span className="text-3xl">🔓</span>
+                    Failed Redactions Detected
+                  </h3>
+                  <div className="text-sm text-gray-400">
+                    Text hidden under black boxes but still extractable
+                  </div>
+                </div>
+                
+                {loadingRedactions ? (
+                  <div className="flex items-center justify-center h-64">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-400"></div>
+                  </div>
+                ) : redactionData?.hasFailedRedactions && redactionData.redactions.length > 0 ? (
+                  <div className="space-y-4">
+                    {/* Warning banner */}
+                    <div className="bg-red-900/30 border border-red-700/50 rounded-lg p-4 text-red-200">
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">⚠️</span>
+                        <div>
+                          <h4 className="font-semibold">Improperly Redacted Document</h4>
+                          <p className="text-sm text-red-300/80 mt-1">
+                            This document appears to have {redactionData.count} redaction(s) that were improperly applied. 
+                            The text was covered with black boxes but not actually removed from the PDF.
+                            <strong className="text-red-200"> Click each card below to reveal the hidden text.</strong>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Reveal all button */}
+                    <div className="flex justify-end">
+                      <button
+                        onClick={() => {
+                          const allIndices = new Set(redactionData.redactions.map((_, i) => i));
+                          setRevealedRedactions(allIndices);
+                        }}
+                        className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                      >
+                        <span>👁️</span> Reveal All Hidden Text
+                      </button>
+                    </div>
+
+                    {/* Redaction cards */}
+                    <div className="grid gap-4">
+                      {redactionData.redactions.map((redaction, index) => (
+                        <div
+                          key={index}
+                          onClick={() => {
+                            const newRevealed = new Set(revealedRedactions);
+                            newRevealed.add(index);
+                            setRevealedRedactions(newRevealed);
+                          }}
+                          className={`relative overflow-hidden rounded-lg border transition-all duration-500 cursor-pointer ${
+                            revealedRedactions.has(index)
+                              ? 'bg-gray-800 border-red-600'
+                              : 'bg-black border-gray-700 hover:border-red-500'
+                          }`}
+                        >
+                          {/* Page indicator */}
+                          <div className="absolute top-2 right-2 px-2 py-1 bg-gray-700 rounded text-xs text-gray-300">
+                            Page {redaction.page}
+                          </div>
+
+                          {!revealedRedactions.has(index) ? (
+                            /* Hidden state - scratch card effect */
+                            <div className="p-6 min-h-[120px] flex flex-col items-center justify-center text-center">
+                              <div className="relative">
+                                <div className="absolute inset-0 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 animate-pulse rounded" 
+                                     style={{ filter: 'blur(8px)' }} />
+                                <div className="relative z-10 text-6xl mb-3 opacity-80">🔒</div>
+                              </div>
+                              <p className="text-gray-400 text-sm mb-2">
+                                Hidden text detected under redaction
+                              </p>
+                              <p className="text-red-400 text-xs font-medium animate-pulse">
+                                Click to reveal what they tried to hide
+                              </p>
+                            </div>
+                          ) : (
+                            /* Revealed state */
+                            <div className="p-6">
+                              <div className="flex items-start gap-3">
+                                <span className="text-2xl">📝</span>
+                                <div className="flex-1">
+                                  <div className="text-xs text-red-400 uppercase tracking-wide mb-2 font-semibold">
+                                    Hidden Text Revealed
+                                  </div>
+                                  <blockquote className="text-white text-lg font-mono bg-red-900/20 p-4 rounded border-l-4 border-red-500 leading-relaxed">
+                                    "{redaction.text}"
+                                  </blockquote>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-64 text-gray-400">
+                    <div className="text-6xl mb-4 opacity-50">✓</div>
+                    <h4 className="text-xl font-medium text-gray-300 mb-2">No Failed Redactions Found</h4>
+                    <p className="text-center max-w-md">
+                      This document doesn't appear to have any improperly redacted text. 
+                      Redactions were either applied correctly or this document wasn't redacted.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1269,50 +1543,72 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({ processor, sea
           </div>
         </div>
 
-        {/* Document Grid/List */}
+        {/* Document Grid/List - Virtualized */}
         {documents.length === 0 && filteredDocuments.length === 0 ? (
           <DocumentSkeleton count={12} />
-        ) : viewMode === 'grid' ? (
-          // Regular grid view
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredDocuments.map(document => (
-              <DocumentCard key={document.id} document={document} />
-            ))}
+        ) : filteredDocuments.length > 0 && viewMode === 'grid' ? (
+          // Virtualized grid view
+          <div style={{ height: 'calc(100vh - 400px)', minHeight: '500px' }}>
+            <AutoSizer>
+              {({ height, width }) => {
+                const columnCount = width >= 1024 ? 3 : width >= 768 ? 2 : 1;
+                const columnWidth = Math.floor(width / columnCount);
+                const rowHeight = 280;
+                const rowCount = Math.ceil(filteredDocuments.length / columnCount);
+                
+                const itemData: DocItemData = {
+                  documents: filteredDocuments,
+                  onDocumentSelect: handleDocumentSelect,
+                  formatFileSize,
+                  formatDate,
+                  searchTerm: effectiveSearchTerm,
+                  columnCount
+                };
+                
+                return (
+                  <Grid
+                    columnCount={columnCount}
+                    columnWidth={columnWidth}
+                    height={height}
+                    rowCount={rowCount}
+                    rowHeight={rowHeight}
+                    width={width}
+                    itemData={itemData}
+                  >
+                    {DocumentGridCell}
+                  </Grid>
+                );
+              }}
+            </AutoSizer>
           </div>
-        ) : (
-            // Regular list view
-            <div className="space-y-4">
-              {filteredDocuments.map(document => (
-                <div key={document.id} className="bg-gray-900 border border-gray-700 rounded-lg p-4 hover:border-gray-500 transition-colors cursor-pointer"
-                     onClick={() => handleDocumentSelect(document)}>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <FileText className="w-4 h-4 text-blue-400" />
-                        <span className="text-xs text-gray-400 uppercase">{document.fileType}</span>
-                        <span className="text-lg">{document.redFlagPeppers}</span>
-                      </div>
-                      <h3 className="font-semibold text-white mb-2">
-                        {effectiveSearchTerm ? renderHighlightedText(document.title, effectiveSearchTerm) : document.title}
-                      </h3>
-                      <p className="text-sm text-gray-300 mb-3 line-clamp-2">
-                        {effectiveSearchTerm ? renderHighlightedText(document.content.substring(0, 300) + '...', effectiveSearchTerm) : document.content.substring(0, 300) + '...'}
-                      </p>
-                      <div className="flex items-center space-x-4 text-xs text-gray-400">
-                        <span>{formatFileSize(document.fileSize)}</span>
-                        <span>{formatDate(document.dateCreated)}</span>
-                        <span>{document.entities.length} entities</span>
-                      </div>
-                      {/* Source badge for list view */}
-                      <div className="mt-2">
-                        <SourceBadge source={document.metadata.source || 'Seventh Production'} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-        )}
+        ) : filteredDocuments.length > 0 ? (
+          // Virtualized list view
+          <div style={{ height: 'calc(100vh - 400px)', minHeight: '500px' }}>
+            <AutoSizer>
+              {({ height, width }) => {
+                const itemData: DocItemData = {
+                  documents: filteredDocuments,
+                  onDocumentSelect: handleDocumentSelect,
+                  formatFileSize,
+                  formatDate,
+                  searchTerm: effectiveSearchTerm
+                };
+                
+                return (
+                  <List
+                    height={height}
+                    itemCount={filteredDocuments.length}
+                    itemSize={140}
+                    width={width}
+                    itemData={itemData}
+                  >
+                    {DocumentListRow}
+                  </List>
+                );
+              }}
+            </AutoSizer>
+          </div>
+        ) : null}
 
         {filteredDocuments.length === 0 && (
           <div className="text-center py-12">

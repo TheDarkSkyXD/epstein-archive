@@ -11,17 +11,17 @@ export const statsRepository = {
         (SELECT COUNT(*) FROM documents) as totalDocuments,
         (SELECT COALESCE(SUM(mentions), 0) FROM entities) as totalMentions,
         (SELECT AVG(red_flag_rating) FROM entities) as averageRedFlagRating,
-        (SELECT COUNT(DISTINCT role) FROM entities WHERE role IS NOT NULL AND role != '') as totalUniqueRoles,
+        (SELECT COUNT(DISTINCT primary_role) FROM entities WHERE primary_role IS NOT NULL AND primary_role != '') as totalUniqueRoles,
         (SELECT COUNT(*) FROM entities WHERE mentions > 0) as entitiesWithDocuments,
         (SELECT COUNT(*) FROM documents WHERE metadata_json IS NOT NULL AND LENGTH(metadata_json) > 2) as documentsWithMetadata,
         (SELECT COUNT(*) FROM investigations WHERE status = 'active' OR status = 'open') as activeInvestigations
     `).get() as any;
 
     const topRoles = db.prepare(`
-      SELECT role, COUNT(*) as count 
+      SELECT primary_role as role, COUNT(*) as count 
       FROM entities 
-      WHERE role IS NOT NULL AND role != ''
-      GROUP BY role 
+      WHERE primary_role IS NOT NULL AND primary_role != ''
+      GROUP BY primary_role 
       ORDER BY count DESC
       LIMIT 10
     `).all() as { role: string; count: number }[];

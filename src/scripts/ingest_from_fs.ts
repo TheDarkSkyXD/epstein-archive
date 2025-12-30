@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3'
 import { join } from 'path'
 import { readdirSync, statSync, readFileSync } from 'fs'
-import pdf from 'pdf-parse'
+import { PDFParse } from 'pdf-parse'
 
 const DB_PATH = process.env.DB_PATH || join(process.cwd(), 'epstein-archive.db')
 const DATA_ROOT = process.env.DATA_ROOT || join(process.cwd(), 'data')
@@ -36,8 +36,9 @@ async function readFileContent(path: string) {
   if (ext === 'pdf') {
     const buf = readFileSync(path)
     try {
-      const data = await pdf(buf)
-      return String((data as any).text || '')
+      const parser = new PDFParse({ data: buf })
+      const data = await parser.getText()
+      return String(data.text || '')
     } catch {
       return ''
     }

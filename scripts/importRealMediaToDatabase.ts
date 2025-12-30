@@ -5,12 +5,76 @@ import Database from 'better-sqlite3';
 import { MediaService } from '../src/services/MediaService';
 import { execSync } from 'child_process';
 import ExifParser from 'exif-parser';
+import sharp from 'sharp';
 
 const SOURCE_DIR = process.env.SOURCE_DIR || '/opt/epstein-archive/data/media/images';
 // ORIGINALS_DIR: Directory containing original (non-optimized) images for EXIF extraction
 // Defaults to SOURCE_DIR/../originals - the "originals" folder is gitignored and never deployed
 const ORIGINALS_DIR = process.env.ORIGINALS_DIR || path.join(path.dirname(SOURCE_DIR), 'originals');
 const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), 'epstein-archive.db');
+
+// Categories that need watermarking
+const WATERMARK_CATEGORIES: Record<string, string> = {
+  'Confirmed Fake': 'FAKE',
+  'Unconfirmed Claims': 'UNVERIFIED'
+};
+
+/**
+ * Apply watermark to an image for fake/unconfirmed content
+ * Checks is_watermarked flag to avoid re-watermarking
+ */
+async function watermarkImage(
+  imagePath: string, 
+  watermarkText: string, 
+  imageId: number, 
+  db: any
+): Promise<void> {
+  // Check if already watermarked
+  const image = db.prepare('SELECT is_watermarked FROM media_images WHERE id = ?').get(imageId) as { is_watermarked: number } | undefined;
+  if (image?.is_watermarked === 1) {
+    return; // Already watermarked, skip
+  }
+
+  if (!fs.existsSync(imagePath)) {
+    console.warn(`Cannot watermark - file not found: ${imagePath}`);
+    return;
+  }
+
+  const tempPath = imagePath + '.watermarked.tmp';
+
+  try {
+    const metadata = await sharp(imagePath).metadata();
+    const width = metadata.width || 1000;
+    const height = metadata.height || 1000;
+    const fontSize = Math.floor(width * 0.15);
+
+    const svgImage = `
+      <svg width="${width}" height="${height}">
+        <style>
+          .watermark { fill: rgba(255, 0, 0, 0.5); font-size: ${fontSize}px; font-weight: bold; font-family: sans-serif; }
+        </style>
+        <text x="50%" y="50%" text-anchor="middle" class="watermark" transform="rotate(-45, ${width/2}, ${height/2})">${watermarkText}</text>
+      </svg>
+    `;
+
+    await sharp(imagePath)
+      .composite([{
+        input: Buffer.from(svgImage),
+        top: 0,
+        left: 0,
+      }])
+      .toFile(tempPath);
+
+    fs.renameSync(tempPath, imagePath);
+    
+    // Mark as watermarked in database
+    db.prepare('UPDATE media_images SET is_watermarked = 1 WHERE id = ?').run(imageId);
+    console.log(`  💧 Watermarked: ${path.basename(imagePath)}`);
+  } catch (e) {
+    console.error(`Failed to watermark ${imagePath}:`, e);
+    if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+  }
+}
 
 interface ImageMetadata {
   originalPath: string;
@@ -220,7 +284,7 @@ function analyzeImage(filepath: string, filename: string, category: string, stat
       tags = ['epstein', 'wexner', 'photo'];
       description = 'Epstein-Wexner association image';
       break;
-    case 'Perpretrators':
+    case 'Perpetrators':
       tags = ['perpetrators', 'accused', 'evidence'];
       description = 'Perpetrator photograph';
       albumName = 'Perpetrators'; // Fix spelling
@@ -315,6 +379,7 @@ async function main() {
   }
   
   const mediaService = new MediaService(DB_PATH);
+  const db = new Database(DB_PATH); // For watermark tracking
   const analyses: ImageMetadata[] = [];
   const albumMap = new Map<string, number>();
   
@@ -345,17 +410,17 @@ async function main() {
   
   console.log(`\n✅ Analyzed ${analyses.length} total images\n`);
   
-  // Create albums
-  console.log('📁 Creating albums...\n');
+  // Create or get existing albums (idempotent)
+  console.log('📁 Creating/Getting albums...\n');
   const uniqueAlbums = [...new Set(analyses.map(a => a.albumName))];
   
   for (const albumName of uniqueAlbums) {
-    const album = mediaService.createAlbum(
+    const album = mediaService.getOrCreateAlbum(
       albumName,
       `Collection of ${albumName.toLowerCase()} related images`
     );
     albumMap.set(albumName, album.id);
-    console.log(`✓ Created album: ${albumName} (ID: ${album.id})`);
+    console.log(`✓ Album: ${albumName} (ID: ${album.id})`);
   }
   
   // Import images to database
@@ -363,8 +428,17 @@ async function main() {
   
   const usedFilenames = new Set<string>();
   let imported = 0;
+  let skipped = 0;
   
   for (const analysis of analyses) {
+    const albumId = albumMap.get(analysis.albumName);
+    
+    // Skip if image already exists in database (idempotent)
+    if (mediaService.imageExists(analysis.originalFilename, albumId)) {
+      skipped++;
+      continue;
+    }
+    
     // Handle duplicate filenames
     let newFilename = analysis.newFilename;
     if (usedFilenames.has(newFilename)) {
@@ -392,7 +466,7 @@ async function main() {
       thumbnailPath: `/data/media/thumbnails/${newFilename}`,
       title: enhancedTitle,
       description: analysis.description,
-      albumId: albumMap.get(analysis.albumName),
+      albumId,
       width: analysis.width,
       height: analysis.height,
       fileSize: analysis.fileSize,
@@ -417,14 +491,29 @@ async function main() {
       const tag = mediaService.getOrCreateTag(tagName, analysis.category);
       mediaService.addTagToImage(image.id, tag.id);
     }
+
+    // Watermark fake/unconfirmed images
+    const watermarkText = WATERMARK_CATEGORIES[analysis.albumName];
+    if (watermarkText) {
+      await watermarkImage(analysis.originalPath, watermarkText, image.id, db);
+    }
+
+    // Generate thumbnail
+    try {
+      // Ensure the output directory is 'data/media/thumbnails' (relative to cwd or absolute)
+      const thumbDir = path.join(process.cwd(), 'data/media/thumbnails');
+      await mediaService.generateThumbnail(image.path, thumbDir, { force: false });
+    } catch (e) {
+      console.warn(`⚠️ Failed to generate thumbnail for ${image.filename}:`, e);
+    }
     
     imported++;
     if (imported % 10 === 0) {
-      process.stdout.write(`\r✓ Imported ${imported}/${analyses.length} images...`);
+      process.stdout.write(`\r✓ Imported ${imported}/${analyses.length - skipped} images...`);
     }
   }
   
-  console.log(`\n\n✅ Import complete!\n`);
+  console.log(`\n\n✅ Import complete! (${imported} new, ${skipped} skipped)\n`);
   
   // Set cover images for albums
   console.log('🖼️  Setting album cover images...\n');

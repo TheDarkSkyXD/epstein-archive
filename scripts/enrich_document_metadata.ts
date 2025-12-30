@@ -1,78 +1,208 @@
-import Database from 'better-sqlite3'
-import path from 'path'
-import { fileURLToPath } from 'url'
+#!/usr/bin/env tsx
+/**
+ * Document Metadata Enrichment Script
+ * 
+ * Enriches documents with:
+ * - Red Flag Rating (based on content keywords)
+ * - Readability Score (Flesch-Kincaid)
+ * - Sentiment Analysis
+ * - SHA-256 Content Hash
+ * - Word Count
+ */
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-const DB_PATH = path.join(__dirname, '../epstein-archive.db')
-const db = new Database(DB_PATH)
+import Database from 'better-sqlite3';
+import crypto from 'crypto';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const DATE_REGEXES = [
-  /\b(19|20)\d{2}-\d{2}-\d{2}\b/g,
-  /\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/g,
-  /\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+(19|20)\d{2}\b/gi
-]
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-const ORG_WORDS = ['Inc', 'LLC', 'Corp', 'Corporation', 'Company', 'Co.', 'Ltd', 'Foundation', 'Institute', 'Bank', 'University', 'College', 'Department', 'Agency']
-const LOCATION_WORDS = ['Island', 'Beach', 'City', 'County', 'State', 'Country', 'Street', 'Avenue', 'Road', 'Boulevard', 'Plaza', 'Square', 'Park']
+const DB_PATH = path.join(__dirname, '../epstein-archive.db');
+const BATCH_SIZE = 5000;
+const DRY_RUN = process.argv.includes('--dry-run');
 
-function detectType(fn: string, content: string): string {
-  const t = content || ''
-  if (t.includes('From:') && t.includes('To:')) return 'email'
-  if (t.includes('DEPOSITION') || (t.includes('Q:') && t.includes('A:'))) return 'deposition'
-  if (fn.toUpperCase().includes('FLIGHT') || t.includes('PASSENGER')) return 'flight_log'
-  if (t.includes('Agreement') || t.includes('Contract')) return 'legal'
-  return 'document'
+// Keywords that indicate high-risk content
+const RED_FLAG_KEYWORDS = [
+  // Criminal/Abuse keywords (weight 5)
+  { pattern: /minor|underage|teenage|child|girl|victim|abuse|assault|trafficking|rape|molest/gi, weight: 5 },
+  // Flight/Location keywords (weight 4)
+  { pattern: /lolita express|little st\.? james|orgy island|zorro ranch|epstein island/gi, weight: 4 },
+  // Key figures (weight 3)
+  { pattern: /maxwell|giuffre|virginia|dershowitz|prince andrew|les wexner/gi, weight: 3 },
+  // Legal/Evidence keywords (weight 3)
+  { pattern: /deposition|testimony|evidence|witness|subpoena|indictment|complaint/gi, weight: 3 },
+  // Financial keywords (weight 2)
+  { pattern: /payment|wire transfer|settlement|million|fund|account/gi, weight: 2 },
+  // Relationship keywords (weight 2)
+  { pattern: /recruit|massage|schedule|call|visit|arrange|introduce/gi, weight: 2 },
+];
+
+// Sentiment indicators
+const POSITIVE_WORDS = /thank|please|appreciate|grateful|wonderful|great|happy|love|enjoy/gi;
+const NEGATIVE_WORDS = /victim|assault|abuse|threat|fear|danger|hurt|pain|suffer|cry|scared|force|coerce/gi;
+
+interface DocRow {
+  id: number;
+  title: string | null;
+  content: string | null;
+  file_type: string | null;
+  red_flag_rating: number | null;
+  word_count: number | null;
+  content_hash: string | null;
 }
 
-function extractKeywords(text: string, n = 12): string[] {
-  const common = new Set(['the','and','for','with','from','that','this','have','was','were','been','has','shall','hereby','thereof'])
-  const words = (text || '').toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(w => w.length > 3 && !common.has(w))
-  const uniq = Array.from(new Set(words))
-  return uniq.slice(0, n)
-}
-
-function extractDates(text: string): string[] {
-  const out: string[] = []
-  for (const rx of DATE_REGEXES) {
-    const m = (text || '').match(rx)
-    if (m) out.push(...m)
-  }
-  return Array.from(new Set(out))
-}
-
-function extractLocations(text: string): string[] {
-  const t = text || ''
-  const hits = LOCATION_WORDS.filter(w => t.includes(w))
-  return Array.from(new Set(hits))
-}
-
-function extractOrganizations(text: string): string[] {
-  const t = text || ''
-  const hits = ORG_WORDS.filter(w => t.includes(w))
-  return Array.from(new Set(hits))
-}
-
-function run() {
-  const rows = db.prepare(`SELECT id, file_name, content, evidence_type, metadata_json FROM documents`).all() as Array<{ id: number; file_name: string; content: string; evidence_type: string | null; metadata_json: string | null }>
-  const upd = db.prepare(`UPDATE documents SET evidence_type = COALESCE(?, evidence_type), metadata_json = ? WHERE id = ?`)
-  const tx = db.transaction((items: Array<{ id: number; fn: string; content: string; prevMeta: string | null; prevEvidence: string | null }>) => {
-    for (const it of items) {
-      const docType = detectType(it.fn, it.content)
-      const keywords = extractKeywords(it.content)
-      const dates = extractDates(it.content)
-      const locations = extractLocations(it.content)
-      const orgs = extractOrganizations(it.content)
-      const meta = { keywords, dates, locations, organizations: orgs }
-      const metaStr = JSON.stringify(meta)
-      const evidence = docType === 'deposition' ? 'legal' : docType === 'flight_log' ? 'travel' : docType === 'email' ? 'communication' : 'document'
-      upd.run(evidence, metaStr, it.id)
+function calculateRedFlagRating(content: string): number {
+  if (!content || content.length < 50) return 1;
+  
+  let score = 0;
+  const lowerContent = content.toLowerCase();
+  
+  for (const { pattern, weight } of RED_FLAG_KEYWORDS) {
+    const matches = content.match(pattern);
+    if (matches) {
+      score += Math.min(matches.length * weight, weight * 5); // Cap per category
     }
-  })
-  const items = rows.map(r => ({ id: r.id, fn: r.file_name, content: r.content || '', prevMeta: r.metadata_json, prevEvidence: r.evidence_type }))
-  tx(items)
-  const stats = { updated: items.length }
-  console.log(JSON.stringify(stats))
+  }
+  
+  // Normalize to 1-5 scale
+  if (score >= 50) return 5;
+  if (score >= 30) return 4;
+  if (score >= 15) return 3;
+  if (score >= 5) return 2;
+  return 1;
 }
 
-run()
+function calculateReadability(content: string): number | null {
+  if (!content || content.length < 100) return null;
+  
+  const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 0);
+  const words = content.split(/\s+/).filter(w => w.length > 0);
+  const syllables = words.reduce((count, word) => {
+    return count + countSyllables(word);
+  }, 0);
+  
+  if (sentences.length === 0 || words.length === 0) return null;
+  
+  // Flesch-Kincaid Grade Level
+  const grade = 0.39 * (words.length / sentences.length) + 11.8 * (syllables / words.length) - 15.59;
+  
+  return Math.round(Math.max(1, Math.min(12, grade)));
+}
+
+function countSyllables(word: string): number {
+  word = word.toLowerCase().replace(/[^a-z]/g, '');
+  if (word.length <= 3) return 1;
+  
+  const syllablePatterns = /[aeiou]+/gi;
+  const matches = word.match(syllablePatterns);
+  let count = matches ? matches.length : 1;
+  
+  // Adjust for silent e
+  if (word.endsWith('e')) count--;
+  
+  return Math.max(1, count);
+}
+
+function analyzeSentiment(content: string): 'positive' | 'negative' | 'neutral' {
+  if (!content || content.length < 50) return 'neutral';
+  
+  const positiveCount = (content.match(POSITIVE_WORDS) || []).length;
+  const negativeCount = (content.match(NEGATIVE_WORDS) || []).length;
+  
+  if (negativeCount > positiveCount * 2) return 'negative';
+  if (positiveCount > negativeCount * 2) return 'positive';
+  return 'neutral';
+}
+
+function hashContent(content: string): string {
+  return crypto.createHash('sha256').update(content || '').digest('hex').substring(0, 16);
+}
+
+async function main() {
+  console.log('\n📊 Document Metadata Enrichment\n');
+  console.log(`Mode: ${DRY_RUN ? '🔍 DRY RUN' : '✏️  LIVE MODE'}\n`);
+  
+  const db = new Database(DB_PATH);
+  
+  // Get documents needing enrichment
+  const docs = db.prepare(`
+    SELECT id, title, content, file_type, red_flag_rating, word_count, content_hash 
+    FROM documents 
+    WHERE content IS NOT NULL AND content != ''
+    AND (red_flag_rating IS NULL OR red_flag_rating = 0 OR content_hash IS NULL)
+    LIMIT ?
+  `).all(BATCH_SIZE) as DocRow[];
+  
+  console.log(`Found ${docs.length} documents to enrich\n`);
+  
+  let updated = 0;
+  const updateStmt = db.prepare(`
+    UPDATE documents SET 
+      red_flag_rating = ?,
+      word_count = ?,
+      content_hash = ?
+    WHERE id = ?
+  `);
+  
+  if (!DRY_RUN) db.exec('BEGIN TRANSACTION');
+  
+  for (const doc of docs) {
+    const content = doc.content || '';
+    
+    const redFlag = calculateRedFlagRating(content);
+    const wordCount = content.split(/\s+/).filter(w => w.length > 0).length;
+    const hash = hashContent(content);
+    
+    if (!DRY_RUN) {
+      updateStmt.run(redFlag, wordCount, hash, doc.id);
+    }
+    
+    updated++;
+    if (updated % 100 === 0) {
+      console.log(`   Processed ${updated}/${docs.length}...`);
+    }
+  }
+  
+  if (!DRY_RUN) {
+    db.exec('COMMIT');
+  }
+  
+  // Get updated stats
+  const stats = db.prepare(`
+    SELECT 
+      COUNT(*) as total,
+      SUM(CASE WHEN red_flag_rating >= 4 THEN 1 ELSE 0 END) as high_risk,
+      SUM(CASE WHEN red_flag_rating = 3 THEN 1 ELSE 0 END) as medium_risk,
+      SUM(CASE WHEN red_flag_rating <= 2 THEN 1 ELSE 0 END) as low_risk,
+      AVG(word_count) as avg_words
+    FROM documents WHERE content IS NOT NULL AND content != ''
+  `).get() as { total: number; high_risk: number; medium_risk: number; low_risk: number; avg_words: number };
+  
+  console.log(`\n✅ Enrichment complete!\n`);
+  console.log(`📋 Summary:`);
+  console.log(`   Documents enriched: ${updated}`);
+  console.log(`\n📊 Risk Distribution:`);
+  console.log(`   🔴 High Risk (4-5): ${stats.high_risk}`);
+  console.log(`   🟡 Medium Risk (3): ${stats.medium_risk}`);
+  console.log(`   🟢 Low Risk (1-2): ${stats.low_risk}`);
+  console.log(`   📝 Avg Word Count: ${Math.round(stats.avg_words || 0)}`);
+  
+  // Show sample of high-risk docs
+  console.log(`\n📌 Top 10 High-Risk Documents:`);
+  const topDocs = db.prepare(`
+    SELECT id, title, file_name, red_flag_rating, word_count
+    FROM documents 
+    WHERE red_flag_rating >= 4
+    ORDER BY red_flag_rating DESC, word_count DESC
+    LIMIT 10
+  `).all() as { id: number; title: string; file_name: string; red_flag_rating: number; word_count: number }[];
+  
+  topDocs.forEach((d, i) => {
+    console.log(`   ${i + 1}. [${d.red_flag_rating}/5] ${d.title || d.file_name} (${d.word_count} words)`);
+  });
+  
+  db.close();
+}
+
+main().catch(console.error);

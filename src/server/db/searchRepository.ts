@@ -55,6 +55,7 @@ export const searchRepository = {
             WHERE e.full_name LIKE @searchPattern 
             OR e.primary_role LIKE @searchPattern
             OR e.connections_summary LIKE @searchPattern
+            OR e.aliases LIKE @searchPattern
             ORDER BY e.mentions DESC
             LIMIT @limit
         `;

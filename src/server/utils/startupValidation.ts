@@ -30,13 +30,8 @@ export function validateStartup() {
   }
 
   // 3. Auth
-  if (process.env.ENABLE_AUTH !== 'true') {
-    if (process.env.NODE_ENV === 'production') {
-      warnings.push('SECURITY WARNING: ENABLE_AUTH is not set to true. Authentication is DISABLED.');
-    } else {
-      console.log('[Startup] Auth is disabled (dev mode).');
-    }
-  }
+  // Authentication is now forced to be enabled in all environments
+  // The ENABLE_AUTH environment variable is no longer used
 
   // 4. Schema Integrity
   try {

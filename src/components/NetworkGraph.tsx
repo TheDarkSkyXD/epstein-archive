@@ -54,6 +54,35 @@ const getNodeSize = (connectionCount: number, maxConnections: number): number =>
   return minSize + (maxSize - minSize) * Math.sqrt(ratio);
 };
 
+// Simple collision resolution for main thread (small datasets)
+const applyCollisionResolution = (nodes: GraphNode[], draggedNode: number | null): GraphNode[] => {
+  const newNodes = nodes.map(n => ({ ...n }));
+  
+  for (let i = 0; i < newNodes.length; i++) {
+    const node = newNodes[i];
+    if (node.id === draggedNode) continue;
+
+    for (let j = 0; j < newNodes.length; j++) {
+      if (i === j) continue;
+      const other = newNodes[j];
+      const dx = node.x - other.x;
+      const dy = node.y - other.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const minDist = (node.radius/2 + other.radius/2) * 1.5;
+
+      if (dist < minDist && dist > 0) {
+        const overlap = minDist - dist;
+        const moveX = (dx / dist) * overlap * 0.1;
+        const moveY = (dy / dist) * overlap * 0.1;
+        
+        node.x += moveX;
+        node.y += moveY;
+      }
+    }
+  }
+  return newNodes;
+};
+
 export const NetworkGraph: React.FC<NetworkGraphProps> = ({ 
   entities, 
   relationships,
@@ -67,21 +96,19 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
   const [dragStart, setDragStart] = useState<Point>({ x: 0, y: 0 });
   const [draggedNode, setDraggedNode] = useState<number | null>(null);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+  const workerRef = useRef<Worker | null>(null);
+  const useWorkerRef = useRef(false);
 
   // Initialize nodes with Spiral Layout
   useEffect(() => {
     const topEntities = entities.slice(0, maxNodes);
     
     // Golden Spiral Layout (Phyllotaxis)
-    // r = c * sqrt(n)
-    // theta = n * 137.508... degrees
     const goldenAngle = Math.PI * (3 - Math.sqrt(5)); 
     
     const initialNodes = topEntities.map((entity, index) => {
-      // Calculate dynamic radius/spacing
-      // We want spacing to increase slightly as we go out
-      const rStep = 6; // Spacing parameter
-      const r = rStep * Math.sqrt(index + 2); // Start not at 0 to avoid center clump
+      const rStep = 6;
+      const r = rStep * Math.sqrt(index + 2);
       const theta = index * goldenAngle;
       
       const x = 50 + r * Math.cos(theta);
@@ -100,6 +127,9 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
       };
     });
     setNodes(initialNodes);
+    
+    // Use Web Worker for large datasets (> 40 nodes) to prevent main thread lag
+    useWorkerRef.current = initialNodes.length > 40;
   }, [entities, maxNodes]);
 
   // Links data
@@ -116,43 +146,51 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
       .slice(0, 500);
   }, [nodes, relationships]);
 
-  // Gentle collision resolution only (keep the spiral mostly intact)
+  // Physics simulation (Web Worker for large datasets, main thread for small)
   useEffect(() => {
     if (nodes.length === 0) return;
     
-    const tick = () => {
-      setNodes(prevNodes => {
-        const newNodes = prevNodes.map(n => ({ ...n }));
+    // For large datasets, use Web Worker
+    if (useWorkerRef.current && typeof Worker !== 'undefined') {
+      try {
+        // Create worker using Vite's worker syntax
+        workerRef.current = new Worker(
+          new URL('../workers/networkGraph.worker.ts', import.meta.url),
+          { type: 'module' }
+        );
         
-        // Only apply collision detection, no gravity/centering to preserve spiral
-        for (let i = 0; i < newNodes.length; i++) {
-          const node = newNodes[i];
-          if (node.id === draggedNode) continue;
-
-          for (let j = 0; j < newNodes.length; j++) {
-            if (i === j) continue;
-            const other = newNodes[j];
-            const dx = node.x - other.x;
-            const dy = node.y - other.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            const minDist = (node.radius/2 + other.radius/2) * 1.5; // Padding
-
-            if (dist < minDist && dist > 0) {
-              const overlap = minDist - dist;
-              const moveX = (dx / dist) * overlap * 0.1; // Gentle push
-              const moveY = (dy / dist) * overlap * 0.1;
-              
-              node.x += moveX;
-              node.y += moveY;
-            }
+        workerRef.current.onmessage = (e) => {
+          if (e.data.type === 'nodes' && e.data.nodes) {
+            setNodes(e.data.nodes);
           }
-        }
-        return newNodes;
-      });
+        };
+        
+        // Initialize worker with nodes
+        workerRef.current.postMessage({ type: 'init', nodes });
+        
+        return () => {
+          workerRef.current?.postMessage({ type: 'stop' });
+          workerRef.current?.terminate();
+          workerRef.current = null;
+        };
+      } catch (e) {
+        // Fall back to main thread simulation if worker fails
+        console.warn('Web Worker failed, using main thread:', e);
+        useWorkerRef.current = false;
+      }
+    }
+    
+    // For small datasets, run on main thread (original behavior)
+    let tickCount = 0;
+    const maxTicks = 60;
+    
+    const tick = () => {
+      if (tickCount >= maxTicks) return;
+      setNodes(prevNodes => applyCollisionResolution(prevNodes, draggedNode));
+      tickCount++;
     };
 
-    // Short simulation to just fix overlaps
-    const interval = setInterval(tick, 30);
+    const interval = setInterval(tick, 33);
     const timeout = setTimeout(() => clearInterval(interval), 2000); 
     
     return () => {
@@ -160,6 +198,21 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
       clearTimeout(timeout);
     };
   }, [nodes.length, draggedNode]);
+
+  // Update worker when node is dragged
+  useEffect(() => {
+    if (workerRef.current && draggedNode !== null) {
+      const node = nodes.find(n => n.id === draggedNode);
+      if (node) {
+        workerRef.current.postMessage({ 
+          type: 'updateNode', 
+          nodeUpdate: { id: node.id, x: node.x, y: node.y },
+          draggedNodeId: draggedNode 
+        });
+      }
+    }
+  }, [draggedNode, nodes]);
+
 
   // Pan/Zoom handlers (Same optimized Center Zoom)
   const handleWheel = (e: React.WheelEvent) => {

@@ -148,7 +148,7 @@ export const relationshipsRepository = {
 
   getEntitySummarySource: (entityId: number | string, topN: number = 10) => {
     const db = getDb();
-    const entity = db.prepare(`SELECT id, full_name, role as primary_role FROM entities WHERE id=?`).get(entityId) as any;
+    const entity = db.prepare(`SELECT id, full_name, primary_role FROM entities WHERE id=?`).get(entityId) as any;
     
     if (!entity) return null;
 

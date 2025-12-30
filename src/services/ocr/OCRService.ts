@@ -23,8 +23,24 @@ export class CompetitiveOCRService {
   /**
    * Run all applicable engines and pick the winner
    */
-  async process(filePath: string, mimeType: string): Promise<OCRResult> {
-    const applicableEngines = this.engines.filter(e => e.supports(mimeType));
+  async process(filePath: string, mimeType: string, manualTextOverride?: string): Promise<OCRResult> {
+    // If manual override provided, it wins immediately
+    if (manualTextOverride) {
+        return {
+            text: manualTextOverride,
+            confidence: 100,
+            engine: 'Manual Override (Collection Metadata)',
+            durationMs: 0,
+            hasRedactions: this.analyzeRedactions(manualTextOverride).hasRedactions,
+            redactionRatio: this.analyzeRedactions(manualTextOverride).redactionRatio
+        };
+    }
+
+    const applicableEngines = this.engines.filter(e => {
+        const supported = e.supports(mimeType);
+        // console.log(`    Engine ${e.name} supports ${mimeType}? ${supported}`);
+        return supported;
+    });
 
     if (applicableEngines.length === 0) {
       return {
@@ -170,8 +186,8 @@ export class CompetitiveOCRService {
       }
 
       // Boost for Manual Engine (it's ground truth)
-      if (r.engine === 'External Manual OCR') {
-        score = 1000; // Always wins
+      if (r.engine === 'External Manual OCR' && r.text.length > 0) {
+        score = 1000; // Always wins if it found something
       }
 
       return { result: r, score, wordDensity, garbageRatio };

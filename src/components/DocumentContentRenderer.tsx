@@ -18,6 +18,7 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
   const [showAnnotations, setShowAnnotations] = useState(false);
   // Optimize entity lookup map
   const [entityMap, setEntityMap] = useState<Map<string, any>>(new Map());
+  const [entities, setEntities] = useState<any[]>([]);
   const [entityRegex, setEntityRegex] = useState<RegExp | null>(null);
 
   // Fetch all entities for linking - optimized
@@ -591,19 +592,54 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
           renderHighlightedText={renderHighlightedText}
         />
       ) : (
-        <pre 
-          className="whitespace-pre-wrap text-sm text-gray-300 font-mono leading-relaxed break-words"
-          dangerouslySetInnerHTML={{
-            __html: React.useMemo(() => {
-              // Apply prettifyOCRText unless showRaw is true
-              const content = showRaw ? doc.content : prettifyOCRText(doc.content);
-              // Apply entity linking (now optimized single-pass)
-              // Only run linking if we have the regex ready
-              const contentWithEntities = entityRegex ? linkEntitiesInText(content) : content;
-              return searchTerm ? highlightText(contentWithEntities, searchTerm) : contentWithEntities;
-            }, [doc.content, showRaw, entityRegex, searchTerm]) // Dependencies ensure update only when needed
-          }}
-        />
+        <div className={`grid gap-6 ${doc.originalFileUrl ? 'lg:grid-cols-2' : 'grid-cols-1'}`}>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium text-gray-400">Extracted Text</h3>
+              {doc.page_number && (
+                <span className="text-xs bg-gray-700 px-2 py-0.5 rounded text-gray-300">
+                  Page {doc.page_number}
+                </span>
+              )}
+            </div>
+            <pre 
+              className="whitespace-pre-wrap text-sm text-gray-300 font-mono leading-relaxed break-words bg-gray-900/50 p-4 rounded-lg border border-gray-700/50 min-h-[600px] overflow-y-auto max-h-[80vh]"
+              dangerouslySetInnerHTML={{
+                __html: React.useMemo(() => {
+                  // Apply prettifyOCRText unless showRaw is true
+                  const content = showRaw ? doc.content : prettifyOCRText(doc.content);
+                  // Apply entity linking (now optimized single-pass)
+                  // Only run linking if we have the regex ready
+                  const contentWithEntities = entityRegex ? linkEntitiesInText(content) : content;
+                  return searchTerm ? highlightText(contentWithEntities, searchTerm) : contentWithEntities;
+                }, [doc.content, showRaw, entityRegex, searchTerm]) // Dependencies ensure update only when needed
+              }}
+            />
+          </div>
+
+          {doc.originalFileUrl && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium text-gray-400">Original Document</h3>
+                <a 
+                  href={doc.originalFileUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                >
+                  Open in New Tab ↗
+                </a>
+              </div>
+              <div className="bg-white rounded-lg border border-gray-700 overflow-hidden h-full min-h-[600px] max-h-[80vh]">
+                <iframe
+                  src={`${doc.originalFileUrl}${doc.page_number ? `#page=${doc.page_number}` : ''}`}
+                  className="w-full h-full border-none"
+                  title="Original Document Content"
+                />
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

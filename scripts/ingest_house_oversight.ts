@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import Database from 'better-sqlite3';
 import { glob } from 'glob';
-import csv from 'csv-parser'; // Assuming we can use this or I'll implement a simple one if missing.
+
 // Check package.json first. If csv-parser is not there, I will use a simple implementation.
 // Based on previous package.json view, I didn't see csv-parser.
 // So I will implement a robust CSV line parser to avoid dependency issues.

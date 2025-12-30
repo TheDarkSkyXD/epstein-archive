@@ -209,7 +209,7 @@ function auditRelationships(db: Database.Database): AuditReport['relationships']
   console.log('\n🔗 Auditing Relationships...');
   
   const relStats = db.prepare(`
-    SELECT COUNT(*) as total, AVG(weight) as avg_weight
+    SELECT COUNT(*) as total, AVG(proximity_score) as avg_weight
     FROM entity_relationships
   `).get() as { total: number; avg_weight: number };
   
@@ -219,12 +219,12 @@ function auditRelationships(db: Database.Database): AuditReport['relationships']
     WHERE entity_type = 'Person'
     AND NOT EXISTS (
       SELECT 1 FROM entity_relationships r 
-      WHERE r.source_id = e.id OR r.target_id = e.id
+      WHERE r.source_entity_id = e.id OR r.target_entity_id = e.id
     )
   `).get() as { count: number };
   
   console.log(`   Total relationships: ${relStats.total.toLocaleString()}`);
-  console.log(`   Average weight: ${relStats.avg_weight?.toFixed(1) || 0}`);
+  console.log(`   Average proximity: ${relStats.avg_weight?.toFixed(2) || 0}`);
   console.log(`   Isolated entities: ${isolated.count}`);
   
   return {

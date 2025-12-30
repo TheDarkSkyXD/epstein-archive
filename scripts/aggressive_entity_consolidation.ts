@@ -39,6 +39,16 @@ const AGGRESSIVE_CONSOLIDATION_MAP: Record<string, string[]> = {
     'Defendant Epstein', 'Plaintiff Epstein',
     'Is Mr Epstein', 'Should Mr Epstein', 'Does Mr Epstein', 'Has Mr Epstein',
     'Jeffrey Epstein Pleads', 'Jeffrey Epstein Faces',
+    // Additional junk entries found in database
+    'Sex Offender Jeffrey', 'Offender Jeffrey',
+    'Because Epstein', 'While Epstein', 'Another Epstein',
+    'Following Epstein', 'Isaid Epstein',
+    'Defendant Jeffrey', 'Epstein Case',
+    'Epstein House', 'Epstein Depo', 'Epstein Deposition',
+    'Representing Epstein', 'Suits Against Epstein', 
+    'Whether Jeffrey Epstein', 'Unseal Epstein Appeal',
+    'Epstein Vic', 'Epstein Takes', 'Jeffrey Mac',
+    'While Jeffrey', 'Against Epstein', 'With Epstein',
   ],
   
   // Donald Trump

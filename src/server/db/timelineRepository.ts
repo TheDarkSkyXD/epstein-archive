@@ -66,7 +66,8 @@ export const timelineRepository = {
   getTimelineEvents: () => {
     const db = getDb();
     try {
-      // 1. Fetch Curated Global Events
+      // Fetch ONLY Curated Global Events - Timeline should show EVENTS, not documents
+      // Documents and people should be linked FROM events, not shown AS events
       const globalEvents = db.prepare(`
         SELECT 
           id,
@@ -77,75 +78,62 @@ export const timelineRepository = {
           significance,
           entities,
           related_document_id,
-          'event' as source
+          source
         FROM global_timeline_events
         ORDER BY date DESC
       `).all();
 
-      // 2. Fetch High-Significance Documents (limit to prevent clutter)
-      const docEvents = db.prepare(`
-        SELECT 
-          d.id,
-          d.title,
-          d.date_created as start_date,
-          d.evidence_type as type,
-          SUBSTR(d.content, 1, 300) as content,
-          d.word_count,
-          d.file_path,
-          d.original_file_path,
-          d.red_flag_rating,
-          (SELECT COUNT(*) FROM entity_document_mentions WHERE document_id = d.id) as entity_count,
-          COALESCE(
-            (SELECT GROUP_CONCAT(e.full_name, '|||') 
-             FROM entity_document_mentions edm 
-             JOIN entities e ON edm.entity_id = e.id 
-             WHERE edm.document_id = d.id
-             LIMIT 8), ''
-          ) as entities_csv,
-          'document' as source
-        FROM documents d
-        WHERE d.date_created IS NOT NULL 
-          AND d.date_created != ''
-          AND (d.red_flag_rating >= 4 OR d.word_count > 15000 OR (d.title LIKE '%Epstein%' AND d.title LIKE '%Arrest%'))
-        ORDER BY d.date_created DESC
-        LIMIT 50
-      `).all();
-
       // Transform Global Events
-      const mappedGlobal = globalEvents.map((e: any) => ({
-        id: `evt-${e.id}`,
-        title: e.title,
-        description: e.description,
-        type: e.type,
-        date: e.start_date,
-        entities: e.entities ? JSON.parse(e.entities) : [],
-        significance_score: e.significance,
-        file_path: null,
-        original_file_path: null,
-        is_curated: true
-      }));
+      const mappedEvents = globalEvents.map((e: any) => {
+        // Parse entity IDs and look up their names with IDs for linking
+        let entityData: { id: number; name: string }[] = [];
+        if (e.entities) {
+          try {
+            const entityIds = JSON.parse(e.entities);
+            if (Array.isArray(entityIds) && entityIds.length > 0) {
+              const placeholders = entityIds.map(() => '?').join(',');
+              const entities = db.prepare(
+                `SELECT id, full_name FROM entities WHERE id IN (${placeholders})`
+              ).all(...entityIds) as { id: number; full_name: string }[];
+              entityData = entities.map(ent => ({ id: ent.id, name: ent.full_name }));
+            }
+          } catch {
+            entityData = [];
+          }
+        }
 
-      // Transform Document Events
-      const mappedDocs = docEvents.map((e: any) => ({
-        id: `doc-${e.id}`,
-        title: e.title || 'Untitled Document',
-        description: generateDescription(e),
-        type: mapEvidenceType(e.type),
-        date: e.start_date,
-        entities: e.entities_csv ? e.entities_csv.split('|||').filter(Boolean).slice(0, 8) : [],
-        significance_score: calculateSignificance(e),
-        file_path: e.file_path,
-        original_file_path: e.original_file_path, // CRITICAL FIX: Return original path
-        primary_entity: e.entities_csv ? e.entities_csv.split('|||')[0] : null,
-        is_curated: false
-      }));
+        // Lookup related document info if available
+        let relatedDocument = null;
+        if (e.related_document_id) {
+          try {
+            const doc = db.prepare(
+              `SELECT id, file_name, file_path FROM documents WHERE id = ?`
+            ).get(e.related_document_id) as { id: number; file_name: string; file_path: string } | undefined;
+            if (doc) {
+              relatedDocument = { id: doc.id, name: doc.file_name, path: doc.file_path };
+            }
+          } catch {
+            relatedDocument = null;
+          }
+        }
 
-      // Merge and Sort
-      const allEvents = [...mappedGlobal, ...mappedDocs].sort((a, b) => {
-        return new Date(b.date).getTime() - new Date(a.date).getTime();
+        return {
+          id: `evt-${e.id}`,
+          title: e.title,
+          description: e.description,
+          type: e.type || 'other',
+          date: e.start_date,
+          entities: entityData,
+          significance_score: e.significance || 'medium',
+          file_path: null,
+          original_file_path: null,
+          is_curated: true,
+          source: e.source || null,
+          related_document: relatedDocument
+        };
       });
       
-      return allEvents;
+      return mappedEvents;
     } catch (error) {
       console.error('Error getting timeline events:', error);
       return [];

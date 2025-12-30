@@ -1,6 +1,7 @@
 
 import fs from 'fs';
-import pdfParse from 'pdf-parse';
+// @ts-ignore - pdf-parse has typing issues
+import { PDFParse } from 'pdf-parse';
 import { OCREngine, OCRResult } from './types.js';
 
 export class PDFExtractEngine implements OCREngine {
@@ -14,14 +15,16 @@ export class PDFExtractEngine implements OCREngine {
     const start = Date.now();
     try {
       const dataBuffer = fs.readFileSync(filePath);
-      const data = await pdfParse(dataBuffer);
+      const parser = new PDFParse({ data: dataBuffer });
+      const textData = await parser.getText();
+      const infoData = await parser.getInfo();
       
-      const text = data.text;
+      const text = textData.text;
       
       // Heuristic confidence:
       // If text is very short but PDF has many pages, confidence is low (likely scanned images)
       // If text density is high, confidence is high.
-      const pageCount = data.numpages;
+      const pageCount = textData.total;
       const charCount = text.length;
       
       // Arbitrary heuristic: < 50 chars per page suggests it might be a scan with no text layer
@@ -41,8 +44,8 @@ export class PDFExtractEngine implements OCREngine {
         durationMs: Date.now() - start,
         metadata: {
           pages: pageCount,
-          info: data.info,
-          version: data.version
+          info: infoData.info,
+          version: (infoData as any).version || '1.0' // version is not directly available in new API
         }
       };
     } catch (error) {

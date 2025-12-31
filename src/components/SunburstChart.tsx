@@ -160,22 +160,23 @@ export const SunburstChart: React.FC<SunburstChartProps> = ({ data, onSegmentCli
       </div>
       
       {/* Legend below */}
-      <div className="flex flex-wrap justify-center gap-3 mt-4 px-4">
-        {chartData.slice(0, 8).map((item, index) => (
+      <div className="flex flex-wrap justify-center gap-2 mt-4 px-4 max-h-[100px] overflow-y-auto custom-scrollbar">
+        {chartData.map((item, index) => (
           <button
             key={item.type}
             onClick={() => onSegmentClick?.(item.type)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-slate-800/50 hover:bg-slate-700/50 rounded-full border border-slate-700/50 transition-all hover:scale-105"
+            className="flex items-center gap-2 px-2 py-1 bg-slate-800/50 hover:bg-slate-700/50 rounded-full border border-slate-700/50 transition-all hover:scale-105 shrink-0 max-w-[150px]"
+            title={`${formatLabel(item.type)}: ${item.count.toLocaleString()}`}
           >
             <div 
-              className="w-3 h-3 rounded-full" 
+              className="w-2 h-2 rounded-full shrink-0" 
               style={{ 
                 backgroundColor: COLORS[index % COLORS.length].main,
                 boxShadow: `0 0 8px ${COLORS[index % COLORS.length].shadow}`
               }} 
             />
-            <span className="text-xs text-slate-300 font-medium">{formatLabel(item.type)}</span>
-            <span className="text-xs text-slate-500 font-mono">{item.count.toLocaleString()}</span>
+            <span className="text-[10px] text-slate-300 font-medium truncate">{formatLabel(item.type)}</span>
+            <span className="text-[10px] text-slate-500 font-mono shrink-0">{item.count.toLocaleString()}</span>
           </button>
         ))}
       </div>

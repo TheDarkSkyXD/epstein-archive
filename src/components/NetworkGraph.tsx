@@ -9,6 +9,7 @@ interface EntityNode {
   riskLevel?: number;
   connectionCount: number;
   mentions?: number;
+  photoUrl?: string;
 }
 
 interface Relationship {
@@ -23,6 +24,7 @@ interface NetworkGraphProps {
   relationships: Relationship[];
   onEntityClick?: (entity: EntityNode) => void;
   maxNodes?: number;
+  onFilterUpdate?: (stats: { visible: number; total: number; label: string }) => void;
 }
 
 interface Point {
@@ -87,7 +89,8 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
   entities, 
   relationships,
   onEntityClick,
-  maxNodes = 600
+  maxNodes = 600,
+  onFilterUpdate
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const [nodes, setNodes] = useState<GraphNode[]>([]);
@@ -97,6 +100,8 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
   const [draggedNode, setDraggedNode] = useState<number | null>(null);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const [modifierKeyPressed, setModifierKeyPressed] = useState(false);
+  const [spacePressed, setSpacePressed] = useState(false);
+  const [totalDragDistance, setTotalDragDistance] = useState(0);
   const workerRef = useRef<Worker | null>(null);
   const useWorkerRef = useRef(false);
   
@@ -104,6 +109,7 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
   const [minSeverity, setMinSeverity] = useState(0);
   const [minConnections, setMinConnections] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
+  const [hasInteractedWithFilter, setHasInteractedWithFilter] = useState(false);
 
   // Track modifier keys (Shift or Alt for forced node dragging)
   useEffect(() => {
@@ -164,16 +170,37 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
     );
   }, [nodes, minSeverity, minConnections]);
 
+  // Update parent with filter stats
+  useEffect(() => {
+    if (onFilterUpdate) {
+      const total = nodes.length;
+      const visible = filteredNodes.length;
+      let label = `Showing ${visible} of ${total} Nodes`;
+      
+      if (minSeverity > 0) label += ` • Min Severity: ${minSeverity}`;
+      if (minConnections > 0) label += ` • Min Conn: ${minConnections}`;
+      
+      onFilterUpdate({ visible, total, label });
+    }
+  }, [filteredNodes.length, nodes.length, minSeverity, minConnections, onFilterUpdate]);
+
   // Links data
   const links = useMemo(() => {
     if (filteredNodes.length === 0) return [];
+    
     const nodeMap = new Map(filteredNodes.map(n => [n.name, n]));
+    
+    // Normalize weights if available, otherwise default
+    const maxWeight = Math.max(1, ...relationships.map(r => r.weight || 1));
+
     return relationships
       .filter(r => nodeMap.has(r.source) && nodeMap.has(r.target))
       .map(r => ({
         source: nodeMap.get(r.source)!,
         target: nodeMap.get(r.target)!,
-        type: r.type
+        type: r.type,
+        weight: r.weight || 1,
+        normalizedWeight: (r.weight || 1) / maxWeight
       }))
       .slice(0, 500);
   }, [filteredNodes, relationships]);
@@ -288,7 +315,16 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
     
-    // If modifier key is pressed, find and drag the nearest node
+    setTotalDragDistance(0);
+    
+    // Space key = Pan mode
+    if (spacePressed) {
+      setIsDragging(true);
+      setDragStart({ x: e.clientX, y: e.clientY });
+      return;
+    }
+    
+    // Modifier key = Drag node mode
     if (modifierKeyPressed) {
       const nearest = findNearestNode(e.clientX, e.clientY);
       if (nearest) {
@@ -298,6 +334,7 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
       }
     }
     
+    // Default - start pan, but check for node click later
     setIsDragging(true);
     setDragStart({ x: e.clientX, y: e.clientY });
   };
@@ -309,6 +346,9 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
       
       const svgWidth = svgRef.current?.getBoundingClientRect().width || 1;
       const scaleToUnits = 100 / svgWidth;
+      
+      // Accumulate drag distance
+      setTotalDragDistance(prev => prev + Math.abs(dx) + Math.abs(dy));
 
       setNodes(prev => prev.map(n => {
         if (n.id === draggedNode) {
@@ -351,7 +391,7 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
   const resetView = () => setTransform({ x: 0, y: 0, k: 1 });
 
   return (
-    <div className="relative w-full h-[600px] bg-slate-900/50 rounded-xl border border-slate-700/50 overflow-hidden select-none">
+    <div className={`relative w-full h-[600px] bg-slate-900/50 rounded-xl border border-slate-700/50 overflow-hidden select-none ${spacePressed ? 'cursor-grab active:cursor-grabbing' : ''}`}>
       {/* Controls */}
       <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">
         <button onClick={zoomIn} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 text-slate-300">
@@ -364,10 +404,19 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
           <RefreshCw className="w-5 h-5" />
         </button>
         <button 
-          onClick={() => setShowFilters(!showFilters)} 
-          className={`p-2 rounded-lg border text-slate-300 ${showFilters ? 'bg-cyan-700 border-cyan-600' : 'bg-slate-800 hover:bg-slate-700 border-slate-700'}`}
+          onClick={() => {
+            setShowFilters(!showFilters);
+            setHasInteractedWithFilter(true);
+          }} 
+          className={`p-2 rounded-lg border text-slate-300 relative ${showFilters ? 'bg-cyan-700 border-cyan-600' : 'bg-slate-800 hover:bg-slate-700 border-slate-700'}`}
         >
           <Filter className="w-5 h-5" />
+          {!hasInteractedWithFilter && !showFilters && (
+            <span className="absolute -top-1 -right-1 w-3 h-3 bg-cyan-500 rounded-full animate-ping" />
+          )}
+          {!hasInteractedWithFilter && !showFilters && (
+            <span className="absolute -top-1 -right-1 w-3 h-3 bg-cyan-500 rounded-full" />
+          )}
         </button>
       </div>
 
@@ -485,6 +534,11 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
               <feMergeNode in="SourceGraphic"/>
             </feMerge>
           </filter>
+          {filteredNodes.filter(n => n.photoUrl).map(n => (
+            <pattern key={`photo-${n.id}`} id={`photo-${n.id}`} x="0" y="0" height="1" width="1" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice">
+              <image href={n.photoUrl} x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid slice" />
+            </pattern>
+          ))}
         </defs>
         
         <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.k})`}>
@@ -492,6 +546,12 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
           <g className="links">
             {links.map((link, i) => {
               const isHighlight = hoveredNode === link.source.name || hoveredNode === link.target.name;
+              // Dynamic width based on weight (0.05 to 0.3 base)
+              // @ts-ignore - normalizedWeight added in useMemo
+              const weightBonus = (link.normalizedWeight || 0) * 0.15;
+              const baseWidth = 0.05 + weightBonus;
+              const highlightWidth = 0.3 + weightBonus;
+              
               return (
                 <line
                   key={i}
@@ -500,8 +560,8 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
                   x2={link.target.x}
                   y2={link.target.y}
                   stroke={isHighlight ? '#bae6fd' : '#334155'}
-                  strokeWidth={isHighlight ? 0.3 : 0.05}
-                  strokeOpacity={isHighlight ? 0.8 : 0.2}
+                  strokeWidth={isHighlight ? highlightWidth : baseWidth}
+                  strokeOpacity={isHighlight ? 0.8 : 0.2 + ((link.normalizedWeight || 0) * 0.2)}
                   className="transition-all duration-300"
                 />
               );
@@ -523,11 +583,20 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
                   onMouseLeave={() => setHoveredNode(null)}
                   onMouseDown={(e) => {
                      e.stopPropagation();
-                     setDraggedNode(node.id);
-                     setDragStart({ x: e.clientX, y: e.clientY });
+                     // Only drag node if NOT panning with space
+                     if (!spacePressed) {
+                       setDraggedNode(node.id);
+                       setDragStart({ x: e.clientX, y: e.clientY });
+                       setTotalDragDistance(0);
+                     }
                   }}
-                  onClick={() => onEntityClick?.(node)}
-                  className="cursor-pointer"
+                  onClick={(e) => {
+                    // Only trigger click if drag distance is small (was just a click)
+                    if (totalDragDistance < 5) {
+                      onEntityClick?.(node);
+                    }
+                  }}
+                  className={`${spacePressed ? '' : 'cursor-pointer'}`}
                   style={{ transition: isDragging && draggedNode === node.id ? 'none' : 'transform 0.1s ease-out' }}
                 >
                   {/* Outer Glow */}
@@ -547,6 +616,15 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
                     filter="url(#nodeGlow)"
                     className="transition-all duration-300"
                   />
+                  
+                  {/* Photo or Default Fill */}
+                  {node.photoUrl ? (
+                    <circle
+                      r={size / 2}
+                      fill={`url(#photo-${node.id})`}
+                      className="pointer-events-none"
+                    />
+                  ) : null}
                   
                   {/* Label */}
                   {(size > 4 || isHovered || transform.k > 2) && (

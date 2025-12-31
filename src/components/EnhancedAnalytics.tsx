@@ -36,6 +36,18 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
       const response = await fetch('/api/analytics/enhanced', { credentials: 'include' });
       if (!response.ok) throw new Error('Failed to fetch analytics');
       const result = await response.json();
+      
+      // Filter out junk entities from Network Graph
+      // These are entities that are likely false positives/parsing errors
+      if (result.topConnectedEntities) {
+        result.topConnectedEntities = result.topConnectedEntities.filter((e: any) => 
+          e.type !== 'Unknown' && 
+          !e.name.includes('Unknown') &&
+          // Specific junk names from user report
+          !['Gues', 'Teme', 'Taki', 'Oping'].includes(e.name)
+        );
+      }
+
       setData(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');

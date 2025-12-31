@@ -1,5 +1,15 @@
 
-# 📣 Epstein Archive V9.0.1 - Modal Standardization & Direct Flights Route
+# 📣 Epstein Archive V9.0.3 - Z-Index Fixes & Cleanup
+
+*Released: Dec 31, 2025*
+
+## 🐛 Bug Fixes
+*   **Modal Stacking Fix**: Resolved critical z-index regression where the **Document Viewer** and **Article Viewer** (`z-index: 10000`) were opening behind the Entity Modal (`z-index: 9999`).
+*   **Maintenance**: Verified automated daily server cleanup script installation.
+
+---
+
+# 📣 Epstein Archive V9.0.2 - Z-Index Fixes & Cleanup
 
 *Released: Dec 31, 2025*
 

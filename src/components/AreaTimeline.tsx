@@ -185,11 +185,22 @@ export const AreaTimeline: React.FC<AreaTimelineProps> = ({ data, onPeriodClick 
 
 // Format period from YYYY-MM to MMM 'YY
 function formatPeriod(period: string): string {
-  if (!period || period.length < 7) return period;
-  const [year, month] = period.split('-');
+  if (!period || period.length < 5) return period;
+  
+  // Handle both hyphen and slash separators
+  const separator = period.includes('/') ? '/' : '-';
+  const parts = period.split(separator);
+  
+  if (parts.length < 2) return period;
+  
+  const [year, month] = parts;
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const monthName = months[parseInt(month, 10) - 1] || month;
-  return `${monthName} '${year.slice(2)}`;
+  
+  // Handle 2-digit or 4-digit years
+  const shortYear = year.length === 4 ? year.slice(2) : year;
+  
+  return `${monthName} '${shortYear}`;
 }
 
 export default AreaTimeline;

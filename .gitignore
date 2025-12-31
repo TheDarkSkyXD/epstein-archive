@@ -89,3 +89,71 @@ aggressive_consolidation_audit.json
 data_quality_report.json
 timeline-normalisation.rtf
 epstein-archive-deployment-*.tar.gz
+
+# Additional database and backup files
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sql.gz
+*.db.gz
+*.db.bak
+*.db.corrupt
+
+# Backup and archive files
+*.bak
+*.backup
+*.backup-*
+*.corrupted
+*.part*
+*.tar.gz
+*.zip
+*.gz
+
+# Log files
+*.log
+*.log.*
+
+# More temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Production and backup databases
+*production*.db
+*production*.db-shm
+*production*.db-wal
+*backup*.db
+*backup*.db-shm
+*backup*.db-wal
+*local*.db
+*local*.db-shm
+*local*.db-wal
+*synced*.db
+*synced*.db-shm
+*synced*.db-wal
+*safe*.db
+*safe*.db-shm
+*safe*.db-wal
+*working*.db
+*working*.db-shm
+*working*.db-wal
+*final*.db
+*final*.db-shm
+*final*.db-wal
+*clean*.db
+*clean*.db-shm
+*clean*.db-wal
+
+# More archive files
+dist.tar.gz
+*.tar.gz
+
+# Other specific files that should be ignored
+server.log
+api-server.log
+*.db.dev.bak
+prod_*.gz
+local_prod_*.gz
+test-promotion.db

@@ -58,6 +58,17 @@ app.set('trust proxy', 1);
 // databaseService is already initialized at module level in its file, but let's make sure we use the same connection
 const mediaService = new MediaService(getDb());
 
+// Request logging - AT THE VERY TOP
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    // Log originalUrl to see exactly what reached Express
+    console.log(`${new Date().toISOString()} ${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms`);
+  });
+  next();
+});
+
 // Basic middleware
 app.use(cors({
   origin: config.corsOrigin,
@@ -117,29 +128,9 @@ import emailRoutes from './server/routes/emailRoutes.js';
 app.use('/api/emails', emailRoutes);
 app.use('/api/auth', authRoutes);
 
-// Protected Media Routes
-app.put('/api/media/images/:id', authenticateRequest, requireRole('admin'), async (req, res, next) => {
-  try {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
-    
-    mediaService.updateImage(id, req.body);
-    const updated = mediaService.getImageById(id);
-    res.json(updated);
-  } catch (err) {
-    next(err);
-  }
-});
+// Authentication middleware will be applied below
 
-// Request logging
-app.use((req, res, next) => {
-  const start = Date.now();
-  res.on('finish', () => {
-    const duration = Date.now() - start;
-    console.log(`${new Date().toISOString()} ${req.method} ${req.url} ${res.statusCode} ${duration}ms`);
-  });
-  next();
-});
+// Serve static frontend from dist
 
 // Serve static frontend from dist
 const distPath = path.join(process.cwd(), 'dist');

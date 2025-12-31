@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, User, Save, AlertCircle } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
 import FormField from './FormField';
@@ -57,9 +58,9 @@ export const CreateEntityModal: React.FC<CreateEntityModalProps> = ({ onClose, o
     }
   };
 
-  return (
+  return createPortal(
     <div 
-      className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
       role="dialog"
       aria-modal="true"
     >
@@ -75,8 +76,12 @@ export const CreateEntityModal: React.FC<CreateEntityModalProps> = ({ onClose, o
             </div>
             <h2 className="text-xl font-bold text-white">Create New Subject</h2>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
-            <X className="w-6 h-6" />
+          <button 
+            onClick={onClose} 
+            className="p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5" />
           </button>
         </div>
 
@@ -204,6 +209,7 @@ export const CreateEntityModal: React.FC<CreateEntityModalProps> = ({ onClose, o
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

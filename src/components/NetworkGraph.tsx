@@ -1,5 +1,5 @@
-import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { ZoomIn, ZoomOut, Move, RefreshCw } from 'lucide-react';
+import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
+import { ZoomIn, ZoomOut, Move, RefreshCw, Filter, AlertTriangle, Link2 } from 'lucide-react';
 
 interface EntityNode {
   id: number;
@@ -48,8 +48,8 @@ const getRiskColor = (riskLevel: number): string => {
 };
 
 const getNodeSize = (connectionCount: number, maxConnections: number): number => {
-  const minSize = 3; // larger base size
-  const maxSize = 12; // larger max size
+  const minSize = 3;
+  const maxSize = 12;
   const ratio = connectionCount / Math.max(maxConnections, 1);
   return minSize + (maxSize - minSize) * Math.sqrt(ratio);
 };
@@ -91,27 +91,49 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const [nodes, setNodes] = useState<GraphNode[]>([]);
-  const [transform, setTransform] = useState({ x: 0, y: 0, k: 0.8 }); // Start zoomed out a bit
+  const [transform, setTransform] = useState({ x: 0, y: 0, k: 0.8 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<Point>({ x: 0, y: 0 });
   const [draggedNode, setDraggedNode] = useState<number | null>(null);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+  const [modifierKeyPressed, setModifierKeyPressed] = useState(false);
   const workerRef = useRef<Worker | null>(null);
   const useWorkerRef = useRef(false);
+  
+  // Filter state
+  const [minSeverity, setMinSeverity] = useState(0);
+  const [minConnections, setMinConnections] = useState(0);
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Track modifier keys (Shift or Alt for forced node dragging)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.shiftKey || e.altKey) setModifierKeyPressed(true);
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (!e.shiftKey && !e.altKey) setModifierKeyPressed(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
+  // Compute max values for sliders
+  const maxSeverityInData = useMemo(() => Math.max(1, ...entities.map(e => e.riskLevel || 0)), [entities]);
+  const maxConnectionsInData = useMemo(() => Math.max(1, ...entities.map(e => e.connectionCount)), [entities]);
 
   // Initialize nodes with Spiral Layout
   useEffect(() => {
     const topEntities = entities.slice(0, maxNodes);
     
-    // Golden Spiral Layout (Phyllotaxis)
     const goldenAngle = Math.PI * (3 - Math.sqrt(5)); 
-    
-    // Adjust spiral spread based on count
     const count = topEntities.length;
     const rStep = count > 100 ? 4 : 6;
     
     const initialNodes = topEntities.map((entity, index) => {
-      // Scale spiral to fit mostly within 100x100 but allow overflow for exploration
       const r = rStep * Math.sqrt(index + 2);
       const theta = index * goldenAngle;
       
@@ -131,15 +153,21 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
       };
     });
     setNodes(initialNodes);
-    
-    // Use Web Worker for large datasets (> 40 nodes) to prevent main thread lag
     useWorkerRef.current = initialNodes.length > 40;
   }, [entities, maxNodes]);
 
+  // Filtered nodes based on sliders
+  const filteredNodes = useMemo(() => {
+    return nodes.filter(n => 
+      (n.riskLevel || 0) >= minSeverity && 
+      n.connectionCount >= minConnections
+    );
+  }, [nodes, minSeverity, minConnections]);
+
   // Links data
   const links = useMemo(() => {
-    if (nodes.length === 0) return [];
-    const nodeMap = new Map(nodes.map(n => [n.name, n]));
+    if (filteredNodes.length === 0) return [];
+    const nodeMap = new Map(filteredNodes.map(n => [n.name, n]));
     return relationships
       .filter(r => nodeMap.has(r.source) && nodeMap.has(r.target))
       .map(r => ({
@@ -148,16 +176,14 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
         type: r.type
       }))
       .slice(0, 500);
-  }, [nodes, relationships]);
+  }, [filteredNodes, relationships]);
 
-  // Physics simulation (Web Worker for large datasets, main thread for small)
+  // Physics simulation
   useEffect(() => {
     if (nodes.length === 0) return;
     
-    // For large datasets, use Web Worker
     if (useWorkerRef.current && typeof Worker !== 'undefined') {
       try {
-        // Create worker using Vite's worker syntax
         workerRef.current = new Worker(
           new URL('../workers/networkGraph.worker.ts', import.meta.url),
           { type: 'module' }
@@ -169,7 +195,6 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
           }
         };
         
-        // Initialize worker with nodes
         workerRef.current.postMessage({ type: 'init', nodes });
         
         return () => {
@@ -178,13 +203,11 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
           workerRef.current = null;
         };
       } catch (e) {
-        // Fall back to main thread simulation if worker fails
         console.warn('Web Worker failed, using main thread:', e);
         useWorkerRef.current = false;
       }
     }
     
-    // For small datasets, run on main thread (original behavior)
     let tickCount = 0;
     const maxTicks = 60;
     
@@ -217,8 +240,31 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
     }
   }, [draggedNode, nodes]);
 
+  // Find nearest node to a point (for modifier key drag)
+  const findNearestNode = useCallback((clientX: number, clientY: number): GraphNode | null => {
+    if (!svgRef.current || filteredNodes.length === 0) return null;
+    
+    const rect = svgRef.current.getBoundingClientRect();
+    const svgX = ((clientX - rect.left) / rect.width * 100 - transform.x) / transform.k;
+    const svgY = ((clientY - rect.top) / rect.height * 100 - transform.y) / transform.k;
+    
+    let nearest: GraphNode | null = null;
+    let minDist = Infinity;
+    
+    for (const node of filteredNodes) {
+      const dx = node.x - svgX;
+      const dy = node.y - svgY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < minDist) {
+        minDist = dist;
+        nearest = node;
+      }
+    }
+    
+    return nearest;
+  }, [filteredNodes, transform]);
 
-  // Pan/Zoom handlers (Same optimized Center Zoom)
+  // Pan/Zoom handlers
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     if (!svgRef.current) return;
@@ -241,6 +287,17 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
+    
+    // If modifier key is pressed, find and drag the nearest node
+    if (modifierKeyPressed) {
+      const nearest = findNearestNode(e.clientX, e.clientY);
+      if (nearest) {
+        setDraggedNode(nearest.id);
+        setDragStart({ x: e.clientX, y: e.clientY });
+        return;
+      }
+    }
+    
     setIsDragging(true);
     setDragStart({ x: e.clientX, y: e.clientY });
   };
@@ -306,7 +363,69 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
         <button onClick={resetView} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 text-slate-300">
           <RefreshCw className="w-5 h-5" />
         </button>
+        <button 
+          onClick={() => setShowFilters(!showFilters)} 
+          className={`p-2 rounded-lg border text-slate-300 ${showFilters ? 'bg-cyan-700 border-cyan-600' : 'bg-slate-800 hover:bg-slate-700 border-slate-700'}`}
+        >
+          <Filter className="w-5 h-5" />
+        </button>
       </div>
+
+      {/* Filter Panel */}
+      {showFilters && (
+        <div className="absolute top-4 right-16 z-20 bg-slate-800/95 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50 shadow-xl w-64">
+          <p className="text-xs text-slate-400 mb-3 font-bold uppercase tracking-wider flex items-center gap-2">
+            <Filter className="w-3 h-3" /> Node Filters
+          </p>
+          
+          <div className="space-y-4">
+            {/* Severity Filter */}
+            <div>
+              <label className="flex items-center gap-2 text-xs text-slate-300 mb-2">
+                <AlertTriangle className="w-3 h-3 text-amber-400" />
+                Min Severity: {minSeverity}
+              </label>
+              <input
+                type="range"
+                min={0}
+                max={maxSeverityInData}
+                value={minSeverity}
+                onChange={(e) => setMinSeverity(parseInt(e.target.value))}
+                className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+              />
+              <div className="flex justify-between text-[10px] text-slate-500 mt-1">
+                <span>All</span>
+                <span>{maxSeverityInData}</span>
+              </div>
+            </div>
+            
+            {/* Connections Filter */}
+            <div>
+              <label className="flex items-center gap-2 text-xs text-slate-300 mb-2">
+                <Link2 className="w-3 h-3 text-cyan-400" />
+                Min Connections: {minConnections}
+              </label>
+              <input
+                type="range"
+                min={0}
+                max={Math.min(50, maxConnectionsInData)}
+                value={minConnections}
+                onChange={(e) => setMinConnections(parseInt(e.target.value))}
+                className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+              />
+              <div className="flex justify-between text-[10px] text-slate-500 mt-1">
+                <span>All</span>
+                <span>{Math.min(50, maxConnectionsInData)}+</span>
+              </div>
+            </div>
+            
+            {/* Stats */}
+            <div className="pt-2 border-t border-slate-700/50 text-xs text-slate-400">
+              Showing {filteredNodes.length} of {nodes.length} nodes
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Legend */}
       <div className="absolute top-4 left-4 z-20 bg-slate-800/90 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50 shadow-xl pointer-events-none sm:pointer-events-auto opacity-80 sm:opacity-100 hover:opacity-100 transition-opacity">
@@ -337,6 +456,10 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
              <span className="w-3 h-3 rounded-full border border-slate-500 block"></span>
              <span>Drag Nodes to Rearrange</span>
            </div>
+           <div className="flex items-center gap-2 text-xs text-cyan-400 mt-1">
+             <span className="text-[10px] bg-slate-700 px-1 rounded">Shift</span>
+             <span>+ Drag = Force Move Nearest</span>
+           </div>
         </div>
       </div>
       
@@ -344,7 +467,7 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
       <svg 
         ref={svgRef}
         viewBox="0 0 100 100" 
-        className="w-full h-full cursor-move"
+        className={`w-full h-full ${modifierKeyPressed ? 'cursor-crosshair' : 'cursor-move'}`}
         style={{ 
           background: 'radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.5) 0%, rgba(2, 6, 23, 0.8) 100%)' 
         }}
@@ -387,7 +510,7 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
           
           {/* Nodes */}
           <g className="nodes">
-            {nodes.map((node) => {
+            {filteredNodes.map((node) => {
               const color = getRiskColor(node.riskLevel || 0);
               const isHovered = hoveredNode === node.name;
               const size = node.radius || 4;
@@ -449,3 +572,4 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
 };
 
 export default NetworkGraph;
+

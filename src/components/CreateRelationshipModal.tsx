@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Network, Save, Search } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
 import FormField from './FormField';
@@ -107,9 +108,9 @@ export const CreateRelationshipModal: React.FC<CreateRelationshipModalProps> = (
     }
   };
 
-  return (
+  return createPortal(
     <div 
-      className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
       role="dialog"
       aria-modal="true"
     >
@@ -124,8 +125,8 @@ export const CreateRelationshipModal: React.FC<CreateRelationshipModalProps> = (
             </div>
             <h2 className="text-xl font-bold text-white">Create Connection</h2>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
-            <X className="w-6 h-6" />
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white text-xl transition-colors">
+            ×
           </button>
         </div>
 
@@ -297,6 +298,7 @@ export const CreateRelationshipModal: React.FC<CreateRelationshipModalProps> = (
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

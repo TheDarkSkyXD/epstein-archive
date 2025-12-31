@@ -483,7 +483,8 @@ export const FinancialTransactionAnalysis: React.FC<FinancialTransactionAnalysis
               </div>
               <button
                 onClick={() => setSelectedPattern(null)}
-                className="text-gray-400 hover:text-gray-600"
+                className="p-2 rounded-full hover:bg-slate-100 text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label="Close"
               >
                 <X className="w-5 h-5" />
               </button>

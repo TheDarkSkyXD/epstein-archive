@@ -50,6 +50,7 @@ const AboutPage = lazy(() => import('./components/AboutPage').then(module => ({ 
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(module => ({ default: module.AdminDashboard })));
 const EnhancedAnalytics = lazy(() => import('./components/EnhancedAnalytics').then(module => ({ default: module.EnhancedAnalytics })));
 const TimelineWithFlights = lazy(() => import('./components/TimelineWithFlights').then(module => ({ default: module.default })));
+const FlightTracker = lazy(() => import('./components/FlightTracker').then(module => ({ default: module.default })));
 
 import releaseNotesRaw from '../release_notes.md?raw';
 
@@ -137,11 +138,11 @@ function App() {
     if (pathname.startsWith('/emails')) return 'emails';
     if (pathname === '/login') return 'login';
     if (pathname.startsWith('/admin')) return 'admin';
-    if (pathname.startsWith('/flights')) return 'timeline'; // Flights now in timeline
+    if (pathname.startsWith('/flights')) return 'flights';
     return 'people'; // default
   };
   
-  type Tab = 'people' | 'search' | 'documents' | 'media' | 'timeline' | 'investigations' | 'analytics' | 'blackbook' | 'about' | 'emails' | 'login' | 'admin';
+  type Tab = 'people' | 'search' | 'documents' | 'media' | 'timeline' | 'flights' | 'investigations' | 'analytics' | 'blackbook' | 'about' | 'emails' | 'login' | 'admin';
   const activeTab = getTabFromPath(location.pathname);
   
   const [people, setPeople] = useState<Person[]>(() => {
@@ -618,10 +619,9 @@ function App() {
         console.log('Loading documents from API...');
         setDocumentLoadingProgress('Connecting to document database...');
         setDocumentLoadingProgressValue(10);
-        // Fetch all documents for client-side processing
-        // In a production app with millions of docs, we'd move search to server-side
-        // But for 2,300 docs, client-side is fast and responsive
-        const response = await apiClient.getDocuments({}, 1, 3000);
+        // Fetch recent documents for client-side processing
+        // Reduced from 3000 to 500 to prevent browser timeout (was taking 20+ seconds)
+        const response = await apiClient.getDocuments({}, 1, 500);
         
         console.log('API response:', response);
         
@@ -1548,6 +1548,12 @@ function App() {
           )}
           {activeTab === 'timeline' && (
             <TimelineWithFlights />
+          )}
+
+          {activeTab === 'flights' && (
+            <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-700/50">
+              <FlightTracker />
+            </div>
           )}
 
           {activeTab === 'emails' && (

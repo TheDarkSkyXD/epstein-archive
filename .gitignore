@@ -157,3 +157,21 @@ api-server.log
 prod_*.gz
 local_prod_*.gz
 test-promotion.db
+
+# Additional build artifacts and temporary files
+*.gz
+*.tar.gz
+*.zip
+*.sql
+*.sql.gz
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+bundle-analysis.html
+
+# Directories to ignore
+tmp/
+temp/
+backups/
+uploads/

@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, ChevronUp, ChevronDown, Network } from 'lucide-react';
 import { Person } from '../types';
 import { apiClient } from '../services/apiClient';
@@ -205,10 +206,10 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(({ person,
       </div>
     );
   }
-  return (
+  return createPortal(
     <div 
       ref={modalRef}
-      className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-0 md:p-4 overflow-hidden" 
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-0 md:p-4 overflow-hidden" 
       role="dialog" 
       aria-modal="true" 
       aria-labelledby="modal-title"
@@ -227,10 +228,10 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(({ person,
             />
             <button
               onClick={onClose}
-              className="p-3 -mr-1 hover:bg-slate-700 rounded-lg transition-colors touch-feedback"
+              className="p-2 rounded-full hover:bg-slate-700 text-slate-400 hover:text-white transition-colors touch-feedback"
               aria-label="Close modal"
             >
-              <X className="w-5 h-5 text-slate-400" aria-hidden="true" />
+              <X className="w-5 h-5" aria-hidden="true" />
             </button>
           </div>
           
@@ -306,7 +307,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(({ person,
           {person?.blackBookEntry && (
             <div className="bg-gradient-to-r from-purple-900/30 to-indigo-900/30 border border-purple-700/50 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-3">
-                <Icon name="Book" size="sm" color="purple" />
+                <Icon name="Book" size="sm" color="primary" />
                 <h2 className="text-lg font-semibold text-purple-300 flex items-center gap-2" aria-level={2}>
                   Black Book Entry
                   <Tooltip content="This person appears in Jeffrey Epstein's personal contact book">
@@ -621,7 +622,8 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(({ person,
           initialSourceId={person.id}
         />
       )}
-    </div>
+    </div>,
+    document.body
   );
 });
 

@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useModalFocusTrap } from '../hooks/useModalFocusTrap';
 
@@ -57,8 +58,8 @@ const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ isOpen,
     }
   ];
 
-  return (
-    <div className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4">
+  return createPortal(
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
       <div 
         ref={modalRef}
         className="bg-slate-900 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-slate-700"
@@ -72,7 +73,7 @@ const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ isOpen,
           </h2>
           <button 
             onClick={onClose}
-            className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+            className="p-2 rounded-full hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
@@ -126,7 +127,8 @@ const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ isOpen,
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

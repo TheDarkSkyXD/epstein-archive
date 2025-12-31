@@ -324,7 +324,7 @@ export const AdminDashboard: React.FC = () => {
               </h3>
               <button 
                 onClick={closeModal}
-                className="text-slate-400 hover:text-slate-100 transition-colors"
+                className="p-2 rounded-full hover:bg-slate-800 text-slate-400 hover:text-slate-100 transition-colors"
               >
                 <X size={20} />
               </button>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, Filter, Calendar, Eye, Download, X, ChevronDown, User, Building } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
 import { Person } from '../types';
@@ -397,10 +398,10 @@ const GlobalSearch: React.FC = () => {
       </div>
 
       {/* Result Detail Modal */}
-      {selectedResult && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-xl max-w-4xl w-full max-h-[80vh] overflow-hidden">
-            <div className="p-6 border-b border-gray-700">
+      {selectedResult && createPortal(
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+          <div className="bg-slate-800 rounded-xl max-w-4xl w-full max-h-[80vh] overflow-hidden border border-slate-700">
+            <div className="p-6 border-b border-slate-700">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <span className={`px-3 py-1 rounded-full text-sm font-medium text-white ${getCategoryColor(selectedResult.category)}`}>
@@ -412,9 +413,9 @@ const GlobalSearch: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setSelectedResult(null)}
-                  className="text-gray-400 hover:text-white transition-colors"
+                  className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white text-xl transition-colors"
                 >
-                  <X className="h-6 w-6" />
+                  ×
                 </button>
               </div>
             </div>
@@ -498,7 +499,8 @@ const GlobalSearch: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

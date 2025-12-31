@@ -73,7 +73,8 @@ export const FirstRunOnboarding: React.FC<FirstRunOnboardingProps> = ({
           </h2>
           <button
             onClick={handleSkip}
-            className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
+            className="p-2 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+            aria-label="Close"
           >
             <X className="h-5 w-5" />
           </button>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 interface Props {
   evidenceId: string;
@@ -57,8 +58,8 @@ export const ChainOfCustodyModal: React.FC<Props> = ({ evidenceId, onClose }) =>
     setActor(''); setAction('analyzed'); setNotes('');
   };
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+  return createPortal(
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
       <div className="bg-slate-800 rounded-lg w-full max-w-2xl">
         <div className="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
           <h3 className="text-white font-semibold">Chain of Custody</h3>
@@ -101,7 +102,8 @@ export const ChainOfCustodyModal: React.FC<Props> = ({ evidenceId, onClose }) =>
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

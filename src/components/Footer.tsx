@@ -1,12 +1,36 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ExternalLink, Heart, Shield, Info, BookOpen, Github } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { apiClient } from '../services/apiClient';
 
 interface FooterProps {
   onVersionClick?: () => void;
 }
 
 const Footer: React.FC<FooterProps> = ({ onVersionClick }) => {
+  const [systemStatus, setSystemStatus] = useState<'checking' | 'operational' | 'error'>('checking');
+  
+  useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        const health = await apiClient.healthCheck();
+        setSystemStatus(health.status === 'healthy' ? 'operational' : 'error');
+      } catch {
+        setSystemStatus('error');
+      }
+    };
+    checkHealth();
+    // Re-check every 60 seconds
+    const interval = setInterval(checkHealth, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const statusConfig = {
+    checking: { color: 'bg-yellow-500', text: 'Checking...' },
+    operational: { color: 'bg-green-500 animate-pulse', text: 'System Operational' },
+    error: { color: 'bg-red-500', text: 'System Issue Detected' }
+  };
+  
   return (
     <footer className="w-full bg-slate-950/60 backdrop-blur-xl border-t border-slate-800/50 py-12 mt-auto z-10 relative">
       <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8">
@@ -20,9 +44,9 @@ const Footer: React.FC<FooterProps> = ({ onVersionClick }) => {
                    A comprehensive, searchable forensic archive of documents, connections, and financial flows regarding the Jeffrey Epstein network.
                  </p>
                  <div className="pt-2 flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                    <div className={`w-2 h-2 rounded-full ${statusConfig[systemStatus].color}`}></div>
                     <p className="text-slate-500 text-xs font-mono">
-                      System Operational
+                      {statusConfig[systemStatus].text}
                     </p>
                  </div>
             </div>
@@ -108,7 +132,7 @@ const Footer: React.FC<FooterProps> = ({ onVersionClick }) => {
                 >
                   <span className="font-mono text-cyan-500/80">v{__APP_VERSION__}</span>
                   <span className="w-1 h-1 bg-slate-600 rounded-full"></span>
-                  <span>Updated: Dec 12, 2025</span>
+                  <span>Updated: {__BUILD_DATE__}</span>
                 </button>
             </div>
             <div className="flex items-center gap-6">

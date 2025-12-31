@@ -93,7 +93,7 @@ export const InvestigationOnboarding: React.FC<InvestigationOnboardingProps> = (
           
           <button
             onClick={onSkip}
-            className="text-slate-500 hover:text-white transition-colors p-2 hover:bg-white/5 rounded-full"
+            className="p-2 rounded-full hover:bg-white/10 text-slate-500 hover:text-white transition-colors"
             aria-label="Close"
           >
             <X className="h-5 w-5" />

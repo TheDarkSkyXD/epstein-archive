@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { File, Folder, Eye, Download, Search, User, Mail, FileText, Image, FileSpreadsheet } from 'lucide-react';
 
 interface FileItem {
@@ -221,10 +222,10 @@ const FileBrowser: React.FC = () => {
       </div>
 
       {/* File Preview Modal */}
-      {selectedFile && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-xl max-w-4xl w-full max-h-[80vh] overflow-hidden">
-            <div className="p-6 border-b border-gray-700">
+      {selectedFile && createPortal(
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+          <div className="bg-slate-800 rounded-xl max-w-4xl w-full max-h-[80vh] overflow-hidden border border-slate-700">
+            <div className="p-6 border-b border-slate-700">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <File className="h-6 w-6 text-cyan-400" />
@@ -237,9 +238,9 @@ const FileBrowser: React.FC = () => {
                   </button>
                   <button
                     onClick={() => setSelectedFile(null)}
-                    className="text-gray-400 hover:text-white transition-colors"
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white text-xl transition-colors"
                   >
-                    ✕
+                    ×
                   </button>
                 </div>
               </div>
@@ -277,7 +278,8 @@ const FileBrowser: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

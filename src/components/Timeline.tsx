@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import { Link } from 'react-router-dom';
 import { Clock, FileText, Calendar, Users, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
 
@@ -13,10 +15,11 @@ interface TimelineEvent {
   description: string;
   type: 'email' | 'document' | 'flight' | 'legal' | 'financial' | 'testimony' | 'incident' | 'other';
   file: string;
-  original_file_path?: string; // New field
+  original_file_path?: string;
   entities: (string | EntityLink)[];
   significance: 'high' | 'medium' | 'low';
-  is_curated?: boolean; // New field
+  is_curated?: boolean;
+  related_document?: { id: number; name: string; path: string } | null; // Linked source document
 }
 
 interface TimelineProps {
@@ -67,6 +70,8 @@ export const Timeline: React.FC<TimelineProps> = React.memo(({ className = "" })
       const response = await fetch('/api/timeline');
       const data = await response.json();
       
+      console.log('Timeline API response:', data);
+      
       if (Array.isArray(data) && data.length > 0) {
         console.log(`Loaded ${data.length} timeline events from API`);
         
@@ -76,21 +81,25 @@ export const Timeline: React.FC<TimelineProps> = React.memo(({ className = "" })
           description: event.description || `Document: ${event.title || 'Untitled'}`,
           type: (event.type?.toLowerCase() as any) || 'document',
           file: event.file_path || '', 
-          original_file_path: event.original_file_path || '', // Map new field
+          original_file_path: event.original_file_path || '',
           entities: event.entities || (event.primary_entity ? [event.primary_entity] : []),
           significance: event.significance_score || 'medium',
-          is_curated: event.is_curated || false // Map new field
-        })).filter(event => !isNaN(event.date.getTime())); // Filter out invalid dates
+          is_curated: event.is_curated || false,
+          related_document: event.related_document || null
+        })).filter(event => !isNaN(event.date.getTime()));
         
+        console.log(`After filtering invalid dates: ${timelineEvents.length} events`);
         setEvents(timelineEvents);
       } else {
-        console.warn('No timeline events found in API, using sample data');
-        console.log('API response was:', data);
-        setEvents(generateSampleEvents());
+        console.warn('No timeline events found in API response');
+        console.log('API response was:', JSON.stringify(data).substring(0, 500));
+        // Don't fall back to sample data - show empty state
+        setEvents([]);
       }
     } catch (error) {
       console.error('Error loading timeline data:', error);
-      setEvents(generateSampleEvents());
+      // Don't fall back to sample data - show empty state
+      setEvents([]);
     } finally {
       setLoading(false);
     }
@@ -460,64 +469,6 @@ export const Timeline: React.FC<TimelineProps> = React.memo(({ className = "" })
     return 'low';
   };
 
-  const generateSampleEvents = (): TimelineEvent[] => {
-    return [
-      {
-        date: new Date('2019-08-10'),
-        title: 'Jeffrey Epstein Found Dead in Manhattan Jail',
-        description: 'Jeffrey Epstein found dead in his Manhattan jail cell. Official ruling: suicide by hanging. This event marked a turning point in the investigation.',
-        type: 'legal',
-        file: 'EPSTEIN_DEATH_REPORT.pdf',
-        entities: ['Jeffrey Epstein', 'Manhattan Correctional Center', 'Medical Examiner', 'William Barr'],
-        significance: 'high'
-      },
-      {
-        date: new Date('2019-07-06'),
-        title: 'FBI Arrests Epstein at Teterboro Airport',
-        description: 'Jeffrey Epstein arrested at Teterboro Airport on federal sex trafficking charges. The arrest reopened the investigation into his alleged trafficking network.',
-        type: 'legal',
-        file: 'EPSTEIN_ARREST_REPORT.pdf',
-        entities: ['Jeffrey Epstein', 'FBI', 'SDNY', 'Geoffrey Berman'],
-        significance: 'high'
-      },
-      {
-        date: new Date('2008-06-30'),
-        title: 'Controversial Florida Plea Deal Signed',
-        description: 'Epstein signs highly controversial plea deal with federal prosecutors in Florida. The deal granted immunity to potential co-conspirators and halted the federal investigation.',
-        type: 'legal',
-        file: 'PLEA_AGREEMENT_2008.pdf',
-        entities: ['Jeffrey Epstein', 'Alexander Acosta', 'Florida Prosecutors', 'Ken Starr'],
-        significance: 'high'
-      },
-      {
-        date: new Date('2006-05-01'),
-        title: 'Palm Beach Police Begin Investigation',
-        description: 'Palm Beach Police Department begins investigation into Epstein after receiving complaints from parents about inappropriate conduct with minors.',
-        type: 'legal',
-        file: 'PALM_BEACH_INVESTIGATION_2006.pdf',
-        entities: ['Jeffrey Epstein', 'Palm Beach Police', 'Florida Department of Law Enforcement'],
-        significance: 'high'
-      },
-      {
-        date: new Date('2002-01-15'),
-        title: 'Epstein Flight Logs Document Travel',
-        description: 'Flight logs show Epstein traveling with high-profile individuals including politicians, celebrities, and business leaders on his private jets.',
-        type: 'flight',
-        file: 'EPSTEIN_FLIGHT_LOGS_2002.pdf',
-        entities: ['Jeffrey Epstein', 'Bill Clinton', 'Kevin Spacey', 'Chris Tucker'],
-        significance: 'medium'
-      },
-      {
-        date: new Date('1998-03-10'),
-        title: 'Financial Records Show Large Transactions',
-        description: 'Financial documents reveal large cash transactions and property acquisitions by Epstein, raising questions about the source of his wealth.',
-        type: 'financial',
-        file: 'EPSTEIN_FINANCIAL_1998.pdf',
-        entities: ['Jeffrey Epstein', 'Les Wexner', 'Bear Stearns', 'Victoria\'s Secret'],
-        significance: 'medium'
-      }
-    ];
-  };
 
   const formatDate = (date: Date): string => {
     return date.toLocaleDateString('en-US', {
@@ -570,18 +521,7 @@ export const Timeline: React.FC<TimelineProps> = React.memo(({ className = "" })
 
   return (
     <div className={`space-y-8 ${className}`}>
-      {/* Timeline Header */}
-      <div className="flex flex-col gap-4 mb-8">
-        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-          <div className="flex-1 min-w-0">
-            <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">Investigation Timeline</h2>
-            <p className="text-sm md:text-base text-slate-400">
-              Chronological sequence of {events.length} significant events extracted from evidence files.
-            </p>
-          </div>
-        </div>
-        
-        {/* Filters and Sort - Sticky bar */}
+      {/* Filters and Sort - Sticky bar */}
         <div className="sticky top-0 z-20 bg-slate-900/95 backdrop-blur-sm py-3 -mx-4 px-4 md:-mx-6 md:px-6 border-b border-slate-700/50">
           <div className="flex flex-wrap items-center gap-2">
           {/* Significance Filters */}
@@ -638,7 +578,6 @@ export const Timeline: React.FC<TimelineProps> = React.memo(({ className = "" })
           </button>
           </div>
         </div>
-      </div>
 
 
       <div className="relative border-l-2 border-slate-700 ml-4 md:ml-6 space-y-8">
@@ -727,8 +666,8 @@ export const Timeline: React.FC<TimelineProps> = React.memo(({ className = "" })
         ))}
       </div>
 
-      {selectedEvent && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setSelectedEvent(null)}>
+      {selectedEvent && createPortal(
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4" onClick={() => setSelectedEvent(null)}>
           <div className="bg-slate-900 border border-slate-600 rounded-xl max-w-2xl w-full shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="p-6 border-b border-slate-700 flex items-center justify-between bg-slate-800/50">
               <h3 className="text-xl font-bold text-white pr-8">{selectedEvent.title}</h3>
@@ -767,7 +706,21 @@ export const Timeline: React.FC<TimelineProps> = React.memo(({ className = "" })
                   {selectedEvent.is_curated ? 'Related Documentation' : 'Source Document'}
                 </span>
                 
-                {selectedEvent.file ? (
+                {selectedEvent.related_document ? (
+                  <Link 
+                    to={`/documents?id=${selectedEvent.related_document.id}`}
+                    onClick={() => setSelectedEvent(null)}
+                    className="flex items-center gap-3 bg-slate-800 p-3 rounded-lg border border-cyan-500/30 hover:bg-cyan-900/20 hover:border-cyan-400 transition-colors group"
+                  >
+                    <FileText className="w-5 h-5 text-cyan-400" />
+                    <span className="text-cyan-300 font-mono text-sm truncate flex-1 group-hover:text-cyan-200">
+                      {selectedEvent.related_document.name}
+                    </span>
+                    <span className="px-3 py-1 bg-cyan-900/30 text-cyan-300 text-xs rounded border border-cyan-500/30">
+                      View Document
+                    </span>
+                  </Link>
+                ) : selectedEvent.file ? (
                   <div className="flex items-center gap-3 bg-slate-800 p-3 rounded-lg border border-slate-700">
                     <FileText className="w-5 h-5 text-cyan-400" />
                     <span className="text-cyan-300 font-mono text-sm truncate flex-1">
@@ -793,17 +746,32 @@ export const Timeline: React.FC<TimelineProps> = React.memo(({ className = "" })
                 <div>
                   <span className="text-slate-400 text-xs uppercase tracking-wider block mb-2">Related Entities</span>
                   <div className="flex flex-wrap gap-2">
-                    {selectedEvent.entities.map((entity, i) => (
-                      <span key={i} className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg border border-slate-700 text-sm hover:border-slate-500 transition-colors cursor-default">
-                        {typeof entity === 'string' ? entity : entity.name}
-                      </span>
-                    ))}
+                    {selectedEvent.entities.map((entity, i) => {
+                      if (typeof entity === 'object' && entity.id) {
+                        return (
+                          <Link 
+                            key={i} 
+                            to={`/entity/${entity.id}`}
+                            onClick={() => setSelectedEvent(null)}
+                            className="px-3 py-1.5 bg-slate-800 text-cyan-300 rounded-lg border border-cyan-500/30 text-sm hover:bg-cyan-900/30 hover:border-cyan-400 transition-colors cursor-pointer"
+                          >
+                            {entity.name}
+                          </Link>
+                        );
+                      }
+                      return (
+                        <span key={i} className="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg border border-slate-700 text-sm">
+                          {typeof entity === 'string' ? entity : entity.name}
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

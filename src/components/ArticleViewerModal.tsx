@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { X, ExternalLink } from 'lucide-react'
 
 interface ArticleContent {
@@ -30,8 +31,8 @@ export const ArticleViewerModal: React.FC<Props> = ({ article, highlight, onClos
   if (!article) return null
   const content = highlightText(article.content || article.summary || '', highlight)
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 md:p-8">
        {/* Background Backdrop with Hero Image Blur */}
        <div className="absolute inset-0 bg-black/90 header-blur-backdrop" onClick={onClose} />
        {article.imageUrl && (
@@ -116,7 +117,8 @@ export const ArticleViewerModal: React.FC<Props> = ({ article, highlight, onClos
               </div>
           </div>
        </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

@@ -1,4 +1,31 @@
 
+# 📣 Epstein Archive V9.0.1 - Modal Standardization & Direct Flights Route
+
+*Released: Dec 31, 2025*
+
+### 1. Direct Flight Tracker Route ✈️
+*   **New `/flights` Route**: Navigate directly to the Flight Tracker without going through Timeline.
+*   **Standalone Access**: FlightTracker component rendered as a dedicated page.
+
+### 2. Modal Standardization 🎨
+*   **createPortal Implementation**: All modals now use React's `createPortal` for consistent viewport-fixed rendering.
+*   **Standardized Close Buttons**: Circular close button style (32x32px, semi-transparent) applied to all modals.
+*   **Updated Components**: FileBrowser, GlobalSearch, CreateRelationshipModal, EvidenceModal, and more.
+
+### 3. Timeline Document Linking 📄
+*   **Clickable Document Links**: Timeline events with `related_document` now show clickable links to source documents.
+*   **Improved Navigation**: Clicking a linked document navigates to the Document Viewer.
+
+### 4. Flight Map Enhancement 🗺️
+*   **Real OpenStreetMap**: Flight details modal now shows actual OpenStreetMap embed instead of SVG placeholder.
+*   **Fixed Header Layout**: Prevented date overlap with close button in flight modal.
+
+### 5. Dynamic Footer Date 📅
+*   **Build-Time Injection**: Footer "Updated" date now automatically reflects the build date.
+*   **No More Hardcoding**: Date updates with each deployment.
+
+---
+
 # 📣 Epstein Archive V9.0.0 - Full System UX Analysis & Documentation
 
 *Released: Dec 30, 2025*

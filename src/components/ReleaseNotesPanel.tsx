@@ -40,10 +40,10 @@ export const ReleaseNotesPanel: React.FC<ReleaseNotesPanelProps> = ({
           </h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-white"
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white text-xl transition-colors"
             aria-label="Close"
           >
-            <X className="h-6 w-6" />
+            ×
           </button>
         </div>
 

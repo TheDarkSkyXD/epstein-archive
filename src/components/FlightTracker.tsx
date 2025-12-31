@@ -330,7 +330,7 @@ const FlightTracker: React.FC = () => {
     return { x, y };
   };
 
-  // Flight path mini-map for modal
+  // Flight path mini-map for modal using OpenStreetMap
   const FlightPathMap = ({ flight }: { flight: Flight }) => {
     const fromCoords = airports[flight.departure_airport];
     const toCoords = airports[flight.arrival_airport];
@@ -339,59 +339,53 @@ const FlightTracker: React.FC = () => {
       return (
         <div className="flight-path-map-placeholder">
           <Icon name="Globe" size="lg" />
-          <span>Map unavailable</span>
+          <span>Map coordinates unavailable for this route</span>
         </div>
       );
     }
     
-    const width = 400;
-    const height = 200;
-    const from = toSvgCoords(fromCoords.lat, fromCoords.lng, width, height);
-    const to = toSvgCoords(toCoords.lat, toCoords.lng, width, height);
-    const midX = (from.x + to.x) / 2;
-    const midY = (from.y + to.y) / 2 - 20;
+    // Calculate bounding box to show both markers
+    const minLat = Math.min(fromCoords.lat, toCoords.lat);
+    const maxLat = Math.max(fromCoords.lat, toCoords.lat);
+    const minLng = Math.min(fromCoords.lng, toCoords.lng);
+    const maxLng = Math.max(fromCoords.lng, toCoords.lng);
+    
+    // Add padding to bbox
+    const latPadding = (maxLat - minLat) * 0.3 || 0.5;
+    const lngPadding = (maxLng - minLng) * 0.3 || 0.5;
+    
+    // OpenStreetMap embed URL showing both points with bounding box
+    const bbox = `${minLng - lngPadding},${minLat - latPadding},${maxLng + lngPadding},${maxLat + latPadding}`;
+    const osmUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${fromCoords.lat},${fromCoords.lng}`;
+    
+    // Google Maps URL for external link
+    const googleMapsUrl = `https://www.google.com/maps/dir/${fromCoords.lat},${fromCoords.lng}/${toCoords.lat},${toCoords.lng}`;
     
     return (
       <div className="flight-path-map">
-        <svg viewBox={`0 0 ${width} ${height}`} className="flight-path-svg">
-          {/* Background */}
-          <rect x="0" y="0" width={width} height={height} fill="#0a0a1a" />
-          
-          {/* Grid lines */}
-          {[...Array(5)].map((_, i) => (
-            <line key={`h${i}`} x1="0" y1={i * 50} x2={width} y2={i * 50} stroke="#1a1a2e" strokeWidth="0.5" />
-          ))}
-          {[...Array(9)].map((_, i) => (
-            <line key={`v${i}`} x1={i * 50} y1="0" x2={i * 50} y2={height} stroke="#1a1a2e" strokeWidth="0.5" />
-          ))}
-          
-          {/* Flight path */}
-          <path
-            d={`M ${from.x} ${from.y} Q ${midX} ${midY} ${to.x} ${to.y}`}
-            fill="none"
-            stroke="#00c8ff"
-            strokeWidth="2"
-            strokeDasharray="5,3"
-            className="flight-route-line"
+        <div className="relative h-48 bg-slate-900 rounded-t-lg overflow-hidden">
+          <iframe
+            src={osmUrl}
+            className="w-full h-full border-0"
+            title={`Flight route: ${flight.departure_airport} to ${flight.arrival_airport}`}
+            loading="lazy"
           />
-          
-          {/* Departure airport */}
-          <circle cx={from.x} cy={from.y} r="6" fill="#00c8ff" />
-          <circle cx={from.x} cy={from.y} r="6" fill="none" stroke="#00c8ff" strokeWidth="2" className="airport-pulse" />
-          <text x={from.x} y={from.y - 10} fill="#fff" fontSize="10" textAnchor="middle" fontWeight="bold">
-            {flight.departure_airport}
-          </text>
-          
-          {/* Arrival airport */}
-          <circle cx={to.x} cy={to.y} r="6" fill="#ff6b6b" />
-          <circle cx={to.x} cy={to.y} r="6" fill="none" stroke="#ff6b6b" strokeWidth="2" className="airport-pulse" />
-          <text x={to.x} y={to.y - 10} fill="#fff" fontSize="10" textAnchor="middle" fontWeight="bold">
-            {flight.arrival_airport}
-          </text>
-          
-          {/* Plane icon on path */}
-          <text x={midX} y={midY + 5} fill="#00c8ff" fontSize="16" textAnchor="middle">✈</text>
-        </svg>
+          {/* Route overlay info */}
+          <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center px-2 py-1 bg-black/60 backdrop-blur-sm rounded text-xs">
+            <span className="text-cyan-300 font-bold">{flight.departure_airport}</span>
+            <span className="text-slate-400">✈ → ✈</span>
+            <span className="text-red-300 font-bold">{flight.arrival_airport}</span>
+          </div>
+        </div>
+        <a 
+          href={googleMapsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-2 py-2 bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-medium transition-colors rounded-b-lg"
+        >
+          <Icon name="ExternalLink" size="sm" />
+          View Full Route in Google Maps
+        </a>
       </div>
     );
   };
@@ -405,7 +399,7 @@ const FlightTracker: React.FC = () => {
         <div className="flight-modal" onClick={e => e.stopPropagation()}>
           <button className="modal-close" onClick={() => setSelectedFlight(null)}>×</button>
           
-          <div className="modal-header">
+          <div className="modal-header" style={{ paddingRight: '3rem' }}>
             <h2>Flight Details</h2>
             <span className="flight-date">{formatDate(selectedFlight.date)}</span>
           </div>

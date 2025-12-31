@@ -179,7 +179,10 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
             <h2 className="text-2xl font-bold text-white">Evidence Collection</h2>
           </div>
           {onClose && (
-            <button onClick={onClose} className="text-slate-400 hover:text-white">
+            <button 
+              onClick={onClose} 
+              className="p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+            >
               <X className="w-6 h-6" />
             </button>
           )}
@@ -374,7 +377,10 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
             <div className="border-b border-slate-700 p-6">
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-bold text-white">Add Evidence</h3>
-                <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-white">
+                <button 
+                  onClick={() => setShowAddModal(false)} 
+                  className="p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                >
                   <X className="w-6 h-6" />
                 </button>
               </div>

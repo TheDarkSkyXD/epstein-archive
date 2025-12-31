@@ -349,7 +349,24 @@ app.get('/api/analytics/enhanced', async (_req, res, next) => {
 });
 
 // Apply Auth Middleware to all other API routes
-app.use('/api', authenticateRequest);
+// Authentication middleware - Selective protection
+app.use('/api', (req, res, next) => {
+  // 1. User management and profile info always require auth
+  if (req.path.startsWith('/users') || req.path.startsWith('/auth/me')) {
+    return authenticateRequest(req, res, next);
+  }
+  
+  // 2. All investigative browsing (GET/HEAD/OPTIONS requests) is public per user request
+  // (media, entities, search, analytics, flights, memory)
+  // OPTIONS is whitelisted to allow CORS preflights to succeed for public routes.
+  if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') {
+    return next();
+  }
+  
+  // 3. All mutations (POST, PUT, PATCH, DELETE) require authentication
+  // This protects media editing, adding entities, and document uploads.
+  authenticateRequest(req, res, next);
+});
 
 // Email routes (protected)
 app.use('/api/emails', emailRoutes);

@@ -125,9 +125,6 @@ app.use('/api/investigations', investigationsRouter);
 app.use('/api/investigation', investigationEvidenceRoutes);
 app.use('/api/evidence', evidenceRoutes);
 import emailRoutes from './server/routes/emailRoutes.js';
-app.use('/api/emails', emailRoutes);
-app.use('/api/auth', authRoutes);
-
 // Authentication middleware will be applied below
 
 // Serve static frontend from dist
@@ -209,6 +206,9 @@ app.use('/api/auth', authRoutes);
 
 // Apply Auth Middleware to all other API routes
 app.use('/api', authenticateRequest);
+
+// Email routes (protected)
+app.use('/api/emails', emailRoutes);
 
 // User Management Endpoints
 app.get('/api/users', async (_req, res, next) => {
@@ -1066,7 +1066,7 @@ app.get('/api/analytics/enhanced', async (_req, res, next) => {
       LIMIT 2000
     `).all();
     
-    console.timeEnd('analytics-total');
+    console.timeEnd('analytics-top-relationships');
 
     res.set('Cache-Control', 'public, max-age=300'); // 5 min cache
     res.json({
@@ -1084,6 +1084,7 @@ app.get('/api/analytics/enhanced', async (_req, res, next) => {
       },
       generatedAt: new Date().toISOString()
     });
+    console.timeEnd('analytics-total');
   } catch (error) {
     console.error('❌ Error fetching enhanced analytics:', error);
     next(error);

@@ -133,7 +133,11 @@ app.put('/api/media/images/:id', authenticateRequest, requireRole('admin'), asyn
 
 // Request logging
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} ${req.method} ${req.url}`);
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`${new Date().toISOString()} ${req.method} ${req.url} ${res.statusCode} ${duration}ms`);
+  });
   next();
 });
 
@@ -958,6 +962,7 @@ app.get('/api/analytics/enhanced', async (_req, res, next) => {
     const db = getDb();
     
     // Document breakdown by type
+    console.time('analytics-docs-by-type');
     const documentsByType = db.prepare(`
       SELECT 
         evidence_type as type,
@@ -969,8 +974,9 @@ app.get('/api/analytics/enhanced', async (_req, res, next) => {
       GROUP BY evidence_type 
       ORDER BY count DESC
     `).all();
+    console.timeEnd('analytics-docs-by-type');
     
-    // Timeline data - documents by year/month
+    console.time('analytics-timeline');
     const timelineData = db.prepare(`
       SELECT 
         substr(date_created, 1, 7) as period,
@@ -984,14 +990,17 @@ app.get('/api/analytics/enhanced', async (_req, res, next) => {
       GROUP BY period 
       ORDER BY period ASC
     `).all();
+    console.timeEnd('analytics-timeline');
     
+    console.time('analytics-top-connected');
     // Top connected entities (by relationship count)
+    // Optimized to group separately before combining
     const topConnectedEntities = db.prepare(`
       WITH rel_counts AS (
-        SELECT entity_id, COUNT(*) as cnt FROM (
-          SELECT source_entity_id as entity_id FROM entity_relationships
+        SELECT entity_id, SUM(cnt) as cnt FROM (
+          SELECT source_entity_id as entity_id, COUNT(*) as cnt FROM entity_relationships GROUP BY source_entity_id
           UNION ALL
-          SELECT target_entity_id as entity_id FROM entity_relationships
+          SELECT target_entity_id as entity_id, COUNT(*) as cnt FROM entity_relationships GROUP BY target_entity_id
         ) t
         GROUP BY entity_id
       )
@@ -1009,7 +1018,9 @@ app.get('/api/analytics/enhanced', async (_req, res, next) => {
       ORDER BY rc.cnt DESC
       LIMIT 1000
     `).all();
+    console.timeEnd('analytics-top-connected');
     
+    console.time('analytics-entity-dist');
     // Entity type distribution
     const entityTypeDistribution = db.prepare(`
       SELECT 
@@ -1021,7 +1032,9 @@ app.get('/api/analytics/enhanced', async (_req, res, next) => {
       GROUP BY entity_type 
       ORDER BY count DESC
     `).all();
+    console.timeEnd('analytics-entity-dist');
     
+    console.time('analytics-risk-by-type');
     // Risk distribution by entity type
     const riskByType = db.prepare(`
       SELECT 
@@ -1033,7 +1046,9 @@ app.get('/api/analytics/enhanced', async (_req, res, next) => {
       GROUP BY entity_type, red_flag_rating 
       ORDER BY entity_type, red_flag_rating DESC
     `).all();
+    console.timeEnd('analytics-risk-by-type');
     
+    console.time('analytics-redaction-stats');
     // Overall redaction stats
     const redactionStats = db.prepare(`
       SELECT 
@@ -1043,7 +1058,9 @@ app.get('/api/analytics/enhanced', async (_req, res, next) => {
         SUM(redaction_count) as totalRedactions
       FROM documents
     `).get();
+    console.timeEnd('analytics-redaction-stats');
     
+    console.time('analytics-top-relationships');
     // Top relationships
     const topRelationships = db.prepare(`
       SELECT 
@@ -1058,6 +1075,8 @@ app.get('/api/analytics/enhanced', async (_req, res, next) => {
       LIMIT 2000
     `).all();
     
+    console.timeEnd('analytics-total');
+
     res.set('Cache-Control', 'public, max-age=300'); // 5 min cache
     res.json({
       documentsByType,
@@ -1067,10 +1086,15 @@ app.get('/api/analytics/enhanced', async (_req, res, next) => {
       riskByType,
       redactionStats,
       topRelationships,
+      totalCounts: {
+        entities: db.prepare('SELECT COUNT(*) as count FROM entities').get().count,
+        documents: db.prepare('SELECT COUNT(*) as count FROM documents').get().count,
+        relationships: db.prepare('SELECT COUNT(*) as count FROM entity_relationships').get().count
+      },
       generatedAt: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error fetching enhanced analytics:', error);
+    console.error('❌ Error fetching enhanced analytics:', error);
     next(error);
   }
 });

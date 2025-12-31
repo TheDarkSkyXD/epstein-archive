@@ -28,6 +28,8 @@ import { MediaService } from './services/MediaService.js';
 import investigationEvidenceRoutes from './routes/investigationEvidenceRoutes.js';
 import investigationsRouter from './server/routes/investigations.js';
 import evidenceRoutes from './routes/evidenceRoutes.js';
+import advancedAnalyticsRoutes from './server/routes/advancedAnalytics.js';
+import investigativeTasksRoutes from './server/routes/investigativeTasks.js';
 import crypto from 'crypto';
 import multer from 'multer';
 import fs from 'fs';
@@ -2633,6 +2635,12 @@ app.get('/api/flights/passenger/:name', async (req, res, next) => {
     next(error);
   }
 });
+
+// Advanced Analytics API routes
+app.use('/api/advanced-analytics', advancedAnalyticsRoutes);
+
+// Investigative Tasks API routes
+app.use('/api/investigative-tasks', investigativeTasksRoutes);
 
 // Memory API routes
 app.get('/api/memory', async (req, res, next) => {

@@ -37,6 +37,7 @@ npm run build:prod
 ## Documentation
 
 - [Comprehensive Wiki](docs/wiki.md) - Core memory for how the app works
+- [Data Governance Charter](docs/data-governance-standards.md) - Transparency & Forensic Accountability
 - [User Journey Mapping](docs/user-journey-mapping.md) - User experience analysis
 - [Technical Reference](docs/technical-reference.md) - Developer-focused technical guide
 - [User Guide](docs/wiki-user-guide.md) - End-user documentation

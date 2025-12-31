@@ -25,7 +25,7 @@ interface WorkerResponse {
 let nodes: GraphNode[] = [];
 let isRunning = false;
 let tickCount = 0;
-const MAX_TICKS = 60; // Run simulation for limited iterations
+const MAX_TICKS = 200; // Increase for larger networks to settle
 
 function applyCollisionResolution(draggedNodeId: number | null): GraphNode[] {
   const newNodes = nodes.map(n => ({ ...n }));

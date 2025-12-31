@@ -38,6 +38,7 @@ import { SearchFilters, SortOption } from './types';
 import { config } from './config/index.js';
 import { blackBookRepository } from './server/db/blackBookRepository.js';
 import { globalErrorHandler } from './server/utils/errorHandler.js';
+import { memoryRepository } from './server/db/memoryRepository.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1006,7 +1007,7 @@ app.get('/api/analytics/enhanced', async (_req, res, next) => {
       JOIN entities e ON e.id = rc.entity_id
       WHERE e.entity_type = 'Person'
       ORDER BY rc.cnt DESC
-      LIMIT 100
+      LIMIT 1000
     `).all();
     
     // Entity type distribution
@@ -1054,7 +1055,7 @@ app.get('/api/analytics/enhanced', async (_req, res, next) => {
       JOIN entities e1 ON er.source_entity_id = e1.id
       JOIN entities e2 ON er.target_entity_id = e2.id
       ORDER BY er.strength DESC
-      LIMIT 200
+      LIMIT 2000
     `).all();
     
     res.set('Cache-Control', 'public, max-age=300'); // 5 min cache
@@ -2593,6 +2594,196 @@ app.get('/api/flights/passenger/:name', async (req, res, next) => {
     const flights = flightsRepository.getPassengerFlights(name);
     res.json(flights);
   } catch (error) {
+    next(error);
+  }
+});
+
+// Memory API routes
+app.get('/api/memory', async (req, res, next) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+    const memoryType = req.query.memoryType as string;
+    const status = req.query.status as string;
+    const searchQuery = req.query.q as string;
+    
+    const filters: any = {};
+    if (memoryType) filters.memoryType = memoryType;
+    if (status) filters.status = status;
+    if (searchQuery) filters.searchQuery = searchQuery;
+    
+    const result = memoryRepository.searchMemoryEntries(getDb(), filters, page, limit);
+    
+    res.json({
+      data: result.data,
+      total: result.total,
+      page,
+      pageSize: limit,
+      totalPages: Math.ceil(result.total / limit)
+    });
+  } catch (error) {
+    console.error('Error fetching memory entries:', error);
+    next(error);
+  }
+});
+
+app.get('/api/memory/:id', async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid memory ID' });
+    }
+    
+    const memoryEntry = memoryRepository.getMemoryEntryById(getDb(), id);
+    if (!memoryEntry) {
+      return res.status(404).json({ error: 'Memory entry not found' });
+    }
+    
+    res.json(memoryEntry);
+  } catch (error) {
+    console.error('Error fetching memory entry:', error);
+    next(error);
+  }
+});
+
+app.post('/api/memory', async (req, res, next) => {
+  try {
+    const { memoryType, content, metadata, contextTags, importanceScore, sourceId, sourceType, provenance } = req.body;
+    
+    if (!memoryType || !content) {
+      return res.status(400).json({ error: 'memoryType and content are required' });
+    }
+    
+    const input = {
+      memoryType,
+      content,
+      metadata,
+      contextTags,
+      importanceScore,
+      sourceId,
+      sourceType,
+      provenance
+    };
+    
+    const newMemoryEntry = memoryRepository.createMemoryEntry(getDb(), input);
+    
+    res.status(201).json(newMemoryEntry);
+  } catch (error) {
+    console.error('Error creating memory entry:', error);
+    next(error);
+  }
+});
+
+app.put('/api/memory/:id', async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid memory ID' });
+    }
+    
+    const updates = req.body;
+    const updatedMemoryEntry = memoryRepository.updateMemoryEntry(getDb(), id, updates);
+    
+    if (!updatedMemoryEntry) {
+      return res.status(404).json({ error: 'Memory entry not found' });
+    }
+    
+    res.json(updatedMemoryEntry);
+  } catch (error) {
+    console.error('Error updating memory entry:', error);
+    next(error);
+  }
+});
+
+app.delete('/api/memory/:id', async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid memory ID' });
+    }
+    
+    const result = memoryRepository.updateMemoryEntry(getDb(), id, { status: 'deprecated' });
+    
+    if (!result) {
+      return res.status(404).json({ error: 'Memory entry not found' });
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting memory entry:', error);
+    next(error);
+  }
+});
+
+app.get('/api/memory/:id/relationships', async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid memory ID' });
+    }
+    
+    const relationships = memoryRepository.getMemoryRelationships(getDb(), id);
+    
+    res.json(relationships);
+  } catch (error) {
+    console.error('Error fetching memory relationships:', error);
+    next(error);
+  }
+});
+
+app.get('/api/memory/:id/audit', async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid memory ID' });
+    }
+    
+    const auditLogs = memoryRepository.getMemoryAuditLogs(getDb(), id);
+    
+    res.json(auditLogs);
+  } catch (error) {
+    console.error('Error fetching memory audit logs:', error);
+    next(error);
+  }
+});
+
+app.get('/api/memory/:id/quality', async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid memory ID' });
+    }
+    
+    const qualityMetrics = memoryRepository.getQualityMetrics(getDb(), id);
+    
+    res.json(qualityMetrics);
+  } catch (error) {
+    console.error('Error fetching memory quality metrics:', error);
+    next(error);
+  }
+});
+
+app.post('/api/memory/:id/quality', async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid memory ID' });
+    }
+    
+    const { sourceReliability, evidenceStrength, temporalRelevance, entityConfidence } = req.body;
+    
+    const dimensions = {
+      sourceReliability: sourceReliability || 0.5,
+      evidenceStrength: evidenceStrength || 0.5,
+      temporalRelevance: temporalRelevance || 0.5,
+      entityConfidence: entityConfidence || 0.5
+    };
+    
+    memoryRepository.updateQualityMetrics(getDb(), id, dimensions);
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating memory quality metrics:', error);
     next(error);
   }
 });

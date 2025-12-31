@@ -87,11 +87,11 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
   entities, 
   relationships,
   onEntityClick,
-  maxNodes = 60
+  maxNodes = 600
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const [nodes, setNodes] = useState<GraphNode[]>([]);
-  const [transform, setTransform] = useState({ x: 0, y: 0, k: 1 });
+  const [transform, setTransform] = useState({ x: 0, y: 0, k: 0.8 }); // Start zoomed out a bit
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<Point>({ x: 0, y: 0 });
   const [draggedNode, setDraggedNode] = useState<number | null>(null);
@@ -106,8 +106,12 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
     // Golden Spiral Layout (Phyllotaxis)
     const goldenAngle = Math.PI * (3 - Math.sqrt(5)); 
     
+    // Adjust spiral spread based on count
+    const count = topEntities.length;
+    const rStep = count > 100 ? 4 : 6;
+    
     const initialNodes = topEntities.map((entity, index) => {
-      const rStep = 6;
+      // Scale spiral to fit mostly within 100x100 but allow overflow for exploration
       const r = rStep * Math.sqrt(index + 2);
       const theta = index * goldenAngle;
       

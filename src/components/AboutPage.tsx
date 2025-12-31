@@ -618,7 +618,7 @@ export const AboutPage: React.FC = () => {
           <p className="text-blue-200 text-sm">
             <strong>Latest Addition:</strong> December 30, 2025 - V9.0.0 Major Release: Integrated Document Viewing (Side-by-Side), 
             Fuzzy Source Linking (2,980+ documents), and complete Media Integrity resolution (Zero 404s). 
-            System now features hardened production security and <a href="https://github.com/glasscode-academy/epstein-archive/tree/main/docs" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline underline">persona-based documentation wiki</a>.
+            System now features hardened production security and a <a href="https://github.com/glasscode-academy/epstein-archive/tree/main/docs/data-governance-standards.md" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline underline">Forensic Transparancy & Accountability Charter</a>.
           </p>
         </div>
         <div className="bg-purple-900/30 border border-purple-500/30 rounded-lg p-4 mt-4">

@@ -33,7 +33,7 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/analytics/enhanced');
+      const response = await fetch('/api/analytics/enhanced', { credentials: 'include' });
       if (!response.ok) throw new Error('Failed to fetch analytics');
       const result = await response.json();
       setData(result);

@@ -184,7 +184,7 @@
 *   **Automatic Backup**: Creates timestamped backups of `dist/` and `epstein-archive.db` before every deploy
 *   **Automatic Rollback**: If health checks fail post-deploy, system auto-restores previous version
 *   **Multi-Endpoint Health Gates**: Tests `/api/health`, `/api/stats`, `/api/entities` - fails deployment if any return non-200
-*   **Frontend Smoke Test**: Verifies glasscode.academy loads expected content
+*   **Frontend Smoke Test**: Verifies production server loads expected content
 
 ### 2. PM2 Hardening
 *   **Restart Limits**: `max_restarts: 10`, `min_uptime: 10s` prevents infinite crash loops

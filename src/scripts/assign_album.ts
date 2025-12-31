@@ -26,7 +26,7 @@ function run() {
   }
 
   // 2. Find images matching the folder path
-  // Note: The path stored in DB is absolute: /home/deploy/epstein-archive/data/media/images/12.11.25 Estate Production/...
+  // Note: The path stored in DB is absolute: ./data/media/images/12.11.25 Estate Production/...
   const searchPattern = '%12.11.25 Estate Production%';
   
   console.log('Assigning images...');

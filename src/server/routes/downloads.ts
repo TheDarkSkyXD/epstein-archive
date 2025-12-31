@@ -9,8 +9,8 @@ const router = express.Router();
 // Map of release IDs (from AboutPage) to file paths
 // We can use the 'title' or a slug as the ID.
 const FILE_MAP: Record<string, string> = {
-  'black-book': '/home/deploy/epstein-archive/data/originals/Jeffrey Epstein\'s Black Book.pdf',
-  'flight-logs': '/home/deploy/epstein-archive/data/originals/EPSTEIN FLIGHT LOGS UNREDACTED.pdf',
+  'black-book': './data/originals/Jeffrey Epstein\'s Black Book.pdf',
+  'flight-logs': './data/originals/EPSTEIN FLIGHT LOGS UNREDACTED.pdf',
 };
 
 router.get('/release/:id', async (req, res) => {

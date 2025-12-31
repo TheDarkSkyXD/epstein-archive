@@ -12,7 +12,7 @@ import * as cocoSsd from '@tensorflow-models/coco-ssd';
 const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), 'epstein-archive-production.db'); // Use PRODUCTION DB by default
 const db = new Database(DB_PATH);
 
-const TARGET_DIR = '/home/deploy/epstein-archive/data/media/images/12.11.25 Estate Production';
+const TARGET_DIR = './data/media/images/12.11.25 Estate Production';
 
 async function run() {
   console.log(`Starting ingestion for directory: ${TARGET_DIR}`);

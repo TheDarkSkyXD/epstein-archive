@@ -19,7 +19,7 @@ async function run() {
   const possibleRoots = [
     '/Users/veland/Downloads/Epstein Files',
     path.join(process.cwd(), 'data'),
-    '/home/deploy/epstein-archive/data'
+    './data'
   ];
 
   const foundFiles: string[] = [];

@@ -14,7 +14,7 @@ The production server pulls a full database backup every hour.
 You can sync the production database to your local machine at any time to inspect data or keep a local copy for safety.
 
 ### How to Sync:
-1. Ensure you have SSH access to `glasscode`.
+1. Ensure you have SSH access to the production server.
 2. Run the sync script from your local project root:
    ```bash
    ./scripts/sync_prod_to_local.sh

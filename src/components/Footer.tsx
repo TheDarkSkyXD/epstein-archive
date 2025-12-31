@@ -105,7 +105,7 @@ const Footer: React.FC<FooterProps> = ({ onVersionClick }) => {
                         </a>
                     </li>
                      <li>
-                        <a href="https://about.glasscode.academy" target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors flex items-center gap-2 group w-fit">
+                        <a href="https://github.com/ErikVeland/epstein-archive" target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors flex items-center gap-2 group w-fit">
                              <span className="group-hover:translate-x-1 transition-transform">Glass Academy</span>
                              <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </a>

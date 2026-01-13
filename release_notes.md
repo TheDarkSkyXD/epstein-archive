@@ -1,5 +1,15 @@
 # Release Notes
 
+## V10.1.9 (January 13, 2026)
+### 🎙️ Timed Transcripts
+*   **Precision Audio Sync**: Implemented sub-second timing for the Sascha Barron testimony transcripts. Users can now click any sentence to jump to that moment in the audio.
+*   **Speaker Attribution**: Transcripts now clearly identify speakers (Sascha Riley vs. Lisa Noelle Voldeng).
+
+## V10.1.8 (January 13, 2026)
+### 🎙️ Audio Experience Upgrade
+*   **Sascha Barron Testimony**: Enriched metadata and album grouping.
+# Release Notes
+
 ## V10.1.8 (January 13, 2026)
 ### 🎙️ Audio Experience Upgrade
 *   **Sascha Barron Testimony**: Fully enriched the 6-part testimony with proper titles, chapter markers, and full credits to Sascha Barron and Lisa Noelle Voldeng.

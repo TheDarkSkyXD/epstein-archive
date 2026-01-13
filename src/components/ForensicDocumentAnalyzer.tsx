@@ -1077,7 +1077,9 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                                       const m = await r.json();
                                       setQuickMetrics((prev) => ({ ...prev, [String(t.id)]: m }));
                                     }
-                                  } catch {}
+                                  } catch {
+                                    // Ignore fetch errors
+                                  }
                                 }
                               }}
                               onMouseLeave={() => setHoveredId('')}
@@ -1093,7 +1095,9 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                                     params.set('docId', idStr);
                                     const url = `${window.location.pathname}?${params.toString()}`;
                                     window.history.replaceState(null, '', url);
-                                  } catch {}
+                                  } catch {
+                                    // Ignore fetch errors
+                                  }
                                 }
                               }}
                             >
@@ -1146,7 +1150,9 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                                       const m = await r.json();
                                       setQuickMetrics((prev) => ({ ...prev, [String(t.id)]: m }));
                                     }
-                                  } catch {}
+                                  } catch {
+                                    // Ignore fetch errors
+                                  }
                                 }
                               }}
                               onMouseLeave={() => setHoveredId('')}
@@ -1162,7 +1168,9 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                                     params.set('docId', idStr);
                                     const url = `${window.location.pathname}?${params.toString()}`;
                                     window.history.replaceState(null, '', url);
-                                  } catch {}
+                                  } catch {
+                                    // Ignore fetch errors
+                                  }
                                 }
                               }}
                             >
@@ -1215,7 +1223,9 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                                       const m = await r.json();
                                       setQuickMetrics((prev) => ({ ...prev, [String(t.id)]: m }));
                                     }
-                                  } catch {}
+                                  } catch {
+                                    // Ignore fetch errors
+                                  }
                                 }
                               }}
                               onMouseLeave={() => setHoveredId('')}
@@ -1231,7 +1241,9 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                                     params.set('docId', idStr);
                                     const url = `${window.location.pathname}?${params.toString()}`;
                                     window.history.replaceState(null, '', url);
-                                  } catch {}
+                                  } catch {
+                                    // Ignore fetch errors
+                                  }
                                 }
                               }}
                             >
@@ -1299,7 +1311,9 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                                 else params.delete('compareB');
                                 const url = `${window.location.pathname}?${params.toString()}`;
                                 window.history.replaceState(null, '', url);
-                              } catch {}
+                              } catch {
+                                // Ignore fetch errors
+                              }
                             }}
                             className="px-3 py-2 bg-blue-600 text-white rounded text-sm"
                           >

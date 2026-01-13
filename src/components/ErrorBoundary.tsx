@@ -19,7 +19,9 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
   componentDidCatch(error: Error, info: any) {
     try {
       console.error('ErrorBoundary caught:', error, info);
-    } catch {}
+    } catch {
+      // Ignore console errors
+    }
   }
 
   render() {
@@ -41,7 +43,9 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
                 onClick={() => {
                   try {
                     localStorage.clear();
-                  } catch {}
+                  } catch {
+                    // Ignore localStorage errors
+                  }
                   window.location.reload();
                 }}
                 className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg"

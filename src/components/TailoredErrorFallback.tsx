@@ -1,6 +1,5 @@
 import React from 'react';
 import { AlertTriangle, WifiOff, Database, FileText, RefreshCw, Home } from 'lucide-react';
-import Icon from './Icon';
 
 interface TailoredErrorFallbackProps {
   errorType: 'network' | 'database' | 'document' | 'generic';

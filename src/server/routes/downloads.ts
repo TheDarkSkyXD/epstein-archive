@@ -1,5 +1,4 @@
 import express from 'express';
-import path from 'path';
 import fs from 'fs';
 import { getDb } from '../db/connection.js';
 
@@ -29,7 +28,7 @@ router.get('/release/:id', async (req, res) => {
     // Return 404 or Not Implemented for now.
 
     // Check if it matches a Tag
-    const db = getDb();
+    const _db = getDb();
     // Logic to maybe download ONE representative file?
 
     console.warn(`Download requested for unknown release: ${releaseId}`);

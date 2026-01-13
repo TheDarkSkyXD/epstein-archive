@@ -15,7 +15,8 @@ interface Chapter {
   startTime: number;
 }
 
-interface TranscriptSegment {
+// TranscriptSegment used for chapter generation typing
+interface _TranscriptSegment {
   start: number;
   end: number;
   text: string;

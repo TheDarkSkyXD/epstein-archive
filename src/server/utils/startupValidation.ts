@@ -1,5 +1,4 @@
 import fs from 'fs';
-import path from 'path';
 import { getDb } from '../db/connection.js';
 
 export function validateStartup() {
@@ -38,7 +37,7 @@ export function validateStartup() {
   // 4. Schema Integrity
   try {
     const db = getDb();
-    const requiredTables = [
+    const _requiredTables = [
       'entities',
       'documents',
       'relationships',

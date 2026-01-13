@@ -105,7 +105,9 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
             onClick={() => {
               try {
                 localStorage.setItem('investigate_attract_shown', 'true');
-              } catch (e) {}
+              } catch {
+                // Ignore localStorage errors
+              }
               setAttract(false);
               handleNavigation('/investigations');
             }}

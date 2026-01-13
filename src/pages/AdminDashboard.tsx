@@ -16,7 +16,6 @@ import {
   Server,
   Database,
   FileText,
-  Clock,
   RefreshCw,
   Cpu,
 } from 'lucide-react';

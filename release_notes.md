@@ -1,33 +1,59 @@
 # Release Notes
 
+## V10.1.8 (January 13, 2026)
+### 🎙️ Audio Experience Upgrade
+*   **Sascha Barron Testimony**: Fully enriched the 6-part testimony with proper titles, chapter markers, and full credits to Sascha Barron and Lisa Noelle Voldeng.
+*   **Transcript Support**: Ensured timed transcripts are fully linked and searchable for all testimony files.
+*   **Safety**: Applied sensitive content warnings to the album.
+
 ## V10.1.7 (January 13, 2026)
 ### 🔗 Stable Tag Recovery
-*   **Media Tag Restoration**: Recovered and restored people tags for media items by analyzing file metadata and titles. Photos and videos are now correctly linked to key entities (Epstein, Maxwell, Trump, etc.) on the People Cards.
-*   **Path Stability**: Finalized absolute-to-relative path conversion to ensure media loads reliably on all devices.
+*   **Media Tag Restoration**: Recovered and restored people tags.
+# Release Notes
+
+## V10.1.7 (January 13, 2026)
+
+### 🔗 Stable Tag Recovery
+
+- **Media Tag Restoration**: Recovered and restored people tags for media items by analyzing file metadata and titles. Photos and videos are now correctly linked to key entities (Epstein, Maxwell, Trump, etc.) on the People Cards.
+- **Path Stability**: Finalized absolute-to-relative path conversion to ensure media loads reliably on all devices.
 
 ## V10.1.6 (January 13, 2026)
+
 ### 🛠️ Media Stability Fix
-*   **Path Correction**: Standardized database file paths.
+
+- **Path Correction**: Standardized database file paths.
+
 # Release Notes
 
 ## V10.1.6 (January 13, 2026)
+
 ### 🛠️ Media Stability Fix
-*   **Path Correction**: Standardized database file paths for audio and video files, resolving the "Failed to load content" errors on the production environment.
-*   **Data Integrity**: Verified 447 media assets (Video/Audio) are correctly linked and accessible.
+
+- **Path Correction**: Standardized database file paths for audio and video files, resolving the "Failed to load content" errors on the production environment.
+- **Data Integrity**: Verified 447 media assets (Video/Audio) are correctly linked and accessible.
 
 ## V10.1.5 (January 13, 2026)
+
 ### 🎨 UI Simplification
-*   **Zero-Distraction Mode**: Removed all remaining background animations.
+
+- **Zero-Distraction Mode**: Removed all remaining background animations.
+
 # Release Notes
 
 ## V10.1.5 (January 13, 2026)
+
 ### 🎨 UI Simplification
-*   **Zero-Distraction Mode**: Removed all remaining background animations, blobs, and pulse effects from the application. The interface is now completely static to ensure maximum performance and zero blocking overlays.
-*   **Media Tab Fix**: Resolved potential Z-index conflicts causing the Media Tab to become unresponsive.
+
+- **Zero-Distraction Mode**: Removed all remaining background animations, blobs, and pulse effects from the application. The interface is now completely static to ensure maximum performance and zero blocking overlays.
+- **Media Tab Fix**: Resolved potential Z-index conflicts causing the Media Tab to become unresponsive.
 
 ## V10.1.4 (January 13, 2026)
+
 ### 🐛 UI Bug Fixes
-*   **Removed Broken Particle Effect**: Fixed an issue where floating UI particles caused visual glitching.
+
+- **Removed Broken Particle Effect**: Fixed an issue where floating UI particles caused visual glitching.
+
 # Release Notes
 
 ## V10.1.4 (January 13, 2026)

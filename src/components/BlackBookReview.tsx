@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, SkipForward, AlertCircle, Save } from 'lucide-react';
+import { CheckCircle, XCircle, SkipForward, AlertCircle } from 'lucide-react';
 import { useToasts } from './ToastProvider';
 
 interface ReviewEntry {

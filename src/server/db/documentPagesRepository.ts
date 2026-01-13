@@ -1,4 +1,3 @@
-import { getDb } from './connection.js';
 import { join } from 'path';
 import { statSync } from 'fs';
 import { documentsRepository } from './documentsRepository.js';

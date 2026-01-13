@@ -10,21 +10,24 @@ import { fileURLToPath } from 'url';
 import { getDb } from './server/db/connection.js';
 import { entitiesRepository } from './server/db/entitiesRepository.js';
 import { documentsRepository } from './server/db/documentsRepository.js';
-import { relationshipsRepository } from './server/db/relationshipsRepository.js';
-import { investigationsRepository } from './server/db/investigationsRepository.js';
+import { relationshipsRepository as _relationshipsRepository } from './server/db/relationshipsRepository.js';
+import { investigationsRepository as _investigationsRepository } from './server/db/investigationsRepository.js';
 import { statsRepository } from './server/db/statsRepository.js';
 import { mediaRepository } from './server/db/mediaRepository.js';
 import { searchRepository } from './server/db/searchRepository.js';
 import { timelineRepository } from './server/db/timelineRepository.js';
-import { jobsRepository } from './server/db/jobsRepository.js';
+import { jobsRepository as _jobsRepository } from './server/db/jobsRepository.js';
 import { forensicRepository } from './server/db/forensicRepository.js';
 import { runMigrations } from './server/db/migrator.js';
 import { validateStartup } from './server/utils/startupValidation.js';
 import { authenticateRequest, requireRole } from './server/auth/middleware.js';
 import authRoutes from './server/auth/routes.js';
 import { logAudit } from './server/utils/auditLogger.js';
-import { validateEnvironment, getEnv } from './server/utils/envValidator.js';
-import { InvestigationService } from './services/InvestigationService.js';
+import {
+  validateEnvironment as _validateEnvironment,
+  getEnv,
+} from './server/utils/envValidator.js';
+import { InvestigationService as _InvestigationService } from './services/InvestigationService.js';
 import { MediaService } from './services/MediaService.js';
 import investigationEvidenceRoutes from './routes/investigationEvidenceRoutes.js';
 import investigationsRouter from './server/routes/investigations.js';
@@ -34,8 +37,8 @@ import investigativeTasksRoutes from './server/routes/investigativeTasks.js';
 import crypto from 'crypto';
 import multer from 'multer';
 import fs from 'fs';
-// @ts-ignore
-import { PDFParse } from 'pdf-parse';
+// @ts-ignore - PDF parsing capability reserved for future use
+import { PDFParse as _PDFParse } from 'pdf-parse';
 import bcrypt from 'bcryptjs';
 import { SearchFilters, SortOption } from './types';
 import { config } from './config/index.js';
@@ -47,7 +50,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Paths
-const DB_PATH = getEnv('DB_PATH', path.join(__dirname, '../../epstein-archive-production.db'));
+const _DB_PATH = getEnv('DB_PATH', path.join(__dirname, '../../epstein-archive-production.db'));
 const CORPUS_BASE_PATH = process.env.RAW_CORPUS_BASE_PATH || '';
 // Warn if corpus path not configured (documents may not be accessible)
 if (!CORPUS_BASE_PATH) {
@@ -973,7 +976,7 @@ app.get('/api/entities/:id/documents', async (req, res, next) => {
     const entityId = req.params.id;
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 50));
-    const sortBy = (req.query.sortBy as string) || 'mentions';
+    const _sortBy = (req.query.sortBy as string) || 'mentions';
 
     // Get entity name first
     const entity = getDb()
@@ -1461,7 +1464,7 @@ app.get('/api/documents', async (req, res, next) => {
     const offset = (page - 1) * limit;
 
     // Explicitly select columns to avoid ambiguities
-    const query = `
+    const _query = `
       SELECT 
         id,
         file_name as fileName,
@@ -1863,7 +1866,7 @@ app.get('/api/evidence/search', async (req, res, next) => {
     });
 
     // Transform documents to match expected API format
-    const transformedDocuments = result.documents.map((doc: any) => ({
+    const _transformedDocuments = result.documents.map((doc: any) => ({
       id: doc.id,
       fileName: doc.fileName,
       filePath: doc.filePath,

@@ -16,8 +16,8 @@
  */
 
 import Database from 'better-sqlite3';
-import { join, basename, extname, relative } from 'path';
-import { statSync, readFileSync, existsSync, readdirSync } from 'fs';
+import { join, basename, extname } from 'path';
+import { statSync, readFileSync, existsSync } from 'fs';
 import { globSync } from 'glob';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -29,7 +29,6 @@ import * as crypto from 'crypto';
 // ============================================================================
 
 const DB_PATH = process.env.DB_PATH || 'epstein-archive.db';
-const DATA_ROOT = join(process.cwd(), 'data', 'originals');
 
 interface CollectionConfig {
   name: string;

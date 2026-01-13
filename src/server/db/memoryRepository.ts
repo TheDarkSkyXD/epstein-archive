@@ -1,4 +1,3 @@
-import type { Database } from 'better-sqlite3';
 import {
   MemoryEntry,
   CreateMemoryEntryInput,
@@ -11,7 +10,6 @@ import {
   CreateMemoryQualityMetricsInput,
   MemorySearchFilters,
   MemorySearchResult,
-  ProvenanceInfo,
 } from '../../types/memory';
 
 export const memoryRepository = {

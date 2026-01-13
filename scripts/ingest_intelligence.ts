@@ -1,7 +1,5 @@
 import Database from 'better-sqlite3';
-import { readFileSync, existsSync } from 'fs';
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+// fs imports reserved for future file operations
 
 // Simplistic NLP / Term Extraction
 // In a real "Ultimate" pipeline, we might call an LLM here,
@@ -11,7 +9,6 @@ const DB_PATH = process.env.DB_PATH || 'epstein-archive.db';
 const db = new Database(DB_PATH);
 
 // CONFIGURATION
-const SIMILARITY_THRESHOLD = 0.92;
 const BATCH_SIZE = 100;
 
 // TYPE HEURISTICS

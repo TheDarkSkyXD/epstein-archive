@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Info, Users, FileText, AlertTriangle, Activity, ShieldAlert } from 'lucide-react';
+import { Info, Users, AlertTriangle, Activity, ShieldAlert } from 'lucide-react';
 import {
   BarChart,
   Bar,

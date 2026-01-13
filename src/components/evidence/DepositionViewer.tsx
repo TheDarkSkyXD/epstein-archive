@@ -5,7 +5,7 @@
  */
 
 import React, { useState } from 'react';
-import { Scale, User, Calendar, Search } from 'lucide-react';
+import { Scale, Search } from 'lucide-react';
 
 interface DepositionViewerProps {
   evidence: {

@@ -1,5 +1,3 @@
-import fs from 'fs';
-
 export const validateEnvironment = () => {
   const requiredVars = ['DB_PATH', 'RAW_CORPUS_BASE_PATH'];
   const missing = requiredVars.filter((key) => !process.env[key]);

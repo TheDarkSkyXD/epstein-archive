@@ -1,13 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AudioPlayer, TranscriptSegment, Chapter } from './AudioPlayer';
-import {
-  Music,
-  Clock,
-  Calendar,
-  CheckSquare,
-  Square,
-  AlertTriangle,
-} from 'lucide-react';
+import { Music, Clock, Calendar, CheckSquare, Square, AlertTriangle } from 'lucide-react';
 import { SensitiveContent } from './SensitiveContent';
 import BatchToolbar from './BatchToolbar';
 import Icon from './Icon';

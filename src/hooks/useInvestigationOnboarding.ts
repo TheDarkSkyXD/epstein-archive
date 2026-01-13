@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 export const useInvestigationOnboarding = () => {
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean>(() => {

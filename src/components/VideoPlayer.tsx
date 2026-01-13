@@ -1,13 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import {
-  Play,
-  Pause,
-  Volume2,
-  VolumeX,
-  Maximize2,
-  X,
-  Minimize2,
-} from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Maximize2, X, Minimize2 } from 'lucide-react';
 import { TranscriptSegment, Chapter } from './AudioPlayer'; // Reuse types
 
 interface VideoPlayerProps {

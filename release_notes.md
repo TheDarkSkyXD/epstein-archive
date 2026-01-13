@@ -1,14 +1,32 @@
 # Release Notes
 
-## V10.1.18 (January 13, 2026)
+## v10.1.19 (2025-01-14) - Zero Legacy & Sascha Investigation Focus
 
-### 🛡️ Ingestion Hardening
+### 🚀 Major Improvements
+- **Zero Legacy Code**: Purged over 60 unused/legacy scripts from the codebase (`src/scripts/*`, `scripts/*.ts`).
+- **Code-First Database**: Implemented `seed:structure` to enforce critical data (Albums, Featured Content) existence on every deploy.
+- **Unified Schema**: Consolidated `media_*` tables into the main `schema.sql` (Single Source of Truth).
 
-- **Centralized Filtering**: Implemented a master blocklist for data ingestion to prevent junk entities from entering the system.
-- **Ingestion Logic Improved**: `ingest_intelligence` now strictly filters generic terms, legal jargon, and partial OCR headers using robust regex patterns.
-- **Cleanup Synced**: The maintenance cleanup script now shares the same logic, preventing "zombie" junk entities from reappearing.
+### ✨ Features
+- **Featured Investigation**: New homepage banner for "The Sascha Barros Testimony".
+- **Audio Experience**: Direct linking to albums (`?albumId=25`) and auto-play support.
+- **Transcript Access**: Direct linking to search (`?q=Sascha`) for transcripts.
+- **Junk Filtering**: Strict quality filters on homepage to hide low-relevance entities.
 
-## V10.1.17 (January 13, 2026)
+### 🐛 Fixes
+- Fixed `release_notes.md` duplicate history.
+- Fixed UI clipping on Media footer.
+- Fixed Audio Browser icon rendering issues.
+
+---
+
+## v10.1.18 (2025-01-14) - Ingestion Hardening
+- **Centralized Blacklist**: Added `src/config/entityBlacklist.ts` for unified junk filtering.
+- **Optimized Cleanup**: Updated `final_cleanup.ts` to use shared configuration.
+
+---
+
+## v10.1.17 (January 13, 2026)
 
 ### 🧹 Integrity Update
 

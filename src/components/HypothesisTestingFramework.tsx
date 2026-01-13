@@ -1,17 +1,5 @@
 import React, { useState, useEffect } from 'react';
-// TODO: Add hypothesis tracking indicators - see UNUSED_VARIABLES_RECOMMENDATIONS.md
-import {
-  Target,
-  Plus,
-  Edit3,
-  Trash2,
-  Link,
-  TrendingUp as _TrendingUp,
-  Calendar as _Calendar,
-  User,
-  FileText,
-  AlertTriangle as _AlertTriangle,
-} from 'lucide-react';
+import { Target, Plus, Edit3, Trash2, Link, User, FileText } from 'lucide-react';
 import { EvidenceItem, Hypothesis as BaseHypothesis } from '../types/investigation';
 
 // Extended Hypothesis type with additional fields for testing

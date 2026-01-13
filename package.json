@@ -13,7 +13,7 @@
     "api": "DB_PATH=./epstein-archive.db tsx src/server.ts",
     "preview": "vite preview",
     "migrate": "DB_PATH=./epstein-archive.db tsx scripts/migrate.ts",
-    "backfill": "DB_PATH=./epstein-archive.db tsx scripts/backfill_mentions.ts",
+    "seed:structure": "DB_PATH=./epstein-archive.db tsx scripts/ensure_structure.ts",
     "verify": "DB_PATH=./epstein-archive.db tsx scripts/verify_deployment.ts",
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",

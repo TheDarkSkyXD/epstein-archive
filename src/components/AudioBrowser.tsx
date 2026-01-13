@@ -1,13 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AudioPlayer, TranscriptSegment, Chapter } from './AudioPlayer';
-import {
-  Music,
-  Clock as _Clock,
-  Calendar as _Calendar,
-  CheckSquare,
-  Square,
-  AlertTriangle,
-} from 'lucide-react';
+import { Music, CheckSquare, Square, AlertTriangle } from 'lucide-react';
 import { SensitiveContent } from './SensitiveContent';
 import BatchToolbar from './BatchToolbar';
 import Icon from './Icon';
@@ -42,10 +35,25 @@ interface Album {
   sensitiveCount?: number;
 }
 
-export const AudioBrowser: React.FC = () => {
+interface AudioBrowserProps {
+  initialAlbumId?: number;
+}
+
+export const AudioBrowser: React.FC<AudioBrowserProps> = ({ initialAlbumId }) => {
   const [items, setItems] = useState<AudioItem[]>([]);
   const [albums, setAlbums] = useState<Album[]>([]);
   const [selectedAlbum, setSelectedAlbum] = useState<number | null>(null);
+
+  // Effect to select album when loaded if initialAlbumId is provided
+  useEffect(() => {
+    if (initialAlbumId && albums.length > 0 && selectedAlbum === null) {
+      const match = albums.find(a => a.id === initialAlbumId);
+      if (match) {
+        console.log(`Selecting requested album: ${match.name} (${match.id})`);
+        setSelectedAlbum(match.id);
+      }
+    }
+  }, [initialAlbumId, albums, selectedAlbum]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<AudioItem | null>(null);

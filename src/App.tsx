@@ -56,12 +56,6 @@ const DocumentBrowser = lazy(() =>
 const DocumentModal = lazy(() =>
   import('./components/DocumentModal').then((module) => ({ default: module.DocumentModal })),
 );
-const _Timeline = lazy(() =>
-  import('./components/Timeline').then((module) => ({ default: module.Timeline })),
-);
-const _DocumentUploader = lazy(() =>
-  import('./components/DocumentUploader').then((module) => ({ default: module.DocumentUploader })),
-);
 const InvestigationWorkspace = lazy(() =>
   import('./components/InvestigationWorkspace').then((module) => ({
     default: module.InvestigationWorkspace,
@@ -493,7 +487,7 @@ function App() {
   });
   const [isInitializing, setIsInitializing] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState<string>('Initializing...');
-  const [_loadingProgressValue, setLoadingProgressValue] = useState<number>(0);
+  const [, setLoadingProgressValue] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [totalPeople, setTotalPeople] = useState(0);
@@ -544,7 +538,7 @@ function App() {
 
         // Cache first page for next load
         try {
-          localStorage.setItem('epstein_archive_people_page1_v5_3_4', JSON.stringify(normalized));
+          localStorage.setItem('epstein_archive_people_page1_v10_1_18', JSON.stringify(normalized));
         } catch (e) {
           console.error('Error caching people data:', e);
         }
@@ -596,7 +590,7 @@ function App() {
         // Only update if changed to prevent animation restart
         setDataStats((prev: typeof newStats) => {
           if (JSON.stringify(prev) !== JSON.stringify(newStats)) {
-            localStorage.setItem('epstein_archive_stats_v5_3_4', JSON.stringify(newStats));
+            localStorage.setItem('epstein_archive_stats_v10_1_18', JSON.stringify(newStats));
             return newStats;
           }
           return prev;
@@ -683,7 +677,7 @@ function App() {
   }, [investigatePopoverOpen]);
 
   const [documentLoadingProgress, setDocumentLoadingProgress] = useState<string>('');
-  const [_documentLoadingProgressValue, setDocumentLoadingProgressValue] = useState<number>(0);
+  const [, setDocumentLoadingProgressValue] = useState<number>(0);
 
   useEffect(() => {
     // Initialize document processor with REAL database documents
@@ -954,18 +948,6 @@ function App() {
 
     console.log('=== handleDocumentClick END ===');
   }, []);
-
-  const _handleDocumentsUploaded = useCallback(
-    (count: number) => {
-      console.log(`Uploaded and processed ${count} documents`);
-      // Refresh the document processor if needed
-      if (documentProcessor) {
-        // The DocumentBrowser will automatically update when the processor changes
-        console.log('Document processor updated with new documents');
-      }
-    },
-    [documentProcessor],
-  );
 
   const { user: currentUser, isAdmin } = useAuth();
 
@@ -1618,6 +1600,52 @@ function App() {
                             </button>
                           </div>
                         </div>
+
+                        {/* Featured Content Banner - Only on Page 1 Default View */}
+                        {currentPage === 1 && !searchTerm && !entityType && (
+                          <div className="mb-8 rounded-xl border border-blue-500/30 bg-gradient-to-r from-blue-900/40 to-slate-900/40 p-6 shadow-lg backdrop-blur-sm relative overflow-hidden group">
+                            <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className="px-2 py-0.5 rounded text-xs font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30 shadow-[0_0_10px_rgba(59,130,246,0.2)]">
+                                    NEW INVESTIGATION
+                                  </span>
+                                  <span className="px-2 py-0.5 rounded text-xs font-bold bg-red-500/20 text-red-300 border border-red-500/30 flex items-center gap-1">
+                                    <span className="animate-pulse">●</span> HIGH PRIORITY
+                                  </span>
+                                </div>
+                                <h2 className="text-2xl font-bold text-white mb-2 tracking-tight group-hover:text-blue-200 transition-colors">
+                                  The Sascha Barros Testimony
+                                </h2>
+                                <p className="text-slate-300 max-w-2xl leading-relaxed">
+                                  Exclusive 6-part interview series revealing critical new details about the network's operation. 
+                                  Includes full audio recordings and searchable precision transcripts.
+                                </p>
+                              </div>
+                              <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto mt-4 md:mt-0">
+                                <button
+                                  onClick={() => navigate('/media/audio?albumId=25')} 
+                                  className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold shadow-lg shadow-blue-900/20 transition-all hover:scale-105 active:scale-95 group/btn"
+                                >
+                                  <svg className="w-5 h-5 fill-current group-hover/btn:scale-110 transition-transform" viewBox="0 0 24 24">
+                                    <path d="M8 5v14l11-7z" />
+                                  </svg>
+                                  Listen to Interviews
+                                </button>
+                                <button
+                                  onClick={() => navigate('/media/articles?q=Sascha%20Barros')} 
+                                  className="flex items-center justify-center gap-2 px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg font-medium transition-all hover:bg-slate-750"
+                                >
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                  </svg>
+                                  Read Transcripts
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
 
                         {/* People Grid - Use virtualization for large datasets */}
                         {loading ? (

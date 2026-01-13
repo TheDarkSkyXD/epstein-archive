@@ -1,23 +1,5 @@
 import React, { useState } from 'react';
-// TODO: Add report export and sharing features - see UNUSED_VARIABLES_RECOMMENDATIONS.md
-import {
-  FileText,
-  Download as _Download,
-  Printer,
-  Share2 as _Share2,
-  Mail as _Mail,
-  Calendar,
-  User as _User,
-  Building as _Building,
-  DollarSign as _DollarSign,
-  AlertTriangle as _AlertTriangle,
-  CheckCircle,
-  Clock as _Clock,
-  TrendingUp as _TrendingUp,
-  FileSpreadsheet as _FileSpreadsheet,
-  FileJson,
-  FileArchive as _FileArchive,
-} from 'lucide-react';
+import { FileText, Printer, Calendar, CheckCircle, FileJson } from 'lucide-react';
 
 interface ReportSection {
   id: string;
@@ -72,8 +54,6 @@ export default function ForensicReportGenerator({
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
   const [reportTitle, setReportTitle] = useState('');
-  // TODO: Add custom sections feature - see UNUSED_VARIABLES_RECOMMENDATIONS.md
-  const [_customSections, _setCustomSections] = useState<string[]>([]);
   const [includeEvidence, setIncludeEvidence] = useState(true);
   const [includeCharts, setIncludeCharts] = useState(true);
   const [classification, setClassification] = useState<string>('confidential');

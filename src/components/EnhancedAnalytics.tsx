@@ -1,14 +1,5 @@
 import React, { useState, useEffect } from 'react';
-// TODO: Use TrendingUp icon for analytics - see UNUSED_VARIABLES_RECOMMENDATIONS.md
-import {
-  Info,
-  FileText as _FileText,
-  Users,
-  TrendingUp as _TrendingUp,
-  Shield,
-  Database,
-  Activity,
-} from 'lucide-react';
+import { Info, Users, Shield, Database, Activity } from 'lucide-react';
 import { SunburstChart } from './SunburstChart';
 import { AreaTimeline } from './AreaTimeline';
 import { NetworkGraph } from './NetworkGraph';

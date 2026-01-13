@@ -283,8 +283,7 @@ deploy_to_production() {
             sqlite3 epstein-archive.db < schema.sql
         fi
         echo '🔄 Running migrations...' &&
-        # Run any necessary schema updates safely
-        # sqlite3 epstein-archive.db < scripts/deploy_media_schema.sql # Only run if idempotent or needed
+        npm run seed:structure &&
         echo '🚀 Starting application...' &&
         pm2 reload ecosystem.config.cjs --env production --update-env || pm2 start ecosystem.config.cjs --env production &&
         pm2 save

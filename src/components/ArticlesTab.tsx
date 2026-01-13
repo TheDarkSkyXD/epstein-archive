@@ -7,7 +7,13 @@ export const ArticlesTab: React.FC = () => {
   const [articles, setArticles] = useState<Article[]>([]);
   const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+
+  // Initialize from URL param
+  const [searchTerm, setSearchTerm] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('q') || '';
+  });
+  
   const [selectedPublication, setSelectedPublication] = useState<string>('all');
   const [viewerArticle, setViewerArticle] = useState<any | null>(null);
 

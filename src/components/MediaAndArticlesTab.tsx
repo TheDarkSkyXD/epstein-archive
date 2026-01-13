@@ -85,7 +85,7 @@ export const MediaAndArticlesTab: React.FC = () => {
       </div>
 
       {/* Content with Suspense boundary - Use flex-grow to fill remaining space */}
-      <div className="flex-grow relative min-h-0">
+      <div className="flex-grow relative min-h-0 overflow-y-auto">
         <Suspense
           fallback={
             <div className="absolute inset-0 flex items-center justify-center">
@@ -93,10 +93,12 @@ export const MediaAndArticlesTab: React.FC = () => {
             </div>
           }
         >
-          {activeSubTab === 'articles' && <ArticlesTab />}
-          {activeSubTab === 'photos' && <MediaTab />}
-          {activeSubTab === 'audio' && <AudioTab />}
-          {activeSubTab === 'video' && <VideoTab />}
+          <div className="min-h-full flex flex-col">
+             {activeSubTab === 'articles' && <ArticlesTab />}
+             {activeSubTab === 'photos' && <MediaTab />}
+             {activeSubTab === 'audio' && <AudioTab />}
+             {activeSubTab === 'video' && <VideoTab />}
+          </div>
         </Suspense>
       </div>
     </div>

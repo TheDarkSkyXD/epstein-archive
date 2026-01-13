@@ -2,8 +2,6 @@ import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FileText, Tag, Download, Eye } from 'lucide-react';
-// TODO: Apply OCR prettification - see UNUSED_VARIABLES_RECOMMENDATIONS.md
-// import { prettifyOCRText } from '../utils/prettifyOCR';
 import { apiClient } from '../services/apiClient';
 import { DocumentMetadataPanel } from './DocumentMetadataPanel';
 import { MediaViewer } from './MediaViewer';
@@ -17,18 +15,6 @@ interface Props {
   onClose: () => void;
   initialDoc?: any;
 }
-
-// TODO: Implement search highlighting - see UNUSED_VARIABLES_RECOMMENDATIONS.md
-const _highlight = (text: string, term?: string) => {
-  if (!term || !text) return text;
-  try {
-    const esc = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const rx = new RegExp(`(${esc})`, 'gi');
-    return text.replace(rx, '<mark class="bg-yellow-500 text-black px-1 rounded">$1</mark>');
-  } catch {
-    return text;
-  }
-};
 
 export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initialDoc }) => {
   const location = useLocation();
@@ -56,8 +42,6 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
   };
 
   const [doc, setDoc] = useState<any | null>(initialDoc || null);
-  // TODO: Implement inline media viewer - see UNUSED_VARIABLES_RECOMMENDATIONS.md
-  const [_showMediaViewer, _setShowMediaViewer] = useState(false);
   const [showRaw, setShowRaw] = useState(false);
   const [selectedEntity, setSelectedEntity] = useState<any | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);

@@ -1,10 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import * as d3Selection from 'd3-selection';
-// TODO: Implement advanced scaling features - see UNUSED_VARIABLES_RECOMMENDATIONS.md
-// import * as d3Scale from 'd3-scale';
 import * as d3Quadtree from 'd3-quadtree';
-// TODO: Add graph controls - see UNUSED_VARIABLES_RECOMMENDATIONS.md
-// import { ZoomIn, ZoomOut, RefreshCw, Maximize, Filter } from 'lucide-react';
 
 export interface Entity {
   id: string;
@@ -37,12 +33,10 @@ interface EntityRelationshipMapperProps {
   onRelationshipSelect?: (relationship: Relationship) => void;
 }
 
-// TODO: Implement relationship selection - see UNUSED_VARIABLES_RECOMMENDATIONS.md
 export const EntityRelationshipMapper: React.FC<EntityRelationshipMapperProps> = ({
   entities,
   relationships,
   onEntitySelect,
-  onRelationshipSelect: _onRelationshipSelect,
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);

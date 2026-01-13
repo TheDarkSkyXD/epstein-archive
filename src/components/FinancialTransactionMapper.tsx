@@ -1,22 +1,14 @@
 import React, { useState, useEffect } from 'react';
-// TODO: Use additional icons for enhanced financial transaction display
 import {
   TrendingUp,
   TrendingDown,
   DollarSign,
-  Clock as _Clock,
-  User as _User,
-  Building as _Building,
   AlertTriangle,
   Filter,
-  Download as _Download,
-  Search as _Search,
   Calendar,
-  MapPin as _MapPin,
   Shield,
   ShieldAlert,
   ShieldCheck,
-  X as _X,
 } from 'lucide-react';
 import Icon from './Icon';
 import { AddToInvestigationButton } from './AddToInvestigationButton';
@@ -70,9 +62,8 @@ export default function FinancialTransactionMapper({
   const [filterAmount, setFilterAmount] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
-  // TODO: Implement loading and error states - see UNUSED_VARIABLES_RECOMMENDATIONS.md
-  const [_loading, setLoading] = useState(true);
-  const [_error, setError] = useState<string | null>(null);
+  const [, setLoading] = useState(true);
+  const [, setError] = useState<string | null>(null);
 
   // Fetch real transaction data from API
   useEffect(() => {

@@ -1,3 +1,17 @@
+# Release Notes
+
+## V10.1.1 (January 13, 2026)
+### 🧠 Intelligence Pipeline Restoration
+*   **Restored Ultimate Pipeline**: Re-implemented the sophisticated `ingest_intelligence` module to handle entity extraction, normalization, and consolidation automatically.
+*   **Entity Enrichment**: processed the entire document corpus to identify over **45,000 new entities** (Locations, Organizations, People) and map nearly **2 million co-occurrence relationships**.
+*   **Junk Filtering**: Implemented strict OCR junk filtering to prevent "noise" entities.
+*   **Consolidation**: Cleaned up duplicate "Jeffrey Epstein" entities and merged thousands of mentions.
+
+### 🧹 Tech Debt Cleanup
+*   **Unified Ingestion**: Merged ingestion and intelligence steps into a single streamlined command.
+*   **Archive Removal**: Deleted legacy and one-off scripts to maintain a clean project structure.
+
+---
 # 📣 Epstein Archive V10.1.0 - Media Unification & Audio Intelligence
 _Released: Jan 13, 2026_
 

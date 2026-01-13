@@ -1,5 +1,15 @@
 # Release Notes
 
+## V10.1.10 (January 13, 2026)
+### 🏷️ Entity Tagging
+*   **Sascha Barron Testimony Tags**: Explicitly linked Donald Trump, Andy Biggs, Lindsey Graham, Jim Jordan, Clarence Thomas, William Kyle Riley, and Sascha Barron to the testimony audio files.
+*   **Searchability**: Testimony now appears on the profile cards of all involved figures.
+
+## V10.1.9 (January 13, 2026)
+### 🎙️ Timed Transcripts
+*   **Precision Audio Sync**: Implemented sub-second timing.
+# Release Notes
+
 ## V10.1.9 (January 13, 2026)
 ### 🎙️ Timed Transcripts
 *   **Precision Audio Sync**: Implemented sub-second timing for the Sascha Barron testimony transcripts. Users can now click any sentence to jump to that moment in the audio.

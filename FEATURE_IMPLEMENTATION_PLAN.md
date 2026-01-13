@@ -11,21 +11,26 @@ This document catalogs all unused variables discovered during the linting cleanu
 ## Feature Categories & Prioritization
 
 ### Priority 1: Core Investigation Features (HIGH IMPACT)
+
 These features directly enhance the investigation workflow and user experience.
 
 #### 1.1 Chain of Custody Tracking
+
 **Impact:** Critical for legal admissibility
 **Complexity:** Medium
 **Files Affected:**
+
 - `InvestigationWorkspace.tsx` - Modal integration
 - `evidenceChainService` - Service implementation
 
 **Unused Variables:**
+
 - `ChainOfCustodyModal` component
 - `evidenceChainService` instance
 - `custodyEvidenceId` state
 
 **Implementation Steps:**
+
 1. Create chain of custody modal UI
 2. Implement custody transfer workflow
 3. Add custody history timeline
@@ -37,10 +42,12 @@ These features directly enhance the investigation workflow and user experience.
 ---
 
 #### 1.2 Evidence Management
+
 **Impact:** High - Core functionality
 **Complexity:** Medium
 
 **Features to Implement:**
+
 - Evidence detail view (`selectedEvidence` state)
 - Evidence removal UI (`removeEvidence` function)
 - Evidence loading states (`evidenceLoading`)
@@ -49,10 +56,12 @@ These features directly enhance the investigation workflow and user experience.
 - Evidence deletion (`Trash2` icon)
 
 **Files Affected:**
+
 - `InvestigationEvidencePanel.tsx`
 - `AddToInvestigationButton.tsx`
 
 **Implementation Steps:**
+
 1. Create evidence detail modal/panel
 2. Implement CRUD operations UI
 3. Add confirmation dialogs
@@ -64,10 +73,12 @@ These features directly enhance the investigation workflow and user experience.
 ---
 
 #### 1.3 Timeline Event Management
+
 **Impact:** High - Core feature
 **Complexity:** High
 
 **Features to Implement:**
+
 - Event selection/detail view (`selectedEvent`)
 - Auto-generated titles (`generateEventTitle`)
 - Auto-generated descriptions (`generateEventDescription`, `_generateDescription`)
@@ -77,11 +88,13 @@ These features directly enhance the investigation workflow and user experience.
 - Date parsing (`parseDate`, `_parseDate`)
 
 **Files Affected:**
+
 - `Timeline.tsx`
 - `InvestigationTimelineBuilder.tsx`
 - `timelineRepository.ts`
 
 **Implementation Steps:**
+
 1. Consolidate all timeline utilities into a single service
 2. Implement auto-generation logic for titles/descriptions
 3. Add event detail panel
@@ -95,10 +108,12 @@ These features directly enhance the investigation workflow and user experience.
 ### Priority 2: Forensic Analysis Tools (MEDIUM-HIGH IMPACT)
 
 #### 2.1 Document Analysis Enhancement
+
 **Impact:** Medium-High
 **Complexity:** High
 
 **Features to Implement:**
+
 - OCR prettification (`prettifyOCRText`)
 - Search highlighting (`highlight` function)
 - Document metadata display (`metadata` icons)
@@ -107,12 +122,14 @@ These features directly enhance the investigation workflow and user experience.
 - Date formatting (`format` from date-fns)
 
 **Files Affected:**
+
 - `ForensicDocumentAnalyzer.tsx`
 - `DocumentModal.tsx`
 - `DocumentBrowser.tsx`
 - `DocumentMetadataPanel.tsx`
 
 **Implementation Steps:**
+
 1. Implement OCR text cleanup algorithm
 2. Add search term highlighting to document viewer
 3. Create metadata sidebar with icons
@@ -124,10 +141,12 @@ These features directly enhance the investigation workflow and user experience.
 ---
 
 #### 2.2 Network Visualization
+
 **Impact:** Medium
 **Complexity:** High
 
 **Features to Implement:**
+
 - Relationship selection (`onRelationshipSelect`)
 - Advanced scaling (`d3Scale`)
 - Graph controls (`ZoomIn`, `ZoomOut`, `RefreshCw`, `Maximize`, `Filter`)
@@ -138,11 +157,13 @@ These features directly enhance the investigation workflow and user experience.
 - Space key pan mode (`spacePressed`)
 
 **Files Affected:**
+
 - `EntityRelationshipMapper.tsx`
 - `NetworkVisualization.tsx`
 - `NetworkGraph.tsx`
 
 **Implementation Steps:**
+
 1. Add graph control toolbar
 2. Implement zoom/pan controls
 3. Add relationship click handlers
@@ -154,20 +175,24 @@ These features directly enhance the investigation workflow and user experience.
 ---
 
 #### 2.3 Financial Analysis
+
 **Impact:** Medium-High
 **Complexity:** Medium
 
 **Features to Implement:**
+
 - Transaction tracking (`investigation`, `evidence` props)
 - Search and filtering (`Search`, `Filter`, `X` icons)
 - Flow visualization
 - Loading/error states
 
 **Files Affected:**
+
 - `FinancialTransactionAnalysis.tsx`
 - `FinancialTransactionMapper.tsx`
 
 **Implementation Steps:**
+
 1. Connect to real transaction data
 2. Implement search UI
 3. Add transaction filters
@@ -181,18 +206,22 @@ These features directly enhance the investigation workflow and user experience.
 ### Priority 3: UI/UX Enhancements (MEDIUM IMPACT)
 
 #### 3.1 Pattern Recognition & AI
+
 **Impact:** Medium
 **Complexity:** High
 
 **Features to Implement:**
+
 - Pattern visualization (`TrendingUp`, `AlertTriangle`, `FileText`)
 - Severity indicators
 - Investigation context integration
 
 **Files Affected:**
+
 - `PatternRecognitionAI.tsx`
 
 **Implementation Steps:**
+
 1. Implement pattern detection algorithms
 2. Add visualization components
 3. Integrate with investigation context
@@ -204,17 +233,21 @@ These features directly enhance the investigation workflow and user experience.
 ---
 
 #### 3.2 Hypothesis Testing
+
 **Impact:** Medium
 **Complexity:** Medium
 
 **Features to Implement:**
+
 - Confidence calculation (`_updateHypothesisConfidence`, `_calculateOverallConfidence`)
 - Tracking indicators (`TrendingUp`, `Calendar`, `AlertTriangle`)
 
 **Files Affected:**
+
 - `HypothesisTestingFramework.tsx`
 
 **Implementation Steps:**
+
 1. Implement confidence calculation algorithm
 2. Add visual confidence indicators
 3. Create hypothesis timeline
@@ -225,20 +258,24 @@ These features directly enhance the investigation workflow and user experience.
 ---
 
 #### 3.3 Report Generation
+
 **Impact:** Medium
 **Complexity:** Low
 
 **Features to Implement:**
+
 - Report export (`Download`, `Share2`, `Mail`)
 - Custom sections (`_customSections`)
 - Target audience styling (`getTargetAudienceColor`)
 - Multiple export formats
 
 **Files Affected:**
+
 - `ForensicReportGenerator.tsx`
 - `InvestigationExportTools.tsx`
 
 **Implementation Steps:**
+
 1. Implement PDF export
 2. Add CSV/JSON export
 3. Create custom section builder
@@ -250,10 +287,12 @@ These features directly enhance the investigation workflow and user experience.
 ---
 
 #### 3.4 Investigation UI Polish
+
 **Impact:** Low-Medium
 **Complexity:** Low
 
 **Features to Implement:**
+
 - Example investigations (`showExampleInvestigation`, `_createExampleInvestigation`)
 - Forensic tools collapsible (`_forensicToolsCollapsed`)
 - Onboarding flow
@@ -262,10 +301,12 @@ These features directly enhance the investigation workflow and user experience.
 - Filter UI (`Filter` icons)
 
 **Files Affected:**
+
 - `InvestigationWorkspace.tsx`
 - `InvestigationExportTools.tsx`
 
 **Implementation Steps:**
+
 1. Create example investigation templates
 2. Add panel collapse animations
 3. Build onboarding tour
@@ -279,21 +320,25 @@ These features directly enhance the investigation workflow and user experience.
 ### Priority 4: Search & Navigation (MEDIUM IMPACT)
 
 #### 4.1 Enhanced Search
+
 **Impact:** Medium
 **Complexity:** Medium
 
 **Features to Implement:**
+
 - Mobile search (`searchTerm`, `onSearchTermChange` in `MobileMenu`)
 - Global search modal close (`X` icon)
 - FTS (Full-Text Search) (`useFts`)
 - Search highlighting
 
 **Files Affected:**
+
 - `MobileMenu.tsx`
 - `GlobalSearch.tsx`
 - `documentsRepository.ts`
 
 **Implementation Steps:**
+
 1. Enable FTS in SQLite
 2. Implement mobile search UI
 3. Add search result highlighting
@@ -305,20 +350,24 @@ These features directly enhance the investigation workflow and user experience.
 ---
 
 #### 4.2 Document Navigation
+
 **Impact:** Medium
 **Complexity:** Low
 
 **Features to Implement:**
+
 - Document click handlers (`onDocumentClick`)
 - Document collections (`collection`, `_setCollection`)
 - Document card view (`_DocumentCard`)
 
 **Files Affected:**
+
 - `PersonCard.tsx`
 - `PersonCardRefined.tsx`
 - `DocumentBrowser.tsx`
 
 **Implementation Steps:**
+
 1. Implement document detail routing
 2. Create collection management
 3. Build card/list view toggle
@@ -331,20 +380,24 @@ These features directly enhance the investigation workflow and user experience.
 ### Priority 5: Infrastructure & Polish (LOW-MEDIUM IMPACT)
 
 #### 5.1 Authentication & Security
+
 **Impact:** Low (already working)
 **Complexity:** Low
 
 **Features to Implement:**
+
 - Loading state display (`_isLoading`)
 - Error message UI (`_error`)
 - Security logging (`password_hash` in logs)
 
 **Files Affected:**
+
 - `AuthContext.tsx`
 - `AdminDashboard.tsx`
 - `routes.ts`
 
 **Implementation Steps:**
+
 1. Add loading spinners
 2. Create error toast system
 3. Implement security audit logging
@@ -355,21 +408,25 @@ These features directly enhance the investigation workflow and user experience.
 ---
 
 #### 5.2 Media Viewer
+
 **Impact:** Low
 **Complexity:** Low
 
 **Features to Implement:**
+
 - Metadata display (`Calendar`, `MapPin`)
 - Rotation controls (`RotateCcw`)
 - Inline viewer (`_showMediaViewer`)
 - Filtering state (`_useState` in `MediaTab`)
 
 **Files Affected:**
+
 - `MediaViewerModal.tsx`
 - `MediaTab.tsx`
 - `DocumentModal.tsx`
 
 **Implementation Steps:**
+
 1. Add EXIF metadata display
 2. Implement image rotation
 3. Create inline viewer mode
@@ -380,10 +437,12 @@ These features directly enhance the investigation workflow and user experience.
 ---
 
 #### 5.3 UI Components & Polish
+
 **Impact:** Low
 **Complexity:** Low
 
 **Features to Implement:**
+
 - Table metadata hints (`_metadata` in `TableViewer`)
 - Stats display (`_totalMentionsCount`)
 - TreeMap tooltips (`_percentage`)
@@ -393,9 +452,11 @@ These features directly enhance the investigation workflow and user experience.
 - Card grid layout (`CardGrid`)
 
 **Files Affected:**
+
 - Various UI components
 
 **Implementation Steps:**
+
 1. Add metadata-driven table parsing
 2. Display statistics
 3. Add tooltips
@@ -409,19 +470,23 @@ These features directly enhance the investigation workflow and user experience.
 ### Priority 6: Correlation & Advanced Analysis (LOW IMPACT)
 
 #### 6.1 Multi-Source Correlation
+
 **Impact:** Low-Medium
 **Complexity:** High
 
 **Features to Implement:**
+
 - Mock correlations (`_generateMockCorrelations`)
 - Filtering UI (`Filter`)
 - Timeline features (`Clock`)
 - Phone/communication analysis (`Phone`)
 
 **Files Affected:**
+
 - `MultiSourceCorrelationEngine.tsx`
 
 **Implementation Steps:**
+
 1. Implement correlation algorithms
 2. Add filter interface
 3. Create timeline integration
@@ -432,21 +497,25 @@ These features directly enhance the investigation workflow and user experience.
 ---
 
 #### 6.2 Memory & Relationship Analysis
+
 **Impact:** Low
 **Complexity:** Medium
 
 **Features to Implement:**
+
 - Memory editing (`_updateMemoryEntry`)
 - Overall quality score (`_overallScore`)
 - Graph filters (`_filters`)
 - Related entities (`entities` prop)
 
 **Files Affected:**
+
 - `MemoryDashboard.tsx`
 - `memoryRepository.ts`
 - `relationshipsRepository.ts`
 
 **Implementation Steps:**
+
 1. Implement memory CRUD
 2. Add quality scoring
 3. Create graph filter UI
@@ -459,6 +528,7 @@ These features directly enhance the investigation workflow and user experience.
 ## Deletion Candidates (Safe to Remove)
 
 ### Immediate Deletion (No Feature Loss)
+
 1. **Duplicate implementations:**
    - PersonCard.tsx vs PersonCardRefined.tsx (keep refined)
    - Multiple date parser implementations (consolidate)
@@ -482,6 +552,7 @@ These features directly enhance the investigation workflow and user experience.
    - Example investigation generators (move to JSON)
 
 ### Defer Deletion (Feature Implementation Required)
+
 1. **Event/Document helpers** - Consolidate first, then remove originals
 2. **Graph/Network controls** - Keep structure, remove after toolbar built
 3. **State management** - Keep hooks, remove after features wired
@@ -491,6 +562,7 @@ These features directly enhance the investigation workflow and user experience.
 ## Implementation Roadmap
 
 ### Phase 1: Foundation (Weeks 1-2)
+
 **Goal:** Enable core investigation workflow
 
 1. Chain of Custody (1.1)
@@ -504,6 +576,7 @@ These features directly enhance the investigation workflow and user experience.
 ---
 
 ### Phase 2: Analysis Tools (Weeks 3-5)
+
 **Goal:** Robust forensic analysis capabilities
 
 1. Document Analysis (2.1)
@@ -517,6 +590,7 @@ These features directly enhance the investigation workflow and user experience.
 ---
 
 ### Phase 3: Intelligence Features (Weeks 6-8)
+
 **Goal:** AI-powered insights
 
 1. Pattern Recognition (3.1)
@@ -530,6 +604,7 @@ These features directly enhance the investigation workflow and user experience.
 ---
 
 ### Phase 4: Polish & Integration (Weeks 9-10)
+
 **Goal:** Professional, polished product
 
 1. Report Generation (3.3)

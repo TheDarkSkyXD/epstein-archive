@@ -162,7 +162,7 @@ async function ingestAudio() {
 
   let added = 0;
   let updated = 0;
-  let skipped = 0;
+  const skipped = 0;
 
   for (const file of files) {
     const fullPath = path.join(AUDIO_ROOT, file);
@@ -173,7 +173,9 @@ async function ingestAudio() {
     if (existing) {
       try {
         existingMeta = JSON.parse(existing.metadata_json || '{}');
-      } catch (e) {}
+      } catch {
+        // JSON parse failed, use empty object
+      }
     }
 
     const filename = path.basename(file);
@@ -182,7 +184,7 @@ async function ingestAudio() {
     const title = path.basename(file, '.' + ext);
 
     // Initial metadata structure
-    let metadata: any = {
+    const metadata: any = {
       format: ext,
       duration: existingMeta.duration || 0,
       transcript: existingMeta.transcript || [],

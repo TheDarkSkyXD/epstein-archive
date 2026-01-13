@@ -1,5 +1,15 @@
 # Release Notes
 
+## V10.1.4 (January 13, 2026)
+### 🐛 UI Bug Fixes
+*   **Removed Broken Particle Effect**: Fixed an issue where floating UI particles caused visual glitching and blocked interaction on the media page.
+*   **Performance Stability**: Improved rendering performance by removing unstable background animations.
+
+## V10.1.3 (January 13, 2026)
+### 🚑 Emergency Data Quality Fix
+*   **Junk Eradication**: Detected and removed **4,000+** junk entities including banking boilerplate and artifacts.
+# Release Notes
+
 ## V10.1.3 (January 13, 2026)
 ### 🚑 Emergency Data Quality Fix
 *   **Junk Eradication**: Detected and removed **4,000+** junk entities including banking boilerplate ("Interest Checking", "Ending Balance"), search warrant artifacts ("Premises Known", "Seized File"), and OCR grammatical noise ("Of The", "To Be").

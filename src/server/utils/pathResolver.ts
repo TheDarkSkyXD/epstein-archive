@@ -1,0 +1,83 @@
+import path from 'path';
+import fs from 'fs';
+
+/**
+ * Resolves a database file path to an absolute filesystem path.
+ * Handles various path formats stored in the database:
+ * - /data/... paths (leading slash)
+ * - data/... paths (no leading slash)
+ * - Absolute paths
+ * - Relative paths
+ *
+ * @param dbPath - The path stored in the database
+ * @param fallbackDir - Optional fallback directory for relative paths (defaults to 'data')
+ * @returns The resolved absolute path
+ */
+export function resolveMediaPath(dbPath: string, fallbackDir: string = 'data'): string {
+  if (!dbPath) {
+    return '';
+  }
+
+  const cwd = process.cwd();
+
+  // Path starting with /data/ - resolve relative to cwd
+  if (dbPath.startsWith('/data/')) {
+    return path.join(cwd, dbPath.substring(1));
+  }
+
+  // Path starting with data/ - resolve relative to cwd
+  if (dbPath.startsWith('data/')) {
+    return path.join(cwd, dbPath);
+  }
+
+  // Path starting with /thumbnails/ - resolve relative to data dir
+  if (dbPath.startsWith('/thumbnails/')) {
+    return path.join(cwd, 'data', dbPath.substring(1));
+  }
+
+  // Absolute path - use as-is
+  if (path.isAbsolute(dbPath)) {
+    return dbPath;
+  }
+
+  // Relative path - resolve relative to fallback directory
+  return path.join(cwd, fallbackDir, dbPath);
+}
+
+/**
+ * Checks if a file exists at the resolved path.
+ *
+ * @param dbPath - The path stored in the database
+ * @param fallbackDir - Optional fallback directory for relative paths
+ * @returns Object with resolved path and existence status
+ */
+export function resolveAndCheckPath(
+  dbPath: string,
+  fallbackDir: string = 'data',
+): { path: string; exists: boolean } {
+  const resolved = resolveMediaPath(dbPath, fallbackDir);
+  return {
+    path: resolved,
+    exists: resolved ? fs.existsSync(resolved) : false,
+  };
+}
+
+/**
+ * Finds the first existing file from multiple potential paths.
+ * Useful for fallback logic (e.g., thumbnail -> original image).
+ *
+ * @param paths - Array of database paths to try
+ * @param fallbackDir - Optional fallback directory for relative paths
+ * @returns The first resolved path that exists, or null if none exist
+ */
+export function findFirstExistingPath(paths: string[], fallbackDir: string = 'data'): string | null {
+  for (const dbPath of paths) {
+    if (!dbPath) continue;
+
+    const resolved = resolveMediaPath(dbPath, fallbackDir);
+    if (resolved && fs.existsSync(resolved)) {
+      return resolved;
+    }
+  }
+  return null;
+}

@@ -1024,21 +1024,8 @@ function App() {
               {/* Grid pattern overlay */}
               <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none"></div>
 
-              {/* Floating particles */}
-              <div className="absolute inset-0 pointer-events-none">
-                {[...Array(20)].map((_, i) => (
-                  <div
-                    key={`particle-${i}-${Date.now()}`}
-                    className="absolute w-1 h-1 bg-cyan-400 rounded-full opacity-30 animate-ping"
-                    style={{
-                      left: `${Math.random() * 100}%`,
-                      top: `${Math.random() * 100}%`,
-                      animationDelay: `${Math.random() * 5}s`,
-                      animationDuration: `${2 + Math.random() * 3}s`,
-                    }}
-                  />
-                ))}
-              </div>
+              {/* Floating particles removed due to UI blocking/performance issues */}
+
             </div>
 
             {/* Header */}

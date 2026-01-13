@@ -119,7 +119,6 @@ import {
   XCircle,
   ZoomIn,
   ZoomOut,
-  LucideProps,
 } from 'lucide-react';
 
 const icons = {

@@ -79,7 +79,7 @@ export interface MediaBrowserActions {
  */
 export function useMediaBrowser<T extends BaseMediaItem>(
   config: MediaBrowserConfig,
-): [MediaBrowserState<T>, MediaBrowserActions<T>] {
+): [MediaBrowserState<T>, MediaBrowserActions] {
   const { mediaEndpoint, albumsEndpoint, pageSize = 24 } = config;
 
   // Core state
@@ -98,17 +98,46 @@ export function useMediaBrowser<T extends BaseMediaItem>(
   const [isBatchMode, setIsBatchMode] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
 
-  // Load albums on mount
-  useEffect(() => {
-    loadAlbums();
-  }, []);
+  // Fetch items function with useCallback to prevent recreation
+  const fetchItems = useCallback(
+    async (pageNum: number): Promise<void> => {
+      try {
+        setLoading(true);
+        const params = new URLSearchParams({
+          page: pageNum.toString(),
+          limit: pageSize.toString(),
+        });
+        if (selectedAlbum) {
+          params.append('albumId', selectedAlbum.toString());
+        }
 
-  // Load items when album selection changes
-  useEffect(() => {
-    fetchItems(1);
-  }, [selectedAlbum]);
+        const res = await fetch(`${mediaEndpoint}?${params}`);
+        if (!res.ok) throw new Error('Failed to load media files');
 
-  const loadAlbums = async (): Promise<void> => {
+        const data = await res.json();
+        const newItems = (data.mediaItems || []) as T[];
+
+        if (pageNum === 1) {
+          setItems(newItems);
+        } else {
+          setItems((prev) => [...prev, ...newItems]);
+        }
+
+        setHasMore(newItems.length === pageSize);
+        setPage(pageNum);
+        setError(null);
+      } catch (err) {
+        console.error(err);
+        setError('Failed to load media content');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [mediaEndpoint, pageSize, selectedAlbum],
+  );
+
+  // Load albums function with useCallback
+  const loadAlbums = useCallback(async (): Promise<void> => {
     try {
       const res = await fetch(albumsEndpoint);
       if (!res.ok) throw new Error('Failed to load albums');
@@ -117,41 +146,17 @@ export function useMediaBrowser<T extends BaseMediaItem>(
     } catch (err) {
       console.error('Failed to load albums:', err);
     }
-  };
+  }, [albumsEndpoint]);
 
-  const fetchItems = async (pageNum: number): Promise<void> => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams({
-        page: pageNum.toString(),
-        limit: pageSize.toString(),
-      });
-      if (selectedAlbum) {
-        params.append('albumId', selectedAlbum.toString());
-      }
+  // Load albums on mount
+  useEffect(() => {
+    loadAlbums();
+  }, [loadAlbums]);
 
-      const res = await fetch(`${mediaEndpoint}?${params}`);
-      if (!res.ok) throw new Error('Failed to load media files');
-
-      const data = await res.json();
-      const newItems = (data.mediaItems || []) as T[];
-
-      if (pageNum === 1) {
-        setItems(newItems);
-      } else {
-        setItems((prev) => [...prev, ...newItems]);
-      }
-
-      setHasMore(newItems.length === pageSize);
-      setPage(pageNum);
-      setError(null);
-    } catch (err) {
-      console.error(err);
-      setError('Failed to load media content');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Load items when album selection changes
+  useEffect(() => {
+    fetchItems(1);
+  }, [fetchItems]);
 
   const toggleItemSelection = useCallback((id: number): void => {
     setSelectedItems((prev) => {
@@ -171,11 +176,11 @@ export function useMediaBrowser<T extends BaseMediaItem>(
 
   const loadMore = useCallback((): void => {
     fetchItems(page + 1);
-  }, [page]);
+  }, [fetchItems, page]);
 
   const refresh = useCallback((): void => {
     fetchItems(1);
-  }, []);
+  }, [fetchItems]);
 
   const handleBatchTag = useCallback(
     async (tagIds: number[], action: 'add' | 'remove'): Promise<void> => {
@@ -196,7 +201,7 @@ export function useMediaBrowser<T extends BaseMediaItem>(
         console.error('Batch tag operation failed:', e);
       }
     },
-    [selectedItems],
+    [fetchItems, selectedItems],
   );
 
   const handleBatchPeople = useCallback(
@@ -218,7 +223,7 @@ export function useMediaBrowser<T extends BaseMediaItem>(
         console.error('Batch people operation failed:', e);
       }
     },
-    [selectedItems],
+    [fetchItems, selectedItems],
   );
 
   const getCurrentAlbum = useCallback((): MediaAlbum | undefined => {
@@ -251,7 +256,7 @@ export function useMediaBrowser<T extends BaseMediaItem>(
     showAlbumDropdown,
   };
 
-  const actions: MediaBrowserActions<T> = {
+  const actions: MediaBrowserActions = {
     setSelectedAlbum,
     setShowAlbumDropdown,
     setIsBatchMode,

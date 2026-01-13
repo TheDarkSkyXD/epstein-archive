@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   FixedSizeGrid as Grid,
   FixedSizeList as List,
@@ -672,9 +673,33 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
     document,
     searchTerm,
   }) => {
-    const [activeTab, setActiveTab] = useState<
-      'content' | 'original' | 'entities' | 'related' | 'annotations' | 'redactions'
-    >('content');
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    // Determine active tab from URL
+    type DocumentTab = 'content' | 'original' | 'entities' | 'related' | 'annotations' | 'redactions';
+
+    const getActiveTab = (): DocumentTab => {
+      const params = new URLSearchParams(location.search);
+      const tab = params.get('docTab') as DocumentTab | null;
+      if (
+        tab &&
+        ['content', 'original', 'entities', 'related', 'annotations', 'redactions'].includes(tab)
+      ) {
+        return tab;
+      }
+      return 'content'; // default
+    };
+
+    const activeTab = getActiveTab();
+
+    // Navigate to a tab
+    const navigateToTab = (tab: string) => {
+      const params = new URLSearchParams(location.search);
+      params.set('docTab', tab);
+      navigate(`${location.pathname}?${params.toString()}`);
+    };
+
     const [pages, setPages] = useState<string[]>([]);
     const [loadingPages, setLoadingPages] = useState(false);
     const [showRaw, setShowRaw] = useState(false);
@@ -851,7 +876,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
           {/* Tab Navigation */}
           <div className="flex border-b border-gray-700 bg-gray-800 overflow-x-auto scrollbar-hide">
             <button
-              onClick={() => setActiveTab('content')}
+              onClick={() => navigateToTab('content')}
               className={`px-4 py-3 text-sm font-medium transition-colors ${
                 activeTab === 'content'
                   ? 'text-blue-400 border-b-2 border-blue-400 bg-gray-700'
@@ -861,7 +886,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
               Text Content
             </button>
             <button
-              onClick={() => setActiveTab('original')}
+              onClick={() => navigateToTab('original')}
               className={`px-4 py-3 text-sm font-medium transition-colors ${
                 activeTab === 'original'
                   ? 'text-blue-400 border-b-2 border-blue-400 bg-gray-700'
@@ -871,7 +896,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
               View Original ({pages.length > 0 ? pages.length : '...'})
             </button>
             <button
-              onClick={() => setActiveTab('entities')}
+              onClick={() => navigateToTab('entities')}
               className={`px-4 py-3 text-sm font-medium transition-colors ${
                 activeTab === 'entities'
                   ? 'text-blue-400 border-b-2 border-blue-400 bg-gray-700'
@@ -881,7 +906,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
               Entities ({document.entities?.length || 0})
             </button>
             <button
-              onClick={() => setActiveTab('related')}
+              onClick={() => navigateToTab('related')}
               className={`px-4 py-3 text-sm font-medium transition-colors ${
                 activeTab === 'related'
                   ? 'text-blue-400 border-b-2 border-blue-400 bg-gray-700'
@@ -891,7 +916,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
               Related ({relatedDocuments.length})
             </button>
             <button
-              onClick={() => setActiveTab('annotations')}
+              onClick={() => navigateToTab('annotations')}
               className={`px-4 py-3 text-sm font-medium transition-colors ${
                 activeTab === 'annotations'
                   ? 'text-blue-400 border-b-2 border-blue-400 bg-gray-700'
@@ -902,7 +927,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
             </button>
             {/* Hidden Redactions Tab - only show prominently if redactions found */}
             <button
-              onClick={() => setActiveTab('redactions')}
+              onClick={() => navigateToTab('redactions')}
               className={`px-4 py-3 text-sm font-medium transition-colors flex items-center gap-2 ${
                 activeTab === 'redactions'
                   ? 'text-red-400 border-b-2 border-red-400 bg-red-900/30'

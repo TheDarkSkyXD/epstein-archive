@@ -64,19 +64,12 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
   onInvestigationSelect,
   currentUser,
 }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { addToast } = useToasts();
+
   const [investigations, setInvestigations] = useState<Investigation[]>([]);
   const [selectedInvestigation, setSelectedInvestigation] = useState<Investigation | null>(null);
-  const [activeTab, setActiveTab] = useState<
-    | 'overview'
-    | 'evidence'
-    | 'hypotheses'
-    | 'financial'
-    | 'timeline'
-    | 'team'
-    | 'analytics'
-    | 'forensic'
-    | 'export'
-  >('overview');
   const [isLoading, setIsLoading] = useState(false);
   const [showNewInvestigationModal, setShowNewInvestigationModal] = useState(false);
   const [showCreateRelationshipModal, setShowCreateRelationshipModal] = useState(false);
@@ -108,9 +101,52 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
   });
   const [shareCopied, setShareCopied] = useState(false);
   const [useGlobalContext, setUseGlobalContext] = useState(false);
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { addToast } = useToasts();
+
+  // Determine active tab from URL
+  type ActiveTab =
+    | 'overview'
+    | 'evidence'
+    | 'hypotheses'
+    | 'financial'
+    | 'timeline'
+    | 'team'
+    | 'analytics'
+    | 'forensic'
+    | 'export';
+
+  const getActiveTab = (): ActiveTab => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get('tab') as ActiveTab | null;
+    const did = params.get('docId');
+
+    if (did) return 'forensic'; // Special handling for docId
+    if (
+      tab &&
+      [
+        'overview',
+        'evidence',
+        'hypotheses',
+        'financial',
+        'timeline',
+        'team',
+        'analytics',
+        'forensic',
+        'export',
+      ].includes(tab)
+    ) {
+      return tab;
+    }
+    return 'overview'; // default
+  };
+
+  const activeTab = getActiveTab();
+
+  // Navigate to a tab
+  const navigateToTab = (tab: string) => {
+    const params = new URLSearchParams(location.search);
+    params.set('tab', tab);
+    navigate(`${location.pathname}?${params.toString()}`);
+  };
 
   // Copy shareable URL to clipboard
   const copyShareUrl = () => {
@@ -124,34 +160,18 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
       });
     }
   };
+  // Handle special URL parameters (focus on entity)
   useEffect(() => {
     try {
       const params = new URLSearchParams(location.search);
-      const tab = params.get('tab') as typeof activeTab | null;
-      const did = params.get('docId');
       const focusId = params.get('focus');
-
-      if (
-        tab &&
-        [
-          'overview',
-          'evidence',
-          'hypotheses',
-          'timeline',
-          'team',
-          'analytics',
-          'forensic',
-          'export',
-        ].includes(tab)
-      ) {
-        setActiveTab(tab);
-      } else if (did) {
-        setActiveTab('forensic');
-      }
 
       if (focusId) {
         // If focusing on an entity, ensure we're on the analytics tab
-        if (!tab) setActiveTab('analytics');
+        const tab = params.get('tab');
+        if (!tab) {
+          navigateToTab('analytics');
+        }
 
         // Fetch validity of the ID and get details
         fetch(`/api/entities/${focusId}`)
@@ -190,13 +210,14 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
           .catch((err) => console.error('Error fetching focused entity:', err));
       }
 
-      if ((tab || did) && !selectedInvestigation && investigations.length > 0) {
+      // Auto-select first investigation if needed
+      if (!selectedInvestigation && investigations.length > 0) {
         setSelectedInvestigation(investigations[0]);
       }
     } catch (error) {
       console.error('Error parsing URL parameters:', error);
     }
-  }, [location.search, investigations.length]);
+  }, [location.search, investigations.length, selectedInvestigation]);
 
   // Handle "Add to Investigation" custom event
   useEffect(() => {
@@ -1000,7 +1021,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                   ].map((option) => (
                     <button
                       key={option.id}
-                      onClick={() => setActiveTab(option.id as any)}
+                      onClick={() => navigateToTab(option.id)}
                       className={`
                           px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all
                           ${
@@ -1031,7 +1052,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                 ].map((tab) => (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id as any)}
+                    onClick={() => navigateToTab(tab.id)}
                     className={`
                         flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all
                         whitespace-nowrap

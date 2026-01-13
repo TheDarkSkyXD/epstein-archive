@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { FileText, Tag, Download, Eye } from 'lucide-react';
 import { prettifyOCRText } from '../utils/prettifyOCR';
 import { apiClient } from '../services/apiClient';
@@ -28,8 +29,31 @@ const highlight = (text: string, term?: string) => {
 };
 
 export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initialDoc }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Determine active tab from URL
+  type ModalTab = 'content' | 'original' | 'metadata';
+
+  const getActiveTab = (): ModalTab => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get('modalTab') as ModalTab | null;
+    if (tab && ['content', 'original', 'metadata'].includes(tab)) {
+      return tab;
+    }
+    return 'content'; // default
+  };
+
+  const activeTab = getActiveTab();
+
+  // Navigate to a tab
+  const navigateToTab = (tab: string) => {
+    const params = new URLSearchParams(location.search);
+    params.set('modalTab', tab);
+    navigate(`${location.pathname}?${params.toString()}`);
+  };
+
   const [doc, setDoc] = useState<any | null>(initialDoc || null);
-  const [activeTab, setActiveTab] = useState<'content' | 'original' | 'metadata'>('content');
   const [showMediaViewer, setShowMediaViewer] = useState(false);
   const [showRaw, setShowRaw] = useState(false);
   const [selectedEntity, setSelectedEntity] = useState<any | null>(null);
@@ -150,7 +174,7 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setActiveTab('metadata')}
+              onClick={() => navigateToTab('metadata')}
               className="p-2 text-slate-300 hover:text-white"
               title="Metadata"
             >
@@ -177,19 +201,19 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
         </div>
         <div className="flex border-b border-slate-700 bg-slate-800 overflow-x-auto">
           <button
-            onClick={() => setActiveTab('content')}
+            onClick={() => navigateToTab('content')}
             className={`px-4 py-3 text-sm ${activeTab === 'content' ? 'text-cyan-400 border-b-2 border-cyan-400 bg-slate-700' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
           >
             Text Content
           </button>
           <button
-            onClick={() => setActiveTab('original')}
+            onClick={() => navigateToTab('original')}
             className={`px-4 py-3 text-sm ${activeTab === 'original' ? 'text-cyan-400 border-b-2 border-cyan-400 bg-slate-700' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
           >
             View Original
           </button>
           <button
-            onClick={() => setActiveTab('metadata')}
+            onClick={() => navigateToTab('metadata')}
             className={`px-4 py-3 text-sm ${activeTab === 'metadata' ? 'text-cyan-400 border-b-2 border-cyan-400 bg-slate-700' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
           >
             Metadata

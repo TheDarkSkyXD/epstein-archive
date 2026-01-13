@@ -1,5 +1,15 @@
 # Release Notes
 
+## V10.1.12 (January 13, 2026)
+### 📝 Correction & Stability
+*   **Name Correction**: Updated "Sascha Barron" to **Sascha Barros** across the entire archive (Entities, Albums, Audio Files).
+*   **Stability**: Forced a clean deployment to ensure all latest audio fixes and tags are active.
+
+## V10.1.11 (January 13, 2026)
+### 🏷️ Entity Tagging Fix
+*   **Resolved Tagging Error**: Fixed a schema mismatch.
+# Release Notes
+
 ## V10.1.11 (January 13, 2026)
 ### 🏷️ Entity Tagging Fix
 *   **Resolved Tagging Error**: Fixed a schema mismatch that prevented Sascha Barron's entity creation. Verified all 7 key figures are now correctly tagged to the testimony audio.

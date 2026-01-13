@@ -1,5 +1,15 @@
 # Release Notes
 
+## V10.1.6 (January 13, 2026)
+### 🛠️ Media Stability Fix
+*   **Path Correction**: Standardized database file paths for audio and video files, resolving the "Failed to load content" errors on the production environment.
+*   **Data Integrity**: Verified 447 media assets (Video/Audio) are correctly linked and accessible.
+
+## V10.1.5 (January 13, 2026)
+### 🎨 UI Simplification
+*   **Zero-Distraction Mode**: Removed all remaining background animations.
+# Release Notes
+
 ## V10.1.5 (January 13, 2026)
 ### 🎨 UI Simplification
 *   **Zero-Distraction Mode**: Removed all remaining background animations, blobs, and pulse effects from the application. The interface is now completely static to ensure maximum performance and zero blocking overlays.

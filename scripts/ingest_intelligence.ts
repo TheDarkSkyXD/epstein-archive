@@ -159,7 +159,9 @@ function rebuildEntityPipeline() {
   try {
     db.prepare('ALTER TABLE documents ADD COLUMN analyzed_at DATETIME').run();
     console.log('✅ Added analyzed_at column to documents.');
-  } catch (e) {} // Ignore if exists
+  } catch {
+    // Column already exists - safe to ignore
+  }
 
   // 1. Load Cache
   const entityCache = new Map<string, number>();
@@ -181,12 +183,13 @@ function rebuildEntityPipeline() {
 
   // 2. Fetch Unanalyzed Documents
   // Process in batches
-  while (true) {
+  let hasMoreDocs = true;
+  while (hasMoreDocs) {
     const docs = db
       .prepare(
         `
-        SELECT id, content, file_name 
-        FROM documents 
+        SELECT id, content, file_name
+        FROM documents
         WHERE analyzed_at IS NULL AND content IS NOT NULL
         LIMIT ?
       `,
@@ -195,7 +198,8 @@ function rebuildEntityPipeline() {
 
     if (docs.length === 0) {
       console.log('✨ All documents processed.');
-      break;
+      hasMoreDocs = false;
+      continue;
     }
 
     console.log(`📄 Processing batch of ${docs.length} documents...`);

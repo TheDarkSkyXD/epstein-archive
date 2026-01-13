@@ -173,7 +173,9 @@ try {
   if (fs.existsSync(CORPUS_BASE_PATH)) {
     app.use('/files', express.static(CORPUS_BASE_PATH));
   }
-} catch {}
+} catch {
+  // Ignore filesystem access errors - static serving is optional
+}
 
 // Health check endpoint
 app.get('/api/health', (_req, res) => {
@@ -1663,7 +1665,9 @@ app.get('/api/documents/:id/pages', async (req, res, next) => {
           imageFolder = meta.image_folder_path;
         }
       }
-    } catch (e) {}
+    } catch {
+      // Ignore JSON parse errors - imageFolder remains empty
+    }
 
     const oversightMatch = doc.fileName.match(/^House Oversight (\d+)-OCR\.txt$/i);
 
@@ -1949,9 +1953,7 @@ app.get('/api/search', async (req, res, next) => {
           : 'unknown',
     }));
 
-    if (type === 'document') {
-      transformedDocuments = transformedDocuments;
-    } else if (type === 'entity') {
+    if (type === 'entity') {
       transformedDocuments = [];
     }
 

@@ -43,7 +43,9 @@ router.get('/', async (req, res, next) => {
       let metadata: any = {};
       try {
         metadata = JSON.parse(email.metadata_json || '{}');
-      } catch (e) {}
+      } catch {
+        // Invalid JSON - use empty metadata object
+      }
 
       // Truncate content for snippet
       const content = email.snippet || '';

@@ -1,5 +1,16 @@
 # Release Notes
 
+## V10.1.2 (January 13, 2026)
+### 🧠 Advanced Entity Consolidation
+*   **Fuzzy Matching + Nicknames**: Implemented intelligent consolidation for Top 100 entities, capable of recognizing nicknames (e.g., "Bill" -> "William") and resolving typo-variations (e.g. "Jeffry" -> "Jeffrey").
+*   **Top 100 Cleanup**: Merged **500** duplicate profiles and **14,241** mentions for the most prominent figures and organizations in the archive.
+*   **Junk Filter**: Filtered out abstract noise entities (e.g. "In The", "Of The") from the top charts.
+
+## V10.1.1 (January 13, 2026)
+### 🧠 Intelligence Pipeline Restoration
+*   **Restored Ultimate Pipeline**: Re-implemented the sophisticated `ingest_intelligence` module to handle entity extraction, normalization, and consolidation automatically.
+# Release Notes
+
 ## V10.1.1 (January 13, 2026)
 ### 🧠 Intelligence Pipeline Restoration
 *   **Restored Ultimate Pipeline**: Re-implemented the sophisticated `ingest_intelligence` module to handle entity extraction, normalization, and consolidation automatically.

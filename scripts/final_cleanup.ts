@@ -47,6 +47,26 @@ function finalCleanup() {
     'Run And',
     'September October',
     'Sour Sob',
+    'Tara That',
+    'The Finst Places',
+    'There Hend But',
+    'Total Cash Disbursements',
+    'Trayet And',
+    'Various Cingular',
+    'Various Comcast',
+    'Various Federal Express',
+    'Various Verizon',
+    'Visa Waiver Program',
+    'Warner Cable Tatyana',
+    'Wire Wire Wire',
+    'You Neally',
+    'The Four Seasons',
+    'Happy Birthday',
+    'Applicable Law',
+    'Toll Free',
+    'Peter St',
+    'Please Keep',
+    'Received By'
   ];
 
   const deleteStmt = db.prepare('DELETE FROM entities WHERE full_name LIKE ?');

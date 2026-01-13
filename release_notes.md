@@ -1,5 +1,15 @@
 # Release Notes
 
+## V10.1.17 (January 13, 2026)
+### 🧹 Integrity Update
+*   **Junk Removal**: Aggressively removed more OCR garbage entities (e.g. "Total Cash Disbursements", "Various Verizon").
+*   **Sorting Fix**: Changed the default "Spice Level" sort to prioritize **Red Flag Rating** first, then Mention Count. This pushes high-risk individuals to the top and buries low-quality noise.
+
+## V10.1.16 (January 13, 2026)
+### 🛠️ Final Polish
+*   **Media Layout**: Fixed a layout regression that was hiding the footer on the Media page.
+# Release Notes
+
 ## V10.1.16 (January 13, 2026)
 ### 🛠️ Final Polish
 *   **Media Layout**: Fixed a layout regression that was hiding the footer on the Media page.

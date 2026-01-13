@@ -14,17 +14,13 @@ const HelpText: React.FC<HelpTextProps> = ({
   children,
   position = 'top',
   delay = 500,
-  className = ''
+  className = '',
 }) => {
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       <span>{children}</span>
-      <Tooltip 
-        content={text} 
-        position={position} 
-        delay={delay}
-      >
-        <span 
+      <Tooltip content={text} position={position} delay={delay}>
+        <span
           className="inline-flex items-center justify-center w-4 h-4 text-xs font-bold text-white bg-blue-500 rounded-full cursor-help"
           aria-label={`Help: ${text}`}
         >

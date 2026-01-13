@@ -8,8 +8,14 @@ interface InvestigationsContextType {
   error: string | null;
   loadInvestigations: () => Promise<void>;
   selectInvestigation: (id: string) => void;
-  createInvestigation: (data: Omit<Investigation, 'id' | 'createdAt' | 'updatedAt' | 'team' | 'permissions' | 'tags'>) => Promise<Investigation | null>;
-  addToInvestigation: (investigationId: string, item: any, relevance: 'high' | 'medium' | 'low') => Promise<void>;
+  createInvestigation: (
+    data: Omit<Investigation, 'id' | 'createdAt' | 'updatedAt' | 'team' | 'permissions' | 'tags'>,
+  ) => Promise<Investigation | null>;
+  addToInvestigation: (
+    investigationId: string,
+    item: any,
+    relevance: 'high' | 'medium' | 'low',
+  ) => Promise<void>;
 }
 
 const InvestigationsContext = createContext<InvestigationsContextType | undefined>(undefined);
@@ -35,23 +41,32 @@ export const InvestigationsProvider: React.FC<InvestigationsProviderProps> = ({ 
         title: inv.title,
         description: inv.description || '',
         hypothesis: inv.scope || '',
-        status: inv.status === 'open' ? 'active' : inv.status === 'in_review' ? 'review' : inv.status === 'closed' ? 'published' : 'archived',
+        status:
+          inv.status === 'open'
+            ? 'active'
+            : inv.status === 'in_review'
+              ? 'review'
+              : inv.status === 'closed'
+                ? 'published'
+                : 'archived',
         createdAt: new Date(inv.created_at),
         updatedAt: new Date(inv.updated_at),
-        team: inv.team || [{
-          id: inv.owner_id,
-          name: inv.owner_name || 'Investigation Owner',
-          email: inv.owner_email || '',
-          role: 'lead',
-          permissions: ['read', 'write', 'admin'],
-          joinedAt: new Date(inv.created_at),
-          organization: inv.owner_organization || '',
-          expertise: []
-        }],
+        team: inv.team || [
+          {
+            id: inv.owner_id,
+            name: inv.owner_name || 'Investigation Owner',
+            email: inv.owner_email || '',
+            role: 'lead',
+            permissions: ['read', 'write', 'admin'],
+            joinedAt: new Date(inv.created_at),
+            organization: inv.owner_organization || '',
+            expertise: [],
+          },
+        ],
         leadInvestigator: inv.owner_id,
         permissions: [],
         tags: [],
-        priority: 'medium'
+        priority: 'medium',
       }));
       setInvestigations(mapped);
     } catch (err) {
@@ -64,11 +79,13 @@ export const InvestigationsProvider: React.FC<InvestigationsProviderProps> = ({ 
   };
 
   const selectInvestigation = (id: string) => {
-    const investigation = investigations.find(inv => inv.id === id) || null;
+    const investigation = investigations.find((inv) => inv.id === id) || null;
     setSelectedInvestigation(investigation);
   };
 
-  const createInvestigation = async (data: Omit<Investigation, 'id' | 'createdAt' | 'updatedAt' | 'team' | 'permissions' | 'tags'>): Promise<Investigation | null> => {
+  const createInvestigation = async (
+    data: Omit<Investigation, 'id' | 'createdAt' | 'updatedAt' | 'team' | 'permissions' | 'tags'>,
+  ): Promise<Investigation | null> => {
     setIsLoading(true);
     setError(null);
     try {
@@ -79,42 +96,51 @@ export const InvestigationsProvider: React.FC<InvestigationsProviderProps> = ({ 
           title: data.title,
           description: data.description,
           ownerId: '1', // This should come from auth context
-          scope: data.hypothesis
-        })
+          scope: data.hypothesis,
+        }),
       });
-      
+
       if (!resp.ok) {
         throw new Error('Failed to create investigation');
       }
-      
+
       const inv = await resp.json();
       await loadInvestigations(); // Refresh the list
-      
+
       const newInvestigation: Investigation = {
         id: String(inv.id),
         title: inv.title,
         description: inv.description || '',
         hypothesis: inv.scope || '',
-        status: inv.status === 'open' ? 'active' : inv.status === 'in_review' ? 'review' : inv.status === 'closed' ? 'published' : 'archived',
+        status:
+          inv.status === 'open'
+            ? 'active'
+            : inv.status === 'in_review'
+              ? 'review'
+              : inv.status === 'closed'
+                ? 'published'
+                : 'archived',
         createdAt: new Date(inv.created_at),
         updatedAt: new Date(inv.updated_at),
-        team: [{
-          id: '1', // This should come from auth context
-          name: 'Current User',
-          email: '',
-          role: 'lead',
-          permissions: ['read', 'write', 'admin'],
-          joinedAt: new Date(inv.created_at),
-          organization: '',
-          expertise: [],
-          status: 'active'
-        }],
+        team: [
+          {
+            id: '1', // This should come from auth context
+            name: 'Current User',
+            email: '',
+            role: 'lead',
+            permissions: ['read', 'write', 'admin'],
+            joinedAt: new Date(inv.created_at),
+            organization: '',
+            expertise: [],
+            status: 'active',
+          },
+        ],
         leadInvestigator: '1',
         permissions: [],
         tags: [],
-        priority: 'medium'
+        priority: 'medium',
       };
-      
+
       return newInvestigation;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create investigation';
@@ -126,21 +152,26 @@ export const InvestigationsProvider: React.FC<InvestigationsProviderProps> = ({ 
     }
   };
 
-  const addToInvestigation = async (investigationId: string, item: any, relevance: 'high' | 'medium' | 'low') => {
+  const addToInvestigation = async (
+    investigationId: string,
+    item: any,
+    relevance: 'high' | 'medium' | 'low',
+  ) => {
     setIsLoading(true);
     setError(null);
     try {
       // In a real implementation, this would call the API to add the item to the investigation
       // For now, we'll just simulate the action
       console.log('Adding item to investigation:', { investigationId, item, relevance });
-      
+
       // Dispatch a custom event for other components to listen to
       const event = new CustomEvent('investigation-item-added', {
-        detail: { investigationId, item, relevance }
+        detail: { investigationId, item, relevance },
       });
       window.dispatchEvent(event);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to add item to investigation';
+      const errorMessage =
+        err instanceof Error ? err.message : 'Failed to add item to investigation';
       setError(errorMessage);
       console.error('Error adding to investigation:', err);
     } finally {
@@ -162,7 +193,7 @@ export const InvestigationsProvider: React.FC<InvestigationsProviderProps> = ({ 
         loadInvestigations,
         selectInvestigation,
         createInvestigation,
-        addToInvestigation
+        addToInvestigation,
       }}
     >
       {children}

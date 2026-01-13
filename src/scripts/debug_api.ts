@@ -1,4 +1,3 @@
-
 import { databaseService } from '../services/DatabaseService';
 
 async function run() {

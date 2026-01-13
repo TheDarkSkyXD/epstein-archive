@@ -4,7 +4,7 @@ import { readFileSync, existsSync, statSync } from 'fs';
 
 async function importDocuments() {
   console.log('Starting document import...');
-  
+
   const jsonPath = join(process.cwd(), 'public', 'data', 'searchable_files.json');
   if (!existsSync(jsonPath)) {
     console.error('searchable_files.json not found at', jsonPath);
@@ -13,7 +13,7 @@ async function importDocuments() {
 
   const data = JSON.parse(readFileSync(jsonPath, 'utf-8'));
   const files = data.files || [];
-  
+
   console.log(`Found ${files.length} files to import.`);
 
   const importedCount = 0;
@@ -37,28 +37,28 @@ async function importDocuments() {
         const metadata = {
           original_entities: file.entities,
           original_dates: file.dates,
-          category: file.category
+          category: file.category,
         };
 
         // Calculate basic spice rating from keywords (simplified version of DocumentProcessor)
         const spiceRating = calculateSpiceRating(content);
 
         // Insert into database
-        // We use direct SQL execution via databaseService's db property if accessible, 
+        // We use direct SQL execution via databaseService's db property if accessible,
         // or we can use a raw query if databaseService exposes one.
         // Since databaseService.bulkInsertEntities is for entities, we'll use a direct prepare/run here
-        // But we need access to the db object. 
-        // Looking at DatabaseService.ts, 'db' is private. 
+        // But we need access to the db object.
+        // Looking at DatabaseService.ts, 'db' is private.
         // However, we can use the 'transaction' method which exposes the db implicitly or we can add a method.
         // Actually, let's just use the 'db' instance from 'better-sqlite3' directly in this script for simplicity
         // as we are in a script context.
-        
+
         // Wait, we can't access private 'db'.
-        // But we can use 'databaseService.transaction' to wrap our logic, 
+        // But we can use 'databaseService.transaction' to wrap our logic,
         // but inside we still need to execute queries.
         // Let's check if there is a generic 'run' or 'exec' method.
         // There isn't.
-        
+
         // Alternative: Use 'better-sqlite3' directly in this script, connecting to the same DB file.
         // This is safer and easier for a script.
       } catch (error) {
@@ -72,16 +72,24 @@ async function importDocuments() {
 // Helper for spice rating
 function calculateSpiceRating(content: string): number {
   const keywords = [
-    'sexual', 'minor', 'underage', 'trafficking', 'abuse', 
-    'island', 'jet', 'flight', 'massage', 'recruitment'
+    'sexual',
+    'minor',
+    'underage',
+    'trafficking',
+    'abuse',
+    'island',
+    'jet',
+    'flight',
+    'massage',
+    'recruitment',
   ];
   const lowerContent = content.toLowerCase();
   let score = 0;
-  
-  keywords.forEach(word => {
+
+  keywords.forEach((word) => {
     if (lowerContent.includes(word)) score++;
   });
-  
+
   if (score > 10) return 5;
   if (score > 7) return 4;
   if (score > 4) return 3;
@@ -96,7 +104,7 @@ const db = new Database(DB_PATH);
 
 async function run() {
   console.log('Starting document import...');
-  
+
   const jsonPath = (() => {
     const prod = join('/opt/epstein-archive', 'public', 'data', 'searchable_files.json');
     if (existsSync(prod)) return prod;
@@ -109,7 +117,7 @@ async function run() {
 
   const data = JSON.parse(readFileSync(jsonPath, 'utf-8'));
   const files = data.files || [];
-  
+
   console.log(`Found ${files.length} files to import.`);
 
   const insertStmt = db.prepare(`
@@ -147,11 +155,11 @@ async function run() {
           original_entities: file.entities,
           original_dates: file.dates,
           category: file.category,
-          source: 'searchable_files.json'
+          source: 'searchable_files.json',
         };
 
         const spiceRating = calculateSpiceRating(content);
-        
+
         // Determine file type from extension
         const ext = file.filename.split('.').pop()?.toLowerCase() || 'txt';
 
@@ -165,12 +173,11 @@ async function run() {
           metadata_json: JSON.stringify(metadata),
           word_count: file.word_count || 0,
           spice_rating: spiceRating,
-          evidence_type: 'document'
+          evidence_type: 'document',
         });
 
         importedCount++;
         if (importedCount % 100 === 0) process.stdout.write('.');
-        
       } catch (error) {
         console.error(`Error importing ${file.filename}:`, error);
         errorCount++;

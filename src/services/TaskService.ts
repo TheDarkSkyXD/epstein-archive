@@ -32,12 +32,18 @@ export interface UpdateTaskInput {
 export class TaskService {
   constructor(private db: any) {}
 
-  async getTasks(investigationId?: number, status?: string, assigneeId?: string, page: number = 1, limit: number = 20) {
+  async getTasks(
+    investigationId?: number,
+    status?: string,
+    assigneeId?: string,
+    page: number = 1,
+    limit: number = 20,
+  ) {
     const offset = (page - 1) * limit;
-    
+
     const where: string[] = [];
     const params: any = { limit, offset };
-    
+
     if (investigationId) {
       where.push('investigation_id = @investigationId');
       params.investigationId = investigationId;
@@ -50,9 +56,9 @@ export class TaskService {
       where.push('assignee_id = @assigneeId');
       params.assigneeId = assigneeId;
     }
-    
+
     const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
-    
+
     const query = `
       SELECT id, uuid, investigation_id, title, description, status, assignee_id, due_date, created_at, updated_at
       FROM tasks
@@ -68,18 +74,18 @@ export class TaskService {
         created_at DESC
       LIMIT @limit OFFSET @offset
     `;
-    
+
     const countQuery = `SELECT COUNT(*) as total FROM tasks ${whereClause}`;
-    
+
     const tasks = this.db.prepare(query).all(params) as any[];
     const { total } = this.db.prepare(countQuery).get(params) as { total: number };
-    
+
     return {
-      data: tasks.map(t => this.mapTask(t)),
+      data: tasks.map((t) => this.mapTask(t)),
       total,
       page,
       pageSize: limit,
-      totalPages: Math.ceil(total / limit)
+      totalPages: Math.ceil(total / limit),
     };
   }
 
@@ -88,38 +94,42 @@ export class TaskService {
       INSERT INTO tasks (investigation_id, title, description, assignee_id, due_date)
       VALUES (@investigationId, @title, @description, @assigneeId, @dueDate)
     `);
-    
+
     const result = stmt.run({
       investigationId: data.investigationId,
       title: data.title,
       description: data.description || null,
       assigneeId: data.assigneeId || null,
-      dueDate: data.dueDate || null
+      dueDate: data.dueDate || null,
     });
-    
+
     const task = await this.getTaskById(result.lastInsertRowid as number);
     if (!task) {
       throw new Error('Failed to create task');
     }
-    
+
     return task;
   }
 
   async getTaskById(id: number): Promise<Task | null> {
-    const task = this.db.prepare(`
+    const task = this.db
+      .prepare(
+        `
       SELECT id, uuid, investigation_id, title, description, status, assignee_id, due_date, created_at, updated_at
       FROM tasks WHERE id = ?
-    `).get(id) as any;
-    
+    `,
+      )
+      .get(id) as any;
+
     if (!task) return null;
-    
+
     return this.mapTask(task);
   }
 
   async updateTask(id: number, updates: UpdateTaskInput): Promise<Task | null> {
     const fields: string[] = [];
     const params: any = { id };
-    
+
     if (updates.title !== undefined) {
       fields.push('title = @title');
       params.title = updates.title;
@@ -140,17 +150,21 @@ export class TaskService {
       fields.push('due_date = @dueDate');
       params.dueDate = updates.dueDate;
     }
-    
+
     if (fields.length === 0) {
       return this.getTaskById(id);
     }
-    
-    this.db.prepare(`
+
+    this.db
+      .prepare(
+        `
       UPDATE tasks 
       SET ${fields.join(', ')}
       WHERE id = @id
-    `).run(params);
-    
+    `,
+      )
+      .run(params);
+
     return this.getTaskById(id);
   }
 
@@ -170,7 +184,7 @@ export class TaskService {
       assignee_id: row.assignee_id,
       due_date: row.due_date,
       created_at: row.created_at,
-      updated_at: row.updated_at
+      updated_at: row.updated_at,
     };
   }
 }

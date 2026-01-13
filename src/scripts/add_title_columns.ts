@@ -5,7 +5,7 @@ async function addTitleColumns() {
 
   try {
     // Check if columns already exist
-    const tableInfo = databaseService.prepare("PRAGMA table_info(entities)").all() as any[];
+    const tableInfo = databaseService.prepare('PRAGMA table_info(entities)').all() as any[];
     const existingColumns = tableInfo.map((col: any) => col.name);
 
     console.log('Existing columns:', existingColumns.join(', '));
@@ -38,13 +38,12 @@ async function addTitleColumns() {
     }
 
     // Verify changes
-    const updatedTableInfo = databaseService.prepare("PRAGMA table_info(entities)").all() as any[];
+    const updatedTableInfo = databaseService.prepare('PRAGMA table_info(entities)').all() as any[];
     const updatedColumns = updatedTableInfo.map((col: any) => col.name);
 
     console.log('\n=== Schema Update Complete ===');
     console.log('Updated columns:', updatedColumns.join(', '));
     console.log('\n✅ Schema enhancement successful!');
-
   } catch (error) {
     console.error('\n❌ Error adding columns:', error);
     process.exit(1);

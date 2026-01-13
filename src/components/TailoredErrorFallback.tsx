@@ -8,10 +8,10 @@ interface TailoredErrorFallbackProps {
   onGoHome?: () => void;
 }
 
-export const TailoredErrorFallback: React.FC<TailoredErrorFallbackProps> = ({ 
-  errorType, 
-  onRetry, 
-  onGoHome 
+export const TailoredErrorFallback: React.FC<TailoredErrorFallbackProps> = ({
+  errorType,
+  onRetry,
+  onGoHome,
 }) => {
   const getErrorDetails = () => {
     switch (errorType) {
@@ -22,7 +22,7 @@ export const TailoredErrorFallback: React.FC<TailoredErrorFallbackProps> = ({
           message: 'Unable to connect to the server. Please check your internet connection.',
           nextSteps: 'Verify your network connection and try again.',
           showRetry: true,
-          showHome: true
+          showHome: true,
         };
       case 'database':
         return {
@@ -31,7 +31,7 @@ export const TailoredErrorFallback: React.FC<TailoredErrorFallbackProps> = ({
           message: 'The database is temporarily unavailable. Our team has been notified.',
           nextSteps: 'Please try again in a few minutes.',
           showRetry: true,
-          showHome: true
+          showHome: true,
         };
       case 'document':
         return {
@@ -40,7 +40,7 @@ export const TailoredErrorFallback: React.FC<TailoredErrorFallbackProps> = ({
           message: 'The requested document could not be found or is unavailable.',
           nextSteps: 'Try selecting a different document or check back later.',
           showRetry: false,
-          showHome: true
+          showHome: true,
         };
       default:
         return {
@@ -49,7 +49,7 @@ export const TailoredErrorFallback: React.FC<TailoredErrorFallbackProps> = ({
           message: 'An unexpected error occurred while loading this content.',
           nextSteps: 'Please try again or return to the home page.',
           showRetry: true,
-          showHome: true
+          showHome: true,
         };
     }
   };
@@ -62,13 +62,13 @@ export const TailoredErrorFallback: React.FC<TailoredErrorFallbackProps> = ({
         {icon}
         <h3 className="text-lg font-semibold">{title}</h3>
       </div>
-      
+
       <p className="text-sm mb-2 text-slate-300">{message}</p>
       <p className="text-xs mb-4 text-slate-400">{nextSteps}</p>
-      
+
       <div className="flex gap-3">
         {showRetry && onRetry && (
-          <button 
+          <button
             onClick={onRetry}
             className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded text-slate-200 transition-colors flex items-center gap-2"
           >
@@ -76,9 +76,9 @@ export const TailoredErrorFallback: React.FC<TailoredErrorFallbackProps> = ({
             Try Again
           </button>
         )}
-        
+
         {showHome && onGoHome && (
-          <button 
+          <button
             onClick={onGoHome}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white transition-colors flex items-center gap-2"
           >

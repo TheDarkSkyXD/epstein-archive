@@ -29,7 +29,7 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
     const savedFilters = localStorage.getItem('navigationFilters');
     const savedEntity = localStorage.getItem('navigationSelectedEntity');
     const savedDocument = localStorage.getItem('navigationSelectedDocument');
-    
+
     if (savedSearchTerm) setSearchTerm(savedSearchTerm);
     if (savedFilters) setFilters(JSON.parse(savedFilters));
     if (savedEntity) setSelectedEntity(savedEntity);
@@ -83,7 +83,7 @@ export const NavigationProvider = ({ children }: { children: ReactNode }) => {
         setSelectedEntity,
         selectedDocument,
         setSelectedDocument,
-        clearNavigation
+        clearNavigation,
       }}
     >
       {children}

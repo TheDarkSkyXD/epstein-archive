@@ -1,20 +1,28 @@
 import React from 'react';
-import Icon from './Icon';
+import Icon, { IconName } from './Icon';
 import { RedFlagIndex } from './RedFlagIndex';
 
 interface CardProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   className?: string;
   onClick?: () => void;
   title?: string;
   subtitle?: string;
-  icon?: string;
-  iconColor?: 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'info' | 'white' | 'gray';
+  icon?: IconName;
+  iconColor?:
+    | 'primary'
+    | 'secondary'
+    | 'success'
+    | 'warning'
+    | 'danger'
+    | 'info'
+    | 'white'
+    | 'gray';
   redFlagRating?: number;
   metadata?: Array<{
     label: string;
     value: string | number;
-    icon?: string;
+    icon?: IconName;
   }>;
   actionButtons?: Array<{
     label: string;
@@ -23,9 +31,9 @@ interface CardProps {
   }>;
 }
 
-export const Card: React.FC<CardProps> = ({ 
-  children, 
-  className = '', 
+export const Card: React.FC<CardProps> = ({
+  children,
+  className = '',
   onClick,
   title,
   subtitle,
@@ -33,10 +41,10 @@ export const Card: React.FC<CardProps> = ({
   iconColor = 'gray',
   redFlagRating,
   metadata = [],
-  actionButtons = []
+  actionButtons = [],
 }) => {
   return (
-    <div 
+    <div
       onClick={onClick}
       className={`
         bg-gradient-to-br from-slate-800/70 to-slate-900/50 backdrop-blur-sm 
@@ -59,18 +67,15 @@ export const Card: React.FC<CardProps> = ({
             )}
             <div className="min-w-0">
               {title && (
-                <h3 
-                  className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors line-clamp-2 leading-tight break-all" 
+                <h3
+                  className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors line-clamp-2 leading-tight break-all"
                   title={title}
                 >
                   {title}
                 </h3>
               )}
               {subtitle && (
-                <p 
-                  className="text-sm text-slate-400 truncate mt-1.5 font-medium" 
-                  title={subtitle}
-                >
+                <p className="text-sm text-slate-400 truncate mt-1.5 font-medium" title={subtitle}>
                   {subtitle}
                 </p>
               )}
@@ -78,26 +83,31 @@ export const Card: React.FC<CardProps> = ({
           </div>
           {redFlagRating !== undefined && (
             <div className="flex items-center shrink-0">
-              <RedFlagIndex value={redFlagRating} size="sm" showLabel={false} variant="combined" showTextLabel={true} />
+              <RedFlagIndex
+                value={redFlagRating}
+                size="sm"
+                showLabel={false}
+                variant="combined"
+                showTextLabel={true}
+              />
             </div>
           )}
         </div>
       )}
 
       {/* Main content */}
-      <div className="space-y-5">
-        {children}
-      </div>
+      <div className="space-y-5">{children}</div>
 
       {/* Metadata section */}
       {metadata.length > 0 && (
         <div className="mt-5 pt-4 border-t border-slate-700/50">
           <div className="flex flex-wrap gap-y-2 gap-x-4 text-xs text-slate-400">
             {metadata.map((item, index) => (
-              <div key={index} className="flex items-center px-2 py-1 bg-slate-800/50 rounded-md border border-slate-700/30">
-                {item.icon && (
-                  <Icon name={item.icon} size="xs" className="mr-1.5 text-slate-500" />
-                )}
+              <div
+                key={index}
+                className="flex items-center px-2 py-1 bg-slate-800/50 rounded-md border border-slate-700/30"
+              >
+                {item.icon && <Icon name={item.icon} size="xs" className="mr-1.5 text-slate-500" />}
                 <span className="font-medium text-slate-500 mr-1">{item.label}:</span>
                 <span className="text-slate-300 font-semibold">{item.value}</span>
               </div>
@@ -120,9 +130,10 @@ export const Card: React.FC<CardProps> = ({
                 }}
                 className={`
                   text-xs font-medium px-4 py-2 rounded-lg transition-all duration-200
-                  ${button.variant === 'primary' 
-                    ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/20' 
-                    : 'text-slate-400 hover:text-white hover:bg-slate-700 border border-transparent hover:border-slate-600'
+                  ${
+                    button.variant === 'primary'
+                      ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/20'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-700 border border-transparent hover:border-slate-600'
                   }
                 `}
               >

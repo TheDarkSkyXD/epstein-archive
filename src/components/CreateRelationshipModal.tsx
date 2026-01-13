@@ -14,16 +14,16 @@ interface CreateRelationshipModalProps {
   initialTargetId?: string;
 }
 
-export const CreateRelationshipModal: React.FC<CreateRelationshipModalProps> = ({ 
-  onClose, 
+export const CreateRelationshipModal: React.FC<CreateRelationshipModalProps> = ({
+  onClose,
   onSuccess,
   initialSourceId,
-  initialTargetId
+  initialTargetId,
 }) => {
   const { modalRef } = useModalFocusTrap(true);
   const { addToast } = useToasts();
   const [loading, setLoading] = useState(false);
-  
+
   // Entity Search State
   const [sourceSearch, setSourceSearch] = useState('');
   const [targetSearch, setTargetSearch] = useState('');
@@ -36,7 +36,7 @@ export const CreateRelationshipModal: React.FC<CreateRelationshipModalProps> = (
     relationship_type: 'associated',
     strength: 5,
     confidence: 0.8,
-    description: ''
+    description: '',
   });
 
   // Load initial entities if IDs provided
@@ -46,13 +46,17 @@ export const CreateRelationshipModal: React.FC<CreateRelationshipModalProps> = (
         try {
           const entity = await apiClient.getEntity(initialSourceId);
           setSelectedSource(entity);
-        } catch (e) { console.error(e); }
+        } catch (e) {
+          console.error(e);
+        }
       }
       if (initialTargetId) {
         try {
           const entity = await apiClient.getEntity(initialTargetId);
           setSelectedTarget(entity);
-        } catch (e) { console.error(e); }
+        } catch (e) {
+          console.error(e);
+        }
       }
     };
     loadInitial();
@@ -84,7 +88,7 @@ export const CreateRelationshipModal: React.FC<CreateRelationshipModalProps> = (
       addToast({ text: 'Please select both entities', type: 'error' });
       return;
     }
-    
+
     setLoading(true);
     try {
       await apiClient.createRelationship({
@@ -94,27 +98,30 @@ export const CreateRelationshipModal: React.FC<CreateRelationshipModalProps> = (
         strength: formData.strength,
         confidence: formData.confidence,
         metadata: {
-          description: formData.description
-        }
+          description: formData.description,
+        },
       });
       addToast({ text: 'Relationship created successfully', type: 'success' });
       onSuccess();
       onClose();
     } catch (error) {
       console.error('Error creating relationship:', error);
-      addToast({ text: error instanceof Error ? error.message : 'Failed to create relationship', type: 'error' });
+      addToast({
+        text: error instanceof Error ? error.message : 'Failed to create relationship',
+        type: 'error',
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return createPortal(
-    <div 
+    <div
       className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
       role="dialog"
       aria-modal="true"
     >
-      <div 
+      <div
         ref={modalRef}
         className="bg-slate-800 rounded-xl w-full max-w-2xl border border-slate-700 shadow-2xl flex flex-col max-h-[90vh]"
       >
@@ -125,7 +132,10 @@ export const CreateRelationshipModal: React.FC<CreateRelationshipModalProps> = (
             </div>
             <h2 className="text-xl font-bold text-white">Create Connection</h2>
           </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white text-xl transition-colors">
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white text-xl transition-colors"
+          >
             ×
           </button>
         </div>
@@ -134,13 +144,18 @@ export const CreateRelationshipModal: React.FC<CreateRelationshipModalProps> = (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Source Entity Selection */}
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-300 mb-2">Source Entity *</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Source Entity *
+              </label>
               {selectedSource ? (
                 <div className="flex items-center justify-between p-3 bg-slate-700 rounded-lg border border-slate-600">
                   <span className="text-white font-medium">{selectedSource.name}</span>
-                  <button 
-                    type="button" 
-                    onClick={() => { setSelectedSource(null); setSourceSearch(''); }}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedSource(null);
+                      setSourceSearch('');
+                    }}
                     className="text-slate-400 hover:text-white"
                   >
                     <X className="w-4 h-4" />
@@ -160,15 +175,20 @@ export const CreateRelationshipModal: React.FC<CreateRelationshipModalProps> = (
                   </div>
                   {sourceResults.length > 0 && (
                     <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-xl max-h-60 overflow-y-auto ring-1 ring-slate-700">
-                      {sourceResults.map(p => (
+                      {sourceResults.map((p) => (
                         <button
                           key={p.id}
                           type="button"
-                          onClick={() => { setSelectedSource(p); setSourceResults([]); }}
+                          onClick={() => {
+                            setSelectedSource(p);
+                            setSourceResults([]);
+                          }}
                           className="w-full text-left px-4 py-2 hover:bg-slate-700 text-sm text-slate-200 transition-colors border-b border-slate-700/50 last:border-0"
                         >
                           <div className="font-medium text-white">{p.name}</div>
-                          {p.primaryRole && <div className="text-xs text-slate-400">{p.primaryRole}</div>}
+                          {p.primaryRole && (
+                            <div className="text-xs text-slate-400">{p.primaryRole}</div>
+                          )}
                         </button>
                       ))}
                     </div>
@@ -179,13 +199,18 @@ export const CreateRelationshipModal: React.FC<CreateRelationshipModalProps> = (
 
             {/* Target Entity Selection */}
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-300 mb-2">Target Entity *</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Target Entity *
+              </label>
               {selectedTarget ? (
                 <div className="flex items-center justify-between p-3 bg-slate-700 rounded-lg border border-slate-600">
                   <span className="text-white font-medium">{selectedTarget.name}</span>
-                  <button 
-                    type="button" 
-                    onClick={() => { setSelectedTarget(null); setTargetSearch(''); }}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedTarget(null);
+                      setTargetSearch('');
+                    }}
                     className="text-slate-400 hover:text-white"
                   >
                     <X className="w-4 h-4" />
@@ -205,15 +230,20 @@ export const CreateRelationshipModal: React.FC<CreateRelationshipModalProps> = (
                   </div>
                   {targetResults.length > 0 && (
                     <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-xl max-h-60 overflow-y-auto ring-1 ring-slate-700">
-                      {targetResults.map(p => (
+                      {targetResults.map((p) => (
                         <button
                           key={p.id}
                           type="button"
-                          onClick={() => { setSelectedTarget(p); setTargetResults([]); }}
+                          onClick={() => {
+                            setSelectedTarget(p);
+                            setTargetResults([]);
+                          }}
                           className="w-full text-left px-4 py-2 hover:bg-slate-700 text-sm text-slate-200 transition-colors border-b border-slate-700/50 last:border-0"
                         >
                           <div className="font-medium text-white">{p.name}</div>
-                          {p.primaryRole && <div className="text-xs text-slate-400">{p.primaryRole}</div>}
+                          {p.primaryRole && (
+                            <div className="text-xs text-slate-400">{p.primaryRole}</div>
+                          )}
                         </button>
                       ))}
                     </div>
@@ -251,15 +281,20 @@ export const CreateRelationshipModal: React.FC<CreateRelationshipModalProps> = (
                 className="w-full"
               />
             </FormField>
-            
-            <FormField label={`Confidence (${Math.round(formData.confidence * 100)}%)`} id="confidence">
+
+            <FormField
+              label={`Confidence (${Math.round(formData.confidence * 100)}%)`}
+              id="confidence"
+            >
               <input
                 type="range"
                 min="0"
                 max="1"
                 step="0.1"
                 value={formData.confidence}
-                onChange={(e) => setFormData({ ...formData, confidence: parseFloat(e.target.value) })}
+                onChange={(e) =>
+                  setFormData({ ...formData, confidence: parseFloat(e.target.value) })
+                }
                 className="w-full"
               />
             </FormField>
@@ -288,7 +323,9 @@ export const CreateRelationshipModal: React.FC<CreateRelationshipModalProps> = (
               disabled={loading || !selectedSource || !selectedTarget}
               className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? 'Creating...' : (
+              {loading ? (
+                'Creating...'
+              ) : (
                 <>
                   <Save className="w-4 h-4" />
                   Create Connection
@@ -299,6 +336,6 @@ export const CreateRelationshipModal: React.FC<CreateRelationshipModalProps> = (
         </form>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 };

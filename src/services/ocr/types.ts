@@ -1,4 +1,3 @@
-
 export interface OCREngine {
   name: string;
   supports(mimeType: string): boolean;

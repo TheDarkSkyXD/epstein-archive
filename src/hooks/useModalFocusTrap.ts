@@ -11,11 +11,11 @@ export const useModalFocusTrap = (isActive: boolean = true) => {
     if (!isActive || !modalRef.current) return;
 
     const modal = modalRef.current;
-    
+
     // Get all focusable elements within the modal
     const getFocusableElements = () => {
       return modal.querySelectorAll(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"]), video, audio'
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"]), video, audio',
       ) as NodeListOf<HTMLElement>;
     };
 

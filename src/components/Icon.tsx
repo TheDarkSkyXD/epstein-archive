@@ -117,7 +117,7 @@ import {
   XCircle,
   ZoomIn,
   ZoomOut,
-  LucideProps
+  LucideProps,
 } from 'lucide-react';
 
 const icons = {
@@ -237,7 +237,7 @@ const icons = {
   X,
   XCircle,
   ZoomIn,
-  ZoomOut
+  ZoomOut,
 };
 
 export type IconName = keyof typeof icons;
@@ -245,7 +245,18 @@ export type IconName = keyof typeof icons;
 interface IconProps {
   name: IconName;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
-  color?: 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'info' | 'white' | 'gray' | 'inherit' | 'black' | 'blue';
+  color?:
+    | 'primary'
+    | 'secondary'
+    | 'success'
+    | 'warning'
+    | 'danger'
+    | 'info'
+    | 'white'
+    | 'gray'
+    | 'inherit'
+    | 'black'
+    | 'blue';
   className?: string;
   ariaLabel?: string;
   ariaHidden?: boolean;
@@ -257,10 +268,10 @@ const Icon: React.FC<IconProps> = ({
   color = 'white',
   className = '',
   ariaLabel,
-  ariaHidden = false
+  ariaHidden = false,
 }) => {
   const IconComponent = icons[name];
-  
+
   if (!IconComponent) {
     console.warn(`Icon "${name}" not found in local icon library`);
     return null;
@@ -271,7 +282,7 @@ const Icon: React.FC<IconProps> = ({
     sm: 'w-4 h-4',
     md: 'w-5 h-5',
     lg: 'w-6 h-6',
-    xl: 'w-8 h-8'
+    xl: 'w-8 h-8',
   };
 
   const colorClasses = {
@@ -285,17 +296,13 @@ const Icon: React.FC<IconProps> = ({
     gray: 'text-gray-400',
     black: 'text-black',
     blue: 'text-blue-600',
-    inherit: ''
+    inherit: '',
   };
 
   const combinedClasses = `${sizeClasses[size]} ${colorClasses[color] || ''} ${className} shrink-0`;
 
   return (
-    <IconComponent
-      className={combinedClasses}
-      aria-label={ariaLabel}
-      aria-hidden={ariaHidden}
-    />
+    <IconComponent className={combinedClasses} aria-label={ariaLabel} aria-hidden={ariaHidden} />
   );
 };
 

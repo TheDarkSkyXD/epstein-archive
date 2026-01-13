@@ -12,7 +12,7 @@ import {
   CreateMemoryQualityMetricsInput,
   MemorySearchFilters,
   MemorySearchResult,
-  ProvenanceInfo
+  ProvenanceInfo,
 } from '../types/memory';
 
 interface QualityScoreDimensions {
@@ -30,13 +30,13 @@ export class MemoryService {
    */
   async createMemoryEntry(input: CreateMemoryEntryInput): Promise<MemoryEntry> {
     const uuid = input.uuid || randomUUID();
-    
+
     // Calculate quality score based on provenance and other factors
     const qualityScore = this.calculateQualityScore({
       sourceReliability: input.provenance?.confidenceScore || 0.5,
       evidenceStrength: 0.5,
       temporalRelevance: 1.0, // New entries are current
-      entityConfidence: input.provenance?.confidenceScore || 0.5
+      entityConfidence: input.provenance?.confidenceScore || 0.5,
     });
 
     const stmt = this.db.prepare(`
@@ -59,7 +59,7 @@ export class MemoryService {
       sourceId: input.sourceId,
       sourceType: input.sourceType,
       qualityScore,
-      provenanceJson: JSON.stringify(input.provenance || {})
+      provenanceJson: JSON.stringify(input.provenance || {}),
     });
 
     // Create quality metrics record
@@ -67,12 +67,12 @@ export class MemoryService {
       sourceReliability: input.provenance?.confidenceScore || 0.5,
       evidenceStrength: 0.5,
       temporalRelevance: 1.0,
-      entityConfidence: input.provenance?.confidenceScore || 0.5
+      entityConfidence: input.provenance?.confidenceScore || 0.5,
     });
 
     // Log the creation in audit log
     this.logAuditEvent(result.lastInsertRowid as number, 'CREATE', {
-      newValues: { ...input, id: result.lastInsertRowid, uuid }
+      newValues: { ...input, id: result.lastInsertRowid, uuid },
     });
 
     return this.getMemoryEntryById(result.lastInsertRowid as number);
@@ -106,7 +106,7 @@ export class MemoryService {
       version: row.version,
       status: row.status,
       qualityScore: row.quality_score,
-      provenance: row.provenance_json ? JSON.parse(row.provenance_json) : undefined
+      provenance: row.provenance_json ? JSON.parse(row.provenance_json) : undefined,
     };
   }
 
@@ -174,20 +174,24 @@ export class MemoryService {
         sourceReliability: input.provenance.confidenceScore,
         evidenceStrength: 0.5,
         temporalRelevance: this.calculateTemporalRelevance(currentEntry.createdAt),
-        entityConfidence: input.provenance.confidenceScore
+        entityConfidence: input.provenance.confidenceScore,
       });
 
-      this.db.prepare(`
+      this.db
+        .prepare(
+          `
         UPDATE memory_entries 
         SET quality_score = @qualityScore 
         WHERE id = @id
-      `).run({ id, qualityScore });
+      `,
+        )
+        .run({ id, qualityScore });
     }
 
     // Log the update in audit log
     this.logAuditEvent(id, 'UPDATE', {
       oldValues: currentEntry,
-      newValues: { ...currentEntry, ...input }
+      newValues: { ...currentEntry, ...input },
     });
 
     return this.getMemoryEntryById(id);
@@ -198,10 +202,10 @@ export class MemoryService {
    */
   async deleteMemoryEntry(id: number): Promise<void> {
     const entry = await this.getMemoryEntryById(id);
-    
+
     // Log the deletion in audit log
     this.logAuditEvent(id, 'DELETE', {
-      oldValues: entry
+      oldValues: entry,
     });
 
     const stmt = this.db.prepare(`
@@ -216,7 +220,7 @@ export class MemoryService {
   async searchMemoryEntries(
     filters: MemorySearchFilters = {},
     page: number = 1,
-    limit: number = 20
+    limit: number = 20,
   ): Promise<MemorySearchResult> {
     const offset = (page - 1) * limit;
     const conditions: string[] = [];
@@ -294,7 +298,7 @@ export class MemoryService {
 
     const rows = stmt.all({ ...params, limit, offset }) as any[];
 
-    const data = rows.map(row => ({
+    const data = rows.map((row) => ({
       id: row.id,
       uuid: row.uuid,
       memoryType: row.memory_type,
@@ -309,7 +313,7 @@ export class MemoryService {
       version: row.version,
       status: row.status,
       qualityScore: row.quality_score,
-      provenance: row.provenance_json ? JSON.parse(row.provenance_json) : undefined
+      provenance: row.provenance_json ? JSON.parse(row.provenance_json) : undefined,
     }));
 
     return {
@@ -317,14 +321,16 @@ export class MemoryService {
       total: totalCount,
       page,
       pageSize: limit,
-      totalPages: Math.ceil(totalCount / limit)
+      totalPages: Math.ceil(totalCount / limit),
     };
   }
 
   /**
    * Creates a relationship between two memory entries
    */
-  async createMemoryRelationship(input: CreateMemoryRelationshipInput): Promise<MemoryRelationship> {
+  async createMemoryRelationship(
+    input: CreateMemoryRelationshipInput,
+  ): Promise<MemoryRelationship> {
     const stmt = this.db.prepare(`
       INSERT INTO memory_relationships (
         from_memory_id, to_memory_id, relationship_type, strength
@@ -337,7 +343,7 @@ export class MemoryService {
       fromMemoryId: input.fromMemoryId,
       toMemoryId: input.toMemoryId,
       relationshipType: input.relationshipType,
-      strength: input.strength || 1.0
+      strength: input.strength || 1.0,
     });
 
     return this.getMemoryRelationshipById(result.lastInsertRowid as number);
@@ -363,7 +369,7 @@ export class MemoryService {
       relationshipType: row.relationship_type,
       strength: row.strength,
       createdAt: row.created_at,
-      updatedAt: row.updated_at
+      updatedAt: row.updated_at,
     };
   }
 
@@ -378,14 +384,14 @@ export class MemoryService {
     `);
     const rows = stmt.all(memoryId, memoryId) as any[];
 
-    return rows.map(row => ({
+    return rows.map((row) => ({
       id: row.id,
       fromMemoryId: row.from_memory_id,
       toMemoryId: row.to_memory_id,
       relationshipType: row.relationship_type,
       strength: row.strength,
       createdAt: row.created_at,
-      updatedAt: row.updated_at
+      updatedAt: row.updated_at,
     }));
   }
 
@@ -400,7 +406,7 @@ export class MemoryService {
       oldValues?: any;
       newValues?: any;
       metadata?: any;
-    } = {}
+    } = {},
   ): Promise<void> {
     const stmt = this.db.prepare(`
       INSERT INTO memory_audit_log (
@@ -416,7 +422,7 @@ export class MemoryService {
       actor: details.actor,
       oldValuesJson: details.oldValues ? JSON.stringify(details.oldValues) : null,
       newValuesJson: details.newValues ? JSON.stringify(details.newValues) : null,
-      metadataJson: details.metadata ? JSON.stringify(details.metadata) : null
+      metadataJson: details.metadata ? JSON.stringify(details.metadata) : null,
     });
   }
 
@@ -431,7 +437,7 @@ export class MemoryService {
     `);
     const rows = stmt.all(memoryEntryId) as any[];
 
-    return rows.map(row => ({
+    return rows.map((row) => ({
       id: row.id,
       memoryEntryId: row.memory_entry_id,
       action: row.action as 'CREATE' | 'UPDATE' | 'DELETE' | 'ACCESS',
@@ -439,7 +445,7 @@ export class MemoryService {
       timestamp: row.timestamp,
       oldValues: row.old_values_json ? JSON.parse(row.old_values_json) : undefined,
       newValues: row.new_values_json ? JSON.parse(row.new_values_json) : undefined,
-      metadata: row.metadata_json ? JSON.parse(row.metadata_json) : undefined
+      metadata: row.metadata_json ? JSON.parse(row.metadata_json) : undefined,
     }));
   }
 
@@ -448,7 +454,7 @@ export class MemoryService {
    */
   async createQualityMetrics(
     memoryEntryId: number,
-    metrics: Omit<CreateMemoryQualityMetricsInput, 'memoryEntryId'>
+    metrics: Omit<CreateMemoryQualityMetricsInput, 'memoryEntryId'>,
   ): Promise<MemoryQualityMetrics> {
     const stmt = this.db.prepare(`
       INSERT INTO memory_quality_metrics (
@@ -465,7 +471,7 @@ export class MemoryService {
       sourceReliability: metrics.sourceReliability,
       evidenceStrength: metrics.evidenceStrength,
       temporalRelevance: metrics.temporalRelevance,
-      entityConfidence: metrics.entityConfidence
+      entityConfidence: metrics.entityConfidence,
     });
 
     return this.getMemoryQualityMetricsById(result.lastInsertRowid as number);
@@ -492,7 +498,7 @@ export class MemoryService {
       temporalRelevance: row.temporal_relevance,
       entityConfidence: row.entity_confidence,
       overallScore: row.overall_score,
-      calculatedAt: row.calculated_at
+      calculatedAt: row.calculated_at,
     };
   }
 
@@ -520,7 +526,7 @@ export class MemoryService {
       temporalRelevance: row.temporal_relevance,
       entityConfidence: row.entity_confidence,
       overallScore: row.overall_score,
-      calculatedAt: row.calculated_at
+      calculatedAt: row.calculated_at,
     };
   }
 

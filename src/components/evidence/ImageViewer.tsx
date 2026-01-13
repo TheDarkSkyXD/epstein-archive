@@ -1,6 +1,6 @@
 /**
  * Image Viewer Component
- * 
+ *
  * Displays scanned documents and photos with zoom
  */
 
@@ -24,8 +24,8 @@ export function ImageViewer({ evidence }: ImageViewerProps) {
   const [zoom, setZoom] = useState(100);
   const [fullscreen, setFullscreen] = useState(false);
 
-  const zoomIn = () => setZoom(prev => Math.min(prev + 25, 200));
-  const zoomOut = () => setZoom(prev => Math.max(prev - 25, 50));
+  const zoomIn = () => setZoom((prev) => Math.min(prev + 25, 200));
+  const zoomOut = () => setZoom((prev) => Math.max(prev - 25, 50));
 
   return (
     <div className="p-6">
@@ -39,11 +39,11 @@ export function ImageViewer({ evidence }: ImageViewerProps) {
           >
             <ZoomOut className="h-5 w-5" />
           </button>
-          
+
           <span className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-50 border border-gray-300 rounded-lg">
             {zoom}%
           </span>
-          
+
           <button
             onClick={zoomIn}
             className="p-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
@@ -51,7 +51,7 @@ export function ImageViewer({ evidence }: ImageViewerProps) {
           >
             <ZoomIn className="h-5 w-5" />
           </button>
-          
+
           <button
             onClick={() => setFullscreen(!fullscreen)}
             className="p-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
@@ -60,23 +60,25 @@ export function ImageViewer({ evidence }: ImageViewerProps) {
             <Maximize2 className="h-5 w-5" />
           </button>
         </div>
-        
-        <button
-          className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-        >
+
+        <button className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
           <Download className="h-4 w-4 mr-2" />
           Download Image
         </button>
       </div>
 
       {/* Image Container */}
-      <div className={`bg-gray-100 rounded-lg overflow-auto ${fullscreen ? 'fixed inset-0 z-50 p-8' : 'max-h-[600px]'}`}>
+      <div
+        className={`bg-gray-100 rounded-lg overflow-auto ${fullscreen ? 'fixed inset-0 z-50 p-8' : 'max-h-[600px]'}`}
+      >
         <div className="flex items-center justify-center min-h-full p-4">
           <div style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'center' }}>
             <img
-              src={evidence.sourcePath.startsWith('/data/') || evidence.sourcePath.startsWith('data/') 
-                ? evidence.sourcePath.replace(/^\/?(data\/)/, '/data/') 
-                : `/data/${evidence.sourcePath.replace(/^.*\/data\//, '')}`}
+              src={
+                evidence.sourcePath.startsWith('/data/') || evidence.sourcePath.startsWith('data/')
+                  ? evidence.sourcePath.replace(/^\/?(data\/)/, '/data/')
+                  : `/data/${evidence.sourcePath.replace(/^.*\/data\//, '')}`
+              }
               alt={evidence.originalFilename}
               className="max-w-full h-auto shadow-lg"
             />
@@ -93,7 +95,9 @@ export function ImageViewer({ evidence }: ImageViewerProps) {
               {evidence.metadata.width && evidence.metadata.height && (
                 <div>
                   <div className="text-gray-600">Dimensions</div>
-                  <div className="text-gray-900">{evidence.metadata.width} × {evidence.metadata.height}</div>
+                  <div className="text-gray-900">
+                    {evidence.metadata.width} × {evidence.metadata.height}
+                  </div>
                 </div>
               )}
               {evidence.metadata.format && (

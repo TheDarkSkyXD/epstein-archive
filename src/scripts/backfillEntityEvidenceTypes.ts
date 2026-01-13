@@ -7,7 +7,7 @@ async function backfillEntityEvidenceTypes() {
     const evidenceTypes: { id: number; type_name: string }[] = db
       .prepare('SELECT id, type_name FROM evidence_types')
       .all() as any[];
-    const typeIdByName = new Map(evidenceTypes.map(t => [t.type_name, t.id]));
+    const typeIdByName = new Map(evidenceTypes.map((t) => [t.type_name, t.id]));
 
     const entities: { id: number }[] = db.prepare('SELECT id FROM entities').all() as any[];
 
@@ -19,7 +19,7 @@ async function backfillEntityEvidenceTypes() {
     `);
 
     const insertLink = db.prepare(
-      'INSERT OR IGNORE INTO entity_evidence_types (entity_id, evidence_type_id) VALUES (?, ?)' 
+      'INSERT OR IGNORE INTO entity_evidence_types (entity_id, evidence_type_id) VALUES (?, ?)',
     );
 
     const tx = db.transaction((batch: { id: number }[]) => {
@@ -47,4 +47,3 @@ async function backfillEntityEvidenceTypes() {
 }
 
 backfillEntityEvidenceTypes().then(() => process.exit(0));
-

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth, User } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -8,7 +7,7 @@ export const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  
+
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -21,7 +20,7 @@ export const LoginPage: React.FC = () => {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username, password }),
       });
 
       const data = await response.json();
@@ -43,7 +42,7 @@ export const LoginPage: React.FC = () => {
     <div className="flex items-center justify-center min-h-[calc(100vh-200px)] p-4">
       <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-lg p-8 shadow-xl">
         <h2 className="text-2xl font-bold text-slate-100 mb-6 text-center">Admin Login</h2>
-        
+
         {error && (
           <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded mb-4 text-sm">
             {error}
@@ -61,7 +60,7 @@ export const LoginPage: React.FC = () => {
               required
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-1">Password</label>
             <input

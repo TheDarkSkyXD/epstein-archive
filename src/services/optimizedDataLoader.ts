@@ -60,7 +60,7 @@ export class OptimizedDataService {
       // Test API connection
       const healthCheck = await apiClient.healthCheck();
       console.log('API connection successful:', healthCheck);
-      
+
       this.isInitialized = true;
       console.log('OptimizedDataService initialized with API backend');
     } catch (error) {
@@ -72,23 +72,26 @@ export class OptimizedDataService {
   /**
    * Get paginated data from database
    */
-  async getPaginatedData(filters: SearchFilters = {}, page: number = 1): Promise<PaginatedResponse> {
+  async getPaginatedData(
+    filters: SearchFilters = {},
+    page: number = 1,
+  ): Promise<PaginatedResponse> {
     await this.initialize();
-    
+
     try {
       // Use API client instead of database
       const result = await apiClient.getEntities(filters, page, this.PAGE_SIZE);
-      
+
       // Transform API entities to RealPerson format
-      const data = result.data.map(entity => this.transformApiEntityToRealPerson(entity));
-      
+      const data = result.data.map((entity) => this.transformApiEntityToRealPerson(entity));
+
       console.log('getPaginatedData debug:', {
         filters,
         page,
         total: result.total,
         pageSize: this.PAGE_SIZE,
         totalPages: result.totalPages,
-        dataLength: data.length
+        dataLength: data.length,
       });
 
       return {
@@ -96,7 +99,7 @@ export class OptimizedDataService {
         total: result.total,
         page,
         pageSize: this.PAGE_SIZE,
-        totalPages: result.totalPages
+        totalPages: result.totalPages,
       };
     } catch (error) {
       console.error('Error fetching paginated data:', error);
@@ -105,7 +108,7 @@ export class OptimizedDataService {
         total: 0,
         page: 1,
         pageSize: this.PAGE_SIZE,
-        totalPages: 0
+        totalPages: 0,
       };
     }
   }
@@ -135,7 +138,8 @@ export class OptimizedDataService {
       red_flag_description: entity.red_flag_description || 'Low',
       keyEvidence: entity.keyEvidence || 'No specific evidence available',
       fileReferences: entity.fileReferences || [],
-      connectionsToEpstein: entity.connectionsToEpstein || 'Various connections mentioned in documents'
+      connectionsToEpstein:
+        entity.connectionsToEpstein || 'Various connections mentioned in documents',
     };
   }
 
@@ -154,10 +158,10 @@ export class OptimizedDataService {
         mediumRisk: 0,
         lowRisk: 0,
         totalMentions: 0,
-        totalFiles: 0
+        totalFiles: 0,
       };
     }
-    
+
     return this.statsCache;
   }
 
@@ -167,14 +171,15 @@ export class OptimizedDataService {
   private async updateStatsCache(): Promise<void> {
     try {
       const stats = await apiClient.getStats();
-      
+
       this.statsCache = {
         totalPeople: stats.totalEntities,
         highRisk: stats.likelihoodDistribution?.find((d: any) => d.level === 'HIGH')?.count || 0,
-        mediumRisk: stats.likelihoodDistribution?.find((d: any) => d.level === 'MEDIUM')?.count || 0,
+        mediumRisk:
+          stats.likelihoodDistribution?.find((d: any) => d.level === 'MEDIUM')?.count || 0,
         lowRisk: stats.likelihoodDistribution?.find((d: any) => d.level === 'LOW')?.count || 0,
         totalMentions: stats.totalMentions,
-        totalFiles: stats.totalDocuments
+        totalFiles: stats.totalDocuments,
       };
     } catch (error) {
       console.error('Error updating stats cache:', error);
@@ -186,10 +191,10 @@ export class OptimizedDataService {
    */
   async searchEntities(query: string, limit: number = 50): Promise<RealPerson[]> {
     await this.initialize();
-    
+
     try {
       const searchResults = await apiClient.searchEntities(query, limit);
-      return searchResults.map(entity => this.transformApiEntityToRealPerson(entity));
+      return searchResults.map((entity) => this.transformApiEntityToRealPerson(entity));
     } catch (error) {
       console.error('Error searching entities:', error);
       return [];
@@ -201,7 +206,7 @@ export class OptimizedDataService {
    */
   async getEntityById(id: string): Promise<RealPerson | null> {
     await this.initialize();
-    
+
     try {
       const entity = await apiClient.getEntity(id);
       return entity ? this.transformApiEntityToRealPerson(entity) : null;
@@ -223,12 +228,12 @@ export class OptimizedDataService {
     try {
       const healthCheck = await apiClient.healthCheck();
       const stats = await apiClient.getStats();
-      
+
       return {
         isReady: healthCheck.status === 'healthy',
         size: stats.totalEntities || 0,
         stats: this.getStats(),
-        cacheStats: { api: 'connected' }
+        cacheStats: { api: 'connected' },
       };
     } catch (error) {
       console.error('Error getting API info:', error);
@@ -236,11 +241,10 @@ export class OptimizedDataService {
         isReady: false,
         size: 0,
         stats: this.getStats(),
-        cacheStats: { api: 'disconnected' }
+        cacheStats: { api: 'disconnected' },
       };
     }
   }
-
 }
 
 export const optimizedDataService = OptimizedDataService.getInstance();

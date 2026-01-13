@@ -21,7 +21,8 @@ export const SourceBadge: React.FC<SourceBadgeProps> = ({ source, className = ''
   };
 
   return (
-    <span className={`
+    <span
+      className={`
       px-2 
       py-1 
       rounded-full 
@@ -32,7 +33,8 @@ export const SourceBadge: React.FC<SourceBadgeProps> = ({ source, className = ''
       backdrop-blur-sm
       ${getSourceColor(source)}
       ${className}
-    `}>
+    `}
+    >
       {source}
     </span>
   );

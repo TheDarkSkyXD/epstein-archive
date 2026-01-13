@@ -25,7 +25,7 @@ export const DocumentAnnotationSystem: React.FC<DocumentAnnotationSystemProps> =
   mode = 'inline',
   onAnnotationCreate,
   onAnnotationUpdate,
-  onAnnotationDelete
+  onAnnotationDelete,
 }) => {
   const [selectedText, setSelectedText] = useState<string>('');
   const [selectionPosition, setSelectionPosition] = useState<TextPosition | null>(null);
@@ -54,7 +54,7 @@ export const DocumentAnnotationSystem: React.FC<DocumentAnnotationSystemProps> =
           visibility: 'team',
           relatedAnnotations: [],
           createdAt: new Date(),
-          updatedAt: new Date()
+          updatedAt: new Date(),
         },
         {
           id: 'annotation-002',
@@ -67,8 +67,8 @@ export const DocumentAnnotationSystem: React.FC<DocumentAnnotationSystemProps> =
           visibility: 'team',
           relatedAnnotations: [],
           createdAt: new Date(),
-          updatedAt: new Date()
-        }
+          updatedAt: new Date(),
+        },
       ];
       setLocalAnnotations(mockAnnotations);
     }
@@ -85,26 +85,26 @@ export const DocumentAnnotationSystem: React.FC<DocumentAnnotationSystemProps> =
     const selectedText = selection.toString().trim();
     if (selectedText.length > 0) {
       setSelectedText(selectedText);
-      
+
       // Get selection position
       const range = selection.getRangeAt(0);
       const rect = range.getBoundingClientRect();
-      
+
       // Calculate position relative to content container
       const containerRect = contentRef.current.getBoundingClientRect();
       setMenuPosition({
         x: rect.left - containerRect.left + rect.width / 2,
-        y: rect.top - containerRect.top - 40
+        y: rect.top - containerRect.top - 40,
       });
 
       // Calculate text position for annotation
       const textContent = contentRef.current.textContent || '';
       const startOffset = getTextOffset(range.startContainer, range.startOffset);
       const endOffset = startOffset + selectedText.length;
-      
+
       setSelectionPosition({
         start: startOffset,
-        end: endOffset
+        end: endOffset,
       });
 
       setShowAnnotationMenu(true);
@@ -116,12 +116,8 @@ export const DocumentAnnotationSystem: React.FC<DocumentAnnotationSystemProps> =
 
   const getTextOffset = (node: Node, offset: number): number => {
     let textOffset = 0;
-    const walker = document.createTreeWalker(
-      contentRef.current!,
-      NodeFilter.SHOW_TEXT,
-      null
-    );
-    
+    const walker = document.createTreeWalker(contentRef.current!, NodeFilter.SHOW_TEXT, null);
+
     let currentNode;
     while ((currentNode = walker.nextNode())) {
       if (currentNode === node) {
@@ -144,7 +140,7 @@ export const DocumentAnnotationSystem: React.FC<DocumentAnnotationSystemProps> =
       tags: [],
       visibility: 'private',
       evidenceRating: type === 'evidence' ? 'supporting' : undefined,
-      relatedAnnotations: []
+      relatedAnnotations: [],
     };
 
     if (onAnnotationCreate) {
@@ -155,11 +151,11 @@ export const DocumentAnnotationSystem: React.FC<DocumentAnnotationSystemProps> =
         ...annotation,
         id: `annotation-${Date.now()}`,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
-      setLocalAnnotations(prev => [...prev, newAnnotation]);
+      setLocalAnnotations((prev) => [...prev, newAnnotation]);
     }
-    
+
     setShowAnnotationMenu(false);
     setSelectedText('');
     window.getSelection()?.removeAllRanges();
@@ -167,25 +163,39 @@ export const DocumentAnnotationSystem: React.FC<DocumentAnnotationSystemProps> =
 
   const getAnnotationColor = (type: Annotation['type']) => {
     switch (type) {
-      case 'highlight': return 'bg-yellow-200 text-yellow-800';
-      case 'note': return 'bg-blue-200 text-blue-800';
-      case 'tag': return 'bg-green-200 text-green-800';
-      case 'question': return 'bg-purple-200 text-purple-800';
-      case 'evidence': return 'bg-red-200 text-red-800';
-      case 'contradiction': return 'bg-orange-200 text-orange-800';
-      default: return 'bg-gray-200 text-gray-800';
+      case 'highlight':
+        return 'bg-yellow-200 text-yellow-800';
+      case 'note':
+        return 'bg-blue-200 text-blue-800';
+      case 'tag':
+        return 'bg-green-200 text-green-800';
+      case 'question':
+        return 'bg-purple-200 text-purple-800';
+      case 'evidence':
+        return 'bg-red-200 text-red-800';
+      case 'contradiction':
+        return 'bg-orange-200 text-orange-800';
+      default:
+        return 'bg-gray-200 text-gray-800';
     }
   };
 
   const getAnnotationIcon = (type: Annotation['type']) => {
     switch (type) {
-      case 'highlight': return Highlighter;
-      case 'note': return MessageSquare;
-      case 'tag': return Tag;
-      case 'question': return Flag;
-      case 'evidence': return CheckCircle;
-      case 'contradiction': return XCircle;
-      default: return MessageSquare;
+      case 'highlight':
+        return Highlighter;
+      case 'note':
+        return MessageSquare;
+      case 'tag':
+        return Tag;
+      case 'question':
+        return Flag;
+      case 'evidence':
+        return CheckCircle;
+      case 'contradiction':
+        return XCircle;
+      default:
+        return MessageSquare;
     }
   };
 
@@ -193,7 +203,7 @@ export const DocumentAnnotationSystem: React.FC<DocumentAnnotationSystemProps> =
     if (!content || !contentRef.current) return content;
 
     let result = content;
-    
+
     // First apply search term highlighting if provided
     if (searchTerm && renderHighlightedText) {
       const highlighted = renderHighlightedText(content, searchTerm);
@@ -207,8 +217,8 @@ export const DocumentAnnotationSystem: React.FC<DocumentAnnotationSystemProps> =
     }
 
     // Sort annotations by start position
-    const sortedAnnotations = [...annotations].sort((a, b) => 
-      (a.position?.start || 0) - (b.position?.start || 0)
+    const sortedAnnotations = [...annotations].sort(
+      (a, b) => (a.position?.start || 0) - (b.position?.start || 0),
     );
 
     let offset = 0;
@@ -221,7 +231,9 @@ export const DocumentAnnotationSystem: React.FC<DocumentAnnotationSystemProps> =
       const highlightedText = result.substring(start + offset, end + offset);
       const afterText = result.substring(end + offset);
 
-      const annotationClass = getAnnotationColor(annotation.type).replace('bg-', 'bg-opacity-30 ').replace('text-', '');
+      const annotationClass = getAnnotationColor(annotation.type)
+        .replace('bg-', 'bg-opacity-30 ')
+        .replace('text-', '');
       const IconComponent = getAnnotationIcon(annotation.type);
 
       result = `${beforeText}<span class="${annotationClass} cursor-pointer hover:bg-opacity-50 transition-colors" data-annotation-id="${annotation.id}">${highlightedText}</span>${afterText}`;
@@ -232,7 +244,7 @@ export const DocumentAnnotationSystem: React.FC<DocumentAnnotationSystemProps> =
   };
 
   const handleAnnotationClick = (annotationId: string) => {
-    const annotation = annotations.find(a => a.id === annotationId);
+    const annotation = annotations.find((a) => a.id === annotationId);
     if (annotation) {
       setActiveAnnotation(annotation);
       setShowAnnotationPanel(true);
@@ -243,7 +255,7 @@ export const DocumentAnnotationSystem: React.FC<DocumentAnnotationSystemProps> =
     if (contentRef.current) {
       // Add click handlers to annotation spans
       const annotationSpans = contentRef.current.querySelectorAll('[data-annotation-id]');
-      annotationSpans.forEach(span => {
+      annotationSpans.forEach((span) => {
         span.addEventListener('click', () => {
           const annotationId = span.getAttribute('data-annotation-id');
           if (annotationId) handleAnnotationClick(annotationId);
@@ -254,7 +266,7 @@ export const DocumentAnnotationSystem: React.FC<DocumentAnnotationSystemProps> =
     return () => {
       if (contentRef.current) {
         const annotationSpans = contentRef.current.querySelectorAll('[data-annotation-id]');
-        annotationSpans.forEach(span => {
+        annotationSpans.forEach((span) => {
           span.replaceWith(span.textContent || '');
         });
       }
@@ -265,7 +277,7 @@ export const DocumentAnnotationSystem: React.FC<DocumentAnnotationSystemProps> =
     <div className={`relative ${mode === 'full' ? 'h-full flex' : ''}`}>
       <div className={`${mode === 'full' ? 'flex-1 pr-4' : 'w-full'}`}>
         {/* Document Content with Annotations */}
-        <div 
+        <div
           ref={contentRef}
           className="prose prose-invert max-w-none text-slate-300 leading-relaxed select-text whitespace-pre-wrap"
           onMouseUp={handleTextSelection}
@@ -274,12 +286,12 @@ export const DocumentAnnotationSystem: React.FC<DocumentAnnotationSystemProps> =
 
         {/* Annotation Menu */}
         {showAnnotationMenu && (
-          <div 
+          <div
             className="absolute z-50 bg-slate-800 border border-slate-600 rounded-lg shadow-xl p-2"
-            style={{ 
-              left: `${menuPosition.x}px`, 
+            style={{
+              left: `${menuPosition.x}px`,
               top: `${menuPosition.y}px`,
-              transform: 'translateX(-50%)'
+              transform: 'translateX(-50%)',
             }}
           >
             <div className="flex space-x-1">
@@ -338,11 +350,9 @@ export const DocumentAnnotationSystem: React.FC<DocumentAnnotationSystemProps> =
         <div className="w-80 bg-slate-800 border-l border-slate-600 p-4 overflow-y-auto">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-white">Annotations</h3>
-            <span className="text-sm text-slate-400">
-              {annotations.length} total
-            </span>
+            <span className="text-sm text-slate-400">{annotations.length} total</span>
           </div>
-          
+
           <div className="space-y-3">
             {annotations.map((annotation) => (
               <div
@@ -355,25 +365,22 @@ export const DocumentAnnotationSystem: React.FC<DocumentAnnotationSystemProps> =
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center space-x-2">
-                    {React.createElement(getAnnotationIcon(annotation.type), { 
-                      className: `w-4 h-4 ${getAnnotationColor(annotation.type).split(' ')[0].replace('bg-', 'text-')}` 
+                    {React.createElement(getAnnotationIcon(annotation.type), {
+                      className: `w-4 h-4 ${getAnnotationColor(annotation.type).split(' ')[0].replace('bg-', 'text-')}`,
                     })}
                     <span className="text-sm font-medium text-white capitalize">
                       {annotation.type}
                     </span>
                   </div>
-
                 </div>
-                <div className="text-sm text-slate-300 mb-2">
-                  "{annotation.content}"
-                </div>
+                <div className="text-sm text-slate-300 mb-2">"{annotation.content}"</div>
                 <div className="flex items-center justify-between text-xs text-slate-500">
                   <span>{annotation.investigatorId}</span>
                   <span>{new Date(annotation.createdAt).toLocaleDateString()}</span>
                 </div>
               </div>
             ))}
-            
+
             {annotations.length === 0 && (
               <div className="text-center py-8 text-slate-400">
                 <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />
@@ -391,7 +398,9 @@ export const DocumentAnnotationSystem: React.FC<DocumentAnnotationSystemProps> =
           <div className="bg-slate-800 border border-slate-600 rounded-lg p-6 w-full max-w-md">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-2">
-                {React.createElement(getAnnotationIcon(activeAnnotation.type), { className: "w-5 h-5" })}
+                {React.createElement(getAnnotationIcon(activeAnnotation.type), {
+                  className: 'w-5 h-5',
+                })}
                 <h3 className="text-lg font-medium text-white capitalize">
                   {activeAnnotation.type}
                 </h3>
@@ -416,12 +425,12 @@ export const DocumentAnnotationSystem: React.FC<DocumentAnnotationSystemProps> =
                       onAnnotationUpdate(activeAnnotation.id, { content: e.target.value });
                     } else {
                       // Update locally
-                      setLocalAnnotations(prev => 
-                        prev.map(ann => 
-                          ann.id === activeAnnotation.id 
+                      setLocalAnnotations((prev) =>
+                        prev.map((ann) =>
+                          ann.id === activeAnnotation.id
                             ? { ...ann, content: e.target.value, updatedAt: new Date() }
-                            : ann
-                        )
+                            : ann,
+                        ),
                       );
                     }
                   }}
@@ -438,15 +447,21 @@ export const DocumentAnnotationSystem: React.FC<DocumentAnnotationSystemProps> =
                   value={activeAnnotation.evidenceRating || ''}
                   onChange={(e) => {
                     if (onAnnotationUpdate) {
-                      onAnnotationUpdate(activeAnnotation.id, { evidenceRating: e.target.value as any });
+                      onAnnotationUpdate(activeAnnotation.id, {
+                        evidenceRating: e.target.value as any,
+                      });
                     } else {
                       // Update locally
-                      setLocalAnnotations(prev => 
-                        prev.map(ann => 
-                          ann.id === activeAnnotation.id 
-                            ? { ...ann, evidenceRating: e.target.value as any, updatedAt: new Date() }
-                            : ann
-                        )
+                      setLocalAnnotations((prev) =>
+                        prev.map((ann) =>
+                          ann.id === activeAnnotation.id
+                            ? {
+                                ...ann,
+                                evidenceRating: e.target.value as any,
+                                updatedAt: new Date(),
+                              }
+                            : ann,
+                        ),
                       );
                     }
                   }}
@@ -462,22 +477,22 @@ export const DocumentAnnotationSystem: React.FC<DocumentAnnotationSystemProps> =
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Visibility
-                </label>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Visibility</label>
                 <select
                   value={activeAnnotation.visibility}
                   onChange={(e) => {
                     if (onAnnotationUpdate) {
-                      onAnnotationUpdate(activeAnnotation.id, { visibility: e.target.value as any });
+                      onAnnotationUpdate(activeAnnotation.id, {
+                        visibility: e.target.value as any,
+                      });
                     } else {
                       // Update locally
-                      setLocalAnnotations(prev => 
-                        prev.map(ann => 
-                          ann.id === activeAnnotation.id 
+                      setLocalAnnotations((prev) =>
+                        prev.map((ann) =>
+                          ann.id === activeAnnotation.id
                             ? { ...ann, visibility: e.target.value as any, updatedAt: new Date() }
-                            : ann
-                        )
+                            : ann,
+                        ),
                       );
                     }
                   }}
@@ -497,7 +512,9 @@ export const DocumentAnnotationSystem: React.FC<DocumentAnnotationSystemProps> =
                       onAnnotationDelete(activeAnnotation.id);
                     } else {
                       // Delete locally
-                      setLocalAnnotations(prev => prev.filter(ann => ann.id !== activeAnnotation.id));
+                      setLocalAnnotations((prev) =>
+                        prev.filter((ann) => ann.id !== activeAnnotation.id),
+                      );
                     }
                     setShowAnnotationPanel(false);
                   }}

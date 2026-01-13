@@ -1,5 +1,12 @@
 import Database from 'better-sqlite3';
-import { MediaImage, Album, MediaTag, ImageFilter, ImageSort, MediaStats } from '../types/media.types';
+import {
+  MediaImage,
+  Album,
+  MediaTag,
+  ImageFilter,
+  ImageSort,
+  MediaStats,
+} from '../types/media.types';
 import fs from 'fs';
 import path from 'path';
 import sharp from 'sharp';
@@ -18,7 +25,7 @@ export class MediaService {
   }
 
   // ============ TAG OPERATIONS ============
-  
+
   getAllTags(): MediaTag[] {
     const stmt = this.db.prepare('SELECT * FROM media_tags ORDER BY name');
     return stmt.all() as MediaTag[];
@@ -104,11 +111,11 @@ export class MediaService {
   getOrCreateAlbum(name: string, description?: string): Album {
     const stmt = this.db.prepare('SELECT id FROM media_albums WHERE name = ?');
     const existing = stmt.get(name) as { id: number } | undefined;
-    
+
     if (existing) {
       return this.getAlbumById(existing.id)!;
     }
-    
+
     return this.createAlbum(name, description);
   }
 
@@ -116,14 +123,12 @@ export class MediaService {
    * Check if an image already exists by original filename and album
    */
   imageExists(originalFilename: string, albumId?: number): boolean {
-    const stmt = albumId 
+    const stmt = albumId
       ? this.db.prepare('SELECT id FROM media_images WHERE original_filename = ? AND album_id = ?')
       : this.db.prepare('SELECT id FROM media_images WHERE original_filename = ?');
-    
-    const result = albumId 
-      ? stmt.get(originalFilename, albumId)
-      : stmt.get(originalFilename);
-    
+
+    const result = albumId ? stmt.get(originalFilename, albumId) : stmt.get(originalFilename);
+
     return !!result;
   }
 
@@ -203,11 +208,67 @@ export class MediaService {
 
     const stmt = this.db.prepare(query);
     const results = stmt.all(...params) as any[];
-    
-    return results.map(row => ({
+
+    return results.map((row) => ({
       ...row,
-      tags: row.tags ? row.tags.split(', ') : []
+      tags: row.tags ? row.tags.split(', ') : [],
     }));
+  }
+
+  getImageCount(filter?: ImageFilter): number {
+    let query = 'SELECT COUNT(DISTINCT i.id) as count FROM media_images i';
+
+    // Join needed tables if filtering by them
+    if (filter?.albumId) {
+      // i.album_id is on media_images, no join needed unless we want to be strict
+    }
+    if (filter?.tagId) {
+      // Handled by subquery
+    }
+
+    const conditions: string[] = [];
+    const params: any[] = [];
+
+    if (filter) {
+      if (filter.albumId) {
+        conditions.push('i.album_id = ?');
+        params.push(filter.albumId);
+      }
+      if (filter.tagId) {
+        conditions.push('i.id IN (SELECT image_id FROM media_image_tags WHERE tag_id = ?)');
+        params.push(filter.tagId);
+      }
+      if (filter.personId) {
+        conditions.push('i.id IN (SELECT media_id FROM media_people WHERE entity_id = ?)');
+        params.push(filter.personId);
+      }
+      if (filter.format) {
+        conditions.push('i.format = ?');
+        params.push(filter.format);
+      }
+      if (filter.dateFrom) {
+        conditions.push('i.date_taken >= ?');
+        params.push(filter.dateFrom);
+      }
+      if (filter.dateTo) {
+        conditions.push('i.date_taken <= ?');
+        params.push(filter.dateTo);
+      }
+      if (filter.searchQuery) {
+        conditions.push(`i.id IN (
+          SELECT rowid FROM media_images_fts 
+          WHERE media_images_fts MATCH ?
+        )`);
+        params.push(filter.searchQuery);
+      }
+    }
+
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    const result = this.db.prepare(query).get(...params) as { count: number };
+    return result.count;
   }
 
   getImageById(id: number): MediaImage | undefined {
@@ -225,10 +286,10 @@ export class MediaService {
     `);
     const result = stmt.get(id) as any;
     if (!result) return undefined;
-    
+
     return {
       ...result,
-      tags: result.tags ? result.tags.split(', ') : []
+      tags: result.tags ? result.tags.split(', ') : [],
     };
   }
 
@@ -241,7 +302,7 @@ export class MediaService {
         iso, latitude, longitude, color_profile, orientation
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    
+
     const result = stmt.run(
       image.filename,
       image.originalFilename,
@@ -265,7 +326,7 @@ export class MediaService {
       image.latitude || null,
       image.longitude || null,
       image.colorProfile || null,
-      image.orientation || 1
+      image.orientation || 1,
     );
 
     return this.getImageById(result.lastInsertRowid as number)!;
@@ -283,7 +344,7 @@ export class MediaService {
       orientation: 'orientation',
       width: 'width',
       height: 'height',
-      fileSize: 'file_size'
+      fileSize: 'file_size',
     };
 
     Object.entries(updates).forEach(([key, value]) => {
@@ -308,12 +369,12 @@ export class MediaService {
   async rotateImage(id: number, degrees: number): Promise<void> {
     const image = this.getImageById(id);
     if (!image) throw new Error('Image not found');
-    
-    // Resolve image path - DB stores paths like /data/... which need to be 
+
+    // Resolve image path - DB stores paths like /data/... which need to be
     // resolved relative to the app root (process.cwd())
     // Resolve image path
     let imagePath = image.path;
-    
+
     // Check if the path exists as-is (absolute path)
     if (!fs.existsSync(imagePath)) {
       // If not, try resolving relative to app root (for /data/ paths)
@@ -325,12 +386,12 @@ export class MediaService {
         }
       }
     }
-    
+
     // Verify file exists
     if (!fs.existsSync(imagePath)) {
       throw new Error(`Image file not found at: ${imagePath}`);
     }
-    
+
     // Calculate current visual rotation from DB state
     let cssRotation = 0;
     // Standard EXIF mapping for "Correction" (Visual Rotation inferred from Flag)
@@ -338,9 +399,15 @@ export class MediaService {
     // Our CSS logic was: 6->90, 8->270, 3->180.
     // So we apply THAT rotation to the base (Auto-Oriented) image.
     switch (image.orientation) {
-      case 6: cssRotation = 90; break;
-      case 3: cssRotation = 180; break;
-      case 8: cssRotation = 270; break;
+      case 6:
+        cssRotation = 90;
+        break;
+      case 3:
+        cssRotation = 180;
+        break;
+      case 8:
+        cssRotation = 270;
+        break;
     }
 
     const totalRotation = (cssRotation + degrees) % 360;
@@ -354,22 +421,22 @@ export class MediaService {
       .rotate(totalRotation) // Apply calculated rotation
       .withMetadata() // Preserve other EXIF (GPS, Date)
       .toFile(tempPath);
-      
+
     fs.renameSync(tempPath, imagePath);
-    
+
     // Read new dimensions/size
     const metadata = await sharp(imagePath).metadata();
-    
+
     // Update DB: Orientation is now 1 (Standard)
-    this.updateImage(id, { 
+    this.updateImage(id, {
       orientation: 1,
       width: metadata.width,
       height: metadata.height,
-      fileSize: metadata.size
+      fileSize: metadata.size,
     });
-    
+
     // Regenerate thumbnail (async/fire-and-forget or await?)
-    // Existing code didn't export regenerateThumbnail, but we can rely on 
+    // Existing code didn't export regenerateThumbnail, but we can rely on
     // frontend requesting it or simple re-generation if method exists.
     // We'll update the thumbnail path if needed or just let it be.
     // Ideally, we force regeneration. But let's stick to the core fix.
@@ -381,8 +448,6 @@ export class MediaService {
   }
 
   // ============ TAG OPERATIONS ============
-
-
 
   createTag(name: string, category?: string): MediaTag {
     const stmt = this.db.prepare(`
@@ -401,11 +466,11 @@ export class MediaService {
   getOrCreateTag(name: string, category?: string): MediaTag {
     const stmt = this.db.prepare('SELECT * FROM media_tags WHERE name = ?');
     let tag = stmt.get(name) as MediaTag | undefined;
-    
+
     if (!tag) {
       tag = this.createTag(name, category);
     }
-    
+
     return tag;
   }
 
@@ -439,29 +504,43 @@ export class MediaService {
   // ============ STATISTICS ============
 
   getMediaStats(): MediaStats {
-    const totalImages = this.db.prepare('SELECT COUNT(*) as count FROM media_images').get() as { count: number };
-    const totalAlbums = this.db.prepare('SELECT COUNT(*) as count FROM media_albums').get() as { count: number };
-    const totalSize = this.db.prepare('SELECT SUM(file_size) as size FROM media_images').get() as { size: number };
-    
-    const formatBreakdown = this.db.prepare(`
+    const totalImages = this.db.prepare('SELECT COUNT(*) as count FROM media_images').get() as {
+      count: number;
+    };
+    const totalAlbums = this.db.prepare('SELECT COUNT(*) as count FROM media_albums').get() as {
+      count: number;
+    };
+    const totalSize = this.db.prepare('SELECT SUM(file_size) as size FROM media_images').get() as {
+      size: number;
+    };
+
+    const formatBreakdown = this.db
+      .prepare(
+        `
       SELECT format, COUNT(*) as count
       FROM media_images
       GROUP BY format
-    `).all() as { format: string; count: number }[];
+    `,
+      )
+      .all() as { format: string; count: number }[];
 
-    const albumBreakdown = this.db.prepare(`
+    const albumBreakdown = this.db
+      .prepare(
+        `
       SELECT a.name, COUNT(i.id) as count
       FROM media_albums a
       LEFT JOIN media_images i ON a.id = i.album_id
       GROUP BY a.id
-    `).all() as { name: string; count: number }[];
+    `,
+      )
+      .all() as { name: string; count: number }[];
 
     return {
       totalImages: totalImages.count,
       totalAlbums: totalAlbums.count,
       totalSize: totalSize.size || 0,
-      formatBreakdown: Object.fromEntries(formatBreakdown.map(f => [f.format, f.count])),
-      albumBreakdown: Object.fromEntries(albumBreakdown.map(a => [a.name, a.count]))
+      formatBreakdown: Object.fromEntries(formatBreakdown.map((f) => [f.format, f.count])),
+      albumBreakdown: Object.fromEntries(albumBreakdown.map((a) => [a.name, a.count])),
     };
   }
 
@@ -473,11 +552,14 @@ export class MediaService {
 
   // ============ ADVANCED OPERATIONS ============
 
-  async generateThumbnail(imagePath: string, outputDir: string, options: { force?: boolean; orientation?: number } = {}): Promise<string> {
-    
+  async generateThumbnail(
+    imagePath: string,
+    outputDir: string,
+    options: { force?: boolean; orientation?: number } = {},
+  ): Promise<string> {
     // Resolve image path for production (relative to app root)
     let resolvedPath = imagePath;
-    
+
     if (!fs.existsSync(resolvedPath)) {
       if (imagePath.startsWith('/data/') || imagePath.startsWith('/')) {
         const relativePath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
@@ -487,7 +569,7 @@ export class MediaService {
         }
       }
     }
-    
+
     if (!fs.existsSync(resolvedPath)) {
       console.warn(`Source image for thumbnail not found: ${resolvedPath}`);
       return imagePath;
@@ -519,19 +601,23 @@ export class MediaService {
       if (options.orientation) {
         let degrees = 0;
         switch (options.orientation) {
-          case 3: degrees = 180; break;
-          case 6: degrees = 90; break;
-          case 8: degrees = 270; break;
+          case 3:
+            degrees = 180;
+            break;
+          case 6:
+            degrees = 90;
+            break;
+          case 8:
+            degrees = 270;
+            break;
         }
         if (degrees > 0) {
           pipeline = pipeline.rotate(degrees);
         }
       }
 
-      await pipeline
-        .resize(300, 300, { fit: 'cover' })
-        .toFile(thumbnailPath);
-      
+      await pipeline.resize(300, 300, { fit: 'cover' }).toFile(thumbnailPath);
+
       return thumbnailPath;
     } catch (error) {
       console.error('Error generating thumbnail:', error);
@@ -552,7 +638,7 @@ export class MediaService {
     } catch (e) {
       console.warn('Failed to parse EXIF data:', e);
     }
-    
+
     // Insert into DB
     const stmt = this.db.prepare(`
       INSERT INTO media_images (
@@ -588,13 +674,11 @@ export class MediaService {
       tags.ExposureTime?.toString(),
       tags.ISO,
       tags.GPSLatitude,
-      tags.GPSLongitude
+      tags.GPSLongitude,
     );
 
     return this.getImageById(info.lastInsertRowid as number)!;
   }
-
-
 
   batchDelete(ids: number[]): void {
     const deleteTags = this.db.prepare('DELETE FROM media_image_tags WHERE image_id = ?');

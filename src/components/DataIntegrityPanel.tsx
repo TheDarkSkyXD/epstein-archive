@@ -14,13 +14,15 @@ interface DataIntegrityPanelProps {
 }
 
 export const DataIntegrityPanel: React.FC<DataIntegrityPanelProps> = ({ stats }) => {
-  const entityLinkPercentage = stats.totalEntities > 0 
-    ? Math.round((stats.entitiesWithDocuments / stats.totalEntities) * 100) 
-    : 0;
-    
-  const documentMetadataPercentage = stats.totalDocuments > 0 
-    ? Math.round((stats.documentsWithMetadata / stats.totalDocuments) * 100) 
-    : 0;
+  const entityLinkPercentage =
+    stats.totalEntities > 0
+      ? Math.round((stats.entitiesWithDocuments / stats.totalEntities) * 100)
+      : 0;
+
+  const documentMetadataPercentage =
+    stats.totalDocuments > 0
+      ? Math.round((stats.documentsWithMetadata / stats.totalDocuments) * 100)
+      : 0;
 
   return (
     <div className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 rounded-xl p-5 shadow-lg">
@@ -35,7 +37,7 @@ export const DataIntegrityPanel: React.FC<DataIntegrityPanelProps> = ({ stats })
           {stats.lastRefresh}
         </span>
       </div>
-      
+
       {/* Progress Bars */}
       <div className="space-y-5">
         {/* Entities with document links */}
@@ -45,19 +47,23 @@ export const DataIntegrityPanel: React.FC<DataIntegrityPanelProps> = ({ stats })
             <span className="text-white font-semibold">{entityLinkPercentage}%</span>
           </div>
           <div className="w-full bg-slate-700/60 rounded-full h-2.5 overflow-hidden">
-            <div 
+            <div
               className={`h-2.5 rounded-full transition-all duration-500 ${
-                entityLinkPercentage >= 95 ? 'bg-emerald-500' : 
-                entityLinkPercentage >= 80 ? 'bg-amber-500' : 'bg-rose-500'
+                entityLinkPercentage >= 95
+                  ? 'bg-emerald-500'
+                  : entityLinkPercentage >= 80
+                    ? 'bg-amber-500'
+                    : 'bg-rose-500'
               }`}
               style={{ width: `${entityLinkPercentage}%` }}
             ></div>
           </div>
           <div className="text-xs text-slate-400 mt-1.5">
-            {stats.entitiesWithDocuments.toLocaleString()} of {stats.totalEntities.toLocaleString()} entities linked
+            {stats.entitiesWithDocuments.toLocaleString()} of {stats.totalEntities.toLocaleString()}{' '}
+            entities linked
           </div>
         </div>
-        
+
         {/* Documents with complete metadata */}
         <div>
           <div className="flex justify-between text-sm mb-2">
@@ -65,20 +71,24 @@ export const DataIntegrityPanel: React.FC<DataIntegrityPanelProps> = ({ stats })
             <span className="text-white font-semibold">{documentMetadataPercentage}%</span>
           </div>
           <div className="w-full bg-slate-700/60 rounded-full h-2.5 overflow-hidden">
-            <div 
+            <div
               className={`h-2.5 rounded-full transition-all duration-500 ${
-                documentMetadataPercentage >= 95 ? 'bg-emerald-500' : 
-                documentMetadataPercentage >= 80 ? 'bg-amber-500' : 'bg-rose-500'
+                documentMetadataPercentage >= 95
+                  ? 'bg-emerald-500'
+                  : documentMetadataPercentage >= 80
+                    ? 'bg-amber-500'
+                    : 'bg-rose-500'
               }`}
               style={{ width: `${documentMetadataPercentage}%` }}
             ></div>
           </div>
           <div className="text-xs text-slate-400 mt-1.5">
-            {stats.documentsWithMetadata.toLocaleString()} of {stats.totalDocuments.toLocaleString()} documents complete
+            {stats.documentsWithMetadata.toLocaleString()} of{' '}
+            {stats.totalDocuments.toLocaleString()} documents complete
           </div>
         </div>
       </div>
-      
+
       {/* Footer */}
       <div className="mt-5 pt-4 border-t border-slate-700/50">
         <button className="text-xs text-blue-400 hover:text-blue-300 transition-colors flex items-center group">

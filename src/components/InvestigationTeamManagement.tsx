@@ -12,7 +12,7 @@ interface InvestigationTeamManagementProps {
 export const InvestigationTeamManagement: React.FC<InvestigationTeamManagementProps> = ({
   investigation,
   currentUser,
-  onTeamUpdate
+  onTeamUpdate,
 }) => {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -32,15 +32,15 @@ export const InvestigationTeamManagement: React.FC<InvestigationTeamManagementPr
         joinedAt: new Date(),
         organization: currentUser.organization,
         expertise: currentUser.expertise || [],
-        status: 'active'
+        status: 'active',
       };
-      
+
       const updatedInvestigation = {
         ...investigation,
         team: [firstAuthor],
-        leadInvestigator: currentUser.id
+        leadInvestigator: currentUser.id,
       };
-      
+
       onTeamUpdate(updatedInvestigation);
       return true;
     }
@@ -53,7 +53,11 @@ export const InvestigationTeamManagement: React.FC<InvestigationTeamManagementPr
   }, []);
 
   // Handle email invitation
-  const handleEmailInvitation = async (email: string, role: 'researcher' | 'analyst' | 'reviewer', message?: string) => {
+  const handleEmailInvitation = async (
+    email: string,
+    role: 'researcher' | 'analyst' | 'reviewer',
+    message?: string,
+  ) => {
     try {
       // Call API to send invitation
       const response = await fetch('/api/investigations/invite', {
@@ -66,7 +70,7 @@ export const InvestigationTeamManagement: React.FC<InvestigationTeamManagementPr
           email,
           role,
           message,
-          invitedBy: currentUser.id
+          invitedBy: currentUser.id,
         }),
       });
 
@@ -75,7 +79,7 @@ export const InvestigationTeamManagement: React.FC<InvestigationTeamManagementPr
       }
 
       const result = await response.json();
-      
+
       // Create a pending member while waiting for acceptance
       const invitedMember: Investigator = {
         id: result.invitationId || `invited-${Date.now()}`,
@@ -86,16 +90,16 @@ export const InvestigationTeamManagement: React.FC<InvestigationTeamManagementPr
         joinedAt: new Date(),
         organization: '',
         expertise: [],
-        status: 'pending'
+        status: 'pending',
       };
 
       const updatedInvestigation = {
         ...investigation,
-        team: [...investigation.team, invitedMember]
+        team: [...investigation.team, invitedMember],
       };
 
       onTeamUpdate(updatedInvestigation);
-      
+
       return true;
     } catch (error) {
       console.error('Error sending invitation:', error);
@@ -108,16 +112,19 @@ export const InvestigationTeamManagement: React.FC<InvestigationTeamManagementPr
 
     // Send email invitation
     const success = await handleEmailInvitation(inviteEmail, inviteRole, inviteMessage);
-    
+
     if (success) {
       // Reset form
       setInviteEmail('');
       setInviteRole('researcher');
       setInviteMessage('');
       setShowInviteModal(false);
-      
+
       // Show success message
-      addToast({ text: `Invitation sent to ${inviteEmail}. They will be added to the team once they accept.`, type: 'success' });
+      addToast({
+        text: `Invitation sent to ${inviteEmail}. They will be added to the team once they accept.`,
+        type: 'success',
+      });
     } else {
       addToast({ text: 'Failed to send invitation. Please try again.', type: 'error' });
     }
@@ -174,12 +181,8 @@ export const InvestigationTeamManagement: React.FC<InvestigationTeamManagementPr
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-xl font-bold text-white">
-            Investigation Team
-          </h3>
-          <p className="text-sm text-slate-400 mt-1">
-            Manage team members and their permissions
-          </p>
+          <h3 className="text-xl font-bold text-white">Investigation Team</h3>
+          <p className="text-sm text-slate-400 mt-1">Manage team members and their permissions</p>
         </div>
         <button
           onClick={() => setShowInviteModal(true)}
@@ -197,7 +200,8 @@ export const InvestigationTeamManagement: React.FC<InvestigationTeamManagementPr
           <div>
             <p className="text-white font-medium">Lead Investigator</p>
             <p className="text-slate-400 text-sm">
-              {investigation.team.find(member => member.id === investigation.leadInvestigator)?.name || investigation.leadInvestigator}
+              {investigation.team.find((member) => member.id === investigation.leadInvestigator)
+                ?.name || investigation.leadInvestigator}
             </p>
           </div>
         </div>
@@ -208,11 +212,16 @@ export const InvestigationTeamManagement: React.FC<InvestigationTeamManagementPr
         {investigation.team.map((member) => {
           const RoleIcon = getRoleIcon(member.role);
           const roleColorClass = getRoleColor(member.role);
-          
+
           return (
-            <div key={member.id} className="flex items-center justify-between p-4 bg-slate-800/50 border border-slate-700 rounded-xl">
+            <div
+              key={member.id}
+              className="flex items-center justify-between p-4 bg-slate-800/50 border border-slate-700 rounded-xl"
+            >
               <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center border ${roleColorClass}`}>
+                <div
+                  className={`w-12 h-12 rounded-full flex items-center justify-center border ${roleColorClass}`}
+                >
                   <RoleIcon className="w-6 h-6" />
                 </div>
                 <div>
@@ -239,10 +248,10 @@ export const InvestigationTeamManagement: React.FC<InvestigationTeamManagementPr
                   </p>
                 </div>
               </div>
-              
+
               <div className="text-right">
                 <div className="flex items-center gap-2 text-xs text-slate-400 mb-2">
-                  {member.permissions.map(permission => (
+                  {member.permissions.map((permission) => (
                     <span key={permission} className="px-2 py-1 bg-slate-700 rounded">
                       {permission}
                     </span>
@@ -271,7 +280,7 @@ export const InvestigationTeamManagement: React.FC<InvestigationTeamManagementPr
             <div className="border-b border-slate-700 p-6">
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-bold text-white">Invite Team Member</h3>
-                <button 
+                <button
                   onClick={() => setShowInviteModal(false)}
                   className="text-slate-400 hover:text-slate-200"
                 >
@@ -279,7 +288,7 @@ export const InvestigationTeamManagement: React.FC<InvestigationTeamManagementPr
                 </button>
               </div>
             </div>
-            
+
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -293,11 +302,9 @@ export const InvestigationTeamManagement: React.FC<InvestigationTeamManagementPr
                   className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              
+
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Role
-                </label>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Role</label>
                 <select
                   value={inviteRole}
                   onChange={(e) => setInviteRole(e.target.value as any)}
@@ -309,7 +316,7 @@ export const InvestigationTeamManagement: React.FC<InvestigationTeamManagementPr
                   <option value="external">External Consultant</option>
                 </select>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
                   Message (Optional)
@@ -323,7 +330,7 @@ export const InvestigationTeamManagement: React.FC<InvestigationTeamManagementPr
                 />
               </div>
             </div>
-            
+
             <div className="border-t border-slate-700 p-6 flex justify-end gap-3">
               <button
                 onClick={() => setShowInviteModal(false)}

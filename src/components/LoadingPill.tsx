@@ -1,90 +1,100 @@
-import React, { useState, useEffect, createContext, useContext, useCallback, ReactNode } from 'react'
+import React, {
+  useState,
+  useEffect,
+  createContext,
+  useContext,
+  useCallback,
+  ReactNode,
+} from 'react';
 
 interface LoadingTask {
-  id: string
-  label: string
-  progress?: number
-  startTime: number
+  id: string;
+  label: string;
+  progress?: number;
+  startTime: number;
 }
 
 interface LoadingContextType {
-  addTask: (id: string, label: string) => void
-  updateTask: (id: string, progress: number) => void
-  removeTask: (id: string) => void
-  tasks: LoadingTask[]
+  addTask: (id: string, label: string) => void;
+  updateTask: (id: string, progress: number) => void;
+  removeTask: (id: string) => void;
+  tasks: LoadingTask[];
 }
 
-const LoadingContext = createContext<LoadingContextType | null>(null)
+const LoadingContext = createContext<LoadingContextType | null>(null);
 
 export const useLoading = () => {
-  const ctx = useContext(LoadingContext)
+  const ctx = useContext(LoadingContext);
   if (!ctx) {
     // Fallback for components not wrapped in provider
     return {
       addTask: () => {},
       updateTask: () => {},
       removeTask: () => {},
-      tasks: []
-    }
+      tasks: [],
+    };
   }
-  return ctx
-}
+  return ctx;
+};
 
 interface LoadingProviderProps {
-  children: ReactNode
+  children: ReactNode;
 }
 
 export const LoadingProvider: React.FC<LoadingProviderProps> = ({ children }) => {
-  const [tasks, setTasks] = useState<LoadingTask[]>([])
+  const [tasks, setTasks] = useState<LoadingTask[]>([]);
 
   const addTask = useCallback((id: string, label: string) => {
-    setTasks(prev => {
+    setTasks((prev) => {
       // Prevent duplicates
-      if (prev.some(t => t.id === id)) {
-        return prev.map(t => t.id === id ? { ...t, label, startTime: Date.now() } : t)
+      if (prev.some((t) => t.id === id)) {
+        return prev.map((t) => (t.id === id ? { ...t, label, startTime: Date.now() } : t));
       }
-      return [...prev, { id, label, startTime: Date.now() }]
-    })
-  }, [])
+      return [...prev, { id, label, startTime: Date.now() }];
+    });
+  }, []);
 
   const updateTask = useCallback((id: string, progress: number) => {
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, progress } : t))
-  }, [])
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, progress } : t)));
+  }, []);
 
   const removeTask = useCallback((id: string) => {
-    setTasks(prev => prev.filter(t => t.id !== id))
-  }, [])
+    setTasks((prev) => prev.filter((t) => t.id !== id));
+  }, []);
 
   return (
     <LoadingContext.Provider value={{ addTask, updateTask, removeTask, tasks }}>
       {children}
       <LoadingPillDisplay tasks={tasks} />
     </LoadingContext.Provider>
-  )
-}
+  );
+};
 
 interface LoadingPillDisplayProps {
-  tasks: LoadingTask[]
+  tasks: LoadingTask[];
 }
 
 const LoadingPillDisplay: React.FC<LoadingPillDisplayProps> = ({ tasks }) => {
-  const [hovered, setHovered] = useState(false)
+  const [hovered, setHovered] = useState(false);
 
-  if (tasks.length === 0) return null
+  if (tasks.length === 0) return null;
 
   // Calculate overall progress
-  const totalProgress = tasks.reduce((sum, t) => sum + (t.progress ?? 50), 0) / tasks.length
-  const mainTask = tasks[0]
+  const totalProgress = tasks.reduce((sum, t) => sum + (t.progress ?? 50), 0) / tasks.length;
+  const mainTask = tasks[0];
 
   return (
-    <div 
+    <div
       className="fixed top-3 right-3 z-50"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       {/* Main compact pill */}
       <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/90 border border-slate-700/60 shadow-lg backdrop-blur-sm cursor-pointer transition-all duration-200 hover:bg-slate-800/90">
-        <div className="w-3 h-3 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" aria-hidden />
+        <div
+          className="w-3 h-3 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin"
+          aria-hidden
+        />
         <span className="text-xs text-slate-300 truncate max-w-[120px]" aria-live="polite">
           {tasks.length === 1 ? mainTask.label : `${tasks.length} tasks`}
         </span>
@@ -108,12 +118,14 @@ const LoadingPillDisplay: React.FC<LoadingPillDisplayProps> = ({ tasks }) => {
         <div className="absolute top-full right-0 mt-2 min-w-[200px] bg-slate-900/95 border border-slate-700/60 rounded-lg shadow-xl backdrop-blur-sm p-3">
           <div className="text-xs text-slate-400 mb-2 font-medium">Active Tasks</div>
           <div className="space-y-2">
-            {tasks.map(task => (
+            {tasks.map((task) => (
               <div key={task.id} className="flex items-center gap-2">
                 <div className="w-2 h-2 border border-cyan-400 border-t-transparent rounded-full animate-spin" />
                 <span className="text-xs text-slate-300 flex-1 truncate">{task.label}</span>
                 {task.progress !== undefined && (
-                  <span className="text-xs text-cyan-400 font-mono">{Math.round(task.progress)}%</span>
+                  <span className="text-xs text-cyan-400 font-mono">
+                    {Math.round(task.progress)}%
+                  </span>
                 )}
               </div>
             ))}
@@ -121,21 +133,24 @@ const LoadingPillDisplay: React.FC<LoadingPillDisplayProps> = ({ tasks }) => {
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
 // Legacy simple pill for backward compatibility
 interface LoadingPillProps {
-  label?: string
-  value?: number
+  label?: string;
+  value?: number;
 }
 
 const LoadingPill: React.FC<LoadingPillProps> = ({ label, value }) => {
-  const pct = typeof value === 'number' ? Math.min(100, Math.max(0, Math.round(value))) : undefined
+  const pct = typeof value === 'number' ? Math.min(100, Math.max(0, Math.round(value))) : undefined;
   return (
     <div className="fixed top-3 right-3 z-50">
       <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/90 border border-slate-700/60 shadow-lg backdrop-blur-sm">
-        <div className="w-3 h-3 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" aria-hidden />
+        <div
+          className="w-3 h-3 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin"
+          aria-hidden
+        />
         <span className="text-xs text-slate-300 truncate max-w-[120px]" aria-live="polite">
           {label || 'Loading'}
         </span>
@@ -155,7 +170,7 @@ const LoadingPill: React.FC<LoadingPillProps> = ({ label, value }) => {
         )}
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default LoadingPill
+export default LoadingPill;

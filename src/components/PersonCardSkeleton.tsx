@@ -5,7 +5,7 @@ const PersonCardSkeleton: React.FC = () => {
     <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 relative overflow-hidden">
       {/* Shimmer effect */}
       <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
-      
+
       {/* Mention intensity bar */}
       <div className="mb-4 h-1 bg-slate-700 rounded-full overflow-hidden animate-pulse"></div>
 
@@ -41,11 +41,11 @@ const PersonCardSkeleton: React.FC = () => {
           </div>
         </div>
       </div>
-      
+
       {/* Footer placeholder */}
       <div className="mt-6 pt-4 border-t border-slate-700/50 flex justify-between">
-         <div className="h-3 w-20 bg-slate-700 rounded"></div>
-         <div className="h-3 w-24 bg-slate-700 rounded"></div>
+        <div className="h-3 w-20 bg-slate-700 rounded"></div>
+        <div className="h-3 w-24 bg-slate-700 rounded"></div>
       </div>
     </div>
   );

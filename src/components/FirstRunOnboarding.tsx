@@ -6,10 +6,7 @@ interface FirstRunOnboardingProps {
   onSkip: () => void;
 }
 
-export const FirstRunOnboarding: React.FC<FirstRunOnboardingProps> = ({ 
-  onComplete, 
-  onSkip 
-}) => {
+export const FirstRunOnboarding: React.FC<FirstRunOnboardingProps> = ({ onComplete, onSkip }) => {
   const [step, setStep] = useState(1);
   const totalSteps = 4;
 
@@ -29,33 +26,37 @@ export const FirstRunOnboarding: React.FC<FirstRunOnboardingProps> = ({
     switch (step) {
       case 1:
         return {
-          title: "Welcome to the Epstein Archive",
-          description: "Discover a powerful tool for investigating complex networks and uncovering hidden connections through advanced search and analysis capabilities.",
-          icon: <Search className="h-8 w-8 text-[var(--accent-primary)]" />
+          title: 'Welcome to the Epstein Archive',
+          description:
+            'Discover a powerful tool for investigating complex networks and uncovering hidden connections through advanced search and analysis capabilities.',
+          icon: <Search className="h-8 w-8 text-[var(--accent-primary)]" />,
         };
       case 2:
         return {
-          title: "Filter by Red Flag Index",
-          description: "Use the Red Flag Index to cut through noise and focus on the most significant entities and documents in your investigation. Higher ratings indicate stronger evidence connections.",
-          icon: <Flag className="h-8 w-8 text-[var(--accent-danger)]" />
+          title: 'Filter by Red Flag Index',
+          description:
+            'Use the Red Flag Index to cut through noise and focus on the most significant entities and documents in your investigation. Higher ratings indicate stronger evidence connections.',
+          icon: <Flag className="h-8 w-8 text-[var(--accent-danger)]" />,
         };
       case 3:
         return {
-          title: "Build Investigations with Evidence",
-          description: "Add people, documents, and connections to investigations to build comprehensive case files. Everything you add is traceable back to source documents.",
-          icon: <Plus className="h-8 w-8 text-[var(--accent-secondary)]" />
+          title: 'Build Investigations with Evidence',
+          description:
+            'Add people, documents, and connections to investigations to build comprehensive case files. Everything you add is traceable back to source documents.',
+          icon: <Plus className="h-8 w-8 text-[var(--accent-secondary)]" />,
         };
       case 4:
         return {
-          title: "Unlock Advanced Features",
-          description: "Explore powerful features like network visualization, advanced filtering, and collaborative investigations to deepen your research.",
-          icon: <Filter className="h-8 w-8 text-[var(--accent-warning)]" />
+          title: 'Unlock Advanced Features',
+          description:
+            'Explore powerful features like network visualization, advanced filtering, and collaborative investigations to deepen your research.',
+          icon: <Filter className="h-8 w-8 text-[var(--accent-warning)]" />,
         };
       default:
         return {
-          title: "",
-          description: "",
-          icon: null
+          title: '',
+          description: '',
+          icon: null,
         };
     }
   };
@@ -83,12 +84,14 @@ export const FirstRunOnboarding: React.FC<FirstRunOnboardingProps> = ({
         {/* Progress */}
         <div className="px-6 py-4 bg-slate-900/30">
           <div className="flex items-center justify-between text-xs font-medium text-slate-400 mb-2 uppercase tracking-wider">
-            <span>Step {step} of {totalSteps}</span>
+            <span>
+              Step {step} of {totalSteps}
+            </span>
             <span className="text-cyan-400">{Math.round((step / totalSteps) * 100)}% complete</span>
           </div>
           <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-            <div 
-              className="bg-gradient-to-r from-cyan-500 to-blue-500 h-full rounded-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(6,182,212,0.5)]" 
+            <div
+              className="bg-gradient-to-r from-cyan-500 to-blue-500 h-full rounded-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(6,182,212,0.5)]"
               style={{ width: `${(step / totalSteps) * 100}%` }}
             ></div>
           </div>
@@ -99,16 +102,14 @@ export const FirstRunOnboarding: React.FC<FirstRunOnboardingProps> = ({
           <div className="mb-8 relative group">
             <div className="absolute inset-0 bg-cyan-500/20 blur-xl rounded-full group-hover:bg-cyan-500/30 transition-all duration-500"></div>
             <div className="relative bg-slate-800/80 p-6 rounded-2xl border border-slate-700 shadow-xl group-hover:scale-110 transition-transform duration-300">
-              {React.cloneElement(icon as React.ReactElement, { className: "h-12 w-12 text-cyan-400" })}
+              {React.cloneElement(icon as React.ReactElement, {
+                className: 'h-12 w-12 text-cyan-400',
+              })}
             </div>
           </div>
-          
-          <h3 className="text-2xl font-bold text-white mb-4 neon-text-cyan">
-            {title}
-          </h3>
-          <p className="text-lg text-slate-300 leading-relaxed max-w-lg">
-            {description}
-          </p>
+
+          <h3 className="text-2xl font-bold text-white mb-4 neon-text-cyan">{title}</h3>
+          <p className="text-lg text-slate-300 leading-relaxed max-w-lg">{description}</p>
         </div>
 
         {/* Footer */}

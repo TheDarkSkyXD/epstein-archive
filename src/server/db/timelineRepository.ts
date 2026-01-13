@@ -3,13 +3,13 @@ import { getDb } from './connection.js';
 // Map evidence_type to timeline type
 const mapEvidenceType = (evidenceType: string): string => {
   const mapping: Record<string, string> = {
-    'email': 'email',
-    'legal': 'legal',
-    'deposition': 'testimony',
-    'financial': 'financial',
-    'article': 'document',
-    'photo': 'document',
-    'document': 'document'
+    email: 'email',
+    legal: 'legal',
+    deposition: 'testimony',
+    financial: 'financial',
+    article: 'document',
+    photo: 'document',
+    document: 'document',
   };
   return mapping[evidenceType?.toLowerCase()] || 'document';
 };
@@ -20,20 +20,24 @@ const calculateSignificance = (doc: any): 'high' | 'medium' | 'low' => {
   const redFlag = doc.red_flag_rating || 0;
   const entityCount = doc.entity_count || 0;
   const title = (doc.title || '').toLowerCase();
-  
+
   // High significance criteria
   if (redFlag >= 4) return 'high';
   if (wordCount > 15000) return 'high';
   if (entityCount > 15) return 'high';
-  if (title.includes('epstein') && (title.includes('arrest') || title.includes('death') || title.includes('plea'))) return 'high';
+  if (
+    title.includes('epstein') &&
+    (title.includes('arrest') || title.includes('death') || title.includes('plea'))
+  )
+    return 'high';
   if (title.includes('maxwell') && title.includes('arrest')) return 'high';
   if (title.includes('indictment')) return 'high';
-  
+
   // Medium significance criteria
   if (redFlag >= 2) return 'medium';
   if (wordCount > 5000) return 'medium';
   if (entityCount > 5) return 'medium';
-  
+
   return 'low';
 };
 
@@ -41,15 +45,15 @@ const calculateSignificance = (doc: any): 'high' | 'medium' | 'low' => {
 const generateDescription = (doc: any): string => {
   const evidenceType = doc.type || 'document';
   const wordCount = doc.word_count || 0;
-  
+
   let desc = `${evidenceType.charAt(0).toUpperCase() + evidenceType.slice(1)} document`;
-  
+
   if (wordCount > 10000) {
     desc += ` with ${wordCount.toLocaleString()} words`;
   } else if (wordCount > 0) {
     desc += ` (${wordCount.toLocaleString()} words)`;
   }
-  
+
   // Add a snippet from content if available
   if (doc.content) {
     const cleanContent = doc.content.replace(/\s+/g, ' ').trim();
@@ -58,7 +62,7 @@ const generateDescription = (doc: any): string => {
       desc += `. ${snippet}${cleanContent.length > 200 ? '...' : ''}`;
     }
   }
-  
+
   return desc;
 };
 
@@ -68,7 +72,9 @@ export const timelineRepository = {
     try {
       // Fetch ONLY Curated Global Events - Timeline should show EVENTS, not documents
       // Documents and people should be linked FROM events, not shown AS events
-      const globalEvents = db.prepare(`
+      const globalEvents = db
+        .prepare(
+          `
         SELECT 
           id,
           title,
@@ -81,7 +87,9 @@ export const timelineRepository = {
           source
         FROM global_timeline_events
         ORDER BY date DESC
-      `).all();
+      `,
+        )
+        .all();
 
       // Transform Global Events
       const mappedEvents = globalEvents.map((e: any) => {
@@ -92,10 +100,10 @@ export const timelineRepository = {
             const entityIds = JSON.parse(e.entities);
             if (Array.isArray(entityIds) && entityIds.length > 0) {
               const placeholders = entityIds.map(() => '?').join(',');
-              const entities = db.prepare(
-                `SELECT id, full_name FROM entities WHERE id IN (${placeholders})`
-              ).all(...entityIds) as { id: number; full_name: string }[];
-              entityData = entities.map(ent => ({ id: ent.id, name: ent.full_name }));
+              const entities = db
+                .prepare(`SELECT id, full_name FROM entities WHERE id IN (${placeholders})`)
+                .all(...entityIds) as { id: number; full_name: string }[];
+              entityData = entities.map((ent) => ({ id: ent.id, name: ent.full_name }));
             }
           } catch {
             entityData = [];
@@ -106,9 +114,11 @@ export const timelineRepository = {
         let relatedDocument = null;
         if (e.related_document_id) {
           try {
-            const doc = db.prepare(
-              `SELECT id, file_name, file_path FROM documents WHERE id = ?`
-            ).get(e.related_document_id) as { id: number; file_name: string; file_path: string } | undefined;
+            const doc = db
+              .prepare(`SELECT id, file_name, file_path FROM documents WHERE id = ?`)
+              .get(e.related_document_id) as
+              | { id: number; file_name: string; file_path: string }
+              | undefined;
             if (doc) {
               relatedDocument = { id: doc.id, name: doc.file_name, path: doc.file_path };
             }
@@ -129,14 +139,14 @@ export const timelineRepository = {
           original_file_path: null,
           is_curated: true,
           source: e.source || null,
-          related_document: relatedDocument
+          related_document: relatedDocument,
         };
       });
-      
+
       return mappedEvents;
     } catch (error) {
       console.error('Error getting timeline events:', error);
       return [];
     }
-  }
+  },
 };

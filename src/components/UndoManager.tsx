@@ -17,7 +17,7 @@ interface UndoState {
   } | null;
 }
 
-type UndoActionType = 
+type UndoActionType =
   | { type: 'ADD_ACTION'; payload: UndoAction }
   | { type: 'REMOVE_ACTION'; payload: string }
   | { type: 'SHOW_NOTIFICATION'; payload: { message: string; action?: UndoAction } }
@@ -35,7 +35,7 @@ const undoReducer = (state: UndoState, action: UndoActionType): UndoState => {
     case 'REMOVE_ACTION':
       return {
         ...state,
-        actions: state.actions.filter(a => a.id !== action.payload),
+        actions: state.actions.filter((a) => a.id !== action.payload),
       };
     case 'SHOW_NOTIFICATION':
       return {
@@ -62,14 +62,17 @@ const undoReducer = (state: UndoState, action: UndoActionType): UndoState => {
 };
 
 // Create context
-const UndoContext = createContext<{
-  state: UndoState;
-  dispatch: React.Dispatch<UndoActionType>;
-  addUndoAction: (action: Omit<UndoAction, 'id' | 'timestamp'>) => void;
-  performUndo: (actionId: string) => Promise<void>;
-  showNotification: (message: string, action?: UndoAction) => void;
-  hideNotification: () => void;
-} | undefined>(undefined);
+const UndoContext = createContext<
+  | {
+      state: UndoState;
+      dispatch: React.Dispatch<UndoActionType>;
+      addUndoAction: (action: Omit<UndoAction, 'id' | 'timestamp'>) => void;
+      performUndo: (actionId: string) => Promise<void>;
+      showNotification: (message: string, action?: UndoAction) => void;
+      hideNotification: () => void;
+    }
+  | undefined
+>(undefined);
 
 // Provider component
 export const UndoProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -98,24 +101,27 @@ export const UndoProvider: React.FC<{ children: React.ReactNode }> = ({ children
     showNotification(`${action.description} completed.`, undoAction);
   }, []);
 
-  const performUndo = useCallback(async (actionId: string) => {
-    const action = state.actions.find(a => a.id === actionId);
-    if (action) {
-      try {
-        await action.undo();
-        dispatch({ type: 'REMOVE_ACTION', payload: actionId });
-        showNotification('Action undone successfully.');
-      } catch (error) {
-        showNotification('Failed to undo action.');
-        console.error('Undo failed:', error);
+  const performUndo = useCallback(
+    async (actionId: string) => {
+      const action = state.actions.find((a) => a.id === actionId);
+      if (action) {
+        try {
+          await action.undo();
+          dispatch({ type: 'REMOVE_ACTION', payload: actionId });
+          showNotification('Action undone successfully.');
+        } catch (error) {
+          showNotification('Failed to undo action.');
+          console.error('Undo failed:', error);
+        }
       }
-    }
-  }, [state.actions]);
+    },
+    [state.actions],
+  );
 
   const showNotification = useCallback((message: string, action?: UndoAction) => {
-    dispatch({ 
-      type: 'SHOW_NOTIFICATION', 
-      payload: { message, action } 
+    dispatch({
+      type: 'SHOW_NOTIFICATION',
+      payload: { message, action },
     });
   }, []);
 

@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  FileText, 
-  AlertTriangle, 
+import {
+  FileText,
+  AlertTriangle,
   Calendar,
   Tag,
   ExternalLink,
   User,
   BarChart3,
   TrendingUp,
-  Network
+  Network,
 } from 'lucide-react';
 
 interface Evidence {
@@ -39,7 +39,7 @@ interface EntityEvidencePanelProps {
 
 export const EntityEvidencePanel: React.FC<EntityEvidencePanelProps> = ({
   entityId,
-  entityName
+  entityName,
 }) => {
   const [evidence, setEvidence] = useState<Evidence[]>([]);
   const [stats, setStats] = useState<any>(null);
@@ -66,7 +66,10 @@ export const EntityEvidencePanel: React.FC<EntityEvidencePanelProps> = ({
   };
 
   const getEvidenceTypeLabel = (type: string) => {
-    return type.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    return type
+      .split('_')
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ');
   };
 
   const getRoleColor = (role: string) => {
@@ -76,12 +79,12 @@ export const EntityEvidencePanel: React.FC<EntityEvidencePanelProps> = ({
       mentioned: 'bg-yellow-100 text-yellow-800',
       passenger: 'bg-purple-100 text-purple-800',
       deponent: 'bg-red-100 text-red-800',
-      subject: 'bg-orange-100 text-orange-800'
+      subject: 'bg-orange-100 text-orange-800',
     };
     return colors[role.toLowerCase()] || 'bg-gray-100 text-gray-800';
   };
 
-  const filteredEvidence = evidence.filter(e => {
+  const filteredEvidence = evidence.filter((e) => {
     const matchesType = filterType === 'all' || e.evidence_type === filterType;
     const matchesRole = filterRole === 'all' || e.role === filterRole;
     return matchesType && matchesRole;
@@ -100,9 +103,7 @@ export const EntityEvidencePanel: React.FC<EntityEvidencePanelProps> = ({
       <div className="bg-gray-50 rounded-lg p-8 text-center">
         <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
         <h3 className="text-lg font-medium text-gray-900 mb-2">No Evidence Found</h3>
-        <p className="text-gray-600">
-          No evidence has been linked to {entityName} yet.
-        </p>
+        <p className="text-gray-600">No evidence has been linked to {entityName} yet.</p>
       </div>
     );
   }
@@ -140,15 +141,19 @@ export const EntityEvidencePanel: React.FC<EntityEvidencePanelProps> = ({
         <div className="space-y-2">
           {stats.typeBreakdown.map((item: any) => (
             <div key={item.evidence_type} className="flex items-center justify-between">
-              <span className="text-sm text-gray-700">{getEvidenceTypeLabel(item.evidence_type)}</span>
+              <span className="text-sm text-gray-700">
+                {getEvidenceTypeLabel(item.evidence_type)}
+              </span>
               <div className="flex items-center space-x-3">
                 <div className="w-32 bg-gray-200 rounded-full h-2">
-                  <div 
+                  <div
                     className="bg-blue-500 h-2 rounded-full"
                     style={{ width: `${(item.count / stats.totalEvidence) * 100}%` }}
                   />
                 </div>
-                <span className="text-sm font-semibold text-gray-700 w-8 text-right">{item.count}</span>
+                <span className="text-sm font-semibold text-gray-700 w-8 text-right">
+                  {item.count}
+                </span>
               </div>
             </div>
           ))}
@@ -164,7 +169,7 @@ export const EntityEvidencePanel: React.FC<EntityEvidencePanelProps> = ({
           </div>
           <div className="flex flex-wrap gap-2">
             {stats.roleBreakdown.map((item: any) => (
-              <span 
+              <span
                 key={item.role}
                 className={`px-3 py-1 text-sm rounded-full ${getRoleColor(item.role)}`}
               >
@@ -234,8 +239,11 @@ export const EntityEvidencePanel: React.FC<EntityEvidencePanelProps> = ({
 
         {/* Evidence List */}
         <div className="space-y-3">
-          {filteredEvidence.map(item => (
-            <div key={item.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition">
+          {filteredEvidence.map((item) => (
+            <div
+              key={item.id}
+              className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition"
+            >
               <div className="flex items-start justify-between mb-2">
                 <div className="flex-1">
                   <div className="flex items-center space-x-2 mb-1">
@@ -260,7 +268,9 @@ export const EntityEvidencePanel: React.FC<EntityEvidencePanelProps> = ({
                   {item.red_flag_rating > 0 && (
                     <div className="flex items-center space-x-1">
                       <AlertTriangle className="w-4 h-4 text-red-500" />
-                      <span className="text-xs font-semibold text-red-600">{item.red_flag_rating}</span>
+                      <span className="text-xs font-semibold text-red-600">
+                        {item.red_flag_rating}
+                      </span>
                     </div>
                   )}
                   {item.confidence && (

@@ -25,14 +25,18 @@ export class EvidenceLinkService {
   constructor(private db: any) {}
 
   async getEvidenceLinks(hypothesisId: number): Promise<EvidenceLink[]> {
-    const links = this.db.prepare(`
+    const links = this.db
+      .prepare(
+        `
       SELECT id, uuid, hypothesis_id, evidence_type, evidence_id, role, note, added_by, added_at
       FROM hypothesis_evidence_links
       WHERE hypothesis_id = ?
       ORDER BY added_at DESC
-    `).all(hypothesisId) as any[];
-    
-    return links.map(l => this.mapEvidenceLink(l));
+    `,
+      )
+      .all(hypothesisId) as any[];
+
+    return links.map((l) => this.mapEvidenceLink(l));
   }
 
   async createEvidenceLink(data: CreateEvidenceLinkInput): Promise<EvidenceLink> {
@@ -40,32 +44,36 @@ export class EvidenceLinkService {
       INSERT INTO hypothesis_evidence_links (hypothesis_id, evidence_type, evidence_id, role, note, added_by)
       VALUES (@hypothesisId, @evidenceType, @evidenceId, @role, @note, @addedBy)
     `);
-    
+
     const result = stmt.run({
       hypothesisId: data.hypothesisId,
       evidenceType: data.evidenceType,
       evidenceId: data.evidenceId,
       role: data.role,
       note: data.note || null,
-      addedBy: data.addedBy
+      addedBy: data.addedBy,
     });
-    
+
     const link = await this.getEvidenceLinkById(result.lastInsertRowid as number);
     if (!link) {
       throw new Error('Failed to create evidence link');
     }
-    
+
     return link;
   }
 
   async getEvidenceLinkById(id: number): Promise<EvidenceLink | null> {
-    const link = this.db.prepare(`
+    const link = this.db
+      .prepare(
+        `
       SELECT id, uuid, hypothesis_id, evidence_type, evidence_id, role, note, added_by, added_at
       FROM hypothesis_evidence_links WHERE id = ?
-    `).get(id) as any;
-    
+    `,
+      )
+      .get(id) as any;
+
     if (!link) return null;
-    
+
     return this.mapEvidenceLink(link);
   }
 
@@ -84,7 +92,7 @@ export class EvidenceLinkService {
       role: row.role,
       note: row.note,
       added_by: row.added_by,
-      added_at: row.added_at
+      added_at: row.added_at,
     };
   }
 }

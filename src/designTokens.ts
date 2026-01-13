@@ -6,38 +6,38 @@ export const colors = {
   // Background colors
   bg: {
     elevated: '#1e293b', // Slightly lighter than base for elevated surfaces
-    surface: '#0f172a',  // Base background color
-    subtle: '#1e293b',   // Subtle background for sections
+    surface: '#0f172a', // Base background color
+    subtle: '#1e293b', // Subtle background for sections
   },
-  
+
   // Border colors
   border: {
-    subtle: '#334155',   // Subtle borders for cards and dividers
-    strong: '#475569',   // Stronger borders for emphasis
+    subtle: '#334155', // Subtle borders for cards and dividers
+    strong: '#475569', // Stronger borders for emphasis
   },
-  
+
   // Accent colors
   accent: {
-    primary: '#3b82f6',  // Primary blue accent
+    primary: '#3b82f6', // Primary blue accent
     secondary: '#8b5cf6', // Secondary purple accent
-    danger: '#ef4444',   // Danger/red accent
-    warning: '#f59e0b',  // Warning/orange accent
-    success: '#10b981',  // Success/green accent
+    danger: '#ef4444', // Danger/red accent
+    warning: '#f59e0b', // Warning/orange accent
+    success: '#10b981', // Success/green accent
   },
-  
+
   // Soft accent variations
   accentSoft: {
-    primary: '#3b82f620',  // Primary with transparency
+    primary: '#3b82f620', // Primary with transparency
     secondary: '#8b5cf620', // Secondary with transparency
-    danger: '#ef444420',   // Danger with transparency
+    danger: '#ef444420', // Danger with transparency
   },
-  
+
   // Text colors
   text: {
-    primary: '#ffffff',   // Primary text color (improved contrast)
+    primary: '#ffffff', // Primary text color (improved contrast)
     secondary: '#e2e8f0', // Secondary text (improved contrast)
-    tertiary: '#cbd5e1',  // Tertiary text (improved contrast)
-    disabled: '#94a3b8',  // Disabled text (improved contrast)
+    tertiary: '#cbd5e1', // Tertiary text (improved contrast)
+    disabled: '#94a3b8', // Disabled text (improved contrast)
   },
 };
 
@@ -48,13 +48,13 @@ export const typography = {
     mono: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
   },
   sizes: {
-    h1: '2rem',      // 32px
-    h2: '1.5rem',    // 24px
-    h3: '1.25rem',   // 20px
-    h4: '1.125rem',  // 18px
-    body: '1rem',    // 16px
+    h1: '2rem', // 32px
+    h2: '1.5rem', // 24px
+    h3: '1.25rem', // 20px
+    h4: '1.125rem', // 18px
+    body: '1rem', // 16px
     caption: '0.875rem', // 14px
-    small: '0.75rem',    // 12px
+    small: '0.75rem', // 12px
   },
   weights: {
     regular: 400,
@@ -66,23 +66,23 @@ export const typography = {
 
 // Spacing Scale (based on 4px grid)
 export const spacing = {
-  space1: '0.25rem',  // 4px
-  space2: '0.5rem',   // 8px
-  space3: '0.75rem',  // 12px
-  space4: '1rem',     // 16px
-  space5: '1.25rem',  // 20px
-  space6: '1.5rem',   // 24px
-  space8: '2rem',     // 32px
-  space10: '2.5rem',  // 40px
-  space12: '3rem',    // 48px
+  space1: '0.25rem', // 4px
+  space2: '0.5rem', // 8px
+  space3: '0.75rem', // 12px
+  space4: '1rem', // 16px
+  space5: '1.25rem', // 20px
+  space6: '1.5rem', // 24px
+  space8: '2rem', // 32px
+  space10: '2.5rem', // 40px
+  space12: '3rem', // 48px
 };
 
 // Border Radius
 export const radii = {
-  sm: '0.25rem',  // 4px
-  md: '0.5rem',   // 8px
-  lg: '0.75rem',  // 12px
-  xl: '1rem',     // 16px
+  sm: '0.25rem', // 4px
+  md: '0.5rem', // 8px
+  lg: '0.75rem', // 12px
+  xl: '1rem', // 16px
   full: '9999px', // Fully rounded
 };
 

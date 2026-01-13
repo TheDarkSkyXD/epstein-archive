@@ -1,6 +1,6 @@
 /**
  * Entity Category Icon Configuration
- * 
+ *
  * Maps entity categories to Lucide React icon identifiers for consistent
  * UI representation across evidence viewers, investigation tool, and search results.
  */
@@ -84,7 +84,9 @@ export const ENTITY_CATEGORY_ICONS: Record<EntityCategory, EntityCategoryConfig>
  * Get icon config for an entity category
  */
 export function getEntityCategoryIcon(category: string): EntityCategoryConfig {
-  return ENTITY_CATEGORY_ICONS[category as EntityCategory] || ENTITY_CATEGORY_ICONS.person_associate;
+  return (
+    ENTITY_CATEGORY_ICONS[category as EntityCategory] || ENTITY_CATEGORY_ICONS.person_associate
+  );
 }
 
 /**
@@ -92,11 +94,15 @@ export function getEntityCategoryIcon(category: string): EntityCategoryConfig {
  */
 export function roleToCategoryHint(role: string): EntityCategory | null {
   const roleLower = role.toLowerCase();
-  
+
   if (roleLower.includes('victim') || roleLower.includes('plaintiff')) {
     return 'person_victim';
   }
-  if (roleLower.includes('passenger') || roleLower.includes('pilot') || roleLower.includes('crew')) {
+  if (
+    roleLower.includes('passenger') ||
+    roleLower.includes('pilot') ||
+    roleLower.includes('crew')
+  ) {
     return 'person_associate';
   }
   if (roleLower.includes('organization') || roleLower.includes('company')) {
@@ -108,6 +114,6 @@ export function roleToCategoryHint(role: string): EntityCategory | null {
   if (roleLower.includes('aircraft')) {
     return 'aircraft';
   }
-  
+
   return null;
 }

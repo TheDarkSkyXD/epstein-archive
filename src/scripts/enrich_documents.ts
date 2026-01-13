@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 /**
  * Document Enrichment Script
- * 
+ *
  * This script:
  * 1. Links OCR documents with their original PDFs
  * 2. Enriches metadata (evidence types, file paths)
@@ -30,8 +30,8 @@ const db = new Database(DB_PATH);
 console.log('🔗 Phase 1: Linking OCR documents with originals...\n');
 
 // Get all original PDFs
-const originalPdfs = fs.existsSync(ORIGINALS_DIR) 
-  ? fs.readdirSync(ORIGINALS_DIR).filter(f => f.endsWith('.pdf'))
+const originalPdfs = fs.existsSync(ORIGINALS_DIR)
+  ? fs.readdirSync(ORIGINALS_DIR).filter((f) => f.endsWith('.pdf'))
   : [];
 
 console.log(`Found ${originalPdfs.length} original PDFs in ${ORIGINALS_DIR}`);
@@ -39,12 +39,12 @@ console.log(`Found ${originalPdfs.length} original PDFs in ${ORIGINALS_DIR}`);
 // Create mapping from OCR filename patterns to original files
 const ocrToOriginalMap: Record<string, string> = {
   "Jeffrey Epstein's Black Book (OCR).txt": "Jeffrey Epstein's Black Book.pdf",
-  "Birthday Book The First Fifty Years.txt": "Birthday Book The First Fifty Years.pdf",
-  "Evidence List (OCR).txt": "Evidence List.pdf",
-  "Virginia Gieuffre Deposition exhbit-6 (ocr).txt": "exhbit-6.pdf",
-  "Virigina Giueffre Deposition exhibit-1 (OCR).txt": "exhibit-1.pdf",
-  "jeffery_epstein_records_4_2 (OCR).txt": "jeffery_epstein_records_4_2.pdf",
-  "katie-johnson-testimony-2016-Nov-5.txt": "katie-johnson.pdf",
+  'Birthday Book The First Fifty Years.txt': 'Birthday Book The First Fifty Years.pdf',
+  'Evidence List (OCR).txt': 'Evidence List.pdf',
+  'Virginia Gieuffre Deposition exhbit-6 (ocr).txt': 'exhbit-6.pdf',
+  'Virigina Giueffre Deposition exhibit-1 (OCR).txt': 'exhibit-1.pdf',
+  'jeffery_epstein_records_4_2 (OCR).txt': 'jeffery_epstein_records_4_2.pdf',
+  'katie-johnson-testimony-2016-Nov-5.txt': 'katie-johnson.pdf',
 };
 
 // Update file_path for documents that have originals
@@ -52,7 +52,7 @@ let linkedCount = 0;
 const updateFilePath = db.prepare(`
   UPDATE documents 
   SET file_path = ?
-  WHERE title LIKE ?
+  WHERE file_name LIKE ?
   AND (file_path IS NULL OR file_path = '')
 `);
 
@@ -76,58 +76,95 @@ console.log('📋 Phase 2: Enriching evidence types...\n');
 
 const evidenceTypePatterns = [
   { type: 'email', patterns: ['From:', 'To:', 'Subject:', 'Sent:', '@', '.msg', '.eml'] },
-  { type: 'deposition', patterns: ['DEPOSITION', 'EXAMINATION', 'Q.', 'A.', 'WITNESS', 'OATH', 'sworn'] },
-  { type: 'legal', patterns: ['COURT', 'PLAINTIFF', 'DEFENDANT', 'EXHIBIT', 'MOTION', 'ORDER', 'CASE NO', 'v.', 'vs.'] },
-  { type: 'financial', patterns: ['$', 'WIRE', 'TRANSFER', 'ACCOUNT', 'BALANCE', 'CREDIT', 'DEBIT', 'INVOICE', 'PAYMENT'] },
+  {
+    type: 'deposition',
+    patterns: ['DEPOSITION', 'EXAMINATION', 'Q.', 'A.', 'WITNESS', 'OATH', 'sworn'],
+  },
+  {
+    type: 'legal',
+    patterns: [
+      'COURT',
+      'PLAINTIFF',
+      'DEFENDANT',
+      'EXHIBIT',
+      'MOTION',
+      'ORDER',
+      'CASE NO',
+      'v.',
+      'vs.',
+    ],
+  },
+  {
+    type: 'financial',
+    patterns: [
+      '$',
+      'WIRE',
+      'TRANSFER',
+      'ACCOUNT',
+      'BALANCE',
+      'CREDIT',
+      'DEBIT',
+      'INVOICE',
+      'PAYMENT',
+    ],
+  },
   { type: 'photo', patterns: ['.jpg', '.jpeg', '.png', '.gif', '.bmp', 'PHOTOGRAPH', 'IMAGE'] },
-  { type: 'article', patterns: ['NEWS', 'ARTICLE', 'PUBLISHED', 'REPORTER', 'JOURNALIST', 'MEDIA'] },
+  {
+    type: 'article',
+    patterns: ['NEWS', 'ARTICLE', 'PUBLISHED', 'REPORTER', 'JOURNALIST', 'MEDIA'],
+  },
 ];
 
 // Get documents without evidence type or with 'document' type
-const docsToEnrich = db.prepare(`
-  SELECT id, title, content, file_type 
+const docsToEnrich = db
+  .prepare(
+    `
+  SELECT id, file_name, content, file_type 
   FROM documents 
   WHERE evidence_type IS NULL OR evidence_type = '' OR evidence_type = 'document'
-`).all() as any[];
+`,
+  )
+  .all() as any[];
 
 console.log(`Analyzing ${docsToEnrich.length} documents for evidence type...`);
 
 const updateEvidenceType = db.prepare(`UPDATE documents SET evidence_type = ? WHERE id = ?`);
 
-let typeUpdates = { email: 0, deposition: 0, legal: 0, financial: 0, photo: 0, article: 0 };
+const typeUpdates = { email: 0, deposition: 0, legal: 0, financial: 0, photo: 0, article: 0 };
 
 for (const doc of docsToEnrich) {
-  const fullText = `${doc.title || ''} ${doc.content || ''}`.toUpperCase();
+  const fullText = `${doc.file_name || ''} ${doc.content || ''}`.toUpperCase();
   const fileType = (doc.file_type || '').toLowerCase();
-  
+
   // Check for image by file type first
   if (/jpe?g|png|gif|bmp|webp/i.test(fileType)) {
     updateEvidenceType.run('photo', doc.id);
     typeUpdates.photo++;
     continue;
   }
-  
+
   // Check for CSV/Excel by file type
   if (/csv|xls|xlsx/i.test(fileType)) {
     updateEvidenceType.run('financial', doc.id);
     typeUpdates.financial++;
     continue;
   }
-  
+
   // Score each evidence type by pattern matches
   let bestType = 'document';
   let bestScore = 0;
-  
+
   for (const { type, patterns } of evidenceTypePatterns) {
-    const score = patterns.reduce((sum, p) => 
-      sum + (fullText.includes(p.toUpperCase()) ? 1 : 0), 0
+    const score = patterns.reduce(
+      (sum, p) => sum + (fullText.includes(p.toUpperCase()) ? 1 : 0),
+      0,
     );
     if (score > bestScore) {
       bestScore = score;
       bestType = type;
     }
   }
-  
+
   // Only update if we have a meaningful match (score >= 2)
   if (bestScore >= 2 && bestType !== 'document') {
     updateEvidenceType.run(bestType, doc.id);
@@ -147,23 +184,29 @@ console.log();
 console.log('👥 Phase 3: Computing entity mentions in documents...\n');
 
 // Get all entities (use full_name column)
-const entities = db.prepare(`
+const entities = db
+  .prepare(
+    `
   SELECT id, full_name as name 
   FROM entities 
   WHERE full_name NOT LIKE '%Unknown%'
-`).all() as any[];
+`,
+  )
+  .all() as any[];
 
 console.log(`Processing mentions for ${entities.length} entities...`);
 
 // Get all documents
-const allDocs = db.prepare(`SELECT id, content FROM documents WHERE content IS NOT NULL`).all() as any[];
+const allDocs = db
+  .prepare(`SELECT id, content FROM documents WHERE content IS NOT NULL`)
+  .all() as any[];
 console.log(`Scanning ${allDocs.length} documents...`);
 
 // Build entity search patterns (just use name since no aliases)
-const entityPatterns = entities.map(e => ({
-  id: e.id, 
-  name: e.name, 
-  patterns: [e.name.toLowerCase()]
+const entityPatterns = entities.map((e) => ({
+  id: e.id,
+  name: e.name,
+  patterns: [e.name.toLowerCase()],
 }));
 
 // Count mentions per entity
@@ -173,7 +216,7 @@ const entityDocuments: Record<string, Set<string>> = {};
 for (const doc of allDocs) {
   const content = (doc.content || '').toLowerCase();
   for (const entity of entityPatterns) {
-    const found = entity.patterns.some(p => content.includes(p));
+    const found = entity.patterns.some((p) => content.includes(p));
     if (found) {
       mentionCounts[entity.id] = (mentionCounts[entity.id] || 0) + 1;
       if (!entityDocuments[entity.id]) entityDocuments[entity.id] = new Set();
@@ -192,31 +235,34 @@ console.log(`Computed mentions for ${Object.keys(mentionCounts).length} entities
 console.log('🔗 Phase 4: Computing entity relationships from co-mentions...\n');
 
 // Find pairs of entities mentioned in the same documents
-const relationships: Map<string, { source: string, target: string, strength: number, docIds: Set<string> }> = new Map();
+const relationships: Map<
+  string,
+  { source: string; target: string; strength: number; docIds: Set<string> }
+> = new Map();
 
 for (const doc of allDocs) {
   const content = (doc.content || '').toLowerCase();
   const mentionedEntities: string[] = [];
-  
+
   for (const entity of entityPatterns) {
-    if (entity.patterns.some(p => content.includes(p))) {
+    if (entity.patterns.some((p) => content.includes(p))) {
       mentionedEntities.push(entity.id);
     }
   }
-  
+
   // Create relationships between all co-mentioned entities
   for (let i = 0; i < mentionedEntities.length; i++) {
     for (let j = i + 1; j < mentionedEntities.length; j++) {
       const source = mentionedEntities[i];
       const target = mentionedEntities[j];
       const key = source < target ? `${source}-${target}` : `${target}-${source}`;
-      
+
       if (!relationships.has(key)) {
-        relationships.set(key, { 
-          source: source < target ? source : target, 
-          target: source < target ? target : source, 
-          strength: 0, 
-          docIds: new Set() 
+        relationships.set(key, {
+          source: source < target ? source : target,
+          target: source < target ? target : source,
+          strength: 0,
+          docIds: new Set(),
         });
       }
       const rel = relationships.get(key)!;
@@ -229,12 +275,25 @@ for (const doc of allDocs) {
 console.log(`Found ${relationships.size} entity relationships from co-mentions.`);
 
 // Filter to keep only significant relationships (strength >= 2)
-const significantRels = [...relationships.values()].filter(r => r.strength >= 2);
+const significantRels = [...relationships.values()].filter((r) => r.strength >= 2);
 console.log(`${significantRels.length} relationships have strength >= 2.`);
 
 // Insert or update relationships (limit to top 10K to avoid too many inserts)
 const topRels = significantRels.sort((a, b) => b.strength - a.strength).slice(0, 10000);
 console.log(`Inserting top ${topRels.length} relationships...`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS entity_relationships (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_id INTEGER NOT NULL,
+    target_id INTEGER NOT NULL,
+    type TEXT,
+    weight INTEGER DEFAULT 0,
+    confidence REAL DEFAULT 1.0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(source_id, target_id, type)
+  )
+`);
 
 const insertRelationship = db.prepare(`
   INSERT OR REPLACE INTO entity_relationships (source_id, target_id, type, weight, confidence)
@@ -244,11 +303,7 @@ const insertRelationship = db.prepare(`
 let relInserts = 0;
 for (const rel of topRels) {
   try {
-    insertRelationship.run(
-      rel.source,
-      rel.target,
-      rel.strength
-    );
+    insertRelationship.run(rel.source, rel.target, rel.strength);
     relInserts++;
   } catch (e) {
     // Skip if foreign key constraint fails
@@ -265,15 +320,25 @@ console.log('==================\n');
 
 const stats = {
   totalDocs: (db.prepare(`SELECT COUNT(*) as c FROM documents`).get() as any).c,
-  withFilePath: (db.prepare(`SELECT COUNT(*) as c FROM documents WHERE file_path IS NOT NULL AND file_path != ''`).get() as any).c,
-  byEvidenceType: db.prepare(`
+  withFilePath: (
+    db
+      .prepare(
+        `SELECT COUNT(*) as c FROM documents WHERE file_path IS NOT NULL AND file_path != ''`,
+      )
+      .get() as any
+  ).c,
+  byEvidenceType: db
+    .prepare(
+      `
     SELECT evidence_type, COUNT(*) as count 
     FROM documents 
     GROUP BY evidence_type 
     ORDER BY count DESC
-  `).all() as any[],
+  `,
+    )
+    .all() as any[],
   totalEntities: (db.prepare(`SELECT COUNT(*) as c FROM entities`).get() as any).c,
-  entitiesWithMentions: Object.keys(mentionCounts).length,  // Use computed data instead of DB column
+  entitiesWithMentions: Object.keys(mentionCounts).length, // Use computed data instead of DB column
   totalRelationships: (db.prepare(`SELECT COUNT(*) as c FROM entity_relationships`).get() as any).c,
 };
 
@@ -288,7 +353,6 @@ console.log(`Entities: ${stats.totalEntities}`);
 console.log(`  With mentions: ${stats.entitiesWithMentions}`);
 console.log(`Relationships: ${stats.totalRelationships}`);
 
-
 // ============================================
 // 6. Aggressive Entity Consolidation (Standardized)
 // ============================================
@@ -297,10 +361,10 @@ console.log('🧹 Phase 6: Running Aggressive Entity Consolidation...');
 try {
   const { execSync } = require('child_process');
   const scriptPath = path.resolve('./scripts/aggressive_entity_consolidation.ts');
-  
+
   console.log(`   Executing: ${scriptPath}`);
   const output = execSync(`npx tsx "${scriptPath}"`, { stdio: 'inherit' });
-  
+
   console.log('   ✓ Aggressive consolidation complete.');
 } catch (error: any) {
   console.error('   ❌ Error running aggressive consolidation:', error.message);

@@ -2,7 +2,7 @@ import { databaseService } from '../services/DatabaseService';
 
 async function completeDatabaseMigration() {
   console.log('Starting complete database migration...');
-  
+
   try {
     // 1. Add missing columns to entities table
     console.log('1. Adding missing columns to entities table...');
@@ -16,7 +16,7 @@ async function completeDatabaseMigration() {
     } catch (error) {
       console.log('⚠ Warning: Could not add all columns (may already exist)');
     }
-    
+
     // 2. Create missing tables
     console.log('2. Creating missing tables...');
     databaseService.exec(`
@@ -35,7 +35,7 @@ async function completeDatabaseMigration() {
       );
     `);
     console.log('✓ Created missing tables');
-    
+
     // 3. Populate evidence_types table
     console.log('3. Populating evidence_types table...');
     databaseService.exec(`
@@ -52,7 +52,7 @@ async function completeDatabaseMigration() {
       ('property_record', 'Property and real estate records');
     `);
     console.log('✓ Populated evidence_types table');
-    
+
     // 4. Update entity_mentions table structure
     console.log('4. Updating entity_mentions table structure...');
     try {
@@ -68,7 +68,7 @@ async function completeDatabaseMigration() {
     } catch (error) {
       console.log('⚠ Warning: Could not update entity_mentions table (columns may already exist)');
     }
-    
+
     // 5. Update timeline_events table
     console.log('5. Updating timeline_events table...');
     try {
@@ -81,7 +81,7 @@ async function completeDatabaseMigration() {
     } catch (error) {
       console.log('⚠ Warning: Could not update timeline_events table (columns may already exist)');
     }
-    
+
     // 6. Create indexes (safely)
     console.log('6. Creating indexes...');
     try {
@@ -97,7 +97,7 @@ async function completeDatabaseMigration() {
     } catch (error: any) {
       console.log('⚠ Warning: Could not create all indexes:', error.message);
     }
-    
+
     // Try to create index on context_type if the column exists
     try {
       databaseService.exec(`
@@ -107,7 +107,7 @@ async function completeDatabaseMigration() {
     } catch (error) {
       console.log('ℹ Note: context_type column not yet available for indexing');
     }
-    
+
     // 7. Create views
     console.log('7. Creating views...');
     databaseService.exec(`
@@ -153,7 +153,7 @@ async function completeDatabaseMigration() {
       GROUP BY d.id;
     `);
     console.log('✓ Created views');
-    
+
     // 8. Update FTS tables
     console.log('8. Updating FTS tables...');
     // Note: FTS tables cannot be altered, so we'll just ensure they exist
@@ -177,13 +177,17 @@ async function completeDatabaseMigration() {
       );
     `);
     console.log('✓ Updated FTS tables');
-    
+
     // 9. Verify migration
     console.log('9. Verifying migration...');
-    const tables = databaseService.prepare(`
+    const tables = databaseService
+      .prepare(
+        `
       SELECT name FROM sqlite_master WHERE type='table' ORDER BY name
-    `).all();
-    
+    `,
+      )
+      .all();
+
     const tableNames = tables.map((table: any) => table.name);
     const requiredTables = [
       'entities',
@@ -193,31 +197,34 @@ async function completeDatabaseMigration() {
       'entity_mentions',
       'timeline_events',
       'entities_fts',
-      'documents_fts'
+      'documents_fts',
     ];
-    
-    const missingTables = requiredTables.filter(table => !tableNames.includes(table));
+
+    const missingTables = requiredTables.filter((table) => !tableNames.includes(table));
     if (missingTables.length > 0) {
       console.log('❌ Missing tables:', missingTables);
     } else {
       console.log('✓ All required tables present');
     }
-    
-    const views = databaseService.prepare(`
+
+    const views = databaseService
+      .prepare(
+        `
       SELECT name FROM sqlite_master WHERE type='view' ORDER BY name
-    `).all();
-    
+    `,
+      )
+      .all();
+
     const viewNames = views.map((view: any) => view.name);
     const requiredViews = ['entity_summary', 'document_summary'];
-    const missingViews = requiredViews.filter(view => !viewNames.includes(view));
+    const missingViews = requiredViews.filter((view) => !viewNames.includes(view));
     if (missingViews.length > 0) {
       console.log('❌ Missing views:', missingViews);
     } else {
       console.log('✓ All required views present');
     }
-    
+
     console.log('✅ Complete database migration finished successfully!');
-    
   } catch (error) {
     console.error('❌ Database migration failed:', error);
     process.exit(1);
@@ -225,10 +232,12 @@ async function completeDatabaseMigration() {
 }
 
 // Run the migration
-completeDatabaseMigration().then(() => {
-  console.log('🎉 Database migration completed successfully!');
-  process.exit(0);
-}).catch((error) => {
-  console.error('💥 Database migration failed:', error);
-  process.exit(1);
-});
+completeDatabaseMigration()
+  .then(() => {
+    console.log('🎉 Database migration completed successfully!');
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error('💥 Database migration failed:', error);
+    process.exit(1);
+  });

@@ -1,6 +1,28 @@
 import React, { useState } from 'react';
-import { Investigation, EvidenceItem, TimelineEvent, Hypothesis, Annotation } from '../types/investigation';
-import { FileText, Download, Share2, Eye, Lock, Globe, Newspaper, Gavel, FileSpreadsheet, Image, Code, Check, Copy, Printer, Microscope } from 'lucide-react';
+import {
+  Investigation,
+  EvidenceItem,
+  TimelineEvent,
+  Hypothesis,
+  Annotation,
+} from '../types/investigation';
+import {
+  FileText,
+  Download,
+  Share2,
+  Eye,
+  Lock,
+  Globe,
+  Newspaper,
+  Gavel,
+  FileSpreadsheet,
+  Image,
+  Code,
+  Check,
+  Copy,
+  Printer,
+  Microscope,
+} from 'lucide-react';
 import { format } from 'date-fns';
 import { useToasts } from './ToastProvider';
 
@@ -36,15 +58,16 @@ const exportFormats: ExportFormat[] = [
     description: 'Comprehensive report with evidence, timeline, and analysis',
     icon: FileText,
     color: 'bg-blue-600',
-    category: 'document'
+    category: 'document',
   },
   {
     id: 'forensic-report',
     name: 'Forensic Analysis Report',
-    description: 'Professional forensic analysis with authenticity verification and pattern detection',
+    description:
+      'Professional forensic analysis with authenticity verification and pattern detection',
     icon: Microscope,
     color: 'bg-red-600',
-    category: 'legal'
+    category: 'legal',
   },
   {
     id: 'legal-brief',
@@ -52,7 +75,7 @@ const exportFormats: ExportFormat[] = [
     description: 'Court-ready document with evidence chain and citations',
     icon: Gavel,
     color: 'bg-purple-600',
-    category: 'legal'
+    category: 'legal',
   },
   {
     id: 'journalism-package',
@@ -60,7 +83,7 @@ const exportFormats: ExportFormat[] = [
     description: 'News-ready package with story, quotes, and multimedia',
     icon: Newspaper,
     color: 'bg-green-600',
-    category: 'journalism'
+    category: 'journalism',
   },
   {
     id: 'evidence-spreadsheet',
@@ -68,7 +91,7 @@ const exportFormats: ExportFormat[] = [
     description: 'Structured data export of all evidence and metadata',
     icon: FileSpreadsheet,
     color: 'bg-orange-600',
-    category: 'data'
+    category: 'data',
   },
   {
     id: 'timeline-visual',
@@ -76,7 +99,7 @@ const exportFormats: ExportFormat[] = [
     description: 'Interactive timeline with events and connections',
     icon: Image,
     color: 'bg-pink-600',
-    category: 'visual'
+    category: 'visual',
   },
   {
     id: 'network-graph',
@@ -84,8 +107,8 @@ const exportFormats: ExportFormat[] = [
     description: 'Entity relationship graph and connection analysis',
     icon: Code,
     color: 'bg-indigo-600',
-    category: 'visual'
-  }
+    category: 'visual',
+  },
 ];
 
 const publishingOptions: PublishingOption[] = [
@@ -94,22 +117,22 @@ const publishingOptions: PublishingOption[] = [
     name: 'Public Web Publication',
     description: 'Publish investigation as interactive web story',
     icon: Globe,
-    security: 'public'
+    security: 'public',
   },
   {
     id: 'secure-portal',
     name: 'Secure Investigation Portal',
     description: 'Private portal for team collaboration and review',
     icon: Lock,
-    security: 'secure'
+    security: 'secure',
   },
   {
     id: 'newsroom-share',
     name: 'Newsroom Collaboration',
     description: 'Share with newsroom for editorial review and publication',
     icon: Share2,
-    security: 'private'
-  }
+    security: 'private',
+  },
 ];
 
 export const InvestigationExportTools: React.FC<ExportToolsProps> = ({
@@ -117,7 +140,7 @@ export const InvestigationExportTools: React.FC<ExportToolsProps> = ({
   evidence,
   timelineEvents,
   hypotheses,
-  annotations
+  annotations,
 }) => {
   const [selectedFormat, setSelectedFormat] = useState<string>('');
   const [selectedPublishing, setSelectedPublishing] = useState<string>('');
@@ -149,7 +172,7 @@ ${investigation.description}
 
     if (includeHypotheses && hypotheses.length > 0) {
       report += `## Key Hypotheses\n\n`;
-      hypotheses.forEach(hyp => {
+      hypotheses.forEach((hyp) => {
         report += `### ${hyp.title}\n`;
         report += `${hyp.description}\n\n`;
         report += `**Confidence:** ${hyp.confidence}%\n`;
@@ -159,11 +182,11 @@ ${investigation.description}
 
     if (includeTimeline && timelineEvents.length > 0) {
       report += `## Timeline of Events\n\n`;
-      const sortedEvents = [...timelineEvents].sort((a, b) => 
-        new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+      const sortedEvents = [...timelineEvents].sort(
+        (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
       );
-      
-      sortedEvents.forEach(event => {
+
+      sortedEvents.forEach((event) => {
         report += `### ${format(new Date(event.startDate), 'PPP')}: ${event.title}\n`;
         if (event.description) {
           report += `${event.description}\n\n`;
@@ -174,9 +197,9 @@ ${investigation.description}
 
     if (includeEvidenceChain && evidence.length > 0) {
       report += `## Evidence Summary\n\n`;
-      evidence.forEach(ev => {
+      evidence.forEach((ev) => {
         if (!includeConfidential && (ev.sensitivity || 'confidential') === 'confidential') return;
-        
+
         report += `### ${ev.title}\n`;
         report += `${ev.description}\n\n`;
         report += `**Source:** ${ev.source} | **Type:** ${ev.type}\n`;
@@ -207,18 +230,18 @@ ${investigation.description}
       brief += `- **Authenticity Score:** ${ev.authenticityScore || 'N/A'}/100\n`;
       brief += `- **Chain of Custody Verified:** ${ev.chainOfCustody?.length || 0} documented transfers\n`;
       brief += `- **Hash Verification:** ${ev.hash || 'Pending'}\n\n`;
-      
+
       if (ev.legalAdmissibility?.notes) {
         brief += `**Admissibility Notes:** ${ev.legalAdmissibility?.notes}\n\n`;
       }
     });
 
     brief += `## TIMELINE OF EVENTS\n\n`;
-    const sortedEvents = [...timelineEvents].sort((a, b) => 
-      new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+    const sortedEvents = [...timelineEvents].sort(
+      (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
     );
-    
-    sortedEvents.forEach(event => {
+
+    sortedEvents.forEach((event) => {
       brief += `${format(new Date(event.startDate), 'PPP')}: ${event.title}\n`;
       if (event.description) {
         brief += `  ${event.description}\n`;
@@ -241,12 +264,12 @@ ${investigation.description}
       'Chain of Custody Events',
       'Legal Admissibility',
       'Sensitivity',
-      'Hash'
+      'Hash',
     ];
 
     let csv = headers.join(',') + '\n';
-    
-    evidence.forEach(ev => {
+
+    evidence.forEach((ev) => {
       const row = [
         ev.id,
         `"${(ev.title || '').replace(/"/g, '""')}"`,
@@ -259,7 +282,7 @@ ${investigation.description}
         ev.chainOfCustody?.length || 0,
         ev.legalAdmissibility?.status || 'unknown',
         ev.sensitivity || 'confidential',
-        ev.hash || ''
+        ev.hash || '',
       ];
       csv += row.join(',') + '\n';
     });
@@ -281,12 +304,13 @@ ${investigation.description}
 
     report += `## DOCUMENT AUTHENTICITY ANALYSIS\n\n`;
     if (evidence.length > 0) {
-      const avgAuthenticity = evidence.reduce((sum, ev) => sum + (ev.authenticityScore || 0), 0) / evidence.length;
-      
+      const avgAuthenticity =
+        evidence.reduce((sum, ev) => sum + (ev.authenticityScore || 0), 0) / evidence.length;
+
       report += `### Evidence Reliability Assessment\n`;
       report += `**Average Authenticity Score:** ${Math.round(avgAuthenticity)}/100\n\n`;
-      
-      evidence.forEach(ev => {
+
+      evidence.forEach((ev) => {
         report += `#### ${ev.title || 'Untitled Evidence'}\n`;
         report += `- **Authenticity Score:** ${ev.authenticityScore || 'N/A'}/100\n`;
         report += `- **Hash Verification:** ${ev.hash || 'Pending'}\n`;
@@ -356,12 +380,12 @@ ${investigation.description}
         { progress: 30, message: 'Analyzing timeline...' },
         { progress: 50, message: 'Processing annotations...' },
         { progress: 70, message: 'Generating report...' },
-        { progress: 90, message: 'Finalizing export...' }
+        { progress: 90, message: 'Finalizing export...' },
       ];
 
       for (const step of progressSteps) {
         setExportProgress(step.progress);
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
 
       switch (formatId) {
@@ -432,12 +456,12 @@ ${investigation.description}
       { progress: 40, message: 'Securing sensitive data...' },
       { progress: 60, message: 'Generating publication...' },
       { progress: 80, message: 'Setting up access controls...' },
-      { progress: 95, message: 'Finalizing publication...' }
+      { progress: 95, message: 'Finalizing publication...' },
     ];
 
     for (const step of progressSteps) {
       setExportProgress(step.progress);
-      await new Promise(resolve => setTimeout(resolve, 800));
+      await new Promise((resolve) => setTimeout(resolve, 800));
     }
 
     // Generate mock publication link
@@ -463,7 +487,9 @@ ${investigation.description}
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">Export & Publishing Tools</h1>
-          <p className="text-gray-400">Generate professional reports and publish your investigation findings</p>
+          <p className="text-gray-400">
+            Generate professional reports and publish your investigation findings
+          </p>
         </div>
 
         {/* Export Progress */}
@@ -474,7 +500,7 @@ ${investigation.description}
               <span className="text-gray-400">{exportProgress}%</span>
             </div>
             <div className="w-full bg-gray-700 rounded-full h-2">
-              <div 
+              <div
                 className="bg-red-600 h-2 rounded-full transition-all duration-300"
                 style={{ width: `${exportProgress}%` }}
               ></div>
@@ -486,18 +512,20 @@ ${investigation.description}
         <div className="mb-8">
           <h2 className="text-xl font-semibold text-white mb-4">Export Formats</h2>
           <div className="flex flex-col gap-3">
-            {exportFormats.map(format => (
+            {exportFormats.map((format) => (
               <div
                 key={format.id}
                 className={`bg-gray-800 rounded-lg p-4 border-2 cursor-pointer transition-all ${
-                  selectedFormat === format.id 
-                    ? 'border-red-500 bg-gray-750' 
+                  selectedFormat === format.id
+                    ? 'border-red-500 bg-gray-750'
                     : 'border-gray-700 hover:border-gray-600'
                 }`}
                 onClick={() => setSelectedFormat(format.id)}
               >
                 <div className="flex items-center gap-3 mb-2">
-                  <div className={`w-10 h-10 rounded-lg ${format.color} flex items-center justify-center`}>
+                  <div
+                    className={`w-10 h-10 rounded-lg ${format.color} flex items-center justify-center`}
+                  >
                     <format.icon className="w-5 h-5 text-white" />
                   </div>
                   <div>
@@ -525,7 +553,9 @@ ${investigation.description}
                     onChange={(e) => setIncludeEvidenceChain(e.target.checked)}
                     className="rounded"
                   />
-                  <span className="text-gray-400 text-sm">Include evidence chain documentation</span>
+                  <span className="text-gray-400 text-sm">
+                    Include evidence chain documentation
+                  </span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
@@ -605,21 +635,26 @@ ${investigation.description}
         <div className="mb-8">
           <h2 className="text-xl font-semibold text-white mb-4">Publishing Options</h2>
           <div className="flex flex-col gap-3">
-            {publishingOptions.map(option => (
+            {publishingOptions.map((option) => (
               <div
                 key={option.id}
                 className={`bg-gray-800 rounded-lg p-4 border-2 cursor-pointer transition-all ${
-                  selectedPublishing === option.id 
-                    ? 'border-red-500 bg-gray-750' 
+                  selectedPublishing === option.id
+                    ? 'border-red-500 bg-gray-750'
                     : 'border-gray-700 hover:border-gray-600'
                 }`}
                 onClick={() => setSelectedPublishing(option.id)}
               >
                 <div className="flex items-center gap-3 mb-2">
-                  <div className={`w-10 h-10 rounded-lg ${
-                    option.security === 'public' ? 'bg-green-600' :
-                    option.security === 'secure' ? 'bg-red-600' : 'bg-yellow-600'
-                  } flex items-center justify-center`}>
+                  <div
+                    className={`w-10 h-10 rounded-lg ${
+                      option.security === 'public'
+                        ? 'bg-green-600'
+                        : option.security === 'secure'
+                          ? 'bg-red-600'
+                          : 'bg-yellow-600'
+                    } flex items-center justify-center`}
+                  >
                     <option.icon className="w-5 h-5 text-white" />
                   </div>
                   <div>
@@ -652,8 +687,12 @@ ${investigation.description}
           <div className="mb-8 bg-green-900 border border-green-600 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-green-200 font-semibold mb-1">Investigation Published Successfully!</h3>
-                <p className="text-green-300 text-sm mb-2">Your investigation is now available at:</p>
+                <h3 className="text-green-200 font-semibold mb-1">
+                  Investigation Published Successfully!
+                </h3>
+                <p className="text-green-300 text-sm mb-2">
+                  Your investigation is now available at:
+                </p>
                 <code className="text-green-100 bg-green-800 px-2 py-1 rounded text-sm break-all">
                   {copiedLink}
                 </code>
@@ -662,7 +701,11 @@ ${investigation.description}
                 onClick={() => copyToClipboard(copiedLink)}
                 className="flex items-center gap-2 px-3 py-2 bg-green-700 hover:bg-green-600 text-white rounded-lg transition-colors"
               >
-                {copiedLink === copiedLink ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                {copiedLink === copiedLink ? (
+                  <Check className="w-4 h-4" />
+                ) : (
+                  <Copy className="w-4 h-4" />
+                )}
                 Copy Link
               </button>
             </div>

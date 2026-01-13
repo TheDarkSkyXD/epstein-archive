@@ -83,7 +83,7 @@ export interface DocumentMetadata {
   source_original_url?: string;
   credibility_score?: number;
   sensitivity_flags?: string[];
-  
+
   // Email metadata
   emailHeaders?: {
     from?: string;
@@ -93,7 +93,7 @@ export interface DocumentMetadata {
     sentDate?: string;
     attachmentCount?: number;
   };
-  
+
   // Forensic Metadata
   technical?: TechnicalMetadata;
   structure?: StructureMetadata;

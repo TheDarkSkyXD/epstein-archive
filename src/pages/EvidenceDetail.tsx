@@ -1,14 +1,21 @@
 /**
  * Evidence Detail Page
- * 
+ *
  * Displays evidence with type-specific viewers and linked entities
  */
 
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { 
-  FileText, Calendar, Tag, AlertTriangle, Users, 
-  Download, Share2, Bookmark, ChevronLeft 
+import {
+  FileText,
+  Calendar,
+  Tag,
+  AlertTriangle,
+  Users,
+  Download,
+  Share2,
+  Bookmark,
+  ChevronLeft,
 } from 'lucide-react';
 import { EmailViewer } from '../components/evidence/EmailViewer';
 import { DepositionViewer } from '../components/evidence/DepositionViewer';
@@ -57,11 +64,11 @@ export function EvidenceDetail() {
     try {
       setLoading(true);
       const response = await fetch(`/api/evidence/${id}`);
-      
+
       if (!response.ok) {
         throw new Error('Evidence not found');
       }
-      
+
       const data = await response.json();
       setEvidence(data);
     } catch (err) {
@@ -111,7 +118,7 @@ export function EvidenceDetail() {
   };
 
   const getEvidenceTypeLabel = (type: string): string => {
-    return type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    return type.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
   };
 
   if (loading) {
@@ -146,19 +153,18 @@ export function EvidenceDetail() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <Link
-                to="/evidence"
-                className="text-gray-600 hover:text-gray-900 flex items-center"
-              >
+              <Link to="/evidence" className="text-gray-600 hover:text-gray-900 flex items-center">
                 <ChevronLeft className="h-5 w-5" />
                 <span className="ml-1">Back</span>
               </Link>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">{evidence.title}</h1>
-                <p className="text-xs font-light text-gray-500 mt-1 truncate">{evidence.originalFilename}</p>
+                <p className="text-xs font-light text-gray-500 mt-1 truncate">
+                  {evidence.originalFilename}
+                </p>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-2">
               <button className="p-2 text-gray-600 hover:bg-gray-100 rounded">
                 <Share2 className="h-5 w-5" />
@@ -183,12 +189,14 @@ export function EvidenceDetail() {
                 <FileText className="h-4 w-4 mr-1" />
                 {getEvidenceTypeLabel(evidence.evidenceType)}
               </span>
-              
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getRedFlagColor(evidence.redFlagRating)}`}>
+
+              <span
+                className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getRedFlagColor(evidence.redFlagRating)}`}
+              >
                 <AlertTriangle className="h-4 w-4 mr-1" />
                 Red Flag: {evidence.redFlagRating}/5
               </span>
-              
+
               {evidence.createdAt && (
                 <span className="inline-flex items-center text-sm text-gray-600">
                   <Calendar className="h-4 w-4 mr-1" />
@@ -196,22 +204,19 @@ export function EvidenceDetail() {
                 </span>
               )}
             </div>
-            
+
             <div className="flex items-center space-x-4 text-sm text-gray-600">
               <span>{evidence.wordCount?.toLocaleString()} words</span>
               <span>{formatFileSize(evidence.fileSize)}</span>
             </div>
           </div>
-          
+
           {evidence.tags && evidence.tags.length > 0 && (
             <div className="mt-3 flex items-center space-x-2">
               <Tag className="h-4 w-4 text-gray-400" />
               <div className="flex flex-wrap gap-2">
                 {evidence.tags.map((tag, index) => (
-                  <span
-                    key={index}
-                    className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded"
-                  >
+                  <span key={index} className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
                     {tag}
                   </span>
                 ))}
@@ -225,9 +230,7 @@ export function EvidenceDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-3">
-            <div className="bg-white rounded-lg shadow">
-              {renderViewer()}
-            </div>
+            <div className="bg-white rounded-lg shadow">{renderViewer()}</div>
           </div>
 
           {/* Sidebar */}
@@ -253,18 +256,14 @@ export function EvidenceDetail() {
                             <p className="text-sm font-medium text-gray-900 truncate">
                               {entity.name}
                             </p>
-                            <p className="text-xs text-gray-600 mt-1">
-                              Role: {entity.role}
-                            </p>
+                            <p className="text-xs text-gray-600 mt-1">Role: {entity.role}</p>
                             {entity.confidence < 1 && (
                               <p className="text-xs text-gray-500 mt-1">
                                 Confidence: {(entity.confidence * 100).toFixed(0)}%
                               </p>
                             )}
                           </div>
-                          <span className={`text-sm ${iconConfig.color}`}>
-                            {iconConfig.icon}
-                          </span>
+                          <span className={`text-sm ${iconConfig.color}`}>{iconConfig.icon}</span>
                         </div>
                       </Link>
                     );
@@ -281,7 +280,7 @@ export function EvidenceDetail() {
                   {Object.entries(evidence.metadata).map(([key, value]) => (
                     <div key={key}>
                       <dt className="text-gray-600 font-medium">
-                        {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                        {key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())}
                       </dt>
                       <dd className="text-gray-900 mt-1">
                         {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}

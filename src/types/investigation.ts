@@ -140,7 +140,17 @@ export interface Hypothesis {
 export interface EvidenceItem {
   id: string;
   title?: string;
-  type: 'document' | 'testimony' | 'photo' | 'video' | 'audio' | 'data' | 'analysis' | 'entity' | 'person' | 'organization';
+  type:
+    | 'document'
+    | 'testimony'
+    | 'photo'
+    | 'video'
+    | 'audio'
+    | 'data'
+    | 'analysis'
+    | 'entity'
+    | 'person'
+    | 'organization';
   sourceId: string; // documentId, entityId, etc.
   source?: string;
   description: string;

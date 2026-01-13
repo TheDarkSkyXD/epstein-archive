@@ -32,17 +32,19 @@ export class DataLoaderService {
       if (!response.ok) {
         throw new Error('Failed to load people data');
       }
-      
+
       const rawData = await response.json();
-      
+
       // Transform the data to match the Person interface
       this.peopleData = rawData.map((person: any) => ({
         name: person.fullName,
         fullName: person.fullName,
         primaryRole: person.primaryRole,
-        secondaryRoles: person.secondaryRoles ? person.secondaryRoles.split(',').map((r: string) => r.trim()) : [],
+        secondaryRoles: person.secondaryRoles
+          ? person.secondaryRoles.split(',').map((r: string) => r.trim())
+          : [],
         mentions: person.mentions || 0,
-        files: (person.fileReferences?.split(',')?.length || 0),
+        files: person.fileReferences?.split(',')?.length || 0,
         contexts: this.generateContexts(person),
         evidence_types: person.keyEvidence?.split(',')?.map((e: string) => e.trim()) || [],
         spicy_passages: [],
@@ -53,7 +55,7 @@ export class DataLoaderService {
         red_flag_description: this.generateRedFlagDescription(person),
         keyEvidence: person.keyEvidence,
         fileReferences: person.fileReferences,
-        connectionsToEpstein: person.connectionsToEpstein
+        connectionsToEpstein: person.connectionsToEpstein,
       }));
 
       return this.peopleData || [];
@@ -73,7 +75,7 @@ export class DataLoaderService {
       if (!response.ok) {
         throw new Error('Failed to load evidence data');
       }
-      
+
       this.evidenceData = await response.json();
       return this.evidenceData;
     } catch (error) {
@@ -112,29 +114,29 @@ export class DataLoaderService {
       2: 'Medium - Some involvement',
       3: 'Hot - Significant connections',
       4: 'Very Hot - Major involvement',
-      5: 'Extreme - Critical subject'
+      5: 'Extreme - Critical subject',
     };
     return descriptions[rating as keyof typeof descriptions] || 'Unknown';
   }
 
-  private generateContexts(person: any): Array<{file: string, context: string, date: string}> {
+  private generateContexts(person: any): Array<{ file: string; context: string; date: string }> {
     // Generate sample contexts from file references
     const files = person.fileReferences?.split(',')?.slice(0, 3) || [];
     return files.map((file: string) => ({
       file: file.trim(),
       context: `${person.fullName} mentioned in ${file.trim()}`,
-      date: 'Various dates'
+      date: 'Various dates',
     }));
   }
 
   getStats(people: RealPerson[]) {
     return {
       totalPeople: people.length,
-      highRisk: people.filter(p => p.likelihood_score === 'HIGH').length,
-      mediumRisk: people.filter(p => p.likelihood_score === 'MEDIUM').length,
-      lowRisk: people.filter(p => p.likelihood_score === 'LOW').length,
+      highRisk: people.filter((p) => p.likelihood_score === 'HIGH').length,
+      mediumRisk: people.filter((p) => p.likelihood_score === 'MEDIUM').length,
+      lowRisk: people.filter((p) => p.likelihood_score === 'LOW').length,
       totalMentions: people.reduce((sum, p) => sum + p.mentions, 0),
-      totalFiles: people.reduce((sum, p) => sum + p.files, 0)
+      totalFiles: people.reduce((sum, p) => sum + p.files, 0),
     };
   }
 }

@@ -21,7 +21,7 @@ export const PeopleSelector: React.FC<PeopleSelectorProps> = ({
   onPeopleChange,
   onPersonClick,
   mediaId,
-  className = ''
+  className = '',
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<PersonData[]>([]);
@@ -44,7 +44,7 @@ export const PeopleSelector: React.FC<PeopleSelectorProps> = ({
   // Debounced entity search
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    
+
     if (!searchTerm.trim()) {
       setSearchResults([]);
       return;
@@ -59,9 +59,11 @@ export const PeopleSelector: React.FC<PeopleSelectorProps> = ({
           id: e.id,
           name: e.fullName || e.name,
           role: e.primaryRole || e.role || 'Unknown',
-          redFlagRating: e.red_flag_rating || e.redFlagRating
+          redFlagRating: e.red_flag_rating || e.redFlagRating,
         }));
-        setSearchResults(people.filter((p: PersonData) => !selectedPeople.some(sp => sp.id === p.id)));
+        setSearchResults(
+          people.filter((p: PersonData) => !selectedPeople.some((sp) => sp.id === p.id)),
+        );
       } catch (error) {
         console.error('Failed to search entities:', error);
       }
@@ -74,7 +76,7 @@ export const PeopleSelector: React.FC<PeopleSelectorProps> = ({
       await fetch(`/api/media/images/${mediaId}/people`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entityId: person.id })
+        body: JSON.stringify({ entityId: person.id }),
       });
       onPeopleChange([...selectedPeople, person]);
       setSearchTerm('');
@@ -87,7 +89,7 @@ export const PeopleSelector: React.FC<PeopleSelectorProps> = ({
   const handleRemovePerson = async (person: PersonData) => {
     try {
       await fetch(`/api/media/images/${mediaId}/people/${person.id}`, { method: 'DELETE' });
-      onPeopleChange(selectedPeople.filter(p => p.id !== person.id));
+      onPeopleChange(selectedPeople.filter((p) => p.id !== person.id));
     } catch (error) {
       console.error('Failed to remove person:', error);
     }
@@ -109,7 +111,7 @@ export const PeopleSelector: React.FC<PeopleSelectorProps> = ({
 
       {/* Selected People */}
       <div className="space-y-2">
-        {selectedPeople.map(person => (
+        {selectedPeople.map((person) => (
           <div
             key={person.id}
             className={`flex items-center justify-between p-2 bg-slate-800/50 rounded-lg border border-slate-700/50 ${onPersonClick ? 'cursor-pointer hover:bg-slate-800 transition-colors' : ''}`}
@@ -143,7 +145,7 @@ export const PeopleSelector: React.FC<PeopleSelectorProps> = ({
             type="text"
             placeholder="Search people to add..."
             value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
+            onChange={(e) => setSearchTerm(e.target.value)}
             onFocus={() => setShowDropdown(true)}
             className="w-full pl-9 pr-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
           />
@@ -156,7 +158,7 @@ export const PeopleSelector: React.FC<PeopleSelectorProps> = ({
               <div className="p-3 text-center text-sm text-slate-400">Searching...</div>
             ) : (
               <div className="max-h-48 overflow-y-auto">
-                {searchResults.map(person => (
+                {searchResults.map((person) => (
                   <button
                     key={person.id}
                     onClick={() => handleAddPerson(person)}

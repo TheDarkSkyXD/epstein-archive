@@ -50,10 +50,10 @@ export const BlackBookViewer: React.FC = () => {
       params.set('limit', '5000');
       const response = await fetch(`/api/black-book?${params.toString()}`);
       const result = await response.json();
-      
+
       // API now returns {data: [...], total, page, pageSize, totalPages}
       const data = result.data || [];
-      
+
       // Parse JSON fields safely
       const parsedEntries = data.map((entry: any) => {
         let phone_numbers = [];
@@ -66,7 +66,7 @@ export const BlackBookViewer: React.FC = () => {
           console.warn('Failed to parse phone_numbers for entry', entry.id, entry.phone_numbers);
           // Fallback: if it looks like a string, wrap it
           if (typeof entry.phone_numbers === 'string' && !entry.phone_numbers.startsWith('[')) {
-             phone_numbers = [entry.phone_numbers];
+            phone_numbers = [entry.phone_numbers];
           }
         }
 
@@ -86,10 +86,10 @@ export const BlackBookViewer: React.FC = () => {
           ...entry,
           phone_numbers,
           addresses,
-          email_addresses
+          email_addresses,
         };
       });
-      
+
       setEntries(parsedEntries);
       setFilteredEntries(parsedEntries);
     } catch (error) {
@@ -144,13 +144,13 @@ export const BlackBookViewer: React.FC = () => {
             </p>
           </div>
         </div>
-        
+
         {/* Pretty/Raw Toggle */}
         <button
           onClick={() => setShowRaw(!showRaw)}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
-            showRaw 
-              ? 'bg-slate-700 text-slate-300 border border-slate-600' 
+            showRaw
+              ? 'bg-slate-700 text-slate-300 border border-slate-600'
               : 'bg-cyan-600 text-white border border-cyan-500'
           }`}
           title={showRaw ? 'Showing raw OCR text' : 'Showing cleaned text'}
@@ -184,7 +184,7 @@ export const BlackBookViewer: React.FC = () => {
         >
           ALL
         </button>
-        {alphabet.map(letter => (
+        {alphabet.map((letter) => (
           <button
             key={letter}
             onClick={() => setSelectedLetter(letter)}
@@ -202,17 +202,29 @@ export const BlackBookViewer: React.FC = () => {
       {/* Contact Filters */}
       <div className="flex flex-wrap gap-3 items-center">
         <label className="flex items-center gap-2 text-slate-300">
-          <input type="checkbox" checked={hasPhone} onChange={(e) => setHasPhone(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={hasPhone}
+            onChange={(e) => setHasPhone(e.target.checked)}
+          />
           <span>Has Phone</span>
           <Phone className="w-4 h-4 text-slate-400" />
         </label>
         <label className="flex items-center gap-2 text-slate-300">
-          <input type="checkbox" checked={hasEmail} onChange={(e) => setHasEmail(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={hasEmail}
+            onChange={(e) => setHasEmail(e.target.checked)}
+          />
           <span>Has Email</span>
           <Mail className="w-4 h-4 text-slate-400" />
         </label>
         <label className="flex items-center gap-2 text-slate-300">
-          <input type="checkbox" checked={hasAddress} onChange={(e) => setHasAddress(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={hasAddress}
+            onChange={(e) => setHasAddress(e.target.checked)}
+          />
           <span>Has Address</span>
           <MapPin className="w-4 h-4 text-slate-400" />
         </label>
@@ -220,10 +232,10 @@ export const BlackBookViewer: React.FC = () => {
 
       {/* Entries Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredEntries.map(entry => {
+        {filteredEntries.map((entry) => {
           const rawName = entry.person_name || extractName(entry.entry_text);
           const displayName = showRaw ? rawName : extractCleanName(entry.entry_text) || rawName;
-          
+
           return (
             <div
               key={entry.id}
@@ -303,13 +315,13 @@ export const BlackBookViewer: React.FC = () => {
                 )}
 
                 {/* No contact info */}
-                {entry.phone_numbers.length === 0 && 
-                 entry.email_addresses.length === 0 && 
-                 entry.addresses.length === 0 && (
-                  <div className="text-sm text-slate-500 italic">
-                    No contact information available
-                  </div>
-                )}
+                {entry.phone_numbers.length === 0 &&
+                  entry.email_addresses.length === 0 &&
+                  entry.addresses.length === 0 && (
+                    <div className="text-sm text-slate-500 italic">
+                      No contact information available
+                    </div>
+                  )}
               </div>
             </div>
           );
@@ -321,18 +333,13 @@ export const BlackBookViewer: React.FC = () => {
         <div className="text-center py-12">
           <Book className="w-16 h-16 text-slate-600 mx-auto mb-4" />
           <p className="text-slate-400 text-lg">No contacts found</p>
-          <p className="text-slate-500 text-sm mt-2">
-            Try adjusting your search or filter
-          </p>
+          <p className="text-slate-500 text-sm mt-2">Try adjusting your search or filter</p>
         </div>
       )}
 
       {/* Entity Modal */}
       {selectedEntity && (
-        <EvidenceModal
-          person={selectedEntity}
-          onClose={() => setSelectedEntity(null)}
-        />
+        <EvidenceModal person={selectedEntity} onClose={() => setSelectedEntity(null)} />
       )}
     </div>
   );

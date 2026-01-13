@@ -1,6 +1,22 @@
-
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Mail, Inbox, Search, ChevronDown, ChevronRight, X, ChevronLeft, Clock, User, Users, Loader2, Archive, Reply, Forward, Trash2, MoreHorizontal } from 'lucide-react';
+import {
+  Mail,
+  Inbox,
+  Search,
+  ChevronDown,
+  ChevronRight,
+  X,
+  ChevronLeft,
+  Clock,
+  User,
+  Users,
+  Loader2,
+  Archive,
+  Reply,
+  Forward,
+  Trash2,
+  MoreHorizontal,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from '../../services/apiClient';
 import { Document } from '../../types/documents';
@@ -14,6 +30,7 @@ interface Email extends Document {
   threadId?: string;
   isRead?: boolean;
   date: string;
+  summary?: string;
 }
 
 interface Thread {
@@ -52,26 +69,29 @@ export const EmailClient: React.FC = () => {
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [showMailboxDrawer, setShowMailboxDrawer] = useState(false);
-  
+
   const [currentPage, setCurrentPage] = useState(1);
   const [totalEmails, setTotalEmails] = useState(0);
   const [loadedEmails, setLoadedEmails] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [allDocs, setAllDocs] = useState<any[]>([]);
-  
+
   const listRef = useRef<HTMLDivElement>(null);
   const isMobileDetail = !!selectedThreadId;
 
   // Mailbox definitions
-  const mailboxes: Mailbox[] = useMemo(() => [
-    { id: 'all', label: 'All Inboxes', icon: Inbox, count: totalEmails },
-    { id: 'barak', label: 'Ehud Barak', icon: Mail },
-    { id: 'jee', label: 'Jeffrey Epstein', icon: Mail },
-    { id: 'gmax', label: 'Ghislaine Maxwell', icon: Mail },
-    { id: 'oversight', label: 'House Oversight', icon: Mail },
-  ], [totalEmails]);
+  const mailboxes: Mailbox[] = useMemo(
+    () => [
+      { id: 'all', label: 'All Inboxes', icon: Inbox, count: totalEmails },
+      { id: 'barak', label: 'Ehud Barak', icon: Mail },
+      { id: 'jee', label: 'Jeffrey Epstein', icon: Mail },
+      { id: 'gmax', label: 'Ghislaine Maxwell', icon: Mail },
+      { id: 'oversight', label: 'House Oversight', icon: Mail },
+    ],
+    [totalEmails],
+  );
 
-  const currentMailbox = mailboxes.find(m => m.id === selectedAccount) || mailboxes[0];
+  const currentMailbox = mailboxes.find((m) => m.id === selectedAccount) || mailboxes[0];
 
   // Debounce search term for performance
   useEffect(() => {
@@ -94,7 +114,7 @@ export const EmailClient: React.FC = () => {
       setCurrentPage(1);
       processDocsToThreads(response.data);
     } catch (e) {
-      console.error("Failed to load emails", e);
+      console.error('Failed to load emails', e);
     } finally {
       setLoading(false);
     }
@@ -106,7 +126,10 @@ export const EmailClient: React.FC = () => {
     try {
       const nextPage = currentPage + 1;
       const response = await apiClient.getDocuments({ evidenceType: 'email' }, nextPage, PAGE_SIZE);
-      if (response.data.length === 0) { setHasMore(false); return; }
+      if (response.data.length === 0) {
+        setHasMore(false);
+        return;
+      }
       const newDocs = [...allDocs, ...response.data];
       setAllDocs(newDocs);
       setLoadedEmails(newDocs.length);
@@ -114,7 +137,7 @@ export const EmailClient: React.FC = () => {
       setHasMore(newDocs.length < response.total);
       processDocsToThreads(newDocs);
     } catch (e) {
-      console.error("Failed to load more emails", e);
+      console.error('Failed to load more emails', e);
     } finally {
       setLoadingMore(false);
     }
@@ -122,14 +145,14 @@ export const EmailClient: React.FC = () => {
 
   const processDocsToThreads = (docs: any[]) => {
     const threadsMap = new Map<string, Thread>();
-    
+
     for (const doc of docs) {
       const threadId = doc.metadata?.thread_id || doc.id;
       const sender = doc.metadata?.from || doc.metadata?.sender || 'Unknown Sender';
       const recipient = doc.metadata?.to || doc.metadata?.recipient || '';
       const subject = doc.metadata?.subject || doc.title || 'No Subject';
       const snippet = cleanSnippet(doc.content || doc.summary || '');
-      
+
       const email: Email = {
         ...doc,
         sender,
@@ -137,7 +160,7 @@ export const EmailClient: React.FC = () => {
         subject,
         threadId,
         date: doc.date || doc.created_at || new Date().toISOString(),
-        isRead: true
+        isRead: true,
       };
 
       if (threadsMap.has(threadId)) {
@@ -159,52 +182,82 @@ export const EmailClient: React.FC = () => {
           participantNames: [sender],
           snippet,
           hasAttachments: false,
-          unreadCount: 0
+          unreadCount: 0,
         });
       }
     }
-    
+
     setThreads(Array.from(threadsMap.values()));
   };
 
   function cleanSnippet(text: string): string {
-    return text.replace(/From:.*?\n/gi, '').replace(/To:.*?\n/gi, '').replace(/Subject:.*?\n/gi, '').replace(/Date:.*?\n/gi, '').replace(/\n+/g, ' ').trim().slice(0, 150);
+    return text
+      .replace(/From:.*?\n/gi, '')
+      .replace(/To:.*?\n/gi, '')
+      .replace(/Subject:.*?\n/gi, '')
+      .replace(/Date:.*?\n/gi, '')
+      .replace(/\n+/g, ' ')
+      .trim()
+      .slice(0, 150);
   }
 
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const target = e.target as HTMLDivElement;
-    const scrollBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
-    if (scrollBottom < 200 && !loadingMore && hasMore) loadMoreEmails();
-  }, [loadMoreEmails, loadingMore, hasMore]);
+  const handleScroll = useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      const target = e.target as HTMLDivElement;
+      const scrollBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
+      if (scrollBottom < 200 && !loadingMore && hasMore) loadMoreEmails();
+    },
+    [loadMoreEmails, loadingMore, hasMore],
+  );
 
   const filteredThreads = useMemo(() => {
     let t = [...threads];
     if (selectedAccount !== 'all') {
       const accLower = selectedAccount.toLowerCase();
-      t = t.filter(th => {
+      t = t.filter((th) => {
         const first = th.messages[0];
         const src = (first.metadata as any)?.source_collection || '';
         const sender = (first.sender || '').toLowerCase();
         const recipient = (first.recipient || '').toLowerCase();
-        
+
         if (accLower === 'gmax') {
-          return sender.includes('gmax') || sender.includes('ellmax.com') || sender.includes('ghislaine') ||
-                 recipient.includes('gmax') || recipient.includes('ellmax.com') ||
-                 src.toLowerCase().includes('gmax') || src.toLowerCase().includes('maxwell');
+          return (
+            sender.includes('gmax') ||
+            sender.includes('ellmax.com') ||
+            sender.includes('ghislaine') ||
+            recipient.includes('gmax') ||
+            recipient.includes('ellmax.com') ||
+            src.toLowerCase().includes('gmax') ||
+            src.toLowerCase().includes('maxwell')
+          );
         }
         return src.toLowerCase().includes(accLower) || sender.includes(accLower);
       });
     }
     if (debouncedSearchTerm) {
       const s = debouncedSearchTerm.toLowerCase();
-      t = t.filter(th => th.subject.toLowerCase().includes(s) || th.participantNames.some(p => p.toLowerCase().includes(s)) || th.snippet.toLowerCase().includes(s));
+      t = t.filter(
+        (th) =>
+          th.subject.toLowerCase().includes(s) ||
+          th.participantNames.some((p) => p.toLowerCase().includes(s)) ||
+          th.snippet.toLowerCase().includes(s),
+      );
     }
     t.sort((a, b) => {
       let valA: any, valB: any;
       switch (sortField) {
-        case 'date': valA = new Date(a.lastMessageDate).getTime(); valB = new Date(b.lastMessageDate).getTime(); break;
-        case 'sender': valA = a.participantNames[0] || ''; valB = b.participantNames[0] || ''; break;
-        case 'subject': valA = a.subject; valB = b.subject; break;
+        case 'date':
+          valA = new Date(a.lastMessageDate).getTime();
+          valB = new Date(b.lastMessageDate).getTime();
+          break;
+        case 'sender':
+          valA = a.participantNames[0] || '';
+          valB = b.participantNames[0] || '';
+          break;
+        case 'subject':
+          valA = a.subject;
+          valB = b.subject;
+          break;
       }
       if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
       if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
@@ -213,11 +266,17 @@ export const EmailClient: React.FC = () => {
     return t;
   }, [threads, selectedAccount, debouncedSearchTerm, sortField, sortOrder]);
 
-  const selectedThread = useMemo(() => threads.find(t => t.id === selectedThreadId), [threads, selectedThreadId]);
+  const selectedThread = useMemo(
+    () => threads.find((t) => t.id === selectedThreadId),
+    [threads, selectedThreadId],
+  );
 
   const handleSort = (field: SortField) => {
     if (sortField === field) setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    else { setSortField(field); setSortOrder('desc'); }
+    else {
+      setSortField(field);
+      setSortOrder('desc');
+    }
   };
 
   const formatDate = (dateStr: string) => {
@@ -257,41 +316,40 @@ export const EmailClient: React.FC = () => {
 
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] bg-slate-950 md:bg-gradient-to-br md:from-slate-100 md:via-blue-50/30 md:to-purple-50/20 md:dark:from-slate-950 md:dark:via-slate-900 md:dark:to-slate-950 overflow-hidden">
-      
       {/* Mobile Header - iOS Style */}
       <div className="md:hidden flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800">
-        <button 
+        <button
           onClick={() => setShowMailboxDrawer(true)}
           className="flex items-center gap-2 text-blue-400 font-semibold"
         >
           <span className="text-lg">{currentMailbox.label}</span>
           <ChevronDown className="w-4 h-4" />
         </button>
-        <div className="text-slate-400 text-sm">
-          {filteredThreads.length.toLocaleString()}
-        </div>
+        <div className="text-slate-400 text-sm">{filteredThreads.length.toLocaleString()}</div>
       </div>
 
       {/* Desktop Sidebar - Hidden on Mobile */}
       <div className="flex flex-1 overflow-hidden">
         <aside className="hidden md:flex w-60 flex-col m-3 mr-0 rounded-2xl bg-white/40 dark:bg-white/5 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xl shadow-black/5 dark:shadow-black/20">
           <div className="p-5 pb-3">
-            <h2 className="text-[11px] font-bold text-slate-500/80 dark:text-white/40 uppercase tracking-widest">Mailboxes</h2>
+            <h2 className="text-[11px] font-bold text-slate-500/80 dark:text-white/40 uppercase tracking-widest">
+              Mailboxes
+            </h2>
           </div>
-          
+
           <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
-            {mailboxes.map(mb => (
-              <DesktopSidebarItem 
-                key={mb.id} 
-                icon={mb.icon} 
-                label={mb.label} 
-                count={mb.count} 
-                active={selectedAccount === mb.id} 
-                onClick={() => setSelectedAccount(mb.id)} 
+            {mailboxes.map((mb) => (
+              <DesktopSidebarItem
+                key={mb.id}
+                icon={mb.icon}
+                label={mb.label}
+                count={mb.count}
+                active={selectedAccount === mb.id}
+                onClick={() => setSelectedAccount(mb.id)}
               />
             ))}
           </nav>
-          
+
           <div className="p-4 border-t border-white/30 dark:border-white/5">
             <div className="text-[11px] text-slate-500/70 dark:text-white/30 text-center font-medium">
               {loadedEmails.toLocaleString()} of {totalEmails.toLocaleString()}
@@ -301,32 +359,38 @@ export const EmailClient: React.FC = () => {
 
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col md:flex-row md:p-3 md:gap-3 min-w-0">
-          
           {/* Message List */}
-          <div className={`w-full md:w-[400px] flex flex-col md:rounded-2xl bg-slate-950 md:bg-white/60 md:dark:bg-white/5 md:backdrop-blur-2xl md:border md:border-white/80 md:dark:border-white/10 md:shadow-xl overflow-hidden ${isMobileDetail ? 'hidden md:flex' : 'flex'}`}>
-            
+          <div
+            className={`w-full md:w-[400px] flex flex-col md:rounded-2xl bg-slate-950 md:bg-white/60 md:dark:bg-white/5 md:backdrop-blur-2xl md:border md:border-white/80 md:dark:border-white/10 md:shadow-xl overflow-hidden ${isMobileDetail ? 'hidden md:flex' : 'flex'}`}
+          >
             {/* Search Bar - iOS Style */}
             <div className="p-3 bg-slate-900 md:bg-transparent md:p-4 md:border-b md:border-black/5 md:dark:border-white/5">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 md:text-slate-400 md:dark:text-white/40" />
-                <input 
-                  type="text" 
-                  placeholder="Search" 
+                <input
+                  type="text"
+                  placeholder="Search"
                   className="w-full pl-10 pr-4 py-2 bg-slate-800 md:bg-black/5 md:dark:bg-white/10 rounded-lg text-sm text-white md:text-slate-900 md:dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder-slate-500 md:placeholder-slate-400 md:dark:placeholder-white/30"
                   value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
             </div>
-            
+
             {/* Sort Header - Hidden on Mobile */}
             <div className="hidden md:flex px-5 py-3 items-center justify-between text-[11px] text-slate-500 dark:text-white/40 border-b border-black/5 dark:border-white/5 font-semibold uppercase tracking-wide">
               <span>{filteredThreads.length.toLocaleString()} conversations</span>
               <div className="flex items-center gap-4">
-                <button onClick={() => handleSort('date')} className={`flex items-center gap-1.5 transition-colors ${sortField === 'date' ? 'text-blue-600 dark:text-blue-400' : 'hover:text-slate-700 dark:hover:text-white/60'}`}>
+                <button
+                  onClick={() => handleSort('date')}
+                  className={`flex items-center gap-1.5 transition-colors ${sortField === 'date' ? 'text-blue-600 dark:text-blue-400' : 'hover:text-slate-700 dark:hover:text-white/60'}`}
+                >
                   <Clock className="w-3.5 h-3.5" /> Date
                 </button>
-                <button onClick={() => handleSort('sender')} className={`flex items-center gap-1.5 transition-colors ${sortField === 'sender' ? 'text-blue-600 dark:text-blue-400' : 'hover:text-slate-700 dark:hover:text-white/60'}`}>
+                <button
+                  onClick={() => handleSort('sender')}
+                  className={`flex items-center gap-1.5 transition-colors ${sortField === 'sender' ? 'text-blue-600 dark:text-blue-400' : 'hover:text-slate-700 dark:hover:text-white/60'}`}
+                >
                   <User className="w-3.5 h-3.5" /> From
                 </button>
               </div>
@@ -341,29 +405,36 @@ export const EmailClient: React.FC = () => {
                 </div>
               ) : (
                 <>
-                  {filteredThreads.map(thread => (
-                    <IOSMessageRow 
-                      key={thread.id} 
-                      thread={thread} 
-                      selected={selectedThreadId === thread.id} 
-                      onClick={() => setSelectedThreadId(thread.id)} 
+                  {filteredThreads.map((thread) => (
+                    <IOSMessageRow
+                      key={thread.id}
+                      thread={thread}
+                      selected={selectedThreadId === thread.id}
+                      onClick={() => setSelectedThreadId(thread.id)}
                       formatDate={formatDate}
                       getInitials={getInitials}
                       getAvatarColor={getAvatarColor}
                     />
                   ))}
                   {loadingMore && (
-                    <div className="p-5 text-center"><Loader2 className="w-5 h-5 mx-auto animate-spin text-blue-500/50" /></div>
+                    <div className="p-5 text-center">
+                      <Loader2 className="w-5 h-5 mx-auto animate-spin text-blue-500/50" />
+                    </div>
                   )}
                   {hasMore && !loadingMore && (
                     <div className="p-5 text-center">
-                      <button onClick={loadMoreEmails} className="text-sm text-blue-400 font-medium">
+                      <button
+                        onClick={loadMoreEmails}
+                        className="text-sm text-blue-400 font-medium"
+                      >
                         Load more ({(totalEmails - loadedEmails).toLocaleString()} remaining)
                       </button>
                     </div>
                   )}
                   {!hasMore && loadedEmails > 0 && (
-                    <div className="p-5 text-center text-[11px] text-slate-600 font-medium">All {loadedEmails.toLocaleString()} emails loaded</div>
+                    <div className="p-5 text-center text-[11px] text-slate-600 font-medium">
+                      All {loadedEmails.toLocaleString()} emails loaded
+                    </div>
                   )}
                 </>
               )}
@@ -377,39 +448,52 @@ export const EmailClient: React.FC = () => {
           </div>
 
           {/* Thread Detail View */}
-          <div className={`flex-1 flex flex-col bg-slate-950 md:rounded-2xl md:bg-white/60 md:dark:bg-white/5 md:backdrop-blur-2xl md:border md:border-white/80 md:dark:border-white/10 md:shadow-xl overflow-hidden ${!selectedThreadId ? 'hidden md:flex' : 'flex'}`}>
+          <div
+            className={`flex-1 flex flex-col bg-slate-950 md:rounded-2xl md:bg-white/60 md:dark:bg-white/5 md:backdrop-blur-2xl md:border md:border-white/80 md:dark:border-white/10 md:shadow-xl overflow-hidden ${!selectedThreadId ? 'hidden md:flex' : 'flex'}`}
+          >
             {selectedThread ? (
               <>
                 {/* iOS-Style Header */}
                 <div className="flex items-center justify-between px-4 py-3 bg-slate-900 md:bg-gradient-to-b md:from-white/50 md:to-transparent md:dark:from-white/5 border-b border-slate-800 md:border-black/5 md:dark:border-white/5">
-                  <button 
-                    className="flex items-center text-blue-400 md:text-blue-600 md:dark:text-blue-400 font-semibold" 
+                  <button
+                    className="flex items-center text-blue-400 md:text-blue-600 md:dark:text-blue-400 font-semibold"
                     onClick={() => setSelectedThreadId(null)}
                   >
                     <ChevronLeft className="w-5 h-5 -ml-1" />
                     <span className="text-sm">{currentMailbox.label}</span>
                   </button>
                   <div className="flex items-center gap-4">
-                    <button className="text-blue-400 md:text-slate-500 md:dark:text-white/50"><Archive className="w-5 h-5" /></button>
-                    <button className="text-blue-400 md:text-slate-500 md:dark:text-white/50"><Trash2 className="w-5 h-5" /></button>
-                    <button className="text-blue-400 md:text-slate-500 md:dark:text-white/50"><Reply className="w-5 h-5" /></button>
+                    <button className="text-blue-400 md:text-slate-500 md:dark:text-white/50">
+                      <Archive className="w-5 h-5" />
+                    </button>
+                    <button className="text-blue-400 md:text-slate-500 md:dark:text-white/50">
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                    <button className="text-blue-400 md:text-slate-500 md:dark:text-white/50">
+                      <Reply className="w-5 h-5" />
+                    </button>
                   </div>
                 </div>
 
                 {/* Thread Subject */}
                 <div className="px-4 py-4 bg-slate-900/50 md:bg-transparent md:px-6 md:py-5 border-b border-slate-800 md:border-black/5 md:dark:border-white/5">
-                  <h1 className="text-xl md:text-2xl font-bold text-white md:text-slate-800 md:dark:text-white leading-tight">{selectedThread.subject}</h1>
+                  <h1 className="text-xl md:text-2xl font-bold text-white md:text-slate-800 md:dark:text-white leading-tight">
+                    {selectedThread.subject}
+                  </h1>
                   <div className="flex items-center gap-2 mt-2 text-sm text-slate-400 md:text-slate-500 md:dark:text-white/50">
-                    <span>{selectedThread.messages.length} message{selectedThread.messages.length !== 1 ? 's' : ''}</span>
+                    <span>
+                      {selectedThread.messages.length} message
+                      {selectedThread.messages.length !== 1 ? 's' : ''}
+                    </span>
                   </div>
                 </div>
 
                 {/* Messages */}
                 <div className="flex-1 overflow-y-auto">
                   {selectedThread.messages.map((msg, idx) => (
-                    <IOSMessageBubble 
-                      key={msg.id} 
-                      email={msg} 
+                    <IOSMessageBubble
+                      key={msg.id}
+                      email={msg}
                       expanded={idx === selectedThread.messages.length - 1}
                       getInitials={getInitials}
                       getAvatarColor={getAvatarColor}
@@ -453,14 +537,14 @@ export const EmailClient: React.FC = () => {
       <AnimatePresence>
         {showMailboxDrawer && (
           <>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black/60 z-40 md:hidden"
               onClick={() => setShowMailboxDrawer(false)}
             />
-            <motion.div 
+            <motion.div
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
@@ -474,7 +558,7 @@ export const EmailClient: React.FC = () => {
                 <h2 className="text-lg font-bold text-white">Mailboxes</h2>
               </div>
               <div className="overflow-y-auto pb-8">
-                {mailboxes.map(mb => (
+                {mailboxes.map((mb) => (
                   <button
                     key={mb.id}
                     onClick={() => handleMailboxSelect(mb.id)}
@@ -483,8 +567,12 @@ export const EmailClient: React.FC = () => {
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <mb.icon className={`w-5 h-5 ${selectedAccount === mb.id ? 'text-blue-400' : 'text-slate-400'}`} />
-                      <span className={`font-medium ${selectedAccount === mb.id ? 'text-blue-400' : 'text-white'}`}>
+                      <mb.icon
+                        className={`w-5 h-5 ${selectedAccount === mb.id ? 'text-blue-400' : 'text-slate-400'}`}
+                      />
+                      <span
+                        className={`font-medium ${selectedAccount === mb.id ? 'text-blue-400' : 'text-white'}`}
+                      >
                         {mb.label}
                       </span>
                     </div>
@@ -505,110 +593,151 @@ export const EmailClient: React.FC = () => {
 // --- iOS-Style Components ---
 
 const DesktopSidebarItem = ({ icon: Icon, label, count, active, onClick }: any) => (
-  <button 
+  <button
     onClick={onClick}
     className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-      active 
-        ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25' 
+      active
+        ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25'
         : 'text-slate-600 dark:text-white/70 hover:bg-black/5 dark:hover:bg-white/10'
     }`}
   >
     <div className="flex items-center gap-3">
-      <Icon className={`w-[18px] h-[18px] ${active ? 'text-white' : 'text-slate-400 dark:text-white/40'}`} />
+      <Icon
+        className={`w-[18px] h-[18px] ${active ? 'text-white' : 'text-slate-400 dark:text-white/40'}`}
+      />
       <span>{label}</span>
     </div>
     {count !== undefined && (
-      <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${active ? 'bg-white/25' : 'bg-black/5 dark:bg-white/10 text-slate-500 dark:text-white/50'}`}>
+      <span
+        className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${active ? 'bg-white/25' : 'bg-black/5 dark:bg-white/10 text-slate-500 dark:text-white/50'}`}
+      >
         {count.toLocaleString()}
       </span>
     )}
   </button>
 );
 
-const IOSMessageRow = React.memo(({ thread, selected, onClick, formatDate, getInitials, getAvatarColor }: { 
-  thread: Thread, 
-  selected: boolean, 
-  onClick: () => void, 
-  formatDate: (d: string) => string,
-  getInitials: (name: string) => string,
-  getAvatarColor: (name: string) => string
-}) => {
-  const sender = thread.participantNames[0] || 'Unknown';
-  
-  return (
-    <div 
-      onClick={onClick}
-      className={`flex items-start gap-3 px-4 py-3 border-b cursor-pointer transition-colors ${
-        selected 
-          ? 'bg-blue-600/20 border-blue-800/50 md:bg-gradient-to-r md:from-blue-500 md:to-blue-600 md:border-transparent' 
-          : 'border-slate-800 md:border-black/5 md:dark:border-white/5 hover:bg-slate-800/50 md:hover:bg-black/[0.02] md:dark:hover:bg-white/[0.03]'
-      }`}
-    >
-      {/* Avatar */}
-      <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${getAvatarColor(sender)} flex items-center justify-center text-white text-sm font-bold shrink-0`}>
-        {getInitials(sender)}
-      </div>
-      
-      {/* Content */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between mb-0.5">
-          <span className={`font-semibold text-[15px] truncate ${selected ? 'text-blue-300 md:text-white' : 'text-white md:text-slate-800 md:dark:text-white'}`}>
-            {sender}
-          </span>
-          <div className="flex items-center gap-2 shrink-0 ml-2">
-            <span className={`text-xs ${selected ? 'text-blue-300/80 md:text-white/80' : 'text-slate-500 md:text-slate-400 md:dark:text-white/40'}`}>
-              {formatDate(thread.lastMessageDate)}
+const IOSMessageRow = React.memo(
+  ({
+    thread,
+    selected,
+    onClick,
+    formatDate,
+    getInitials,
+    getAvatarColor,
+  }: {
+    thread: Thread;
+    selected: boolean;
+    onClick: () => void;
+    formatDate: (d: string) => string;
+    getInitials: (name: string) => string;
+    getAvatarColor: (name: string) => string;
+  }) => {
+    const sender = thread.participantNames[0] || 'Unknown';
+
+    return (
+      <div
+        onClick={onClick}
+        className={`flex items-start gap-3 px-4 py-3 border-b cursor-pointer transition-colors ${
+          selected
+            ? 'bg-blue-600/20 border-blue-800/50 md:bg-gradient-to-r md:from-blue-500 md:to-blue-600 md:border-transparent'
+            : 'border-slate-800 md:border-black/5 md:dark:border-white/5 hover:bg-slate-800/50 md:hover:bg-black/[0.02] md:dark:hover:bg-white/[0.03]'
+        }`}
+      >
+        {/* Avatar */}
+        <div
+          className={`w-10 h-10 rounded-full bg-gradient-to-br ${getAvatarColor(sender)} flex items-center justify-center text-white text-sm font-bold shrink-0`}
+        >
+          {getInitials(sender)}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-0.5">
+            <span
+              className={`font-semibold text-[15px] truncate ${selected ? 'text-blue-300 md:text-white' : 'text-white md:text-slate-800 md:dark:text-white'}`}
+            >
+              {sender}
             </span>
-            <ChevronRight className={`w-4 h-4 ${selected ? 'text-blue-300/60 md:text-white/60' : 'text-slate-600 md:text-slate-300 md:dark:text-white/20'}`} />
+            <div className="flex items-center gap-2 shrink-0 ml-2">
+              <span
+                className={`text-xs ${selected ? 'text-blue-300/80 md:text-white/80' : 'text-slate-500 md:text-slate-400 md:dark:text-white/40'}`}
+              >
+                {formatDate(thread.lastMessageDate)}
+              </span>
+              <ChevronRight
+                className={`w-4 h-4 ${selected ? 'text-blue-300/60 md:text-white/60' : 'text-slate-600 md:text-slate-300 md:dark:text-white/20'}`}
+              />
+            </div>
+          </div>
+          <div
+            className={`text-sm truncate mb-0.5 ${selected ? 'text-blue-200 md:text-white/90' : 'text-slate-300 md:text-slate-700 md:dark:text-white/80'}`}
+          >
+            {thread.subject}
+          </div>
+          <div
+            className={`text-sm truncate ${selected ? 'text-blue-200/60 md:text-white/70' : 'text-slate-500 md:text-slate-400 md:dark:text-white/40'}`}
+          >
+            {thread.snippet}
           </div>
         </div>
-        <div className={`text-sm truncate mb-0.5 ${selected ? 'text-blue-200 md:text-white/90' : 'text-slate-300 md:text-slate-700 md:dark:text-white/80'}`}>
-          {thread.subject}
-        </div>
-        <div className={`text-sm truncate ${selected ? 'text-blue-200/60 md:text-white/70' : 'text-slate-500 md:text-slate-400 md:dark:text-white/40'}`}>
-          {thread.snippet}
-        </div>
       </div>
-    </div>
-  );
-});
+    );
+  },
+);
 
-const IOSMessageBubble = ({ email, expanded, getInitials, getAvatarColor }: { 
-  email: Email, 
-  expanded: boolean,
-  getInitials: (name: string) => string,
-  getAvatarColor: (name: string) => string
+const IOSMessageBubble = ({
+  email,
+  expanded,
+  getInitials,
+  getAvatarColor,
+}: {
+  email: Email;
+  expanded: boolean;
+  getInitials: (name: string) => string;
+  getAvatarColor: (name: string) => string;
 }) => {
   const [isExpanded, setExpanded] = useState(expanded);
   const sender = email.sender || 'Unknown';
 
   return (
     <div className="border-b border-slate-800 md:border-black/5 md:dark:border-white/5">
-      <div 
+      <div
         className="flex items-start gap-3 p-4 cursor-pointer hover:bg-slate-800/30 md:hover:bg-black/[0.02] md:dark:hover:bg-white/[0.02] transition-colors"
         onClick={() => setExpanded(!isExpanded)}
       >
         {/* Avatar */}
-        <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${getAvatarColor(sender)} flex items-center justify-center text-white text-sm font-bold shrink-0`}>
+        <div
+          className={`w-10 h-10 rounded-full bg-gradient-to-br ${getAvatarColor(sender)} flex items-center justify-center text-white text-sm font-bold shrink-0`}
+        >
           {getInitials(sender)}
         </div>
-        
+
         {/* Header */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
-            <span className="font-semibold text-white md:text-slate-800 md:dark:text-white truncate">{sender}</span>
+            <span className="font-semibold text-white md:text-slate-800 md:dark:text-white truncate">
+              {sender}
+            </span>
             <span className="text-xs text-slate-500 md:text-slate-400 md:dark:text-white/40 ml-2 shrink-0">
-              {new Date(email.date).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              {new Date(email.date).toLocaleDateString([], {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
             </span>
           </div>
           <div className="text-sm text-slate-400 md:text-slate-500 md:dark:text-white/50 truncate">
             To: {email.recipient || 'Unknown'}
           </div>
         </div>
-        
-        <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
+
+        <ChevronDown
+          className={`w-4 h-4 text-slate-500 transition-transform shrink-0 ${isExpanded ? 'rotate-180' : ''}`}
+        />
       </div>
-      
+
       <AnimatePresence>
         {isExpanded && (
           <motion.div

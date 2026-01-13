@@ -9,9 +9,9 @@ interface StatsDashboardProps {
 const StatsDashboard: React.FC<StatsDashboardProps> = ({ people }) => {
   const stats = {
     total: people.length,
-    highRisk: people.filter(p => p.likelihood_score === 'HIGH').length,
+    highRisk: people.filter((p) => p.likelihood_score === 'HIGH').length,
     totalMentions: people.reduce((sum, p) => sum + p.mentions, 0),
-    avgMentions: Math.round(people.reduce((sum, p) => sum + p.mentions, 0) / people.length)
+    avgMentions: Math.round(people.reduce((sum, p) => sum + p.mentions, 0) / people.length),
   };
 
   const cards = [
@@ -21,7 +21,7 @@ const StatsDashboard: React.FC<StatsDashboardProps> = ({ people }) => {
       icon: Users,
       iconColor: 'text-primary-400',
       description: 'Individuals tracked in the archive',
-      trend: 'Updated daily'
+      trend: 'Updated daily',
     },
     {
       title: 'High Risk Targets',
@@ -30,7 +30,7 @@ const StatsDashboard: React.FC<StatsDashboardProps> = ({ people }) => {
       iconColor: 'text-danger-400',
       valueColor: 'text-danger-400',
       description: 'Red Flag Index 4+',
-      trend: `${Math.round((stats.highRisk / stats.total) * 100)}% of total`
+      trend: `${Math.round((stats.highRisk / stats.total) * 100)}% of total`,
     },
     {
       title: 'Total Mentions',
@@ -38,7 +38,7 @@ const StatsDashboard: React.FC<StatsDashboardProps> = ({ people }) => {
       icon: FileText,
       iconColor: 'text-emerald-400',
       description: 'Cross-referenced citations',
-      trend: 'Across 2,000+ docs'
+      trend: 'Across 2,000+ docs',
     },
     {
       title: 'Avg. Mentions',
@@ -46,14 +46,14 @@ const StatsDashboard: React.FC<StatsDashboardProps> = ({ people }) => {
       icon: TrendingUp,
       iconColor: 'text-amber-400',
       description: 'Per individual entity',
-      trend: 'Relevance metric'
-    }
+      trend: 'Relevance metric',
+    },
   ];
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
       {cards.map((card, index) => (
-        <div 
+        <div
           key={index}
           className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl p-6 hover:border-slate-600 transition-all duration-300 group"
         >
@@ -66,15 +66,15 @@ const StatsDashboard: React.FC<StatsDashboardProps> = ({ people }) => {
                 {card.value}
               </h3>
             </div>
-            <div className={`p-3 rounded-lg bg-slate-800/80 ${card.iconColor} bg-opacity-10 ring-1 ring-white/5`}>
+            <div
+              className={`p-3 rounded-lg bg-slate-800/80 ${card.iconColor} bg-opacity-10 ring-1 ring-white/5`}
+            >
               <card.icon className={`h-6 w-6 ${card.iconColor}`} />
             </div>
           </div>
-          
+
           <div className="flex items-center justify-between pt-4 border-t border-slate-700/50">
-            <p className="text-xs text-slate-500 font-medium">
-              {card.description}
-            </p>
+            <p className="text-xs text-slate-500 font-medium">{card.description}</p>
             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-700/50 text-slate-400">
               {card.trend}
             </span>

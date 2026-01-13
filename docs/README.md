@@ -19,6 +19,7 @@ The application consists of:
 See [schema.sql](../schema.sql) for the complete database structure.
 
 Key tables:
+
 - `entities` - People, organizations, locations
 - `documents` - Text documents with metadata
 - `entity_relationships` - Connections between entities

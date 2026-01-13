@@ -15,7 +15,11 @@ interface AddToInvestigationItem {
 interface AddToInvestigationButtonProps {
   item: AddToInvestigationItem;
   investigations?: Investigation[];
-  onAddToInvestigation?: (investigationId: string, item: AddToInvestigationItem, relevance: 'high' | 'medium' | 'low') => void;
+  onAddToInvestigation?: (
+    investigationId: string,
+    item: AddToInvestigationItem,
+    relevance: 'high' | 'medium' | 'low',
+  ) => void;
   variant?: 'button' | 'icon' | 'dropdown' | 'quick';
   className?: string;
   defaultInvestigationId?: string;
@@ -27,9 +31,13 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
   onAddToInvestigation,
   variant = 'button',
   className = '',
-  defaultInvestigationId
+  defaultInvestigationId,
 }) => {
-  const { investigations: contextInvestigations, addToInvestigation, selectedInvestigation } = useInvestigations();
+  const {
+    investigations: contextInvestigations,
+    addToInvestigation,
+    selectedInvestigation,
+  } = useInvestigations();
   const [showModal, setShowModal] = useState(false);
   const [selectedInvestigationId, setSelectedInvestigationId] = useState<string>('');
   const [relevance, setRelevance] = useState<'high' | 'medium' | 'low'>('medium');
@@ -52,9 +60,9 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
 
   const handleAddToInvestigation = async () => {
     if (!selectedInvestigationId) return;
-    
+
     setIsLoading(true);
-    
+
     try {
       // Use context method if available, otherwise use prop method
       if (addToInvestigation) {
@@ -62,7 +70,7 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
       } else if (onAddToInvestigation) {
         onAddToInvestigation(selectedInvestigationId, item, relevance);
       }
-      
+
       setShowModal(false);
     } catch (error) {
       console.error('Error adding to investigation:', error);
@@ -77,9 +85,9 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
       setShowModal(true);
       return;
     }
-    
+
     setIsLoading(true);
-    
+
     try {
       // Use context method if available, otherwise use prop method
       if (addToInvestigation) {
@@ -87,13 +95,14 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
       } else if (onAddToInvestigation) {
         onAddToInvestigation(selectedInvestigationId, item, 'medium');
       }
-      
+
       // Show success feedback
       const button = document.createElement('div');
-      button.className = 'fixed bottom-4 right-4 px-4 py-2 bg-green-600 text-white rounded-lg shadow-lg z-50 animate-fade-in';
+      button.className =
+        'fixed bottom-4 right-4 px-4 py-2 bg-green-600 text-white rounded-lg shadow-lg z-50 animate-fade-in';
       button.textContent = 'Added to investigation!';
       document.body.appendChild(button);
-      
+
       // Remove after animation
       setTimeout(() => {
         button.classList.remove('animate-fade-in');
@@ -106,10 +115,11 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
       console.error('Error adding to investigation:', error);
       // Show error feedback
       const button = document.createElement('div');
-      button.className = 'fixed bottom-4 right-4 px-4 py-2 bg-red-600 text-white rounded-lg shadow-lg z-50 animate-fade-in';
+      button.className =
+        'fixed bottom-4 right-4 px-4 py-2 bg-red-600 text-white rounded-lg shadow-lg z-50 animate-fade-in';
       button.textContent = 'Failed to add to investigation';
       document.body.appendChild(button);
-      
+
       // Remove after animation
       setTimeout(() => {
         button.classList.remove('animate-fade-in');
@@ -165,7 +175,7 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
           Add to Investigation
         </button>
       )}
-      
+
       {variant === 'icon' && (
         <button
           onClick={() => setShowModal(true)}
@@ -175,7 +185,7 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
           <Icon name="Plus" size="sm" />
         </button>
       )}
-      
+
       {variant === 'dropdown' && (
         <div className="relative group">
           <button
@@ -187,7 +197,7 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
           </button>
         </div>
       )}
-      
+
       {variant === 'quick' && (
         <button
           onClick={handleQuickAdd}
@@ -202,7 +212,7 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
           )}
         </button>
       )}
-      
+
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -213,7 +223,7 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
                   <Icon name={ItemIcon} size="sm" color="info" />
                   <h3 className="text-xl font-bold text-white">Add to Investigation</h3>
                 </div>
-                <button 
+                <button
                   onClick={() => setShowModal(false)}
                   className="text-slate-400 hover:text-slate-200"
                 >
@@ -221,7 +231,7 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
                 </button>
               </div>
             </div>
-            
+
             <div className="p-6 space-y-4">
               {/* Item Preview */}
               <div className="bg-slate-700/50 rounded-lg p-4">
@@ -248,21 +258,21 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
                   className="w-full px-4 h-10 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Choose an investigation...</option>
-                  {investigations.map(inv => (
+                  {investigations.map((inv) => (
                     <option key={inv.id} value={inv.id}>
                       {inv.title}
                     </option>
                   ))}
                 </select>
               </div>
-              
+
               {/* Relevance Selection */}
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
                   Evidence Relevance
                 </label>
                 <div className="grid grid-cols-3 gap-2">
-                  {(['high', 'medium', 'low'] as const).map(rel => (
+                  {(['high', 'medium', 'low'] as const).map((rel) => (
                     <button
                       key={rel}
                       onClick={() => setRelevance(rel)}
@@ -278,7 +288,7 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
                 </div>
               </div>
             </div>
-            
+
             <div className="border-t border-slate-700 p-6 flex justify-end gap-3">
               <button
                 onClick={() => setShowModal(false)}

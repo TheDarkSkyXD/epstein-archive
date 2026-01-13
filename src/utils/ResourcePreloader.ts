@@ -1,6 +1,6 @@
 /**
  * ResourcePreloader Utility
- * 
+ *
  * Provides methods to pre-fetch data and assets to improve perceived performance.
  */
 
@@ -20,9 +20,9 @@ class ResourcePreloader {
    */
   async prefetchJson(url: string, options: PreloadOptions = {}) {
     if (this.preloadedUrls.has(url)) return;
-    
+
     this.preloadedUrls.add(url);
-    
+
     try {
       const response = await fetch(url);
       if (response.ok) {
@@ -41,9 +41,9 @@ class ResourcePreloader {
    */
   prefetchImage(url: string) {
     if (this.preloadedUrls.has(url)) return;
-    
+
     this.preloadedUrls.add(url);
-    
+
     const img = new Image();
     img.src = url;
     img.onload = () => console.log(`[Preloader] Prefetched Image: ${url}`);

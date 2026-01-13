@@ -11,13 +11,13 @@ const router = Router();
 router.get('/evidence/:entityId', async (req: Request, res: Response) => {
   try {
     const { entityId } = req.params;
-    
+
     const result = await databaseService.getEntityEvidence(entityId);
-    
+
     if (!result) {
       return res.status(404).json({ error: 'Entity not found' });
     }
-    
+
     res.json(result);
   } catch (error) {
     console.error('Error fetching entity evidence:', error);
@@ -37,11 +37,16 @@ router.post('/add-evidence', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const result = await databaseService.addEvidenceToInvestigation(investigationId, evidenceId, notes, relevance);
-    
+    const result = await databaseService.addEvidenceToInvestigation(
+      investigationId,
+      evidenceId,
+      notes,
+      relevance,
+    );
+
     res.json({
       success: true,
-      ...result
+      ...result,
     });
   } catch (error: any) {
     if (error.message === 'Evidence not found') {
@@ -61,7 +66,7 @@ router.get('/:investigationId/evidence-summary', async (req: Request, res: Respo
     const { investigationId } = req.params;
 
     const result = await databaseService.getInvestigationEvidenceSummary(investigationId);
-    
+
     res.json(result);
   } catch (error) {
     console.error('Error fetching investigation evidence summary:', error);
@@ -78,7 +83,7 @@ router.delete('/remove-evidence/:investigationEvidenceId', async (req: Request, 
     const { investigationEvidenceId } = req.params;
 
     const success = await databaseService.removeEvidenceFromInvestigation(investigationEvidenceId);
-    
+
     res.json({ success });
   } catch (error) {
     console.error('Error removing evidence from investigation:', error);

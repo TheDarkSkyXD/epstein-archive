@@ -1,6 +1,6 @@
 /**
  * Email Viewer Component
- * 
+ *
  * Displays correspondence evidence in email client style
  */
 
@@ -33,7 +33,7 @@ export function EmailViewer({ evidence }: EmailViewerProps) {
   const getEmailBody = () => {
     const lines = extractedText.split('\n');
     let bodyStartIndex = 0;
-    
+
     // Find where headers end (first empty line or specific patterns)
     for (let i = 0; i < lines.length; i++) {
       if (lines[i].trim() === '' && i > 5) {
@@ -41,7 +41,7 @@ export function EmailViewer({ evidence }: EmailViewerProps) {
         break;
       }
     }
-    
+
     return lines.slice(bodyStartIndex).join('\n').trim();
   };
 
@@ -52,9 +52,7 @@ export function EmailViewer({ evidence }: EmailViewerProps) {
       {/* Email Header */}
       <div className="border-b border-gray-200 pb-6 mb-6">
         <div className="flex items-start justify-between mb-4">
-          <h2 className="text-2xl font-bold text-gray-900">
-            {metadata.subject || 'No Subject'}
-          </h2>
+          <h2 className="text-2xl font-bold text-gray-900">{metadata.subject || 'No Subject'}</h2>
           {metadata.source_original_url && (
             <a
               href={metadata.source_original_url}
@@ -69,7 +67,7 @@ export function EmailViewer({ evidence }: EmailViewerProps) {
             </a>
           )}
         </div>
-        
+
         <div className="space-y-3">
           {metadata.from && (
             <div className="flex items-start">
@@ -89,7 +87,7 @@ export function EmailViewer({ evidence }: EmailViewerProps) {
               </div>
             </div>
           )}
-          
+
           {metadata.to && (
             <div className="flex items-start">
               <Mail className="h-5 w-5 text-gray-400 mr-3 mt-0.5" />
@@ -108,7 +106,7 @@ export function EmailViewer({ evidence }: EmailViewerProps) {
               </div>
             </div>
           )}
-          
+
           {metadata.cc && (
             <div className="flex items-start">
               <Mail className="h-5 w-5 text-gray-400 mr-3 mt-0.5" />
@@ -118,7 +116,7 @@ export function EmailViewer({ evidence }: EmailViewerProps) {
               </div>
             </div>
           )}
-          
+
           {metadata.sentDate && (
             <div className="flex items-start">
               <Calendar className="h-5 w-5 text-gray-400 mr-3 mt-0.5" />
@@ -128,7 +126,7 @@ export function EmailViewer({ evidence }: EmailViewerProps) {
               </div>
             </div>
           )}
-          
+
           {metadata.attachmentCount && metadata.attachmentCount > 0 && (
             <div className="flex items-start">
               <Paperclip className="h-5 w-5 text-gray-400 mr-3 mt-0.5" />

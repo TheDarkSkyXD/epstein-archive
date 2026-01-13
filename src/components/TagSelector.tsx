@@ -20,7 +20,7 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
   onTagsChange,
   onTagClick,
   mediaId,
-  className = ''
+  className = '',
 }) => {
   const [allTags, setAllTags] = useState<TagData[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -32,14 +32,22 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
 
   // Preset colors
   const presetColors = [
-    '#ef4444', '#f97316', '#eab308', '#22c55e', '#10b981',
-    '#3b82f6', '#6366f1', '#8b5cf6', '#ec4899', '#64748b'
+    '#ef4444',
+    '#f97316',
+    '#eab308',
+    '#22c55e',
+    '#10b981',
+    '#3b82f6',
+    '#6366f1',
+    '#8b5cf6',
+    '#ec4899',
+    '#64748b',
   ];
 
   // Fetch all available tags
   useEffect(() => {
     fetch('/api/tags')
-      .then(res => res.json())
+      .then((res) => res.json())
       .then(setAllTags)
       .catch(console.error);
   }, []);
@@ -56,26 +64,26 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const filteredTags = allTags.filter(tag =>
-    tag.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredTags = allTags.filter((tag) =>
+    tag.name.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
-  const isTagSelected = (tagId: number) => selectedTags.some(t => t.id === tagId);
+  const isTagSelected = (tagId: number) => selectedTags.some((t) => t.id === tagId);
 
   const handleToggleTag = async (tag: TagData) => {
     const isSelected = isTagSelected(tag.id);
-    
+
     try {
       if (isSelected) {
         // Remove tag
         await fetch(`/api/media/images/${mediaId}/tags/${tag.id}`, { method: 'DELETE' });
-        onTagsChange(selectedTags.filter(t => t.id !== tag.id));
+        onTagsChange(selectedTags.filter((t) => t.id !== tag.id));
       } else {
         // Add tag
         await fetch(`/api/media/images/${mediaId}/tags`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tagId: tag.id })
+          body: JSON.stringify({ tagId: tag.id }),
         });
         onTagsChange([...selectedTags, tag]);
       }
@@ -86,14 +94,14 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
 
   const handleCreateTag = async () => {
     if (!newTagName.trim()) return;
-    
+
     try {
       const res = await fetch('/api/tags', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newTagName.trim(), color: newTagColor })
+        body: JSON.stringify({ name: newTagName.trim(), color: newTagColor }),
       });
-      
+
       if (res.ok) {
         const newTag = await res.json();
         setAllTags([...allTags, newTag]);
@@ -110,7 +118,7 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
     <div className={`relative ${className}`} ref={dropdownRef}>
       {/* Selected Tags Display */}
       <div className="flex flex-wrap gap-1.5 mb-2">
-        {selectedTags.map(tag => (
+        {selectedTags.map((tag) => (
           <span
             key={tag.id}
             className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-white ${onTagClick ? 'cursor-pointer hover:opacity-90' : ''}`}
@@ -157,7 +165,7 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
                 type="text"
                 placeholder="Search tags..."
                 value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-8 pr-3 py-1.5 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
               />
             </div>
@@ -165,22 +173,17 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
 
           {/* Tags List */}
           <div className="max-h-40 overflow-y-auto p-1">
-            {filteredTags.map(tag => (
+            {filteredTags.map((tag) => (
               <button
                 key={tag.id}
                 onClick={() => handleToggleTag(tag)}
                 className="w-full flex items-center justify-between px-2 py-1.5 hover:bg-slate-700 rounded text-left"
               >
                 <span className="flex items-center gap-2">
-                  <span
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: tag.color }}
-                  />
+                  <span className="w-3 h-3 rounded-full" style={{ backgroundColor: tag.color }} />
                   <span className="text-sm text-white">{tag.name}</span>
                 </span>
-                {isTagSelected(tag.id) && (
-                  <Check className="w-4 h-4 text-green-400" />
-                )}
+                {isTagSelected(tag.id) && <Check className="w-4 h-4 text-green-400" />}
               </button>
             ))}
             {filteredTags.length === 0 && (
@@ -196,12 +199,12 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
                   type="text"
                   placeholder="Tag name"
                   value={newTagName}
-                  onChange={e => setNewTagName(e.target.value)}
+                  onChange={(e) => setNewTagName(e.target.value)}
                   className="w-full px-2 py-1.5 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
                   autoFocus
                 />
                 <div className="flex gap-1">
-                  {presetColors.map(color => (
+                  {presetColors.map((color) => (
                     <button
                       key={color}
                       onClick={() => setNewTagColor(color)}

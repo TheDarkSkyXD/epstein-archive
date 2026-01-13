@@ -1,6 +1,6 @@
 /**
  * PDF Viewer Component
- * 
+ *
  * Displays PDF files with navigation controls and basic features
  */
 
@@ -31,11 +31,11 @@ export function PDFViewer({ filePath, title }: PDFViewerProps) {
     try {
       setLoading(true);
       setError(null);
-      
+
       // For local files, we need to serve them through the API
       // The filePath will be converted to an API endpoint
       const apiUrl = `/api/media/pdf?filePath=${encodeURIComponent(filePath)}`;
-      
+
       // Test if the file is accessible
       const response = await fetch(apiUrl, { method: 'HEAD' });
       if (!response.ok) {
@@ -63,23 +63,23 @@ export function PDFViewer({ filePath, title }: PDFViewerProps) {
   };
 
   const goToPrevPage = () => {
-    setPageNumber(prev => Math.max(prev - 1, 1));
+    setPageNumber((prev) => Math.max(prev - 1, 1));
   };
 
   const goToNextPage = () => {
-    setPageNumber(prev => (numPages ? Math.min(prev + 1, numPages) : prev));
+    setPageNumber((prev) => (numPages ? Math.min(prev + 1, numPages) : prev));
   };
 
   const zoomIn = () => {
-    setScale(prev => Math.min(prev + 0.2, 3));
+    setScale((prev) => Math.min(prev + 0.2, 3));
   };
 
   const zoomOut = () => {
-    setScale(prev => Math.max(prev - 0.2, 0.5));
+    setScale((prev) => Math.max(prev - 0.2, 0.5));
   };
 
   const rotate = () => {
-    setRotation(prev => (prev + 90) % 360);
+    setRotation((prev) => (prev + 90) % 360);
   };
 
   const downloadPDF = () => {
@@ -95,8 +95,19 @@ export function PDFViewer({ filePath, title }: PDFViewerProps) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-8 text-center">
         <div className="text-red-500 mb-4">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-16 w-16 mx-auto"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
           </svg>
         </div>
         <h3 className="text-xl font-semibold text-gray-900 mb-2">Unable to Load PDF</h3>
@@ -118,7 +129,7 @@ export function PDFViewer({ filePath, title }: PDFViewerProps) {
         <div className="flex items-center space-x-2">
           <h2 className="text-lg font-semibold text-gray-900 truncate max-w-md">{title}</h2>
         </div>
-        
+
         <div className="flex items-center space-x-2">
           <button
             onClick={downloadPDF}
@@ -127,9 +138,9 @@ export function PDFViewer({ filePath, title }: PDFViewerProps) {
           >
             <Download className="h-5 w-5" />
           </button>
-          
+
           <div className="h-6 w-px bg-gray-300"></div>
-          
+
           <button
             onClick={zoomOut}
             className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors"
@@ -138,11 +149,11 @@ export function PDFViewer({ filePath, title }: PDFViewerProps) {
           >
             <ZoomOut className="h-5 w-5" />
           </button>
-          
+
           <span className="text-sm text-gray-600 min-w-[40px] text-center">
             {Math.round(scale * 100)}%
           </span>
-          
+
           <button
             onClick={zoomIn}
             className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors"
@@ -151,9 +162,9 @@ export function PDFViewer({ filePath, title }: PDFViewerProps) {
           >
             <ZoomIn className="h-5 w-5" />
           </button>
-          
+
           <div className="h-6 w-px bg-gray-300"></div>
-          
+
           <button
             onClick={rotate}
             className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors"
@@ -176,11 +187,11 @@ export function PDFViewer({ filePath, title }: PDFViewerProps) {
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
-          
+
           <span className="text-sm text-gray-600">
             Page {pageNumber} of {numPages || '--'}
           </span>
-          
+
           <button
             onClick={goToNextPage}
             disabled={!numPages || pageNumber >= numPages}
@@ -211,9 +222,7 @@ export function PDFViewer({ filePath, title }: PDFViewerProps) {
                   </div>
                 }
                 error={
-                  <div className="text-red-500 p-4 text-center">
-                    Failed to load PDF document
-                  </div>
+                  <div className="text-red-500 p-4 text-center">Failed to load PDF document</div>
                 }
               >
                 <Page

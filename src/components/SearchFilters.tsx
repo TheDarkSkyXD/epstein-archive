@@ -18,7 +18,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({ filters, setFilters }) =>
         <Filter className="h-5 w-5 text-primary-400" />
         <h3 className="text-lg font-semibold text-white">Filters</h3>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -53,9 +53,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({ filters, setFilters }) =>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-2">
-            Role Type
-          </label>
+          <label className="block text-sm font-medium text-slate-300 mb-2">Role Type</label>
           <select
             value={filters.role}
             onChange={(e) => handleFilterChange('role', e.target.value)}

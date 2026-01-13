@@ -10,12 +10,12 @@ interface MediaViewerProps {
   inline?: boolean;
 }
 
-export const MediaViewer: React.FC<MediaViewerProps> = ({ 
-  filePath, 
-  fileName, 
+export const MediaViewer: React.FC<MediaViewerProps> = ({
+  filePath,
+  fileName,
   fileType,
   onClose,
-  inline = false
+  inline = false,
 }) => {
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
@@ -23,15 +23,15 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   const handleZoomIn = () => {
-    setZoom(prev => Math.min(prev + 0.2, 3));
+    setZoom((prev) => Math.min(prev + 0.2, 3));
   };
 
   const handleZoomOut = () => {
-    setZoom(prev => Math.max(prev - 0.2, 0.5));
+    setZoom((prev) => Math.max(prev - 0.2, 0.5));
   };
 
   const handleRotate = () => {
-    setRotation(prev => (prev + 90) % 360);
+    setRotation((prev) => (prev + 90) % 360);
   };
 
   const handleDownload = () => {
@@ -44,15 +44,15 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({
   };
 
   const isPdf = fileType === 'pdf' || fileName.toLowerCase().endsWith('.pdf');
-  const isImage = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].some(ext => 
-    fileType === ext || fileName.toLowerCase().endsWith('.' + ext)
+  const isImage = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].some(
+    (ext) => fileType === ext || fileName.toLowerCase().endsWith('.' + ext),
   );
 
   useEffect(() => {
     // Reset zoom and rotation when file changes
     setZoom(1);
     setRotation(0);
-    
+
     // If not supported (fallback view), we won't get an onLoad event, so stop loading immediately
     const isSupported = isPdf || isImage;
     if (!isSupported) {
@@ -87,7 +87,7 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({
             className="max-w-full max-h-full object-contain"
             style={{
               transform: `scale(${zoom}) rotate(${rotation}deg)`,
-              transition: 'transform 0.2s ease'
+              transition: 'transform 0.2s ease',
             }}
             onLoad={() => setIsLoading(false)}
             onError={() => {
@@ -102,8 +102,19 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({
     return (
       <div className="flex flex-col items-center justify-center w-full h-full text-center p-8">
         <div className="text-slate-400 mb-4">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-16 w-16 mx-auto mb-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
           </svg>
           <h3 className="text-xl font-semibold mb-2">File Preview Unavailable</h3>
           <p className="mb-4">This file type cannot be previewed in the browser.</p>
@@ -123,22 +134,59 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({
   };
 
   const content = (
-    <div className={`${inline ? 'relative w-full h-full' : 'fixed inset-0 bg-black bg-opacity-90 z-[1100]'} flex flex-col`}>
+    <div
+      className={`${inline ? 'relative w-full h-full' : 'fixed inset-0 bg-black bg-opacity-90 z-[1100]'} flex flex-col`}
+    >
       {/* Header */}
-      <div className={`flex items-center justify-between p-4 bg-slate-900 border-b border-slate-700 z-20 ${inline ? 'py-2 px-4' : ''}`}>
+      <div
+        className={`flex items-center justify-between p-4 bg-slate-900 border-b border-slate-700 z-20 ${inline ? 'py-2 px-4' : ''}`}
+      >
         <div className="flex items-center gap-3">
           <div className="bg-slate-800 p-2 rounded-lg">
             {isPdf ? (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6 text-red-500"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
               </svg>
             ) : isImage ? (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6 text-blue-500"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
               </svg>
             ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6 text-gray-500"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
               </svg>
             )}
           </div>
@@ -148,9 +196,9 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {!isPdf && (isImage) && (
+          {!isPdf && isImage && (
             <>
-              <button 
+              <button
                 onClick={handleZoomOut}
                 className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
                 disabled={zoom <= 0.5}
@@ -159,7 +207,7 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({
                 <ZoomOut className="w-5 h-5" />
               </button>
               <span className="text-slate-400 text-sm mx-1">{Math.round(zoom * 100)}%</span>
-              <button 
+              <button
                 onClick={handleZoomIn}
                 className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
                 disabled={zoom >= 3}
@@ -167,7 +215,7 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({
               >
                 <ZoomIn className="w-5 h-5" />
               </button>
-              <button 
+              <button
                 onClick={handleRotate}
                 className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
                 title="Rotate"
@@ -178,14 +226,14 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({
           )}
           {!inline && (
             <>
-              <button 
+              <button
                 onClick={handleDownload}
                 className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
                 title="Download"
               >
                 <Download className="w-5 h-5" />
               </button>
-              <button 
+              <button
                 onClick={onClose}
                 className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
                 title="Close"
@@ -212,8 +260,19 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({
         {error ? (
           <div className="flex-1 flex items-center justify-center h-full">
             <div className="text-center text-red-400">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-16 w-16 mx-auto mb-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
               </svg>
               <h3 className="text-xl font-semibold mb-2">Error Loading Media</h3>
               <p className="mb-4">{error}</p>
@@ -229,8 +288,10 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({
           </div>
         ) : (
           /* Media Content - Always rendered to allow loading to start */
-          <div className={`w-full h-full ${isLoading ? 'opacity-0' : 'opacity-100'} transition-opacity ${isImage ? '' : 'p-4'}`}>
-             {renderMedia()}
+          <div
+            className={`w-full h-full ${isLoading ? 'opacity-0' : 'opacity-100'} transition-opacity ${isImage ? '' : 'p-4'}`}
+          >
+            {renderMedia()}
           </div>
         )}
       </div>
@@ -243,7 +304,7 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({
       )}
     </div>
   );
-  
+
   // Render via portal if not inline, otherwise just render content
   if (inline) return content;
   return typeof document !== 'undefined' ? createPortal(content, document.body) : null;

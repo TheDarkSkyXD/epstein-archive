@@ -1,6 +1,6 @@
 /**
  * Table Viewer Component
- * 
+ *
  * Displays CSV/TSV data with virtual scrolling
  */
 
@@ -22,12 +22,12 @@ export function TableViewer({ evidence }: TableViewerProps) {
   const { extractedText, metadata } = evidence;
 
   const { headers, rows } = useMemo(() => {
-    const lines = extractedText.split('\n').filter(line => line.trim());
+    const lines = extractedText.split('\n').filter((line) => line.trim());
     if (lines.length === 0) return { headers: [], rows: [] };
 
     const delimiter = extractedText.includes('\t') ? '\t' : ',';
     const headers = lines[0].split(delimiter);
-    const rows = lines.slice(1).map(line => line.split(delimiter));
+    const rows = lines.slice(1).map((line) => line.split(delimiter));
 
     return { headers, rows };
   }, [extractedText]);
@@ -72,7 +72,7 @@ export function TableViewer({ evidence }: TableViewerProps) {
             {rows.length.toLocaleString()} rows × {headers.length} columns
           </p>
         </div>
-        
+
         <button
           onClick={downloadCSV}
           className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"

@@ -1,8 +1,38 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Document, Page, pdfjs } from 'react-pdf';
-import { FileText, Search, Fingerprint, Clock, User, MapPin, Phone, Mail, DollarSign, ZoomIn, ZoomOut, RotateCw, ChevronLeft, ChevronRight, AlertTriangle, CheckCircle, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import {
+  FileText,
+  Search,
+  Fingerprint,
+  Clock,
+  User,
+  MapPin,
+  Phone,
+  Mail,
+  DollarSign,
+  ZoomIn,
+  ZoomOut,
+  RotateCw,
+  ChevronLeft,
+  ChevronRight,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from 'recharts';
 import { format } from 'date-fns';
 import { DocumentMetadataPanel } from './DocumentMetadataPanel';
 
@@ -64,7 +94,16 @@ interface DocumentMetadata {
 }
 
 interface DetectedEntity {
-  type: 'person' | 'organization' | 'location' | 'date' | 'phone' | 'email' | 'money' | 'address' | 'url';
+  type:
+    | 'person'
+    | 'organization'
+    | 'location'
+    | 'date'
+    | 'phone'
+    | 'email'
+    | 'money'
+    | 'address'
+    | 'url';
   text: string;
   position: { start: number; end: number };
   confidence: number;
@@ -113,7 +152,7 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
   documentUrl,
   documentId,
   onAnalysisComplete,
-  caseContext
+  caseContext,
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -124,21 +163,25 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
   const [analysis, setAnalysis] = useState<ForensicAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [selectedEntity, setSelectedEntity] = useState<DetectedEntity | null>(null);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'entities' | 'patterns' | 'anomalies' | 'metadata'>('dashboard');
-  const [metrics, setMetrics] = useState<any|null>(null);
-  const [summary, setSummary] = useState<any|null>(null);
+  const [activeTab, setActiveTab] = useState<
+    'dashboard' | 'entities' | 'patterns' | 'anomalies' | 'metadata'
+  >('dashboard');
+  const [metrics, setMetrics] = useState<any | null>(null);
+  const [summary, setSummary] = useState<any | null>(null);
   const [topJs, setTopJs] = useState<any[]>([]);
   const [topDensity, setTopDensity] = useState<any[]>([]);
   const [topRisk, setTopRisk] = useState<any[]>([]);
   const [compareAId, setCompareAId] = useState('');
   const [compareBId, setCompareBId] = useState('');
-  const [compareA, setCompareA] = useState<any|null>(null);
-  const [compareB, setCompareB] = useState<any|null>(null);
+  const [compareA, setCompareA] = useState<any | null>(null);
+  const [compareB, setCompareB] = useState<any | null>(null);
   const [hoveredId, setHoveredId] = useState<string>('');
   const [quickMetrics, setQuickMetrics] = useState<Record<string, any>>({});
   const [activeId, setActiveId] = useState<string>(documentId);
-  useEffect(()=>{ setActiveId(documentId); },[documentId]);
-  useEffect(()=>{
+  useEffect(() => {
+    setActiveId(documentId);
+  }, [documentId]);
+  useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
       const a = params.get('compareA');
@@ -148,17 +191,22 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
     } catch (err) {
       console.error('Error parsing URL parameters:', err);
     }
-  },[]);
+  }, []);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [viewerWidth, setViewerWidth] = useState<number>(0);
   const [expandedSections, setExpandedSections] = useState<{ [key: string]: boolean }>({
     factors: false,
     fileInfo: false,
     docProps: false,
-    textAnalysis: false
+    textAnalysis: false,
   });
   const viewerRef = useRef<HTMLDivElement>(null);
-  const [docMeta, setDocMeta] = useState<{ source_collection?: string; source_original_url?: string; credibility_score?: number; sensitivity_flags?: string[] } | null>(null);
+  const [docMeta, setDocMeta] = useState<{
+    source_collection?: string;
+    source_original_url?: string;
+    credibility_score?: number;
+    sensitivity_flags?: string[];
+  } | null>(null);
   const [localUrl, setLocalUrl] = useState<string>('');
 
   useEffect(() => {
@@ -184,7 +232,9 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
               source_collection: meta.source_collection,
               source_original_url: meta.source_original_url,
               credibility_score: meta.credibility_score,
-              sensitivity_flags: Array.isArray(meta.sensitivity_flags) ? meta.sensitivity_flags : []
+              sensitivity_flags: Array.isArray(meta.sensitivity_flags)
+                ? meta.sensitivity_flags
+                : [],
             });
           }
         }
@@ -224,14 +274,27 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
           fetch('/api/forensic/metrics-list/top?by=density&limit=10'),
           fetch('/api/forensic/metrics-list/top?by=risk&limit=10'),
         ]);
-        if (jsRes.ok) { const d = await jsRes.json(); setTopJs(d.data || []); }
-        if (denRes.ok) { const d = await denRes.json(); setTopDensity(d.data || []); }
-        if (riskRes.ok) { const d = await riskRes.json(); setTopRisk(d.data || []); }
+        if (jsRes.ok) {
+          const d = await jsRes.json();
+          setTopJs(d.data || []);
+        }
+        if (denRes.ok) {
+          const d = await denRes.json();
+          setTopDensity(d.data || []);
+        }
+        if (riskRes.ok) {
+          const d = await riskRes.json();
+          setTopRisk(d.data || []);
+        }
       } catch (err) {
         console.error('Error fetching top metrics:', err);
       }
     };
-    if (activeTab === 'dashboard' && activeId) { fetchMetrics(); fetchSummary(); fetchTop(); }
+    if (activeTab === 'dashboard' && activeId) {
+      fetchMetrics();
+      fetchSummary();
+      fetchTop();
+    }
   }, [activeTab, activeId]);
 
   // Mock forensic analysis data
@@ -246,28 +309,31 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
           {
             type: 'font',
             score: 92,
-            description: 'Consistent font usage throughout document matches period-appropriate typefaces',
-            severity: 'low'
+            description:
+              'Consistent font usage throughout document matches period-appropriate typefaces',
+            severity: 'low',
           },
           {
             type: 'metadata',
             score: 78,
-            description: 'Some metadata fields missing, but core properties consistent with claimed origin',
-            severity: 'medium'
+            description:
+              'Some metadata fields missing, but core properties consistent with claimed origin',
+            severity: 'medium',
           },
           {
             type: 'timeline',
             score: 95,
             description: 'Document content aligns with known historical timeline',
-            severity: 'low'
+            severity: 'low',
           },
           {
             type: 'cross_reference',
             score: 85,
-            description: 'Entities mentioned correlate with other verified documents from same period',
-            severity: 'low'
-          }
-        ]
+            description:
+              'Entities mentioned correlate with other verified documents from same period',
+            severity: 'low',
+          },
+        ],
       },
       metadata: {
         fileInfo: {
@@ -276,7 +342,7 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
           type: 'application/pdf',
           created: '2005-12-15T14:30:00Z',
           modified: '2005-12-15T14:30:00Z',
-          hash: 'sha256:a7f3b9c2d8e1f4a6c9b2d5e8f1a4c7b9d2e5f8a1c4b7d9e2f5a8c1b4d7e9f2a5c8'
+          hash: 'sha256:a7f3b9c2d8e1f4a6c9b2d5e8f1a4c7b9d2e5f8a1c4b7d9e2f5a8c1b4d7e9f2a5c8',
         },
         documentProperties: {
           author: 'Epstein, Jeffrey',
@@ -284,7 +350,7 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
           modificationDate: '2005-12-15T14:30:00Z',
           producer: 'Adobe PDF Library 6.0',
           creator: 'Microsoft Word 2003',
-          pageCount: 47
+          pageCount: 47,
         },
         textAnalysis: {
           wordCount: 1247,
@@ -292,8 +358,8 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
           averageWordLength: 6.8,
           readingLevel: 'College',
           sentiment: 'neutral',
-          writingStyle: 'formal'
-        }
+          writingStyle: 'formal',
+        },
       },
       entities: [
         {
@@ -302,7 +368,7 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
           position: { start: 45, end: 60 },
           confidence: 99,
           context: 'Owner/Operator of aircraft, listed as primary contact',
-          crossReferences: ['document-001', 'document-015', 'document-027']
+          crossReferences: ['document-001', 'document-015', 'document-027'],
         },
         {
           type: 'person',
@@ -310,7 +376,7 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
           position: { start: 234, end: 251 },
           confidence: 97,
           context: 'Listed as passenger on multiple flights',
-          crossReferences: ['document-001', 'document-008', 'document-019']
+          crossReferences: ['document-001', 'document-008', 'document-019'],
         },
         {
           type: 'location',
@@ -318,7 +384,7 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
           position: { start: 456, end: 477 },
           confidence: 95,
           context: 'Destination of multiple flights',
-          crossReferences: ['document-003', 'document-012']
+          crossReferences: ['document-003', 'document-012'],
         },
         {
           type: 'date',
@@ -326,7 +392,7 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
           position: { start: 123, end: 140 },
           confidence: 98,
           context: 'Flight departure date',
-          crossReferences: ['document-001', 'document-007']
+          crossReferences: ['document-001', 'document-007'],
         },
         {
           type: 'money',
@@ -334,8 +400,8 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
           position: { start: 678, end: 684 },
           confidence: 94,
           context: 'Flight cost/charges',
-          crossReferences: ['document-001', 'document-004']
-        }
+          crossReferences: ['document-001', 'document-004'],
+        },
       ],
       patterns: [
         {
@@ -347,35 +413,36 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
           timeline: {
             startDate: '2002-01-15',
             endDate: '2005-11-30',
-            frequency: 'recurring'
-          }
+            frequency: 'recurring',
+          },
         },
         {
           type: 'relationship',
           description: 'Consistent co-travel patterns suggesting close association',
           entities: ['Jeffrey Epstein', 'Ghislaine Maxwell'],
           confidence: 89,
-          significance: 'high'
-        }
+          significance: 'high',
+        },
       ],
       anomalies: [
         {
           type: 'temporal',
           description: 'Flight logged for date before aircraft registration date',
           severity: 'significant',
-          explanation: 'One flight entry dated 2002-06-15 but aircraft N-number registration shows effective date of 2002-08-22',
+          explanation:
+            'One flight entry dated 2002-06-15 but aircraft N-number registration shows effective date of 2002-08-22',
           requiresInvestigation: true,
-          relatedEvidence: ['document-001', 'fAA-registration-447N']
+          relatedEvidence: ['document-001', 'fAA-registration-447N'],
         },
         {
           type: 'linguistic',
           description: 'Inconsistent terminology used for same aircraft',
           severity: 'minor',
           explanation: 'Aircraft referred to as both "Gulfstream" and "G-1159A" in same document',
-          requiresInvestigation: false
-        }
+          requiresInvestigation: false,
+        },
       ],
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   };
 
@@ -418,10 +485,27 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
           documentId: 'local-upload',
           authenticity: { score: 50, verdict: 'inconclusive', factors: [] },
           metadata: {
-            fileInfo: { name: fileName, size: 0, type: 'application/pdf', created: now, modified: now, hash: '' },
-            textAnalysis: { wordCount: 0, characterCount: 0, averageWordLength: 0, readingLevel: 'Unknown', sentiment: 'neutral', writingStyle: 'formal' }
+            fileInfo: {
+              name: fileName,
+              size: 0,
+              type: 'application/pdf',
+              created: now,
+              modified: now,
+              hash: '',
+            },
+            textAnalysis: {
+              wordCount: 0,
+              characterCount: 0,
+              averageWordLength: 0,
+              readingLevel: 'Unknown',
+              sentiment: 'neutral',
+              writingStyle: 'formal',
+            },
           },
-          entities: [], patterns: [], anomalies: [], timestamp: now
+          entities: [],
+          patterns: [],
+          anomalies: [],
+          timestamp: now,
         };
         setAnalysis(localAnalysis);
         if (onAnalysisComplete) onAnalysisComplete(localAnalysis);
@@ -434,24 +518,34 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
   };
 
   const toggleSection = (section: string) => {
-    setExpandedSections(prev => ({
+    setExpandedSections((prev) => ({
       ...prev,
-      [section]: !prev[section]
+      [section]: !prev[section],
     }));
   };
 
   const getEntityIcon = (type: DetectedEntity['type']) => {
     switch (type) {
-      case 'person': return User;
-      case 'organization': return FileText;
-      case 'location': return MapPin;
-      case 'date': return Clock;
-      case 'phone': return Phone;
-      case 'email': return Mail;
-      case 'money': return DollarSign;
-      case 'address': return MapPin;
-      case 'url': return FileText;
-      default: return FileText;
+      case 'person':
+        return User;
+      case 'organization':
+        return FileText;
+      case 'location':
+        return MapPin;
+      case 'date':
+        return Clock;
+      case 'phone':
+        return Phone;
+      case 'email':
+        return Mail;
+      case 'money':
+        return DollarSign;
+      case 'address':
+        return MapPin;
+      case 'url':
+        return FileText;
+      default:
+        return FileText;
     }
   };
 
@@ -530,11 +624,26 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                 <div className="h-full flex items-center justify-center p-8">
                   <div className="max-w-md w-full text-center">
                     <Fingerprint className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-300 mb-2">No document selected</h3>
-                    <p className="text-gray-400 mb-4">Upload a PDF or choose a document from the case to begin analysis.</p>
+                    <h3 className="text-lg font-semibold text-gray-300 mb-2">
+                      No document selected
+                    </h3>
+                    <p className="text-gray-400 mb-4">
+                      Upload a PDF or choose a document from the case to begin analysis.
+                    </p>
                     <div className="flex items-center justify-center gap-3">
                       <label className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg cursor-pointer">
-                        <input type="file" accept="application/pdf" className="hidden" onChange={(e)=>{ const f=e.target.files?.[0]; if(!f) return; const url=URL.createObjectURL(f); setLocalUrl(url); setDocMeta({}); }} />
+                        <input
+                          type="file"
+                          accept="application/pdf"
+                          className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (!f) return;
+                            const url = URL.createObjectURL(f);
+                            setLocalUrl(url);
+                            setDocMeta({});
+                          }}
+                        />
                         Upload PDF
                       </label>
                     </div>
@@ -542,7 +651,7 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                 </div>
               )}
             </div>
-            
+
             {/* Page Navigation */}
             {numPages > 0 && (
               <div className="flex items-center justify-between bg-gray-800 border-t border-gray-700 px-4 py-3">
@@ -576,7 +685,8 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                 <Fingerprint className="w-20 h-20 text-gray-600 mb-6" />
                 <h3 className="text-xl font-semibold text-gray-300 mb-3">No Analysis Yet</h3>
                 <p className="text-gray-400 text-center mb-6 max-w-sm">
-                  Perform forensic analysis to authenticate this document and extract key information
+                  Perform forensic analysis to authenticate this document and extract key
+                  information
                 </p>
                 <button
                   onClick={startForensicAnalysis}
@@ -606,13 +716,24 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-lg font-semibold text-white">Authenticity Score</h3>
                     <div className="flex items-center gap-2">
-                      {analysis.authenticity.verdict === 'authentic' && <CheckCircle className="w-5 h-5 text-green-500" />}
-                      {analysis.authenticity.verdict === 'suspicious' && <AlertTriangle className="w-5 h-5 text-yellow-500" />}
-                      {analysis.authenticity.verdict === 'forged' && <XCircle className="w-5 h-5 text-red-500" />}
-                      <span className={`text-3xl font-bold ${
-                        analysis.authenticity.score >= 90 ? 'text-green-500' :
-                        analysis.authenticity.score >= 70 ? 'text-yellow-500' : 'text-red-500'
-                      }`}>
+                      {analysis.authenticity.verdict === 'authentic' && (
+                        <CheckCircle className="w-5 h-5 text-green-500" />
+                      )}
+                      {analysis.authenticity.verdict === 'suspicious' && (
+                        <AlertTriangle className="w-5 h-5 text-yellow-500" />
+                      )}
+                      {analysis.authenticity.verdict === 'forged' && (
+                        <XCircle className="w-5 h-5 text-red-500" />
+                      )}
+                      <span
+                        className={`text-3xl font-bold ${
+                          analysis.authenticity.score >= 90
+                            ? 'text-green-500'
+                            : analysis.authenticity.score >= 70
+                              ? 'text-yellow-500'
+                              : 'text-red-500'
+                        }`}
+                      >
                         {analysis.authenticity.score}%
                       </span>
                     </div>
@@ -620,14 +741,18 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                   <div className="w-full bg-gray-700 rounded-full h-2.5 mb-3">
                     <div
                       className={`h-2.5 rounded-full transition-all ${
-                        analysis.authenticity.score >= 90 ? 'bg-green-500' :
-                        analysis.authenticity.score >= 70 ? 'bg-yellow-500' : 'bg-red-500'
+                        analysis.authenticity.score >= 90
+                          ? 'bg-green-500'
+                          : analysis.authenticity.score >= 70
+                            ? 'bg-yellow-500'
+                            : 'bg-red-500'
                       }`}
                       style={{ width: `${analysis.authenticity.score}%` }}
                     ></div>
                   </div>
                   <p className="text-sm text-gray-400 capitalize">
-                    Verdict: <span className="text-white font-medium">{analysis.authenticity.verdict}</span>
+                    Verdict:{' '}
+                    <span className="text-white font-medium">{analysis.authenticity.verdict}</span>
                   </p>
 
                   {/* Collapsible Factors */}
@@ -635,7 +760,11 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                     onClick={() => toggleSection('factors')}
                     className="flex items-center gap-2 mt-4 text-sm text-gray-400 hover:text-gray-300"
                   >
-                    {expandedSections.factors ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    {expandedSections.factors ? (
+                      <ChevronUp className="w-4 h-4" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4" />
+                    )}
                     {expandedSections.factors ? 'Hide' : 'Show'} Authenticity Factors
                   </button>
                   {expandedSections.factors && (
@@ -643,7 +772,9 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                       {analysis.authenticity.factors.map((factor, idx) => (
                         <div key={idx} className="p-3 bg-gray-700 rounded-lg">
                           <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-medium text-white capitalize">{factor.type.replace('_', ' ')}</span>
+                            <span className="text-sm font-medium text-white capitalize">
+                              {factor.type.replace('_', ' ')}
+                            </span>
                             <span className="text-sm text-gray-400">{factor.score}%</span>
                           </div>
                           <p className="text-xs text-gray-400">{factor.description}</p>
@@ -658,10 +789,25 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                   <div className="flex gap-2">
                     {[
                       { id: 'dashboard', label: 'Dashboard', icon: FileText, count: undefined },
-                      { id: 'entities', label: 'Entities', icon: User, count: analysis.entities.length },
-                      { id: 'patterns', label: 'Patterns', icon: FileText, count: analysis.patterns.length },
-                      { id: 'anomalies', label: 'Anomalies', icon: AlertTriangle, count: analysis.anomalies.length },
-                      { id: 'metadata', label: 'Metadata', icon: FileText }
+                      {
+                        id: 'entities',
+                        label: 'Entities',
+                        icon: User,
+                        count: analysis.entities.length,
+                      },
+                      {
+                        id: 'patterns',
+                        label: 'Patterns',
+                        icon: FileText,
+                        count: analysis.patterns.length,
+                      },
+                      {
+                        id: 'anomalies',
+                        label: 'Anomalies',
+                        icon: AlertTriangle,
+                        count: analysis.anomalies.length,
+                      },
+                      { id: 'metadata', label: 'Metadata', icon: FileText },
                     ].map((tab) => (
                       <button
                         key={tab.id}
@@ -675,9 +821,11 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                         <tab.icon className="w-4 h-4" />
                         {tab.label}
                         {tab.count !== undefined && (
-                          <span className={`px-1.5 py-0.5 rounded text-xs ${
-                            activeTab === tab.id ? 'bg-red-700' : 'bg-gray-600'
-                          }`}>
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-xs ${
+                              activeTab === tab.id ? 'bg-red-700' : 'bg-gray-600'
+                            }`}
+                          >
                             {tab.count}
                           </span>
                         )}
@@ -694,13 +842,54 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                       <div className="p-4 bg-gray-700 rounded-lg">
                         <h4 className="text-white font-medium mb-2">Technical Forensics</h4>
                         <div className="text-sm text-gray-300 space-y-1">
-                          <div>Producer: <span className="text-gray-100">{metrics?.technical?.producer ?? 'Unknown'}</span></div>
-                          <div>Creator: <span className="text-gray-100">{metrics?.technical?.creator ?? 'Unknown'}</span></div>
-                          <div>Created: <span className="text-gray-100">{metrics?.technical?.creationDate ?? '—'}</span></div>
-                          <div>Modified: <span className="text-gray-100">{metrics?.technical?.modificationDate ?? '—'}</span></div>
-                          <div>Page Count: <span className="text-gray-100">{metrics?.technical?.pageCount ?? '—'}</span></div>
+                          <div>
+                            Producer:{' '}
+                            <span className="text-gray-100">
+                              {metrics?.technical?.producer ?? 'Unknown'}
+                            </span>
+                          </div>
+                          <div>
+                            Creator:{' '}
+                            <span className="text-gray-100">
+                              {metrics?.technical?.creator ?? 'Unknown'}
+                            </span>
+                          </div>
+                          <div>
+                            Created:{' '}
+                            <span className="text-gray-100">
+                              {metrics?.technical?.creationDate ?? '—'}
+                            </span>
+                          </div>
+                          <div>
+                            Modified:{' '}
+                            <span className="text-gray-100">
+                              {metrics?.technical?.modificationDate ?? '—'}
+                            </span>
+                          </div>
+                          <div>
+                            Page Count:{' '}
+                            <span className="text-gray-100">
+                              {metrics?.technical?.pageCount ?? '—'}
+                            </span>
+                          </div>
                           <div className="mt-2">
-                            <button onClick={async ()=>{ const r = await fetch(`/api/forensic/metrics/${documentId}/download`); const b = await r.blob(); const url = URL.createObjectURL(b); const a = document.createElement('a'); a.href = url; a.download = `metrics-${documentId}.json`; a.click(); URL.revokeObjectURL(url); }} className="px-2 py-1 bg-gray-600 text-white rounded text-xs hover:bg-gray-500">Download Metrics JSON</button>
+                            <button
+                              onClick={async () => {
+                                const r = await fetch(
+                                  `/api/forensic/metrics/${documentId}/download`,
+                                );
+                                const b = await r.blob();
+                                const url = URL.createObjectURL(b);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = `metrics-${documentId}.json`;
+                                a.click();
+                                URL.revokeObjectURL(url);
+                              }}
+                              className="px-2 py-1 bg-gray-600 text-white rounded text-xs hover:bg-gray-500"
+                            >
+                              Download Metrics JSON
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -708,52 +897,122 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                       <div className="p-4 bg-gray-700 rounded-lg">
                         <h4 className="text-white font-medium mb-2">Structural</h4>
                         <div className="text-sm text-gray-300 space-y-1">
-                          <div>JavaScript: <span className="text-gray-100">{metrics?.structural?.containsJavascript ? 'Detected' : 'None/Unknown'}</span></div>
-                          <div>Font Count: <span className="text-gray-100">{metrics?.structural?.fontCount ?? 'Unknown'}</span></div>
-                          <div>PDF Version: <span className="text-gray-100">{metrics?.structural?.pdfVersion ?? 'Unknown'}</span></div>
-                          <div>JS Object IDs: <span className="text-gray-100">{Array.isArray(metrics?.structural?.jsObjectIds) ? metrics.structural.jsObjectIds.length : 0}</span></div>
-                          {Array.isArray(metrics?.structural?.jsObjectIds) && metrics.structural.jsObjectIds.length > 0 && (
-                            <details className="mt-1">
-                              <summary className="cursor-pointer text-gray-300">Show IDs</summary>
-                              <div className="text-xs text-gray-300">{metrics.structural.jsObjectIds.join(', ')}</div>
-                            </details>
-                          )}
+                          <div>
+                            JavaScript:{' '}
+                            <span className="text-gray-100">
+                              {metrics?.structural?.containsJavascript
+                                ? 'Detected'
+                                : 'None/Unknown'}
+                            </span>
+                          </div>
+                          <div>
+                            Font Count:{' '}
+                            <span className="text-gray-100">
+                              {metrics?.structural?.fontCount ?? 'Unknown'}
+                            </span>
+                          </div>
+                          <div>
+                            PDF Version:{' '}
+                            <span className="text-gray-100">
+                              {metrics?.structural?.pdfVersion ?? 'Unknown'}
+                            </span>
+                          </div>
+                          <div>
+                            JS Object IDs:{' '}
+                            <span className="text-gray-100">
+                              {Array.isArray(metrics?.structural?.jsObjectIds)
+                                ? metrics.structural.jsObjectIds.length
+                                : 0}
+                            </span>
+                          </div>
+                          {Array.isArray(metrics?.structural?.jsObjectIds) &&
+                            metrics.structural.jsObjectIds.length > 0 && (
+                              <details className="mt-1">
+                                <summary className="cursor-pointer text-gray-300">Show IDs</summary>
+                                <div className="text-xs text-gray-300">
+                                  {metrics.structural.jsObjectIds.join(', ')}
+                                </div>
+                              </details>
+                            )}
                         </div>
                       </div>
                       {/* Linguistic */}
                       <div className="p-4 bg-gray-700 rounded-lg">
                         <h4 className="text-white font-medium mb-2">Linguistic</h4>
                         <div className="text-sm text-gray-300 space-y-1">
-                          <div>Flesch-Kincaid: <span className="text-gray-100">{metrics?.linguistic?.readabilityFKGL ?? '—'}</span></div>
-                          <div>Sentiment: <span className="text-gray-100 capitalize">{metrics?.linguistic?.sentiment ?? 'neutral'}</span></div>
-                          <div>TTR: <span className="text-gray-100">{metrics?.linguistic?.typeTokenRatio ?? '—'}%</span></div>
+                          <div>
+                            Flesch-Kincaid:{' '}
+                            <span className="text-gray-100">
+                              {metrics?.linguistic?.readabilityFKGL ?? '—'}
+                            </span>
+                          </div>
+                          <div>
+                            Sentiment:{' '}
+                            <span className="text-gray-100 capitalize">
+                              {metrics?.linguistic?.sentiment ?? 'neutral'}
+                            </span>
+                          </div>
+                          <div>
+                            TTR:{' '}
+                            <span className="text-gray-100">
+                              {metrics?.linguistic?.typeTokenRatio ?? '—'}%
+                            </span>
+                          </div>
                         </div>
                       </div>
                       {/* Temporal */}
                       <div className="p-4 bg-gray-700 rounded-lg">
                         <h4 className="text-white font-medium mb-2">Temporal</h4>
                         <div className="text-sm text-gray-300 space-y-1">
-                          <div>Business Hours: <span className="text-gray-100">{metrics?.temporal?.businessHours ? 'Yes' : 'No'}</span></div>
-                          <div>Day of Week: <span className="text-gray-100">{metrics?.temporal?.dayOfWeek ?? '—'}</span></div>
+                          <div>
+                            Business Hours:{' '}
+                            <span className="text-gray-100">
+                              {metrics?.temporal?.businessHours ? 'Yes' : 'No'}
+                            </span>
+                          </div>
+                          <div>
+                            Day of Week:{' '}
+                            <span className="text-gray-100">
+                              {metrics?.temporal?.dayOfWeek ?? '—'}
+                            </span>
+                          </div>
                         </div>
                       </div>
                       {/* Network */}
                       <div className="p-4 bg-gray-700 rounded-lg">
                         <h4 className="text-white font-medium mb-2">Network</h4>
                         <div className="text-sm text-gray-300 space-y-1">
-                          <div>Entity Density / 1000 words: <span className="text-gray-100">{metrics?.network?.entityDensityPer1000Words ?? '—'}</span></div>
-                          <div>Risk Score: <span className="text-gray-100">{metrics?.network?.riskScore ?? '—'}%</span></div>
+                          <div>
+                            Entity Density / 1000 words:{' '}
+                            <span className="text-gray-100">
+                              {metrics?.network?.entityDensityPer1000Words ?? '—'}
+                            </span>
+                          </div>
+                          <div>
+                            Risk Score:{' '}
+                            <span className="text-gray-100">
+                              {metrics?.network?.riskScore ?? '—'}%
+                            </span>
+                          </div>
                         </div>
                       </div>
                       {/* Readability Distribution */}
                       <div className="p-4 bg-gray-700 rounded-lg col-span-1 md:col-span-2">
-                        <h4 className="text-white font-medium mb-2">Readability Distribution (FKGL)</h4>
+                        <h4 className="text-white font-medium mb-2">
+                          Readability Distribution (FKGL)
+                        </h4>
                         <div className="h-40">
                           <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={summary?.readabilityBuckets || []}>
                               <XAxis dataKey="range" stroke="#ccc" tick={{ fill: '#ccc' }} />
                               <YAxis stroke="#ccc" tick={{ fill: '#ccc' }} allowDecimals={false} />
-                              <Tooltip contentStyle={{ backgroundColor: '#374151', border: 'none', color: '#fff' }} />
+                              <Tooltip
+                                contentStyle={{
+                                  backgroundColor: '#374151',
+                                  border: 'none',
+                                  color: '#fff',
+                                }}
+                              />
                               <Bar dataKey="count" fill="#60a5fa" />
                             </BarChart>
                           </ResponsiveContainer>
@@ -765,10 +1024,38 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                         <div className="h-40">
                           <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
-                              <Pie data={[{name:'positive', value: summary?.sentimentCounts?.positive || 0},{name:'neutral', value: summary?.sentimentCounts?.neutral || 0},{name:'negative', value: summary?.sentimentCounts?.negative || 0}]} dataKey="value" nameKey="name" outerRadius={60} fill="#8884d8" label>
-                                {['#10b981','#9ca3af','#ef4444'].map((c, i) => <Cell key={i} fill={c} />)}
+                              <Pie
+                                data={[
+                                  {
+                                    name: 'positive',
+                                    value: summary?.sentimentCounts?.positive || 0,
+                                  },
+                                  {
+                                    name: 'neutral',
+                                    value: summary?.sentimentCounts?.neutral || 0,
+                                  },
+                                  {
+                                    name: 'negative',
+                                    value: summary?.sentimentCounts?.negative || 0,
+                                  },
+                                ]}
+                                dataKey="value"
+                                nameKey="name"
+                                outerRadius={60}
+                                fill="#8884d8"
+                                label
+                              >
+                                {['#10b981', '#9ca3af', '#ef4444'].map((c, i) => (
+                                  <Cell key={i} fill={c} />
+                                ))}
                               </Pie>
-                              <Tooltip contentStyle={{ backgroundColor: '#374151', border: 'none', color: '#fff' }} />
+                              <Tooltip
+                                contentStyle={{
+                                  backgroundColor: '#374151',
+                                  border: 'none',
+                                  color: '#fff',
+                                }}
+                              />
                             </PieChart>
                           </ResponsiveContainer>
                         </div>
@@ -777,22 +1064,65 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                       <div className="p-4 bg-gray-700 rounded-lg">
                         <h4 className="text-white font-medium mb-2">Top JS-heavy PDFs</h4>
                         <div className="text-xs text-gray-300 space-y-1">
-                          {topJs.slice(0,5).map((t:any)=> (
-                             <div key={t.id} className="flex justify-between items-center"
-                                 onMouseEnter={async ()=>{ setHoveredId(String(t.id)); if (!quickMetrics[String(t.id)]) { try { const r = await fetch(`/api/forensic/metrics/${t.id}`); if (r.ok) { const m = await r.json(); setQuickMetrics(prev=>({ ...prev, [String(t.id)]: m })); } } catch {} } }}
-                                 onMouseLeave={()=>setHoveredId('')}
-                                 onClick={()=>{ const idStr = String(t.id); if (!location.pathname.startsWith('/investigations')) { navigate(`/investigations?tab=forensic&docId=${idStr}`); } else { setActiveId(idStr); try { const params = new URLSearchParams(window.location.search); params.set('tab','forensic'); params.set('docId', idStr); const url = `${window.location.pathname}?${params.toString()}`; window.history.replaceState(null,'',url); } catch {} } }}
+                          {topJs.slice(0, 5).map((t: any) => (
+                            <div
+                              key={t.id}
+                              className="flex justify-between items-center"
+                              onMouseEnter={async () => {
+                                setHoveredId(String(t.id));
+                                if (!quickMetrics[String(t.id)]) {
+                                  try {
+                                    const r = await fetch(`/api/forensic/metrics/${t.id}`);
+                                    if (r.ok) {
+                                      const m = await r.json();
+                                      setQuickMetrics((prev) => ({ ...prev, [String(t.id)]: m }));
+                                    }
+                                  } catch {}
+                                }
+                              }}
+                              onMouseLeave={() => setHoveredId('')}
+                              onClick={() => {
+                                const idStr = String(t.id);
+                                if (!location.pathname.startsWith('/investigations')) {
+                                  navigate(`/investigations?tab=forensic&docId=${idStr}`);
+                                } else {
+                                  setActiveId(idStr);
+                                  try {
+                                    const params = new URLSearchParams(window.location.search);
+                                    params.set('tab', 'forensic');
+                                    params.set('docId', idStr);
+                                    const url = `${window.location.pathname}?${params.toString()}`;
+                                    window.history.replaceState(null, '', url);
+                                  } catch {}
+                                }
+                              }}
                             >
                               <span className="truncate max-w-[50%]">{t.fileName}</span>
                               <span className="mr-2">{t.score}</span>
                               <div className="flex gap-1">
-                                <button onClick={()=>setCompareAId(String(t.id))} className="px-1.5 py-0.5 bg-gray-600 text-white rounded text-xs">A</button>
-                                <button onClick={()=>setCompareBId(String(t.id))} className="px-1.5 py-0.5 bg-gray-600 text-white rounded text-xs">B</button>
+                                <button
+                                  onClick={() => setCompareAId(String(t.id))}
+                                  className="px-1.5 py-0.5 bg-gray-600 text-white rounded text-xs"
+                                >
+                                  A
+                                </button>
+                                <button
+                                  onClick={() => setCompareBId(String(t.id))}
+                                  className="px-1.5 py-0.5 bg-gray-600 text-white rounded text-xs"
+                                >
+                                  B
+                                </button>
                               </div>
                               {hoveredId === String(t.id) && (
                                 <div className="ml-2 text-[10px] text-gray-300">
-                                  <span>FKGL: {quickMetrics[String(t.id)]?.linguistic?.readabilityFKGL ?? '—'}</span>
-                                  <span className="ml-2 capitalize">Sentiment: {quickMetrics[String(t.id)]?.linguistic?.sentiment ?? 'neutral'}</span>
+                                  <span>
+                                    FKGL:{' '}
+                                    {quickMetrics[String(t.id)]?.linguistic?.readabilityFKGL ?? '—'}
+                                  </span>
+                                  <span className="ml-2 capitalize">
+                                    Sentiment:{' '}
+                                    {quickMetrics[String(t.id)]?.linguistic?.sentiment ?? 'neutral'}
+                                  </span>
                                 </div>
                               )}
                             </div>
@@ -803,22 +1133,65 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                       <div className="p-4 bg-gray-700 rounded-lg">
                         <h4 className="text-white font-medium mb-2">High Entity Density</h4>
                         <div className="text-xs text-gray-300 space-y-1">
-                          {topDensity.slice(0,5).map((t:any)=> (
-                             <div key={t.id} className="flex justify-between items-center"
-                                 onMouseEnter={async ()=>{ setHoveredId(String(t.id)); if (!quickMetrics[String(t.id)]) { try { const r = await fetch(`/api/forensic/metrics/${t.id}`); if (r.ok) { const m = await r.json(); setQuickMetrics(prev=>({ ...prev, [String(t.id)]: m })); } } catch {} } }}
-                                 onMouseLeave={()=>setHoveredId('')}
-                                 onClick={()=>{ const idStr = String(t.id); if (!location.pathname.startsWith('/investigations')) { navigate(`/investigations?tab=forensic&docId=${idStr}`); } else { setActiveId(idStr); try { const params = new URLSearchParams(window.location.search); params.set('tab','forensic'); params.set('docId', idStr); const url = `${window.location.pathname}?${params.toString()}`; window.history.replaceState(null,'',url); } catch {} } }}
+                          {topDensity.slice(0, 5).map((t: any) => (
+                            <div
+                              key={t.id}
+                              className="flex justify-between items-center"
+                              onMouseEnter={async () => {
+                                setHoveredId(String(t.id));
+                                if (!quickMetrics[String(t.id)]) {
+                                  try {
+                                    const r = await fetch(`/api/forensic/metrics/${t.id}`);
+                                    if (r.ok) {
+                                      const m = await r.json();
+                                      setQuickMetrics((prev) => ({ ...prev, [String(t.id)]: m }));
+                                    }
+                                  } catch {}
+                                }
+                              }}
+                              onMouseLeave={() => setHoveredId('')}
+                              onClick={() => {
+                                const idStr = String(t.id);
+                                if (!location.pathname.startsWith('/investigations')) {
+                                  navigate(`/investigations?tab=forensic&docId=${idStr}`);
+                                } else {
+                                  setActiveId(idStr);
+                                  try {
+                                    const params = new URLSearchParams(window.location.search);
+                                    params.set('tab', 'forensic');
+                                    params.set('docId', idStr);
+                                    const url = `${window.location.pathname}?${params.toString()}`;
+                                    window.history.replaceState(null, '', url);
+                                  } catch {}
+                                }
+                              }}
                             >
                               <span className="truncate max-w-[50%]">{t.fileName}</span>
                               <span className="mr-2">{t.score}</span>
                               <div className="flex gap-1">
-                                <button onClick={()=>setCompareAId(String(t.id))} className="px-1.5 py-0.5 bg-gray-600 text-white rounded text-xs">A</button>
-                                <button onClick={()=>setCompareBId(String(t.id))} className="px-1.5 py-0.5 bg-gray-600 text-white rounded text-xs">B</button>
+                                <button
+                                  onClick={() => setCompareAId(String(t.id))}
+                                  className="px-1.5 py-0.5 bg-gray-600 text-white rounded text-xs"
+                                >
+                                  A
+                                </button>
+                                <button
+                                  onClick={() => setCompareBId(String(t.id))}
+                                  className="px-1.5 py-0.5 bg-gray-600 text-white rounded text-xs"
+                                >
+                                  B
+                                </button>
                               </div>
                               {hoveredId === String(t.id) && (
                                 <div className="ml-2 text-[10px] text-gray-300">
-                                  <span>FKGL: {quickMetrics[String(t.id)]?.linguistic?.readabilityFKGL ?? '—'}</span>
-                                  <span className="ml-2 capitalize">Sentiment: {quickMetrics[String(t.id)]?.linguistic?.sentiment ?? 'neutral'}</span>
+                                  <span>
+                                    FKGL:{' '}
+                                    {quickMetrics[String(t.id)]?.linguistic?.readabilityFKGL ?? '—'}
+                                  </span>
+                                  <span className="ml-2 capitalize">
+                                    Sentiment:{' '}
+                                    {quickMetrics[String(t.id)]?.linguistic?.sentiment ?? 'neutral'}
+                                  </span>
                                 </div>
                               )}
                             </div>
@@ -829,22 +1202,65 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                       <div className="p-4 bg-gray-700 rounded-lg">
                         <h4 className="text-white font-medium mb-2">Highest Risk Score</h4>
                         <div className="text-xs text-gray-300 space-y-1">
-                          {topRisk.slice(0,5).map((t:any)=> (
-                             <div key={t.id} className="flex justify-between items-center"
-                                 onMouseEnter={async ()=>{ setHoveredId(String(t.id)); if (!quickMetrics[String(t.id)]) { try { const r = await fetch(`/api/forensic/metrics/${t.id}`); if (r.ok) { const m = await r.json(); setQuickMetrics(prev=>({ ...prev, [String(t.id)]: m })); } } catch {} } }}
-                                 onMouseLeave={()=>setHoveredId('')}
-                                 onClick={()=>{ const idStr = String(t.id); if (!location.pathname.startsWith('/investigations')) { navigate(`/investigations?tab=forensic&docId=${idStr}`); } else { setActiveId(idStr); try { const params = new URLSearchParams(window.location.search); params.set('tab','forensic'); params.set('docId', idStr); const url = `${window.location.pathname}?${params.toString()}`; window.history.replaceState(null,'',url); } catch {} } }}
+                          {topRisk.slice(0, 5).map((t: any) => (
+                            <div
+                              key={t.id}
+                              className="flex justify-between items-center"
+                              onMouseEnter={async () => {
+                                setHoveredId(String(t.id));
+                                if (!quickMetrics[String(t.id)]) {
+                                  try {
+                                    const r = await fetch(`/api/forensic/metrics/${t.id}`);
+                                    if (r.ok) {
+                                      const m = await r.json();
+                                      setQuickMetrics((prev) => ({ ...prev, [String(t.id)]: m }));
+                                    }
+                                  } catch {}
+                                }
+                              }}
+                              onMouseLeave={() => setHoveredId('')}
+                              onClick={() => {
+                                const idStr = String(t.id);
+                                if (!location.pathname.startsWith('/investigations')) {
+                                  navigate(`/investigations?tab=forensic&docId=${idStr}`);
+                                } else {
+                                  setActiveId(idStr);
+                                  try {
+                                    const params = new URLSearchParams(window.location.search);
+                                    params.set('tab', 'forensic');
+                                    params.set('docId', idStr);
+                                    const url = `${window.location.pathname}?${params.toString()}`;
+                                    window.history.replaceState(null, '', url);
+                                  } catch {}
+                                }
+                              }}
                             >
                               <span className="truncate max-w-[50%]">{t.fileName}</span>
                               <span className="mr-2">{t.score}%</span>
                               <div className="flex gap-1">
-                                <button onClick={()=>setCompareAId(String(t.id))} className="px-1.5 py-0.5 bg-gray-600 text-white rounded text-xs">A</button>
-                                <button onClick={()=>setCompareBId(String(t.id))} className="px-1.5 py-0.5 bg-gray-600 text-white rounded text-xs">B</button>
+                                <button
+                                  onClick={() => setCompareAId(String(t.id))}
+                                  className="px-1.5 py-0.5 bg-gray-600 text-white rounded text-xs"
+                                >
+                                  A
+                                </button>
+                                <button
+                                  onClick={() => setCompareBId(String(t.id))}
+                                  className="px-1.5 py-0.5 bg-gray-600 text-white rounded text-xs"
+                                >
+                                  B
+                                </button>
                               </div>
                               {hoveredId === String(t.id) && (
                                 <div className="ml-2 text=[10px] text-gray-300">
-                                  <span>FKGL: {quickMetrics[String(t.id)]?.linguistic?.readabilityFKGL ?? '—'}</span>
-                                  <span className="ml-2 capitalize">Sentiment: {quickMetrics[String(t.id)]?.linguistic?.sentiment ?? 'neutral'}</span>
+                                  <span>
+                                    FKGL:{' '}
+                                    {quickMetrics[String(t.id)]?.linguistic?.readabilityFKGL ?? '—'}
+                                  </span>
+                                  <span className="ml-2 capitalize">
+                                    Sentiment:{' '}
+                                    {quickMetrics[String(t.id)]?.linguistic?.sentiment ?? 'neutral'}
+                                  </span>
                                 </div>
                               )}
                             </div>
@@ -855,16 +1271,52 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                       <div className="p-4 bg-gray-700 rounded-lg col-span-1 md:col-span-2">
                         <h4 className="text-white font-medium mb-2">Compare Documents</h4>
                         <div className="flex gap-2 mb-2">
-                          <input value={compareAId} onChange={e=>setCompareAId(e.target.value)} placeholder="Doc ID A" className="bg-gray-600 text-white p-2 rounded text-sm" />
-                          <input value={compareBId} onChange={e=>setCompareBId(e.target.value)} placeholder="Doc ID B" className="bg-gray-600 text-white p-2 rounded text-sm" />
-                          <button onClick={async ()=>{ try { const [a,b] = await Promise.all([ fetch(`/api/forensic/metrics/${compareAId}`), fetch(`/api/forensic/metrics/${compareBId}`) ]); if (a.ok) setCompareA(await a.json()); if (b.ok) setCompareB(await b.json()); const params = new URLSearchParams(window.location.search); if (compareAId) params.set('compareA', compareAId); else params.delete('compareA'); if (compareBId) params.set('compareB', compareBId); else params.delete('compareB'); const url = `${window.location.pathname}?${params.toString()}`; window.history.replaceState(null,'',url); } catch {} }} className="px-3 py-2 bg-blue-600 text-white rounded text-sm">Load</button>
+                          <input
+                            value={compareAId}
+                            onChange={(e) => setCompareAId(e.target.value)}
+                            placeholder="Doc ID A"
+                            className="bg-gray-600 text-white p-2 rounded text-sm"
+                          />
+                          <input
+                            value={compareBId}
+                            onChange={(e) => setCompareBId(e.target.value)}
+                            placeholder="Doc ID B"
+                            className="bg-gray-600 text-white p-2 rounded text-sm"
+                          />
+                          <button
+                            onClick={async () => {
+                              try {
+                                const [a, b] = await Promise.all([
+                                  fetch(`/api/forensic/metrics/${compareAId}`),
+                                  fetch(`/api/forensic/metrics/${compareBId}`),
+                                ]);
+                                if (a.ok) setCompareA(await a.json());
+                                if (b.ok) setCompareB(await b.json());
+                                const params = new URLSearchParams(window.location.search);
+                                if (compareAId) params.set('compareA', compareAId);
+                                else params.delete('compareA');
+                                if (compareBId) params.set('compareB', compareBId);
+                                else params.delete('compareB');
+                                const url = `${window.location.pathname}?${params.toString()}`;
+                                window.history.replaceState(null, '', url);
+                              } catch {}
+                            }}
+                            className="px-3 py-2 bg-blue-600 text-white rounded text-sm"
+                          >
+                            Load
+                          </button>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="bg-gray-700 rounded p-3">
                             <h5 className="text-white text-sm mb-2">FKGL</h5>
                             <div className="h-32">
                               <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={[{name:'A', val: compareA?.linguistic?.readabilityFKGL || 0},{name:'B', val: compareB?.linguistic?.readabilityFKGL || 0}]}> 
+                                <BarChart
+                                  data={[
+                                    { name: 'A', val: compareA?.linguistic?.readabilityFKGL || 0 },
+                                    { name: 'B', val: compareB?.linguistic?.readabilityFKGL || 0 },
+                                  ]}
+                                >
                                   <XAxis dataKey="name" stroke="#ccc" tick={{ fill: '#ccc' }} />
                                   <YAxis stroke="#ccc" tick={{ fill: '#ccc' }} />
                                   <Bar dataKey="val" fill="#34d399" />
@@ -876,7 +1328,18 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                             <h5 className="text-white text-sm mb-2">Entity Density / 1000</h5>
                             <div className="h-32">
                               <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={[{name:'A', val: compareA?.network?.entityDensityPer1000Words || 0},{name:'B', val: compareB?.network?.entityDensityPer1000Words || 0}]}> 
+                                <BarChart
+                                  data={[
+                                    {
+                                      name: 'A',
+                                      val: compareA?.network?.entityDensityPer1000Words || 0,
+                                    },
+                                    {
+                                      name: 'B',
+                                      val: compareB?.network?.entityDensityPer1000Words || 0,
+                                    },
+                                  ]}
+                                >
                                   <XAxis dataKey="name" stroke="#ccc" tick={{ fill: '#ccc' }} />
                                   <YAxis stroke="#ccc" tick={{ fill: '#ccc' }} />
                                   <Bar dataKey="val" fill="#f59e0b" />
@@ -898,12 +1361,16 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                         >
                           <div className="flex items-start gap-3">
                             <div className="w-10 h-10 bg-gray-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                              {React.createElement(getEntityIcon(entity.type), { className: 'w-5 h-5 text-gray-300' })}
+                              {React.createElement(getEntityIcon(entity.type), {
+                                className: 'w-5 h-5 text-gray-300',
+                              })}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between mb-1">
                                 <p className="text-white font-medium truncate">{entity.text}</p>
-                                <span className="text-xs text-gray-400 ml-2">{Math.round(entity.confidence)}%</span>
+                                <span className="text-xs text-gray-400 ml-2">
+                                  {Math.round(entity.confidence)}%
+                                </span>
                               </div>
                               <p className="text-sm text-gray-400 capitalize mb-1">{entity.type}</p>
                               <p className="text-xs text-gray-500 line-clamp-2">{entity.context}</p>
@@ -920,11 +1387,24 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                         <div
                           key={index}
                           className="p-4 bg-gray-700 rounded-lg border-l-4"
-                          style={{ borderLeftColor: pattern.significance === 'high' ? '#ef4444' : pattern.significance === 'medium' ? '#f59e0b' : '#10b981' }}
+                          style={{
+                            borderLeftColor:
+                              pattern.significance === 'high'
+                                ? '#ef4444'
+                                : pattern.significance === 'medium'
+                                  ? '#f59e0b'
+                                  : '#10b981',
+                          }}
                         >
                           <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs text-gray-400 uppercase font-medium">{pattern.type}</span>
-                            <span className={`text-xs px-2 py-1 rounded font-medium ${pattern.significance === 'high' ? 'bg-red-700 text-white' : pattern.significance === 'medium' ? 'bg-yellow-700 text-white' : 'bg-green-700 text-white'}`}>{pattern.significance}</span>
+                            <span className="text-xs text-gray-400 uppercase font-medium">
+                              {pattern.type}
+                            </span>
+                            <span
+                              className={`text-xs px-2 py-1 rounded font-medium ${pattern.significance === 'high' ? 'bg-red-700 text-white' : pattern.significance === 'medium' ? 'bg-yellow-700 text-white' : 'bg-green-700 text-white'}`}
+                            >
+                              {pattern.significance}
+                            </span>
                           </div>
                           <div className="bg-gray-700/50 rounded-lg p-4">
                             <div className="flex items-start gap-3">
@@ -937,11 +1417,20 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                                   <div className="flex-1 h-1.5 bg-gray-600 rounded-full w-24">
                                     <div
                                       className={`h-full rounded-full ${
-                                        pattern.severity === 'high' ? 'bg-red-500' :
-                                        pattern.severity === 'medium' ? 'bg-yellow-500' :
-                                        'bg-blue-500'
+                                        pattern.severity === 'high'
+                                          ? 'bg-red-500'
+                                          : pattern.severity === 'medium'
+                                            ? 'bg-yellow-500'
+                                            : 'bg-blue-500'
                                       }`}
-                                      style={{ width: pattern.severity === 'high' ? '100%' : pattern.severity === 'medium' ? '60%' : '30%' }}
+                                      style={{
+                                        width:
+                                          pattern.severity === 'high'
+                                            ? '100%'
+                                            : pattern.severity === 'medium'
+                                              ? '60%'
+                                              : '30%',
+                                      }}
                                     />
                                   </div>
                                 </div>
@@ -953,11 +1442,9 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                     </div>
                   )}
 
-
-
                   {activeTab === 'metadata' && (
                     <div className="p-4">
-                      <DocumentMetadataPanel 
+                      <DocumentMetadataPanel
                         document={{
                           fileName: analysis.metadata.fileInfo.name,
                           fileType: analysis.metadata.fileInfo.type,
@@ -965,7 +1452,9 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                           contentHash: analysis.metadata.fileInfo.hash,
                           dateCreated: analysis.metadata.fileInfo.created,
                           dateModified: analysis.metadata.fileInfo.modified,
-                          redFlagRating: metrics?.network?.riskScore ? Math.ceil(metrics.network.riskScore / 20) : 0,
+                          redFlagRating: metrics?.network?.riskScore
+                            ? Math.ceil(metrics.network.riskScore / 20)
+                            : 0,
                           tags: analysis.metadata.tags,
                           metadata: {
                             technical: metrics?.technical || analysis.metadata.technical,
@@ -974,9 +1463,9 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                             network: metrics?.network || analysis.metadata.network,
                             source_collection: docMeta?.source_collection,
                             source_original_url: docMeta?.source_original_url,
-                            tags: analysis.metadata.tags
-                          }
-                        }} 
+                            tags: analysis.metadata.tags,
+                          },
+                        }}
                       />
                     </div>
                   )}
@@ -996,33 +1485,39 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                 <h3 className="text-xl font-bold text-white mb-1">{selectedEntity.name}</h3>
                 <span className="text-sm text-gray-400 capitalize">{selectedEntity.type}</span>
               </div>
-              <button 
+              <button
                 onClick={() => setSelectedEntity(null)}
                 className="text-gray-400 hover:text-white"
               >
                 <XCircle className="w-6 h-6" />
               </button>
             </div>
-            
+
             <div className="space-y-4">
               <div className="bg-gray-700/50 p-4 rounded-lg">
                 <h4 className="text-sm font-medium text-gray-300 mb-2">Analysis</h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-gray-500 block">Sentiment</span>
-                    <span className={selectedEntity.sentiment === 'negative' ? 'text-red-400' : 'text-green-400'}>
+                    <span
+                      className={
+                        selectedEntity.sentiment === 'negative' ? 'text-red-400' : 'text-green-400'
+                      }
+                    >
                       {selectedEntity.sentiment}
                     </span>
                   </div>
                   <div>
                     <span className="text-gray-500 block">Confidence</span>
-                    <span className="text-white">{(selectedEntity.confidence * 100).toFixed(0)}%</span>
+                    <span className="text-white">
+                      {(selectedEntity.confidence * 100).toFixed(0)}%
+                    </span>
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex justify-end">
-                <button 
+                <button
                   onClick={() => setSelectedEntity(null)}
                   className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
                 >

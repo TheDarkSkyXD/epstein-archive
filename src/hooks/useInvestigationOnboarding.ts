@@ -7,7 +7,7 @@ export const useInvestigationOnboarding = () => {
     if (stored !== null) {
       return JSON.parse(stored);
     }
-    
+
     // Check if user is logged in and has profile setting
     // This would be extended when user authentication is implemented
     return false;
@@ -26,6 +26,6 @@ export const useInvestigationOnboarding = () => {
   return {
     hasSeenOnboarding,
     markOnboardingAsSeen,
-    resetOnboarding
+    resetOnboarding,
   };
 };

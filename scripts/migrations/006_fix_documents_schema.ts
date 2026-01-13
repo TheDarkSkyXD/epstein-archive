@@ -1,4 +1,3 @@
-
 import Database from 'better-sqlite3';
 import path from 'path';
 
@@ -37,11 +36,10 @@ try {
     db.prepare('ALTER TABLE documents ADD COLUMN content_hash TEXT').run();
     console.log('Added column: content_hash');
   } catch (e: any) {
-      if (e.message.includes('duplicate column')) {
-          console.log('Column content_hash already exists');
-      }
+    if (e.message.includes('duplicate column')) {
+      console.log('Column content_hash already exists');
+    }
   }
-
 } catch (error) {
   console.error('Migration failed:', error);
 } finally {

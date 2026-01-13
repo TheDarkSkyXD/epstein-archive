@@ -7,7 +7,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend
+  Legend,
 } from 'recharts';
 
 interface TimelineDataPoint {
@@ -25,36 +25,37 @@ interface AreaTimelineProps {
 }
 
 const AREA_COLORS = {
-  emails: { fill: '#06b6d4', stroke: '#06b6d4' },      // Cyan
-  photos: { fill: '#8b5cf6', stroke: '#8b5cf6' },      // Purple
-  documents: { fill: '#f59e0b', stroke: '#f59e0b' },   // Amber
-  financial: { fill: '#ef4444', stroke: '#ef4444' },   // Red
+  emails: { fill: '#06b6d4', stroke: '#06b6d4' }, // Cyan
+  photos: { fill: '#8b5cf6', stroke: '#8b5cf6' }, // Purple
+  documents: { fill: '#f59e0b', stroke: '#f59e0b' }, // Amber
+  financial: { fill: '#ef4444', stroke: '#ef4444' }, // Red
 };
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const total = payload.reduce((sum: number, p: any) => sum + (p.value || 0), 0);
-    
+
     return (
       <div className="bg-slate-900/95 backdrop-blur-md p-4 rounded-xl shadow-2xl border border-slate-700/50 min-w-[180px]">
         <p className="text-white font-bold text-sm mb-3 border-b border-slate-700 pb-2">{label}</p>
         <div className="space-y-2">
-          {payload.map((entry: any, index: number) => (
-            entry.value > 0 && (
-              <div key={index} className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-2">
-                  <div 
-                    className="w-2 h-2 rounded-full" 
-                    style={{ backgroundColor: entry.color }}
-                  />
-                  <span className="text-slate-300 text-xs capitalize">{entry.name}</span>
+          {payload.map(
+            (entry: any, index: number) =>
+              entry.value > 0 && (
+                <div key={index} className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: entry.color }}
+                    />
+                    <span className="text-slate-300 text-xs capitalize">{entry.name}</span>
+                  </div>
+                  <span className="text-white font-mono text-xs font-bold">
+                    {entry.value.toLocaleString()}
+                  </span>
                 </div>
-                <span className="text-white font-mono text-xs font-bold">
-                  {entry.value.toLocaleString()}
-                </span>
-              </div>
-            )
-          ))}
+              ),
+          )}
         </div>
         <div className="mt-3 pt-2 border-t border-slate-700 flex justify-between">
           <span className="text-slate-400 text-xs">Total</span>
@@ -72,15 +73,15 @@ export const AreaTimeline: React.FC<AreaTimelineProps> = ({ data, onPeriodClick 
   // Process and sort data by period
   const chartData = useMemo(() => {
     return data
-      .filter(d => d.period && d.period.length >= 7)
-      .map(d => ({
+      .filter((d) => d.period && d.period.length >= 7)
+      .map((d) => ({
         ...d,
         // Format period for display (YYYY-MM -> MMM YYYY)
         displayPeriod: formatPeriod(d.period),
       }))
       .sort((a, b) => a.period.localeCompare(b.period));
   }, [data]);
-  
+
   if (chartData.length === 0) {
     return (
       <div className="flex items-center justify-center h-[300px] text-slate-500">
@@ -88,7 +89,7 @@ export const AreaTimeline: React.FC<AreaTimelineProps> = ({ data, onPeriodClick 
       </div>
     );
   }
-  
+
   return (
     <div className="w-full h-[350px]">
       <ResponsiveContainer width="100%" height="100%">
@@ -104,19 +105,14 @@ export const AreaTimeline: React.FC<AreaTimelineProps> = ({ data, onPeriodClick 
           <defs>
             {Object.entries(AREA_COLORS).map(([key, colors]) => (
               <linearGradient key={key} id={`gradient-${key}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={colors.fill} stopOpacity={0.4}/>
-                <stop offset="95%" stopColor={colors.fill} stopOpacity={0.05}/>
+                <stop offset="5%" stopColor={colors.fill} stopOpacity={0.4} />
+                <stop offset="95%" stopColor={colors.fill} stopOpacity={0.05} />
               </linearGradient>
             ))}
           </defs>
-          <CartesianGrid 
-            strokeDasharray="3 3" 
-            stroke="#334155" 
-            vertical={false}
-            opacity={0.3}
-          />
-          <XAxis 
-            dataKey="displayPeriod" 
+          <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} opacity={0.3} />
+          <XAxis
+            dataKey="displayPeriod"
             stroke="#64748b"
             fontSize={10}
             tickLine={false}
@@ -124,18 +120,20 @@ export const AreaTimeline: React.FC<AreaTimelineProps> = ({ data, onPeriodClick 
             tick={{ fill: '#94a3b8' }}
             interval="preserveStartEnd"
           />
-          <YAxis 
+          <YAxis
             stroke="#64748b"
             fontSize={10}
             tickLine={false}
             axisLine={false}
             tick={{ fill: '#94a3b8' }}
-            tickFormatter={(value) => value >= 1000 ? `${(value/1000).toFixed(0)}k` : value}
+            tickFormatter={(value) => (value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value)}
           />
           <Tooltip content={<CustomTooltip />} />
-          <Legend 
+          <Legend
             wrapperStyle={{ paddingTop: '20px' }}
-            formatter={(value) => <span className="text-slate-300 text-xs capitalize">{value}</span>}
+            formatter={(value) => (
+              <span className="text-slate-300 text-xs capitalize">{value}</span>
+            )}
           />
           <Area
             type="monotone"
@@ -186,20 +184,33 @@ export const AreaTimeline: React.FC<AreaTimelineProps> = ({ data, onPeriodClick 
 // Format period from YYYY-MM to MMM 'YY
 function formatPeriod(period: string): string {
   if (!period || period.length < 5) return period;
-  
+
   // Handle both hyphen and slash separators
   const separator = period.includes('/') ? '/' : '-';
   const parts = period.split(separator);
-  
+
   if (parts.length < 2) return period;
-  
+
   const [year, month] = parts;
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
   const monthName = months[parseInt(month, 10) - 1] || month;
-  
+
   // Handle 2-digit or 4-digit years
   const shortYear = year.length === 4 ? year.slice(2) : year;
-  
+
   return `${monthName} '${shortYear}`;
 }
 

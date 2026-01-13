@@ -10,14 +10,16 @@ const falsePositives = [
   'Including Any Direct',
   'Please notify us immediately by return',
   'Confidentiality notice',
-  'This email and any files'
+  'This email and any files',
 ];
 
-falsePositives.forEach(name => {
+falsePositives.forEach((name) => {
   const isValid = EntityNameService.isValidPersonName(name);
   console.log(`  "${name}" -> ${isValid ? 'VALID' : 'INVALID'} (should be INVALID)`);
   if (isValid) {
-    console.log(`    ERROR: False positive "${name}" was incorrectly identified as a valid person name!`);
+    console.log(
+      `    ERROR: False positive "${name}" was incorrectly identified as a valid person name!`,
+    );
   }
 });
 
@@ -28,10 +30,10 @@ const validNames = [
   'Jeffrey Epstein',
   'Bill Clinton',
   'Ghislaine Maxwell',
-  'Prince Andrew'
+  'Prince Andrew',
 ];
 
-validNames.forEach(name => {
+validNames.forEach((name) => {
   const isValid = EntityNameService.isValidPersonName(name);
   console.log(`  "${name}" -> ${isValid ? 'VALID' : 'INVALID'} (should be VALID)`);
   if (!isValid) {
@@ -48,7 +50,7 @@ const nameVariants = [
   { input: 'Donnie', expected: 'Donald Trump' },
   { input: 'Donald', expected: 'Donald Trump' },
   { input: 'Epstein', expected: 'Jeffrey Epstein' },
-  { input: 'Clinton', expected: 'Bill Clinton' }
+  { input: 'Clinton', expected: 'Bill Clinton' },
 ];
 
 nameVariants.forEach(({ input, expected }) => {
@@ -67,14 +69,18 @@ const organizations = [
   { name: 'FBI', expected: true },
   { name: 'Mossad', expected: true },
   { name: 'Kremlin', expected: true },
-  { name: 'Central Intelligence Agency', expected: true }
+  { name: 'Central Intelligence Agency', expected: true },
 ];
 
 organizations.forEach(({ name, expected }) => {
   const isValid = EntityNameService.isValidOrganizationName(name);
-  console.log(`  "${name}" -> ${isValid ? 'VALID' : 'INVALID'} (expected: ${expected ? 'VALID' : 'INVALID'})`);
+  console.log(
+    `  "${name}" -> ${isValid ? 'VALID' : 'INVALID'} (expected: ${expected ? 'VALID' : 'INVALID'})`,
+  );
   if (isValid !== expected) {
-    console.log(`    ERROR: Expected ${expected ? 'VALID' : 'INVALID'} but got ${isValid ? 'VALID' : 'INVALID'}!`);
+    console.log(
+      `    ERROR: Expected ${expected ? 'VALID' : 'INVALID'} but got ${isValid ? 'VALID' : 'INVALID'}!`,
+    );
   }
 });
 

@@ -1,10 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Download, Printer, Share2, Mail, Calendar, User, Building, DollarSign, AlertTriangle, CheckCircle, Clock, TrendingUp, FileSpreadsheet, FileJson, FileArchive } from 'lucide-react';
+import {
+  FileText,
+  Download,
+  Printer,
+  Share2,
+  Mail,
+  Calendar,
+  User,
+  Building,
+  DollarSign,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  TrendingUp,
+  FileSpreadsheet,
+  FileJson,
+  FileArchive,
+} from 'lucide-react';
 
 interface ReportSection {
   id: string;
   title: string;
-  type: 'executive_summary' | 'methodology' | 'findings' | 'evidence' | 'analysis' | 'conclusions' | 'recommendations';
+  type:
+    | 'executive_summary'
+    | 'methodology'
+    | 'findings'
+    | 'evidence'
+    | 'analysis'
+    | 'conclusions'
+    | 'recommendations';
   content: string;
   evidence: string[];
   confidence: number;
@@ -38,7 +62,9 @@ interface ForensicReportGeneratorProps {
   investigationId?: number;
 }
 
-export default function ForensicReportGenerator({ investigationId }: ForensicReportGeneratorProps = {}) {
+export default function ForensicReportGenerator({
+  investigationId,
+}: ForensicReportGeneratorProps = {}) {
   const [templates, setTemplates] = useState<ReportTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [generatedReport, setGeneratedReport] = useState<GeneratedReport | null>(null);
@@ -51,10 +77,10 @@ export default function ForensicReportGenerator({ investigationId }: ForensicRep
   const [classification, setClassification] = useState<string>('confidential');
   const [targetAudience, setTargetAudience] = useState<string>('legal');
   const [realData, setRealData] = useState<{
-    stats: any,
-    entities: any[],
-    transactions: any[],
-    timeline: any[]
+    stats: any;
+    entities: any[];
+    transactions: any[];
+    timeline: any[];
   }>({ stats: null, entities: [], transactions: [], timeline: [] });
 
   // Fetch real data
@@ -66,10 +92,10 @@ export default function ForensicReportGenerator({ investigationId }: ForensicRep
         if (investigationId) {
           // Scoped Fetching
           [statsRes, entitiesRes, transactionsRes, timelineRes] = await Promise.all([
-             fetch('/api/stats'), // Global stats still useful for context, or we could stub
-             fetch(`/api/investigations/${investigationId}/evidence`), // Use evidence to derive entities
-             fetch(`/api/investigations/${investigationId}/transactions`),
-             fetch(`/api/investigations/${investigationId}/timeline-events`)
+            fetch('/api/stats'), // Global stats still useful for context, or we could stub
+            fetch(`/api/investigations/${investigationId}/evidence`), // Use evidence to derive entities
+            fetch(`/api/investigations/${investigationId}/transactions`),
+            fetch(`/api/investigations/${investigationId}/timeline-events`),
           ]);
         } else {
           // Global Fetching
@@ -77,7 +103,7 @@ export default function ForensicReportGenerator({ investigationId }: ForensicRep
             fetch('/api/stats'),
             fetch('/api/entities?limit=50&sortBy=red_flag_rating&sortOrder=desc'),
             fetch('/api/financial/transactions'),
-            fetch('/api/timeline')
+            fetch('/api/timeline'),
           ]);
         }
 
@@ -87,32 +113,34 @@ export default function ForensicReportGenerator({ investigationId }: ForensicRep
         let entities = [];
 
         if (investigationId) {
-           const evidence = await entitiesRes.json();
-           // Filter for entities in evidence
-           // This is a simplification; ideally we fetch full entity details for each evidence item
-           entities = evidence.filter((e: any) => e.type === 'entity').map((e: any) => ({
-             name: e.title,
-             red_flag_rating: 0, // Need to fetch this if important
-             id: e.source_id
-           }));
-           // Timeline format might differ slightly between endpoints, normalize it
-           timeline = timeline.map((e: any) => ({
-             ...e,
-             date: e.start_date || e.date
-           }));
+          const evidence = await entitiesRes.json();
+          // Filter for entities in evidence
+          // This is a simplification; ideally we fetch full entity details for each evidence item
+          entities = evidence
+            .filter((e: any) => e.type === 'entity')
+            .map((e: any) => ({
+              name: e.title,
+              red_flag_rating: 0, // Need to fetch this if important
+              id: e.source_id,
+            }));
+          // Timeline format might differ slightly between endpoints, normalize it
+          timeline = timeline.map((e: any) => ({
+            ...e,
+            date: e.start_date || e.date,
+          }));
         } else {
-           const entitiesData = await entitiesRes.json();
-           entities = entitiesData.data || [];
+          const entitiesData = await entitiesRes.json();
+          entities = entitiesData.data || [];
         }
 
         setRealData({
           stats,
           entities: entities,
           transactions: Array.isArray(transactions) ? transactions : [],
-          timeline: Array.isArray(timeline) ? timeline : []
+          timeline: Array.isArray(timeline) ? timeline : [],
         });
       } catch (error) {
-        console.error("Error fetching real forensic data:", error);
+        console.error('Error fetching real forensic data:', error);
       }
     };
     fetchData();
@@ -125,9 +153,17 @@ export default function ForensicReportGenerator({ investigationId }: ForensicRep
         id: 'legal-prosecution',
         name: 'Legal Prosecution Report',
         description: 'Comprehensive report for legal proceedings with evidence chain documentation',
-        sections: ['executive_summary', 'methodology', 'findings', 'evidence', 'analysis', 'conclusions', 'recommendations'],
+        sections: [
+          'executive_summary',
+          'methodology',
+          'findings',
+          'evidence',
+          'analysis',
+          'conclusions',
+          'recommendations',
+        ],
         targetAudience: 'legal',
-        classification: 'restricted'
+        classification: 'restricted',
       },
       {
         id: 'journalism-investigation',
@@ -135,7 +171,7 @@ export default function ForensicReportGenerator({ investigationId }: ForensicRep
         description: 'Narrative-driven report suitable for publication with source attribution',
         sections: ['executive_summary', 'findings', 'analysis', 'conclusions'],
         targetAudience: 'journalism',
-        classification: 'unclassified'
+        classification: 'unclassified',
       },
       {
         id: 'internal-analysis',
@@ -143,7 +179,7 @@ export default function ForensicReportGenerator({ investigationId }: ForensicRep
         description: 'Detailed technical analysis for internal team review',
         sections: ['methodology', 'findings', 'analysis', 'recommendations'],
         targetAudience: 'internal',
-        classification: 'confidential'
+        classification: 'confidential',
       },
       {
         id: 'public-summary',
@@ -151,16 +187,23 @@ export default function ForensicReportGenerator({ investigationId }: ForensicRep
         description: 'High-level summary appropriate for public release',
         sections: ['executive_summary', 'findings', 'conclusions'],
         targetAudience: 'public',
-        classification: 'unclassified'
+        classification: 'unclassified',
       },
       {
         id: 'financial-forensics',
         name: 'Financial Forensics Report',
         description: 'Specialized report focusing on financial crimes and money laundering',
-        sections: ['executive_summary', 'methodology', 'findings', 'analysis', 'conclusions', 'recommendations'],
+        sections: [
+          'executive_summary',
+          'methodology',
+          'findings',
+          'analysis',
+          'conclusions',
+          'recommendations',
+        ],
         targetAudience: 'legal',
-        classification: 'restricted'
-      }
+        classification: 'restricted',
+      },
     ];
 
     setTemplates(mockTemplates);
@@ -173,14 +216,26 @@ export default function ForensicReportGenerator({ investigationId }: ForensicRep
     const { stats, entities, transactions, timeline } = realData;
 
     // Dynamic Metrics
-    const totalTransactionAmount = transactions.reduce((sum: number, t: any) => sum + (Number(t.amount) || 0), 0);
-    const suspiciousTransactions = transactions.filter((t: any) => (t.risk_level === 'high' || t.risk_level === 'critical'));
-    const topEntitiesList = entities.slice(0, 5).map((e: any) => e.name).join(', ');
+    const totalTransactionAmount = transactions.reduce(
+      (sum: number, t: any) => sum + (Number(t.amount) || 0),
+      0,
+    );
+    const suspiciousTransactions = transactions.filter(
+      (t: any) => t.risk_level === 'high' || t.risk_level === 'critical',
+    );
+    const topEntitiesList = entities
+      .slice(0, 5)
+      .map((e: any) => e.name)
+      .join(', ');
     const entityCount = stats?.totalEntities || entities.length;
     const documentCount = stats?.totalDocuments || 0;
     const highRiskEntities = entities.filter((e: any) => e.red_flag_rating >= 4).length;
-    
-    const currencyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+
+    const currencyFormatter = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0,
+    });
     const formattedAmount = currencyFormatter.format(totalTransactionAmount);
 
     if (template.sections.includes('executive_summary')) {
@@ -197,9 +252,13 @@ Key findings include:
 • Network analysis revealing complex interconnections across the dataset
 
 The evidence collected supports further investigation into the identified high-risk entities and suspicious financial patterns.`,
-        evidence: ['Financial transaction records', 'Entity relationship maps', 'Document metadata'],
+        evidence: [
+          'Financial transaction records',
+          'Entity relationship maps',
+          'Document metadata',
+        ],
         confidence: 90,
-        sources: ['Financial Analysis', 'Entity Database', 'Document Repository']
+        sources: ['Financial Analysis', 'Entity Database', 'Document Repository'],
       });
     }
 
@@ -220,7 +279,7 @@ Financial Analysis:
 Transaction data was normalised and analysed for patterns indicative of layering or structuring. ${suspiciousTransactions.length} transactions were flagged as high-risk based on amount, frequency, or counterparties.`,
         evidence: ['System logs', 'Processing metrics', 'Risk scoring algorithms'],
         confidence: 95,
-        sources: ['System Architecture', 'Data Processing Pipeline']
+        sources: ['System Architecture', 'Data Processing Pipeline'],
       });
     }
 
@@ -236,13 +295,20 @@ The most prominent entities identified include ${topEntitiesList}. The network a
 
 Financial Activity:
 A total of ${formattedAmount} in transactions was analysed. ${suspiciousTransactions.length} transactions were identified as potentially suspicious, requiring further scrutiny.
-${suspiciousTransactions.length > 0 ? `Notable high-risk transactions include transfers involving ${suspiciousTransactions.slice(0, 3).map((t: any) => t.to_entity || 'unknown').join(', ')}.` : ''}
+${
+  suspiciousTransactions.length > 0
+    ? `Notable high-risk transactions include transfers involving ${suspiciousTransactions
+        .slice(0, 3)
+        .map((t: any) => t.to_entity || 'unknown')
+        .join(', ')}.`
+    : ''
+}
 
 Documentary Evidence:
 Analysis of ${documentCount} documents has provided the foundational evidence for these findings, linking entities through mentions, co-occurrences, and direct correspondence.`,
         evidence: ['Network graph', 'Transaction ledger', 'Document content'],
         confidence: 88,
-        sources: ['Entity Database', 'Financial Records', 'Document Content']
+        sources: ['Entity Database', 'Financial Records', 'Document Content'],
       });
     }
 
@@ -260,7 +326,7 @@ Network Resilience:
 The entity graph demonstrates significant redundancy, suggesting that the network could persist even if key nodes are removed.`,
         evidence: ['Network centrality metrics', 'Financial flow analysis'],
         confidence: 85,
-        sources: ['Network Analysis', 'Financial Forensics']
+        sources: ['Network Analysis', 'Financial Forensics'],
       });
     }
 
@@ -278,7 +344,7 @@ The entity graph demonstrates significant redundancy, suggesting that the networ
 It is concluded that the identified patterns are consistent with complex organisational structures often seen in high-profile investigations.`,
         evidence: ['Comprehensive dataset analysis'],
         confidence: 90,
-        sources: ['Integrated Analysis']
+        sources: ['Integrated Analysis'],
       });
     }
 
@@ -293,7 +359,7 @@ It is concluded that the identified patterns are consistent with complex organis
 4. Interview associates linked to the top 5 identified key figures.`,
         evidence: ['Risk assessment matrix'],
         confidence: 92,
-        sources: ['Strategic Assessment']
+        sources: ['Strategic Assessment'],
       });
     }
 
@@ -308,7 +374,7 @@ It is concluded that the identified patterns are consistent with complex organis
 
     // Simulate generation progress
     const progressInterval = setInterval(() => {
-      setGenerationProgress(prev => {
+      setGenerationProgress((prev) => {
         if (prev >= 100) {
           clearInterval(progressInterval);
           return 100;
@@ -319,9 +385,9 @@ It is concluded that the identified patterns are consistent with complex organis
 
     // Simulate report generation
     setTimeout(() => {
-      const template = templates.find(t => t.id === selectedTemplate)!;
+      const template = templates.find((t) => t.id === selectedTemplate)!;
       const sections = generateReportContent(template);
-      
+
       const report: GeneratedReport = {
         id: `report-${Date.now()}`,
         title: reportTitle || template.name,
@@ -331,9 +397,14 @@ It is concluded that the identified patterns are consistent with complex organis
         generatedBy: 'Forensic Analysis System',
         classification: classification,
         totalPages: sections.length * 3 + 2, // Rough estimate
-        wordCount: sections.reduce((total, section) => total + section.content.split(' ').length, 0),
+        wordCount: sections.reduce(
+          (total, section) => total + section.content.split(' ').length,
+          0,
+        ),
         evidenceCount: sections.reduce((total, section) => total + section.evidence.length, 0),
-        confidence: Math.round(sections.reduce((total, section) => total + section.confidence, 0) / sections.length)
+        confidence: Math.round(
+          sections.reduce((total, section) => total + section.confidence, 0) / sections.length,
+        ),
       };
 
       setGeneratedReport(report);
@@ -368,7 +439,9 @@ It is concluded that the identified patterns are consistent with complex organis
         break;
     }
 
-    const blob = new Blob([content], { type: format === 'json' ? 'application/json' : 'text/plain' });
+    const blob = new Blob([content], {
+      type: format === 'json' ? 'application/json' : 'text/plain',
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -385,11 +458,11 @@ It is concluded that the identified patterns are consistent with complex organis
     content += `Classification: ${report.classification.toUpperCase()}\n`;
     content += `Confidence: ${report.confidence}%\n\n`;
 
-    report.sections.forEach(section => {
+    report.sections.forEach((section) => {
       content += `${section.title}\n`;
       content += `${'='.repeat(section.title.length)}\n\n`;
       content += `${section.content}\n\n`;
-      
+
       if (section.evidence.length > 0) {
         content += `Evidence: ${section.evidence.join(', ')}\n`;
         content += `Sources: ${section.sources.join(', ')}\n`;
@@ -412,21 +485,31 @@ It is concluded that the identified patterns are consistent with complex organis
 
   const getClassificationColor = (classification: string) => {
     switch (classification) {
-      case 'unclassified': return 'text-green-400 bg-green-900';
-      case 'confidential': return 'text-blue-400 bg-blue-900';
-      case 'restricted': return 'text-yellow-400 bg-yellow-900';
-      case 'secret': return 'text-red-400 bg-red-900';
-      default: return 'text-gray-400 bg-gray-900';
+      case 'unclassified':
+        return 'text-green-400 bg-green-900';
+      case 'confidential':
+        return 'text-blue-400 bg-blue-900';
+      case 'restricted':
+        return 'text-yellow-400 bg-yellow-900';
+      case 'secret':
+        return 'text-red-400 bg-red-900';
+      default:
+        return 'text-gray-400 bg-gray-900';
     }
   };
 
   const getTargetAudienceColor = (audience: string) => {
     switch (audience) {
-      case 'legal': return 'text-blue-400';
-      case 'journalism': return 'text-purple-400';
-      case 'internal': return 'text-yellow-400';
-      case 'public': return 'text-green-400';
-      default: return 'text-gray-400';
+      case 'legal':
+        return 'text-blue-400';
+      case 'journalism':
+        return 'text-purple-400';
+      case 'internal':
+        return 'text-yellow-400';
+      case 'public':
+        return 'text-green-400';
+      default:
+        return 'text-gray-400';
     }
   };
 
@@ -436,13 +519,15 @@ It is concluded that the identified patterns are consistent with complex organis
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-red-400 mb-2">Forensic Report Generator</h1>
-          <p className="text-gray-400">Automated generation of comprehensive forensic analysis reports</p>
+          <p className="text-gray-400">
+            Automated generation of comprehensive forensic analysis reports
+          </p>
         </div>
 
         {/* Configuration Panel */}
         <div className="bg-gray-800 rounded-lg p-6 mb-6">
           <h2 className="text-xl font-semibold text-gray-100 mb-4">Report Configuration</h2>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">Report Title</label>
@@ -463,7 +548,7 @@ It is concluded that the identified patterns are consistent with complex organis
                 className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-red-500"
               >
                 <option value="">Select a template...</option>
-                {templates.map(template => (
+                {templates.map((template) => (
                   <option key={template.id} value={template.id}>
                     {template.name}
                   </option>
@@ -472,7 +557,9 @@ It is concluded that the identified patterns are consistent with complex organis
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Target Audience</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Target Audience
+              </label>
               <select
                 value={targetAudience}
                 onChange={(e) => setTargetAudience(e.target.value)}
@@ -527,7 +614,7 @@ It is concluded that the identified patterns are consistent with complex organis
                 <span>{generationProgress}%</span>
               </div>
               <div className="w-full bg-gray-700 rounded-full h-2">
-                <div 
+                <div
                   className="bg-red-600 h-2 rounded-full transition-all duration-300"
                   style={{ width: `${generationProgress}%` }}
                 ></div>
@@ -561,9 +648,11 @@ It is concluded that the identified patterns are consistent with complex organis
         {/* Template Information */}
         {selectedTemplate && (
           <div className="bg-gray-800 rounded-lg p-6 mb-6">
-            <h3 className="text-lg font-semibold text-gray-100 mb-4">Selected Template Information</h3>
+            <h3 className="text-lg font-semibold text-gray-100 mb-4">
+              Selected Template Information
+            </h3>
             {(() => {
-              const template = templates.find(t => t.id === selectedTemplate);
+              const template = templates.find((t) => t.id === selectedTemplate);
               if (!template) return null;
               return (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -578,8 +667,11 @@ It is concluded that the identified patterns are consistent with complex organis
                   <div>
                     <p className="text-sm text-gray-400 mb-1">Sections</p>
                     <div className="flex flex-wrap gap-1">
-                      {template.sections.map(section => (
-                        <span key={section} className="px-2 py-1 bg-gray-700 text-gray-300 rounded text-xs capitalize">
+                      {template.sections.map((section) => (
+                        <span
+                          key={section}
+                          className="px-2 py-1 bg-gray-700 text-gray-300 rounded text-xs capitalize"
+                        >
                           {section.replace('_', ' ')}
                         </span>
                       ))}
@@ -600,7 +692,9 @@ It is concluded that the identified patterns are consistent with complex organis
                 <p className="text-gray-400 text-sm">{generatedReport.title}</p>
               </div>
               <div className="flex gap-2">
-                <span className={`px-3 py-1 rounded text-xs font-medium ${getClassificationColor(generatedReport.classification)}`}>
+                <span
+                  className={`px-3 py-1 rounded text-xs font-medium ${getClassificationColor(generatedReport.classification)}`}
+                >
                   {generatedReport.classification.toUpperCase()}
                 </span>
                 <span className={`px-3 py-1 rounded text-xs font-medium bg-gray-700 text-gray-300`}>
@@ -623,21 +717,27 @@ It is concluded that the identified patterns are consistent with complex organis
                   <FileText className="w-4 h-4 text-green-400" />
                   <span className="text-sm text-gray-400">Words</span>
                 </div>
-                <p className="text-lg font-semibold text-gray-100">{generatedReport.wordCount.toLocaleString()}</p>
+                <p className="text-lg font-semibold text-gray-100">
+                  {generatedReport.wordCount.toLocaleString()}
+                </p>
               </div>
               <div className="bg-gray-700 rounded-lg p-3">
                 <div className="flex items-center gap-2 mb-1">
                   <CheckCircle className="w-4 h-4 text-yellow-400" />
                   <span className="text-sm text-gray-400">Evidence</span>
                 </div>
-                <p className="text-lg font-semibold text-gray-100">{generatedReport.evidenceCount}</p>
+                <p className="text-lg font-semibold text-gray-100">
+                  {generatedReport.evidenceCount}
+                </p>
               </div>
               <div className="bg-gray-700 rounded-lg p-3">
                 <div className="flex items-center gap-2 mb-1">
                   <Calendar className="w-4 h-4 text-purple-400" />
                   <span className="text-sm text-gray-400">Generated</span>
                 </div>
-                <p className="text-sm text-gray-100">{new Date(generatedReport.generatedAt).toLocaleDateString()}</p>
+                <p className="text-sm text-gray-100">
+                  {new Date(generatedReport.generatedAt).toLocaleDateString()}
+                </p>
               </div>
             </div>
 
@@ -692,23 +792,29 @@ It is concluded that the identified patterns are consistent with complex organis
                   <div className="flex justify-between items-start mb-3">
                     <div>
                       <h4 className="font-semibold text-gray-100">{section.title}</h4>
-                      <p className="text-sm text-gray-400 capitalize">{section.type.replace('_', ' ')}</p>
+                      <p className="text-sm text-gray-400 capitalize">
+                        {section.type.replace('_', ' ')}
+                      </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        section.confidence >= 90 ? 'bg-green-900 text-green-200' :
-                        section.confidence >= 80 ? 'bg-yellow-900 text-yellow-200' :
-                        'bg-red-900 text-red-200'
-                      }`}>
+                      <span
+                        className={`px-2 py-1 rounded text-xs font-medium ${
+                          section.confidence >= 90
+                            ? 'bg-green-900 text-green-200'
+                            : section.confidence >= 80
+                              ? 'bg-yellow-900 text-yellow-200'
+                              : 'bg-red-900 text-red-200'
+                        }`}
+                      >
                         {section.confidence}% Confidence
                       </span>
                     </div>
                   </div>
-                  
+
                   <p className="text-gray-300 text-sm mb-3 line-clamp-3">
                     {section.content.substring(0, 300)}...
                   </p>
-                  
+
                   <div className="flex items-center gap-4 text-xs text-gray-400">
                     <span>{section.evidence.length} evidence items</span>
                     <span>{section.sources.length} sources</span>

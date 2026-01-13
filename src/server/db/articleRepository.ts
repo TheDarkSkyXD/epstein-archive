@@ -28,7 +28,7 @@ export const articleRepository = {
         source: article.source || 'rss',
         image_url: article.imageUrl || null,
         guid: article.guid || article.link,
-        red_flag_rating: article.redFlagRating || 0
+        red_flag_rating: article.redFlagRating || 0,
       });
     } catch (error) {
       console.error('Error inserting article:', error);
@@ -38,12 +38,16 @@ export const articleRepository = {
   // Get all articles
   getArticles: async () => {
     const db = getDb();
-    const articles = db.prepare(`
+    const articles = db
+      .prepare(
+        `
       SELECT * FROM articles 
       ORDER BY red_flag_rating DESC, pub_date DESC
-    `).all() as any[];
-    
-    return articles.map(a => ({
+    `,
+      )
+      .all() as any[];
+
+    return articles.map((a) => ({
       id: a.id,
       title: a.title,
       url: a.link,
@@ -54,7 +58,7 @@ export const articleRepository = {
       content: a.content,
       tags: '', // Articles from RSS don't have tags column yet, return empty
       redFlagRating: a.red_flag_rating,
-      created_at: a.created_at
+      created_at: a.created_at,
     }));
-  }
+  },
 };

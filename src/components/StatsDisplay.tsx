@@ -14,7 +14,12 @@ interface StatsDisplayProps {
   onResetFilters?: () => void;
 }
 
-export function StatsDisplay({ stats, selectedRiskLevel, onRiskLevelClick, onResetFilters }: StatsDisplayProps) {
+export function StatsDisplay({
+  stats,
+  selectedRiskLevel,
+  onRiskLevelClick,
+  onResetFilters,
+}: StatsDisplayProps) {
   // Animate all stats with count-up effect
 
   const totalMentionsCount = useCountUp(stats.totalMentions, 1200);
@@ -32,7 +37,9 @@ export function StatsDisplay({ stats, selectedRiskLevel, onRiskLevelClick, onRes
         <div className="text-xl md:text-2xl font-bold text-white tabular-nums">
           {stats.totalPeople.toLocaleString()}
         </div>
-        <div className="text-cyan-200 text-[10px] md:text-xs uppercase tracking-wider font-semibold">Subjects</div>
+        <div className="text-cyan-200 text-[10px] md:text-xs uppercase tracking-wider font-semibold">
+          Subjects
+        </div>
       </button>
 
       <button
@@ -47,7 +54,9 @@ export function StatsDisplay({ stats, selectedRiskLevel, onRiskLevelClick, onRes
         <div className="text-xl md:text-2xl font-bold text-white tabular-nums">
           {highRiskCount.toLocaleString()}
         </div>
-        <div className="text-red-200 text-[10px] md:text-xs uppercase tracking-wider font-semibold">High Risk</div>
+        <div className="text-red-200 text-[10px] md:text-xs uppercase tracking-wider font-semibold">
+          High Risk
+        </div>
       </button>
 
       <button
@@ -62,7 +71,9 @@ export function StatsDisplay({ stats, selectedRiskLevel, onRiskLevelClick, onRes
         <div className="text-xl md:text-2xl font-bold text-white tabular-nums">
           {mediumRiskCount.toLocaleString()}
         </div>
-        <div className="text-yellow-200 text-[10px] md:text-xs uppercase tracking-wider font-semibold">Medium Risk</div>
+        <div className="text-yellow-200 text-[10px] md:text-xs uppercase tracking-wider font-semibold">
+          Medium Risk
+        </div>
       </button>
 
       <button
@@ -77,10 +88,10 @@ export function StatsDisplay({ stats, selectedRiskLevel, onRiskLevelClick, onRes
         <div className="text-xl md:text-2xl font-bold text-white tabular-nums">
           {lowRiskCount.toLocaleString()}
         </div>
-        <div className="text-green-200 text-[10px] md:text-xs uppercase tracking-wider font-semibold">Low Risk</div>
+        <div className="text-green-200 text-[10px] md:text-xs uppercase tracking-wider font-semibold">
+          Low Risk
+        </div>
       </button>
-      
-
     </div>
   );
 }

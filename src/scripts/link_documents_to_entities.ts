@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 /**
  * Link Documents to Entities
- * 
+ *
  * Scans documents (especially new emails) and creates entity_mentions links
  * for any entities mentioned in the document content.
  */
@@ -24,7 +24,9 @@ db.pragma('journal_mode = WAL');
 
 // Get TOP entities with reasonable names (limit for performance)
 console.log('\n[Step 1] Loading top entities...');
-const entities = db.prepare(`
+const entities = db
+  .prepare(
+    `
   SELECT id, full_name 
   FROM entities 
   WHERE full_name IS NOT NULL 
@@ -35,23 +37,29 @@ const entities = db.prepare(`
     COALESCE(mentions, 0) DESC,
     LENGTH(full_name) DESC
   LIMIT 1000
-`).all() as { id: number; full_name: string }[];
+`,
+  )
+  .all() as { id: number; full_name: string }[];
 
 console.log(`  Loaded ${entities.length} top entities`);
 
 // Build search patterns (normalize names for matching)
-const entityPatterns = entities.map(e => ({
-  id: e.id,
-  name: e.full_name,
-  pattern: e.full_name.toLowerCase().replace(/[^\w\s]/g, ''),
-})).filter(e => e.pattern.length > 3);
+const entityPatterns = entities
+  .map((e) => ({
+    id: e.id,
+    name: e.full_name,
+    pattern: e.full_name.toLowerCase().replace(/[^\w\s]/g, ''),
+  }))
+  .filter((e) => e.pattern.length > 3);
 
 console.log(`  ${entityPatterns.length} patterns prepared for matching`);
 
 // Get documents that don't have entity mentions yet (prioritize emails)
 console.log('\n[Step 2] Finding documents to process...');
 
-const documentsToProcess = db.prepare(`
+const documentsToProcess = db
+  .prepare(
+    `
   SELECT d.id, d.file_name, d.content, d.evidence_type
   FROM documents d
   WHERE d.content IS NOT NULL 
@@ -63,7 +71,9 @@ const documentsToProcess = db.prepare(`
     CASE WHEN d.evidence_type = 'email' THEN 0 ELSE 1 END,
     d.id DESC
   LIMIT 20000
-`).all() as { id: number; file_name: string; content: string; evidence_type: string }[];
+`,
+  )
+  .all() as { id: number; file_name: string; content: string; evidence_type: string }[];
 
 console.log(`  Found ${documentsToProcess.length} documents without entity mentions`);
 
@@ -96,21 +106,18 @@ try {
   for (const doc of documentsToProcess) {
     const contentLower = (doc.content || '').toLowerCase().replace(/[^\w\s]/g, ' ');
     const mentionsInDoc: { entityId: number; count: number }[] = [];
-    
+
     for (const entity of entityPatterns) {
       // Count occurrences
       const regex = new RegExp(`\\b${entity.pattern.replace(/\s+/g, '\\s+')}\\b`, 'gi');
       const matches = contentLower.match(regex);
-      
+
       if (matches && matches.length > 0) {
         mentionsInDoc.push({ entityId: entity.id, count: matches.length });
-        entityMentionCounts.set(
-          entity.id, 
-          (entityMentionCounts.get(entity.id) || 0) + 1
-        );
+        entityMentionCounts.set(entity.id, (entityMentionCounts.get(entity.id) || 0) + 1);
       }
     }
-    
+
     if (mentionsInDoc.length > 0) {
       docsWithMentions++;
       for (const mention of mentionsInDoc) {
@@ -118,28 +125,27 @@ try {
         totalMentions++;
       }
     }
-    
+
     processed++;
     if (processed % batchSize === 0) {
       process.stdout.write(`\r  Processed ${processed}/${documentsToProcess.length} documents...`);
     }
   }
-  
+
   console.log(`\r  Processed ${processed}/${documentsToProcess.length} documents`);
-  
+
   // Update entity mention counts
   console.log('\n[Step 4] Updating entity mention counts...');
-  
+
   let updated = 0;
   for (const [entityId] of entityMentionCounts) {
     updateEntityMentionCount.run(entityId, entityId);
     updated++;
   }
-  
+
   console.log(`  Updated counts for ${updated} entities`);
-  
+
   db.exec('COMMIT');
-  
 } catch (error) {
   db.exec('ROLLBACK');
   throw error;
@@ -161,7 +167,7 @@ const topEntities = Array.from(entityMentionCounts.entries())
   .slice(0, 20);
 
 for (const [entityId, count] of topEntities) {
-  const entity = entities.find(e => e.id === entityId);
+  const entity = entities.find((e) => e.id === entityId);
   console.log(`  ${count} docs: ${entity?.full_name || 'Unknown'}`);
 }
 

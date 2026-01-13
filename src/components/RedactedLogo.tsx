@@ -9,31 +9,28 @@ interface RedactedLogoProps {
  * A logo component that periodically animates letters into redacted blocks
  * one by one with glitch effects.
  */
-export const RedactedLogo: React.FC<RedactedLogoProps> = ({ 
-  text, 
-  className = '' 
-}) => {
+export const RedactedLogo: React.FC<RedactedLogoProps> = ({ text, className = '' }) => {
   const [redactedCount, setRedactedCount] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [glitchingIndex, setGlitchingIndex] = useState<number | null>(null);
   const [globalGlitch, setGlobalGlitch] = useState(false);
-  
+
   // Pre-calculate letter count (excluding spaces)
   const letterCount = useMemo(() => text.replace(/\s/g, '').length, [text]);
-  
+
   useEffect(() => {
     // Initial delay before first animation (4-8 seconds after mount)
     const initialDelay = 4000 + Math.random() * 4000;
-    
+
     let animationTimeout: NodeJS.Timeout;
     let intervalId: NodeJS.Timeout;
-    
+
     const runAnimation = () => {
       const letterDelay = 55; // ms per letter
-      
+
       // Phase 1: Redact letters one by one with glitch
       setIsAnimating(true);
-      
+
       for (let i = 1; i <= letterCount; i++) {
         setTimeout(() => {
           setGlitchingIndex(i - 1);
@@ -46,79 +43,84 @@ export const RedactedLogo: React.FC<RedactedLogoProps> = ({
           setRedactedCount(i);
         }, i * letterDelay);
       }
-      
+
       // Phase 2: Hold fully redacted for 2.5 seconds
       const fullRedactTime = letterCount * letterDelay;
       const holdTime = 2500;
-      
+
       // Phase 3: Reveal letters one by one
       setTimeout(() => {
         for (let i = letterCount - 1; i >= 0; i--) {
-          setTimeout(() => {
-            setGlitchingIndex(i);
-            if (Math.random() > 0.6) setGlobalGlitch(true);
-            setTimeout(() => {
-              setGlitchingIndex(null);
-              setGlobalGlitch(false);
-            }, 60);
-            setRedactedCount(i);
-          }, (letterCount - i) * letterDelay);
+          setTimeout(
+            () => {
+              setGlitchingIndex(i);
+              if (Math.random() > 0.6) setGlobalGlitch(true);
+              setTimeout(() => {
+                setGlitchingIndex(null);
+                setGlobalGlitch(false);
+              }, 60);
+              setRedactedCount(i);
+            },
+            (letterCount - i) * letterDelay,
+          );
         }
       }, fullRedactTime + holdTime);
-      
+
       // Phase 4: End animation
-      setTimeout(() => {
-        setIsAnimating(false);
-        setRedactedCount(0);
-        setGlitchingIndex(null);
-        setGlobalGlitch(false);
-      }, fullRedactTime + holdTime + letterCount * letterDelay + 100);
+      setTimeout(
+        () => {
+          setIsAnimating(false);
+          setRedactedCount(0);
+          setGlitchingIndex(null);
+          setGlobalGlitch(false);
+        },
+        fullRedactTime + holdTime + letterCount * letterDelay + 100,
+      );
     };
-    
+
     // First animation after initial delay
     animationTimeout = setTimeout(() => {
       runAnimation();
       // Set up recurring animations every 15-25 seconds
       intervalId = setInterval(runAnimation, 15000 + Math.random() * 10000);
     }, initialDelay);
-    
+
     return () => {
       clearTimeout(animationTimeout);
       clearInterval(intervalId);
     };
   }, [letterCount]);
-  
+
   // Render text - always render individual spans during animation for consistency
   const renderText = () => {
     let letterIndex = 0;
-    
+
     return text.split('').map((char, i) => {
       if (char === ' ') {
         return (
-          <span 
-            key={i} 
-            style={{ display: 'inline-block', width: '4px' }}
-          >
+          <span key={i} style={{ display: 'inline-block', width: '4px' }}>
             {' '}
           </span>
         );
       }
-      
+
       const currentLetterIndex = letterIndex;
       letterIndex++;
-      
+
       const isRedacted = currentLetterIndex < redactedCount;
       const isGlitching = currentLetterIndex === glitchingIndex;
-      
+
       // Strong glitch effects
-      const glitchStyle = isGlitching ? {
-        transform: `translateX(${Math.random() > 0.5 ? 2 : -2}px) translateY(${Math.random() > 0.5 ? 1 : -1}px)`,
-        filter: 'brightness(2) contrast(1.5)',
-        textShadow: '2px 0 #ff0040, -2px 0 #00ffff',
-      } : {};
-      
+      const glitchStyle = isGlitching
+        ? {
+            transform: `translateX(${Math.random() > 0.5 ? 2 : -2}px) translateY(${Math.random() > 0.5 ? 1 : -1}px)`,
+            filter: 'brightness(2) contrast(1.5)',
+            textShadow: '2px 0 #ff0040, -2px 0 #00ffff',
+          }
+        : {};
+
       return (
-        <span 
+        <span
           key={i}
           style={{
             display: 'inline-block',
@@ -126,13 +128,13 @@ export const RedactedLogo: React.FC<RedactedLogoProps> = ({
             textAlign: 'center',
             position: 'relative',
             transition: isGlitching ? 'none' : 'all 0.05s',
-            ...glitchStyle
+            ...glitchStyle,
           }}
         >
           {isRedacted ? (
             // Redacted block - solid black bar
-            <span 
-              style={{ 
+            <span
+              style={{
                 color: '#000',
                 background: '#000',
                 padding: '0 1px',
@@ -157,11 +159,11 @@ export const RedactedLogo: React.FC<RedactedLogoProps> = ({
       );
     });
   };
-  
+
   return (
-    <div 
+    <div
       className={`relative ${className}`}
-      style={{ 
+      style={{
         // FIXED width - calculated for "THE EPSTEIN FILES" (18 chars including space)
         width: '185px',
         minWidth: '185px',
@@ -171,18 +173,19 @@ export const RedactedLogo: React.FC<RedactedLogoProps> = ({
     >
       {/* Global glitch overlay */}
       {globalGlitch && (
-        <div 
+        <div
           style={{
             position: 'absolute',
             inset: 0,
-            background: 'repeating-linear-gradient(0deg, transparent 0px, transparent 2px, rgba(0,255,255,0.03) 2px, rgba(0,255,255,0.03) 4px)',
+            background:
+              'repeating-linear-gradient(0deg, transparent 0px, transparent 2px, rgba(0,255,255,0.03) 2px, rgba(0,255,255,0.03) 4px)',
             pointerEvents: 'none',
             zIndex: 10,
           }}
         />
       )}
-      
-      <h1 
+
+      <h1
         className="text-xl font-bold tracking-tight whitespace-nowrap"
         style={{
           transform: globalGlitch ? `translateX(${Math.random() > 0.5 ? 3 : -3}px)` : 'none',
@@ -192,7 +195,7 @@ export const RedactedLogo: React.FC<RedactedLogoProps> = ({
         {isAnimating ? (
           renderText()
         ) : (
-          <span 
+          <span
             style={{
               background: 'linear-gradient(90deg, #22d3ee, #60a5fa, #a78bfa)',
               WebkitBackgroundClip: 'text',

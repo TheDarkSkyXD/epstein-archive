@@ -8,9 +8,15 @@ interface DocumentUploaderProps {
   showUpload?: boolean; // Control visibility of upload functionality
 }
 
-export const DocumentUploader: React.FC<DocumentUploaderProps> = ({ processor, onDocumentsLoaded, showUpload = true }) => {
+export const DocumentUploader: React.FC<DocumentUploaderProps> = ({
+  processor,
+  onDocumentsLoaded,
+  showUpload = true,
+}) => {
   const [isDragging, setIsDragging] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'processing' | 'success' | 'error'>(
+    'idle',
+  );
   const [error, setError] = useState<string>('');
   const [processedCount, setProcessedCount] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -28,11 +34,12 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({ processor, o
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    
-    const files = Array.from(e.dataTransfer.files).filter(file => 
-      file.type === 'text/plain' || file.name.endsWith('.txt') || file.name.endsWith('.md')
+
+    const files = Array.from(e.dataTransfer.files).filter(
+      (file) =>
+        file.type === 'text/plain' || file.name.endsWith('.txt') || file.name.endsWith('.md'),
     );
-    
+
     if (files.length === 0) {
       setError('Please drop text files (.txt, .md) only');
       setUploadStatus('error');
@@ -43,10 +50,11 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({ processor, o
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []).filter(file => 
-      file.type === 'text/plain' || file.name.endsWith('.txt') || file.name.endsWith('.md')
+    const files = Array.from(e.target.files || []).filter(
+      (file) =>
+        file.type === 'text/plain' || file.name.endsWith('.txt') || file.name.endsWith('.md'),
     );
-    
+
     if (files.length === 0) {
       setError('Please select text files (.txt, .md) only');
       setUploadStatus('error');
@@ -67,9 +75,9 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({ processor, o
           const content = await file.text();
           return {
             path: file.name,
-            content: content
+            content: content,
           };
-        })
+        }),
       );
 
       const documents = await processor.processDocumentBatch(fileContents);
@@ -97,20 +105,23 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({ processor, o
         <Upload className="w-5 h-5" />
         Upload Real Documents
       </h3>
-      
+
       {!showUpload && (
         <div className="bg-yellow-900/30 border border-yellow-700 rounded-lg p-4 mb-4">
           <p className="text-yellow-200 text-sm">
-            Document upload is restricted to administrators. Please contact an admin if you need to upload documents.
+            Document upload is restricted to administrators. Please contact an admin if you need to
+            upload documents.
           </p>
         </div>
       )}
-      
+
       {uploadStatus === 'idle' && showUpload && (
         <div>
           <div
             className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-              isDragging ? 'border-blue-500 bg-blue-900 bg-opacity-20' : 'border-gray-600 hover:border-gray-500'
+              isDragging
+                ? 'border-blue-500 bg-blue-900 bg-opacity-20'
+                : 'border-gray-600 hover:border-gray-500'
             }`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}

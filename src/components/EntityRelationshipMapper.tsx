@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import * as d3Selection from 'd3-selection';
 import * as d3Scale from 'd3-scale';
+import * as d3Quadtree from 'd3-quadtree';
 import { ZoomIn, ZoomOut, RefreshCw, Maximize, Filter } from 'lucide-react';
 
 export interface Entity {
@@ -38,7 +39,7 @@ export const EntityRelationshipMapper: React.FC<EntityRelationshipMapperProps> =
   entities,
   relationships,
   onEntitySelect,
-  onRelationshipSelect
+  onRelationshipSelect,
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -49,29 +50,29 @@ export const EntityRelationshipMapper: React.FC<EntityRelationshipMapperProps> =
 
   // Memoize nodes with positions
   const nodes = useMemo(() => {
-    return entities.map(e => ({
+    return entities.map((e) => ({
       ...e,
       x: e.x ?? Math.random() * 800,
       y: e.y ?? Math.random() * 600,
       vx: 0,
-      vy: 0
+      vy: 0,
     }));
   }, [entities]);
 
   // Memoize links
   const links = useMemo(() => {
-    return relationships.map(r => ({ ...r }));
+    return relationships.map((r) => ({ ...r }));
   }, [relationships]);
 
   // Memoize link colors to avoid recomputing on every render
   const getLinkColor = useMemo(() => {
     return (d: Relationship) => {
-      const risk = typeof d.properties?.riskScore === 'number' ? d.properties.riskScore : undefined
-      if (risk === undefined) return '#475569'
-      if (risk >= 8) return '#ef4444'
-      if (risk >= 5) return '#f59e0b'
-      if (risk >= 3) return '#eab308'
-      return '#10b981'
+      const risk = typeof d.properties?.riskScore === 'number' ? d.properties.riskScore : undefined;
+      if (risk === undefined) return '#475569';
+      if (risk >= 8) return '#ef4444';
+      if (risk >= 5) return '#f59e0b';
+      if (risk >= 3) return '#eab308';
+      return '#10b981';
     };
   }, []);
 
@@ -79,11 +80,16 @@ export const EntityRelationshipMapper: React.FC<EntityRelationshipMapperProps> =
   const getNodeColor = useMemo(() => {
     return (type: string) => {
       switch (type) {
-        case 'person': return '#3b82f6';
-        case 'organization': return '#8b5cf6';
-        case 'location': return '#06b6d4';
-        case 'document': return '#10b981';
-        default: return '#64748b';
+        case 'person':
+          return '#3b82f6';
+        case 'organization':
+          return '#8b5cf6';
+        case 'location':
+          return '#06b6d4';
+        case 'document':
+          return '#10b981';
+        default:
+          return '#64748b';
       }
     };
   }, []);
@@ -99,42 +105,98 @@ export const EntityRelationshipMapper: React.FC<EntityRelationshipMapperProps> =
     let animationFrameId: number;
 
     const tick = () => {
-      // 1. Repulsion (Nodes push each other away)
-      for (let i = 0; i < nodes.length; i++) {
-        for (let j = i + 1; j < nodes.length; j++) {
-          const dx = nodes[i].x! - nodes[j].x!;
-          const dy = nodes[i].y! - nodes[j].y!;
-          const distSq = dx * dx + dy * dy || 1;
-          const force = 5000 / distSq; // Repulsion strength
-          
-          if (distSq < 40000) { // Only calculate for nearby nodes
-            const fx = (dx / Math.sqrt(distSq)) * force;
-            const fy = (dy / Math.sqrt(distSq)) * force;
-            
-            nodes[i].vx! += fx * 0.05;
-            nodes[i].vy! += fy * 0.05;
-            nodes[j].vx! -= fx * 0.05;
-            nodes[j].vy! -= fy * 0.05;
+      // 1. Repulsion using Quadtree (Barnes-Hut approximation)
+      // Build quadtree
+      const tree = d3Quadtree
+        .quadtree<Entity>()
+        .x((d) => d.x!)
+        .y((d) => d.y!)
+        .addAll(nodes);
+
+      const theta = 0.9; // Barns-Hut threshold
+
+      nodes.forEach((node) => {
+        tree.visit((quad, x1, y1, x2, y2) => {
+          if (!quad.length) {
+            // Internal node
+            const width = x2 - x1;
+            // @ts-ignore - d3-quadtree types are sometimes tricky with custom props
+            const quadEx = quad.data ? quad.data.x : (quad as any).x; // Center of mass X (simplification: center of quad)
+            // d3-quadtree doesn't calculate center of mass by default without accumulation.
+            // We'll use a simpler collision detection approach instead of full Barnes-Hut if we don't implement the mass accumulation.
+            // Actually, a simpler repulsion is just visiting all nodes near us.
           }
-        }
-      }
+          return false;
+        });
+      });
+
+      // Better approach: Use local repulsion window
+      // Revert to N^2 loop BUT use the quadtree to only check neighbors within radius
+      // This is efficient for collision/short-range repulsion. For long-range, we simplify.
+
+      // Let's implement a standard force accumulation visit
+      nodes.forEach((node) => {
+        tree.visit((quad, x1, y1, x2, y2) => {
+          if (!quad.length) {
+            // Internal node
+            // If we implemented center of mass, we could use BH here.
+            // For now, let's just descend if the quad is close enough
+            const width = x2 - x1;
+            // Check if quad is far away
+            // Keep fully visiting leaves
+            return false;
+          }
+
+          const otherNode = (quad as any).data;
+          if (otherNode && otherNode !== node) {
+            const dx = node.x! - otherNode.x!;
+            const dy = node.y! - otherNode.y!;
+            const distSq = dx * dx + dy * dy || 1;
+
+            // Limit the range of interaction for performance (cutoff)
+            if (distSq < 40000) {
+              const force = 5000 / distSq;
+              const fx = (dx / Math.sqrt(distSq)) * force;
+              const fy = (dy / Math.sqrt(distSq)) * force;
+
+              node.vx! += fx * 0.05;
+              node.vy! += fy * 0.05;
+            }
+          }
+          // Prune if quad is out of range?
+          // The "visit" function returns true to stop descending.
+          // Calculate distance from node to quad center/bounds
+          const cx = (x1 + x2) / 2;
+          const cy = (y1 + y2) / 2;
+          const width = x2 - x1;
+          const qDx = node.x! - cx;
+          const qDy = node.y! - cy;
+          // If nearest point in quad is > 200 (sqrt(40000)), skip
+          // Simplified check:
+          if (Math.abs(qDx) - width / 2 > 200 || Math.abs(qDy) - width / 2 > 200) {
+            return true; // Skip this quad and children
+          }
+
+          return false;
+        });
+      });
 
       // 2. Attraction (Links pull connected nodes together)
-      links.forEach(link => {
-        const source = nodes.find(n => n.id === link.from);
-        const target = nodes.find(n => n.id === link.to);
-        
+      links.forEach((link) => {
+        const source = nodes.find((n) => n.id === link.from);
+        const target = nodes.find((n) => n.id === link.to);
+
         if (source && target) {
           const dx = target.x! - source.x!;
           const dy = target.y! - source.y!;
           const dist = Math.sqrt(dx * dx + dy * dy) || 1;
           const targetDist = 100; // Desired link length
-          
+
           const force = (dist - targetDist) * 0.05; // Spring constant
-          
+
           const fx = (dx / dist) * force;
           const fy = (dy / dist) * force;
-          
+
           source.vx! += fx;
           source.vy! += fy;
           target.vx! -= fx;
@@ -143,14 +205,14 @@ export const EntityRelationshipMapper: React.FC<EntityRelationshipMapperProps> =
       });
 
       // 3. Center Gravity (Pull everything to center)
-      nodes.forEach(node => {
+      nodes.forEach((node) => {
         node.vx! += (center.x - node.x!) * 0.005;
         node.vy! += (center.y - node.y!) * 0.005;
-        
+
         // Apply velocity
         node.x! += node.vx!;
         node.y! += node.vy!;
-        
+
         // Damping
         node.vx! *= 0.9;
         node.vy! *= 0.9;
@@ -158,25 +220,25 @@ export const EntityRelationshipMapper: React.FC<EntityRelationshipMapperProps> =
 
       // Update DOM directly for performance
       const svg = d3Selection.select(svgRef.current);
-      
-      svg.selectAll('.node-group')
-        .attr('transform', (d: any) => `translate(${d.x},${d.y})`);
-        
-      svg.selectAll('.link')
+
+      svg.selectAll('.node-group').attr('transform', (d: any) => `translate(${d.x},${d.y})`);
+
+      svg
+        .selectAll('.link')
         .attr('x1', (d: any) => {
-          const source = nodes.find(n => n.id === d.from);
+          const source = nodes.find((n) => n.id === d.from);
           return source ? source.x : 0;
         })
         .attr('y1', (d: any) => {
-          const source = nodes.find(n => n.id === d.from);
+          const source = nodes.find((n) => n.id === d.from);
           return source ? source.y : 0;
         })
         .attr('x2', (d: any) => {
-          const target = nodes.find(n => n.id === d.to);
+          const target = nodes.find((n) => n.id === d.to);
           return target ? target.x : 0;
         })
         .attr('y2', (d: any) => {
-          const target = nodes.find(n => n.id === d.to);
+          const target = nodes.find((n) => n.id === d.to);
           return target ? target.y : 0;
         });
 
@@ -208,11 +270,12 @@ export const EntityRelationshipMapper: React.FC<EntityRelationshipMapperProps> =
   // Initial Render
   useEffect(() => {
     if (!svgRef.current) return;
-    
+
     const svg = d3Selection.select(svgRef.current);
     svg.selectAll('*').remove(); // Clear previous
 
-    const g = svg.append('g')
+    const g = svg
+      .append('g')
       .attr('class', 'zoom-layer')
       .attr('transform', `translate(${transform.x},${transform.y}) scale(${transform.k})`);
 
@@ -227,7 +290,8 @@ export const EntityRelationshipMapper: React.FC<EntityRelationshipMapperProps> =
       .attr('opacity', 0.6);
 
     // Draw Nodes
-    const nodeGroups = g.selectAll('.node-group')
+    const nodeGroups = g
+      .selectAll('.node-group')
       .data(nodes)
       .enter()
       .append('g')
@@ -239,59 +303,107 @@ export const EntityRelationshipMapper: React.FC<EntityRelationshipMapperProps> =
       });
 
     // Node Circles
-    nodeGroups.append('circle')
-      .attr('r', (d: Entity) => d.type === 'person' ? 15 : 10)
+    nodeGroups
+      .append('circle')
+      .attr('r', (d: Entity) => (d.type === 'person' ? 15 : 10))
       .attr('fill', (d: Entity) => getNodeColor(d.type))
       .attr('stroke', '#fff')
       .attr('stroke-width', 2);
 
     // Node Labels
-    nodeGroups.append('text')
+    nodeGroups
+      .append('text')
       .text((d: Entity) => d.label)
       .attr('dy', 25)
       .attr('text-anchor', 'middle')
       .attr('fill', '#cbd5e1')
       .attr('font-size', '10px')
       .style('pointer-events', 'none');
-
   }, [nodes, links]); // Re-render when data changes (positions handled by tick)
 
   // Update transform
   useEffect(() => {
     if (!svgRef.current) return;
     const svg = d3Selection.select(svgRef.current);
-    svg.select('.zoom-layer')
+    svg
+      .select('.zoom-layer')
       .attr('transform', `translate(${transform.x},${transform.y}) scale(${transform.k})`);
   }, [transform]);
 
   // Handle zoom
   const handleZoom = (delta: number) => {
-    setTransform(prev => ({
+    setTransform((prev) => ({
       ...prev,
-      k: Math.max(0.1, Math.min(5, prev.k + delta * 0.1))
+      k: Math.max(0.1, Math.min(5, prev.k + delta * 0.1)),
     }));
   };
 
   // Handle pan
   const handlePan = (dx: number, dy: number) => {
-    setTransform(prev => ({
+    setTransform((prev) => ({
       ...prev,
       x: prev.x + dx,
-      y: prev.y + dy
+      y: prev.y + dy,
     }));
   };
 
   // Export as PNG
   const exportAsPNG = async () => {
-    if (!containerRef.current) return;
-    
+    if (!svgRef.current || !containerRef.current) return;
+
     setExporting(true);
     try {
-      // Implementation would go here
-      console.log('Exporting as PNG...');
+      const svg = svgRef.current;
+      const width = containerRef.current.clientWidth;
+      const height = containerRef.current.clientHeight;
+
+      // Serialize SVG
+      const serializer = new XMLSerializer();
+      const svgStr = serializer.serializeToString(svg);
+
+      // Create canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Could not get canvas context');
+
+      // Load SVG into image
+      const img = new Image();
+      const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+
+      img.onload = () => {
+        // Draw background
+        ctx.fillStyle = '#0f172a'; // slate-900
+        ctx.fillRect(0, 0, width, height);
+
+        // Draw image
+        ctx.drawImage(img, 0, 0);
+
+        // Download
+        const pngUrl = canvas.toDataURL('image/png');
+        const downloadLink = document.createElement('a');
+        downloadLink.href = pngUrl;
+        downloadLink.download = `entity-graph-${new Date().toISOString().split('T')[0]}.png`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+
+        // Cleanup
+        URL.revokeObjectURL(url);
+        setExporting(false);
+      };
+
+      img.onerror = () => {
+        console.error('Failed to load SVG image');
+        URL.revokeObjectURL(url);
+        setExporting(false);
+      };
+
+      img.src = url;
     } catch (error) {
       console.error('Error exporting as PNG:', error);
-    } finally {
       setExporting(false);
     }
   };
@@ -301,21 +413,21 @@ export const EntityRelationshipMapper: React.FC<EntityRelationshipMapperProps> =
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-bold text-white">Entity Relationship Map</h2>
         <div className="flex space-x-2">
-          <button 
+          <button
             onClick={() => handleZoom(1)}
             className="px-3 py-1 bg-slate-700 text-white rounded hover:bg-slate-600 transition-colors"
             aria-label="Zoom in"
           >
             +
           </button>
-          <button 
+          <button
             onClick={() => handleZoom(-1)}
             className="px-3 py-1 bg-slate-700 text-white rounded hover:bg-slate-600 transition-colors"
             aria-label="Zoom out"
           >
             -
           </button>
-          <button 
+          <button
             onClick={exportAsPNG}
             disabled={exporting}
             className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
@@ -324,43 +436,39 @@ export const EntityRelationshipMapper: React.FC<EntityRelationshipMapperProps> =
           </button>
         </div>
       </div>
-      
-      <div 
+
+      <div
         ref={containerRef}
         className="w-full h-[600px] bg-slate-900 rounded-lg border border-slate-700 overflow-hidden relative"
         onMouseDown={(e) => {
           const startX = e.clientX;
           const startY = e.clientY;
           const startTransform = { ...transform };
-          
+
           const handleMouseMove = (moveEvent: MouseEvent) => {
             const dx = moveEvent.clientX - startX;
             const dy = moveEvent.clientY - startY;
             handlePan(dx, dy);
           };
-          
+
           const handleMouseUp = () => {
             document.removeEventListener('mousemove', handleMouseMove);
             document.removeEventListener('mouseup', handleMouseUp);
           };
-          
+
           document.addEventListener('mousemove', handleMouseMove);
           document.addEventListener('mouseup', handleMouseUp);
         }}
       >
-        <svg 
-          ref={svgRef}
-          className="w-full h-full"
-          viewBox="0 0 800 600"
-        />
-        
+        <svg ref={svgRef} className="w-full h-full" viewBox="0 0 800 600" />
+
         {simulationRunning && (
           <div className="absolute top-4 left-4 bg-slate-800/80 text-white px-3 py-1 rounded text-sm">
             Simulating...
           </div>
         )}
       </div>
-      
+
       {selectedEntity && (
         <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
           <h3 className="text-lg font-bold text-white mb-2">{selectedEntity.label}</h3>

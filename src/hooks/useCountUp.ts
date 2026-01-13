@@ -22,7 +22,7 @@ export function useCountUp(target: number, duration: number = 1500, enabled: boo
 
       // Easing function for smooth animation (easeOutExpo)
       const easeOutExpo = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
-      
+
       setCount(Math.floor(target * easeOutExpo));
 
       if (progress < 1) {

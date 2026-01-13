@@ -2,7 +2,31 @@ import { useState, useEffect, useCallback, useMemo, Suspense, lazy, useRef } fro
 import { preloader } from './utils/ResourcePreloader';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { Search, User, Users, FileText, TrendingUp, BarChart3, Newspaper, Calendar, Database as DatabaseIcon, Globe, Clock, ChevronLeft, ChevronRight, Book, CheckCircle2, Target, Shield, Image, Menu, X, Camera, HelpCircle } from 'lucide-react';import { Person } from './types';
+import {
+  Search,
+  User,
+  Users,
+  FileText,
+  TrendingUp,
+  BarChart3,
+  Newspaper,
+  Calendar,
+  Database as DatabaseIcon,
+  Globe,
+  Clock,
+  ChevronLeft,
+  ChevronRight,
+  Book,
+  CheckCircle2,
+  Target,
+  Shield,
+  Image,
+  Menu,
+  X,
+  Camera,
+  HelpCircle,
+} from 'lucide-react';
+import { Person } from './types';
 import { Document } from './types/documents';
 import { OptimizedDataService, SearchFilters } from './services/OptimizedDataService';
 import { useNavigation } from './services/ContentNavigationService.tsx';
@@ -35,22 +59,62 @@ import { InvestigationsProvider } from './contexts/InvestigationsContext';
 import { useAuth } from './contexts/AuthContext';
 import { LoginPage } from './pages/LoginPage';
 // Lazy load heavy components
-const EvidenceModal = lazy(() => import('./components/EvidenceModal').then(module => ({ default: module.EvidenceModal })));
-const DataVisualization = lazy(() => import('./components/DataVisualization').then(module => ({ default: module.DataVisualization })));
-const BlackBookViewer = lazy(() => import('./components/BlackBookViewer').then(module => ({ default: module.BlackBookViewer })));
-const EvidenceSearch = lazy(() => import('./components/EvidenceSearch').then(module => ({ default: module.EvidenceSearch })));
-const DocumentBrowser = lazy(() => import('./components/DocumentBrowser').then(module => ({ default: module.DocumentBrowser })));
-const DocumentModal = lazy(() => import('./components/DocumentModal').then(module => ({ default: module.DocumentModal })));
-const Timeline = lazy(() => import('./components/Timeline').then(module => ({ default: module.Timeline })));
-const DocumentUploader = lazy(() => import('./components/DocumentUploader').then(module => ({ default: module.DocumentUploader })));
-const InvestigationWorkspace = lazy(() => import('./components/InvestigationWorkspace').then(module => ({ default: module.InvestigationWorkspace })));
-const ReleaseNotesPanel = lazy(() => import('./components/ReleaseNotesPanel').then(module => ({ default: module.ReleaseNotesPanel })));
-const EmailClient = lazy(() => import('./components/email/EmailClient').then(module => ({ default: module.default })));
-const AboutPage = lazy(() => import('./components/AboutPage').then(module => ({ default: module.default })));
-const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(module => ({ default: module.AdminDashboard })));
-const EnhancedAnalytics = lazy(() => import('./components/EnhancedAnalytics').then(module => ({ default: module.EnhancedAnalytics })));
-const TimelineWithFlights = lazy(() => import('./components/TimelineWithFlights').then(module => ({ default: module.default })));
-const FlightTracker = lazy(() => import('./components/FlightTracker').then(module => ({ default: module.default })));
+const EvidenceModal = lazy(() =>
+  import('./components/EvidenceModal').then((module) => ({ default: module.EvidenceModal })),
+);
+const DataVisualization = lazy(() =>
+  import('./components/DataVisualization').then((module) => ({
+    default: module.DataVisualization,
+  })),
+);
+const BlackBookViewer = lazy(() =>
+  import('./components/BlackBookViewer').then((module) => ({ default: module.BlackBookViewer })),
+);
+const EvidenceSearch = lazy(() =>
+  import('./components/EvidenceSearch').then((module) => ({ default: module.EvidenceSearch })),
+);
+const DocumentBrowser = lazy(() =>
+  import('./components/DocumentBrowser').then((module) => ({ default: module.DocumentBrowser })),
+);
+const DocumentModal = lazy(() =>
+  import('./components/DocumentModal').then((module) => ({ default: module.DocumentModal })),
+);
+const Timeline = lazy(() =>
+  import('./components/Timeline').then((module) => ({ default: module.Timeline })),
+);
+const DocumentUploader = lazy(() =>
+  import('./components/DocumentUploader').then((module) => ({ default: module.DocumentUploader })),
+);
+const InvestigationWorkspace = lazy(() =>
+  import('./components/InvestigationWorkspace').then((module) => ({
+    default: module.InvestigationWorkspace,
+  })),
+);
+const ReleaseNotesPanel = lazy(() =>
+  import('./components/ReleaseNotesPanel').then((module) => ({
+    default: module.ReleaseNotesPanel,
+  })),
+);
+const EmailClient = lazy(() =>
+  import('./components/email/EmailClient').then((module) => ({ default: module.default })),
+);
+const AboutPage = lazy(() =>
+  import('./components/AboutPage').then((module) => ({ default: module.default })),
+);
+const AdminDashboard = lazy(() =>
+  import('./pages/AdminDashboard').then((module) => ({ default: module.AdminDashboard })),
+);
+const EnhancedAnalytics = lazy(() =>
+  import('./components/EnhancedAnalytics').then((module) => ({
+    default: module.EnhancedAnalytics,
+  })),
+);
+const TimelineWithFlights = lazy(() =>
+  import('./components/TimelineWithFlights').then((module) => ({ default: module.default })),
+);
+const FlightTracker = lazy(() =>
+  import('./components/FlightTracker').then((module) => ({ default: module.default })),
+);
 
 import releaseNotesRaw from '../release_notes.md?raw';
 
@@ -59,62 +123,64 @@ const parseReleaseNotes = (markdown: string) => {
   try {
     // Split on ## Version headers or the new fancy header format
     const sections = markdown.split(/^## Version |^# 📣 Epstein Archive V/m).filter(Boolean);
-    
-    return sections.map(section => {
-      const lines = section.split('\n').map(l => l.trim());
-      if (lines.length === 0) return null;
 
-      // Line 0: "X.X.X (Date)" or "X.X.X - Title"
-      const headerLine = lines[0];
-      const versionMatch = headerLine.match(/^([\d\.]+)/);
-      const version = versionMatch ? `v${versionMatch[1]}` : 'Update';
-      
-      let dateMatch = headerLine.match(/\(([^)]+)\)/);
-      let date = dateMatch ? dateMatch[1] : null;
-      
-      // Fallback: look for *Released: Date*
-      if (!date) {
+    return sections
+      .map((section) => {
+        const lines = section.split('\n').map((l) => l.trim());
+        if (lines.length === 0) return null;
+
+        // Line 0: "X.X.X (Date)" or "X.X.X - Title"
+        const headerLine = lines[0];
+        const versionMatch = headerLine.match(/^([\d\.]+)/);
+        const version = versionMatch ? `v${versionMatch[1]}` : 'Update';
+
+        const dateMatch = headerLine.match(/\(([^)]+)\)/);
+        let date = dateMatch ? dateMatch[1] : null;
+
+        // Fallback: look for *Released: Date*
+        if (!date) {
+          for (const line of lines) {
+            const releasedMatch = line.match(/^\*Released: (.+)\*$/);
+            if (releasedMatch) {
+              date = releasedMatch[1];
+              break;
+            }
+          }
+        }
+        if (!date) date = 'Recent';
+
+        // Find title (first non-empty line after header, not starting with ** or ---)
+        let title = 'Maintenance Update';
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i];
+          if (line && !line.startsWith('**') && !line.startsWith('---') && !line.startsWith('-')) {
+            title = line;
+            break;
+          }
+        }
+
+        // Find all bullet points
+        const notes: string[] = [];
         for (const line of lines) {
-           const releasedMatch = line.match(/^\*Released: (.+)\*$/);
-           if (releasedMatch) {
-             date = releasedMatch[1];
-             break;
-           }
+          if (line.startsWith('- ') || line.startsWith('* ')) {
+            notes.push(line.substring(2));
+          }
         }
-      }
-      if (!date) date = 'Recent';
 
-      // Find title (first non-empty line after header, not starting with ** or ---)
-      let title = 'Maintenance Update';
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i];
-        if (line && !line.startsWith('**') && !line.startsWith('---') && !line.startsWith('-')) {
-          title = line;
-          break;
-        }
-      }
-
-      // Find all bullet points
-      const notes: string[] = [];
-      for (const line of lines) {
-        if (line.startsWith('- ') || line.startsWith('* ')) {
-          notes.push(line.substring(2));
-        }
-      }
-
-      return {
-        version,
-        date,
-        title,
-        notes: notes
-      };
-    }).filter(Boolean).filter((r: any) => r.notes.length > 0 || r.title !== 'Maintenance Update') as any[];
+        return {
+          version,
+          date,
+          title,
+          notes: notes,
+        };
+      })
+      .filter(Boolean)
+      .filter((r: any) => r.notes.length > 0 || r.title !== 'Maintenance Update') as any[];
   } catch (e) {
     console.error('Failed to parse release notes', e);
     return [];
   }
 };
-
 
 import { CreateEntityModal } from './components/CreateEntityModal';
 import Footer from './components/Footer';
@@ -122,7 +188,7 @@ import Footer from './components/Footer';
 function App() {
   const location = useLocation();
   const navigate = useNavigate();
-  
+
   // Determine active tab from URL
   const getTabFromPath = (pathname: string): Tab => {
     if (pathname === '/' || pathname === '/people') return 'people';
@@ -141,10 +207,23 @@ function App() {
     if (pathname.startsWith('/flights')) return 'flights';
     return 'people'; // default
   };
-  
-  type Tab = 'people' | 'search' | 'documents' | 'media' | 'timeline' | 'flights' | 'investigations' | 'analytics' | 'blackbook' | 'about' | 'emails' | 'login' | 'admin';
+
+  type Tab =
+    | 'people'
+    | 'search'
+    | 'documents'
+    | 'media'
+    | 'timeline'
+    | 'flights'
+    | 'investigations'
+    | 'analytics'
+    | 'blackbook'
+    | 'about'
+    | 'emails'
+    | 'login'
+    | 'admin';
   const activeTab = getTabFromPath(location.pathname);
-  
+
   const [people, setPeople] = useState<Person[]>(() => {
     // Try to load first page from cache for instant render
     try {
@@ -153,7 +232,7 @@ function App() {
       localStorage.removeItem('epstein_archive_people_page1_v5_3_1');
       localStorage.removeItem('epstein_archive_stats');
       localStorage.removeItem('epstein_archive_stats_v5_3_1');
-      
+
       const cached = localStorage.getItem('epstein_archive_people_page1_v5_3_4');
       if (cached) {
         return JSON.parse(cached);
@@ -173,26 +252,31 @@ function App() {
   const [investigateAttract, setInvestigateAttract] = useState<boolean>(false);
   const [investigatePopoverOpen, setInvestigatePopoverOpen] = useState<boolean>(false);
   const investigateBtnRef = useRef<HTMLButtonElement | null>(null);
-  const [investigatePopoverPos, setInvestigatePopoverPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [investigatePopoverPos, setInvestigatePopoverPos] = useState<{ x: number; y: number }>({
+    x: 0,
+    y: 0,
+  });
   const [investigateArrowLeft, setInvestigateArrowLeft] = useState<number>(16);
   const [sortBy, setSortBy] = useState<'name' | 'mentions' | 'spice' | 'risk'>('spice');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [entityType, setEntityType] = useState<string>('all');
-  const [selectedRiskLevel, setSelectedRiskLevel] = useState<'HIGH' | 'MEDIUM' | 'LOW' | null>(null);
+  const [selectedRiskLevel, setSelectedRiskLevel] = useState<'HIGH' | 'MEDIUM' | 'LOW' | null>(
+    null,
+  );
   const [documentProcessor, setDocumentProcessor] = useState<DocumentProcessor | null>(null);
   const [documentsLoaded, setDocumentsLoaded] = useState(false);
   const [showReleaseNotes, setShowReleaseNotes] = useState(false);
   const [showCreateEntityModal, setShowCreateEntityModal] = useState(false);
   const parsedReleaseNotes = useMemo(() => parseReleaseNotes(releaseNotesRaw), []);
-  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);  
+  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
   // Use navigation context for shared state
   const navigation = useNavigation();
   const { searchTerm, setSearchTerm } = navigation;
-  
+
   // Search suggestions from API (not limited to current page)
   const [searchSuggestions, setSearchSuggestions] = useState<Person[]>([]);
   const [searchSuggestionsLoading, setSearchSuggestionsLoading] = useState(false);
-  
+
   // Fetch search suggestions from API when search term changes
   useEffect(() => {
     const fetchSuggestions = async () => {
@@ -200,7 +284,7 @@ function App() {
         setSearchSuggestions([]);
         return;
       }
-      
+
       setSearchSuggestionsLoading(true);
       try {
         const response = await fetch(`/api/search?q=${encodeURIComponent(searchTerm)}&limit=10`);
@@ -212,7 +296,7 @@ function App() {
           role: e.primaryRole || e.role || 'Unknown',
           mentions: e.mention_count || e.mentions || 0,
           red_flag_rating: e.red_flag_rating || e.redFlagRating || 0,
-          files: e.document_count || e.files || 0
+          files: e.document_count || e.files || 0,
         }));
         setSearchSuggestions(normalized);
       } catch (error) {
@@ -222,14 +306,13 @@ function App() {
         setSearchSuggestionsLoading(false);
       }
     };
-    
+
     const debounceTimeout = setTimeout(fetchSuggestions, 200);
     return () => clearTimeout(debounceTimeout);
   }, [searchTerm]);
-  
+
   // First run onboarding
   const { shouldShowOnboarding, completeOnboarding, skipOnboarding } = useFirstRunOnboarding();
-
 
   // Clear selected document when switching tabs
   useEffect(() => {
@@ -237,7 +320,7 @@ function App() {
       setSelectedDocumentId('');
     }
   }, [activeTab]);
-  
+
   // Load entity from URL on page load (for shareable links)
   useEffect(() => {
     const entityMatch = location.pathname.match(/^\/entity\/(\d+)/);
@@ -245,8 +328,8 @@ function App() {
       const entityId = parseInt(entityMatch[1], 10);
       // Fetch entity data from API
       fetch(`/api/entities/${entityId}`)
-        .then(res => res.json())
-        .then(data => {
+        .then((res) => res.json())
+        .then((data) => {
           if (data && data.id) {
             const person: Person = {
               id: data.id,
@@ -259,20 +342,20 @@ function App() {
               evidence_types: data.evidenceTypes || [],
               spicy_passages: [],
               likelihood_score: data.likelihoodLevel || 'MEDIUM',
-              fileReferences: []
+              fileReferences: [],
             };
             setSelectedPerson(person);
           }
         })
-        .catch(err => console.error('Error loading entity from URL:', err));
+        .catch((err) => console.error('Error loading entity from URL:', err));
     }
   }, [location.pathname, selectedPerson]);
-  
+
   // Update navigation context when search term changes
   useEffect(() => {
     // This will automatically sync with the navigation context
   }, [searchTerm]);
-  
+
   // Keyboard shortcuts for power users
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -280,7 +363,7 @@ function App() {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         return;
       }
-      
+
       // Ctrl/Cmd + K for search focus
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
@@ -297,7 +380,7 @@ function App() {
           setTimeout(() => document.body.removeChild(announcement), 1000);
         }
       }
-      
+
       // Ctrl/Cmd + 1-9 for tab navigation
       if (e.ctrlKey || e.metaKey) {
         const tabMap: Record<string, string> = {
@@ -309,9 +392,9 @@ function App() {
           '7': '/analytics',
           '8': '/blackbook',
           '9': '/about',
-          '0': '/admin'
+          '0': '/admin',
         };
-        
+
         if (tabMap[e.key]) {
           e.preventDefault();
           navigate(tabMap[e.key]);
@@ -325,7 +408,7 @@ function App() {
           setTimeout(() => document.body.removeChild(announcement), 1000);
         }
       }
-      
+
       // ESC to close modals
       if (e.key === 'Escape') {
         if (selectedPerson) {
@@ -363,7 +446,7 @@ function App() {
           setTimeout(() => document.body.removeChild(announcement), 1000);
         }
       }
-      
+
       // Ctrl/Cmd + Shift + R for refresh/reload
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'R') {
         e.preventDefault();
@@ -377,7 +460,7 @@ function App() {
         document.body.appendChild(announcement);
         setTimeout(() => document.body.removeChild(announcement), 1000);
       }
-      
+
       // Ctrl/Cmd + / for keyboard shortcuts help
       if ((e.ctrlKey || e.metaKey) && e.key === '/') {
         e.preventDefault();
@@ -392,7 +475,7 @@ function App() {
         setTimeout(() => document.body.removeChild(announcement), 1000);
       }
     };
-    
+
     document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
@@ -414,7 +497,7 @@ function App() {
       totalFiles: 0,
       highRisk: 0,
       mediumRisk: 0,
-      lowRisk: 0
+      lowRisk: 0,
     };
   });
 
@@ -440,7 +523,7 @@ function App() {
   const [dataService, setDataService] = useState<OptimizedDataService | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const { addToast } = useToasts()
+  const { addToast } = useToasts();
   useEffect(() => {
     // Initialize optimized data service
     const initializeDataService = async () => {
@@ -456,7 +539,7 @@ function App() {
         setDataService(service);
         setLoadingProgress('Loading subjects...');
         setLoadingProgressValue(30);
-        
+
         // Load first page of data
         console.log('About to load first page...');
         const result = await service.getPaginatedData({}, 1);
@@ -466,37 +549,37 @@ function App() {
           page: result.page,
           totalPages: result.totalPages,
           pageSize: result.pageSize,
-          firstPerson: result.data[0]
+          firstPerson: result.data[0],
         });
         setLoadingProgress(`Loaded ${result.data.length} subjects...`);
         setLoadingProgressValue(60);
         const normalized = (result.data || []).map((p: any) => ({
           ...p,
-          red_flag_rating: (p.red_flag_rating ?? p.redFlagRating ?? p.spiceRating ?? 0),
+          red_flag_rating: p.red_flag_rating ?? p.redFlagRating ?? p.spiceRating ?? 0,
           name: p.name ?? p.fullName ?? p.full_name,
           files: p.files ?? p.documentCount ?? 0,
-        }))
+        }));
         setPeople(normalized);
         setFilteredPeople(normalized);
         setCurrentPage(result.page);
         setTotalPages(result.totalPages);
         setTotalPeople(result.total);
-        
+
         // Cache first page for next load
         try {
           localStorage.setItem('epstein_archive_people_page1_v5_3_4', JSON.stringify(normalized));
         } catch (e) {
           console.error('Error caching people data:', e);
         }
-        
+
         // Enable virtual scrolling for large datasets (disabled for pagination)
         // setUseVirtualScroll(result.total > 100);
-        
+
         // We don't update stats here anymore to avoid double-updates/jumps
         // fetchGlobalStats will handle the authoritative stats
       } catch (error) {
         console.error('Error initializing data service:', error);
-        addToast({ text: 'Failed to load subjects', type: 'error' })
+        addToast({ text: 'Failed to load subjects', type: 'error' });
       } finally {
         setLoading(false);
         setIsInitializing(false);
@@ -504,7 +587,7 @@ function App() {
     };
 
     initializeDataService();
-    
+
     // Fetch global stats
     const fetchGlobalStats = async () => {
       try {
@@ -516,18 +599,21 @@ function App() {
         console.log('Global stats loaded:', stats);
         setLoadingProgress('Finalizing...');
         setLoadingProgressValue(90);
-        
-        const highRisk = stats.likelihoodDistribution.find((d: any) => d.level === 'HIGH')?.count || 0;
-        const mediumRisk = stats.likelihoodDistribution.find((d: any) => d.level === 'MEDIUM')?.count || 0;
-        const lowRisk = stats.likelihoodDistribution.find((d: any) => d.level === 'LOW')?.count || 0;
-        
+
+        const highRisk =
+          stats.likelihoodDistribution.find((d: any) => d.level === 'HIGH')?.count || 0;
+        const mediumRisk =
+          stats.likelihoodDistribution.find((d: any) => d.level === 'MEDIUM')?.count || 0;
+        const lowRisk =
+          stats.likelihoodDistribution.find((d: any) => d.level === 'LOW')?.count || 0;
+
         const newStats = {
           totalPeople: stats.totalEntities,
           totalMentions: stats.totalMentions,
           totalFiles: stats.totalDocuments,
           highRisk,
           mediumRisk,
-          lowRisk
+          lowRisk,
         };
 
         // Only update if changed to prevent animation restart
@@ -541,10 +627,10 @@ function App() {
         setLoadingProgressValue(100);
       } catch (error) {
         console.error('Error fetching global stats:', error);
-        addToast({ text: 'Failed to load statistics', type: 'error' })
+        addToast({ text: 'Failed to load statistics', type: 'error' });
       }
     };
-    
+
     fetchGlobalStats();
   }, []);
 
@@ -564,7 +650,7 @@ function App() {
       const dismissed = localStorage.getItem('investigate_popover_dismissed') === 'true';
       // Don't show if dismissed, not on people tab, onboarding is active, or on mobile (button hidden)
       const isMobile = window.innerWidth < 768;
-      
+
       if (!dismissed && activeTab === 'people' && !shouldShowOnboarding && !isMobile) {
         const timer = setTimeout(() => setInvestigatePopoverOpen(true), 1200);
         return () => clearTimeout(timer);
@@ -576,7 +662,10 @@ function App() {
 
   useEffect(() => {
     if (!investigatePopoverOpen) return;
-    const anchor = (document.querySelector('[data-investigation-nav-top]') as HTMLElement) || (document.querySelector('[data-investigation-nav]') as HTMLElement) || investigateBtnRef.current;
+    const anchor =
+      (document.querySelector('[data-investigation-nav-top]') as HTMLElement) ||
+      (document.querySelector('[data-investigation-nav]') as HTMLElement) ||
+      investigateBtnRef.current;
     if (anchor) {
       const rect = anchor.getBoundingClientRect();
       const x = Math.round(rect.left + window.scrollX);
@@ -591,7 +680,10 @@ function App() {
   useEffect(() => {
     const reposition = () => {
       if (investigatePopoverOpen) {
-        const anchor = (document.querySelector('[data-investigation-nav-top]') as HTMLElement) || (document.querySelector('[data-investigation-nav]') as HTMLElement) || investigateBtnRef.current;
+        const anchor =
+          (document.querySelector('[data-investigation-nav-top]') as HTMLElement) ||
+          (document.querySelector('[data-investigation-nav]') as HTMLElement) ||
+          investigateBtnRef.current;
         if (anchor) {
           const rect = anchor.getBoundingClientRect();
           const x = Math.round(rect.left + window.scrollX);
@@ -606,7 +698,11 @@ function App() {
     window.addEventListener('resize', reposition);
     window.addEventListener('scroll', reposition, { passive: true });
     const id = setInterval(reposition, 300); // defensive update in dynamic layouts
-    return () => { window.removeEventListener('resize', reposition); window.removeEventListener('scroll', reposition); clearInterval(id) };
+    return () => {
+      window.removeEventListener('resize', reposition);
+      window.removeEventListener('scroll', reposition);
+      clearInterval(id);
+    };
   }, [investigatePopoverOpen]);
 
   const [documentLoadingProgress, setDocumentLoadingProgress] = useState<string>('');
@@ -622,13 +718,13 @@ function App() {
         // Fetch recent documents for client-side processing
         // Reduced from 3000 to 500 to prevent browser timeout (was taking 20+ seconds)
         const response = await apiClient.getDocuments({}, 1, 500);
-        
+
         console.log('API response:', response);
-        
+
         if (!response || !response.data) {
           throw new Error('Invalid API response structure');
         }
-        
+
         if (response.data.length === 0) {
           throw new Error('No documents found in API response');
         }
@@ -643,7 +739,7 @@ function App() {
             const progress = 40 + Math.floor((index / response.data.length) * 40);
             setDocumentLoadingProgressValue(progress);
           }
-          
+
           return {
             id: doc.id,
             title: doc.fileName,
@@ -657,12 +753,12 @@ function App() {
               source: 'Epstein Files',
               confidentiality: 'Public',
               categories: [],
-              ...doc.metadata
+              ...doc.metadata,
             },
             entities: [], // Entities are loaded separately or on demand
             spiceRating: doc.spiceRating || 1,
             spicePeppers: '🌶️'.repeat(doc.spiceRating || 1),
-            spiceDescription: `Red Flag Index ${doc.spiceRating || 1}`
+            spiceDescription: `Red Flag Index ${doc.spiceRating || 1}`,
           };
         });
 
@@ -673,7 +769,6 @@ function App() {
         setDocumentLoadingProgress('Documents ready');
         setDocumentLoadingProgressValue(100);
         setDocumentProcessor(processor);
-        
       } catch (error) {
         console.error('Error loading documents:', error);
         console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
@@ -681,12 +776,15 @@ function App() {
         setDocumentLoadingProgress('Failed to load documents from server');
         setDocumentLoadingProgressValue(0);
         setDocumentProcessor(null);
-        addToast({ text: 'Could not load documents. Please check server connection.', type: 'error' });
+        addToast({
+          text: 'Could not load documents. Please check server connection.',
+          type: 'error',
+        });
       } finally {
         setDocumentsLoaded(true);
       }
     };
-    
+
     loadRealDocuments();
   }, []);
 
@@ -699,7 +797,7 @@ function App() {
         sortBy,
         sortOrder,
         entityType: entityType !== 'all' ? entityType : undefined,
-        likelihoodScore: selectedRiskLevel ? [selectedRiskLevel] : undefined
+        likelihoodScore: selectedRiskLevel ? [selectedRiskLevel] : undefined,
       };
 
       const result = await dataService.getPaginatedData(filters, currentPage);
@@ -708,16 +806,16 @@ function App() {
       setCurrentPage(result.page);
       setTotalPages(result.totalPages);
       setTotalPeople(result.total);
-      
+
       // Enable virtual scrolling for large filtered datasets (disabled for pagination)
       // setUseVirtualScroll(result.total > 100);
-      
+
       // Only update totalPeople count from search results, keep other global stats
       // unless we implement a specific filtered-stats endpoint
       if (filters.searchTerm) {
-         // If searching, we might want to update stats to reflect search results
-         // But for now, let's keep global stats in the header to avoid "0 files" issues
-         // or just update the total count
+        // If searching, we might want to update stats to reflect search results
+        // But for now, let's keep global stats in the header to avoid "0 files" issues
+        // or just update the total count
       }
     } catch (error) {
       console.error('Error searching and filtering:', error);
@@ -727,7 +825,7 @@ function App() {
   // Handler for risk level chip clicks
   const handleRiskLevelClick = useCallback((level: 'HIGH' | 'MEDIUM' | 'LOW') => {
     // Toggle: if clicking the same level, deselect it
-    setSelectedRiskLevel(prev => prev === level ? null : level);
+    setSelectedRiskLevel((prev) => (prev === level ? null : level));
     // Reset to page 1 when filter changes
     setCurrentPage(1);
   }, []);
@@ -749,7 +847,7 @@ function App() {
   const handlePageChange = async (newPage: number) => {
     if (newPage < 1 || newPage > totalPages) return;
     setCurrentPage(newPage);
-    
+
     // Prefetch next page for smoother experience
     if (dataService && newPage < totalPages) {
       const filters: SearchFilters = {
@@ -757,15 +855,15 @@ function App() {
         sortBy,
         sortOrder,
         entityType: entityType !== 'all' ? entityType : undefined,
-        likelihoodScore: selectedRiskLevel ? [selectedRiskLevel] : undefined
+        likelihoodScore: selectedRiskLevel ? [selectedRiskLevel] : undefined,
       };
-      
+
       // Prefetch next page in background
-      dataService.prefetchNextPage(filters, newPage).catch(error => {
+      dataService.prefetchNextPage(filters, newPage).catch((error) => {
         console.warn('Failed to prefetch next page:', error);
       });
     }
-    
+
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -779,7 +877,7 @@ function App() {
       // Get statistics from the data service
       const stats = await dataService.getStatistics();
       console.log('Analytics stats:', stats);
-      
+
       // Set the analytics data directly - the stats already match what DataVisualization expects
       setAnalyticsData(stats);
     } catch (error) {
@@ -805,26 +903,35 @@ function App() {
         sortBy,
         sortOrder,
         entityType: entityType !== 'all' ? entityType : undefined,
-        likelihoodScore: selectedRiskLevel ? [selectedRiskLevel] : undefined
+        likelihoodScore: selectedRiskLevel ? [selectedRiskLevel] : undefined,
       };
-      
+
       // Prefetch next page in background
-      dataService.prefetchNextPage(filters, currentPage).catch(error => {
+      dataService.prefetchNextPage(filters, currentPage).catch((error) => {
         console.warn('Failed to prefetch next page:', error);
       });
     }
-  }, [dataService, currentPage, totalPages, searchTerm, sortBy, sortOrder, entityType, selectedRiskLevel]);
+  }, [
+    dataService,
+    currentPage,
+    totalPages,
+    searchTerm,
+    sortBy,
+    sortOrder,
+    entityType,
+    selectedRiskLevel,
+  ]);
 
   const handlePersonClick = useCallback((person: Person, searchTerm?: string) => {
     console.log('Person clicked:', person.name, 'Search term:', searchTerm);
     setSelectedPerson(person);
     setSearchTermForModal(searchTerm || '');
-    
+
     // Update URL for shareable link
     if (person.id) {
       window.history.pushState({}, '', `/entity/${person.id}`);
     }
-    
+
     // Announce navigation for screen readers
     const announcement = document.createElement('div');
     announcement.setAttribute('aria-live', 'polite');
@@ -840,12 +947,12 @@ function App() {
     console.log('Document clicked:', document);
     console.log('document.id:', document?.id);
     console.log('Search term:', searchTerm);
-    
+
     // Open inline document modal first; keep person modal to avoid race/unmount issues
     const docId = document?.id?.toString() || '';
     setDocumentModalId(docId);
     setDocumentModalInitial(document || null);
-    
+
     // Set the search term for highlighting
     console.log('Setting selectedDocumentSearchTerm to:', searchTerm);
     if (searchTerm) {
@@ -855,10 +962,10 @@ function App() {
       console.log('No searchTerm provided, clearing selectedDocumentSearchTerm');
       setSelectedDocumentSearchTerm('');
     }
-    
+
     // Keep legacy path as fallback for browser tab
     setSelectedDocumentId(docId);
-    
+
     // Announce navigation for screen readers
     const announcement = document.createElement('div');
     announcement.setAttribute('aria-live', 'polite');
@@ -867,18 +974,21 @@ function App() {
     announcement.textContent = `Opening document ${document?.title || 'untitled'}`;
     document.body.appendChild(announcement);
     setTimeout(() => document.body.removeChild(announcement), 1000);
-    
+
     console.log('=== handleDocumentClick END ===');
   }, []);
 
-  const handleDocumentsUploaded = useCallback((count: number) => {
-    console.log(`Uploaded and processed ${count} documents`);
-    // Refresh the document processor if needed
-    if (documentProcessor) {
-      // The DocumentBrowser will automatically update when the processor changes
-      console.log('Document processor updated with new documents');
-    }
-  }, [documentProcessor]);
+  const handleDocumentsUploaded = useCallback(
+    (count: number) => {
+      console.log(`Uploaded and processed ${count} documents`);
+      // Refresh the document processor if needed
+      if (documentProcessor) {
+        // The DocumentBrowser will automatically update when the processor changes
+        console.log('Document processor updated with new documents');
+      }
+    },
+    [documentProcessor],
+  );
 
   const { user: currentUser, isAdmin } = useAuth();
 
@@ -887,809 +997,985 @@ function App() {
       <UndoProvider>
         <InvestigationsProvider>
           <div className="min-h-screen bg-gradient-to-br from-gray-950 via-slate-900 to-black relative overflow-x-hidden overflow-y-auto flex flex-col">
-        {shouldShowOnboarding && (
-          <FirstRunOnboarding
-            onComplete={completeOnboarding}
-            onSkip={skipOnboarding}
-          />
-        )}
-
-      {/* Skip links for accessibility */}
-      <div className="sr-only">
-        <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:p-4 focus:bg-slate-900 focus:text-white z-50">Skip to main content</a>
-        <a href="#navigation" className="sr-only focus:not-sr-only focus:absolute focus:p-4 focus:bg-slate-900 focus:text-white z-50 mt-10">Skip to navigation</a>
-      </div>
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-cyan-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse animation-delay-2000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-pulse animation-delay-4000"></div>
-
-        {/* Grid pattern overlay */}
-        <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none"></div>
-
-        {/* Floating particles */}
-        <div className="absolute inset-0 pointer-events-none">
-          {[...Array(20)].map((_, i) => (
-            <div
-              key={`particle-${i}-${Date.now()}`}
-              className="absolute w-1 h-1 bg-cyan-400 rounded-full opacity-30 animate-ping"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 5}s`,
-                animationDuration: `${2 + Math.random() * 3}s`
-              }}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Header */}
-      <header className="bg-slate-900/80 backdrop-blur-sm border-b border-slate-700 sticky top-0 z-40 transition-all duration-300">
-        <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row items-center justify-between py-2 min-h-[64px] gap-4">
-            
-            {/* LEFT: Logo and Stats */}
-            <div className="flex items-center gap-6">
-              {/* Logo */}
-              <Link to="/" className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
-                <div className="bg-gradient-to-br from-cyan-500 to-blue-600 p-2 rounded-lg shadow-lg shadow-cyan-500/20 flex-shrink-0">
-                  <Icon name="Database" size="md" color="white" />
-                </div>
-                <RedactedLogo text="THE EPSTEIN FILES" />
-              </Link>
-
-              {/* Stats - Desktop only */}
-              <div className="hidden lg:flex items-center space-x-4 ml-4 pl-4 border-l border-slate-700/50">
-                <div className="flex flex-col items-start px-2 gap-0.5">
-                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Subjects</span>
-                  <span className="text-sm font-bold text-cyan-400 font-mono">{headerTotalPeople.toLocaleString()}</span>
-                </div>
-                <div className="flex flex-col items-start px-2 gap-0.5">
-                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Mentions</span>
-                  <span className="text-sm font-bold text-blue-400 font-mono">{headerTotalMentions.toLocaleString()}</span>
-                </div>
-                <div className="flex flex-col items-start px-2 gap-0.5">
-                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Files</span>
-                  <span className="text-sm font-bold text-purple-400 font-mono">{headerTotalFiles.toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* RIGHT: Actions and Search */}
-            <div className="flex items-center gap-3 w-full md:w-auto">
-              
-              {/* Button Group */}
-              <div className="hidden md:flex items-center gap-2 mr-2">
-                {/* New Investigation */}
-                <button
-                  onClick={() => navigate('/investigations')}
-                  className="group flex items-center bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 rounded-full h-10 pl-2.5 pr-2.5 hover:pr-4 transition-all duration-300"
-                  title="New Investigation"
-                >
-                  <Icon name="Plus" size="sm" color="white" />
-                  <span className="max-w-0 group-hover:max-w-xs overflow-hidden transition-all duration-300 opacity-0 group-hover:opacity-100 whitespace-nowrap text-sm text-white ml-0 group-hover:ml-2">
-                    New
-                  </span>
-                </button>
-
-                {/* Shortcuts */}
-                <button
-                  onClick={() => setShowKeyboardShortcuts(true)}
-                  className="group flex items-center bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 rounded-full h-10 pl-2.5 pr-2.5 hover:pr-4 transition-all duration-300"
-                  title="Keyboard Shortcuts"
-                >
-                  <Icon name="Command" size="sm" color="info" />
-                  <span className="max-w-0 group-hover:max-w-xs overflow-hidden transition-all duration-300 opacity-0 group-hover:opacity-100 whitespace-nowrap text-sm text-white ml-0 group-hover:ml-2">
-                    Shortcuts
-                  </span>
-                </button>
-
-               {/* Sources */}
-                <div className="group relative">
-                  <button
-                    onClick={() => navigate('/about')}
-                   className="group flex items-center bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 rounded-full h-10 pl-2.5 pr-2.5 hover:pr-4 transition-all duration-300"
-                   title="Verified Sources"
-                  >
-                    <Icon name="Shield" size="sm" color="success" />
-                    <span className="max-w-0 group-hover:max-w-xs overflow-hidden transition-all duration-300 opacity-0 group-hover:opacity-100 whitespace-nowrap text-sm text-white ml-0 group-hover:ml-2">
-                      Sources
-                    </span>
-                  </button>
-                    {/* Tooltip Panel */}
-                    <div className="absolute hidden group-hover:block z-50 right-0 top-full mt-2 w-80 bg-slate-900 border border-slate-700 rounded-lg p-4 shadow-xl transition-opacity duration-300">
-                      <div className="text-sm font-semibold text-white mb-2">Verified Sources</div>
-                      <div className="text-xs text-slate-300 space-y-2">
-                        <div>
-                          <div className="font-medium text-emerald-400 mb-1">Source Types:</div>
-                          <ul className="list-disc list-inside space-y-1 text-slate-400">
-                            <li>Court Documents & Legal Filings</li>
-                            <li>Flight Logs & Travel Records</li>
-                            <li>Email Correspondence</li>
-                            <li>Deposition Transcripts</li>
-                            <li>Financial Records</li>
-                            <li>Photographic Evidence</li>
-                          </ul>
-                        </div>
-                        <div className="pt-2 border-t border-slate-700">
-                          <div className="font-medium text-cyan-400">Total Documents: {headerTotalFiles.toLocaleString()}</div>
-                          <div className="text-slate-500 mt-1">All sources verified through public court records and official filings</div>
-                        </div>
-                      </div>
-                    </div>
-                </div>
-
-                {/* What's New */}
-                <button
-                  onClick={() => setShowReleaseNotes(true)}
-                  className="group flex items-center bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 rounded-full h-10 pl-2.5 pr-2.5 hover:pr-4 transition-all duration-300"
-                  title="What's New"
-                >
-                  <Icon name="Book" size="sm" color="info" />
-                  <span className="max-w-0 group-hover:max-w-xs overflow-hidden transition-all duration-300 opacity-0 group-hover:opacity-100 whitespace-nowrap text-sm text-white ml-0 group-hover:ml-2">
-                    What's New
-                  </span>
-                </button>
-
-                {/* Admin Dashboard */}
-                {isAdmin && (
-                  <button
-                    onClick={() => navigate('/admin')}
-                    className="group flex items-center bg-blue-900/40 hover:bg-blue-800/40 border border-blue-700/50 rounded-full h-10 pl-2.5 pr-2.5 hover:pr-4 transition-all duration-300"
-                    title="Admin Dashboard"
-                  >
-                    <Icon name="Shield" size="sm" className="text-blue-400" />
-                    <span className="max-w-0 group-hover:max-w-xs overflow-hidden transition-all duration-300 opacity-0 group-hover:opacity-100 whitespace-nowrap text-sm text-blue-100 ml-0 group-hover:ml-2">
-                      Admin
-                    </span>
-                  </button>
-                )}
-              </div>
-
-              {/* Search Bar */}
-              <div className="relative flex-1 md:flex-none">
-                <Icon name="Search" size="sm" color="gray" className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Search evidence..."
-                  className="w-full md:w-64 pl-9 pr-4 py-2 bg-slate-800/80 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 text-sm transition-all focus:w-full md:focus:w-80"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                 {searchTerm.trim().length >= 2 && (
-                  <div className="absolute right-0 mt-1 w-full md:w-96 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
-                    <div className="p-2 text-xs text-slate-400 border-b border-slate-700">Search results for "{searchTerm}"</div>
-                    {searchSuggestionsLoading ? (
-                      <div className="px-3 py-4 text-sm text-slate-400 flex items-center gap-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-cyan-400"></div>
-                        Searching...
-                      </div>
-                    ) : searchSuggestions.length > 0 ? (
-                      searchSuggestions.slice(0, 8).map((p, i) => (
-                        <button key={`sugg-${p.id}-${i}`} className="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-800 flex items-center gap-2" onClick={() => handlePersonClick(p, searchTerm)}>
-                          <Icon name="User" size="sm" color="gray" />
-                          <span className="truncate flex-1">{p.name}</span>
-                          <span className="text-xs text-slate-500">{p.role !== 'Unknown' ? p.role : 'Subject'}</span>
-                        </button>
-                      ))
-                    ) : (
-                      <div className="px-3 py-2 text-sm text-slate-400">No subjects found</div>
-                    )}
-                    <div className="border-t border-slate-700 mt-1 pt-1">
-                      <button 
-                        className="w-full text-left px-3 py-2 text-sm text-cyan-400 hover:bg-slate-800 flex items-center gap-2"
-                        onClick={() => navigate(`/search?q=${encodeURIComponent(searchTerm)}`)}
-                      >
-                        <Icon name="Search" size="sm" />
-                        <span>Search all documents for "{searchTerm}"</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-              {/* Mobile Menu Toggle */}
-              <button 
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="md:hidden p-2 text-slate-400 hover:text-white"
-              >
-                {isMobileMenuOpen ? <Icon name="X" size="sm" /> : <Icon name="Menu" size="sm" />}
-              </button>
-            </div>
-
-          </div>
-        </div>
-      </header>
-
-      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8 relative z-10 flex-grow overflow-hidden">
-        {/* Mobile Stats Row */}
-        <div className="md:hidden grid grid-cols-3 gap-2 mb-6 text-center">
-          <button 
-            onClick={() => navigate('/search')}
-            className="bg-slate-800/50 border border-slate-700 rounded-lg p-2 hover:bg-slate-700/50 transition-colors cursor-pointer"
-          >
-            <div className="text-xs text-slate-400 uppercase tracking-wider">Subjects</div>
-            <div className="text-lg font-bold text-cyan-400">{headerTotalPeople.toLocaleString()}</div>
-          </button>
-          <button 
-            onClick={() => navigate('/search')}
-            className="bg-slate-800/50 border border-slate-700 rounded-lg p-2 hover:bg-slate-700/50 transition-colors cursor-pointer"
-          >
-            <div className="text-xs text-slate-400 uppercase tracking-wider">Mentions</div>
-            <div className="text-lg font-bold text-blue-400">{headerTotalMentions.toLocaleString()}</div>
-          </button>
-          <button 
-            onClick={() => navigate('/documents')}
-            className="bg-slate-800/50 border border-slate-700 rounded-lg p-2 hover:bg-slate-700/50 transition-colors cursor-pointer"
-          >
-            <div className="text-xs text-slate-400 uppercase tracking-wider">Files</div>
-            <div className="text-lg font-bold text-purple-400">{headerTotalFiles.toLocaleString()}</div>
-          </button>
-        </div>
-        {/* Simple loading indicator - no text labels */}
-        <LoadingIndicator 
-          isLoading={isInitializing || (!documentsLoaded && activeTab === 'documents') || analyticsLoading}
-          label={isInitializing ? loadingProgress : (!documentsLoaded && activeTab === 'documents') ? documentLoadingProgress : undefined}
-        />
-        {/* Navigation Tabs - Flexbox Layout for Edge-to-Edge with Content-Proportional Widths */}
-        <div className="hidden md:flex flex-nowrap gap-1 mb-6 text-sm font-medium w-full">
-          <div className="relative group flex-auto">
-            <button
-              onClick={() => navigate('/people')}
-              className={`w-full h-full flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
-                activeTab === 'people'
-                  ? 'bg-gradient-to-r from-cyan-600 to-cyan-500 text-white border border-cyan-400/50 shadow-cyan-500/20'
-                  : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-              }`}
-            >
-              <Icon name="Users" size="sm" />
-              <span className="truncate">Subjects</span>
-            </button>
-            {/* Help Tooltip */}
-            <div className="absolute hidden group-hover:block z-50 left-0 top-full mt-2 w-80 bg-slate-900 border border-slate-700 rounded-lg p-4 shadow-xl">
-              <div className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
-                <Icon name="HelpCircle" size="sm" color="info" />
-                What are Subjects?
-              </div>
-              <div className="text-xs text-slate-300 space-y-2">
-                <p>Subjects are individuals or entities mentioned in the Epstein archive documents. Each subject has:</p>
-                <ul className="list-disc list-inside space-y-1 text-slate-400 ml-2">
-                  <li><strong className="text-cyan-400">Red Flag Index (RFI)</strong>: Risk rating from 1-5 based on mention context</li>
-                  <li><strong className="text-cyan-400">Mentions</strong>: Number of document references</li>
-                  <li><strong className="text-cyan-400">Evidence Types</strong>: Categories of supporting documents</li>
-                </ul>
-                <p className="text-slate-500 pt-1 border-t border-slate-700 mt-2">Click any subject card to view their full profile and connected evidence.</p>
-              </div>
-            </div>
-          </div>
-          <button
-            onClick={() => navigate('/search')}
-            className={`flex-auto flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
-              activeTab === 'search'
-                ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white border border-emerald-400/50 shadow-emerald-500/20'
-                : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-            }`}
-          >
-            <Icon name="Search" size="sm" />
-            <span className="truncate">Search</span>
-          </button>
-          <button
-            onClick={() => navigate('/documents')}
-            className={`flex-auto flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
-              activeTab === 'documents'
-                ? 'bg-gradient-to-r from-red-600 to-red-500 text-white border border-red-400/50 shadow-red-500/20'
-                : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-            }`}
-          >
-            <Icon name="FileText" size="sm" />
-            <span className="truncate">Documents</span>
-          </button>
-          <div className="relative flex-auto">
-            <button
-              onClick={() => { try { localStorage.setItem('investigate_attract_shown','true'); localStorage.setItem('investigate_popover_dismissed','true'); } catch (e) { console.warn('localStorage not available:', e); } setInvestigateAttract(false); setInvestigatePopoverOpen(false); navigate('/investigations'); }}
-              className={`w-full flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
-                activeTab === 'investigations'
-                  ? 'bg-gradient-to-r from-pink-600 to-pink-500 text-white border border-pink-400/50 shadow-pink-500/20'
-                  : `bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm ${investigateAttract ? 'ring-2 ring-pink-500 shadow-lg shadow-pink-500/30 animate-pulse' : ''}`
-              }`}
-              aria-haspopup="dialog"
-              aria-expanded={investigatePopoverOpen}
-              ref={investigateBtnRef}
-              data-investigation-nav-top
-            >
-              <Icon name="Target" size="sm" />
-              <span className="truncate">Investigations</span>
-            </button>
-            {investigatePopoverOpen && activeTab !== 'investigations' && createPortal(
-              <div className="fixed w-[320px] bg-slate-900 border border-pink-500/40 rounded-xl shadow-xl p-4" style={{ left: investigatePopoverPos.x, top: investigatePopoverPos.y, zIndex: 2147483647 }}>
-                <div className="absolute -top-2" style={{ left: `${investigateArrowLeft}px` }}>
-                  <div className="w-4 h-4 bg-slate-900 border border-pink-500/40 rotate-45"></div>
-                </div>
-                <div className="text-white font-semibold mb-1">Investigations</div>
-                <div className="text-slate-300 text-sm mb-3">Create and manage deep-dive investigations, link evidence, and track findings.</div>
-                <div className="flex items-center gap-2">
-                  <button
-                    className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 hover:bg-slate-700"
-                    onClick={() => { try { localStorage.setItem('investigate_popover_dismissed','true'); } catch (e) { console.warn('localStorage not available:', e); } setInvestigatePopoverOpen(false); setInvestigateAttract(false); }}
-                  >
-                    Got it
-                  </button>
-                  <button
-                    className="px-3 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-lg"
-                    onClick={() => { try { localStorage.setItem('investigate_popover_dismissed','true'); localStorage.setItem('investigate_attract_shown','true'); } catch (e) { console.warn('localStorage not available:', e); } setInvestigatePopoverOpen(false); setInvestigateAttract(false); navigate('/investigations'); }}
-                  >
-                    Try it
-                  </button>
-                </div>
-              </div>,
-              document.body
+            {shouldShowOnboarding && (
+              <FirstRunOnboarding onComplete={completeOnboarding} onSkip={skipOnboarding} />
             )}
-          </div>
-          <button
-            onClick={() => navigate('/blackbook')}
-            onMouseEnter={() => preloader.prefetchJson('/api/media/albums')}
-            className={`flex-auto flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
-              activeTab === 'blackbook'
-                ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-white border border-amber-400/50 shadow-amber-500/20'
-                : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-            }`}
-          >
-            <Icon name="BookOpen" size="sm" />
-            <span className="truncate">Black Book</span>
-          </button>
-          <button
-            onClick={() => navigate('/timeline')}
-            onMouseEnter={() => preloader.prefetchJson('/api/timeline')}
-            className={`flex-auto flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
-              activeTab === 'timeline'
-                ? 'bg-gradient-to-r from-orange-600 to-orange-500 text-white border border-orange-400/50 shadow-orange-500/20'
-                : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-            }`}
-          >
-            <Icon name="Clock" size="sm" />
-            <span className="truncate">Timeline</span>
-          </button>
-          <button
-            onClick={() => navigate('/media')}
-            onMouseEnter={() => {
-              preloader.prefetchJson('/api/media/albums');
-              preloader.prefetchJson('/api/media/images?limit=24');
-            }}
-            className={`flex-auto flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
-              activeTab === 'media'
-                ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white border border-indigo-400/50 shadow-indigo-500/20'
-                : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-            }`}
-          >
-            <Icon name="Newspaper" size="sm" />
-            <span className="truncate">Media</span>
-          </button>
 
-          <button
-            onClick={() => navigate('/emails')}
-            onMouseEnter={() => preloader.prefetchJson('/api/emails')}
-            className={`flex-auto flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
-              activeTab === 'emails'
-                ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white border border-blue-400/50 shadow-blue-500/20'
-                : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-            }`}
-          >
-            <Icon name="Mail" size="sm" />
-            <span className="truncate">Emails</span>
-          </button>
+            {/* Skip links for accessibility */}
+            <div className="sr-only">
+              <a
+                href="#main-content"
+                className="sr-only focus:not-sr-only focus:absolute focus:p-4 focus:bg-slate-900 focus:text-white z-50"
+              >
+                Skip to main content
+              </a>
+              <a
+                href="#navigation"
+                className="sr-only focus:not-sr-only focus:absolute focus:p-4 focus:bg-slate-900 focus:text-white z-50 mt-10"
+              >
+                Skip to navigation
+              </a>
+            </div>
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              <div className="absolute -top-40 -right-40 w-80 h-80 bg-cyan-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"></div>
+              <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse animation-delay-2000"></div>
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-pulse animation-delay-4000"></div>
 
-          <button
-            onClick={() => navigate('/analytics')}
-            className={`flex-auto flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
-              activeTab === 'analytics'
-                ? 'bg-gradient-to-r from-purple-600 to-purple-500 text-white border border-purple-400/50 shadow-purple-500/20'
-                : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-            }`}
-          >
-            <Icon name="BarChart3" size="sm" />
-            <span className="truncate">Analytics</span>
-          </button>
-          <button
-            onClick={() => navigate('/about')}
-            className={`flex-auto px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg flex items-center justify-center gap-2 ${
-              activeTab === 'about'
-                ? 'bg-gradient-to-r from-cyan-600 to-cyan-500 text-white border border-cyan-400/50 shadow-cyan-500/20'
-                : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-            }`}
-          >
-            <Icon name="Shield" size="sm" />
-            <span className="truncate">About</span>
-          </button>
-        </div>
-        <MobileMenu
-          open={isMobileMenuOpen}
-          searchTerm={searchTerm}
-          onSearchTermChange={setSearchTerm}
-          onNavigate={(p) => navigate(p)}
-          onClose={() => setIsMobileMenuOpen(false)}
-        />
+              {/* Grid pattern overlay */}
+              <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none"></div>
 
-        {/* Tab Content */}
-        <div id="main-content" className="flex-grow">
-        {/* Breadcrumb navigation */}
-        <div className="mb-4 px-4 md:px-0">
-          <Breadcrumb 
-            items={[
-              { label: 'Home', href: '/' },
-              { label: activeTab.charAt(0).toUpperCase() + activeTab.slice(1) }
-            ]} 
-          />
-        </div>
-        <div className="view-transition-enter view-transition-enter-active">
-        <Suspense fallback={
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
-          </div>
-        }>
-          {activeTab === 'people' && (
-            <div className="space-y-6">
-              {/* Stats Overview - Using Real Data */}
-              {loading && !dataStats.totalPeople ? (
-                <StatsSkeleton />
-              ) : (
-                <StatsDisplay 
-                  stats={dataStats} 
-                  selectedRiskLevel={selectedRiskLevel}
-                  onRiskLevelClick={handleRiskLevelClick}
-                  onResetFilters={handleResetFilters}
-                />
-              )}
+              {/* Floating particles */}
+              <div className="absolute inset-0 pointer-events-none">
+                {[...Array(20)].map((_, i) => (
+                  <div
+                    key={`particle-${i}-${Date.now()}`}
+                    className="absolute w-1 h-1 bg-cyan-400 rounded-full opacity-30 animate-ping"
+                    style={{
+                      left: `${Math.random() * 100}%`,
+                      top: `${Math.random() * 100}%`,
+                      animationDelay: `${Math.random() * 5}s`,
+                      animationDuration: `${2 + Math.random() * 3}s`,
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
 
-              {/* Filters and Controls - Mobile-first layout */}
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-3">
-                {/* Results info - Hidden on mobile */}
-                <div className="hidden md:flex items-center gap-2">
-                  <Icon name="Users" size="md" color="info" className="flex-shrink-0" />
-                  <p className="text-slate-400 text-sm">
-                    {totalPeople.toLocaleString()} subjects
-                    {totalPages > 1 && ` • Page ${currentPage}/${totalPages}`}
-                  </p>
-                </div>
-                
-                {/* Controls - Always visible, compact on mobile */}
-                <div className="w-full md:w-auto grid grid-cols-[1fr_1fr_auto] gap-2 md:flex md:items-center font-sans">
-                  {/* Add Subject - Only for admin/moderator users */}
-                  {isAdmin && (
-                    <button
-                      onClick={() => setShowCreateEntityModal(true)}
-                      className="hidden md:flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium shadow-lg shadow-blue-500/20"
+            {/* Header */}
+            <header className="bg-slate-900/80 backdrop-blur-sm border-b border-slate-700 sticky top-0 z-40 transition-all duration-300">
+              <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex flex-col md:flex-row items-center justify-between py-2 min-h-[64px] gap-4">
+                  {/* LEFT: Logo and Stats */}
+                  <div className="flex items-center gap-6">
+                    {/* Logo */}
+                    <Link
+                      to="/"
+                      className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
                     >
-                      <Icon name="Plus" size="sm" />
-                       <span className="hidden sm:inline">Add Subject</span>
-                    </button>
-                  )}
+                      <div className="bg-gradient-to-br from-cyan-500 to-blue-600 p-2 rounded-lg shadow-lg shadow-cyan-500/20 flex-shrink-0">
+                        <Icon name="Database" size="md" color="white" />
+                      </div>
+                      <RedactedLogo text="THE EPSTEIN FILES" />
+                    </Link>
 
-                  {/* Entity Type Filter */}
-                  <EntityTypeFilter
-                    value={entityType}
-                    onChange={setEntityType}
-                    className="w-full md:w-auto"
-                  />
-                  
-                  {/* Sort Dropdown - No label on mobile */}
-                  <SortFilter
-                    value={sortBy}
-                    onChange={(val) => setSortBy(val as any)}
-                    options={[
-                      { value: 'spice', label: 'Red Flag', icon: <div className="w-4 h-4 flex items-center justify-center text-base leading-none">🚩</div> },
-                      { value: 'mentions', label: 'Mentions', icon: <div className="w-4 h-4 flex items-center justify-center text-base leading-none">📊</div> },
-                      { value: 'risk', label: 'Risk', icon: <div className="w-4 h-4 flex items-center justify-center text-base leading-none">⚠️</div> },
-                      { value: 'name', label: 'Name', icon: <div className="w-4 h-4 flex items-center justify-center text-base leading-none">👤</div> }
-                    ]}
-                    className="w-full md:w-auto"
-                  />
-                  
-                  {/* Sort Order Toggle */}
-                  <button
-                    onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                    className="h-10 w-10 flex items-center justify-center bg-slate-800 border border-slate-600 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors shrink-0"
-                    title={`Sort ${sortOrder === 'asc' ? 'Descending' : 'Ascending'}`}
-                  >
-                    {sortOrder === 'asc' ? '↑' : '↓'}
-                  </button>
+                    {/* Stats - Desktop only */}
+                    <div className="hidden lg:flex items-center space-x-4 ml-4 pl-4 border-l border-slate-700/50">
+                      <div className="flex flex-col items-start px-2 gap-0.5">
+                        <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
+                          Subjects
+                        </span>
+                        <span className="text-sm font-bold text-cyan-400 font-mono">
+                          {headerTotalPeople.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-start px-2 gap-0.5">
+                        <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
+                          Mentions
+                        </span>
+                        <span className="text-sm font-bold text-blue-400 font-mono">
+                          {headerTotalMentions.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-start px-2 gap-0.5">
+                        <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
+                          Files
+                        </span>
+                        <span className="text-sm font-bold text-purple-400 font-mono">
+                          {headerTotalFiles.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* RIGHT: Actions and Search */}
+                  <div className="flex items-center gap-3 w-full md:w-auto">
+                    {/* Button Group */}
+                    <div className="hidden md:flex items-center gap-2 mr-2">
+                      {/* New Investigation */}
+                      <button
+                        onClick={() => navigate('/investigations')}
+                        className="group flex items-center bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 rounded-full h-10 pl-2.5 pr-2.5 hover:pr-4 transition-all duration-300"
+                        title="New Investigation"
+                      >
+                        <Icon name="Plus" size="sm" color="white" />
+                        <span className="max-w-0 group-hover:max-w-xs overflow-hidden transition-all duration-300 opacity-0 group-hover:opacity-100 whitespace-nowrap text-sm text-white ml-0 group-hover:ml-2">
+                          New
+                        </span>
+                      </button>
+
+                      {/* Shortcuts */}
+                      <button
+                        onClick={() => setShowKeyboardShortcuts(true)}
+                        className="group flex items-center bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 rounded-full h-10 pl-2.5 pr-2.5 hover:pr-4 transition-all duration-300"
+                        title="Keyboard Shortcuts"
+                      >
+                        <Icon name="Command" size="sm" color="info" />
+                        <span className="max-w-0 group-hover:max-w-xs overflow-hidden transition-all duration-300 opacity-0 group-hover:opacity-100 whitespace-nowrap text-sm text-white ml-0 group-hover:ml-2">
+                          Shortcuts
+                        </span>
+                      </button>
+
+                      {/* Sources */}
+                      <div className="group relative">
+                        <button
+                          onClick={() => navigate('/about')}
+                          className="group flex items-center bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 rounded-full h-10 pl-2.5 pr-2.5 hover:pr-4 transition-all duration-300"
+                          title="Verified Sources"
+                        >
+                          <Icon name="Shield" size="sm" color="success" />
+                          <span className="max-w-0 group-hover:max-w-xs overflow-hidden transition-all duration-300 opacity-0 group-hover:opacity-100 whitespace-nowrap text-sm text-white ml-0 group-hover:ml-2">
+                            Sources
+                          </span>
+                        </button>
+                        {/* Tooltip Panel */}
+                        <div className="absolute hidden group-hover:block z-50 right-0 top-full mt-2 w-80 bg-slate-900 border border-slate-700 rounded-lg p-4 shadow-xl transition-opacity duration-300">
+                          <div className="text-sm font-semibold text-white mb-2">
+                            Verified Sources
+                          </div>
+                          <div className="text-xs text-slate-300 space-y-2">
+                            <div>
+                              <div className="font-medium text-emerald-400 mb-1">Source Types:</div>
+                              <ul className="list-disc list-inside space-y-1 text-slate-400">
+                                <li>Court Documents & Legal Filings</li>
+                                <li>Flight Logs & Travel Records</li>
+                                <li>Email Correspondence</li>
+                                <li>Deposition Transcripts</li>
+                                <li>Financial Records</li>
+                                <li>Photographic Evidence</li>
+                              </ul>
+                            </div>
+                            <div className="pt-2 border-t border-slate-700">
+                              <div className="font-medium text-cyan-400">
+                                Total Documents: {headerTotalFiles.toLocaleString()}
+                              </div>
+                              <div className="text-slate-500 mt-1">
+                                All sources verified through public court records and official
+                                filings
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* What's New */}
+                      <button
+                        onClick={() => setShowReleaseNotes(true)}
+                        className="group flex items-center bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 rounded-full h-10 pl-2.5 pr-2.5 hover:pr-4 transition-all duration-300"
+                        title="What's New"
+                      >
+                        <Icon name="Book" size="sm" color="info" />
+                        <span className="max-w-0 group-hover:max-w-xs overflow-hidden transition-all duration-300 opacity-0 group-hover:opacity-100 whitespace-nowrap text-sm text-white ml-0 group-hover:ml-2">
+                          What's New
+                        </span>
+                      </button>
+
+                      {/* Admin Dashboard */}
+                      {isAdmin && (
+                        <button
+                          onClick={() => navigate('/admin')}
+                          className="group flex items-center bg-blue-900/40 hover:bg-blue-800/40 border border-blue-700/50 rounded-full h-10 pl-2.5 pr-2.5 hover:pr-4 transition-all duration-300"
+                          title="Admin Dashboard"
+                        >
+                          <Icon name="Shield" size="sm" className="text-blue-400" />
+                          <span className="max-w-0 group-hover:max-w-xs overflow-hidden transition-all duration-300 opacity-0 group-hover:opacity-100 whitespace-nowrap text-sm text-blue-100 ml-0 group-hover:ml-2">
+                            Admin
+                          </span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Search Bar */}
+                    <div className="relative flex-1 md:flex-none">
+                      <Icon
+                        name="Search"
+                        size="sm"
+                        color="gray"
+                        className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Search evidence..."
+                        className="w-full md:w-64 pl-9 pr-4 py-2 bg-slate-800/80 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 text-sm transition-all focus:w-full md:focus:w-80"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                      {searchTerm.trim().length >= 2 && (
+                        <div className="absolute right-0 mt-1 w-full md:w-96 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
+                          <div className="p-2 text-xs text-slate-400 border-b border-slate-700">
+                            Search results for "{searchTerm}"
+                          </div>
+                          {searchSuggestionsLoading ? (
+                            <div className="px-3 py-4 text-sm text-slate-400 flex items-center gap-2">
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-cyan-400"></div>
+                              Searching...
+                            </div>
+                          ) : searchSuggestions.length > 0 ? (
+                            searchSuggestions.slice(0, 8).map((p, i) => (
+                              <button
+                                key={`sugg-${p.id}-${i}`}
+                                className="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-800 flex items-center gap-2"
+                                onClick={() => handlePersonClick(p, searchTerm)}
+                              >
+                                <Icon name="User" size="sm" color="gray" />
+                                <span className="truncate flex-1">{p.name}</span>
+                                <span className="text-xs text-slate-500">
+                                  {p.role !== 'Unknown' ? p.role : 'Subject'}
+                                </span>
+                              </button>
+                            ))
+                          ) : (
+                            <div className="px-3 py-2 text-sm text-slate-400">
+                              No subjects found
+                            </div>
+                          )}
+                          <div className="border-t border-slate-700 mt-1 pt-1">
+                            <button
+                              className="w-full text-left px-3 py-2 text-sm text-cyan-400 hover:bg-slate-800 flex items-center gap-2"
+                              onClick={() =>
+                                navigate(`/search?q=${encodeURIComponent(searchTerm)}`)
+                              }
+                            >
+                              <Icon name="Search" size="sm" />
+                              <span>Search all documents for "{searchTerm}"</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Mobile Menu Toggle */}
+                    <button
+                      onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                      className="md:hidden p-2 text-slate-400 hover:text-white"
+                    >
+                      {isMobileMenuOpen ? (
+                        <Icon name="X" size="sm" />
+                      ) : (
+                        <Icon name="Menu" size="sm" />
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
+            </header>
 
-              {/* People Grid - Use virtualization for large datasets */}
-              {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {/* Show 12 skeletons while loading to match 3-column grid */}
-                  {[...Array(12)].map((_, index) => (
-                    <PersonCardSkeleton key={`skeleton-${index}`} />
-                  ))}
+            <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8 relative z-10 flex-grow overflow-hidden">
+              {/* Mobile Stats Row */}
+              <div className="md:hidden grid grid-cols-3 gap-2 mb-6 text-center">
+                <button
+                  onClick={() => navigate('/search')}
+                  className="bg-slate-800/50 border border-slate-700 rounded-lg p-2 hover:bg-slate-700/50 transition-colors cursor-pointer"
+                >
+                  <div className="text-xs text-slate-400 uppercase tracking-wider">Subjects</div>
+                  <div className="text-lg font-bold text-cyan-400">
+                    {headerTotalPeople.toLocaleString()}
+                  </div>
+                </button>
+                <button
+                  onClick={() => navigate('/search')}
+                  className="bg-slate-800/50 border border-slate-700 rounded-lg p-2 hover:bg-slate-700/50 transition-colors cursor-pointer"
+                >
+                  <div className="text-xs text-slate-400 uppercase tracking-wider">Mentions</div>
+                  <div className="text-lg font-bold text-blue-400">
+                    {headerTotalMentions.toLocaleString()}
+                  </div>
+                </button>
+                <button
+                  onClick={() => navigate('/documents')}
+                  className="bg-slate-800/50 border border-slate-700 rounded-lg p-2 hover:bg-slate-700/50 transition-colors cursor-pointer"
+                >
+                  <div className="text-xs text-slate-400 uppercase tracking-wider">Files</div>
+                  <div className="text-lg font-bold text-purple-400">
+                    {headerTotalFiles.toLocaleString()}
+                  </div>
+                </button>
+              </div>
+              {/* Simple loading indicator - no text labels */}
+              <LoadingIndicator
+                isLoading={
+                  isInitializing ||
+                  (!documentsLoaded && activeTab === 'documents') ||
+                  analyticsLoading
+                }
+                label={
+                  isInitializing
+                    ? loadingProgress
+                    : !documentsLoaded && activeTab === 'documents'
+                      ? documentLoadingProgress
+                      : undefined
+                }
+              />
+              {/* Navigation Tabs - Flexbox Layout for Edge-to-Edge with Content-Proportional Widths */}
+              <div className="hidden md:flex flex-nowrap gap-1 mb-6 text-sm font-medium w-full">
+                <div className="relative group flex-auto">
+                  <button
+                    onClick={() => navigate('/people')}
+                    className={`w-full h-full flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
+                      activeTab === 'people'
+                        ? 'bg-gradient-to-r from-cyan-600 to-cyan-500 text-white border border-cyan-400/50 shadow-cyan-500/20'
+                        : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
+                    }`}
+                  >
+                    <Icon name="Users" size="sm" />
+                    <span className="truncate">Subjects</span>
+                  </button>
+                  {/* Help Tooltip */}
+                  <div className="absolute hidden group-hover:block z-50 left-0 top-full mt-2 w-80 bg-slate-900 border border-slate-700 rounded-lg p-4 shadow-xl">
+                    <div className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
+                      <Icon name="HelpCircle" size="sm" color="info" />
+                      What are Subjects?
+                    </div>
+                    <div className="text-xs text-slate-300 space-y-2">
+                      <p>
+                        Subjects are individuals or entities mentioned in the Epstein archive
+                        documents. Each subject has:
+                      </p>
+                      <ul className="list-disc list-inside space-y-1 text-slate-400 ml-2">
+                        <li>
+                          <strong className="text-cyan-400">Red Flag Index (RFI)</strong>: Risk
+                          rating from 1-5 based on mention context
+                        </li>
+                        <li>
+                          <strong className="text-cyan-400">Mentions</strong>: Number of document
+                          references
+                        </li>
+                        <li>
+                          <strong className="text-cyan-400">Evidence Types</strong>: Categories of
+                          supporting documents
+                        </li>
+                      </ul>
+                      <p className="text-slate-500 pt-1 border-t border-slate-700 mt-2">
+                        Click any subject card to view their full profile and connected evidence.
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              ) : filteredPeople.length > 100 ? (
-                // Use virtual list for large datasets
-                <div className="h-[600px]">
-                  <VirtualList
-                    items={filteredPeople}
-                    itemHeight={300}
-                    containerHeight={600}
-                    renderItem={(person, index) => (
-                      <div className="p-2">
-                        <PersonCard 
-                          key={`${person.name}-${index}`} 
-                          person={person} 
-                          onClick={() => handlePersonClick(person, searchTerm)}
-                          searchTerm={searchTerm}
-                          onDocumentClick={handleDocumentClick}
-                        />
+                <button
+                  onClick={() => navigate('/search')}
+                  className={`flex-auto flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
+                    activeTab === 'search'
+                      ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white border border-emerald-400/50 shadow-emerald-500/20'
+                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
+                  }`}
+                >
+                  <Icon name="Search" size="sm" />
+                  <span className="truncate">Search</span>
+                </button>
+                <button
+                  onClick={() => navigate('/documents')}
+                  className={`flex-auto flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
+                    activeTab === 'documents'
+                      ? 'bg-gradient-to-r from-red-600 to-red-500 text-white border border-red-400/50 shadow-red-500/20'
+                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
+                  }`}
+                >
+                  <Icon name="FileText" size="sm" />
+                  <span className="truncate">Documents</span>
+                </button>
+                <div className="relative flex-auto">
+                  <button
+                    onClick={() => {
+                      try {
+                        localStorage.setItem('investigate_attract_shown', 'true');
+                        localStorage.setItem('investigate_popover_dismissed', 'true');
+                      } catch (e) {
+                        console.warn('localStorage not available:', e);
+                      }
+                      setInvestigateAttract(false);
+                      setInvestigatePopoverOpen(false);
+                      navigate('/investigations');
+                    }}
+                    className={`w-full flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
+                      activeTab === 'investigations'
+                        ? 'bg-gradient-to-r from-pink-600 to-pink-500 text-white border border-pink-400/50 shadow-pink-500/20'
+                        : `bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm ${investigateAttract ? 'ring-2 ring-pink-500 shadow-lg shadow-pink-500/30 animate-pulse' : ''}`
+                    }`}
+                    aria-haspopup="dialog"
+                    aria-expanded={investigatePopoverOpen}
+                    ref={investigateBtnRef}
+                    data-investigation-nav-top
+                  >
+                    <Icon name="Target" size="sm" />
+                    <span className="truncate">Investigations</span>
+                  </button>
+                  {investigatePopoverOpen &&
+                    activeTab !== 'investigations' &&
+                    createPortal(
+                      <div
+                        className="fixed w-[320px] bg-slate-900 border border-pink-500/40 rounded-xl shadow-xl p-4"
+                        style={{
+                          left: investigatePopoverPos.x,
+                          top: investigatePopoverPos.y,
+                          zIndex: 2147483647,
+                        }}
+                      >
+                        <div
+                          className="absolute -top-2"
+                          style={{ left: `${investigateArrowLeft}px` }}
+                        >
+                          <div className="w-4 h-4 bg-slate-900 border border-pink-500/40 rotate-45"></div>
+                        </div>
+                        <div className="text-white font-semibold mb-1">Investigations</div>
+                        <div className="text-slate-300 text-sm mb-3">
+                          Create and manage deep-dive investigations, link evidence, and track
+                          findings.
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 hover:bg-slate-700"
+                            onClick={() => {
+                              try {
+                                localStorage.setItem('investigate_popover_dismissed', 'true');
+                              } catch (e) {
+                                console.warn('localStorage not available:', e);
+                              }
+                              setInvestigatePopoverOpen(false);
+                              setInvestigateAttract(false);
+                            }}
+                          >
+                            Got it
+                          </button>
+                          <button
+                            className="px-3 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-lg"
+                            onClick={() => {
+                              try {
+                                localStorage.setItem('investigate_popover_dismissed', 'true');
+                                localStorage.setItem('investigate_attract_shown', 'true');
+                              } catch (e) {
+                                console.warn('localStorage not available:', e);
+                              }
+                              setInvestigatePopoverOpen(false);
+                              setInvestigateAttract(false);
+                              navigate('/investigations');
+                            }}
+                          >
+                            Try it
+                          </button>
+                        </div>
+                      </div>,
+                      document.body,
+                    )}
+                </div>
+                <button
+                  onClick={() => navigate('/blackbook')}
+                  onMouseEnter={() => preloader.prefetchJson('/api/media/albums')}
+                  className={`flex-auto flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
+                    activeTab === 'blackbook'
+                      ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-white border border-amber-400/50 shadow-amber-500/20'
+                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
+                  }`}
+                >
+                  <Icon name="BookOpen" size="sm" />
+                  <span className="truncate">Black Book</span>
+                </button>
+                <button
+                  onClick={() => navigate('/timeline')}
+                  onMouseEnter={() => preloader.prefetchJson('/api/timeline')}
+                  className={`flex-auto flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
+                    activeTab === 'timeline'
+                      ? 'bg-gradient-to-r from-orange-600 to-orange-500 text-white border border-orange-400/50 shadow-orange-500/20'
+                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
+                  }`}
+                >
+                  <Icon name="Clock" size="sm" />
+                  <span className="truncate">Timeline</span>
+                </button>
+                <button
+                  onClick={() => navigate('/media')}
+                  onMouseEnter={() => {
+                    preloader.prefetchJson('/api/media/albums');
+                    preloader.prefetchJson('/api/media/images?limit=24');
+                  }}
+                  className={`flex-auto flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
+                    activeTab === 'media'
+                      ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white border border-indigo-400/50 shadow-indigo-500/20'
+                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
+                  }`}
+                >
+                  <Icon name="Newspaper" size="sm" />
+                  <span className="truncate">Media</span>
+                </button>
+
+                <button
+                  onClick={() => navigate('/emails')}
+                  onMouseEnter={() => preloader.prefetchJson('/api/emails')}
+                  className={`flex-auto flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
+                    activeTab === 'emails'
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white border border-blue-400/50 shadow-blue-500/20'
+                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
+                  }`}
+                >
+                  <Icon name="Mail" size="sm" />
+                  <span className="truncate">Emails</span>
+                </button>
+
+                <button
+                  onClick={() => navigate('/analytics')}
+                  className={`flex-auto flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
+                    activeTab === 'analytics'
+                      ? 'bg-gradient-to-r from-purple-600 to-purple-500 text-white border border-purple-400/50 shadow-purple-500/20'
+                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
+                  }`}
+                >
+                  <Icon name="BarChart3" size="sm" />
+                  <span className="truncate">Analytics</span>
+                </button>
+                <button
+                  onClick={() => navigate('/about')}
+                  className={`flex-auto px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg flex items-center justify-center gap-2 ${
+                    activeTab === 'about'
+                      ? 'bg-gradient-to-r from-cyan-600 to-cyan-500 text-white border border-cyan-400/50 shadow-cyan-500/20'
+                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
+                  }`}
+                >
+                  <Icon name="Shield" size="sm" />
+                  <span className="truncate">About</span>
+                </button>
+              </div>
+              <MobileMenu
+                open={isMobileMenuOpen}
+                searchTerm={searchTerm}
+                onSearchTermChange={setSearchTerm}
+                onNavigate={(p) => navigate(p)}
+                onClose={() => setIsMobileMenuOpen(false)}
+              />
+
+              {/* Tab Content */}
+              <div id="main-content" className="flex-grow">
+                {/* Breadcrumb navigation */}
+                <div className="mb-4 px-4 md:px-0">
+                  <Breadcrumb
+                    items={[
+                      { label: 'Home', href: '/' },
+                      { label: activeTab.charAt(0).toUpperCase() + activeTab.slice(1) },
+                    ]}
+                  />
+                </div>
+                <div className="view-transition-enter view-transition-enter-active">
+                  <Suspense
+                    fallback={
+                      <div className="flex items-center justify-center h-64">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
+                      </div>
+                    }
+                  >
+                    {activeTab === 'people' && (
+                      <div className="space-y-6">
+                        {/* Stats Overview - Using Real Data */}
+                        {loading && !dataStats.totalPeople ? (
+                          <StatsSkeleton />
+                        ) : (
+                          <StatsDisplay
+                            stats={dataStats}
+                            selectedRiskLevel={selectedRiskLevel}
+                            onRiskLevelClick={handleRiskLevelClick}
+                            onResetFilters={handleResetFilters}
+                          />
+                        )}
+
+                        {/* Filters and Controls - Mobile-first layout */}
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-3">
+                          {/* Results info - Hidden on mobile */}
+                          <div className="hidden md:flex items-center gap-2">
+                            <Icon name="Users" size="md" color="info" className="flex-shrink-0" />
+                            <p className="text-slate-400 text-sm">
+                              {totalPeople.toLocaleString()} subjects
+                              {totalPages > 1 && ` • Page ${currentPage}/${totalPages}`}
+                            </p>
+                          </div>
+
+                          {/* Controls - Always visible, compact on mobile */}
+                          <div className="w-full md:w-auto grid grid-cols-[1fr_1fr_auto] gap-2 md:flex md:items-center font-sans">
+                            {/* Add Subject - Only for admin/moderator users */}
+                            {isAdmin && (
+                              <button
+                                onClick={() => setShowCreateEntityModal(true)}
+                                className="hidden md:flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium shadow-lg shadow-blue-500/20"
+                              >
+                                <Icon name="Plus" size="sm" />
+                                <span className="hidden sm:inline">Add Subject</span>
+                              </button>
+                            )}
+
+                            {/* Entity Type Filter */}
+                            <EntityTypeFilter
+                              value={entityType}
+                              onChange={setEntityType}
+                              className="w-full md:w-auto"
+                            />
+
+                            {/* Sort Dropdown - No label on mobile */}
+                            <SortFilter
+                              value={sortBy}
+                              onChange={(val) => setSortBy(val as any)}
+                              options={[
+                                {
+                                  value: 'spice',
+                                  label: 'Red Flag',
+                                  icon: (
+                                    <div className="w-4 h-4 flex items-center justify-center text-base leading-none">
+                                      🚩
+                                    </div>
+                                  ),
+                                },
+                                {
+                                  value: 'mentions',
+                                  label: 'Mentions',
+                                  icon: (
+                                    <div className="w-4 h-4 flex items-center justify-center text-base leading-none">
+                                      📊
+                                    </div>
+                                  ),
+                                },
+                                {
+                                  value: 'risk',
+                                  label: 'Risk',
+                                  icon: (
+                                    <div className="w-4 h-4 flex items-center justify-center text-base leading-none">
+                                      ⚠️
+                                    </div>
+                                  ),
+                                },
+                                {
+                                  value: 'name',
+                                  label: 'Name',
+                                  icon: (
+                                    <div className="w-4 h-4 flex items-center justify-center text-base leading-none">
+                                      👤
+                                    </div>
+                                  ),
+                                },
+                              ]}
+                              className="w-full md:w-auto"
+                            />
+
+                            {/* Sort Order Toggle */}
+                            <button
+                              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                              className="h-10 w-10 flex items-center justify-center bg-slate-800 border border-slate-600 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors shrink-0"
+                              title={`Sort ${sortOrder === 'asc' ? 'Descending' : 'Ascending'}`}
+                            >
+                              {sortOrder === 'asc' ? '↑' : '↓'}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* People Grid - Use virtualization for large datasets */}
+                        {loading ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                            {/* Show 12 skeletons while loading to match 3-column grid */}
+                            {[...Array(12)].map((_, index) => (
+                              <PersonCardSkeleton key={`skeleton-${index}`} />
+                            ))}
+                          </div>
+                        ) : filteredPeople.length > 100 ? (
+                          // Use virtual list for large datasets
+                          <div className="h-[600px]">
+                            <VirtualList
+                              items={filteredPeople}
+                              itemHeight={300}
+                              containerHeight={600}
+                              renderItem={(person, index) => (
+                                <div className="p-2">
+                                  <PersonCard
+                                    key={`${person.name}-${index}`}
+                                    person={person}
+                                    onClick={() => handlePersonClick(person, searchTerm)}
+                                    searchTerm={searchTerm}
+                                    onDocumentClick={handleDocumentClick}
+                                  />
+                                </div>
+                              )}
+                              onItemClick={(person) => handlePersonClick(person, searchTerm)}
+                            />
+                          </div>
+                        ) : (
+                          // Use grid layout for smaller datasets
+                          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                            {filteredPeople.map((person, index) => (
+                              <PersonCard
+                                key={`${person.name}-${index}`}
+                                person={person}
+                                onClick={() => handlePersonClick(person, searchTerm)}
+                                searchTerm={searchTerm}
+                                onDocumentClick={handleDocumentClick}
+                              />
+                            ))}
+                          </div>
+                        )}
+
+                        {!loading && filteredPeople.length === 0 && (
+                          <div className="text-center py-12">
+                            <Icon name="Users" size="xl" color="gray" className="mx-auto mb-4" />
+                            <h3 className="text-lg font-medium text-slate-300 mb-2">
+                              No results found
+                            </h3>
+                            <p className="text-slate-400">Try adjusting your search terms</p>
+                          </div>
+                        )}
+
+                        {/* Pagination Controls */}
+                        {totalPages > 1 && (
+                          <div className="flex items-center justify-center space-x-4 mt-8">
+                            <button
+                              onClick={() => handlePageChange(currentPage - 1)}
+                              disabled={currentPage === 1}
+                              className="flex items-center space-x-2 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 transition-colors btn-secondary"
+                            >
+                              <Icon name="ChevronLeft" size="sm" />
+                              <span>Previous</span>
+                            </button>
+
+                            <div className="flex items-center space-x-2">
+                              <span className="text-slate-400">Page</span>
+                              <span className="text-white font-medium">{currentPage}</span>
+                              <span className="text-slate-400">of</span>
+                              <span className="text-white font-medium">{totalPages}</span>
+                            </div>
+
+                            <button
+                              onClick={() => handlePageChange(currentPage + 1)}
+                              disabled={currentPage === totalPages}
+                              className="flex items-center space-x-2 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 transition-colors btn-secondary"
+                            >
+                              <span>Next</span>
+                              <Icon name="ChevronRight" size="sm" />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
-                    onItemClick={(person) => handlePersonClick(person, searchTerm)}
-                  />
-                </div>
-              ) : (
-                // Use grid layout for smaller datasets
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {filteredPeople.map((person, index) => (
-                    <PersonCard 
-                      key={`${person.name}-${index}`} 
-                      person={person} 
-                      onClick={() => handlePersonClick(person, searchTerm)}
-                      searchTerm={searchTerm}
-                      onDocumentClick={handleDocumentClick}
-                    />
-                  ))}
-                </div>
-              )}
 
-              {!loading && filteredPeople.length === 0 && (
-                <div className="text-center py-12">
-                  <Icon name="Users" size="xl" color="gray" className="mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-slate-300 mb-2">No results found</h3>
-                  <p className="text-slate-400">Try adjusting your search terms</p>
-                </div>
-              )}
+                    {activeTab === 'analytics' && (
+                      <ScopedErrorBoundary>
+                        <div className="space-y-8">
+                          <div className="mb-8">
+                            <h2 className="text-3xl font-bold text-white mb-2">
+                              Enhanced Analytics
+                            </h2>
+                            <p className="text-slate-400">
+                              Interactive visualizations of the Epstein Investigation dataset
+                            </p>
+                          </div>
+                          <EnhancedAnalytics
+                            onEntitySelect={(entityId) => {
+                              const person = filteredPeople.find((p) => Number(p.id) === entityId);
+                              if (person) {
+                                setSelectedPerson(person);
+                                setSearchTermForModal('');
+                              }
+                            }}
+                            onTypeFilter={(type) => {
+                              // Could filter to documents tab with this type
+                              console.log('Filter by type:', type);
+                            }}
+                          />
 
-              {/* Pagination Controls */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-center space-x-4 mt-8">
-                  <button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className="flex items-center space-x-2 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 transition-colors btn-secondary"
-                  >
-                    <Icon name="ChevronLeft" size="sm" />
-                    <span>Previous</span>
-                  </button>
-                  
-                  <div className="flex items-center space-x-2">
-                    <span className="text-slate-400">Page</span>
-                    <span className="text-white font-medium">{currentPage}</span>
-                    <span className="text-slate-400">of</span>
-                    <span className="text-white font-medium">{totalPages}</span>
-                  </div>
-                  
-                  <button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className="flex items-center space-x-2 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 transition-colors btn-secondary"
-                  >
-                    <span>Next</span>
-                    <Icon name="ChevronRight" size="sm" />
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
+                          {/* Classic Analytics - Always Visible */}
+                          <div className="glass-card p-6 rounded-xl">
+                            <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">
+                                Classic Analytics
+                              </span>
+                            </h3>
+                            <DataVisualization
+                              people={filteredPeople}
+                              analyticsData={analyticsData}
+                              loading={analyticsLoading}
+                              error={analyticsError}
+                              onRetry={fetchAnalyticsData}
+                              onPersonSelect={(person) => {
+                                setSelectedPerson(person);
+                                setSearchTermForModal('');
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </ScopedErrorBoundary>
+                    )}
 
-          {activeTab === 'analytics' && (
-            <ScopedErrorBoundary>
-            <div className="space-y-8">
-              <div className="mb-8">
-                <h2 className="text-3xl font-bold text-white mb-2">Enhanced Analytics</h2>
-                <p className="text-slate-400">
-                  Interactive visualizations of the Epstein Investigation dataset
-                </p>
+                    {activeTab === 'search' && <EvidenceSearch onPersonClick={handlePersonClick} />}
+
+                    {activeTab === 'documents' && (
+                      <div className="space-y-6">
+                        {documentProcessor && (
+                          <DocumentBrowser
+                            processor={documentProcessor}
+                            searchTerm={selectedDocumentSearchTerm}
+                            onSearchTermChange={setSelectedDocumentSearchTerm}
+                            selectedDocumentId={selectedDocumentId}
+                            onDocumentClose={() => {
+                              setSelectedDocumentId('');
+                              setSelectedDocumentSearchTerm('');
+                            }}
+                          />
+                        )}
+                      </div>
+                    )}
+                    {activeTab === 'timeline' && <TimelineWithFlights />}
+
+                    {activeTab === 'flights' && (
+                      <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-700/50">
+                        <FlightTracker />
+                      </div>
+                    )}
+
+                    {activeTab === 'emails' && (
+                      <div className="h-full">
+                        <EmailClient />
+                      </div>
+                    )}
+
+                    {activeTab === 'media' && (
+                      <ScopedErrorBoundary>
+                        <MediaAndArticlesTab />
+                      </ScopedErrorBoundary>
+                    )}
+
+                    {activeTab === 'about' && <AboutPage />}
+
+                    {activeTab === 'login' && <LoginPage />}
+
+                    {activeTab === 'admin' && <AdminDashboard />}
+
+                    {activeTab === 'investigations' &&
+                      (() => {
+                        // Extract investigation ID from URL path (e.g., /investigations/maxwell-epstein-network-001)
+                        const pathParts = location.pathname.split('/');
+                        const investigationIdFromUrl =
+                          pathParts.length > 2 && pathParts[1] === 'investigations' && pathParts[2]
+                            ? pathParts[2]
+                            : undefined;
+                        return (
+                          <InvestigationWorkspace
+                            investigationId={investigationIdFromUrl}
+                            currentUser={
+                              currentUser
+                                ? {
+                                    id: currentUser.id,
+                                    name: currentUser.username,
+                                    email: currentUser.email || 'investigator@example.com',
+                                    role: isAdmin ? 'lead' : 'analyst',
+                                    permissions: ['read', 'write', ...(isAdmin ? ['admin'] : [])],
+                                    joinedAt: new Date(),
+                                    expertise: ['investigative journalism', 'data analysis'],
+                                  }
+                                : {
+                                    id: 'guest',
+                                    name: 'Guest',
+                                    email: 'guest@example.com',
+                                    role: 'analyst',
+                                    permissions: ['read'],
+                                    joinedAt: new Date(),
+                                    expertise: [],
+                                  }
+                            }
+                          />
+                        );
+                      })()}
+
+                    {activeTab === 'blackbook' && (
+                      <div className="mt-6">
+                        <Suspense
+                          fallback={
+                            <div className="flex items-center justify-center h-64">
+                              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500"></div>
+                            </div>
+                          }
+                        >
+                          <BlackBookViewer />
+                        </Suspense>
+                      </div>
+                    )}
+                  </Suspense>
+                </div>
               </div>
-              <EnhancedAnalytics 
-                onEntitySelect={(entityId) => {
-                  const person = filteredPeople.find(p => Number(p.id) === entityId);
-                  if (person) {
-                    setSelectedPerson(person);
-                    setSearchTermForModal('');
+            </div>
+
+            {/* Evidence Modal */}
+            <Suspense
+              fallback={
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
+                </div>
+              }
+            >
+              {selectedPerson && (
+                <ScopedErrorBoundary>
+                  <EvidenceModal
+                    person={selectedPerson}
+                    onClose={() => {
+                      setSelectedPerson(null);
+                      window.history.pushState({}, '', '/people');
+                    }}
+                    searchTerm={searchTermForModal}
+                    onDocumentClick={handleDocumentClick}
+                  />
+                </ScopedErrorBoundary>
+              )}
+            </Suspense>
+            {/* Inline Document Modal */}
+            <Suspense fallback={null}>
+              {documentModalId && (
+                <DocumentModal
+                  id={documentModalId}
+                  searchTerm={selectedDocumentSearchTerm}
+                  initialDoc={documentModalInitial}
+                  onClose={() => {
+                    setDocumentModalId('');
+                    setDocumentModalInitial(null);
+                  }}
+                />
+              )}
+            </Suspense>
+
+            <Suspense fallback={null}>
+              <ReleaseNotesPanel
+                isOpen={showReleaseNotes}
+                onClose={() => setShowReleaseNotes(false)}
+                releaseNotes={parsedReleaseNotes}
+              />
+            </Suspense>
+
+            {/* Keyboard Shortcuts Modal */}
+            <KeyboardShortcutsModal
+              isOpen={showKeyboardShortcuts}
+              onClose={() => setShowKeyboardShortcuts(false)}
+            />
+
+            {showCreateEntityModal && (
+              <CreateEntityModal
+                onClose={() => setShowCreateEntityModal(false)}
+                onSuccess={() => {
+                  // Refresh data
+                  if (dataService) {
+                    dataService
+                      .getPaginatedData(
+                        {
+                          searchTerm: searchTerm.trim() || undefined,
+                          sortBy,
+                          sortOrder,
+                          entityType: entityType !== 'all' ? entityType : undefined,
+                          likelihoodScore: selectedRiskLevel ? [selectedRiskLevel] : undefined,
+                        },
+                        currentPage,
+                      )
+                      .then((result) => {
+                        setPeople(result.data);
+                        setFilteredPeople(result.data);
+                        setTotalPages(result.totalPages);
+                        setTotalPeople(result.total);
+                      });
                   }
                 }}
-                onTypeFilter={(type) => {
-                  // Could filter to documents tab with this type
-                  console.log('Filter by type:', type);
-                }}
               />
-              
-              {/* Classic Analytics - Always Visible */}
-              <div className="glass-card p-6 rounded-xl">
-                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">
-                    Classic Analytics
-                  </span>
-                </h3>
-                <DataVisualization 
-                  people={filteredPeople} 
-                  analyticsData={analyticsData}
-                  loading={analyticsLoading}
-                  error={analyticsError}
-                  onRetry={fetchAnalyticsData}
-                  onPersonSelect={(person) => {
-                    setSelectedPerson(person);
-                    setSearchTermForModal('');
-                  }}
-                />
-              </div>
-            </div>
-            </ScopedErrorBoundary>
-          )}
+            )}
 
-          {activeTab === 'search' && (
-            <EvidenceSearch onPersonClick={handlePersonClick} />
-          )}
-
-          {activeTab === 'documents' && (
-            <div className="space-y-6">
-              {documentProcessor && (
-                <DocumentBrowser 
-                  processor={documentProcessor} 
-                  searchTerm={selectedDocumentSearchTerm}
-                  onSearchTermChange={setSelectedDocumentSearchTerm}
-                  selectedDocumentId={selectedDocumentId}
-                  onDocumentClose={() => {
-                    setSelectedDocumentId('');
-                    setSelectedDocumentSearchTerm('');
-                  }}
-                />
-              )}
-            </div>
-          )}
-          {activeTab === 'timeline' && (
-            <TimelineWithFlights />
-          )}
-
-          {activeTab === 'flights' && (
-            <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-700/50">
-              <FlightTracker />
-            </div>
-          )}
-
-          {activeTab === 'emails' && (
-            <div className="h-full">
-               <EmailClient />
-            </div>
-          )}
-
-          {activeTab === 'media' && (
-            <ScopedErrorBoundary>
-              <MediaAndArticlesTab />
-            </ScopedErrorBoundary>
-          )}
-
-
-
-          {activeTab === 'about' && (
-            <AboutPage />
-          )}
-
-
-
-          {activeTab === 'login' && (
-            <LoginPage />
-          )}
-
-          {activeTab === 'admin' && (
-            <AdminDashboard />
-          )}
-
-          {activeTab === 'investigations' && (() => {
-            // Extract investigation ID from URL path (e.g., /investigations/maxwell-epstein-network-001)
-            const pathParts = location.pathname.split('/');
-            const investigationIdFromUrl = pathParts.length > 2 && pathParts[1] === 'investigations' && pathParts[2] ? pathParts[2] : undefined;
-            return (
-              <InvestigationWorkspace 
-                investigationId={investigationIdFromUrl}
-                currentUser={currentUser ? {
-                   id: currentUser.id,
-                   name: currentUser.username,
-                   email: currentUser.email || 'investigator@example.com',
-                   role: isAdmin ? 'lead' : 'analyst',
-                   permissions: ['read', 'write', ...(isAdmin ? ['admin'] : [])],
-                   joinedAt: new Date(),
-                   expertise: ['investigative journalism', 'data analysis']
-                } : {
-                  id: 'guest', 
-                  name: 'Guest', 
-                  email: 'guest@example.com', 
-                  role: 'analyst', 
-                  permissions: ['read'], 
-                  joinedAt: new Date(),
-                  expertise: []
-                }}
-              />
-            );
-          })()}
-
-          {activeTab === 'blackbook' && (
-            <div className="mt-6">
-              <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500"></div></div>}>
-                <BlackBookViewer />
-              </Suspense>
-            </div>
-          )}
-        </Suspense>
-        </div>
-      </div>
-      </div>
-
-      {/* Evidence Modal */}
-      <Suspense fallback={
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
-        </div>
-      }>
-        {selectedPerson && (
-          <ScopedErrorBoundary>
-            <EvidenceModal
-              person={selectedPerson}
-              onClose={() => { setSelectedPerson(null); window.history.pushState({}, '', '/people'); }}
-              searchTerm={searchTermForModal}
-              onDocumentClick={handleDocumentClick}
-            />
-          </ScopedErrorBoundary>
-        )}
-      </Suspense>
-      {/* Inline Document Modal */}
-      <Suspense fallback={null}>
-        {documentModalId && (
-          <DocumentModal id={documentModalId} searchTerm={selectedDocumentSearchTerm} initialDoc={documentModalInitial} onClose={() => { setDocumentModalId(''); setDocumentModalInitial(null); }} />
-        )}
-      </Suspense>
-      
-      <Suspense fallback={null}>
-        <ReleaseNotesPanel
-          isOpen={showReleaseNotes}
-          onClose={() => setShowReleaseNotes(false)}
-          releaseNotes={parsedReleaseNotes}
-        />
-      </Suspense>
-    
-      {/* Keyboard Shortcuts Modal */}
-      <KeyboardShortcutsModal
-        isOpen={showKeyboardShortcuts}
-        onClose={() => setShowKeyboardShortcuts(false)}
-      />
-
-      {showCreateEntityModal && (
-        <CreateEntityModal
-          onClose={() => setShowCreateEntityModal(false)}
-          onSuccess={() => {
-            // Refresh data
-            if (dataService) {
-              dataService.getPaginatedData({
-                searchTerm: searchTerm.trim() || undefined,
-                sortBy,
-                sortOrder,
-                entityType: entityType !== 'all' ? entityType : undefined,
-                likelihoodScore: selectedRiskLevel ? [selectedRiskLevel] : undefined
-              }, currentPage).then(result => {
-                setPeople(result.data);
-                setFilteredPeople(result.data);
-                setTotalPages(result.totalPages);
-                setTotalPeople(result.total);
-              });
-            }
-          }}
-        />
-      )}
-
-      <Footer onVersionClick={() => setShowReleaseNotes(true)} />
-    </div>
-  </InvestigationsProvider>
-</UndoProvider>
-</ToastProvider>
+            <Footer onVersionClick={() => setShowReleaseNotes(true)} />
+          </div>
+        </InvestigationsProvider>
+      </UndoProvider>
+    </ToastProvider>
   );
 }
 

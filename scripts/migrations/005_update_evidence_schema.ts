@@ -1,4 +1,3 @@
-
 import Database from 'better-sqlite3';
 import path from 'path';
 
@@ -19,7 +18,7 @@ try {
     'evidence_tags TEXT',
     'word_count INTEGER DEFAULT 0',
     'file_size INTEGER DEFAULT 0',
-    'content_hash TEXT' // We will migrate file_hash to content_hash
+    'content_hash TEXT', // We will migrate file_hash to content_hash
   ];
 
   for (const col of columnsToAdd) {
@@ -38,7 +37,6 @@ try {
   // Migrate file_hash to content_hash if content_hash is empty
   db.prepare('UPDATE evidence SET content_hash = file_hash WHERE content_hash IS NULL').run();
   console.log('Migrated file_hash to content_hash');
-
 } catch (error) {
   console.error('Migration failed:', error);
 } finally {

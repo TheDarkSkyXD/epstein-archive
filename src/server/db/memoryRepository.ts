@@ -11,7 +11,7 @@ import {
   CreateMemoryQualityMetricsInput,
   MemorySearchFilters,
   MemorySearchResult,
-  ProvenanceInfo
+  ProvenanceInfo,
 } from '../../types/memory';
 
 export const memoryRepository = {
@@ -39,7 +39,7 @@ export const memoryRepository = {
       sourceId: input.sourceId,
       sourceType: input.sourceType,
       qualityScore: 0.5,
-      provenanceJson: JSON.stringify(input.provenance || {})
+      provenanceJson: JSON.stringify(input.provenance || {}),
     });
 
     const newEntry = memoryRepository.getMemoryEntryById(db, result.lastInsertRowid as number);
@@ -75,7 +75,7 @@ export const memoryRepository = {
       version: row.version,
       status: row.status,
       qualityScore: row.quality_score,
-      provenance: row.provenance_json ? JSON.parse(row.provenance_json) : undefined
+      provenance: row.provenance_json ? JSON.parse(row.provenance_json) : undefined,
     };
   },
 
@@ -155,7 +155,7 @@ export const memoryRepository = {
     db: any,
     filters: MemorySearchFilters = {},
     page: number = 1,
-    limit: number = 20
+    limit: number = 20,
   ): MemorySearchResult => {
     const offset = (page - 1) * limit;
     const conditions: string[] = [];
@@ -234,7 +234,7 @@ export const memoryRepository = {
 
     const rows = stmt.all({ ...params, limit, offset }) as any[];
 
-    const data = rows.map(row => ({
+    const data = rows.map((row) => ({
       id: row.id,
       uuid: row.uuid,
       memoryType: row.memory_type,
@@ -249,7 +249,7 @@ export const memoryRepository = {
       version: row.version,
       status: row.status,
       qualityScore: row.quality_score,
-      provenance: row.provenance_json ? JSON.parse(row.provenance_json) : undefined
+      provenance: row.provenance_json ? JSON.parse(row.provenance_json) : undefined,
     }));
 
     return {
@@ -257,7 +257,7 @@ export const memoryRepository = {
       total: totalCount,
       page,
       pageSize: limit,
-      totalPages: Math.ceil(totalCount / limit)
+      totalPages: Math.ceil(totalCount / limit),
     };
   },
 
@@ -277,10 +277,13 @@ export const memoryRepository = {
       fromMemoryId: input.fromMemoryId,
       toMemoryId: input.toMemoryId,
       relationshipType: input.relationshipType,
-      strength: input.strength || 1.0
+      strength: input.strength || 1.0,
     });
 
-    const newRelationship = memoryRepository.getMemoryRelationshipById(db, result.lastInsertRowid as number);
+    const newRelationship = memoryRepository.getMemoryRelationshipById(
+      db,
+      result.lastInsertRowid as number,
+    );
     if (!newRelationship) throw new Error('Failed to retrieve created memory relationship');
     return newRelationship;
   },
@@ -305,7 +308,7 @@ export const memoryRepository = {
       relationshipType: row.relationship_type,
       strength: row.strength,
       createdAt: row.created_at,
-      updatedAt: row.updated_at
+      updatedAt: row.updated_at,
     };
   },
 
@@ -320,14 +323,14 @@ export const memoryRepository = {
     `);
     const rows = stmt.all(memoryId, memoryId) as any[];
 
-    return rows.map(row => ({
+    return rows.map((row) => ({
       id: row.id,
       fromMemoryId: row.from_memory_id,
       toMemoryId: row.to_memory_id,
       relationshipType: row.relationship_type,
       strength: row.strength,
       createdAt: row.created_at,
-      updatedAt: row.updated_at
+      updatedAt: row.updated_at,
     }));
   },
 
@@ -349,7 +352,7 @@ export const memoryRepository = {
       actor: input.actor,
       oldValuesJson: input.oldValues ? JSON.stringify(input.oldValues) : null,
       newValuesJson: input.newValues ? JSON.stringify(input.newValues) : null,
-      metadataJson: input.metadata ? JSON.stringify(input.metadata) : null
+      metadataJson: input.metadata ? JSON.stringify(input.metadata) : null,
     });
   },
 
@@ -364,7 +367,7 @@ export const memoryRepository = {
     `);
     const rows = stmt.all(memoryEntryId) as any[];
 
-    return rows.map(row => ({
+    return rows.map((row) => ({
       id: row.id,
       memoryEntryId: row.memory_entry_id,
       action: row.action as 'CREATE' | 'UPDATE' | 'DELETE' | 'ACCESS',
@@ -372,7 +375,7 @@ export const memoryRepository = {
       timestamp: row.timestamp,
       oldValues: row.old_values_json ? JSON.parse(row.old_values_json) : undefined,
       newValues: row.new_values_json ? JSON.parse(row.new_values_json) : undefined,
-      metadata: row.metadata_json ? JSON.parse(row.metadata_json) : undefined
+      metadata: row.metadata_json ? JSON.parse(row.metadata_json) : undefined,
     }));
   },
 
@@ -381,7 +384,7 @@ export const memoryRepository = {
    */
   createMemoryQualityMetrics: (
     db: any,
-    input: CreateMemoryQualityMetricsInput
+    input: CreateMemoryQualityMetricsInput,
   ): MemoryQualityMetrics => {
     const stmt = db.prepare(`
       INSERT INTO memory_quality_metrics (
@@ -398,10 +401,13 @@ export const memoryRepository = {
       sourceReliability: input.sourceReliability,
       evidenceStrength: input.evidenceStrength,
       temporalRelevance: input.temporalRelevance,
-      entityConfidence: input.entityConfidence
+      entityConfidence: input.entityConfidence,
     });
 
-    const newMetrics = memoryRepository.getMemoryQualityMetricsById(db, result.lastInsertRowid as number);
+    const newMetrics = memoryRepository.getMemoryQualityMetricsById(
+      db,
+      result.lastInsertRowid as number,
+    );
     if (!newMetrics) throw new Error('Failed to retrieve created memory quality metrics');
     return newMetrics;
   },
@@ -427,7 +433,7 @@ export const memoryRepository = {
       temporalRelevance: row.temporal_relevance,
       entityConfidence: row.entity_confidence,
       overallScore: row.overall_score,
-      calculatedAt: row.calculated_at
+      calculatedAt: row.calculated_at,
     };
   },
 
@@ -455,7 +461,7 @@ export const memoryRepository = {
       temporalRelevance: row.temporal_relevance,
       entityConfidence: row.entity_confidence,
       overallScore: row.overall_score,
-      calculatedAt: row.calculated_at
+      calculatedAt: row.calculated_at,
     };
   },
 
@@ -470,7 +476,7 @@ export const memoryRepository = {
     `);
     const rows = stmt.all(memoryEntryId) as any[];
 
-    return rows.map(row => ({
+    return rows.map((row) => ({
       id: row.id,
       memoryEntryId: row.memory_entry_id,
       action: row.action as 'CREATE' | 'UPDATE' | 'DELETE' | 'ACCESS',
@@ -478,7 +484,7 @@ export const memoryRepository = {
       timestamp: row.timestamp,
       oldValues: row.old_values_json ? JSON.parse(row.old_values_json) : undefined,
       newValues: row.new_values_json ? JSON.parse(row.new_values_json) : undefined,
-      metadata: row.metadata_json ? JSON.parse(row.metadata_json) : undefined
+      metadata: row.metadata_json ? JSON.parse(row.metadata_json) : undefined,
     }));
   },
 
@@ -492,15 +498,23 @@ export const memoryRepository = {
   /**
    * Updates quality metrics for a memory entry
    */
-  updateQualityMetrics: (db: any, memoryEntryId: number, metrics: {
-    sourceReliability: number;
-    evidenceStrength: number;
-    temporalRelevance: number;
-    entityConfidence: number;
-  }): MemoryQualityMetrics => {
+  updateQualityMetrics: (
+    db: any,
+    memoryEntryId: number,
+    metrics: {
+      sourceReliability: number;
+      evidenceStrength: number;
+      temporalRelevance: number;
+      entityConfidence: number;
+    },
+  ): MemoryQualityMetrics => {
     // Calculate overall score
-    const overallScore = (metrics.sourceReliability + metrics.evidenceStrength + 
-                        metrics.temporalRelevance + metrics.entityConfidence) / 4;
+    const overallScore =
+      (metrics.sourceReliability +
+        metrics.evidenceStrength +
+        metrics.temporalRelevance +
+        metrics.entityConfidence) /
+      4;
 
     const stmt = db.prepare(`
       INSERT INTO memory_quality_metrics (
@@ -517,11 +531,14 @@ export const memoryRepository = {
       sourceReliability: metrics.sourceReliability,
       evidenceStrength: metrics.evidenceStrength,
       temporalRelevance: metrics.temporalRelevance,
-      entityConfidence: metrics.entityConfidence
+      entityConfidence: metrics.entityConfidence,
     });
 
-    const newMetrics = memoryRepository.getMemoryQualityMetricsById(db, result.lastInsertRowid as number);
+    const newMetrics = memoryRepository.getMemoryQualityMetricsById(
+      db,
+      result.lastInsertRowid as number,
+    );
     if (!newMetrics) throw new Error('Failed to retrieve updated memory quality metrics');
     return newMetrics;
-  }
+  },
 };

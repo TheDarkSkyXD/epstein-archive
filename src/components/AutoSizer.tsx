@@ -27,7 +27,7 @@ export const AutoSizer: React.FC<AutoSizerProps> = ({ children, className, style
     });
 
     resizeObserver.observe(element);
-    
+
     // Initial measure
     const rect = element.getBoundingClientRect();
     setSize({ width: rect.width, height: rect.height });
@@ -38,9 +38,9 @@ export const AutoSizer: React.FC<AutoSizerProps> = ({ children, className, style
   }, []);
 
   return (
-    <div 
-      ref={containerRef} 
-      className={className} 
+    <div
+      ref={containerRef}
+      className={className}
       style={{ width: '100%', height: '100%', overflow: 'hidden', ...style }}
     >
       {size.width > 0 && size.height > 0 && children(size)}

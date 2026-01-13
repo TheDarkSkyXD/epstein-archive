@@ -3,13 +3,13 @@ import { databaseService } from '../services/DatabaseService';
 async function migrateRedFlagData() {
   try {
     console.log('🔄 Starting Red Flag Index data migration...');
-    
+
     // Database is initialized automatically when databaseService is imported
     const db = (databaseService as any).db;
-    
+
     // Add new red flag columns if they don't exist
     console.log('📊 Adding Red Flag Index columns...');
-    
+
     const addColumnsSQL = `
       ALTER TABLE entities ADD COLUMN red_flag_rating INTEGER CHECK(red_flag_rating >= 0 AND red_flag_rating <= 5);
       ALTER TABLE entities ADD COLUMN red_flag_score INTEGER DEFAULT 0;
@@ -17,17 +17,17 @@ async function migrateRedFlagData() {
       ALTER TABLE entities ADD COLUMN red_flag_description TEXT;
       ALTER TABLE entities ADD COLUMN red_flag_passages TEXT;
     `;
-    
+
     try {
       db.exec(addColumnsSQL);
       console.log('✅ Added Red Flag Index columns');
     } catch (error) {
       console.log('⚠️  Columns may already exist, continuing...');
     }
-    
+
     // Migrate existing spice data to red flag data
     console.log('🔄 Migrating spice data to Red Flag Index...');
-    
+
     const migrateDataSQL = `
       UPDATE entities SET
         red_flag_rating = spice_rating,
@@ -53,24 +53,24 @@ async function migrateRedFlagData() {
         updated_at = CURRENT_TIMESTAMP
       WHERE spice_rating IS NOT NULL;
     `;
-    
+
     const result = db.exec(migrateDataSQL);
     console.log(`✅ Migrated ${result.changes} entities to Red Flag Index`);
-    
+
     // Create indexes for red flag fields
     console.log('🔍 Creating Red Flag Index indexes...');
-    
+
     const createIndexesSQL = `
       CREATE INDEX IF NOT EXISTS idx_entities_red_flag_rating ON entities(red_flag_rating DESC);
       CREATE INDEX IF NOT EXISTS idx_entities_red_flag_score ON entities(red_flag_score DESC);
     `;
-    
+
     db.exec(createIndexesSQL);
     console.log('✅ Created Red Flag Index indexes');
-    
+
     // Update the entity_summary view to include red flag data
     console.log('👁️  Updating entity_summary view...');
-    
+
     const updateViewSQL = `
       DROP VIEW IF EXISTS entity_summary;
       CREATE VIEW entity_summary AS
@@ -103,14 +103,16 @@ async function migrateRedFlagData() {
       LEFT JOIN entity_mentions em ON e.id = em.entity_id
       GROUP BY e.id;
     `;
-    
+
     db.exec(updateViewSQL);
     console.log('✅ Updated entity_summary view');
-    
+
     // Verify the migration
     console.log('🔍 Verifying migration...');
-    
-    const verification = db.prepare(`
+
+    const verification = db
+      .prepare(
+        `
       SELECT 
         COUNT(*) as total_entities,
         COUNT(CASE WHEN red_flag_rating IS NOT NULL THEN 1 END) as entities_with_red_flags,
@@ -118,17 +120,20 @@ async function migrateRedFlagData() {
         AVG(red_flag_rating) as avg_red_flag_rating,
         MAX(red_flag_rating) as max_red_flag_rating
       FROM entities;
-    `).get();
-    
+    `,
+      )
+      .get();
+
     console.log('📊 Migration verification:');
     console.log(`   Total entities: ${verification.total_entities}`);
     console.log(`   Entities with Red Flag Index: ${verification.entities_with_red_flags}`);
     console.log(`   Critical Red Flags (5): ${verification.critical_red_flags}`);
-    console.log(`   Average Red Flag Rating: ${verification.avg_red_flag_rating?.toFixed(2) || 'N/A'}`);
+    console.log(
+      `   Average Red Flag Rating: ${verification.avg_red_flag_rating?.toFixed(2) || 'N/A'}`,
+    );
     console.log(`   Maximum Red Flag Rating: ${verification.max_red_flag_rating || 'N/A'}`);
-    
+
     console.log('🎉 Red Flag Index data migration completed successfully!');
-    
   } catch (error) {
     console.error('❌ Migration failed:', error);
     throw error;

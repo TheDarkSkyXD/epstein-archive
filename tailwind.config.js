@@ -1,9 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       colors: {
@@ -30,7 +27,7 @@ export default {
           700: '#b91c1c',
           800: '#991b1b',
           900: '#7f1d1d',
-        }
+        },
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
@@ -52,9 +49,9 @@ export default {
       animation: {
         'fade-in': 'fadeIn 0.5s ease-in-out',
         'slide-up': 'slideUp 0.3s ease-out',
-        'shimmer': 'shimmer 2s infinite',
+        shimmer: 'shimmer 2s infinite',
       },
     },
   },
   plugins: [],
-}
+};

@@ -13,7 +13,7 @@ export function logAudit(event: AuditEvent) {
     const db = getDb();
     db.prepare(
       `INSERT INTO audit_log (user_id, action, object_type, object_id, payload_json)
-       VALUES (@userId, @action, @objectType, @objectId, @payload)`
+       VALUES (@userId, @action, @objectType, @objectId, @payload)`,
     ).run({
       userId: event.userId || null,
       action: event.action,

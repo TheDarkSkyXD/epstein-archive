@@ -34,12 +34,12 @@ export interface ConnectionInference {
 export class PredictiveAnalyticsService {
   async getPatternPredictions(): Promise<PatternPrediction[]> {
     const db = getDb();
-    
+
     const predictions: PatternPrediction[] = [];
-    
+
     // 1. Predict potential new connections based on existing patterns
     const potentialConnections = await this.getInferredConnections();
-    
+
     for (const connection of potentialConnections) {
       predictions.push({
         id: `conn-${connection.sourceEntity}-${connection.targetEntity}`,
@@ -47,12 +47,15 @@ export class PredictiveAnalyticsService {
         prediction: `Connection between ${connection.sourceEntity} and ${connection.targetEntity}`,
         confidence: connection.confidence,
         supportingEvidence: connection.supportingEvidence,
-        likelihood: connection.confidence > 0.8 ? 'high' : connection.confidence > 0.5 ? 'medium' : 'low'
+        likelihood:
+          connection.confidence > 0.8 ? 'high' : connection.confidence > 0.5 ? 'medium' : 'low',
       });
     }
-    
+
     // 2. Predict potential high-risk entities based on network patterns
-    const highRiskPredictions = db.prepare(`
+    const highRiskPredictions = db
+      .prepare(
+        `
       SELECT 
         e.id,
         e.full_name,
@@ -71,8 +74,10 @@ export class PredictiveAnalyticsService {
         ) >= 2
       ORDER BY relationshipCount DESC
       LIMIT 10
-    `).all() as any[];
-    
+    `,
+      )
+      .all() as any[];
+
     for (const entity of highRiskPredictions) {
       predictions.push({
         id: `risk-${entity.id}`,
@@ -80,16 +85,16 @@ export class PredictiveAnalyticsService {
         prediction: `${entity.full_name} may become high-risk due to connections with known high-risk entities`,
         confidence: Math.min(1.0, entity.relationshipCount * 0.15),
         supportingEvidence: [`Connected to ${entity.relationshipCount} high-risk entities`],
-        likelihood: entity.red_flag_rating < 2 ? 'high' : 'medium'
+        likelihood: entity.red_flag_rating < 2 ? 'high' : 'medium',
       });
     }
-    
+
     return predictions;
   }
 
   async getRiskAssessmentPredictions(): Promise<RiskAssessmentPrediction[]> {
     const db = getDb();
-    
+
     // Find entities that might be at risk of having their risk rating increase
     const query = `
       SELECT 
@@ -114,13 +119,13 @@ export class PredictiveAnalyticsService {
       ORDER BY relationshipCount DESC, avgStrength DESC
       LIMIT 20
     `;
-    
+
     const results = db.prepare(query).all() as any[];
-    
-    return results.map(row => {
-      const predictedRisk = Math.min(5, row.currentRisk + (row.relationshipCount * 0.2));
+
+    return results.map((row) => {
+      const predictedRisk = Math.min(5, row.currentRisk + row.relationshipCount * 0.2);
       const riskTrend = predictedRisk > row.currentRisk ? 'increasing' : 'stable';
-      
+
       return {
         entity: row.full_name,
         currentRisk: row.currentRisk,
@@ -129,17 +134,17 @@ export class PredictiveAnalyticsService {
         contributingFactors: [
           `Connected to ${row.relationshipCount} entities`,
           `Mentioned in ${row.mentionCount} documents`,
-          'Connected to high-risk entities'
+          'Connected to high-risk entities',
         ],
-        confidence: Math.min(1.0, row.relationshipCount * 0.1)
+        confidence: Math.min(1.0, row.relationshipCount * 0.1),
       };
     });
   }
 
   async getConnectionInferences(entityId?: number): Promise<ConnectionInference[]> {
     const db = getDb();
-    
-    let query = `
+
+    const query = `
       WITH entity_connections AS (
         -- Get all entities connected to our main entity
         SELECT target_id as connected_entity
@@ -178,31 +183,48 @@ export class PredictiveAnalyticsService {
       ORDER BY pc.shared_connections DESC, pc.avg_strength DESC
       LIMIT 10
     `;
-    
+
     const params = entityId ? [entityId, entityId, entityId, entityId, entityId] : [1, 1, 1, 1, 1];
     const results = db.prepare(query).all(...params) as any[];
-    
-    return results.map(row => ({
-      sourceEntity: entityId ? entitiesRepository.getEntityById(entityId)?.fullName || 'Unknown' : 'Multiple',
+
+    return results.map((row) => ({
+      sourceEntity: entityId
+        ? entitiesRepository.getEntityById(entityId)?.fullName || 'Unknown'
+        : 'Multiple',
       targetEntity: row.full_name,
       inferredRelationship: 'potential connection',
       confidence: Math.min(1.0, row.shared_connections * 0.2),
-      supportingEvidence: [`Shares ${row.shared_connections} connections`, `Average strength: ${row.avg_strength}`],
-      reason: `Shares multiple connections with entities connected to target`
+      supportingEvidence: [
+        `Shares ${row.shared_connections} connections`,
+        `Average strength: ${row.avg_strength}`,
+      ],
+      reason: `Shares multiple connections with entities connected to target`,
     }));
   }
 
   async getRiskAssessmentDashboard(): Promise<any> {
     const db = getDb();
-    
+
     // Calculate overall risk metrics
-    const totalEntities = db.prepare('SELECT COUNT(*) as count FROM entities').get() as { count: number };
-    const highRiskEntities = db.prepare('SELECT COUNT(*) as count FROM entities WHERE red_flag_rating >= 4').get() as { count: number };
-    const mediumRiskEntities = db.prepare('SELECT COUNT(*) as count FROM entities WHERE red_flag_rating >= 2 AND red_flag_rating < 4').get() as { count: number };
-    const lowRiskEntities = db.prepare('SELECT COUNT(*) as count FROM entities WHERE red_flag_rating < 2').get() as { count: number };
-    
+    const totalEntities = db.prepare('SELECT COUNT(*) as count FROM entities').get() as {
+      count: number;
+    };
+    const highRiskEntities = db
+      .prepare('SELECT COUNT(*) as count FROM entities WHERE red_flag_rating >= 4')
+      .get() as { count: number };
+    const mediumRiskEntities = db
+      .prepare(
+        'SELECT COUNT(*) as count FROM entities WHERE red_flag_rating >= 2 AND red_flag_rating < 4',
+      )
+      .get() as { count: number };
+    const lowRiskEntities = db
+      .prepare('SELECT COUNT(*) as count FROM entities WHERE red_flag_rating < 2')
+      .get() as { count: number };
+
     // Risk trend analysis
-    const riskTrend = db.prepare(`
+    const riskTrend = db
+      .prepare(
+        `
       SELECT 
         date_created,
         COUNT(*) as newEntities,
@@ -212,10 +234,14 @@ export class PredictiveAnalyticsService {
       GROUP BY date_created
       ORDER BY date_created DESC
       LIMIT 30
-    `).all() as any[];
-    
+    `,
+      )
+      .all() as any[];
+
     // High-risk entity connections
-    const highRiskConnections = db.prepare(`
+    const highRiskConnections = db
+      .prepare(
+        `
       SELECT 
         e1.full_name as entity1,
         e2.full_name as entity2,
@@ -227,33 +253,38 @@ export class PredictiveAnalyticsService {
       WHERE e1.red_flag_rating >= 4 OR e2.red_flag_rating >= 4
       ORDER BY er.strength DESC
       LIMIT 20
-    `).all() as any[];
-    
+    `,
+      )
+      .all() as any[];
+
     // Predicted high-risk entities
     const predictedHighRisk = await this.getRiskAssessmentPredictions();
-    
+
     return {
       overallMetrics: {
         totalEntities: totalEntities.count,
         highRiskCount: highRiskEntities.count,
         mediumRiskCount: mediumRiskEntities.count,
         lowRiskCount: lowRiskEntities.count,
-        highRiskPercentage: totalEntities.count > 0 ? (highRiskEntities.count / totalEntities.count) * 100 : 0
+        highRiskPercentage:
+          totalEntities.count > 0 ? (highRiskEntities.count / totalEntities.count) * 100 : 0,
       },
       riskTrend,
       highRiskConnections,
-      predictedHighRiskEntities: predictedHighRisk.filter(p => p.riskTrend === 'increasing').slice(0, 10),
+      predictedHighRiskEntities: predictedHighRisk
+        .filter((p) => p.riskTrend === 'increasing')
+        .slice(0, 10),
       riskDistribution: {
         high: highRiskEntities.count,
         medium: mediumRiskEntities.count,
-        low: lowRiskEntities.count
-      }
+        low: lowRiskEntities.count,
+      },
     };
   }
 
   async getPredictiveInsights(searchTerm?: string): Promise<any> {
     const db = getDb();
-    
+
     // Find entities that appear in similar contexts to known high-risk entities
     const contextSimilarityQuery = `
       SELECT 
@@ -269,47 +300,47 @@ export class PredictiveAnalyticsService {
         AND e.red_flag_rating < 3  -- But not high-risk themselves
         AND e.id != de.id
     `;
-    
+
     let queryWithParams = contextSimilarityQuery;
     const params: any = {};
-    
+
     if (searchTerm) {
       queryWithParams += ` AND (e.full_name LIKE @searchTerm OR de.full_name LIKE @searchTerm)`;
       params.searchTerm = `%${searchTerm}%`;
     }
-    
+
     queryWithParams += ` GROUP BY e.id HAVING similarContextCount >= 2 ORDER BY similarContextCount DESC LIMIT 10`;
-    
+
     const similarContextEntities = db.prepare(queryWithParams).all(params) as any[];
-    
+
     // Pattern-based predictions
     const patternPredictions = await this.getPatternPredictions();
-    
+
     // Connection inferences
     const connectionInferences = await this.getConnectionInferences();
-    
+
     return {
-      contextSimilarity: similarContextEntities.map(entity => ({
+      contextSimilarity: similarContextEntities.map((entity) => ({
         entity: entity.full_name,
         currentRisk: entity.red_flag_rating,
         similarityScore: entity.similarContextCount,
-        reason: 'Appears in similar contexts as high-risk entities'
+        reason: 'Appears in similar contexts as high-risk entities',
       })),
       patternPredictions,
       connectionInferences,
       summary: {
         potentialRisks: similarContextEntities.length,
         predictedConnections: patternPredictions.length,
-        inferredConnections: connectionInferences.length
-      }
+        inferredConnections: connectionInferences.length,
+      },
     };
   }
 
   async getPatternPredictionsForEntity(entityId: number): Promise<PatternPrediction[]> {
     const db = getDb();
-    
+
     const predictions: PatternPrediction[] = [];
-    
+
     // Find documents where this entity appears with other high-risk entities
     const query = `
       SELECT 
@@ -328,24 +359,27 @@ export class PredictiveAnalyticsService {
       ORDER BY d.date_created DESC
       LIMIT 10
     `;
-    
+
     const results = db.prepare(query).all(entityId, entityId) as any[];
-    
+
     for (const result of results) {
       predictions.push({
         id: `doc-${result.id}-${entityId}`,
         type: 'event',
         prediction: `Document "${result.file_name}" connects ${result.otherEntity} (high-risk) with target entity`,
         confidence: Math.min(1.0, result.otherRiskRating * 0.2),
-        supportingEvidence: [`Document: ${result.file_name}`, `Connected to high-risk entity: ${result.otherEntity}`],
+        supportingEvidence: [
+          `Document: ${result.file_name}`,
+          `Connected to high-risk entity: ${result.otherEntity}`,
+        ],
         likelihood: result.otherRiskRating >= 4 ? 'high' : 'medium',
-        timeframe: result.date_created
+        timeframe: result.date_created,
       });
     }
-    
+
     // Get inferred connections for this specific entity
     const inferredConnections = await this.getConnectionInferences(entityId);
-    
+
     for (const conn of inferredConnections) {
       predictions.push({
         id: `inference-${entityId}-${conn.targetEntity}`,
@@ -353,17 +387,17 @@ export class PredictiveAnalyticsService {
         prediction: `Connection likely exists between ${conn.sourceEntity} and ${conn.targetEntity}`,
         confidence: conn.confidence,
         supportingEvidence: conn.supportingEvidence,
-        likelihood: conn.confidence > 0.7 ? 'high' : conn.confidence > 0.4 ? 'medium' : 'low'
+        likelihood: conn.confidence > 0.7 ? 'high' : conn.confidence > 0.4 ? 'medium' : 'low',
       });
     }
-    
+
     return predictions;
   }
 
   private async getInferredConnections(): Promise<ConnectionInference[]> {
     // This method is used internally to get general connection inferences
     const db = getDb();
-    
+
     // Find entities that are highly connected to the same other entities
     const query = `
       SELECT 
@@ -390,16 +424,19 @@ export class PredictiveAnalyticsService {
       ORDER BY commonConnectionCount DESC, avgStrength1 DESC, avgStrength2 DESC
       LIMIT 10
     `;
-    
+
     const results = db.prepare(query).all() as any[];
-    
-    return results.map(row => ({
+
+    return results.map((row) => ({
       sourceEntity: row.sourceEntity,
       targetEntity: row.targetEntity,
       inferredRelationship: 'similar connection patterns',
       confidence: Math.min(1.0, row.commonConnectionCount * 0.2),
-      supportingEvidence: [`Share ${row.commonConnectionCount} common connections`, `Average connection strength: ${((row.avgStrength1 || 0) + (row.avgStrength2 || 0)) / 2}`],
-      reason: `Connected to many of the same entities`
+      supportingEvidence: [
+        `Share ${row.commonConnectionCount} common connections`,
+        `Average connection strength: ${((row.avgStrength1 || 0) + (row.avgStrength2 || 0)) / 2}`,
+      ],
+      reason: `Connected to many of the same entities`,
     }));
   }
 }

@@ -1,6 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Investigation, EvidenceItem } from '../types/investigation';
-import { Activity, Clock, Users, MessageSquare, TrendingUp, AlertTriangle, Filter, Calendar, Mail, Phone, X } from 'lucide-react';
+import {
+  Activity,
+  Clock,
+  Users,
+  MessageSquare,
+  TrendingUp,
+  AlertTriangle,
+  Filter,
+  Calendar,
+  Mail,
+  Phone,
+  X,
+} from 'lucide-react';
 
 interface CommunicationAnalysisProps {
   investigation: Investigation;
@@ -47,13 +59,15 @@ interface CommunicationEvent {
 export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
   investigation,
   evidence,
-  onCommunicationPatternDetected
+  onCommunicationPatternDetected,
 }) => {
   const [communicationPatterns, setCommunicationPatterns] = useState<CommunicationPattern[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [selectedPattern, setSelectedPattern] = useState<CommunicationPattern | null>(null);
   const [analysisProgress, setAnalysisProgress] = useState(0);
-  const [filterType, setFilterType] = useState<'all' | 'frequency' | 'timing' | 'content' | 'network' | 'anomaly'>('all');
+  const [filterType, setFilterType] = useState<
+    'all' | 'frequency' | 'timing' | 'content' | 'network' | 'anomaly'
+  >('all');
 
   const analyzeCommunications = async () => {
     setIsAnalyzing(true);
@@ -67,11 +81,11 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
       { progress: 60, message: 'Mapping communication networks...' },
       { progress: 75, message: 'Identifying suspicious content patterns...' },
       { progress: 90, message: 'Cross-referencing with known associates...' },
-      { progress: 100, message: 'Communication analysis complete!' }
+      { progress: 100, message: 'Communication analysis complete!' },
     ];
 
     for (const step of progressSteps) {
-      await new Promise(resolve => setTimeout(resolve, 700));
+      await new Promise((resolve) => setTimeout(resolve, 700));
       setAnalysisProgress(step.progress);
     }
 
@@ -81,7 +95,8 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
         id: 'comm-001',
         type: 'frequency',
         title: 'Unusual Communication Frequency Spikes',
-        description: 'Significant increases in communication frequency during key investigation periods, suggesting coordination efforts.',
+        description:
+          'Significant increases in communication frequency during key investigation periods, suggesting coordination efforts.',
         confidence: 91,
         severity: 'high',
         participants: ['Jeffrey Epstein', 'Legal Team', 'Ghislaine Maxwell'],
@@ -91,19 +106,20 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
           timeRange: { start: '2006-07-01', end: '2006-08-31' },
           communicationChannels: ['Email', 'Phone', 'Encrypted Messaging'],
           messageCount: 1247,
-          anomalyScore: 8.3
+          anomalyScore: 8.3,
         },
         recommendations: [
           'Subpoena complete communication records for identified period',
           'Analyze message content for coordination language',
-          'Cross-reference with investigation milestones'
-        ]
+          'Cross-reference with investigation milestones',
+        ],
       },
       {
         id: 'comm-002',
         type: 'timing',
         title: 'Late-Night Communication Clusters',
-        description: 'Concentrated communication activity during late-night hours, potentially indicating covert coordination.',
+        description:
+          'Concentrated communication activity during late-night hours, potentially indicating covert coordination.',
         confidence: 87,
         severity: 'medium',
         participants: ['Jeffrey Epstein', 'International Contacts'],
@@ -113,19 +129,20 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
           timeRange: { start: '2005-01-01', end: '2007-12-31' },
           communicationChannels: ['Phone', 'Encrypted Email'],
           responseTime: 2.3,
-          anomalyScore: 7.1
+          anomalyScore: 7.1,
         },
         recommendations: [
           'Analyze time zone differences for international contacts',
           'Map communication timing to significant events',
-          'Investigate encryption methods used'
-        ]
+          'Investigate encryption methods used',
+        ],
       },
       {
         id: 'comm-003',
         type: 'network',
         title: 'Hub-and-Spoke Communication Pattern',
-        description: 'Epstein acts as central hub with direct communication to key nodes, minimizing direct contact between associates.',
+        description:
+          'Epstein acts as central hub with direct communication to key nodes, minimizing direct contact between associates.',
         confidence: 93,
         severity: 'critical',
         participants: ['Jeffrey Epstein', 'Ghislaine Maxwell', 'Les Wexner', 'Prince Andrew'],
@@ -134,19 +151,20 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
           networkDensity: 0.15,
           communicationChannels: ['Phone', 'Email', 'In-Person'],
           messageCount: 2341,
-          anomalyScore: 8.9
+          anomalyScore: 8.9,
         },
         recommendations: [
           'Map complete communication network topology',
           'Identify intermediary communication channels',
-          'Analyze message routing patterns'
-        ]
+          'Analyze message routing patterns',
+        ],
       },
       {
         id: 'comm-004',
         type: 'content',
         title: 'Evasive Language Patterns',
-        description: 'Use of coded language, euphemisms, and deliberately vague terminology in communications.',
+        description:
+          'Use of coded language, euphemisms, and deliberately vague terminology in communications.',
         confidence: 82,
         severity: 'high',
         participants: ['Jeffrey Epstein', 'Ghislaine Maxwell', 'Recruitment Network'],
@@ -155,19 +173,20 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
           frequency: 156,
           communicationChannels: ['Text', 'Email'],
           messageCount: 892,
-          anomalyScore: 7.6
+          anomalyScore: 7.6,
         },
         recommendations: [
           'Conduct linguistic analysis of message content',
           'Cross-reference coded terms with known activities',
-          'Interview participants about terminology meaning'
-        ]
+          'Interview participants about terminology meaning',
+        ],
       },
       {
         id: 'comm-005',
         type: 'anomaly',
         title: 'Communication Blackout Periods',
-        description: 'Unusual periods of complete communication silence followed by intense activity, suggesting deliberate avoidance.',
+        description:
+          'Unusual periods of complete communication silence followed by intense activity, suggesting deliberate avoidance.',
         confidence: 89,
         severity: 'high',
         participants: ['Jeffrey Epstein', 'Key Associates'],
@@ -176,19 +195,19 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
           timeRange: { start: '2008-06-01', end: '2008-07-15' },
           communicationChannels: ['All Channels'],
           frequency: 0,
-          anomalyScore: 8.7
+          anomalyScore: 8.7,
         },
         recommendations: [
           'Investigate reasons for communication gaps',
           'Cross-reference with external investigation timing',
-          'Analyze alternative communication methods'
-        ]
-      }
+          'Analyze alternative communication methods',
+        ],
+      },
     ];
 
     setCommunicationPatterns(mockPatterns);
     setIsAnalyzing(false);
-    
+
     if (onCommunicationPatternDetected) {
       onCommunicationPatternDetected(mockPatterns);
     }
@@ -200,7 +219,7 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
       timing: Clock,
       content: MessageSquare,
       network: Users,
-      anomaly: AlertTriangle
+      anomaly: AlertTriangle,
     };
     return icons[type];
   };
@@ -210,7 +229,7 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
       email: Mail,
       phone: Phone,
       text: MessageSquare,
-      meeting: Users
+      meeting: Users,
     };
     return icons[channel as keyof typeof icons] || MessageSquare;
   };
@@ -220,7 +239,7 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
       low: 'bg-green-100 text-green-800 border-green-200',
       medium: 'bg-yellow-100 text-yellow-800 border-yellow-200',
       high: 'bg-orange-100 text-orange-800 border-orange-200',
-      critical: 'bg-red-100 text-red-800 border-red-200'
+      critical: 'bg-red-100 text-red-800 border-red-200',
     };
     return colors[severity];
   };
@@ -231,9 +250,10 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
     return 'text-red-600';
   };
 
-  const filteredPatterns = filterType === 'all' 
-    ? communicationPatterns 
-    : communicationPatterns.filter(pattern => pattern.type === filterType);
+  const filteredPatterns =
+    filterType === 'all'
+      ? communicationPatterns
+      : communicationPatterns.filter((pattern) => pattern.type === filterType);
 
   return (
     <div className="bg-white rounded-lg shadow-lg">
@@ -241,9 +261,7 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
       <div className="border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">
-              Communication Forensics
-            </h2>
+            <h2 className="text-xl font-semibold text-gray-900">Communication Forensics</h2>
             <p className="text-sm text-gray-600 mt-1">
               Analyze communication patterns, timing, and network effects
             </p>
@@ -333,21 +351,21 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-1">
-                          <h4 className="text-sm font-medium text-gray-900">
-                            {pattern.title}
-                          </h4>
+                          <h4 className="text-sm font-medium text-gray-900">{pattern.title}</h4>
                           <div className="flex items-center gap-2">
-                            <span className={`text-sm font-medium ${getConfidenceColor(pattern.confidence)}`}>
+                            <span
+                              className={`text-sm font-medium ${getConfidenceColor(pattern.confidence)}`}
+                            >
                               {pattern.confidence}% confidence
                             </span>
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getSeverityColor(pattern.severity)}`}>
+                            <span
+                              className={`px-2 py-1 text-xs font-medium rounded-full ${getSeverityColor(pattern.severity)}`}
+                            >
                               {pattern.severity.toUpperCase()}
                             </span>
                           </div>
                         </div>
-                        <p className="text-sm text-gray-600 mb-2">
-                          {pattern.description}
-                        </p>
+                        <p className="text-sm text-gray-600 mb-2">{pattern.description}</p>
                         <div className="flex items-center gap-4 text-xs text-gray-500">
                           <span>Type: {pattern.type}</span>
                           <span>Participants: {pattern.participants.length}</span>
@@ -372,14 +390,16 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-96 overflow-auto">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h3 className="text-lg font-medium text-gray-900">
-                  {selectedPattern.title}
-                </h3>
+                <h3 className="text-lg font-medium text-gray-900">{selectedPattern.title}</h3>
                 <div className="flex items-center gap-2 mt-1">
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${getSeverityColor(selectedPattern.severity)}`}>
+                  <span
+                    className={`px-2 py-1 text-xs font-medium rounded-full ${getSeverityColor(selectedPattern.severity)}`}
+                  >
                     {selectedPattern.severity.toUpperCase()}
                   </span>
-                  <span className={`text-sm font-medium ${getConfidenceColor(selectedPattern.confidence)}`}>
+                  <span
+                    className={`text-sm font-medium ${getConfidenceColor(selectedPattern.confidence)}`}
+                  >
                     {selectedPattern.confidence}% confidence
                   </span>
                 </div>
@@ -403,7 +423,10 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
                 <h4 className="text-sm font-medium text-gray-700 mb-1">Participants</h4>
                 <div className="flex flex-wrap gap-2">
                   {selectedPattern.participants.map((participant, index) => (
-                    <span key={index} className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
+                    <span
+                      key={index}
+                      className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded"
+                    >
                       {participant}
                     </span>
                   ))}
@@ -414,30 +437,39 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
                 <div>
                   <h4 className="text-sm font-medium text-gray-700 mb-1">Time Range</h4>
                   <p className="text-sm text-gray-600">
-                    {selectedPattern.metadata.timeRange.start} to {selectedPattern.metadata.timeRange.end}
+                    {selectedPattern.metadata.timeRange.start} to{' '}
+                    {selectedPattern.metadata.timeRange.end}
                   </p>
                 </div>
               )}
 
-              {selectedPattern.metadata.communicationChannels && selectedPattern.metadata.communicationChannels.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-1">Communication Channels</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedPattern.metadata.communicationChannels.map((channel, index) => {
-                      const ChannelIcon = getCommunicationIcon(channel.toLowerCase());
-                      return (
-                        <span key={index} className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded flex items-center gap-1">
-                          <ChannelIcon className="w-3 h-3" />
-                          {channel}
-                        </span>
-                      );
-                    })}
+              {selectedPattern.metadata.communicationChannels &&
+                selectedPattern.metadata.communicationChannels.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 mb-1">
+                      Communication Channels
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedPattern.metadata.communicationChannels.map((channel, index) => {
+                        const ChannelIcon = getCommunicationIcon(channel.toLowerCase());
+                        return (
+                          <span
+                            key={index}
+                            className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded flex items-center gap-1"
+                          >
+                            <ChannelIcon className="w-3 h-3" />
+                            {channel}
+                          </span>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
               <div>
-                <h4 className="text-sm font-medium text-gray-700 mb-2">Investigation Recommendations</h4>
+                <h4 className="text-sm font-medium text-gray-700 mb-2">
+                  Investigation Recommendations
+                </h4>
                 <ul className="space-y-1">
                   {selectedPattern.recommendations.map((recommendation, index) => (
                     <li key={index} className="text-sm text-gray-600 flex items-start">
@@ -472,7 +504,8 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
             No communication patterns detected yet
           </h3>
           <p className="text-sm text-gray-600 mb-4">
-            Start communication analysis to identify suspicious patterns in timing, frequency, content, and network behavior.
+            Start communication analysis to identify suspicious patterns in timing, frequency,
+            content, and network behavior.
           </p>
           <button
             onClick={analyzeCommunications}

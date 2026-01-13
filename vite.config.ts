@@ -1,15 +1,17 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import { readFileSync } from 'fs'
-import { visualizer } from 'rollup-plugin-visualizer'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { readFileSync } from 'fs';
+import { visualizer } from 'rollup-plugin-visualizer';
 
-const packageJson = JSON.parse(readFileSync('./package.json', 'utf-8'))
+const packageJson = JSON.parse(readFileSync('./package.json', 'utf-8'));
 
 // https://vitejs.dev/config/
 export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(packageJson.version),
-    __BUILD_DATE__: JSON.stringify(new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })),
+    __BUILD_DATE__: JSON.stringify(
+      new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    ),
   },
   plugins: [
     react(),
@@ -18,7 +20,7 @@ export default defineConfig({
       filename: 'bundle-analysis.html',
       gzipSize: true,
       brotliSize: true,
-    })
+    }),
   ],
   build: {
     rollupOptions: {
@@ -35,7 +37,7 @@ export default defineConfig({
             // This ensures React and its core ecosystem stay together
             return 'vendor';
           }
-          
+
           // Feature-based grouping for our own source code
           if (id.includes('src/components/Investigation')) {
             return 'feature-investigation';
@@ -50,10 +52,10 @@ export default defineConfig({
             return 'feature-documents';
           }
           if (id.includes('src/components/NetworkVisualization')) {
-             return 'feature-network';
+            return 'feature-network';
           }
-        }
-      }
+        },
+      },
     },
     chunkSizeWarningLimit: 1000,
     reportCompressedSize: true,
@@ -65,13 +67,13 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:3012',
         changeOrigin: true,
-        secure: false
+        secure: false,
       },
       '/files': {
         target: 'http://localhost:3012',
         changeOrigin: true,
-        secure: false
-      }
-    }
-  }
-})
+        secure: false,
+      },
+    },
+  },
+});

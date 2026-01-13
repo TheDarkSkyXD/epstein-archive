@@ -1,5 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Target, Plus, Edit3, Trash2, Link, TrendingUp, Calendar, User, FileText, AlertTriangle } from 'lucide-react';
+import {
+  Target,
+  Plus,
+  Edit3,
+  Trash2,
+  Link,
+  TrendingUp,
+  Calendar,
+  User,
+  FileText,
+  AlertTriangle,
+} from 'lucide-react';
 import { EvidenceItem, Hypothesis as BaseHypothesis } from '../types/investigation';
 
 // Extended Hypothesis type with additional fields for testing
@@ -43,21 +54,21 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
   investigationId,
   initialHypothesis = '',
   evidenceItems,
-  onHypothesesUpdate
+  onHypothesesUpdate,
 }) => {
   const [hypotheses, setHypotheses] = useState<Hypothesis[]>([]);
   const [activeHypothesis, setActiveHypothesis] = useState<Hypothesis | null>(null);
   const [showNewForm, setShowNewForm] = useState(false);
   const [newHypothesis, setNewHypothesis] = useState({
     title: '',
-    description: ''
+    description: '',
   });
-  const [linkingEvidence, setLinkingEvidence] = useState<{[key: string]: boolean}>({});
+  const [linkingEvidence, setLinkingEvidence] = useState<{ [key: string]: boolean }>({});
   const [linkData, setLinkData] = useState({
     evidenceId: '',
     relevance: 'supporting' as 'supporting' | 'contradicting' | 'neutral',
     weight: 5,
-    notes: ''
+    notes: '',
   });
 
   // Fetch hypotheses from API on mount
@@ -81,7 +92,7 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
               evidenceLinks: [],
               revisions: [],
               evidence: [],
-              relatedHypotheses: []
+              relatedHypotheses: [],
             }));
             setHypotheses(loadedHypotheses);
             setActiveHypothesis(loadedHypotheses[0]);
@@ -92,7 +103,7 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
       } catch (error) {
         console.error('Error fetching hypotheses:', error);
       }
-      
+
       // Fallback: If no hypotheses from API and we have an initialHypothesis, create one
       if (initialHypothesis && hypotheses.length === 0) {
         const defaultHypothesis: Hypothesis = {
@@ -108,14 +119,14 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
           evidenceLinks: [],
           revisions: [],
           evidence: [],
-          relatedHypotheses: []
+          relatedHypotheses: [],
         };
         setHypotheses([defaultHypothesis]);
         setActiveHypothesis(defaultHypothesis);
         onHypothesesUpdate([defaultHypothesis]);
       }
     };
-    
+
     if (investigationId) {
       fetchHypotheses();
     }
@@ -137,7 +148,7 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
       evidenceLinks: [],
       revisions: [],
       evidence: [],
-      relatedHypotheses: []
+      relatedHypotheses: [],
     };
 
     const updatedHypotheses = [...hypotheses, hypothesis];
@@ -149,8 +160,8 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
   };
 
   const updateHypothesisStatus = (hypothesisId: string, status: Hypothesis['status']) => {
-    const updatedHypotheses = hypotheses.map(hyp => 
-      hyp.id === hypothesisId ? { ...hyp, status, updatedAt: new Date() } : hyp
+    const updatedHypotheses = hypotheses.map((hyp) =>
+      hyp.id === hypothesisId ? { ...hyp, status, updatedAt: new Date() } : hyp,
     );
     setHypotheses(updatedHypotheses);
     if (activeHypothesis?.id === hypothesisId) {
@@ -160,8 +171,8 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
   };
 
   const updateHypothesisConfidence = (hypothesisId: string, confidence: number) => {
-    const updatedHypotheses = hypotheses.map(hyp => 
-      hyp.id === hypothesisId ? { ...hyp, confidence, updatedAt: new Date() } : hyp
+    const updatedHypotheses = hypotheses.map((hyp) =>
+      hyp.id === hypothesisId ? { ...hyp, confidence, updatedAt: new Date() } : hyp,
     );
     setHypotheses(updatedHypotheses);
     if (activeHypothesis?.id === hypothesisId) {
@@ -180,25 +191,25 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
       relevance: linkData.relevance,
       weight: linkData.weight,
       notes: linkData.notes,
-      createdAt: new Date()
+      createdAt: new Date(),
     };
 
-    const updatedHypotheses = hypotheses.map(hyp => 
-      hyp.id === hypothesisId 
-        ? { 
-            ...hyp, 
+    const updatedHypotheses = hypotheses.map((hyp) =>
+      hyp.id === hypothesisId
+        ? {
+            ...hyp,
             evidenceLinks: [...hyp.evidenceLinks, evidenceLink],
-            updatedAt: new Date()
-          } 
-        : hyp
+            updatedAt: new Date(),
+          }
+        : hyp,
     );
 
     setHypotheses(updatedHypotheses);
     if (activeHypothesis?.id === hypothesisId) {
-      setActiveHypothesis({ 
-        ...activeHypothesis, 
+      setActiveHypothesis({
+        ...activeHypothesis,
         evidenceLinks: [...activeHypothesis.evidenceLinks, evidenceLink],
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
     }
     setLinkingEvidence({ ...linkingEvidence, [hypothesisId]: false });
@@ -206,35 +217,38 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
       evidenceId: '',
       relevance: 'supporting',
       weight: 5,
-      notes: ''
+      notes: '',
     });
     onHypothesesUpdate(updatedHypotheses);
   };
 
   const unlinkEvidence = (hypothesisId: string, linkId: string) => {
-    const updatedHypotheses = hypotheses.map(hyp => 
-      hyp.id === hypothesisId 
-        ? { 
-            ...hyp, 
-            evidenceLinks: hyp.evidenceLinks.filter(link => link.id !== linkId),
-            updatedAt: new Date()
-          } 
-        : hyp
+    const updatedHypotheses = hypotheses.map((hyp) =>
+      hyp.id === hypothesisId
+        ? {
+            ...hyp,
+            evidenceLinks: hyp.evidenceLinks.filter((link) => link.id !== linkId),
+            updatedAt: new Date(),
+          }
+        : hyp,
     );
 
     setHypotheses(updatedHypotheses);
     if (activeHypothesis?.id === hypothesisId) {
-      setActiveHypothesis({ 
-        ...activeHypothesis, 
-        evidenceLinks: activeHypothesis.evidenceLinks.filter(link => link.id !== linkId),
-        updatedAt: new Date()
+      setActiveHypothesis({
+        ...activeHypothesis,
+        evidenceLinks: activeHypothesis.evidenceLinks.filter((link) => link.id !== linkId),
+        updatedAt: new Date(),
       });
     }
     onHypothesesUpdate(updatedHypotheses);
   };
 
-  const reviseHypothesis = (hypothesisId: string, revisionData: { title: string; description: string; reason: string }) => {
-    const hypothesis = hypotheses.find(hyp => hyp.id === hypothesisId);
+  const reviseHypothesis = (
+    hypothesisId: string,
+    revisionData: { title: string; description: string; reason: string },
+  ) => {
+    const hypothesis = hypotheses.find((hyp) => hyp.id === hypothesisId);
     if (!hypothesis) return;
 
     const revision: HypothesisRevision = {
@@ -245,49 +259,49 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
       confidence: hypothesis.confidence,
       reason: revisionData.reason,
       createdAt: new Date(),
-      createdBy: 'CurrentUser'
+      createdBy: 'CurrentUser',
     };
 
-    const updatedHypotheses = hypotheses.map(hyp => 
-      hyp.id === hypothesisId 
-        ? { 
-            ...hyp, 
+    const updatedHypotheses = hypotheses.map((hyp) =>
+      hyp.id === hypothesisId
+        ? {
+            ...hyp,
             title: revisionData.title,
             description: revisionData.description,
             revisions: [...hyp.revisions, revision],
             updatedAt: new Date(),
-            status: 'revised' as Hypothesis['status']
-          } 
-        : hyp
+            status: 'revised' as Hypothesis['status'],
+          }
+        : hyp,
     );
 
     setHypotheses(updatedHypotheses);
     if (activeHypothesis?.id === hypothesisId) {
-      setActiveHypothesis({ 
-        ...activeHypothesis, 
+      setActiveHypothesis({
+        ...activeHypothesis,
         title: revisionData.title,
         description: revisionData.description,
         revisions: [...activeHypothesis.revisions, revision],
         updatedAt: new Date(),
-        status: 'revised' as Hypothesis['status']
+        status: 'revised' as Hypothesis['status'],
       });
     }
     onHypothesesUpdate(updatedHypotheses);
   };
 
   const getEvidenceItemById = (id: string) => {
-    return evidenceItems.find(item => item.id === id);
+    return evidenceItems.find((item) => item.id === id);
   };
 
   const calculateOverallConfidence = (links: EvidenceLink[]) => {
     if (links.length === 0) return 50;
-    
+
     const totalWeight = links.reduce((sum, link) => {
-      const weightMultiplier = link.relevance === 'supporting' ? 1 : 
-                             link.relevance === 'contradicting' ? -1 : 0;
-      return sum + (link.weight * weightMultiplier);
+      const weightMultiplier =
+        link.relevance === 'supporting' ? 1 : link.relevance === 'contradicting' ? -1 : 0;
+      return sum + link.weight * weightMultiplier;
     }, 0);
-    
+
     // Normalize to 0-100 range
     const normalized = Math.min(100, Math.max(0, 50 + totalWeight));
     return Math.round(normalized);
@@ -312,7 +326,8 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
           </button>
         </div>
         <p className="text-slate-400 mt-2">
-          Systematic hypothesis testing with evidence linking, confidence scoring, and revision tracking
+          Systematic hypothesis testing with evidence linking, confidence scoring, and revision
+          tracking
         </p>
       </div>
 
@@ -326,7 +341,7 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
               <input
                 type="text"
                 value={newHypothesis.title}
-                onChange={(e) => setNewHypothesis({...newHypothesis, title: e.target.value})}
+                onChange={(e) => setNewHypothesis({ ...newHypothesis, title: e.target.value })}
                 className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
                 placeholder="Enter hypothesis title"
               />
@@ -335,7 +350,9 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
               <label className="block text-sm font-medium text-slate-300 mb-1">Description</label>
               <textarea
                 value={newHypothesis.description}
-                onChange={(e) => setNewHypothesis({...newHypothesis, description: e.target.value})}
+                onChange={(e) =>
+                  setNewHypothesis({ ...newHypothesis, description: e.target.value })
+                }
                 className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
                 rows={3}
                 placeholder="Describe your hypothesis"
@@ -376,36 +393,46 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
         ) : (
           <div className="space-y-6">
             {hypotheses.map((hypothesis) => (
-              <div 
-                key={hypothesis.id} 
+              <div
+                key={hypothesis.id}
                 className={`border rounded-xl p-5 transition-all ${
-                  activeHypothesis?.id === hypothesis.id 
-                    ? 'border-blue-500 bg-blue-900/20' 
+                  activeHypothesis?.id === hypothesis.id
+                    ? 'border-blue-500 bg-blue-900/20'
                     : 'border-slate-700 bg-slate-800/50 hover:bg-slate-800'
                 }`}
               >
-                <div 
+                <div
                   className="cursor-pointer"
-                  onClick={() => setActiveHypothesis(
-                    activeHypothesis?.id === hypothesis.id ? null : hypothesis
-                  )}
+                  onClick={() =>
+                    setActiveHypothesis(activeHypothesis?.id === hypothesis.id ? null : hypothesis)
+                  }
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-2">
-                        <h3 className="text-lg font-semibold text-white truncate">{hypothesis.title}</h3>
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          hypothesis.status === 'draft' ? 'bg-gray-700 text-gray-300' :
-                          hypothesis.status === 'testing' ? 'bg-blue-900 text-blue-300' :
-                          hypothesis.status === 'supported' ? 'bg-green-900 text-green-300' :
-                          hypothesis.status === 'refuted' ? 'bg-red-900 text-red-300' :
-                          'bg-yellow-900 text-yellow-300'
-                        }`}>
+                        <h3 className="text-lg font-semibold text-white truncate">
+                          {hypothesis.title}
+                        </h3>
+                        <span
+                          className={`px-2 py-1 text-xs rounded-full ${
+                            hypothesis.status === 'draft'
+                              ? 'bg-gray-700 text-gray-300'
+                              : hypothesis.status === 'testing'
+                                ? 'bg-blue-900 text-blue-300'
+                                : hypothesis.status === 'supported'
+                                  ? 'bg-green-900 text-green-300'
+                                  : hypothesis.status === 'refuted'
+                                    ? 'bg-red-900 text-red-300'
+                                    : 'bg-yellow-900 text-yellow-300'
+                          }`}
+                        >
                           {hypothesis.status}
                         </span>
                       </div>
-                      <p className="text-slate-300 text-sm mb-3 break-words">{hypothesis.description}</p>
-                      
+                      <p className="text-slate-300 text-sm mb-3 break-words">
+                        {hypothesis.description}
+                      </p>
+
                       {/* Confidence Meter */}
                       <div className="flex items-center space-x-3 mb-3">
                         <div className="flex-1">
@@ -414,11 +441,13 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
                             <span>{hypothesis.confidence}%</span>
                           </div>
                           <div className="w-full bg-slate-700 rounded-full h-2">
-                            <div 
+                            <div
                               className={`h-2 rounded-full ${
-                                hypothesis.confidence < 30 ? 'bg-red-500' :
-                                hypothesis.confidence < 70 ? 'bg-yellow-500' :
-                                'bg-green-500'
+                                hypothesis.confidence < 30
+                                  ? 'bg-red-500'
+                                  : hypothesis.confidence < 70
+                                    ? 'bg-yellow-500'
+                                    : 'bg-green-500'
                               }`}
                               style={{ width: `${hypothesis.confidence}%` }}
                             ></div>
@@ -426,7 +455,7 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center space-x-2 ml-4">
                       <button className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700">
                         <Edit3 className="w-4 h-4" />
@@ -436,7 +465,7 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
                       </button>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center text-xs text-slate-500 space-x-4">
                     <span>Created by {hypothesis.createdBy}</span>
                     <span>•</span>
@@ -454,10 +483,12 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
                       <div className="flex items-center justify-between mb-3">
                         <h4 className="text-sm font-medium text-slate-300">Linked Evidence</h4>
                         <button
-                          onClick={() => setLinkingEvidence({
-                            ...linkingEvidence,
-                            [hypothesis.id]: !linkingEvidence[hypothesis.id]
-                          })}
+                          onClick={() =>
+                            setLinkingEvidence({
+                              ...linkingEvidence,
+                              [hypothesis.id]: !linkingEvidence[hypothesis.id],
+                            })
+                          }
                           className="text-xs text-blue-400 hover:text-blue-300 flex items-center"
                         >
                           <Link className="w-3 h-3 mr-1" />
@@ -468,17 +499,23 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
                       {/* Link Evidence Form */}
                       {linkingEvidence[hypothesis.id] && (
                         <div className="mb-4 p-4 bg-slate-700 rounded-lg">
-                          <h5 className="text-sm font-medium text-white mb-3">Link Evidence to Hypothesis</h5>
+                          <h5 className="text-sm font-medium text-white mb-3">
+                            Link Evidence to Hypothesis
+                          </h5>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div>
-                              <label className="block text-xs text-slate-400 mb-1">Evidence Item</label>
+                              <label className="block text-xs text-slate-400 mb-1">
+                                Evidence Item
+                              </label>
                               <select
                                 value={linkData.evidenceId}
-                                onChange={(e) => setLinkData({...linkData, evidenceId: e.target.value})}
+                                onChange={(e) =>
+                                  setLinkData({ ...linkData, evidenceId: e.target.value })
+                                }
                                 className="w-full px-2 py-1 bg-slate-600 border border-slate-500 rounded text-white text-sm"
                               >
                                 <option value="">Select evidence</option>
-                                {evidenceItems.map(item => (
+                                {evidenceItems.map((item) => (
                                   <option key={item.id} value={item.id}>
                                     {item.title}
                                   </option>
@@ -489,10 +526,12 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
                               <label className="block text-xs text-slate-400 mb-1">Relevance</label>
                               <select
                                 value={linkData.relevance}
-                                onChange={(e) => setLinkData({
-                                  ...linkData, 
-                                  relevance: e.target.value as any
-                                })}
+                                onChange={(e) =>
+                                  setLinkData({
+                                    ...linkData,
+                                    relevance: e.target.value as any,
+                                  })
+                                }
                                 className="w-full px-2 py-1 bg-slate-600 border border-slate-500 rounded text-white text-sm"
                               >
                                 <option value="supporting">Supporting</option>
@@ -509,10 +548,12 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
                                 min="1"
                                 max="10"
                                 value={linkData.weight}
-                                onChange={(e) => setLinkData({
-                                  ...linkData, 
-                                  weight: parseInt(e.target.value)
-                                })}
+                                onChange={(e) =>
+                                  setLinkData({
+                                    ...linkData,
+                                    weight: parseInt(e.target.value),
+                                  })
+                                }
                                 className="w-full"
                               />
                             </div>
@@ -521,7 +562,9 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
                               <input
                                 type="text"
                                 value={linkData.notes}
-                                onChange={(e) => setLinkData({...linkData, notes: e.target.value})}
+                                onChange={(e) =>
+                                  setLinkData({ ...linkData, notes: e.target.value })
+                                }
                                 className="w-full px-2 py-1 bg-slate-600 border border-slate-500 rounded text-white text-sm"
                                 placeholder="Add notes about this link"
                               />
@@ -529,10 +572,12 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
                           </div>
                           <div className="flex justify-end space-x-2 mt-3">
                             <button
-                              onClick={() => setLinkingEvidence({
-                                ...linkingEvidence,
-                                [hypothesis.id]: false
-                              })}
+                              onClick={() =>
+                                setLinkingEvidence({
+                                  ...linkingEvidence,
+                                  [hypothesis.id]: false,
+                                })
+                              }
                               className="px-3 py-1 text-xs text-slate-300 bg-slate-600 rounded hover:bg-slate-500"
                             >
                               Cancel
@@ -553,27 +598,35 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
                           {hypothesis.evidenceLinks.map((link) => {
                             const evidenceItem = getEvidenceItemById(link.evidenceId);
                             return (
-                              <div 
-                                key={link.id} 
+                              <div
+                                key={link.id}
                                 className="flex items-center justify-between p-3 bg-slate-700 rounded-lg"
                               >
                                 <div className="flex items-center space-x-3">
-                                  <div className={`w-3 h-3 rounded-full ${
-                                    link.relevance === 'supporting' ? 'bg-green-500' :
-                                    link.relevance === 'contradicting' ? 'bg-red-500' :
-                                    'bg-gray-500'
-                                  }`}></div>
+                                  <div
+                                    className={`w-3 h-3 rounded-full ${
+                                      link.relevance === 'supporting'
+                                        ? 'bg-green-500'
+                                        : link.relevance === 'contradicting'
+                                          ? 'bg-red-500'
+                                          : 'bg-gray-500'
+                                    }`}
+                                  ></div>
                                   <div>
                                     <div className="flex items-center space-x-2">
                                       <FileText className="w-4 h-4 text-slate-400" />
                                       <span className="text-sm font-medium text-white truncate">
                                         {evidenceItem?.title || 'Unknown Evidence'}
                                       </span>
-                                      <span className={`text-xs px-2 py-0.5 rounded ${
-                                        link.relevance === 'supporting' ? 'bg-green-900 text-green-300' :
-                                        link.relevance === 'contradicting' ? 'bg-red-900 text-red-300' :
-                                        'bg-gray-700 text-gray-300'
-                                      }`}>
+                                      <span
+                                        className={`text-xs px-2 py-0.5 rounded ${
+                                          link.relevance === 'supporting'
+                                            ? 'bg-green-900 text-green-300'
+                                            : link.relevance === 'contradicting'
+                                              ? 'bg-red-900 text-red-300'
+                                              : 'bg-gray-700 text-gray-300'
+                                        }`}
+                                      >
                                         {link.relevance}
                                       </span>
                                     </div>
@@ -583,7 +636,9 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
                                   </div>
                                 </div>
                                 <div className="flex items-center space-x-3">
-                                  <span className="text-xs text-slate-400">Weight: {link.weight}</span>
+                                  <span className="text-xs text-slate-400">
+                                    Weight: {link.weight}
+                                  </span>
                                   <button
                                     onClick={() => unlinkEvidence(hypothesis.id, link.id)}
                                     className="text-slate-400 hover:text-red-400"
@@ -605,7 +660,9 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
                     {/* Revision History */}
                     {hypothesis.revisions.length > 0 && (
                       <div className="mb-6">
-                        <h4 className="text-sm font-medium text-slate-300 mb-3">Revision History</h4>
+                        <h4 className="text-sm font-medium text-slate-300 mb-3">
+                          Revision History
+                        </h4>
                         <div className="space-y-3">
                           {hypothesis.revisions.map((revision) => (
                             <div key={revision.id} className="p-3 bg-slate-700 rounded-lg">
@@ -632,26 +689,30 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
                     {/* Action Buttons */}
                     <div className="flex flex-wrap gap-2">
                       <button
-                        onClick={() => updateHypothesisStatus(
-                          hypothesis.id, 
-                          hypothesis.status === 'testing' ? 'supported' : 'testing'
-                        )}
+                        onClick={() =>
+                          updateHypothesisStatus(
+                            hypothesis.id,
+                            hypothesis.status === 'testing' ? 'supported' : 'testing',
+                          )
+                        }
                         className={`px-3 py-1.5 text-xs rounded-lg ${
-                          hypothesis.status === 'supported' 
-                            ? 'bg-green-900 text-green-300 hover:bg-green-800' 
+                          hypothesis.status === 'supported'
+                            ? 'bg-green-900 text-green-300 hover:bg-green-800'
                             : 'bg-green-700 text-white hover:bg-green-600'
                         }`}
                       >
                         {hypothesis.status === 'supported' ? 'Mark as Tested' : 'Mark as Supported'}
                       </button>
                       <button
-                        onClick={() => updateHypothesisStatus(
-                          hypothesis.id, 
-                          hypothesis.status === 'testing' ? 'refuted' : 'testing'
-                        )}
+                        onClick={() =>
+                          updateHypothesisStatus(
+                            hypothesis.id,
+                            hypothesis.status === 'testing' ? 'refuted' : 'testing',
+                          )
+                        }
                         className={`px-3 py-1.5 text-xs rounded-lg ${
-                          hypothesis.status === 'refuted' 
-                            ? 'bg-red-900 text-red-300 hover:bg-red-800' 
+                          hypothesis.status === 'refuted'
+                            ? 'bg-red-900 text-red-300 hover:bg-red-800'
                             : 'bg-red-700 text-white hover:bg-red-600'
                         }`}
                       >
@@ -660,14 +721,17 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
                       <button
                         onClick={() => {
                           const newTitle = prompt('New hypothesis title:', hypothesis.title);
-                          const newDescription = prompt('New hypothesis description:', hypothesis.description);
+                          const newDescription = prompt(
+                            'New hypothesis description:',
+                            hypothesis.description,
+                          );
                           const reason = prompt('Reason for revision:');
-                          
+
                           if (newTitle && newDescription && reason) {
                             reviseHypothesis(hypothesis.id, {
                               title: newTitle,
                               description: newDescription,
-                              reason
+                              reason,
                             });
                           }
                         }}

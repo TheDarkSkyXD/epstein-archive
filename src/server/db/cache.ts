@@ -1,6 +1,6 @@
 /**
  * Simple In-Memory Cache for Database Queries
- * 
+ *
  * Caches frequently accessed data with TTL expiration.
  * Used for dashboard statistics, entity counts, and other hot queries.
  */
@@ -16,7 +16,7 @@ class QueryCache {
 
   constructor(defaultTTLSeconds: number = 60) {
     this.defaultTTL = defaultTTLSeconds * 1000;
-    
+
     // Periodic cleanup of expired entries (every 5 minutes)
     setInterval(() => this.cleanup(), 5 * 60 * 1000);
   }
@@ -29,7 +29,7 @@ class QueryCache {
     if (existing !== undefined) {
       return existing;
     }
-    
+
     const value = compute();
     this.set(key, value, ttlSeconds);
     return value;
@@ -41,12 +41,12 @@ class QueryCache {
   get<T>(key: string): T | undefined {
     const entry = this.cache.get(key);
     if (!entry) return undefined;
-    
+
     if (Date.now() > entry.expiresAt) {
       this.cache.delete(key);
       return undefined;
     }
-    
+
     return entry.data as T;
   }
 
@@ -57,7 +57,7 @@ class QueryCache {
     const ttl = ttlSeconds ? ttlSeconds * 1000 : this.defaultTTL;
     this.cache.set(key, {
       data,
-      expiresAt: Date.now() + ttl
+      expiresAt: Date.now() + ttl,
     });
   }
 
@@ -92,7 +92,7 @@ class QueryCache {
   stats(): { size: number; keys: string[] } {
     return {
       size: this.cache.size,
-      keys: Array.from(this.cache.keys())
+      keys: Array.from(this.cache.keys()),
     };
   }
 

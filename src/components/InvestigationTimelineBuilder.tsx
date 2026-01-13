@@ -1,7 +1,22 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { TimelineEvent, EvidenceItem, Investigation, Hypothesis } from '../types/investigation';
 import { format, parseISO, isValid } from 'date-fns';
-import { ChevronDown, ChevronUp, ChevronRight, Calendar, Clock, Link2, FileText, Users, MapPin, Plus, Edit2, Trash2, Eye, EyeOff } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  ChevronRight,
+  Calendar,
+  Clock,
+  Link2,
+  FileText,
+  Users,
+  MapPin,
+  Plus,
+  Edit2,
+  Trash2,
+  Eye,
+  EyeOff,
+} from 'lucide-react';
 
 interface TimelineBuilderProps {
   investigation: Investigation;
@@ -25,7 +40,7 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
   hypotheses,
   onEventsUpdate,
   onSaveEvent,
-  onDeleteEvent
+  onDeleteEvent,
 }) => {
   const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null);
   const [isAddingEvent, setIsAddingEvent] = useState(false);
@@ -44,7 +59,7 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
     type: 'document',
     confidence: 80,
     documents: [],
-    hypothesisIds: []
+    hypothesisIds: [],
   });
 
   const eventTypes = [
@@ -52,16 +67,16 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
     { value: 'meeting', label: 'Meeting', icon: Users, color: 'bg-green-500' },
     { value: 'location', label: 'Location', icon: MapPin, color: 'bg-purple-500' },
     { value: 'communication', label: 'Communication', icon: Link2, color: 'bg-orange-500' },
-    { value: 'hypothesis', label: 'Hypothesis', icon: ChevronRight, color: 'bg-red-500' }
+    { value: 'hypothesis', label: 'Hypothesis', icon: ChevronRight, color: 'bg-red-500' },
   ];
 
   const groupEventsByDate = (events: TimelineEvent[]): TimelineGroup[] => {
     const groups: { [key: string]: TimelineEvent[] } = {};
-    
-    events.forEach(event => {
+
+    events.forEach((event) => {
       const eventDate = new Date(event.startDate);
       let groupKey = '';
-      
+
       switch (timelineScale) {
         case 'day':
           groupKey = format(eventDate, 'yyyy-MM-dd');
@@ -76,7 +91,7 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
           groupKey = format(eventDate, 'yyyy');
           break;
       }
-      
+
       if (!groups[groupKey]) {
         groups[groupKey] = [];
       }
@@ -85,15 +100,16 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
 
     return Object.keys(groups)
       .sort()
-      .map(key => ({
+      .map((key) => ({
         startDate: key,
-        events: groups[key].sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+        events: groups[key].sort(
+          (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
+        ),
       }));
   };
 
-  const filteredEvents = filterTypes.length > 0 
-    ? events.filter(event => filterTypes.includes(event.type))
-    : events;
+  const filteredEvents =
+    filterTypes.length > 0 ? events.filter((event) => filterTypes.includes(event.type)) : events;
 
   const timelineGroups = groupEventsByDate([...filteredEvents, ...autoMilestones]);
 
@@ -106,16 +122,16 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
   useEffect(() => {
     if (evidence.length > 0) {
       const latestEvidence = evidence[evidence.length - 1];
-      const evidenceMilestoneExists = events.some(event => 
-        event.type === 'document' && 
-        event.title.includes('New Evidence Added')
+      const evidenceMilestoneExists = events.some(
+        (event) => event.type === 'document' && event.title.includes('New Evidence Added'),
       );
-      
+
       if (!evidenceMilestoneExists) {
         const evidenceMilestone: TimelineEvent = {
           id: `milestone-evidence-added-${latestEvidence.id}`,
           title: `New Evidence Added: ${latestEvidence.title}`,
-          description: latestEvidence.description || 'A new piece of evidence was added to the investigation',
+          description:
+            latestEvidence.description || 'A new piece of evidence was added to the investigation',
           startDate: new Date(latestEvidence.extractedAt || Date.now()),
           type: 'document',
           confidence: latestEvidence.credibility === 'verified' ? 100 : 80,
@@ -129,9 +145,9 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
           importance: 'medium',
           tags: ['auto-generated', 'evidence-milestone'],
           sources: [],
-          createdBy: 'system'
+          createdBy: 'system',
         };
-        
+
         onEventsUpdate([...events, evidenceMilestone]);
       }
     }
@@ -141,11 +157,10 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
   useEffect(() => {
     if (hypotheses.length > 0) {
       const latestHypothesis = hypotheses[hypotheses.length - 1];
-      const hypothesisMilestoneExists = events.some(event => 
-        event.type === 'hypothesis' && 
-        event.title.includes(latestHypothesis.title)
+      const hypothesisMilestoneExists = events.some(
+        (event) => event.type === 'hypothesis' && event.title.includes(latestHypothesis.title),
       );
-      
+
       if (!hypothesisMilestoneExists) {
         const hypothesisMilestone: TimelineEvent = {
           id: `milestone-hypothesis-${latestHypothesis.id}`,
@@ -164,9 +179,9 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
           importance: 'high',
           tags: ['auto-generated', 'hypothesis-milestone'],
           sources: [],
-          createdBy: 'system'
+          createdBy: 'system',
         };
-        
+
         onEventsUpdate([...events, hypothesisMilestone]);
       }
     }
@@ -186,7 +201,7 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
         hypothesisIds: newEvent.hypothesisIds || [],
         importance: 'medium',
         tags: [],
-        entities: []
+        entities: [],
       });
     } else {
       const event: TimelineEvent = {
@@ -206,7 +221,7 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
         importance: 'medium',
         tags: [],
         sources: [],
-        createdBy: 'current-user'
+        createdBy: 'current-user',
       };
       onEventsUpdate([...events, event]);
     }
@@ -218,7 +233,7 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
       type: 'document',
       confidence: 80,
       documents: [],
-      hypothesisIds: []
+      hypothesisIds: [],
     });
     setIsAddingEvent(false);
   };
@@ -232,7 +247,7 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
       type: event.type,
       confidence: event.confidence,
       documents: event.documents,
-      hypothesisIds: event.hypothesisIds
+      hypothesisIds: event.hypothesisIds,
     });
   };
 
@@ -240,7 +255,7 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
     if (!editingEvent || !newEvent.title || !newEvent.startDateString) return;
 
     if (onSaveEvent) {
-       await onSaveEvent({
+      await onSaveEvent({
         id: editingEvent.id,
         title: newEvent.title,
         description: newEvent.description || '',
@@ -260,10 +275,10 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
         confidence: newEvent.confidence || 80,
         documents: newEvent.documents || [],
         hypothesisIds: newEvent.hypothesisIds || [],
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
 
-      const updatedEvents = events.map(e => e.id === editingEvent.id ? updatedEvent : e);
+      const updatedEvents = events.map((e) => (e.id === editingEvent.id ? updatedEvent : e));
       onEventsUpdate(updatedEvents);
     }
     setEditingEvent(null);
@@ -274,7 +289,7 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
       type: 'document',
       confidence: 80,
       documents: [],
-      hypothesisIds: []
+      hypothesisIds: [],
     });
   };
 
@@ -283,16 +298,16 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
       if (onDeleteEvent) {
         await onDeleteEvent(eventId);
       } else {
-        onEventsUpdate(events.filter(e => e.id !== eventId));
+        onEventsUpdate(events.filter((e) => e.id !== eventId));
         // Also remove from auto-milestones if it exists there
-        setAutoMilestones(autoMilestones.filter(m => m.id !== eventId));
+        setAutoMilestones(autoMilestones.filter((m) => m.id !== eventId));
       }
     }
   };
 
   const generateAutoMilestones = () => {
     const milestones: TimelineEvent[] = [];
-    
+
     // Auto-generate investigation milestones based on evidence and patterns
     if (evidence.length > 0) {
       // Evidence discovery milestone
@@ -301,7 +316,7 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
         const earliestDate = new Date(earliest.extractedAt || Date.now());
         return currentDate < earliestDate ? current : earliest;
       });
-      
+
       milestones.push({
         id: `milestone-evidence-${investigation.id}`,
         title: 'Evidence Collection Started',
@@ -319,17 +334,18 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
         importance: 'high',
         tags: ['auto-generated', 'milestone'],
         sources: [],
-        createdBy: 'system'
+        createdBy: 'system',
       });
     }
-    
+
     // Hypothesis formation milestone
     if (hypotheses.length > 0) {
       const primaryHypothesis = hypotheses[0];
       milestones.push({
         id: `milestone-hypothesis-${investigation.id}`,
         title: 'Primary Hypothesis Formed',
-        description: primaryHypothesis.description || 'Initial investigation hypothesis established',
+        description:
+          primaryHypothesis.description || 'Initial investigation hypothesis established',
         startDate: new Date(primaryHypothesis.createdAt || Date.now()),
         type: 'hypothesis',
         confidence: primaryHypothesis.confidence || 80,
@@ -343,10 +359,10 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
         importance: 'high',
         tags: ['auto-generated', 'milestone', 'hypothesis'],
         sources: [],
-        createdBy: 'system'
+        createdBy: 'system',
       });
     }
-    
+
     // Investigation creation milestone
     milestones.push({
       id: `milestone-investigation-${investigation.id}`,
@@ -365,12 +381,12 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
       importance: 'critical',
       tags: ['auto-generated', 'milestone', 'investigation-start'],
       sources: [],
-      createdBy: 'system'
+      createdBy: 'system',
     });
-    
+
     // Evidence threshold milestones
     const evidenceThresholds = [5, 10, 25, 50, 100];
-    evidenceThresholds.forEach(threshold => {
+    evidenceThresholds.forEach((threshold) => {
       if (evidence.length >= threshold) {
         const thresholdEvidence = evidence[threshold - 1];
         milestones.push({
@@ -380,7 +396,7 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
           startDate: new Date(thresholdEvidence.extractedAt || Date.now()),
           type: 'document',
           confidence: 90,
-          documents: evidence.slice(0, threshold).map(e => e.id),
+          documents: evidence.slice(0, threshold).map((e) => e.id),
           hypothesisIds: [],
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -390,11 +406,11 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
           importance: threshold >= 25 ? 'high' : 'medium',
           tags: ['auto-generated', 'milestone', 'evidence-threshold'],
           sources: [],
-          createdBy: 'system'
+          createdBy: 'system',
         });
       }
     });
-    
+
     setAutoMilestones(milestones);
   };
 
@@ -411,18 +427,18 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
     if (!draggedEvent) return;
 
     const updatedEvent = { ...draggedEvent, startDate: new Date(targetDate) };
-    const updatedEvents = events.map(ev => ev.id === draggedEvent.id ? updatedEvent : ev);
+    const updatedEvents = events.map((ev) => (ev.id === draggedEvent.id ? updatedEvent : ev));
     onEventsUpdate(updatedEvents);
     setDraggedEvent(null);
   };
 
   const getEventTypeIcon = (type: string) => {
-    const eventType = eventTypes.find(et => et.value === type);
+    const eventType = eventTypes.find((et) => et.value === type);
     return eventType ? eventType.icon : FileText;
   };
 
   const getEventTypeColor = (type: string) => {
-    const eventType = eventTypes.find(et => et.value === type);
+    const eventType = eventTypes.find((et) => et.value === type);
     return eventType ? eventType.color : 'bg-gray-500';
   };
 
@@ -450,7 +466,9 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">Investigation Timeline</h1>
-          <p className="text-gray-400">Build and visualize the chronological sequence of events and evidence</p>
+          <p className="text-gray-400">
+            Build and visualize the chronological sequence of events and evidence
+          </p>
         </div>
 
         {/* Controls */}
@@ -492,7 +510,7 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
             <div className="mt-4 p-4 bg-gray-700 rounded-lg">
               <h3 className="text-sm font-semibold text-gray-300 mb-3">Filter by Event Type</h3>
               <div className="flex flex-wrap gap-2">
-                {eventTypes.map(type => (
+                {eventTypes.map((type) => (
                   <label key={type.value} className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
@@ -501,7 +519,7 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
                         if (e.target.checked) {
                           setFilterTypes([...filterTypes, type.value]);
                         } else {
-                          setFilterTypes(filterTypes.filter(t => t !== type.value));
+                          setFilterTypes(filterTypes.filter((t) => t !== type.value));
                         }
                       }}
                       className="rounded"
@@ -541,17 +559,25 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
-                          <div className={`w-8 h-8 rounded-full ${getEventTypeColor(event.type)} flex items-center justify-center`}>
-                            {React.createElement(getEventTypeIcon(event.type), { className: 'w-4 h-4 text-white' })}
+                          <div
+                            className={`w-8 h-8 rounded-full ${getEventTypeColor(event.type)} flex items-center justify-center`}
+                          >
+                            {React.createElement(getEventTypeIcon(event.type), {
+                              className: 'w-4 h-4 text-white',
+                            })}
                           </div>
-                          <h3 className="text-lg font-semibold text-white truncate">{event.title}</h3>
+                          <h3 className="text-lg font-semibold text-white truncate">
+                            {event.title}
+                          </h3>
                           <span className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">
                             {Math.round(event.confidence)}% confidence
                           </span>
                         </div>
-                        
+
                         {event.description && (
-                          <p className="text-gray-300 mb-3 ml-11 break-words">{event.description}</p>
+                          <p className="text-gray-300 mb-3 ml-11 break-words">
+                            {event.description}
+                          </p>
                         )}
 
                         <div className="flex items-center gap-4 text-sm text-gray-400 ml-11">
@@ -559,14 +585,14 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
                             <Clock className="w-4 h-4" />
                             {format(event.startDate, 'HH:mm')}
                           </div>
-                          
+
                           {event.documents.length > 0 && (
                             <div className="flex items-center gap-1">
                               <FileText className="w-4 h-4" />
                               {event.documents.length} evidence items
                             </div>
                           )}
-                          
+
                           {event.hypothesisIds && event.hypothesisIds.length > 0 && (
                             <div className="flex items-center gap-1">
                               <Link2 className="w-4 h-4" />
@@ -619,7 +645,9 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Description</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Description
+                  </label>
                   <textarea
                     value={newEvent.description || ''}
                     onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
@@ -630,38 +658,59 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Date & Time *</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Date & Time *
+                    </label>
                     <input
                       type="datetime-local"
-                      value={newEvent.startDateString ? format(parseISO(newEvent.startDateString), "yyyy-MM-dd'T'HH:mm") : ''}
-                      onChange={(e) => setNewEvent({ ...newEvent, startDateString: new Date(e.target.value).toISOString() })}
+                      value={
+                        newEvent.startDateString
+                          ? format(parseISO(newEvent.startDateString), "yyyy-MM-dd'T'HH:mm")
+                          : ''
+                      }
+                      onChange={(e) =>
+                        setNewEvent({
+                          ...newEvent,
+                          startDateString: new Date(e.target.value).toISOString(),
+                        })
+                      }
                       className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Event Type</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Event Type
+                    </label>
                     <select
                       value={newEvent.type || 'document'}
-                      onChange={(e) => setNewEvent({ ...newEvent, type: e.target.value as TimelineEvent['type'] })}
+                      onChange={(e) =>
+                        setNewEvent({ ...newEvent, type: e.target.value as TimelineEvent['type'] })
+                      }
                       className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
                     >
-                      {eventTypes.map(type => (
-                        <option key={type.value} value={type.value}>{type.label}</option>
+                      {eventTypes.map((type) => (
+                        <option key={type.value} value={type.value}>
+                          {type.label}
+                        </option>
                       ))}
                     </select>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Confidence Level</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Confidence Level
+                  </label>
                   <div className="flex items-center gap-4">
                     <input
                       type="range"
                       min="0"
                       max="100"
                       value={newEvent.confidence || 80}
-                      onChange={(e) => setNewEvent({ ...newEvent, confidence: parseInt(e.target.value) })}
+                      onChange={(e) =>
+                        setNewEvent({ ...newEvent, confidence: parseInt(e.target.value) })
+                      }
                       className="flex-1"
                     />
                     <span className="text-white font-medium w-12 text-right">
@@ -671,9 +720,11 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Linked Evidence</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Linked Evidence
+                  </label>
                   <div className="space-y-2 max-h-32 overflow-y-auto">
-                    {evidence.map(ev => (
+                    {evidence.map((ev) => (
                       <label key={ev.id} className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
@@ -683,7 +734,10 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
                             if (e.target.checked) {
                               setNewEvent({ ...newEvent, documents: [...documents, ev.id] });
                             } else {
-                              setNewEvent({ ...newEvent, documents: documents.filter(id => id !== ev.id) });
+                              setNewEvent({
+                                ...newEvent,
+                                documents: documents.filter((id) => id !== ev.id),
+                              });
                             }
                           }}
                           className="rounded"
@@ -695,9 +749,11 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Linked Hypotheses</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Linked Hypotheses
+                  </label>
                   <div className="space-y-2 max-h-32 overflow-y-auto">
-                    {hypotheses.map(hyp => (
+                    {hypotheses.map((hyp) => (
                       <label key={hyp.id} className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
@@ -705,9 +761,15 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
                           onChange={(e) => {
                             const hypothesisIds = newEvent.hypothesisIds || [];
                             if (e.target.checked) {
-                              setNewEvent({ ...newEvent, hypothesisIds: [...hypothesisIds, hyp.id] });
+                              setNewEvent({
+                                ...newEvent,
+                                hypothesisIds: [...hypothesisIds, hyp.id],
+                              });
                             } else {
-                              setNewEvent({ ...newEvent, hypothesisIds: hypothesisIds.filter((id: string) => id !== hyp.id) });
+                              setNewEvent({
+                                ...newEvent,
+                                hypothesisIds: hypothesisIds.filter((id: string) => id !== hyp.id),
+                              });
                             }
                           }}
                           className="rounded"
@@ -731,7 +793,7 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
                       type: 'document',
                       confidence: 80,
                       documents: [],
-                      hypothesisIds: []
+                      hypothesisIds: [],
                     });
                   }}
                   className="px-4 py-2 text-gray-300 hover:text-white transition-colors"

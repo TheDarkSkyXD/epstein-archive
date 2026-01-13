@@ -15,10 +15,10 @@ async function finalCleanup() {
   // Check each entity
   for (const entity of entities) {
     // Skip if it has a title (we assume titled entities are mostly valid, or at least we want to be careful)
-    // Actually, we should re-validate even titled ones if the name part is invalid, 
+    // Actually, we should re-validate even titled ones if the name part is invalid,
     // but our new rules catch "Watched Bret" which might have had a title extracted?
     // No, "Watched Bret" has title=null.
-    
+
     // If it has a title, we should validate the *name* part.
     // But EntityNameService.isValidPersonName checks the whole string.
     // If we have a clean name in the DB, we should check that.
@@ -46,9 +46,9 @@ async function finalCleanup() {
 
   if (invalidCount > 0) {
     console.log('Deleting invalid entities...');
-    
+
     const deleteStmt = databaseService.prepare('DELETE FROM entities WHERE id = ?');
-    
+
     databaseService.transaction(() => {
       for (const entity of invalidEntities) {
         deleteStmt.run(entity.id);
@@ -58,7 +58,7 @@ async function finalCleanup() {
         }
       }
     })();
-    
+
     console.log(`\n\n✅ Successfully deleted ${deletedCount} invalid entities.`);
   } else {
     console.log('No invalid entities found.');

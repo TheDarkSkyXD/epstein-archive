@@ -39,12 +39,12 @@ export class OptimizedDataService {
       if (!(health.status === 'ok' || health.status === 'healthy')) {
         throw new Error('API server not ready');
       }
-      
+
       this.isInitialized = true;
       console.log('OptimizedDataService initialized with API backend');
     } catch (error) {
       console.warn('API backend not available, falling back to JSON data files:', error);
-      
+
       // Try to load from JSON files as fallback
       try {
         await this.loadDataFromJsonFiles();
@@ -64,31 +64,35 @@ export class OptimizedDataService {
       if (!peopleResponse.ok) {
         throw new Error(`Failed to load people data: ${peopleResponse.status}`);
       }
-      
+
       const peopleData = await peopleResponse.json();
       console.log(`Loaded ${peopleData.length} people from JSON file`);
-      
+
       // Store the data for use in getPaginatedData
-          this.jsonFallbackData = {
-            people: peopleData.map((person: any, index: number) => ({
-              id: `person_${index}`,
-              name: person.fullName,
-              likelihood_score: person.likelihoodLevel || 'UNKNOWN',
-              mentions: person.mentions || 0,
-              files: (person.fileReferences?.split(',').length) || 0,
-              evidence_types: (person.keyEvidence?.split(',') || []).map((type: string) => type.trim()),
-              contexts: [], // Will be populated from evidence data
-              spicy_passages: [], // Will be populated from evidence data
-              spice_score: 0,
-              spice_peppers: '🌶️',
-              red_flag_rating: person.redFlagRating ?? 0,
-              role: person.primaryRole || '',
-              secondary_roles: person.secondaryRoles || '',
-              status: person.currentStatus || '',
-              fileReferences: person.fileReferences ? (typeof person.fileReferences === 'string' ? [] : person.fileReferences) : []
-            }))
-          };
-      
+      this.jsonFallbackData = {
+        people: peopleData.map((person: any, index: number) => ({
+          id: `person_${index}`,
+          name: person.fullName,
+          likelihood_score: person.likelihoodLevel || 'UNKNOWN',
+          mentions: person.mentions || 0,
+          files: person.fileReferences?.split(',').length || 0,
+          evidence_types: (person.keyEvidence?.split(',') || []).map((type: string) => type.trim()),
+          contexts: [], // Will be populated from evidence data
+          spicy_passages: [], // Will be populated from evidence data
+          spice_score: 0,
+          spice_peppers: '🌶️',
+          red_flag_rating: person.redFlagRating ?? 0,
+          role: person.primaryRole || '',
+          secondary_roles: person.secondaryRoles || '',
+          status: person.currentStatus || '',
+          fileReferences: person.fileReferences
+            ? typeof person.fileReferences === 'string'
+              ? []
+              : person.fileReferences
+            : [],
+        })),
+      };
+
       console.log('JSON fallback data prepared successfully');
     } catch (error) {
       console.error('Error loading JSON data files:', error);
@@ -105,32 +109,35 @@ export class OptimizedDataService {
   private getCachedData<T>(key: string): T | null {
     const cached = this.cache.get(key);
     if (!cached) return null;
-    
+
     const now = Date.now();
     if (now - cached.timestamp > this.CACHE_TTL) {
       this.cache.delete(key);
       return null;
     }
-    
+
     return cached.data;
   }
 
   private setCachedData<T>(key: string, data: T): void {
     this.cache.set(key, {
       data,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
   }
 
-  async getPaginatedData(filters: SearchFilters = {}, page: number = 1): Promise<PaginatedResponse> {
+  async getPaginatedData(
+    filters: SearchFilters = {},
+    page: number = 1,
+  ): Promise<PaginatedResponse> {
     await this.initialize();
 
     const pageSize = this.getPageSize();
     const cacheKey = this.getCacheKey('entities', { filters, page, pageSize });
-    
+
     // Disable caching for searches to ensure fresh filtered results
     const cached = filters.searchTerm ? null : this.getCachedData<PaginatedResponse>(cacheKey);
-    
+
     if (cached) {
       console.log(`Cache hit for entities page ${page}`);
       return cached;
@@ -145,7 +152,7 @@ export class OptimizedDataService {
     // Implement retry mechanism with exponential backoff
     const maxRetries = 3;
     const baseDelay = 1000; // 1 second
-    
+
     // Create promise for this request
     const fetchPromise = (async () => {
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -159,11 +166,11 @@ export class OptimizedDataService {
             sortOrder: filters.sortOrder,
             entityType: filters.entityType,
             minRedFlagIndex: filters.minRedFlagIndex,
-            maxRedFlagIndex: filters.maxRedFlagIndex
+            maxRedFlagIndex: filters.maxRedFlagIndex,
           };
 
           const result = await apiClient.getEntities(apiFilters, page, pageSize);
-          
+
           // Map API response to Person interface
           if (result.data) {
             const term = (filters.searchTerm || '').toLowerCase();
@@ -176,10 +183,11 @@ export class OptimizedDataService {
                 role: person.primaryRole || person.role,
                 title: person.title,
                 title_variants: person.titleVariants || person.title_variants,
-                red_flag_rating: (person.red_flag_rating ?? person.redFlagRating ?? person.spiceRating ?? 0),
-                evidence_types: person.evidenceTypes || person.evidence_types || []
+                red_flag_rating:
+                  person.red_flag_rating ?? person.redFlagRating ?? person.spiceRating ?? 0,
+                evidence_types: person.evidenceTypes || person.evidence_types || [],
               }))
-              .filter(p => term ? (p.name || '').toLowerCase().includes(term) : true)
+              .filter((p) => (term ? (p.name || '').toLowerCase().includes(term) : true));
           }
 
           // Note: Server-side filtering by likelihoodScore (via red_flag_rating ranges) is now used.
@@ -187,19 +195,24 @@ export class OptimizedDataService {
 
           // Cache the result
           this.setCachedData(cacheKey, result);
-          
+
           // Remove from prefetch cache since we've fulfilled it
           this.prefetchCache.delete(cacheKey);
-          
-          console.log(`Fetched page ${page} with ${result.data.length} deduplicated entities from API (${result.total} total unique)`);
+
+          console.log(
+            `Fetched page ${page} with ${result.data.length} deduplicated entities from API (${result.total} total unique)`,
+          );
           return result;
         } catch (error) {
-          console.warn(`API fetch failed (attempt ${attempt + 1}/${maxRetries + 1}), using JSON fallback data:`, error);
-          
+          console.warn(
+            `API fetch failed (attempt ${attempt + 1}/${maxRetries + 1}), using JSON fallback data:`,
+            error,
+          );
+
           // If this isn't the last attempt, wait before retrying
           if (attempt < maxRetries) {
             const delay = baseDelay * Math.pow(2, attempt);
-            await new Promise(resolve => setTimeout(resolve, delay));
+            await new Promise((resolve) => setTimeout(resolve, delay));
             continue;
           }
 
@@ -213,7 +226,7 @@ export class OptimizedDataService {
               sortOrder: filters.sortOrder,
               entityType: filters.entityType,
               minRedFlagIndex: filters.minRedFlagIndex,
-              maxRedFlagIndex: filters.maxRedFlagIndex
+              maxRedFlagIndex: filters.maxRedFlagIndex,
             };
             const result = await apiClient.getEntities(apiFiltersNoLikelihood, page, pageSize);
             if (result.data) {
@@ -227,12 +240,13 @@ export class OptimizedDataService {
                   role: person.primaryRole || person.role,
                   title: person.title,
                   title_variants: person.titleVariants || person.title_variants,
-                  red_flag_rating: (person.red_flag_rating ?? person.redFlagRating ?? person.spiceRating ?? 0),
-                  evidence_types: person.evidenceTypes || person.evidence_types || []
+                  red_flag_rating:
+                    person.red_flag_rating ?? person.redFlagRating ?? person.spiceRating ?? 0,
+                  evidence_types: person.evidenceTypes || person.evidence_types || [],
                 }))
-                .filter(p => term ? (p.name || '').toLowerCase().includes(term) : true);
+                .filter((p) => (term ? (p.name || '').toLowerCase().includes(term) : true));
               if (filters.likelihoodScore && filters.likelihoodScore.length > 0) {
-                const filterLevels = filters.likelihoodScore.map(l => l.toUpperCase());
+                const filterLevels = filters.likelihoodScore.map((l) => l.toUpperCase());
                 result.data = result.data.filter((p: any) => {
                   const pLevel = (p.likelihood_score || '').toUpperCase();
                   return filterLevels.includes(pLevel);
@@ -243,65 +257,69 @@ export class OptimizedDataService {
             this.prefetchCache.delete(cacheKey);
             return result;
           } catch (retryError) {
-            console.warn('Secondary API fetch without likelihood also failed; falling back to JSON data', retryError);
+            console.warn(
+              'Secondary API fetch without likelihood also failed; falling back to JSON data',
+              retryError,
+            );
           }
 
           // Use JSON fallback data if available (only after secondary attempt)
           if (this.jsonFallbackData && this.jsonFallbackData.people) {
             let filteredPeople = [...this.jsonFallbackData.people];
-            
+
             // Apply filters
             if (filters.searchTerm) {
               const searchLower = filters.searchTerm.toLowerCase();
-              filteredPeople = filteredPeople.filter(person => 
-                person.name.toLowerCase().includes(searchLower) ||
-                (person.connections && person.connections.toLowerCase().includes(searchLower)) ||
-                (person.role && person.role.toLowerCase().includes(searchLower))
+              filteredPeople = filteredPeople.filter(
+                (person) =>
+                  person.name.toLowerCase().includes(searchLower) ||
+                  (person.connections && person.connections.toLowerCase().includes(searchLower)) ||
+                  (person.role && person.role.toLowerCase().includes(searchLower)),
               );
             }
-            
+
             if (filters.likelihoodScore && filters.likelihoodScore.length > 0) {
-              filteredPeople = filteredPeople.filter(person => 
-                filters.likelihoodScore!.includes(person.likelihood_score)
+              filteredPeople = filteredPeople.filter((person) =>
+                filters.likelihoodScore!.includes(person.likelihood_score),
               );
             }
-            
+
             if (filters.evidenceTypes && filters.evidenceTypes.length > 0) {
-              filteredPeople = filteredPeople.filter(person => 
-                person.evidence_types.some((type: string) => 
-                  filters.evidenceTypes!.includes(type)
-                )
+              filteredPeople = filteredPeople.filter((person) =>
+                person.evidence_types.some((type: string) => filters.evidenceTypes!.includes(type)),
               );
             }
-            
+
             if (filters.minRedFlagIndex !== undefined) {
-              filteredPeople = filteredPeople.filter(person => 
-                (person.red_flag_rating ?? 0) >= filters.minRedFlagIndex!
+              filteredPeople = filteredPeople.filter(
+                (person) => (person.red_flag_rating ?? 0) >= filters.minRedFlagIndex!,
               );
             }
-            
+
             if (filters.maxRedFlagIndex !== undefined) {
-              filteredPeople = filteredPeople.filter(person => 
-                (person.red_flag_rating ?? 0) <= filters.maxRedFlagIndex!
+              filteredPeople = filteredPeople.filter(
+                (person) => (person.red_flag_rating ?? 0) <= filters.maxRedFlagIndex!,
               );
             }
-            
+
             // Apply entity type filtering
             if (filters.entityType && filters.entityType !== 'all') {
-              filteredPeople = filteredPeople.filter(person => {
+              filteredPeople = filteredPeople.filter((person) => {
                 // Map role/type to entity type
                 // This is a heuristic since JSON data might not have explicit entity_type field
                 // We assume 'Person' if not specified, or infer from role
-                const type = (person as any).entity_type || (person.role && person.role.includes('Organization') ? 'Organization' : 'Person');
+                const type =
+                  (person as any).entity_type ||
+                  (person.role && person.role.includes('Organization') ? 'Organization' : 'Person');
                 return type === filters.entityType;
               });
             }
-            
+
             // Apply sorting
             if (filters.sortBy) {
               filteredPeople.sort((a, b) => {
                 let aValue: any, bValue: any;
-                
+
                 switch (filters.sortBy) {
                   case 'name':
                     aValue = a.name;
@@ -314,8 +332,8 @@ export class OptimizedDataService {
                   case 'spice':
                     // Weighted score: 30% mentions, 70% spice score
                     // This ensures high-profile targets (high mentions) with high risk bubble to the top
-                    aValue = (a.mentions * 0.3) + (a.spice_score * 0.7);
-                    bValue = (b.mentions * 0.3) + (b.spice_score * 0.7);
+                    aValue = a.mentions * 0.3 + a.spice_score * 0.7;
+                    bValue = b.mentions * 0.3 + b.spice_score * 0.7;
                     break;
                   case 'risk':
                     aValue = a.likelihood_score;
@@ -325,7 +343,7 @@ export class OptimizedDataService {
                     aValue = a.mentions;
                     bValue = b.mentions;
                 }
-                
+
                 if (filters.sortOrder === 'asc') {
                   return aValue > bValue ? 1 : -1;
                 } else {
@@ -333,25 +351,27 @@ export class OptimizedDataService {
                 }
               });
             }
-            
+
             // Apply pagination
             const startIndex = (page - 1) * pageSize;
             const endIndex = startIndex + pageSize;
             const paginatedData = filteredPeople.slice(startIndex, endIndex);
-            
+
             const result: PaginatedResponse = {
               data: paginatedData,
               total: filteredPeople.length,
               page,
               totalPages: Math.ceil(filteredPeople.length / pageSize),
-              pageSize
+              pageSize,
             };
-            
+
             // Cache the result
             this.setCachedData(cacheKey, result);
             this.prefetchCache.delete(cacheKey);
-            
-            console.log(`Fetched page ${page} with ${result.data.length} entities from JSON fallback (${filteredPeople.length} total)`);
+
+            console.log(
+              `Fetched page ${page} with ${result.data.length} entities from JSON fallback (${filteredPeople.length} total)`,
+            );
             return result;
           } else {
             console.error('No JSON fallback data available');
@@ -359,14 +379,14 @@ export class OptimizedDataService {
           }
         }
       }
-      
+
       // This should never be reached, but TypeScript requires it
       throw new Error('Unexpected error in getPaginatedData');
     })();
 
     // Store promise in prefetch cache
     this.prefetchCache.set(cacheKey, fetchPromise);
-    
+
     // Return the promise
     return fetchPromise;
   }
@@ -376,18 +396,18 @@ export class OptimizedDataService {
     const nextPage = currentPage + 1;
     const pageSize = this.getPageSize();
     const cacheKey = this.getCacheKey('entities', { filters, page: nextPage, pageSize });
-    
+
     // Don't prefetch if already cached or being prefetched
     if (this.getCachedData(cacheKey) || this.prefetchCache.has(cacheKey)) {
       return;
     }
-    
+
     // Create prefetch promise
     const prefetchPromise = this.getPaginatedData(filters, nextPage);
-    
+
     // Store in prefetch cache
     this.prefetchCache.set(cacheKey, prefetchPromise);
-    
+
     // Clean up prefetch cache after promise resolves
     prefetchPromise.finally(() => {
       this.prefetchCache.delete(cacheKey);
@@ -399,7 +419,7 @@ export class OptimizedDataService {
 
     const cacheKey = this.getCacheKey('person', { id });
     const cached = this.getCachedData<Person>(cacheKey);
-    
+
     if (cached) {
       console.log(`Cache hit for person ${id}`);
       return cached;
@@ -407,10 +427,10 @@ export class OptimizedDataService {
 
     try {
       const person = await apiClient.getEntity(id);
-      
+
       // Cache the result
       this.setCachedData(cacheKey, person);
-      
+
       console.log(`Fetched person ${id}: ${person.name}`);
       return person;
     } catch (error) {
@@ -428,7 +448,7 @@ export class OptimizedDataService {
 
     const cacheKey = this.getCacheKey('search', { query });
     const cached = this.getCachedData<Person[]>(cacheKey);
-    
+
     if (cached) {
       console.log(`Cache hit for search: "${query}"`);
       return cached;
@@ -436,10 +456,10 @@ export class OptimizedDataService {
 
     try {
       const results = await apiClient.searchEntities(query, 50); // Limit to 50 results
-      
+
       // Cache the result
       this.setCachedData(cacheKey, results);
-      
+
       console.log(`Search "${query}" returned ${results.length} results`);
       return results;
     } catch (error) {
@@ -458,29 +478,32 @@ export class OptimizedDataService {
     // Implement retry mechanism with exponential backoff
     const maxRetries = 3;
     const baseDelay = 1000; // 1 second
-    
+
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         const stats = await apiClient.getStats();
         this.statsCache = stats;
-        
+
         // Clear stats cache after 5 minutes (TTL)
         setTimeout(() => {
           this.statsCache = null;
         }, this.CACHE_TTL);
-        
+
         return stats;
       } catch (error) {
-        console.error(`Error fetching statistics (attempt ${attempt + 1}/${maxRetries + 1}):`, error);
-        
+        console.error(
+          `Error fetching statistics (attempt ${attempt + 1}/${maxRetries + 1}):`,
+          error,
+        );
+
         // If this is the last attempt, throw the error
         if (attempt === maxRetries) {
           throw error;
         }
-        
+
         // Wait before retrying with exponential backoff
         const delay = baseDelay * Math.pow(2, attempt);
-        await new Promise(resolve => setTimeout(resolve, delay));
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
   }
@@ -490,7 +513,7 @@ export class OptimizedDataService {
 
     const cacheKey = this.getCacheKey('allPeople', {});
     const cached = this.getCachedData<Person[]>(cacheKey);
-    
+
     if (cached) {
       console.log('Cache hit for all people');
       return cached;
@@ -500,17 +523,17 @@ export class OptimizedDataService {
       // This would be too many people to fetch at once, so we'll fetch first few pages
       const allPeople: Person[] = [];
       const maxPages = 10; // Limit to first 10 pages (240 people)
-      
+
       for (let page = 1; page <= maxPages; page++) {
         const result = await this.getPaginatedData({}, page);
         allPeople.push(...result.data);
-        
+
         if (page >= result.totalPages) break;
       }
-      
+
       // Cache the result
       this.setCachedData(cacheKey, allPeople);
-      
+
       console.log(`Fetched ${allPeople.length} people for "all people" request`);
       return allPeople;
     } catch (error) {

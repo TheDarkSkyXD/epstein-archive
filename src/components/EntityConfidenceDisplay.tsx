@@ -16,10 +16,10 @@ interface EntityConfidenceDisplayProps {
   size?: 'sm' | 'md' | 'lg';
 }
 
-export const EntityConfidenceDisplay: React.FC<EntityConfidenceDisplayProps> = ({ 
-  entityId, 
+export const EntityConfidenceDisplay: React.FC<EntityConfidenceDisplayProps> = ({
+  entityId,
   showBreakdown = false,
-  size = 'md'
+  size = 'md',
 }) => {
   const [confidence, setConfidence] = useState<EntityConfidence | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,9 +27,9 @@ export const EntityConfidenceDisplay: React.FC<EntityConfidenceDisplayProps> = (
 
   useEffect(() => {
     if (!entityId) return;
-    
+
     fetch(`/api/entities/${entityId}/confidence`)
-      .then(res => res.ok ? res.json() : Promise.reject('Failed'))
+      .then((res) => (res.ok ? res.json() : Promise.reject('Failed')))
       .then(setConfidence)
       .catch(() => setConfidence(null))
       .finally(() => setLoading(false));
@@ -45,26 +45,34 @@ export const EntityConfidenceDisplay: React.FC<EntityConfidenceDisplayProps> = (
 
   const getColor = (level: string) => {
     switch (level) {
-      case 'High': return 'text-green-400 bg-green-500/20 border-green-500/30';
-      case 'Medium': return 'text-yellow-400 bg-yellow-500/20 border-yellow-500/30';
-      case 'Low': return 'text-orange-400 bg-orange-500/20 border-orange-500/30';
-      default: return 'text-slate-400 bg-slate-500/20 border-slate-500/30';
+      case 'High':
+        return 'text-green-400 bg-green-500/20 border-green-500/30';
+      case 'Medium':
+        return 'text-yellow-400 bg-yellow-500/20 border-yellow-500/30';
+      case 'Low':
+        return 'text-orange-400 bg-orange-500/20 border-orange-500/30';
+      default:
+        return 'text-slate-400 bg-slate-500/20 border-slate-500/30';
     }
   };
 
   const getIcon = (level: string) => {
     switch (level) {
-      case 'High': return 'ShieldCheck';
-      case 'Medium': return 'Shield';
-      case 'Low': return 'AlertTriangle';
-      default: return 'HelpCircle';
+      case 'High':
+        return 'ShieldCheck';
+      case 'Medium':
+        return 'Shield';
+      case 'Low':
+        return 'AlertTriangle';
+      default:
+        return 'HelpCircle';
     }
   };
 
   const sizeClasses = {
     sm: 'text-xs px-1.5 py-0.5',
     md: 'text-sm px-2 py-1',
-    lg: 'text-base px-3 py-1.5'
+    lg: 'text-base px-3 py-1.5',
   };
 
   // Simple badge
@@ -95,19 +103,19 @@ export const EntityConfidenceDisplay: React.FC<EntityConfidenceDisplayProps> = (
           <Icon name="X" size="sm" />
         </button>
       </div>
-      
+
       <div className="p-3 bg-slate-900/50 space-y-3">
         <p className="text-xs text-slate-400">
           Based on {confidence.totalMentions.toLocaleString()} references across verified sources
         </p>
-        
+
         {/* Evidence breakdown */}
         {confidence.evidenceBreakdown.length > 0 && (
           <div className="space-y-1">
             <span className="text-xs text-slate-500">Evidence Sources:</span>
             <div className="flex flex-wrap gap-1">
-              {confidence.evidenceBreakdown.map(ev => (
-                <span 
+              {confidence.evidenceBreakdown.map((ev) => (
+                <span
                   key={ev.evidence_type}
                   className="text-xs px-2 py-0.5 bg-slate-700/50 rounded text-slate-300"
                 >
@@ -121,8 +129,8 @@ export const EntityConfidenceDisplay: React.FC<EntityConfidenceDisplayProps> = (
         {/* Confidence explanation */}
         <div className="text-xs text-slate-500 border-t border-slate-700/50 pt-2">
           <Icon name="Info" size="xs" className="inline mr-1" />
-          Confidence is weighted by source type: legal documents (100%), testimony (90%), 
-          flight logs (85%), financial (80%), emails (70%), photos (50%).
+          Confidence is weighted by source type: legal documents (100%), testimony (90%), flight
+          logs (85%), financial (80%), emails (70%), photos (50%).
         </div>
       </div>
     </div>

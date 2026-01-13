@@ -8,23 +8,23 @@ interface ArticleFeedProps {
   maxArticles?: number;
 }
 
-export const ArticleFeed: React.FC<ArticleFeedProps> = ({ 
-  feedUrl, 
+export const ArticleFeed: React.FC<ArticleFeedProps> = ({
+  feedUrl,
   tagFilter = 'epstein',
-  maxArticles = 6 
+  maxArticles = 6,
 }) => {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  
+
   const feedService = new ArticleFeedService();
 
   const fetchArticles = async () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const fetchedArticles = await feedService.fetchArticles(feedUrl, tagFilter);
       setArticles(fetchedArticles.slice(0, maxArticles));
       setLastUpdated(new Date());
@@ -126,7 +126,9 @@ export const ArticleFeed: React.FC<ArticleFeedProps> = ({
           {error && (
             <div className="mt-4 text-sm text-red-400 bg-red-900 bg-opacity-20 rounded-lg p-3">
               <p className="font-medium">Error: {error}</p>
-              <p className="text-red-300">This might be due to network issues or the feed being temporarily unavailable.</p>
+              <p className="text-red-300">
+                This might be due to network issues or the feed being temporarily unavailable.
+              </p>
             </div>
           )}
         </div>
@@ -156,8 +158,8 @@ export const ArticleFeed: React.FC<ArticleFeedProps> = ({
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {articles.map((article, index) => (
-          <article 
-            key={article.guid || index} 
+          <article
+            key={article.guid || index}
             className="bg-gray-800 rounded-lg p-4 hover:bg-gray-700 transition-colors group"
           >
             <div className="flex items-start justify-between mb-3">
@@ -192,7 +194,7 @@ export const ArticleFeed: React.FC<ArticleFeedProps> = ({
             {article.categories.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-1">
                 {article.categories.slice(0, 3).map((category, catIndex) => (
-                  <span 
+                  <span
                     key={catIndex}
                     className="px-2 py-1 bg-gray-700 text-gray-300 text-xs rounded"
                   >

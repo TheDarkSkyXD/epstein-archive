@@ -1,4 +1,3 @@
-
 import Database from 'better-sqlite3';
 import path from 'path';
 
@@ -9,11 +8,18 @@ console.log('Migrating entities table schema...');
 
 try {
   const tableInfo = db.pragma('table_info(entities)') as { name: string }[];
-  const columns = new Set(tableInfo.map(c => c.name));
+  const columns = new Set(tableInfo.map((c) => c.name));
 
   db.transaction(() => {
     // 0. Drop problematic triggers and views
-    const triggers = ['entities_ai', 'entities_ad', 'entities_au', 'entities_fts_insert', 'entities_fts_update', 'entities_fts_delete'];
+    const triggers = [
+      'entities_ai',
+      'entities_ad',
+      'entities_au',
+      'entities_fts_insert',
+      'entities_fts_update',
+      'entities_fts_delete',
+    ];
     for (const trigger of triggers) {
       try {
         db.prepare(`DROP TRIGGER IF EXISTS ${trigger}`).run();
@@ -38,9 +44,9 @@ try {
       console.log('Renaming name -> full_name');
       db.prepare('ALTER TABLE entities RENAME COLUMN name TO full_name').run();
     } else if (!columns.has('full_name')) {
-        // Should not happen if name doesn't exist either, but just in case
-        console.log('Adding full_name column');
-        db.prepare('ALTER TABLE entities ADD COLUMN full_name TEXT').run();
+      // Should not happen if name doesn't exist either, but just in case
+      console.log('Adding full_name column');
+      db.prepare('ALTER TABLE entities ADD COLUMN full_name TEXT').run();
     }
 
     // 2. Rename 'role' to 'primary_role'
@@ -48,8 +54,8 @@ try {
       console.log('Renaming role -> primary_role');
       db.prepare('ALTER TABLE entities RENAME COLUMN role TO primary_role').run();
     } else if (!columns.has('primary_role')) {
-        console.log('Adding primary_role column');
-        db.prepare('ALTER TABLE entities ADD COLUMN primary_role TEXT').run();
+      console.log('Adding primary_role column');
+      db.prepare('ALTER TABLE entities ADD COLUMN primary_role TEXT').run();
     }
 
     // 3. Add 'secondary_roles'
@@ -73,12 +79,13 @@ try {
     // 6. Add 'updated_at'
     if (!columns.has('updated_at')) {
       console.log('Adding updated_at column');
-      db.prepare("ALTER TABLE entities ADD COLUMN updated_at DATETIME DEFAULT '2024-01-01 00:00:00'").run();
+      db.prepare(
+        "ALTER TABLE entities ADD COLUMN updated_at DATETIME DEFAULT '2024-01-01 00:00:00'",
+      ).run();
     }
   })();
 
   console.log('Entities schema migration completed successfully.');
-
 } catch (error) {
   console.error('Migration failed:', error);
 } finally {

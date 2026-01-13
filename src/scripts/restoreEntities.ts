@@ -1,4 +1,3 @@
-
 import { databaseService } from '../services/DatabaseService';
 import { fileURLToPath } from 'url';
 import { join } from 'path';
@@ -19,13 +18,15 @@ async function restoreEntityData() {
 
     // 2. Prepare database statements
     const db = databaseService.getDatabase();
-    
+
     // Check if mentions column exists, if not trying to update it will fail
     try {
-        db.prepare('SELECT mentions FROM entities LIMIT 1').get();
+      db.prepare('SELECT mentions FROM entities LIMIT 1').get();
     } catch (e) {
-        console.error('Column "mentions" does not exist in entities table. Please run migration/alter table first.');
-        process.exit(1);
+      console.error(
+        'Column "mentions" does not exist in entities table. Please run migration/alter table first.',
+      );
+      process.exit(1);
     }
 
     const updateEntity = db.prepare(`
@@ -47,7 +48,7 @@ async function restoreEntityData() {
         // Map JSON fields to DB fields
         // Source JSON keys: fullName, mentions, likelihoodLevel, etc.
         // Some might be capitalized in inconsistencies, but usually standard in people.json
-        
+
         const name = source.fullName || source.name;
         if (!name) continue;
 
@@ -71,7 +72,7 @@ async function restoreEntityData() {
           redFlagRating: rating,
           role: source.primaryRole || source.role || 'Mentioned',
           riskFactor: source.spiceScore || 0,
-          name: name
+          name: name,
         });
 
         if (result.changes > 0) {
@@ -79,7 +80,7 @@ async function restoreEntityData() {
         } else {
           notFoundCount++;
           if (notFoundCount < 5) {
-             console.log(`No match for: ${name}`);
+            console.log(`No match for: ${name}`);
           }
         }
       }
@@ -95,7 +96,6 @@ async function restoreEntityData() {
     // Verify
     const stats = await databaseService.getStatistics();
     console.log('New Database Stats:', stats);
-
   } catch (error) {
     console.error('Restoration failed:', error);
     process.exit(1);
@@ -105,11 +105,11 @@ async function restoreEntityData() {
 // Always run
 console.log('Script loaded. Calling restoreEntityData...');
 restoreEntityData()
-    .then(() => {
-        console.log('Done.');
-        process.exit(0);
-    })
-    .catch((err) => {
-        console.error('Fatal error:', err);
-        process.exit(1);
-    });
+  .then(() => {
+    console.log('Done.');
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error('Fatal error:', err);
+    process.exit(1);
+  });

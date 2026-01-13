@@ -6,7 +6,7 @@ export const useFirstRunOnboarding = () => {
   useEffect(() => {
     // Check if this is the first run by looking at localStorage
     const hasCompletedOnboarding = localStorage.getItem('firstRunOnboardingCompleted');
-    
+
     if (!hasCompletedOnboarding) {
       setShouldShowOnboarding(true);
     }
@@ -25,6 +25,6 @@ export const useFirstRunOnboarding = () => {
   return {
     shouldShowOnboarding,
     completeOnboarding,
-    skipOnboarding
+    skipOnboarding,
   };
 };

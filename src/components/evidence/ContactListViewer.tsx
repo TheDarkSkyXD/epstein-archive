@@ -1,6 +1,6 @@
 /**
  * Contact List Viewer Component
- * 
+ *
  * Displays contact directories like Black Book
  */
 
@@ -26,15 +26,15 @@ export function ContactListViewer({ evidence }: ContactListViewerProps) {
   const [searchTerm, setSearchTerm] = useState('');
 
   const contacts = useMemo(() => {
-    const lines = evidence.extractedText.split('\n').filter(line => line.trim());
+    const lines = evidence.extractedText.split('\n').filter((line) => line.trim());
     const contactList: Contact[] = [];
-    
+
     // Simple parsing: group related lines as contacts
     let currentContact: Partial<Contact> = {};
-    
+
     for (const line of lines) {
       const trimmed = line.trim();
-      
+
       // Check for name patterns (capitalized words)
       if (/^[A-Z][a-z]+\s+[A-Z][a-z]+/.test(trimmed) && !trimmed.includes('@')) {
         if (currentContact.name) {
@@ -42,7 +42,7 @@ export function ContactListViewer({ evidence }: ContactListViewerProps) {
         }
         currentContact = {
           name: trimmed,
-          raw: trimmed
+          raw: trimmed,
         };
       } else if (currentContact.name) {
         // Look for phone, email, or address
@@ -56,23 +56,24 @@ export function ContactListViewer({ evidence }: ContactListViewerProps) {
         currentContact.raw += '\n' + trimmed;
       }
     }
-    
+
     if (currentContact.name) {
       contactList.push(currentContact as Contact);
     }
-    
+
     return contactList;
   }, [evidence.extractedText]);
 
   const filteredContacts = useMemo(() => {
     if (!searchTerm.trim()) return contacts;
-    
+
     const term = searchTerm.toLowerCase();
-    return contacts.filter(contact =>
-      contact.name.toLowerCase().includes(term) ||
-      contact.phone?.toLowerCase().includes(term) ||
-      contact.email?.toLowerCase().includes(term) ||
-      contact.address?.toLowerCase().includes(term)
+    return contacts.filter(
+      (contact) =>
+        contact.name.toLowerCase().includes(term) ||
+        contact.phone?.toLowerCase().includes(term) ||
+        contact.email?.toLowerCase().includes(term) ||
+        contact.address?.toLowerCase().includes(term),
     );
   }, [contacts, searchTerm]);
 
@@ -80,12 +81,8 @@ export function ContactListViewer({ evidence }: ContactListViewerProps) {
     <div className="p-6">
       {/* Header */}
       <div className="mb-6">
-        <h3 className="text-lg font-semibold text-gray-900">
-          {evidence.title}
-        </h3>
-        <p className="text-sm text-gray-600 mt-1">
-          {contacts.length} contacts found
-        </p>
+        <h3 className="text-lg font-semibold text-gray-900">{evidence.title}</h3>
+        <p className="text-sm text-gray-600 mt-1">{contacts.length} contacts found</p>
       </div>
 
       {/* Search */}
@@ -112,10 +109,8 @@ export function ContactListViewer({ evidence }: ContactListViewerProps) {
             <div className="flex items-start">
               <User className="h-5 w-5 text-gray-400 mr-3 mt-0.5 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-semibold text-gray-900 truncate">
-                  {contact.name}
-                </h4>
-                
+                <h4 className="text-sm font-semibold text-gray-900 truncate">{contact.name}</h4>
+
                 <div className="mt-2 space-y-1">
                   {contact.phone && (
                     <div className="flex items-center text-xs text-gray-600">
@@ -123,14 +118,14 @@ export function ContactListViewer({ evidence }: ContactListViewerProps) {
                       {contact.phone}
                     </div>
                   )}
-                  
+
                   {contact.email && (
                     <div className="flex items-center text-xs text-gray-600">
                       <Mail className="h-3 w-3 mr-1.5" />
                       {contact.email}
                     </div>
                   )}
-                  
+
                   {contact.address && (
                     <div className="flex items-start text-xs text-gray-600">
                       <MapPin className="h-3 w-3 mr-1.5 mt-0.5 flex-shrink-0" />

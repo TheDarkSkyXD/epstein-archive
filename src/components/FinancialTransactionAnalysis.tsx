@@ -1,6 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { Investigation, EvidenceItem } from '../types/investigation';
-import { DollarSign, TrendingUp, TrendingDown, Calendar, ArrowRight, Search, Filter, Download, AlertTriangle, Building, CreditCard, X, MapPin, Users } from 'lucide-react';
+import {
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  Calendar,
+  ArrowRight,
+  Search,
+  Filter,
+  Download,
+  AlertTriangle,
+  Building,
+  CreditCard,
+  X,
+  MapPin,
+  Users,
+} from 'lucide-react';
 
 interface FinancialTransactionAnalysisProps {
   investigation: Investigation;
@@ -51,13 +66,15 @@ interface FinancialTransaction {
 export const FinancialTransactionAnalysis: React.FC<FinancialTransactionAnalysisProps> = ({
   investigation,
   evidence,
-  onTransactionPatternDetected
+  onTransactionPatternDetected,
 }) => {
   const [transactionPatterns, setTransactionPatterns] = useState<TransactionPattern[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [selectedPattern, setSelectedPattern] = useState<TransactionPattern | null>(null);
   const [analysisProgress, setAnalysisProgress] = useState(0);
-  const [filterType, setFilterType] = useState<'all' | 'flow' | 'timing' | 'amount' | 'geographic' | 'entity' | 'anomaly'>('all');
+  const [filterType, setFilterType] = useState<
+    'all' | 'flow' | 'timing' | 'amount' | 'geographic' | 'entity' | 'anomaly'
+  >('all');
   const [sortBy, setSortBy] = useState<'date' | 'amount' | 'confidence' | 'severity'>('confidence');
 
   const analyzeTransactions = async () => {
@@ -73,11 +90,11 @@ export const FinancialTransactionAnalysis: React.FC<FinancialTransactionAnalysis
       { progress: 64, message: 'Identifying entity relationships...' },
       { progress: 77, message: 'Calculating anomaly scores...' },
       { progress: 90, message: 'Cross-referencing with known patterns...' },
-      { progress: 100, message: 'Transaction analysis complete!' }
+      { progress: 100, message: 'Transaction analysis complete!' },
     ];
 
     for (const step of progressSteps) {
-      await new Promise(resolve => setTimeout(resolve, 600));
+      await new Promise((resolve) => setTimeout(resolve, 600));
       setAnalysisProgress(step.progress);
     }
 
@@ -87,7 +104,8 @@ export const FinancialTransactionAnalysis: React.FC<FinancialTransactionAnalysis
         id: 'finance-001',
         type: 'flow',
         title: 'Unusual Circular Money Flows',
-        description: 'Complex circular transaction patterns where funds move through multiple entities before returning to origin, suggesting money laundering.',
+        description:
+          'Complex circular transaction patterns where funds move through multiple entities before returning to origin, suggesting money laundering.',
         confidence: 94,
         severity: 'critical',
         entities: ['Jeffrey Epstein', 'Shell Company A', 'Offshore Account', 'Real Estate LLC'],
@@ -100,19 +118,20 @@ export const FinancialTransactionAnalysis: React.FC<FinancialTransactionAnalysis
           averageAmount: 319149,
           largestTransaction: 2500000,
           flowDirection: 'circular',
-          anomalyScore: 9.2
+          anomalyScore: 9.2,
         },
         recommendations: [
           'Subpoena complete transaction records for all identified entities',
           'Investigate beneficial ownership of shell companies',
-          'Coordinate with international financial intelligence units'
-        ]
+          'Coordinate with international financial intelligence units',
+        ],
       },
       {
         id: 'finance-002',
         type: 'timing',
         title: 'Investigation-Linked Transactions',
-        description: 'Large financial transfers occurring immediately before or after key investigation milestones, suggesting influence attempts.',
+        description:
+          'Large financial transfers occurring immediately before or after key investigation milestones, suggesting influence attempts.',
         confidence: 89,
         severity: 'high',
         entities: ['Jeffrey Epstein', 'Legal Defense Fund', 'Political Donations'],
@@ -125,19 +144,20 @@ export const FinancialTransactionAnalysis: React.FC<FinancialTransactionAnalysis
           averageAmount: 369565,
           largestTransaction: 2000000,
           frequency: 23,
-          anomalyScore: 8.1
+          anomalyScore: 8.1,
         },
         recommendations: [
           'Cross-reference transaction dates with investigation timeline',
           'Analyze recipients of political donations',
-          'Trace ultimate beneficiaries of legal payments'
-        ]
+          'Trace ultimate beneficiaries of legal payments',
+        ],
       },
       {
         id: 'finance-003',
         type: 'amount',
         title: 'Structured Transactions Below Reporting Threshold',
-        description: 'Multiple transactions just below $10,000 reporting threshold, consistent with structuring to avoid detection.',
+        description:
+          'Multiple transactions just below $10,000 reporting threshold, consistent with structuring to avoid detection.',
         confidence: 91,
         severity: 'high',
         entities: ['Jeffrey Epstein', 'Multiple Cash Recipients'],
@@ -150,19 +170,20 @@ export const FinancialTransactionAnalysis: React.FC<FinancialTransactionAnalysis
           averageAmount: 9327,
           largestTransaction: 9950,
           frequency: 52,
-          anomalyScore: 8.6
+          anomalyScore: 8.6,
         },
         recommendations: [
           'Review all transactions in $9,000-$10,000 range',
           'Interview bank personnel about suspicious activity reports',
-          'Analyze cash withdrawal patterns'
-        ]
+          'Analyze cash withdrawal patterns',
+        ],
       },
       {
         id: 'finance-004',
         type: 'geographic',
         title: 'High-Risk Jurisdiction Activity',
-        description: 'Concentrated financial activity in jurisdictions with weak financial oversight and strong banking secrecy laws.',
+        description:
+          'Concentrated financial activity in jurisdictions with weak financial oversight and strong banking secrecy laws.',
         confidence: 86,
         severity: 'high',
         entities: ['Jeffrey Epstein', 'Offshore Banks', 'Trust Companies'],
@@ -175,19 +196,20 @@ export const FinancialTransactionAnalysis: React.FC<FinancialTransactionAnalysis
           averageAmount: 410256,
           largestTransaction: 8500000,
           flowDirection: 'outflow',
-          anomalyScore: 7.9
+          anomalyScore: 7.9,
         },
         recommendations: [
           'Request mutual legal assistance from relevant jurisdictions',
           'Analyze beneficial ownership disclosure requirements',
-          'Map complete offshore corporate structure'
-        ]
+          'Map complete offshore corporate structure',
+        ],
       },
       {
         id: 'finance-005',
         type: 'entity',
         title: 'Rapid Entity Creation and Dissolution',
-        description: 'Pattern of creating and dissolving corporate entities in rapid succession, potentially to obscure transaction trails.',
+        description:
+          'Pattern of creating and dissolving corporate entities in rapid succession, potentially to obscure transaction trails.',
         confidence: 83,
         severity: 'medium',
         entities: ['Jeffrey Epstein', 'Multiple Shell Companies'],
@@ -199,19 +221,19 @@ export const FinancialTransactionAnalysis: React.FC<FinancialTransactionAnalysis
           averageAmount: 127500,
           largestTransaction: 750000,
           frequency: 34,
-          anomalyScore: 7.2
+          anomalyScore: 7.2,
         },
         recommendations: [
           'Review corporate formation and dissolution timeline',
           'Analyze transaction patterns for each entity',
-          'Investigate registered agents and legal representatives'
-        ]
-      }
+          'Investigate registered agents and legal representatives',
+        ],
+      },
     ];
 
     setTransactionPatterns(mockPatterns);
     setIsAnalyzing(false);
-    
+
     if (onTransactionPatternDetected) {
       onTransactionPatternDetected(mockPatterns);
     }
@@ -224,7 +246,7 @@ export const FinancialTransactionAnalysis: React.FC<FinancialTransactionAnalysis
       amount: DollarSign,
       geographic: MapPin,
       entity: Users,
-      anomaly: AlertTriangle
+      anomaly: AlertTriangle,
     };
     return icons[type];
   };
@@ -240,7 +262,7 @@ export const FinancialTransactionAnalysis: React.FC<FinancialTransactionAnalysis
       low: 'bg-green-100 text-green-800 border-green-200',
       medium: 'bg-yellow-100 text-yellow-800 border-yellow-200',
       high: 'bg-orange-100 text-orange-800 border-orange-200',
-      critical: 'bg-red-100 text-red-800 border-red-200'
+      critical: 'bg-red-100 text-red-800 border-red-200',
     };
     return colors[severity];
   };
@@ -256,13 +278,14 @@ export const FinancialTransactionAnalysis: React.FC<FinancialTransactionAnalysis
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      maximumFractionDigits: 0,
     }).format(amount);
   };
 
-  const filteredPatterns = filterType === 'all' 
-    ? transactionPatterns 
-    : transactionPatterns.filter(pattern => pattern.type === filterType);
+  const filteredPatterns =
+    filterType === 'all'
+      ? transactionPatterns
+      : transactionPatterns.filter((pattern) => pattern.type === filterType);
 
   const sortedPatterns = [...filteredPatterns].sort((a, b) => {
     switch (sortBy) {
@@ -285,9 +308,7 @@ export const FinancialTransactionAnalysis: React.FC<FinancialTransactionAnalysis
       <div className="border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">
-              Financial Transaction Analysis
-            </h2>
+            <h2 className="text-xl font-semibold text-gray-900">Financial Transaction Analysis</h2>
             <p className="text-sm text-gray-600 mt-1">
               Analyze financial flows, timing patterns, and transaction anomalies
             </p>
@@ -329,19 +350,21 @@ export const FinancialTransactionAnalysis: React.FC<FinancialTransactionAnalysis
               <Filter className="w-4 h-4 text-gray-500" />
               <span className="text-sm font-medium text-gray-700">Filter by type:</span>
               <div className="flex gap-2">
-                {['all', 'flow', 'timing', 'amount', 'geographic', 'entity', 'anomaly'].map((type) => (
-                  <button
-                    key={type}
-                    onClick={() => setFilterType(type as any)}
-                    className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
-                      filterType === type
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    {type.charAt(0).toUpperCase() + type.slice(1)}
-                  </button>
-                ))}
+                {['all', 'flow', 'timing', 'amount', 'geographic', 'entity', 'anomaly'].map(
+                  (type) => (
+                    <button
+                      key={type}
+                      onClick={() => setFilterType(type as any)}
+                      className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
+                        filterType === type
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                    </button>
+                  ),
+                )}
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -366,25 +389,37 @@ export const FinancialTransactionAnalysis: React.FC<FinancialTransactionAnalysis
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div className="text-center">
               <div className="text-2xl font-bold text-gray-900">
-                {formatCurrency(transactionPatterns.reduce((sum, pattern) => sum + (pattern.metadata.totalAmount || 0), 0))}
+                {formatCurrency(
+                  transactionPatterns.reduce(
+                    (sum, pattern) => sum + (pattern.metadata.totalAmount || 0),
+                    0,
+                  ),
+                )}
               </div>
               <div className="text-sm text-gray-600">Total Analyzed</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-gray-900">
-                {transactionPatterns.reduce((sum, pattern) => sum + (pattern.metadata.transactionCount || 0), 0)}
+                {transactionPatterns.reduce(
+                  (sum, pattern) => sum + (pattern.metadata.transactionCount || 0),
+                  0,
+                )}
               </div>
               <div className="text-sm text-gray-600">Transactions</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-gray-900">
-                {transactionPatterns.filter(p => p.severity === 'critical').length}
+                {transactionPatterns.filter((p) => p.severity === 'critical').length}
               </div>
               <div className="text-sm text-gray-600">Critical Patterns</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-gray-900">
-                {Math.round(transactionPatterns.reduce((sum, pattern) => sum + pattern.confidence, 0) / transactionPatterns.length)}%
+                {Math.round(
+                  transactionPatterns.reduce((sum, pattern) => sum + pattern.confidence, 0) /
+                    transactionPatterns.length,
+                )}
+                %
               </div>
               <div className="text-sm text-gray-600">Avg Confidence</div>
             </div>
@@ -408,8 +443,10 @@ export const FinancialTransactionAnalysis: React.FC<FinancialTransactionAnalysis
           <div className="grid gap-4">
             {sortedPatterns.map((pattern) => {
               const Icon = getPatternIcon(pattern.type);
-              const FlowIcon = pattern.metadata.flowDirection ? getFlowIcon(pattern.metadata.flowDirection) : null;
-              
+              const FlowIcon = pattern.metadata.flowDirection
+                ? getFlowIcon(pattern.metadata.flowDirection)
+                : null;
+
               return (
                 <div
                   key={pattern.id}
@@ -425,26 +462,26 @@ export const FinancialTransactionAnalysis: React.FC<FinancialTransactionAnalysis
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-1">
-                          <h4 className="text-sm font-medium text-gray-900">
-                            {pattern.title}
-                          </h4>
+                          <h4 className="text-sm font-medium text-gray-900">{pattern.title}</h4>
                           <div className="flex items-center gap-2">
                             {pattern.metadata.totalAmount && (
                               <span className="text-sm font-medium text-gray-900">
                                 {formatCurrency(pattern.metadata.totalAmount)}
                               </span>
                             )}
-                            <span className={`text-sm font-medium ${getConfidenceColor(pattern.confidence)}`}>
+                            <span
+                              className={`text-sm font-medium ${getConfidenceColor(pattern.confidence)}`}
+                            >
                               {pattern.confidence}% confidence
                             </span>
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getSeverityColor(pattern.severity)}`}>
+                            <span
+                              className={`px-2 py-1 text-xs font-medium rounded-full ${getSeverityColor(pattern.severity)}`}
+                            >
                               {pattern.severity.toUpperCase()}
                             </span>
                           </div>
                         </div>
-                        <p className="text-sm text-gray-600 mb-2">
-                          {pattern.description}
-                        </p>
+                        <p className="text-sm text-gray-600 mb-2">{pattern.description}</p>
                         <div className="flex items-center gap-4 text-xs text-gray-500">
                           <span>Type: {pattern.type}</span>
                           <span>Entities: {pattern.entities.length}</span>
@@ -469,14 +506,16 @@ export const FinancialTransactionAnalysis: React.FC<FinancialTransactionAnalysis
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-96 overflow-auto">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h3 className="text-lg font-medium text-gray-900">
-                  {selectedPattern.title}
-                </h3>
+                <h3 className="text-lg font-medium text-gray-900">{selectedPattern.title}</h3>
                 <div className="flex items-center gap-2 mt-1">
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${getSeverityColor(selectedPattern.severity)}`}>
+                  <span
+                    className={`px-2 py-1 text-xs font-medium rounded-full ${getSeverityColor(selectedPattern.severity)}`}
+                  >
                     {selectedPattern.severity.toUpperCase()}
                   </span>
-                  <span className={`text-sm font-medium ${getConfidenceColor(selectedPattern.confidence)}`}>
+                  <span
+                    className={`text-sm font-medium ${getConfidenceColor(selectedPattern.confidence)}`}
+                  >
                     {selectedPattern.confidence}% confidence
                   </span>
                 </div>
@@ -500,7 +539,10 @@ export const FinancialTransactionAnalysis: React.FC<FinancialTransactionAnalysis
                 <h4 className="text-sm font-medium text-gray-700 mb-1">Involved Entities</h4>
                 <div className="flex flex-wrap gap-2">
                   {selectedPattern.entities.map((entity, index) => (
-                    <span key={index} className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
+                    <span
+                      key={index}
+                      className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded"
+                    >
                       {entity}
                     </span>
                   ))}
@@ -546,26 +588,33 @@ export const FinancialTransactionAnalysis: React.FC<FinancialTransactionAnalysis
                 <div>
                   <h4 className="text-sm font-medium text-gray-700 mb-1">Time Range</h4>
                   <p className="text-sm text-gray-600">
-                    {selectedPattern.metadata.timeRange.start} to {selectedPattern.metadata.timeRange.end}
+                    {selectedPattern.metadata.timeRange.start} to{' '}
+                    {selectedPattern.metadata.timeRange.end}
                   </p>
                 </div>
               )}
 
-              {selectedPattern.metadata.locations && selectedPattern.metadata.locations.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-1">Locations</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedPattern.metadata.locations.map((location, index) => (
-                      <span key={index} className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">
-                        {location}
-                      </span>
-                    ))}
+              {selectedPattern.metadata.locations &&
+                selectedPattern.metadata.locations.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 mb-1">Locations</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedPattern.metadata.locations.map((location, index) => (
+                        <span
+                          key={index}
+                          className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded"
+                        >
+                          {location}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
               <div>
-                <h4 className="text-sm font-medium text-gray-700 mb-2">Investigation Recommendations</h4>
+                <h4 className="text-sm font-medium text-gray-700 mb-2">
+                  Investigation Recommendations
+                </h4>
                 <ul className="space-y-1">
                   {selectedPattern.recommendations.map((recommendation, index) => (
                     <li key={index} className="text-sm text-gray-600 flex items-start">
@@ -600,7 +649,8 @@ export const FinancialTransactionAnalysis: React.FC<FinancialTransactionAnalysis
             No financial patterns detected yet
           </h3>
           <p className="text-sm text-gray-600 mb-4">
-            Start financial transaction analysis to identify suspicious patterns in money flows, timing, amounts, and geographic distribution.
+            Start financial transaction analysis to identify suspicious patterns in money flows,
+            timing, amounts, and geographic distribution.
           </p>
           <button
             onClick={analyzeTransactions}

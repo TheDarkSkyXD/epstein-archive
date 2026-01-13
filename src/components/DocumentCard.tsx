@@ -53,13 +53,13 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({ document, onClick })
     {
       label: 'View in Investigation',
       onClick: () => console.log('View in investigation clicked for:', document.title),
-      variant: 'secondary' as const
+      variant: 'secondary' as const,
     },
     {
       label: 'Related Entities',
       onClick: () => console.log('View related entities clicked for:', document.title),
-      variant: 'secondary' as const
-    }
+      variant: 'secondary' as const,
+    },
   ];
 
   return (
@@ -75,13 +75,13 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({ document, onClick })
       className="group"
     >
       <div className="flex justify-end">
-        <AddToInvestigationButton 
+        <AddToInvestigationButton
           item={{
             id: document.id,
             title: document.title || document.filename,
             description: `Document from ${document.source}`,
             type: 'document',
-            sourceId: document.id
+            sourceId: document.id,
           }}
           variant="quick"
           className="text-xs px-2 py-1"

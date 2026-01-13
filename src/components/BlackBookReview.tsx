@@ -38,15 +38,15 @@ export const BlackBookReview: React.FC = () => {
       setLoading(true);
       const response = await fetch('/api/black-book/review');
       const data = await response.json();
-      
+
       // Parse JSON fields
       const parsed = data.entries.map((entry: any) => ({
         ...entry,
         phone_numbers: entry.phone_numbers ? JSON.parse(entry.phone_numbers) : [],
         addresses: entry.addresses ? JSON.parse(entry.addresses) : [],
-        email_addresses: entry.email_addresses ? JSON.parse(entry.email_addresses) : []
+        email_addresses: entry.email_addresses ? JSON.parse(entry.email_addresses) : [],
       }));
-      
+
       setEntries(parsed);
       setStats(data.stats);
     } catch (error) {
@@ -58,20 +58,20 @@ export const BlackBookReview: React.FC = () => {
 
   const handleAction = async (action: 'approve' | 'skip' | 'delete') => {
     if (currentIndex >= entries.length) return;
-    
+
     const entry = entries[currentIndex];
     setSaving(true);
-    
+
     try {
       await fetch(`/api/black-book/review/${entry.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           correctedName: editedName,
-          action
-        })
+          action,
+        }),
       });
-      
+
       // Move to next entry
       if (currentIndex < entries.length - 1) {
         setCurrentIndex(currentIndex + 1);
@@ -80,12 +80,12 @@ export const BlackBookReview: React.FC = () => {
         await fetchReviewEntries();
         setCurrentIndex(0);
       }
-      
+
       // Update stats
-      setStats(prev => ({
+      setStats((prev) => ({
         ...prev,
         reviewed: prev.reviewed + 1,
-        remaining: prev.remaining - 1
+        remaining: prev.remaining - 1,
       }));
     } catch (error) {
       console.error('Error saving review:', error);
@@ -132,15 +132,17 @@ export const BlackBookReview: React.FC = () => {
             <div className="text-sm text-slate-400">remaining</div>
           </div>
         </div>
-        
+
         {/* Progress Bar */}
         <div className="space-y-2">
           <div className="flex justify-between text-sm text-slate-400">
             <span>Progress</span>
-            <span>{stats.reviewed} of {stats.total} ({progress}%)</span>
+            <span>
+              {stats.reviewed} of {stats.total} ({progress}%)
+            </span>
           </div>
           <div className="w-full bg-slate-700 rounded-full h-2">
-            <div 
+            <div
               className="bg-gradient-to-r from-cyan-500 to-blue-500 h-2 rounded-full transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
@@ -162,9 +164,7 @@ export const BlackBookReview: React.FC = () => {
 
         {/* Original OCR Text */}
         <div className="mb-6">
-          <label className="block text-sm font-medium text-slate-300 mb-2">
-            Original OCR Text
-          </label>
+          <label className="block text-sm font-medium text-slate-300 mb-2">Original OCR Text</label>
           <div className="bg-slate-900/50 border border-slate-600 rounded p-3 font-mono text-sm text-slate-400 whitespace-pre-wrap">
             {current.entry_text}
           </div>
@@ -182,9 +182,7 @@ export const BlackBookReview: React.FC = () => {
 
         {/* Editable Name */}
         <div className="mb-6">
-          <label className="block text-sm font-medium text-slate-300 mb-2">
-            Corrected Name
-          </label>
+          <label className="block text-sm font-medium text-slate-300 mb-2">Corrected Name</label>
           <input
             type="text"
             value={editedName}
@@ -196,7 +194,9 @@ export const BlackBookReview: React.FC = () => {
         </div>
 
         {/* Contact Info */}
-        {(current.phone_numbers.length > 0 || current.email_addresses.length > 0 || current.addresses.length > 0) && (
+        {(current.phone_numbers.length > 0 ||
+          current.email_addresses.length > 0 ||
+          current.addresses.length > 0) && (
           <div className="mb-6 p-4 bg-slate-900/30 border border-slate-600 rounded-lg">
             <h4 className="text-sm font-medium text-slate-300 mb-3">Contact Information</h4>
             <div className="space-y-2 text-sm">
@@ -215,7 +215,9 @@ export const BlackBookReview: React.FC = () => {
               {current.addresses.length > 0 && (
                 <div>
                   <span className="text-slate-500">Addresses:</span>
-                  <span className="text-slate-300 ml-2">{current.addresses.slice(0, 2).join('; ')}</span>
+                  <span className="text-slate-300 ml-2">
+                    {current.addresses.slice(0, 2).join('; ')}
+                  </span>
                 </div>
               )}
             </div>
@@ -232,7 +234,7 @@ export const BlackBookReview: React.FC = () => {
             <CheckCircle className="w-5 h-5" />
             <span>Approve & Save</span>
           </button>
-          
+
           <button
             onClick={() => handleAction('skip')}
             disabled={saving}
@@ -241,7 +243,7 @@ export const BlackBookReview: React.FC = () => {
             <SkipForward className="w-5 h-5" />
             <span>Skip</span>
           </button>
-          
+
           <button
             onClick={() => handleAction('delete')}
             disabled={saving}

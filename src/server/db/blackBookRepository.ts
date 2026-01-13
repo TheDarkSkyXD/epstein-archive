@@ -72,7 +72,9 @@ export const blackBookRepository = {
   getBlackBookReviewEntries: () => {
     const db = getDb();
     try {
-      const entries = db.prepare(`
+      const entries = db
+        .prepare(
+          `
         SELECT 
           bb.id,
           bb.person_id,
@@ -87,8 +89,10 @@ export const blackBookRepository = {
         LEFT JOIN entities p ON bb.person_id = p.id
         WHERE 1=0
         ORDER BY bb.id ASC
-      `).all();
-      
+      `,
+        )
+        .all();
+
       return entries;
     } catch (error) {
       console.error('Error fetching review entries:', error);
@@ -99,15 +103,19 @@ export const blackBookRepository = {
   getBlackBookReviewStats: () => {
     const db = getDb();
     try {
-      const stats = db.prepare(`
+      const stats = db
+        .prepare(
+          `
         SELECT 
           COUNT(*) as total,
           COUNT(CASE WHEN needs_review = 1 THEN 1 END) as remaining,
           COUNT(CASE WHEN needs_review = 0 OR manually_reviewed = 1 THEN 1 END) as reviewed
         FROM entities
         WHERE id IN (SELECT person_id FROM black_book_entries)
-      `).get();
-      
+      `,
+        )
+        .get();
+
       return stats;
     } catch (error) {
       console.error('Error fetching review stats:', error);
@@ -115,54 +123,75 @@ export const blackBookRepository = {
     }
   },
 
-  updateBlackBookReview: (entryId: number, correctedName: string, action: 'approve' | 'skip' | 'delete') => {
+  updateBlackBookReview: (
+    entryId: number,
+    correctedName: string,
+    action: 'approve' | 'skip' | 'delete',
+  ) => {
     const db = getDb();
     try {
       // Get person_id from black_book_entry
-      const entry = db.prepare(`
+      const entry = db
+        .prepare(
+          `
         SELECT person_id FROM black_book_entries WHERE id = ?
-      `).get(entryId) as { person_id: number } | undefined;
-      
+      `,
+        )
+        .get(entryId) as { person_id: number } | undefined;
+
       if (!entry) {
         throw new Error('Entry not found');
       }
-      
+
       if (action === 'approve') {
         // Update name and mark as reviewed
-        db.prepare(`
+        db.prepare(
+          `
           UPDATE entities 
           SET full_name = ?, needs_review = 0, manually_reviewed = 1
           WHERE id = ?
-        `).run(correctedName, entry.person_id);
-        
+        `,
+        ).run(correctedName, entry.person_id);
+
         // Log the action
-        db.prepare(`
+        db.prepare(
+          `
           INSERT INTO data_quality_log (operation, entity_type, entity_id, details)
           VALUES (?, ?, ?, ?)
-        `).run('black_book_review', 'person', entry.person_id, JSON.stringify({ action: 'approve', correctedName }));
-        
+        `,
+        ).run(
+          'black_book_review',
+          'person',
+          entry.person_id,
+          JSON.stringify({ action: 'approve', correctedName }),
+        );
       } else if (action === 'skip') {
         // Just mark as manually reviewed but keep needs_review flag
-        db.prepare(`
+        db.prepare(
+          `
           UPDATE entities SET manually_reviewed = 1 WHERE id = ?
-        `).run(entry.person_id);
-        
+        `,
+        ).run(entry.person_id);
       } else if (action === 'delete') {
         // Mark as deleted (soft delete)
-        db.prepare(`
+        db.prepare(
+          `
           UPDATE entities SET needs_review = 0, manually_reviewed = 1, full_name = '[DELETED]' WHERE id = ?
-        `).run(entry.person_id);
-        
-        db.prepare(`
+        `,
+        ).run(entry.person_id);
+
+        db.prepare(
+          `
           INSERT INTO data_quality_log (operation, entity_type, entity_id, details)
           VALUES (?, ?, ?, ?)
-        `).run('black_book_review', 'person', entry.person_id, JSON.stringify({ action: 'delete' }));
+        `,
+        ).run('black_book_review', 'person', entry.person_id, JSON.stringify({ action: 'delete' }));
       }
-      
+
       return { success: true };
     } catch (error) {
       console.error('Error updating review:', error);
       throw error;
     }
-  }
+  },
 };

@@ -24,14 +24,14 @@ export const TreeMap: React.FC<TreeMapProps> = ({ people, onPersonClick }) => {
   // Prepare data - top 50 entities by mentions
   // Filter out invalid mentions to prevent skewed visualization
   const nodes: TreeMapNode[] = people
-    .filter(p => (p.mentions || 0) > 0)
+    .filter((p) => (p.mentions || 0) > 0)
     .sort((a, b) => (b.mentions || 0) - (a.mentions || 0))
     .slice(0, 50)
-    .map(p => ({
+    .map((p) => ({
       name: p.name,
       value: p.mentions || 0,
       redFlagRating: p.red_flag_rating !== undefined ? p.red_flag_rating : 0,
-      person: p
+      person: p,
     }));
 
   const total = nodes.reduce((sum, node) => sum + node.value, 0);
@@ -61,9 +61,9 @@ export const TreeMap: React.FC<TreeMapProps> = ({ people, onPersonClick }) => {
 
     const scaleAmount = -e.deltaY * 0.001;
     const newScale = Math.max(0.5, Math.min(4, transform.k * (1 + scaleAmount)));
-    
+
     // Zoom towards mouse position could be complex, centering zoom for simplicity or improving later
-    setTransform(prev => ({ ...prev, k: newScale }));
+    setTransform((prev) => ({ ...prev, k: newScale }));
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -74,10 +74,10 @@ export const TreeMap: React.FC<TreeMapProps> = ({ people, onPersonClick }) => {
   const handleMouseMove = (e: React.MouseEvent) => {
     if (isDragging) {
       e.preventDefault();
-      setTransform(prev => ({
+      setTransform((prev) => ({
         ...prev,
         x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y
+        y: e.clientY - dragStart.y,
       }));
     }
   };
@@ -87,19 +87,37 @@ export const TreeMap: React.FC<TreeMapProps> = ({ people, onPersonClick }) => {
   };
 
   // Zoom controls
-  const zoomIn = () => setTransform(prev => ({ ...prev, k: Math.min(4, prev.k * 1.2) }));
-  const zoomOut = () => setTransform(prev => ({ ...prev, k: Math.max(0.5, prev.k / 1.2) }));
+  const zoomIn = () => setTransform((prev) => ({ ...prev, k: Math.min(4, prev.k * 1.2) }));
+  const zoomOut = () => setTransform((prev) => ({ ...prev, k: Math.max(0.5, prev.k / 1.2) }));
   const resetZoom = () => setTransform({ k: 1, x: 0, y: 0 });
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex justify-end gap-2 mb-2">
-         <button onClick={zoomIn} className="p-2 bg-slate-800 rounded hover:bg-slate-700 text-slate-300" title="Zoom In"><ZoomIn size={16}/></button>
-         <button onClick={zoomOut} className="p-2 bg-slate-800 rounded hover:bg-slate-700 text-slate-300" title="Zoom Out"><ZoomOut size={16}/></button>
-         <button onClick={resetZoom} className="p-2 bg-slate-800 rounded hover:bg-slate-700 text-slate-300" title="Reset"><RotateCcw size={16}/></button>
+        <button
+          onClick={zoomIn}
+          className="p-2 bg-slate-800 rounded hover:bg-slate-700 text-slate-300"
+          title="Zoom In"
+        >
+          <ZoomIn size={16} />
+        </button>
+        <button
+          onClick={zoomOut}
+          className="p-2 bg-slate-800 rounded hover:bg-slate-700 text-slate-300"
+          title="Zoom Out"
+        >
+          <ZoomOut size={16} />
+        </button>
+        <button
+          onClick={resetZoom}
+          className="p-2 bg-slate-800 rounded hover:bg-slate-700 text-slate-300"
+          title="Reset"
+        >
+          <RotateCcw size={16} />
+        </button>
       </div>
 
-      <div 
+      <div
         ref={containerRef}
         className="relative w-full h-[600px] bg-slate-900/50 rounded-xl border border-slate-700 overflow-hidden cursor-move"
         onWheel={handleWheel}
@@ -108,13 +126,18 @@ export const TreeMap: React.FC<TreeMapProps> = ({ people, onPersonClick }) => {
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       >
-        <svg width="100%" height="100%" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full h-full select-none">
+        <svg
+          width="100%"
+          height="100%"
+          viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+          className="w-full h-full select-none"
+        >
           <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.k})`}>
             {layout.map((node, index) => {
               const isHovered = hoveredNode?.name === node.name;
               const percentage = ((node.value / total) * 100).toFixed(1);
               const [stop1, stop2] = getGradientColors(node.redFlagRating);
-              
+
               return (
                 <g
                   key={index}
@@ -133,7 +156,7 @@ export const TreeMap: React.FC<TreeMapProps> = ({ people, onPersonClick }) => {
                       <stop offset="100%" stopColor={stop2} />
                     </linearGradient>
                   </defs>
-                  
+
                   <rect
                     x={node.x}
                     y={node.y}
@@ -148,7 +171,7 @@ export const TreeMap: React.FC<TreeMapProps> = ({ people, onPersonClick }) => {
                       filter: isHovered ? 'brightness(1.1)' : 'none',
                     }}
                   />
-                  
+
                   {/* Text - scaled inversely to zoom to maintain readability or hidden if too small */}
                   {node.width * transform.k > 60 && node.height * transform.k > 40 && (
                     <>
@@ -157,7 +180,9 @@ export const TreeMap: React.FC<TreeMapProps> = ({ people, onPersonClick }) => {
                         y={node.y + node.height / 2 - 8}
                         textAnchor="middle"
                         className="fill-white font-semibold text-xs pointer-events-none user-select-none"
-                        style={{ fontSize: Math.min(14, (node.width * transform.k) / 8) / transform.k }}
+                        style={{
+                          fontSize: Math.min(14, (node.width * transform.k) / 8) / transform.k,
+                        }}
                       >
                         {node.name.length > 20 ? node.name.substring(0, 18) + '...' : node.name}
                       </text>
@@ -166,7 +191,9 @@ export const TreeMap: React.FC<TreeMapProps> = ({ people, onPersonClick }) => {
                         y={node.y + node.height / 2 + 8}
                         textAnchor="middle"
                         className="fill-white/80 text-xs pointer-events-none user-select-none"
-                        style={{ fontSize: Math.min(12, (node.width * transform.k) / 10) / transform.k }}
+                        style={{
+                          fontSize: Math.min(12, (node.width * transform.k) / 10) / transform.k,
+                        }}
                       >
                         {node.value.toLocaleString()}
                       </text>
@@ -189,11 +216,15 @@ export const TreeMap: React.FC<TreeMapProps> = ({ people, onPersonClick }) => {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Percentage:</span>
-                <span className="text-white font-mono">{((hoveredNode.value / total) * 100).toFixed(2)}%</span>
+                <span className="text-white font-mono">
+                  {((hoveredNode.value / total) * 100).toFixed(2)}%
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Red Flag Index:</span>
-                <span className="text-white">{hoveredNode.redFlagRating}/5 {'🚩'.repeat(hoveredNode.redFlagRating)}</span>
+                <span className="text-white">
+                  {hoveredNode.redFlagRating}/5 {'🚩'.repeat(hoveredNode.redFlagRating)}
+                </span>
               </div>
             </div>
           </div>
@@ -206,7 +237,7 @@ export const TreeMap: React.FC<TreeMapProps> = ({ people, onPersonClick }) => {
 // Improved squarified treemap algorithm that fills space better
 function squarify(nodes: TreeMapNode[], width: number, height: number) {
   const result: Array<TreeMapNode & { x: number; y: number; width: number; height: number }> = [];
-  
+
   if (nodes.length === 0) return [];
 
   // Sort by value descending
@@ -231,12 +262,12 @@ function squarify(nodes: TreeMapNode[], width: number, height: number) {
     const groupTotal = items.reduce((s, n) => s + n.value, 0);
 
     for (let i = 0; i < items.length - 1; i++) {
-        currentSum += items[i].value;
-        const diff = Math.abs(currentSum - (groupTotal / 2));
-        if (diff < minDiff) {
-            minDiff = diff;
-            bestSplit = i + 1;
-        }
+      currentSum += items[i].value;
+      const diff = Math.abs(currentSum - groupTotal / 2);
+      if (diff < minDiff) {
+        minDiff = diff;
+        bestSplit = i + 1;
+      }
     }
 
     const group1 = items.slice(0, bestSplit);

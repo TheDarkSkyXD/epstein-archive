@@ -8,41 +8,47 @@ const searchOptions = {
     'secondaryRoles',
     'keyEvidence',
     'currentStatus',
-    'connectionsToEpstein'
+    'connectionsToEpstein',
   ],
   threshold: 0.3,
   includeScore: true,
 };
 
-export function searchPeople(people: Person[], searchTerm: string, filters: SearchFilters): Person[] {
+export function searchPeople(
+  people: Person[],
+  searchTerm: string,
+  filters: SearchFilters,
+): Person[] {
   let filtered = people;
 
   // Apply text search
   if (searchTerm) {
     const fuse = new Fuse(people, searchOptions);
     const results = fuse.search(searchTerm);
-    filtered = results.map(result => result.item);
+    filtered = results.map((result) => result.item);
   }
 
   // Apply filters
   if (filters.likelihood !== 'all') {
-    filtered = filtered.filter(person => person.likelihood_score === filters.likelihood);
+    filtered = filtered.filter((person) => person.likelihood_score === filters.likelihood);
   }
 
   if (filters.role !== 'all') {
-    filtered = filtered.filter(person => 
-      person.evidence_types?.some(type => type.toLowerCase().includes(filters.role?.toLowerCase() || ''))
+    filtered = filtered.filter((person) =>
+      person.evidence_types?.some((type) =>
+        type.toLowerCase().includes(filters.role?.toLowerCase() || ''),
+      ),
     );
   }
 
   if (filters.status !== 'all') {
-    filtered = filtered.filter(person => 
-      person.likelihood_score.toLowerCase().includes(filters.status?.toLowerCase() || '')
+    filtered = filtered.filter((person) =>
+      person.likelihood_score.toLowerCase().includes(filters.status?.toLowerCase() || ''),
     );
   }
 
   if (filters.minMentions && filters.minMentions > 0) {
-    filtered = filtered.filter(person => person.mentions >= (filters.minMentions || 0));
+    filtered = filtered.filter((person) => person.mentions >= (filters.minMentions || 0));
   }
 
   // Sort by mentions (descending)
@@ -62,16 +68,16 @@ export async function getEvidenceByPerson(personName: string): Promise<Evidence[
 
 export function getRoleCategories(people: Person[]): string[] {
   const roles = new Set<string>();
-  people.forEach(person => {
+  people.forEach((person) => {
     if (person.evidence_types?.[0]) roles.add(person.evidence_types[0]);
-    person.evidence_types?.slice(1).forEach(role => roles.add(role));
+    person.evidence_types?.slice(1).forEach((role) => roles.add(role));
   });
   return Array.from(roles).sort();
 }
 
 export function getStatusCategories(people: Person[]): string[] {
   const statuses = new Set<string>();
-  people.forEach(person => {
+  people.forEach((person) => {
     statuses.add(person.likelihood_score);
   });
   return Array.from(statuses).sort();
@@ -79,10 +85,14 @@ export function getStatusCategories(people: Person[]): string[] {
 
 export function getLikelihoodColor(level: string): string {
   switch (level) {
-    case 'HIGH': return 'text-danger-400 bg-danger-900/20 border-danger-500';
-    case 'MEDIUM': return 'text-amber-400 bg-amber-900/20 border-amber-500';
-    case 'LOW': return 'text-emerald-400 bg-emerald-900/20 border-emerald-500';
-    default: return 'text-slate-400 bg-slate-900/20 border-slate-500';
+    case 'HIGH':
+      return 'text-danger-400 bg-danger-900/20 border-danger-500';
+    case 'MEDIUM':
+      return 'text-amber-400 bg-amber-900/20 border-amber-500';
+    case 'LOW':
+      return 'text-emerald-400 bg-emerald-900/20 border-emerald-500';
+    default:
+      return 'text-slate-400 bg-slate-900/20 border-slate-500';
   }
 }
 

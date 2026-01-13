@@ -1,5 +1,14 @@
 import React from 'react';
-import { Shield, Database, Search, TrendingUp, Camera, FileText, Users, Target } from 'lucide-react';
+import {
+  Shield,
+  Database,
+  Search,
+  TrendingUp,
+  Camera,
+  FileText,
+  Users,
+  Target,
+} from 'lucide-react';
 
 export const About: React.FC = () => {
   return (
@@ -10,7 +19,7 @@ export const About: React.FC = () => {
           Epstein Archive Investigation Platform
         </h1>
         <p className="text-xl text-slate-400">
-          Version 8.0.0 - Comprehensive Evidence Analysis System
+          Version 9.2.0 - Comprehensive Evidence Analysis System
         </p>
       </div>
 
@@ -21,10 +30,11 @@ export const About: React.FC = () => {
           Mission
         </h2>
         <p className="text-slate-300 text-lg leading-relaxed">
-          The Epstein Archive is a comprehensive investigative platform designed to organise, 
-          analyse, and present evidence related to the Jeffrey Epstein case. Our mission is to 
-          provide researchers, journalists, and the public with powerful tools to explore connections, 
-          identify patterns, and uncover insights from thousands of documents, flight logs, and evidence records.
+          The Epstein Archive is a comprehensive investigative platform designed to organise,
+          analyse, and present evidence related to the Jeffrey Epstein case. Our mission is to
+          provide researchers, journalists, and the public with powerful tools to explore
+          connections, identify patterns, and uncover insights from thousands of documents, flight
+          logs, and evidence records.
         </p>
       </div>
 
@@ -35,45 +45,61 @@ export const About: React.FC = () => {
           System Analysis & Improvements
         </h2>
         <p className="text-slate-300 mb-6 leading-relaxed">
-          We have transformed the "chaotic archive" of disparate files described in recent analysis 
-          into a <strong>Forensic Intelligence Platform</strong>. By moving beyond static lists to a 
+          We have transformed the "chaotic archive" of disparate files described in recent analysis
+          into a <strong>Forensic Intelligence Platform</strong>. By moving beyond static lists to a
           dynamic, interconnected system, we respect the complexity and legal nuance of the case.
         </p>
-        
+
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr>
-                <th className="p-4 border-b border-slate-600 text-slate-200 font-semibold bg-slate-700/50 rounded-tl-lg">Article Concept</th>
-                <th className="p-4 border-b border-slate-600 text-slate-200 font-semibold bg-slate-700/50">Current "Status Quo"</th>
-                <th className="p-4 border-b border-slate-600 text-slate-200 font-semibold bg-slate-700/50 rounded-tr-lg">Platform Improvement</th>
+                <th className="p-4 border-b border-slate-600 text-slate-200 font-semibold bg-slate-700/50 rounded-tl-lg">
+                  Article Concept
+                </th>
+                <th className="p-4 border-b border-slate-600 text-slate-200 font-semibold bg-slate-700/50">
+                  Current "Status Quo"
+                </th>
+                <th className="p-4 border-b border-slate-600 text-slate-200 font-semibold bg-slate-700/50 rounded-tr-lg">
+                  Platform Improvement
+                </th>
               </tr>
             </thead>
             <tbody className="text-slate-300">
               <tr className="border-b border-slate-700 hover:bg-slate-700/30 transition-colors">
                 <td className="p-4 font-medium text-white">Data Structure</td>
                 <td className="p-4 text-slate-400">"Chaotic archive", "image scans"</td>
-                <td className="p-4 text-emerald-400 font-medium">Structured Database & Searchable Text (OCR)</td>
+                <td className="p-4 text-emerald-400 font-medium">
+                  Structured Database & Searchable Text (OCR)
+                </td>
               </tr>
               <tr className="border-b border-slate-700 hover:bg-slate-700/30 transition-colors">
                 <td className="p-4 font-medium text-white">Flight Logs</td>
                 <td className="p-4 text-slate-400">Static lists, "Guilt by association"</td>
-                <td className="p-4 text-emerald-400 font-medium">Network Graph & Forensic Cross-Referencing</td>
+                <td className="p-4 text-emerald-400 font-medium">
+                  Network Graph & Forensic Cross-Referencing
+                </td>
               </tr>
               <tr className="border-b border-slate-700 hover:bg-slate-700/30 transition-colors">
                 <td className="p-4 font-medium text-white">Black Book</td>
                 <td className="p-4 text-slate-400">"Rolodex" conflated with "Client List"</td>
-                <td className="p-4 text-emerald-400 font-medium">Searchable Contact Database (distinct from criminal evidence)</td>
+                <td className="p-4 text-emerald-400 font-medium">
+                  Searchable Contact Database (distinct from criminal evidence)
+                </td>
               </tr>
               <tr className="border-b border-slate-700 hover:bg-slate-700/30 transition-colors">
                 <td className="p-4 font-medium text-white">Emails</td>
                 <td className="p-4 text-slate-400">Massive unreadable cache</td>
-                <td className="p-4 text-emerald-400 font-medium">Communication Pattern Analysis (Frequency, Timing, Network)</td>
+                <td className="p-4 text-emerald-400 font-medium">
+                  Communication Pattern Analysis (Frequency, Timing, Network)
+                </td>
               </tr>
               <tr className="hover:bg-slate-700/30 transition-colors">
                 <td className="p-4 font-medium text-white">Nuance</td>
                 <td className="p-4 text-slate-400">Lost in public discussion</td>
-                <td className="p-4 text-emerald-400 font-medium">Red Flag Index (Quantified Risk vs. Association)</td>
+                <td className="p-4 text-emerald-400 font-medium">
+                  Red Flag Index (Quantified Risk vs. Association)
+                </td>
               </tr>
             </tbody>
           </table>
@@ -88,38 +114,50 @@ export const About: React.FC = () => {
         <div className="grid md:grid-cols-4 gap-6">
           <div className="bg-slate-700/30 p-4 rounded-lg border border-slate-600">
             <h4 className="font-bold text-white mb-2 flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs">1</span>
+              <span className="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs">
+                1
+              </span>
               Ingestion
             </h4>
             <p className="text-sm text-slate-400">
-              We ingest raw PDFs, images, and emails from varied sources. Every file is registered, hashed for integrity, and categorised.
+              We ingest raw PDFs, images, and emails from varied sources. Every file is registered,
+              hashed for integrity, and categorised.
             </p>
           </div>
           <div className="bg-slate-700/30 p-4 rounded-lg border border-slate-600">
             <h4 className="font-bold text-white mb-2 flex items-center gap-2">
-               <span className="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs">2</span>
+              <span className="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs">
+                2
+              </span>
               Digitization (OCR)
             </h4>
             <p className="text-sm text-slate-400">
-              Scanning software reads every page. We use <strong>Competitive OCR</strong> to compare results from different engines and extract the most accurate text possible.
+              Scanning software reads every page. We use <strong>Competitive OCR</strong> to compare
+              results from different engines and extract the most accurate text possible.
             </p>
           </div>
           <div className="bg-slate-700/30 p-4 rounded-lg border border-slate-600">
             <h4 className="font-bold text-white mb-2 flex items-center gap-2">
-               <span className="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs">3</span>
+              <span className="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs">
+                3
+              </span>
               Analysis
             </h4>
             <p className="text-sm text-slate-400">
-              Our system scans for <strong>Visual Redactions</strong> (black boxes) to flag hidden info, and uses AI to identify people in photos.
+              Our system scans for <strong>Visual Redactions</strong> (black boxes) to flag hidden
+              info, and uses AI to identify people in photos.
             </p>
           </div>
           <div className="bg-slate-700/30 p-4 rounded-lg border border-slate-600">
             <h4 className="font-bold text-white mb-2 flex items-center gap-2">
-               <span className="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs">4</span>
+              <span className="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs">
+                4
+              </span>
               Connection
             </h4>
             <p className="text-sm text-slate-400">
-              We link people, organisations, and events across documents to build a searchable knowledge graph.
+              We link people, organisations, and events across documents to build a searchable
+              knowledge graph.
             </p>
           </div>
         </div>
@@ -256,121 +294,198 @@ export const About: React.FC = () => {
       <div className="bg-slate-800/50 rounded-xl p-8 border border-slate-700 mb-8">
         <h2 className="text-2xl font-bold text-white mb-6">Data Sources</h2>
         <p className="text-slate-300 mb-6">
-          This archive aggregates publicly available information from various sources. 
-          Click on a source to explore the related documents and evidence within the platform.
+          This archive aggregates publicly available information from various sources. Click on a
+          source to explore the related documents and evidence within the platform.
         </p>
-        
+
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <a href="/blackbook" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+          <a
+            href="/blackbook"
+            className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group"
+          >
             <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
               Unredacted Black Book
               <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
             </h3>
-            <p className="text-sm text-slate-400">1,101 contacts from Epstein's original 1990s address book.</p>
+            <p className="text-sm text-slate-400">
+              1,101 contacts from Epstein's original 1990s address book.
+            </p>
           </a>
 
-          <a href="/documents?q=Flight%20Log" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+          <a
+            href="/documents?q=Flight%20Log"
+            className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group"
+          >
             <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
               Epstein Flight Logs
               <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
             </h3>
-            <p className="text-sm text-slate-400">Pilot logs documenting travel on Epstein's private aircraft ("Lolita Express").</p>
+            <p className="text-sm text-slate-400">
+              Pilot logs documenting travel on Epstein's private aircraft ("Lolita Express").
+            </p>
           </a>
 
-          <a href="/documents?q=Jeeproject" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+          <a
+            href="/documents?q=Jeeproject"
+            className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group"
+          >
             <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
               The Estate Emails ("Jeeproject")
-              <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-emerald-500/20 text-emerald-400 rounded-full border border-emerald-500/30">26,020 MSGs</span>
+              <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-emerald-500/20 text-emerald-400 rounded-full border border-emerald-500/30">
+                26,020 MSGs
+              </span>
             </h3>
-            <p className="text-sm text-slate-400">Massive archive of Yahoo emails (2007-2019) from the "Jeeproject" account.</p>
+            <p className="text-sm text-slate-400">
+              Massive archive of Yahoo emails (2007-2019) from the "Jeeproject" account.
+            </p>
           </a>
 
-          <a href="/documents?q=Oversight" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+          <a
+            href="/documents?q=Oversight"
+            className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group"
+          >
             <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
               House Oversight Production
-              <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-emerald-500/20 text-emerald-400 rounded-full border border-emerald-500/30">~15,500 FILES</span>
+              <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-emerald-500/20 text-emerald-400 rounded-full border border-emerald-500/30">
+                ~15,500 FILES
+              </span>
             </h3>
-            <p className="text-sm text-slate-400">"Seventh Production" release containing photos and documents.</p>
+            <p className="text-sm text-slate-400">
+              "Seventh Production" release containing photos and documents.
+            </p>
             <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
               <span className="inline-block w-2 h-2 bg-rose-500/50 rounded-sm"></span>
               Average Redaction: 12.4% (Calculated via OCR)
             </div>
           </a>
 
-          <a href="/documents?q=DOJ%20VOL00001" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+          <a
+            href="/documents?q=DOJ%20VOL00001"
+            className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group"
+          >
             <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
               DOJ Evidence Vol. 1
-              <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-amber-500/20 text-amber-400 rounded-full border border-amber-500/30">NEW</span>
+              <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-amber-500/20 text-amber-400 rounded-full border border-amber-500/30">
+                NEW
+              </span>
             </h3>
-            <p className="text-sm text-slate-400">Raw digital evidence from the 2019 FBI raid of the NYC residence.</p>
+            <p className="text-sm text-slate-400">
+              Raw digital evidence from the 2019 FBI raid of the NYC residence.
+            </p>
             <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
               <span className="inline-block w-2 h-2 bg-emerald-500/50 rounded-sm"></span>
               99.8% Unredacted (Raw Evidence)
             </div>
           </a>
 
-          <a href="/documents?q=Ehud%20Barak" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+          <a
+            href="/documents?q=Ehud%20Barak"
+            className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group"
+          >
             <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
               Ehud Barak Emails
-              <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-emerald-500/20 text-emerald-400 rounded-full border border-emerald-500/30">1,411 MSGs</span>
+              <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-emerald-500/20 text-emerald-400 rounded-full border border-emerald-500/30">
+                1,411 MSGs
+              </span>
             </h3>
-            <p className="text-sm text-slate-400">Correspondence exchanged with former Israeli PM Ehud Barak (2013-2016).</p>
+            <p className="text-sm text-slate-400">
+              Correspondence exchanged with former Israeli PM Ehud Barak (2013-2016).
+            </p>
           </a>
 
-          <a href="/documents?q=Indictment" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+          <a
+            href="/documents?q=Indictment"
+            className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group"
+          >
             <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
               Legal Indictments
               <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
             </h3>
-            <p className="text-sm text-slate-400">2019 SDNY Sex Trafficking Indictment and related federal filings.</p>
+            <p className="text-sm text-slate-400">
+              2019 SDNY Sex Trafficking Indictment and related federal filings.
+            </p>
           </a>
 
-          <a href="/documents?q=FBI" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+          <a
+            href="/documents?q=FBI"
+            className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group"
+          >
             <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
               FBI Investigation Files
               <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
             </h3>
-            <p className="text-sm text-slate-400">Bureau 'Phase 1' release files regarding Epstein's activities.</p>
+            <p className="text-sm text-slate-400">
+              Bureau 'Phase 1' release files regarding Epstein's activities.
+            </p>
           </a>
 
-          <a href="/documents?q=Masseuse" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+          <a
+            href="/documents?q=Masseuse"
+            className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group"
+          >
             <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
               Masseuse List
-              <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-red-500/20 text-red-400 rounded-full border border-red-500/30">KEY</span>
+              <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-red-500/20 text-red-400 rounded-full border border-red-500/30">
+                KEY
+              </span>
             </h3>
-            <p className="text-sm text-slate-400">Detailed schedule and contact list of massage staff.</p>
+            <p className="text-sm text-slate-400">
+              Detailed schedule and contact list of massage staff.
+            </p>
           </a>
 
-          <a href="/documents?q=Incriminating" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+          <a
+            href="/documents?q=Incriminating"
+            className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group"
+          >
             <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
               "Incriminating" Docs
-              <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-red-500/20 text-red-400 rounded-full border border-red-500/30">KEY</span>
+              <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-red-500/20 text-red-400 rounded-full border border-red-500/30">
+                KEY
+              </span>
             </h3>
-            <p className="text-sm text-slate-400">Documents explicitly marked as incriminating in the archive.</p>
+            <p className="text-sm text-slate-400">
+              Documents explicitly marked as incriminating in the archive.
+            </p>
           </a>
 
-          <a href="/documents?q=Deposition" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+          <a
+            href="/documents?q=Deposition"
+            className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group"
+          >
             <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
               Civil Depositions
               <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
             </h3>
-            <p className="text-sm text-slate-400">Testimony from Maxwell, Giuffre, Sjoberg, and others (2016).</p>
+            <p className="text-sm text-slate-400">
+              Testimony from Maxwell, Giuffre, Sjoberg, and others (2016).
+            </p>
           </a>
 
-          <a href="/documents?q=Katie%20Johnson" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+          <a
+            href="/documents?q=Katie%20Johnson"
+            className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group"
+          >
             <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
               Katie Johnson Lawsuit
               <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
             </h3>
-            <p className="text-sm text-slate-400">Federal complaint alleging abuse by Epstein and Trump.</p>
+            <p className="text-sm text-slate-400">
+              Federal complaint alleging abuse by Epstein and Trump.
+            </p>
           </a>
 
-          <a href="/documents?q=Birthday%20Book" className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group">
+          <a
+            href="/documents?q=Birthday%20Book"
+            className="block p-4 bg-slate-700/50 rounded-lg hover:bg-slate-700 transition-colors border border-slate-600 hover:border-blue-500 group"
+          >
             <h3 className="font-bold text-white mb-1 group-hover:text-blue-400 flex items-center">
               The Birthday Book
               <Search className="h-4 w-4 ml-2 opacity-50 group-hover:opacity-100" />
             </h3>
-            <p className="text-sm text-slate-400">Photo book and messages given to Epstein for his 50th birthday.</p>
+            <p className="text-sm text-slate-400">
+              Photo book and messages given to Epstein for his 50th birthday.
+            </p>
           </a>
         </div>
       </div>
@@ -379,21 +494,17 @@ export const About: React.FC = () => {
       <div className="bg-amber-900/20 border border-amber-700/50 rounded-xl p-6">
         <h3 className="text-lg font-bold text-amber-400 mb-3">Disclaimer</h3>
         <p className="text-slate-300 text-sm leading-relaxed">
-          This platform is designed for research and investigative purposes. All information 
-          presented is derived from publicly available sources. Users should verify information 
-          independently and exercise critical judgment when analyzing evidence. The presence of 
-          an individual's name in this database does not imply wrongdoing or criminal activity.
+          This platform is designed for research and investigative purposes. All information
+          presented is derived from publicly available sources. Users should verify information
+          independently and exercise critical judgment when analyzing evidence. The presence of an
+          individual's name in this database does not imply wrongdoing or criminal activity.
         </p>
       </div>
 
       {/* Footer */}
       <div className="text-center mt-12 pt-8 border-t border-slate-700">
-        <p className="text-slate-400">
-          Built with transparency and accountability in mind
-        </p>
-        <p className="text-slate-500 text-sm mt-2">
-          Last Updated: December 2025
-        </p>
+        <p className="text-slate-400">Built with transparency and accountability in mind</p>
+        <p className="text-slate-500 text-sm mt-2">Last Updated: January 2026</p>
       </div>
     </div>
   );

@@ -1,7 +1,19 @@
 import React, { useState, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Investigation, EvidenceItem, TimelineEvent } from '../types/investigation';
-import { Microscope, FileSearch, Network, DollarSign, Link, BarChart3, Download, Settings, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import {
+  Microscope,
+  FileSearch,
+  Network,
+  DollarSign,
+  Link,
+  BarChart3,
+  Download,
+  Settings,
+  Eye,
+  EyeOff,
+  ArrowRight,
+} from 'lucide-react';
 import { ForensicDocumentAnalyzer } from './ForensicDocumentAnalyzer';
 import EntityRelationshipMapper from './EntityRelationshipMapper';
 import FinancialTransactionMapper from './FinancialTransactionMapper';
@@ -22,9 +34,11 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
   evidence,
   onEvidenceUpdate,
   timelineEvents,
-  useGlobalContext = false
+  useGlobalContext = false,
 }) => {
-  const [activeTool, setActiveTool] = useState<'documents' | 'entities' | 'financial' | 'correlation' | 'reports'>('documents');
+  const [activeTool, setActiveTool] = useState<
+    'documents' | 'entities' | 'financial' | 'correlation' | 'reports'
+  >('documents');
   const [showToolSettings, setShowToolSettings] = useState(false);
   const [toolsCollapsed, setToolsCollapsed] = useState(false);
   const [enabledTools, setEnabledTools] = useState({
@@ -32,13 +46,17 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
     entities: true,
     financial: true,
     correlation: true,
-    reports: true
+    reports: true,
   });
 
   // Generate network data for the Entity Mapper
   const networkData = useMemo(() => {
     const people: any[] = [];
-    const documents = (evidence || []).map(ev => ({ id: ev.id, title: ev.title || ev.id, mentionedEntities: [] }));
+    const documents = (evidence || []).map((ev) => ({
+      id: ev.id,
+      title: ev.title || ev.id,
+      mentionedEntities: [],
+    }));
     return transformToNetwork(people, documents);
   }, [evidence]);
 
@@ -49,7 +67,7 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
       description: 'Forensic document authentication and analysis',
       icon: FileSearch,
       component: ForensicDocumentAnalyzer,
-      enabled: enabledTools.documents
+      enabled: enabledTools.documents,
     },
     {
       id: 'entities',
@@ -57,7 +75,7 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
       description: 'Network visualization and relationship analysis',
       icon: Network,
       component: EntityRelationshipMapper,
-      enabled: enabledTools.entities
+      enabled: enabledTools.entities,
     },
     {
       id: 'financial',
@@ -65,7 +83,7 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
       description: 'Transaction flow and money laundering detection',
       icon: DollarSign,
       component: FinancialTransactionMapper,
-      enabled: enabledTools.financial
+      enabled: enabledTools.financial,
     },
     {
       id: 'correlation',
@@ -73,7 +91,7 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
       description: 'Cross-reference analysis and pattern detection',
       icon: Link,
       component: MultiSourceCorrelationEngine,
-      enabled: enabledTools.correlation
+      enabled: enabledTools.correlation,
     },
     {
       id: 'reports',
@@ -81,34 +99,46 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
       description: 'Automated forensic report creation',
       icon: BarChart3,
       component: ForensicReportGenerator,
-      enabled: enabledTools.reports
-    }
+      enabled: enabledTools.reports,
+    },
   ];
 
-  const enabledToolsList = forensicTools.filter(tool => tool.enabled);
-  const ActiveComponent = enabledToolsList.find(tool => tool.id === activeTool)?.component;
+  const enabledToolsList = forensicTools.filter((tool) => tool.enabled);
+  const ActiveComponent = enabledToolsList.find((tool) => tool.id === activeTool)?.component;
 
   const toggleTool = (toolId: string) => {
-    setEnabledTools(prev => ({
+    setEnabledTools((prev) => ({
       ...prev,
-      [toolId]: !prev[toolId as keyof typeof prev]
+      [toolId]: !prev[toolId as keyof typeof prev],
     }));
   };
 
   const getToolStats = () => {
-    const financialCount = evidence.filter(e => (e.type||'').toLowerCase().includes('financial')).length;
+    const financialCount = evidence.filter((e) =>
+      (e.type || '').toLowerCase().includes('financial'),
+    ).length;
     return {
-      documents: { count: evidence.filter(e => (e.type||'').toLowerCase().includes('document')).length, confidence: 94 },
+      documents: {
+        count: evidence.filter((e) => (e.type || '').toLowerCase().includes('document')).length,
+        confidence: 94,
+      },
       entities: { count: networkData.entities.length, confidence: 87 },
       financial: { count: financialCount, confidence: financialCount ? 91 : 0 },
       correlation: { count: 0, confidence: 0 },
-      reports: { count: 1, confidence: 96 }
+      reports: { count: 1, confidence: 96 },
     };
   };
 
   const stats = getToolStats();
   const location = useLocation();
-  const docIdParam = (()=>{ try { const p = new URLSearchParams(location.search); return p.get('docId') || ''; } catch { return ''; } })();
+  const docIdParam = (() => {
+    try {
+      const p = new URLSearchParams(location.search);
+      return p.get('docId') || '';
+    } catch {
+      return '';
+    }
+  })();
 
   return (
     <div className="min-h-full bg-gray-900 text-gray-100">
@@ -118,9 +148,7 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
           <div className="flex items-center gap-3">
             <Microscope className="w-6 h-6 text-red-400" />
             <div>
-              <h1 className="text-xl font-semibold text-gray-100">
-                Forensic Analysis Workspace
-              </h1>
+              <h1 className="text-xl font-semibold text-gray-100">Forensic Analysis Workspace</h1>
               <p className="text-sm text-gray-400">
                 {investigation.title} - Advanced forensic tools for criminal investigation
               </p>
@@ -146,7 +174,7 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
           <div className="mt-4 p-4 bg-gray-700 rounded-lg">
             <h3 className="text-sm font-medium text-gray-300 mb-3">Enabled Forensic Tools</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
-              {forensicTools.map(tool => (
+              {forensicTools.map((tool) => (
                 <label key={tool.id} className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -169,24 +197,31 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
 
       <div className="flex flex-col md:flex-row">
         {/* Collapsible Sidebar */}
-        <div className={`${toolsCollapsed ? 'w-16' : 'w-full md:w-80'} bg-gray-800 border-b md:border-b-0 md:border-r border-gray-700 transition-all duration-300`}>
+        <div
+          className={`${toolsCollapsed ? 'w-16' : 'w-full md:w-80'} bg-gray-800 border-b md:border-b-0 md:border-r border-gray-700 transition-all duration-300`}
+        >
           {/* Tool Selection */}
           <div className="p-4 border-b border-gray-700">
             <div className="flex items-center justify-between mb-4">
-              <h2 className={`text-lg font-semibold text-gray-100 ${toolsCollapsed ? 'hidden' : ''}`}>Forensic Tools</h2>
+              <h2
+                className={`text-lg font-semibold text-gray-100 ${toolsCollapsed ? 'hidden' : ''}`}
+              >
+                Forensic Tools
+              </h2>
               <button
                 onClick={() => setToolsCollapsed(!toolsCollapsed)}
                 className="p-2 text-gray-400 hover:text-white transition-colors rounded-md hover:bg-gray-700"
-                title={toolsCollapsed ? "Expand tools" : "Collapse tools"}
+                title={toolsCollapsed ? 'Expand tools' : 'Collapse tools'}
               >
-                {toolsCollapsed ? 
-                  <ArrowRight className="w-5 h-5" /> : 
+                {toolsCollapsed ? (
+                  <ArrowRight className="w-5 h-5" />
+                ) : (
                   <ArrowRight className="w-5 h-5 rotate-180" />
-                }
+                )}
               </button>
             </div>
             <div className="space-y-2">
-              {enabledToolsList.map(tool => {
+              {enabledToolsList.map((tool) => {
                 const Icon = tool.icon;
                 const toolStats = stats[tool.id as keyof typeof stats];
                 return (
@@ -200,29 +235,39 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
                       } ${toolsCollapsed ? 'p-3 flex items-center justify-center' : ''}`}
                       title={toolsCollapsed ? `${tool.name}: ${tool.description}` : ''}
                     >
-                      <div className={`flex items-center ${toolsCollapsed ? 'justify-center' : 'gap-3 mb-2'}`}>
+                      <div
+                        className={`flex items-center ${toolsCollapsed ? 'justify-center' : 'gap-3 mb-2'}`}
+                      >
                         <Icon className="w-5 h-5 text-red-400" />
-                        {!toolsCollapsed && <span className="font-medium text-gray-100">{tool.name}</span>}
+                        {!toolsCollapsed && (
+                          <span className="font-medium text-gray-100">{tool.name}</span>
+                        )}
                       </div>
                       {!toolsCollapsed && (
                         <>
-                          <p className="text-xs text-gray-400 mb-2 line-clamp-2 whitespace-nowrap overflow-hidden text-ellipsis">{tool.description}</p>
+                          <p className="text-xs text-gray-400 mb-2 line-clamp-2 whitespace-nowrap overflow-hidden text-ellipsis">
+                            {tool.description}
+                          </p>
                           <div className="flex justify-between items-center text-xs">
                             <span className="text-gray-500">
                               {toolStats.count.toLocaleString()} items
                             </span>
-                            <span className={`px-2 py-1 rounded text-xs ${
-                              toolStats.confidence >= 90 ? 'bg-green-900 text-green-200' :
-                              toolStats.confidence >= 80 ? 'bg-yellow-900 text-yellow-200' :
-                              'bg-red-900 text-red-200'
-                            }`}>
+                            <span
+                              className={`px-2 py-1 rounded text-xs ${
+                                toolStats.confidence >= 90
+                                  ? 'bg-green-900 text-green-200'
+                                  : toolStats.confidence >= 80
+                                    ? 'bg-yellow-900 text-yellow-200'
+                                    : 'bg-red-900 text-red-200'
+                              }`}
+                            >
                               {toolStats.confidence}% confidence
                             </span>
                           </div>
                         </>
                       )}
                     </button>
-                    
+
                     {/* Popover summary for collapsed view */}
                     {toolsCollapsed && (
                       <div className="absolute left-full ml-2 top-0 w-64 bg-gray-800 border border-gray-600 rounded-lg p-3 shadow-lg z-10 hidden group-hover:block">
@@ -232,11 +277,15 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
                           <span className="text-gray-500">
                             {toolStats.count.toLocaleString()} items
                           </span>
-                          <span className={`px-2 py-1 rounded text-xs ${
-                            toolStats.confidence >= 90 ? 'bg-green-900 text-green-200' :
-                            toolStats.confidence >= 80 ? 'bg-yellow-900 text-yellow-200' :
-                            'bg-red-900 text-red-200'
-                          }`}>
+                          <span
+                            className={`px-2 py-1 rounded text-xs ${
+                              toolStats.confidence >= 90
+                                ? 'bg-green-900 text-green-200'
+                                : toolStats.confidence >= 80
+                                  ? 'bg-yellow-900 text-yellow-200'
+                                  : 'bg-red-900 text-red-200'
+                            }`}
+                          >
                             {toolStats.confidence}% confidence
                           </span>
                         </div>
@@ -254,22 +303,31 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-400">Status</span>
-                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                  investigation.status === 'active' ? 'bg-green-900 text-green-200' :
-                  investigation.status === 'review' ? 'bg-yellow-900 text-yellow-200' :
-                  'bg-gray-900 text-gray-200'
-                }`}>
+                <span
+                  className={`px-2 py-1 rounded text-xs font-medium ${
+                    investigation.status === 'active'
+                      ? 'bg-green-900 text-green-200'
+                      : investigation.status === 'review'
+                        ? 'bg-yellow-900 text-yellow-200'
+                        : 'bg-gray-900 text-gray-200'
+                  }`}
+                >
                   {investigation.status}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-400">Priority</span>
-                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                  investigation.priority === 'critical' ? 'bg-red-900 text-red-200' :
-                  investigation.priority === 'high' ? 'bg-orange-900 text-orange-200' :
-                  investigation.priority === 'medium' ? 'bg-yellow-900 text-yellow-200' :
-                  'bg-green-900 text-green-200'
-                }`}>
+                <span
+                  className={`px-2 py-1 rounded text-xs font-medium ${
+                    investigation.priority === 'critical'
+                      ? 'bg-red-900 text-red-200'
+                      : investigation.priority === 'high'
+                        ? 'bg-orange-900 text-orange-200'
+                        : investigation.priority === 'medium'
+                          ? 'bg-yellow-900 text-yellow-200'
+                          : 'bg-green-900 text-green-200'
+                  }`}
+                >
                   {investigation.priority}
                 </span>
               </div>
@@ -290,9 +348,7 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
             {investigation.hypothesis && (
               <div className="mt-4">
                 <h4 className="text-sm font-medium text-gray-300 mb-2">Hypothesis</h4>
-                <p className="text-xs text-gray-400 leading-relaxed">
-                  {investigation.hypothesis}
-                </p>
+                <p className="text-xs text-gray-400 leading-relaxed">{investigation.hypothesis}</p>
               </div>
             )}
           </div>
@@ -302,25 +358,27 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
         <div className="flex-1 bg-gray-900">
           <div className="h-full">
             {activeTool === 'documents' && (
-              <ForensicDocumentAnalyzer 
-                documentUrl={evidence[0]?.source || ''} 
-                documentId={docIdParam || evidence[0]?.id || ''} 
+              <ForensicDocumentAnalyzer
+                documentUrl={evidence[0]?.source || ''}
+                documentId={docIdParam || evidence[0]?.id || ''}
               />
             )}
             {activeTool === 'entities' && (
-              <EntityRelationshipMapper 
-                entities={networkData.entities} 
-                relationships={networkData.relationships} 
+              <EntityRelationshipMapper
+                entities={networkData.entities}
+                relationships={networkData.relationships}
               />
             )}
             {activeTool === 'financial' && (
-              <FinancialTransactionMapper investigationId={useGlobalContext ? undefined : investigation.id} />
+              <FinancialTransactionMapper
+                investigationId={useGlobalContext ? undefined : investigation.id}
+              />
             )}
-            {activeTool === 'correlation' && (
-              <MultiSourceCorrelationEngine />
-            )}
+            {activeTool === 'correlation' && <MultiSourceCorrelationEngine />}
             {activeTool === 'reports' && (
-              <ForensicReportGenerator investigationId={useGlobalContext ? undefined : Number(investigation.id)} />
+              <ForensicReportGenerator
+                investigationId={useGlobalContext ? undefined : Number(investigation.id)}
+              />
             )}
           </div>
         </div>

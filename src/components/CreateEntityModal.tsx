@@ -22,7 +22,7 @@ export const CreateEntityModal: React.FC<CreateEntityModalProps> = ({ onClose, o
     description: '',
     likelihood_level: 'LOW',
     red_flag_rating: 0,
-    red_flag_description: ''
+    red_flag_description: '',
   });
 
   useEffect(() => {
@@ -33,11 +33,13 @@ export const CreateEntityModal: React.FC<CreateEntityModalProps> = ({ onClose, o
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
+  ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: name === 'red_flag_rating' ? parseInt(value) || 0 : value
+      [name]: name === 'red_flag_rating' ? parseInt(value) || 0 : value,
     }));
   };
 
@@ -52,19 +54,22 @@ export const CreateEntityModal: React.FC<CreateEntityModalProps> = ({ onClose, o
       onClose();
     } catch (error) {
       console.error('Error creating entity:', error);
-      addToast({ text: error instanceof Error ? error.message : 'Failed to create entity', type: 'error' });
+      addToast({
+        text: error instanceof Error ? error.message : 'Failed to create entity',
+        type: 'error',
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return createPortal(
-    <div 
+    <div
       className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
       role="dialog"
       aria-modal="true"
     >
-      <div 
+      <div
         ref={modalRef}
         className="bg-slate-800 rounded-xl w-full max-w-2xl border border-slate-700 shadow-2xl flex flex-col max-h-[90vh]"
       >
@@ -76,8 +81,8 @@ export const CreateEntityModal: React.FC<CreateEntityModalProps> = ({ onClose, o
             </div>
             <h2 className="text-xl font-bold text-white">Create New Subject</h2>
           </div>
-          <button 
-            onClick={onClose} 
+          <button
+            onClick={onClose}
             className="p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
             aria-label="Close"
           >
@@ -115,7 +120,11 @@ export const CreateEntityModal: React.FC<CreateEntityModalProps> = ({ onClose, o
             </FormField>
           </div>
 
-          <FormField label="Secondary Roles" id="secondary_roles" helpText="Comma separated list of other roles">
+          <FormField
+            label="Secondary Roles"
+            id="secondary_roles"
+            helpText="Comma separated list of other roles"
+          >
             <input
               type="text"
               id="secondary_roles"
@@ -210,6 +219,6 @@ export const CreateEntityModal: React.FC<CreateEntityModalProps> = ({ onClose, o
         </form>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 };

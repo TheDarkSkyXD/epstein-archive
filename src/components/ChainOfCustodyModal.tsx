@@ -45,17 +45,25 @@ export const ChainOfCustodyModal: React.FC<Props> = ({ evidenceId, onClose }) =>
         const res = await fetch(`/api/evidence/${evidenceId}/custody`);
         const data = await res.json();
         setEvents(data);
-      } finally { setLoading(false); }
+      } finally {
+        setLoading(false);
+      }
     };
     load();
   }, [evidenceId]);
 
   const addEvent = async () => {
-    await fetch(`/api/evidence/${evidenceId}/custody`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actor, action, notes }) });
+    await fetch(`/api/evidence/${evidenceId}/custody`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ actor, action, notes }),
+    });
     const res = await fetch(`/api/evidence/${evidenceId}/custody`);
     const data = await res.json();
     setEvents(data);
-    setActor(''); setAction('analyzed'); setNotes('');
+    setActor('');
+    setAction('analyzed');
+    setNotes('');
   };
 
   return createPortal(
@@ -63,20 +71,37 @@ export const ChainOfCustodyModal: React.FC<Props> = ({ evidenceId, onClose }) =>
       <div className="bg-slate-800 rounded-lg w-full max-w-2xl">
         <div className="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
           <h3 className="text-white font-semibold">Chain of Custody</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-white">✕</button>
+          <button onClick={onClose} className="text-slate-400 hover:text-white">
+            ✕
+          </button>
         </div>
         <div className="p-6 space-y-4">
           <div className="text-sm text-slate-300">Evidence ID: {evidenceId}</div>
           <div>
-            <button onClick={exportReport} className="px-3 py-2 bg-slate-700 text-white rounded text-sm hover:bg-slate-600 mr-2">Export Report</button>
-            <button onClick={exportCsv} className="px-3 py-2 bg-slate-700 text-white rounded text-sm hover:bg-slate-600 mr-2">Export CSV</button>
-            <button onClick={openPrintable} className="px-3 py-2 bg-slate-700 text-white rounded text-sm hover:bg-slate-600">Printable PDF</button>
+            <button
+              onClick={exportReport}
+              className="px-3 py-2 bg-slate-700 text-white rounded text-sm hover:bg-slate-600 mr-2"
+            >
+              Export Report
+            </button>
+            <button
+              onClick={exportCsv}
+              className="px-3 py-2 bg-slate-700 text-white rounded text-sm hover:bg-slate-600 mr-2"
+            >
+              Export CSV
+            </button>
+            <button
+              onClick={openPrintable}
+              className="px-3 py-2 bg-slate-700 text-white rounded text-sm hover:bg-slate-600"
+            >
+              Printable PDF
+            </button>
           </div>
           {loading ? (
             <div className="text-slate-400">Loading...</div>
           ) : (
             <div className="space-y-2">
-              {events.map(ev => (
+              {events.map((ev) => (
                 <div key={ev.id} className="p-3 bg-slate-700 rounded-md">
                   <div className="flex justify-between text-sm">
                     <span className="text-slate-300">{ev.action}</span>
@@ -94,16 +119,36 @@ export const ChainOfCustodyModal: React.FC<Props> = ({ evidenceId, onClose }) =>
           <div className="mt-4">
             <h4 className="text-white font-medium mb-2 text-sm">Add Event</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-              <input value={actor} onChange={e=>setActor(e.target.value)} placeholder="Actor" className="bg-slate-700 text-white p-2 rounded" />
-              <input value={action} onChange={e=>setAction(e.target.value)} placeholder="Action" className="bg-slate-700 text-white p-2 rounded" />
-              <input value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Notes" className="bg-slate-700 text-white p-2 rounded" />
+              <input
+                value={actor}
+                onChange={(e) => setActor(e.target.value)}
+                placeholder="Actor"
+                className="bg-slate-700 text-white p-2 rounded"
+              />
+              <input
+                value={action}
+                onChange={(e) => setAction(e.target.value)}
+                placeholder="Action"
+                className="bg-slate-700 text-white p-2 rounded"
+              />
+              <input
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Notes"
+                className="bg-slate-700 text-white p-2 rounded"
+              />
             </div>
-            <button onClick={addEvent} className="mt-3 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">Add</button>
+            <button
+              onClick={addEvent}
+              className="mt-3 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+            >
+              Add
+            </button>
           </div>
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 };
 

@@ -1,17 +1,22 @@
-import { EvidenceChain, AuthenticityScore, CustodyEvent, TransformationEvent } from '../types/investigation';
+import {
+  EvidenceChain,
+  AuthenticityScore,
+  CustodyEvent,
+  TransformationEvent,
+} from '../types/investigation';
 import { apiClient } from './apiClient';
 
 /**
  * Evidence Chain Service
- * 
+ *
  * Tracks document authenticity, provenance, and chain of custody
  * Essential for investigative journalism credibility and legal admissibility
  */
 export class EvidenceChainService {
   private static instance: EvidenceChainService;
-  
+
   private constructor() {}
-  
+
   static getInstance(): EvidenceChainService {
     if (!EvidenceChainService.instance) {
       EvidenceChainService.instance = new EvidenceChainService();
@@ -26,7 +31,7 @@ export class EvidenceChainService {
     try {
       // Get document metadata
       const document = await apiClient.getDocument(documentId);
-      
+
       // Trigger/Get Server-side Analysis
       // This moves the heavy lifting to the server
       const analysis = await apiClient.analyzeDocument(documentId);
@@ -35,16 +40,16 @@ export class EvidenceChainService {
 
       // Get Chain of Custody from Server
       const custodyChain = await apiClient.getChainOfCustody(documentId);
-      
+
       // Generate content hash (still useful client-side for verification)
       const contentHash = await this.generateContentHash(document.content || '');
-      
+
       // Build source provenance
       const sourceProvenance = this.buildSourceProvenance(document);
-      
+
       // Track transformations (could also be from server, but we'll keep minimal logic here)
       const transformations = await this.trackTransformations(documentId);
-      
+
       // Construct Authenticity Score object based on server data
       const authenticity: AuthenticityScore = {
         overall: Math.round(serverScore),
@@ -53,13 +58,13 @@ export class EvidenceChainService {
           chainIntegrity: 50, // Placeholder or from server
           contentConsistency: serverMetrics.readability ? 80 : 50, // inferred from server metrics
           technicalAuthenticity: serverMetrics.metadataAnalysis ? 80 : 50,
-          corroboration: 50
+          corroboration: 50,
         },
         assessmentDate: new Date(),
         assessedBy: 'Evidence Chain Service (Server Verified)',
-        methodology: 'Server-side forensic analysis with client-side verification'
+        methodology: 'Server-side forensic analysis with client-side verification',
       };
-      
+
       return {
         documentId,
         contentHash,
@@ -67,10 +72,10 @@ export class EvidenceChainService {
         transformations,
         authenticity,
         custodyChain: custodyChain.map((e: any) => ({
-            ...e,
-            date: new Date(e.date)
+          ...e,
+          date: new Date(e.date),
         })),
-        verificationStatus: authenticity.overall > 80 ? 'verified' : 'pending'
+        verificationStatus: authenticity.overall > 80 ? 'verified' : 'pending',
       };
     } catch (error) {
       console.error('Error generating evidence chain:', error);
@@ -87,7 +92,7 @@ export class EvidenceChainService {
     const data = encoder.encode(content);
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
   }
 
   /**
@@ -101,7 +106,7 @@ export class EvidenceChainService {
       importMethod: this.determineImportMethod(document),
       sourceReliability: this.assessSourceReliability(document),
       sourceDescription: document.description || 'Document from Epstein Archive',
-      chainOfCustodyDocuments: document.custody_documents || []
+      chainOfCustodyDocuments: document.custody_documents || [],
     };
   }
 
@@ -126,7 +131,7 @@ export class EvidenceChainService {
    */
   private assessSourceReliability(document: any): 'high' | 'medium' | 'low' | 'unknown' {
     const source = (document.source || '').toLowerCase();
-    
+
     if (source.includes('court') || source.includes('government') || source.includes('official')) {
       return 'high';
     }
@@ -142,10 +147,14 @@ export class EvidenceChainService {
   private scoreSourceReliability(document: any): number {
     const reliability = this.assessSourceReliability(document);
     switch (reliability) {
-      case 'high': return 90;
-      case 'medium': return 70;
-      case 'low': return 40;
-      default: return 20;
+      case 'high':
+        return 90;
+      case 'medium':
+        return 70;
+      case 'low':
+        return 40;
+      default:
+        return 20;
     }
   }
 
@@ -163,7 +172,7 @@ export class EvidenceChainService {
         outputHash: 'ocr_text_hash',
         tool: 'Tesseract OCR',
         confidence: 0.85,
-        operator: 'system'
+        operator: 'system',
       });
     }
     return transformations;
@@ -177,11 +186,11 @@ export class EvidenceChainService {
       // Verify content hash
       const document = await apiClient.getDocument(evidenceChain.documentId);
       const currentHash = await this.generateContentHash(document.content || '');
-      
+
       if (currentHash !== evidenceChain.contentHash) {
         return false;
       }
-      
+
       return true;
     } catch (error) {
       console.error('Error verifying evidence chain:', error);
@@ -194,7 +203,7 @@ export class EvidenceChainService {
    */
   getEvidenceChainSummary(evidenceChain: EvidenceChain): string {
     const { authenticity, sourceProvenance, custodyChain } = evidenceChain;
-    
+
     return `
 Evidence Chain Summary:
 - Overall Authenticity: ${authenticity.overall}/100

@@ -10,7 +10,7 @@ router.get('/', async (req, res, next) => {
     const offset = (page - 1) * limit;
 
     const db = getDb();
-    
+
     // Query for emails - optimized to only fetch snippet portion of content
     const query = `
       SELECT 
@@ -39,7 +39,7 @@ router.get('/', async (req, res, next) => {
 
     // Process emails to match expected frontend format
     // The frontend likely expects: id, subject, from, to, date, snippet, attachments
-    const processedEmails = emails.map(email => {
+    const processedEmails = emails.map((email) => {
       let metadata: any = {};
       try {
         metadata = JSON.parse(email.metadata_json || '{}');
@@ -58,8 +58,8 @@ router.get('/', async (req, res, next) => {
         snippet: snippet,
         hasAttachments: false, // Default for now
         folder: 'inbox', // Default folder
-        isRead: true,    // Default status
-        labels: []
+        isRead: true, // Default status
+        labels: [],
       };
     });
 
@@ -68,9 +68,8 @@ router.get('/', async (req, res, next) => {
       total: totalResult.total,
       page,
       pageSize: limit,
-      totalPages: Math.ceil(totalResult.total / limit)
+      totalPages: Math.ceil(totalResult.total / limit),
     });
-
   } catch (error) {
     console.error('Error fetching emails:', error);
     next(error);

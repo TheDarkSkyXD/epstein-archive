@@ -6,13 +6,9 @@ interface BaseCardProps {
   onClick?: () => void;
 }
 
-export const BaseCard: React.FC<BaseCardProps> = ({ 
-  children, 
-  className = '', 
-  onClick 
-}) => {
+export const BaseCard: React.FC<BaseCardProps> = ({ children, className = '', onClick }) => {
   return (
-    <div 
+    <div
       onClick={onClick}
       className={`
         bg-[var(--bg-elevated)] 

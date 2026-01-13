@@ -14,7 +14,7 @@ export const VirtualList: React.FC<VirtualListProps> = ({
   itemHeight,
   containerHeight,
   renderItem,
-  onItemClick
+  onItemClick,
 }) => {
   const [startIndex, setStartIndex] = useState(0);
   const [endIndex, setEndIndex] = useState(0);
@@ -33,10 +33,13 @@ export const VirtualList: React.FC<VirtualListProps> = ({
   }, [items.length, itemHeight, containerHeight]);
 
   // Handle scroll events
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    scrollTopRef.current = e.currentTarget.scrollTop;
-    updateVisibleItems();
-  }, [updateVisibleItems]);
+  const handleScroll = useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      scrollTopRef.current = e.currentTarget.scrollTop;
+      updateVisibleItems();
+    },
+    [updateVisibleItems],
+  );
 
   // Update visible items when items change
   useEffect(() => {
@@ -57,7 +60,7 @@ export const VirtualList: React.FC<VirtualListProps> = ({
         overflowY: 'auto',
         position: 'relative',
         scrollbarWidth: 'thin',
-        scrollbarColor: '#475569 #1e293b'
+        scrollbarColor: '#475569 #1e293b',
       }}
       onScroll={handleScroll}
     >
@@ -65,7 +68,7 @@ export const VirtualList: React.FC<VirtualListProps> = ({
       <div
         style={{
           height: totalHeight,
-          position: 'relative'
+          position: 'relative',
         }}
       >
         {/* Visible items */}
@@ -75,7 +78,7 @@ export const VirtualList: React.FC<VirtualListProps> = ({
             position: 'absolute',
             top: 0,
             left: 0,
-            right: 0
+            right: 0,
           }}
         >
           {visibleItems.map((item, index) => (
@@ -83,7 +86,7 @@ export const VirtualList: React.FC<VirtualListProps> = ({
               key={item.name}
               style={{
                 height: itemHeight,
-                position: 'relative'
+                position: 'relative',
               }}
               onClick={() => onItemClick(item)}
             >

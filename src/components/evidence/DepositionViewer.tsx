@@ -1,6 +1,6 @@
 /**
  * Deposition Viewer Component
- * 
+ *
  * Displays court depositions with legal formatting
  */
 
@@ -28,10 +28,14 @@ export function DepositionViewer({ evidence }: DepositionViewerProps) {
   const highlightText = (text: string, search: string) => {
     if (!search.trim()) return text;
     const parts = text.split(new RegExp(`(${search})`, 'gi'));
-    return parts.map((part, index) => 
-      part.toLowerCase() === search.toLowerCase() ? 
-        <mark key={index} className="bg-yellow-200">{part}</mark> : 
+    return parts.map((part, index) =>
+      part.toLowerCase() === search.toLowerCase() ? (
+        <mark key={index} className="bg-yellow-200">
+          {part}
+        </mark>
+      ) : (
         part
+      ),
     );
   };
 
@@ -45,7 +49,7 @@ export function DepositionViewer({ evidence }: DepositionViewerProps) {
             <h2 className="text-xl font-bold text-gray-900 mb-4">
               Deposition of {metadata.deponent || 'Unknown'}
             </h2>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {metadata.caseIdentifier && (
                 <div>
@@ -53,7 +57,7 @@ export function DepositionViewer({ evidence }: DepositionViewerProps) {
                   <div className="text-gray-900 font-medium">{metadata.caseIdentifier}</div>
                 </div>
               )}
-              
+
               {metadata.depositionDate && (
                 <div>
                   <div className="text-sm text-gray-600">Date</div>
@@ -84,9 +88,7 @@ export function DepositionViewer({ evidence }: DepositionViewerProps) {
         <div className="p-6">
           {lines.map((line, index) => (
             <div key={index} className="flex text-sm leading-relaxed mb-2">
-              <div className="w-12 text-right text-gray-400 mr-4 flex-shrink-0">
-                {index + 1}
-              </div>
+              <div className="w-12 text-right text-gray-400 mr-4 flex-shrink-0">{index + 1}</div>
               <div className="flex-1 text-gray-800 font-mono">
                 {searchTerm ? highlightText(line, searchTerm) : line}
               </div>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, BookOpen } from 'lucide-react';
 
@@ -17,12 +16,12 @@ interface ReleaseNotesPanelProps {
   error?: string | null;
 }
 
-export const ReleaseNotesPanel: React.FC<ReleaseNotesPanelProps> = ({ 
-  isOpen, 
+export const ReleaseNotesPanel: React.FC<ReleaseNotesPanelProps> = ({
+  isOpen,
   onClose,
   releaseNotes,
   isLoading = false,
-  error = null
+  error = null,
 }) => {
   // Use the passed releaseNotes prop directly as the single source of truth
   const allReleaseNotes = releaseNotes;
@@ -69,13 +68,20 @@ export const ReleaseNotesPanel: React.FC<ReleaseNotesPanelProps> = ({
           ) : (
             <div className="space-y-8 pb-8">
               {allReleaseNotes.map((release, index) => (
-                <div key={index} className="relative pl-4 border-l-2 border-slate-800 last:border-l-0">
+                <div
+                  key={index}
+                  className="relative pl-4 border-l-2 border-slate-800 last:border-l-0"
+                >
                   {/* Timeline Dot */}
-                  <div className={`absolute -left-[9px] top-0 w-4 h-4 rounded-full border-2 ${index === 0 ? 'bg-cyan-500 border-cyan-900 shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'bg-slate-800 border-slate-600'}`}></div>
-                  
+                  <div
+                    className={`absolute -left-[9px] top-0 w-4 h-4 rounded-full border-2 ${index === 0 ? 'bg-cyan-500 border-cyan-900 shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'bg-slate-800 border-slate-600'}`}
+                  ></div>
+
                   <div className="mb-4">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className={`text-sm font-mono font-bold ${index === 0 ? 'text-cyan-400' : 'text-slate-400'}`}>
+                      <span
+                        className={`text-sm font-mono font-bold ${index === 0 ? 'text-cyan-400' : 'text-slate-400'}`}
+                      >
                         {release.version}
                       </span>
                       <span className="text-xs text-slate-500 flex items-center gap-1 bg-slate-800/50 px-2 py-0.5 rounded-full border border-slate-700/50">
@@ -87,20 +93,20 @@ export const ReleaseNotesPanel: React.FC<ReleaseNotesPanelProps> = ({
                       {release.title}
                     </h3>
                   </div>
-                  
+
                   <ul className="space-y-3 bg-slate-800/30 rounded-lg p-4 border border-slate-700/50">
                     {release.notes.map((note, noteIndex) => (
                       <li key={noteIndex} className="flex items-start gap-3">
                         <span className="text-cyan-500/70 mt-1.5 text-[10px]">●</span>
                         <div className="text-sm text-slate-300 leading-relaxed">
-                          {note.split(/(\*\*.*?\*\*)/).map((part, i) => 
+                          {note.split(/(\*\*.*?\*\*)/).map((part, i) =>
                             part.startsWith('**') && part.endsWith('**') ? (
                               <strong key={i} className="font-semibold text-cyan-100">
                                 {part.slice(2, -2)}
                               </strong>
                             ) : (
                               <span key={i}>{part}</span>
-                            )
+                            ),
                           )}
                         </div>
                       </li>
@@ -114,9 +120,7 @@ export const ReleaseNotesPanel: React.FC<ReleaseNotesPanelProps> = ({
 
         {/* Footer */}
         <div className="p-4 border-t border-slate-800 bg-slate-900 text-center sticky bottom-0 z-10">
-          <p className="text-xs text-slate-500">
-            Epstein Archive Investigation Tool
-          </p>
+          <p className="text-xs text-slate-500">Epstein Archive Investigation Tool</p>
         </div>
       </div>
     </div>

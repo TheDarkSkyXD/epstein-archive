@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 export interface User {
@@ -61,14 +60,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      token: null, // Deprecated
-      login: (token: any, user: User) => login(user), // Adapt for existing consumers temporarily
-      logout,
-      isAuthenticated: !!user,
-      isAdmin: user?.role === 'admin'
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token: null, // Deprecated
+        login: (token: any, user: User) => login(user), // Adapt for existing consumers temporarily
+        logout,
+        isAuthenticated: !!user,
+        isAdmin: user?.role === 'admin',
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

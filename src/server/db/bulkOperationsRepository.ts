@@ -17,7 +17,7 @@ export const bulkOperationsRepository = {
     `);
 
     const getEvidenceTypeId = db.prepare('SELECT id FROM evidence_types WHERE type_name = ?');
-    
+
     const insertEntityEvidence = db.prepare(`
       INSERT OR IGNORE INTO entity_evidence_types (entity_id, evidence_type_id)
       VALUES (@entity_id, @evidence_type_id)
@@ -34,52 +34,54 @@ export const bulkOperationsRepository = {
           current_status: entityData.currentStatus,
           connections_summary: entityData.connectionsSummary,
           red_flag_rating: entityData.redFlagRating,
-          red_flag_score: entityData.redFlagScore || 0
+          red_flag_score: entityData.redFlagScore || 0,
         });
 
         const entityId = entityResult.lastInsertRowid;
 
         // Insert evidence types
         if (entityData.evidenceTypes && Array.isArray(entityData.evidenceTypes)) {
-            for (const typeName of entityData.evidenceTypes) {
-                const typeRow = getEvidenceTypeId.get(typeName) as { id: number } | undefined;
-                if (typeRow) {
-                    insertEntityEvidence.run({
-                        entity_id: entityId,
-                        evidence_type_id: typeRow.id
-                    });
-                }
+          for (const typeName of entityData.evidenceTypes) {
+            const typeRow = getEvidenceTypeId.get(typeName) as { id: number } | undefined;
+            if (typeRow) {
+              insertEntityEvidence.run({
+                entity_id: entityId,
+                evidence_type_id: typeRow.id,
+              });
             }
+          }
         }
 
         // Insert documents and mentions
         if (entityData.fileReferences && entityData.fileReferences.length > 0) {
           for (const fileRef of entityData.fileReferences) {
             // Check if document already exists to avoid duplicates
-            // We use a simple check here. For high performance with millions of rows, 
+            // We use a simple check here. For high performance with millions of rows,
             // we might want to cache recent document IDs or use INSERT OR IGNORE with a returning clause if supported.
             // Since we added a UNIQUE index on file_path, we can use that.
-            
+
             let documentId: number | bigint;
-            
-            const existingDoc = db.prepare('SELECT id FROM documents WHERE file_path = ?').get(fileRef.filePath) as { id: number } | undefined;
-            
+
+            const existingDoc = db
+              .prepare('SELECT id FROM documents WHERE file_path = ?')
+              .get(fileRef.filePath) as { id: number } | undefined;
+
             if (existingDoc) {
-                documentId = existingDoc.id;
+              documentId = existingDoc.id;
             } else {
-                const docResult = insertDocument.run({
-                  file_name: fileRef.fileName,
-                  file_path: fileRef.filePath || fileRef.path,
-                  file_type: fileRef.fileType,
-                  file_size: fileRef.fileSize || 0,
-                  date_created: fileRef.dateCreated || new Date().toISOString(),
-                  content: fileRef.content || '',
-                  metadata_json: fileRef.metadataJson || '{}',
-                  word_count: fileRef.wordCount || 0,
-                  red_flag_rating: fileRef.redFlagRating || 0,
-                  content_hash: fileRef.md5Hash || ''
-                });
-                documentId = docResult.lastInsertRowid;
+              const docResult = insertDocument.run({
+                file_name: fileRef.fileName,
+                file_path: fileRef.filePath || fileRef.path,
+                file_type: fileRef.fileType,
+                file_size: fileRef.fileSize || 0,
+                date_created: fileRef.dateCreated || new Date().toISOString(),
+                content: fileRef.content || '',
+                metadata_json: fileRef.metadataJson || '{}',
+                word_count: fileRef.wordCount || 0,
+                red_flag_rating: fileRef.redFlagRating || 0,
+                content_hash: fileRef.md5Hash || '',
+              });
+              documentId = docResult.lastInsertRowid;
             }
 
             // Insert mention
@@ -89,5 +91,5 @@ export const bulkOperationsRepository = {
     });
 
     transaction(entities);
-  }
+  },
 };

@@ -6,7 +6,7 @@ export class AppError extends Error {
     public message: string,
     public statusCode: number,
     public isOperational: boolean = true,
-    public details?: Record<string, any>
+    public details?: Record<string, any>,
   ) {
     super(message);
     this.name = this.constructor.name;
@@ -57,10 +57,7 @@ interface ErrorResponse {
   };
 }
 
-export const formatErrorResponse = (
-  error: AppError,
-  req?: Request
-): ErrorResponse => {
+export const formatErrorResponse = (error: AppError, req?: Request): ErrorResponse => {
   return {
     success: false,
     error: {
@@ -69,8 +66,8 @@ export const formatErrorResponse = (
       statusCode: error.statusCode,
       details: error.details,
       timestamp: new Date().toISOString(),
-      path: req?.path
-    }
+      path: req?.path,
+    },
   };
 };
 
@@ -79,44 +76,40 @@ export const globalErrorHandler = (
   err: Error,
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): void => {
   console.error('Global error handler caught:', {
     message: err.message,
     stack: err.stack,
     url: req.url,
     method: req.method,
-    userAgent: req.get('User-Agent')
+    userAgent: req.get('User-Agent'),
   });
 
   // If it's our custom AppError
   if (err instanceof AppError) {
     const errorResponse = formatErrorResponse(err, req);
-    
+
     // Log operational errors as warnings
     if (err.isOperational) {
       console.warn(`Operational error: ${err.message}`, {
         statusCode: err.statusCode,
-        path: req.path
+        path: req.path,
       });
     } else {
       // Log programming errors as errors
       console.error(`Programming error: ${err.message}`, {
         stack: err.stack,
-        path: req.path
+        path: req.path,
       });
     }
-    
+
     res.status(err.statusCode).json(errorResponse);
     return;
   }
 
   // For unexpected errors
-  const unexpectedError = new AppError(
-    'An unexpected error occurred',
-    500,
-    false
-  );
+  const unexpectedError = new AppError('An unexpected error occurred', 500, false);
 
   const errorResponse = formatErrorResponse(unexpectedError, req);
   res.status(500).json(errorResponse);
@@ -124,7 +117,7 @@ export const globalErrorHandler = (
 
 // Async wrapper for route handlers
 export const catchAsync = (
-  fn: (req: Request, res: Response, next: NextFunction) => Promise<any>
+  fn: (req: Request, res: Response, next: NextFunction) => Promise<any>,
 ) => {
   return (req: Request, res: Response, next: NextFunction) => {
     fn(req, res, next).catch(next);

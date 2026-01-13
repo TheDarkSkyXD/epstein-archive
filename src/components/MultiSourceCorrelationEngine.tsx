@@ -1,5 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Link, Unlink, Search, Filter, Download, AlertTriangle, CheckCircle, Clock, MapPin, Phone, Mail, DollarSign, User, Building, Calendar, TrendingUp, Activity } from 'lucide-react';
+import {
+  Link,
+  Unlink,
+  Search,
+  Filter,
+  Download,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  MapPin,
+  Phone,
+  Mail,
+  DollarSign,
+  User,
+  Building,
+  Calendar,
+  TrendingUp,
+  Activity,
+} from 'lucide-react';
 import { AddToInvestigationButton } from './AddToInvestigationButton';
 
 interface DataSource {
@@ -62,14 +80,34 @@ export default function MultiSourceCorrelationEngine() {
         const statsResp = await fetch('/api/stats');
         const stats = await statsResp.json().catch(() => ({}));
         const ds: DataSource[] = [
-          { id: 'documents', type: 'document', name: 'Documents', description: 'Indexed evidence documents', lastUpdated: new Date().toISOString().slice(0,10), reliability: 'verified', recordCount: stats?.totalDocuments || 0, coverage: 100 },
-          { id: 'entities', type: 'legal', name: 'Entities', description: 'People and organisations with mentions', lastUpdated: new Date().toISOString().slice(0,10), reliability: 'high', recordCount: stats?.totalEntities || 0, coverage: 100 }
+          {
+            id: 'documents',
+            type: 'document',
+            name: 'Documents',
+            description: 'Indexed evidence documents',
+            lastUpdated: new Date().toISOString().slice(0, 10),
+            reliability: 'verified',
+            recordCount: stats?.totalDocuments || 0,
+            coverage: 100,
+          },
+          {
+            id: 'entities',
+            type: 'legal',
+            name: 'Entities',
+            description: 'People and organisations with mentions',
+            lastUpdated: new Date().toISOString().slice(0, 10),
+            reliability: 'high',
+            recordCount: stats?.totalEntities || 0,
+            coverage: 100,
+          },
         ];
         setDataSources(ds);
 
         // Relationships for correlations
         if (topEntity?.id) {
-          const relResp = await fetch(`/api/relationships?entityId=${topEntity.id}&includeBreakdown=true&minConfidence=0`);
+          const relResp = await fetch(
+            `/api/relationships?entityId=${topEntity.id}&includeBreakdown=true&minConfidence=0`,
+          );
           const relJson = await relResp.json();
           const rels = Array.isArray(relJson?.relationships) ? relJson.relationships : [];
           const corr: CorrelationResult[] = rels.map((r: any, idx: number) => ({
@@ -78,11 +116,19 @@ export default function MultiSourceCorrelationEngine() {
             confidence: Math.round((r.confidence || 0) * 100) || 75,
             description: `Relationship ${r.relationship_type} with entity ${r.target_id}`,
             sources: [],
-            entities: [String(topEntity.fullName || topEntity.name || topEntity.id), String(r.target_id)],
+            entities: [
+              String(topEntity.fullName || topEntity.name || topEntity.id),
+              String(r.target_id),
+            ],
             timeRange: { start: 'Unknown', end: 'Unknown' },
-            significance: (r.proximity_score || 0) > 0.7 ? 'high' : (r.proximity_score || 0) > 0.4 ? 'medium' : 'low',
+            significance:
+              (r.proximity_score || 0) > 0.7
+                ? 'high'
+                : (r.proximity_score || 0) > 0.4
+                  ? 'medium'
+                  : 'low',
             evidence: [],
-            anomalies: []
+            anomalies: [],
           }));
           setCorrelations(corr);
         } else {
@@ -106,7 +152,8 @@ export default function MultiSourceCorrelationEngine() {
         id: 'corr-001',
         type: 'temporal',
         confidence: 94,
-        description: 'Ghislaine Maxwell and Jeffrey Epstein traveled to Paris within 24 hours in March 2006',
+        description:
+          'Ghislaine Maxwell and Jeffrey Epstein traveled to Paris within 24 hours in March 2006',
         sources: ['travel-001', 'communication-001'],
         entities: ['Jeffrey Epstein', 'Ghislaine Maxwell'],
         timeRange: { start: '2006-03-15', end: '2006-03-16' },
@@ -115,15 +162,16 @@ export default function MultiSourceCorrelationEngine() {
         evidence: [
           'Flight records show both individuals on flights arriving within 24 hours',
           'Hotel reservations at the same establishment',
-          'Phone records indicate 47 calls between parties during this period'
+          'Phone records indicate 47 calls between parties during this period',
         ],
-        anomalies: ['Unusual communication pattern', 'Coordinated travel timing']
+        anomalies: ['Unusual communication pattern', 'Coordinated travel timing'],
       },
       {
         id: 'corr-002',
         type: 'financial',
         confidence: 87,
-        description: '$15M transfer to Ghislaine Maxwell followed by increased communication activity',
+        description:
+          '$15M transfer to Ghislaine Maxwell followed by increased communication activity',
         sources: ['financial-001', 'communication-001'],
         entities: ['Jeffrey Epstein', 'Ghislaine Maxwell'],
         timeRange: { start: '2004-03-15', end: '2004-03-20' },
@@ -131,9 +179,9 @@ export default function MultiSourceCorrelationEngine() {
         evidence: [
           'Wire transfer record for $15M on March 15, 2004',
           'Phone activity increased 340% in the 5 days following transfer',
-          'Email correspondence regarding "business arrangements"'
+          'Email correspondence regarding "business arrangements"',
         ],
-        anomalies: ['Large amount', 'Timing correlation', 'Vague business purpose']
+        anomalies: ['Large amount', 'Timing correlation', 'Vague business purpose'],
       },
       {
         id: 'corr-003',
@@ -148,9 +196,9 @@ export default function MultiSourceCorrelationEngine() {
         evidence: [
           'Property records show 5 purchases within 2-mile radius',
           'Common ownership through trust structures',
-          'Purchases span 20-year period suggesting long-term strategy'
+          'Purchases span 20-year period suggesting long-term strategy',
         ],
-        anomalies: ['Concentrated geographic pattern', 'Trust ownership obfuscation']
+        anomalies: ['Concentrated geographic pattern', 'Trust ownership obfuscation'],
       },
       {
         id: 'corr-004',
@@ -164,9 +212,9 @@ export default function MultiSourceCorrelationEngine() {
         evidence: [
           'Wire transfer of $1M on December 14, 2014',
           'Phone call initiated by Brunel 23 minutes after transfer confirmation',
-          'Subsequent emails regarding "modeling business" arrangements'
+          'Subsequent emails regarding "modeling business" arrangements',
         ],
-        anomalies: ['Immediate contact', 'Cash-intensive business reference', 'Foreign national']
+        anomalies: ['Immediate contact', 'Cash-intensive business reference', 'Foreign national'],
       },
       {
         id: 'corr-005',
@@ -180,10 +228,10 @@ export default function MultiSourceCorrelationEngine() {
         evidence: [
           '12 instances of donations within 30 days of large transactions',
           'Donations to high-profile institutions and individuals',
-          'Media coverage often follows donation announcements'
+          'Media coverage often follows donation announcements',
         ],
-        anomalies: ['Reputation management pattern', 'Timing consistency', 'Amount correlation']
-      }
+        anomalies: ['Reputation management pattern', 'Timing consistency', 'Amount correlation'],
+      },
     ];
 
     setCorrelations(mockCorrelations);
@@ -195,7 +243,7 @@ export default function MultiSourceCorrelationEngine() {
 
     // Simulate analysis progress
     const progressInterval = setInterval(() => {
-      setAnalysisProgress(prev => {
+      setAnalysisProgress((prev) => {
         if (prev >= 100) {
           clearInterval(progressInterval);
           return 100;
@@ -209,38 +257,55 @@ export default function MultiSourceCorrelationEngine() {
       setIsAnalyzing(false);
       setAnalysisProgress(0);
       // No mock refresh; re-run load would happen via separate controls if needed
-      }, 3500);
+    }, 3500);
   };
 
   const getSourceIcon = (type: string) => {
     switch (type) {
-      case 'financial': return <DollarSign className="w-5 h-5" />;
-      case 'communication': return <Mail className="w-5 h-5" />;
-      case 'travel': return <MapPin className="w-5 h-5" />;
-      case 'document': return <Activity className="w-5 h-5" />;
-      case 'social': return <User className="w-5 h-5" />;
-      case 'legal': return <Building className="w-5 h-5" />;
-      default: return <Activity className="w-5 h-5" />;
+      case 'financial':
+        return <DollarSign className="w-5 h-5" />;
+      case 'communication':
+        return <Mail className="w-5 h-5" />;
+      case 'travel':
+        return <MapPin className="w-5 h-5" />;
+      case 'document':
+        return <Activity className="w-5 h-5" />;
+      case 'social':
+        return <User className="w-5 h-5" />;
+      case 'legal':
+        return <Building className="w-5 h-5" />;
+      default:
+        return <Activity className="w-5 h-5" />;
     }
   };
 
   const getReliabilityColor = (reliability: string) => {
     switch (reliability) {
-      case 'verified': return 'text-green-400 bg-green-900';
-      case 'high': return 'text-blue-400 bg-blue-900';
-      case 'medium': return 'text-yellow-400 bg-yellow-900';
-      case 'low': return 'text-red-400 bg-red-900';
-      default: return 'text-gray-400 bg-gray-900';
+      case 'verified':
+        return 'text-green-400 bg-green-900';
+      case 'high':
+        return 'text-blue-400 bg-blue-900';
+      case 'medium':
+        return 'text-yellow-400 bg-yellow-900';
+      case 'low':
+        return 'text-red-400 bg-red-900';
+      default:
+        return 'text-gray-400 bg-gray-900';
     }
   };
 
   const getSignificanceColor = (significance: string) => {
     switch (significance) {
-      case 'critical': return 'border-red-500 bg-red-900';
-      case 'high': return 'border-yellow-500 bg-yellow-900';
-      case 'medium': return 'border-blue-500 bg-blue-900';
-      case 'low': return 'border-green-500 bg-green-900';
-      default: return 'border-gray-500 bg-gray-900';
+      case 'critical':
+        return 'border-red-500 bg-red-900';
+      case 'high':
+        return 'border-yellow-500 bg-yellow-900';
+      case 'medium':
+        return 'border-blue-500 bg-blue-900';
+      case 'low':
+        return 'border-green-500 bg-green-900';
+      default:
+        return 'border-gray-500 bg-gray-900';
     }
   };
 
@@ -251,13 +316,17 @@ export default function MultiSourceCorrelationEngine() {
     return 'text-red-400';
   };
 
-  const filteredCorrelations = correlations.filter(correlation => {
-    const matchesSearch = searchTerm === '' ||
+  const filteredCorrelations = correlations.filter((correlation) => {
+    const matchesSearch =
+      searchTerm === '' ||
       correlation.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      correlation.entities.some(entity => entity.toLowerCase().includes(searchTerm.toLowerCase()));
+      correlation.entities.some((entity) =>
+        entity.toLowerCase().includes(searchTerm.toLowerCase()),
+      );
 
     const matchesType = filterType === 'all' || correlation.type === filterType;
-    const matchesSignificance = filterSignificance === 'all' || correlation.significance === filterSignificance;
+    const matchesSignificance =
+      filterSignificance === 'all' || correlation.significance === filterSignificance;
 
     return matchesSearch && matchesType && matchesSignificance;
   });
@@ -270,9 +339,12 @@ export default function MultiSourceCorrelationEngine() {
       exportDate: new Date().toISOString(),
       summary: {
         totalCorrelations: filteredCorrelations.length,
-        criticalCorrelations: filteredCorrelations.filter(c => c.significance === 'critical').length,
-        averageConfidence: filteredCorrelations.reduce((sum, c) => sum + c.confidence, 0) / filteredCorrelations.length
-      }
+        criticalCorrelations: filteredCorrelations.filter((c) => c.significance === 'critical')
+          .length,
+        averageConfidence:
+          filteredCorrelations.reduce((sum, c) => sum + c.confidence, 0) /
+          filteredCorrelations.length,
+      },
     };
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -292,14 +364,18 @@ export default function MultiSourceCorrelationEngine() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-red-400 mb-2">Multi-Source Correlation Engine</h1>
-          <p className="text-gray-400">Advanced cross-reference analysis connecting disparate data sources</p>
+          <p className="text-gray-400">
+            Advanced cross-reference analysis connecting disparate data sources
+          </p>
         </div>
 
         {/* Controls */}
         <div className="bg-gray-800 rounded-lg p-6 mb-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Search Correlations</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Search Correlations
+              </label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
@@ -313,7 +389,9 @@ export default function MultiSourceCorrelationEngine() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Correlation Type</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Correlation Type
+              </label>
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
@@ -372,7 +450,7 @@ export default function MultiSourceCorrelationEngine() {
                 <span>{analysisProgress}%</span>
               </div>
               <div className="w-full bg-gray-700 rounded-full h-2">
-                <div 
+                <div
                   className="bg-red-600 h-2 rounded-full transition-all duration-300"
                   style={{ width: `${analysisProgress}%` }}
                 ></div>
@@ -382,7 +460,8 @@ export default function MultiSourceCorrelationEngine() {
 
           <div className="flex justify-between items-center">
             <div className="text-sm text-gray-400">
-              Found {filteredCorrelations.length} correlations from {dataSources.length} data sources
+              Found {filteredCorrelations.length} correlations from {dataSources.length} data
+              sources
             </div>
             <button
               onClick={exportCorrelations}
@@ -421,7 +500,7 @@ export default function MultiSourceCorrelationEngine() {
               <div>
                 <p className="text-gray-400 text-sm whitespace-nowrap">Critical Findings</p>
                 <p className="text-2xl font-bold text-yellow-400">
-                  {filteredCorrelations.filter(c => c.significance === 'critical').length}
+                  {filteredCorrelations.filter((c) => c.significance === 'critical').length}
                 </p>
               </div>
               <AlertTriangle className="w-8 h-8 text-yellow-400" />
@@ -433,9 +512,13 @@ export default function MultiSourceCorrelationEngine() {
               <div>
                 <p className="text-gray-400 text-sm whitespace-nowrap">Avg Confidence</p>
                 <p className="text-2xl font-bold text-purple-400">
-                  {filteredCorrelations.length > 0 
-                    ? Math.round(filteredCorrelations.reduce((sum, c) => sum + c.confidence, 0) / filteredCorrelations.length)
-                    : 0}%
+                  {filteredCorrelations.length > 0
+                    ? Math.round(
+                        filteredCorrelations.reduce((sum, c) => sum + c.confidence, 0) /
+                          filteredCorrelations.length,
+                      )
+                    : 0}
+                  %
                 </p>
               </div>
               <TrendingUp className="w-8 h-8 text-purple-400" />
@@ -462,29 +545,42 @@ export default function MultiSourceCorrelationEngine() {
                   >
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex items-center gap-2">
-                        <span className={`px-2 py-1 rounded text-xs font-medium capitalize ${
-                          correlation.type === 'temporal' ? 'bg-blue-900 text-blue-200' :
-                          correlation.type === 'spatial' ? 'bg-green-900 text-green-200' :
-                          correlation.type === 'financial' ? 'bg-yellow-900 text-yellow-200' :
-                          correlation.type === 'communication' ? 'bg-purple-900 text-purple-200' :
-                          'bg-gray-900 text-gray-200'
-                        }`}>
+                        <span
+                          className={`px-2 py-1 rounded text-xs font-medium capitalize ${
+                            correlation.type === 'temporal'
+                              ? 'bg-blue-900 text-blue-200'
+                              : correlation.type === 'spatial'
+                                ? 'bg-green-900 text-green-200'
+                                : correlation.type === 'financial'
+                                  ? 'bg-yellow-900 text-yellow-200'
+                                  : correlation.type === 'communication'
+                                    ? 'bg-purple-900 text-purple-200'
+                                    : 'bg-gray-900 text-gray-200'
+                          }`}
+                        >
                           {correlation.type}
                         </span>
-                        <span className={`text-sm font-medium ${getConfidenceColor(correlation.confidence)}`}>
+                        <span
+                          className={`text-sm font-medium ${getConfidenceColor(correlation.confidence)}`}
+                        >
                           {correlation.confidence}% confidence
                         </span>
                       </div>
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        correlation.significance === 'critical' ? 'bg-red-900 text-red-200' :
-                        correlation.significance === 'high' ? 'bg-yellow-900 text-yellow-200' :
-                        correlation.significance === 'medium' ? 'bg-blue-900 text-blue-200' :
-                        'bg-green-900 text-green-200'
-                      }`}>
+                      <span
+                        className={`px-2 py-1 rounded text-xs font-medium ${
+                          correlation.significance === 'critical'
+                            ? 'bg-red-900 text-red-200'
+                            : correlation.significance === 'high'
+                              ? 'bg-yellow-900 text-yellow-200'
+                              : correlation.significance === 'medium'
+                                ? 'bg-blue-900 text-blue-200'
+                                : 'bg-green-900 text-green-200'
+                        }`}
+                      >
                         {correlation.significance.toUpperCase()}
                       </span>
                       <div onClick={(e) => e.stopPropagation()}>
-                        <AddToInvestigationButton 
+                        <AddToInvestigationButton
                           item={{
                             id: correlation.id,
                             title: `Correlation: ${correlation.description.substring(0, 50)}...`,
@@ -494,14 +590,14 @@ export default function MultiSourceCorrelationEngine() {
                             metadata: {
                               confidence: correlation.confidence,
                               type: correlation.type,
-                              significance: correlation.significance
-                            }
+                              significance: correlation.significance,
+                            },
                           }}
                           investigations={[]} // This needs to be populated from context or props
                           onAddToInvestigation={(invId, item, relevance) => {
                             console.log('Add to investigation', invId, item, relevance);
-                            const event = new CustomEvent('add-to-investigation', { 
-                              detail: { investigationId: invId, item, relevance } 
+                            const event = new CustomEvent('add-to-investigation', {
+                              detail: { investigationId: invId, item, relevance },
                             });
                             window.dispatchEvent(event);
                           }}
@@ -515,7 +611,10 @@ export default function MultiSourceCorrelationEngine() {
 
                     <div className="flex flex-wrap gap-2 mb-3">
                       {correlation.entities.map((entity, index) => (
-                        <span key={index} className="px-2 py-1 bg-gray-700 text-gray-300 rounded text-xs">
+                        <span
+                          key={index}
+                          className="px-2 py-1 bg-gray-700 text-gray-300 rounded text-xs"
+                        >
                           {entity}
                         </span>
                       ))}
@@ -540,7 +639,10 @@ export default function MultiSourceCorrelationEngine() {
                         <p className="text-xs text-red-400 font-medium mb-1">Anomalies:</p>
                         <div className="flex flex-wrap gap-1">
                           {correlation.anomalies.map((anomaly, index) => (
-                            <span key={index} className="px-2 py-1 bg-red-900 text-red-200 rounded text-xs">
+                            <span
+                              key={index}
+                              className="px-2 py-1 bg-red-900 text-red-200 rounded text-xs"
+                            >
                               {anomaly}
                             </span>
                           ))}
@@ -567,7 +669,9 @@ export default function MultiSourceCorrelationEngine() {
                     </div>
                     <p className="text-xs text-gray-400 mb-2">{source.description}</p>
                     <div className="flex justify-between items-center text-xs">
-                      <span className={`px-2 py-1 rounded ${getReliabilityColor(source.reliability)}`}>
+                      <span
+                        className={`px-2 py-1 rounded ${getReliabilityColor(source.reliability)}`}
+                      >
                         {source.reliability.toUpperCase()}
                       </span>
                       <span className="text-gray-500">{source.recordCount} records</span>
@@ -578,7 +682,7 @@ export default function MultiSourceCorrelationEngine() {
                         <span>{source.coverage}%</span>
                       </div>
                       <div className="w-full bg-gray-600 rounded-full h-1">
-                        <div 
+                        <div
                           className="bg-blue-600 h-1 rounded-full"
                           style={{ width: `${source.coverage}%` }}
                         ></div>
@@ -597,9 +701,11 @@ export default function MultiSourceCorrelationEngine() {
                   <div key={rule.id} className="p-3 bg-gray-700 rounded-lg">
                     <div className="flex justify-between items-center mb-2">
                       <span className="font-medium text-gray-100 text-sm">{rule.name}</span>
-                      <span className={`px-2 py-1 rounded text-xs ${
-                        rule.enabled ? 'bg-green-900 text-green-200' : 'bg-gray-900 text-gray-200'
-                      }`}>
+                      <span
+                        className={`px-2 py-1 rounded text-xs ${
+                          rule.enabled ? 'bg-green-900 text-green-200' : 'bg-gray-900 text-gray-200'
+                        }`}
+                      >
                         {rule.enabled ? 'ACTIVE' : 'INACTIVE'}
                       </span>
                     </div>
@@ -623,7 +729,7 @@ export default function MultiSourceCorrelationEngine() {
               <div className="bg-gray-800 rounded-lg p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-100">Correlation Details</h3>
-                  <AddToInvestigationButton 
+                  <AddToInvestigationButton
                     item={{
                       id: selectedCorrelation.id,
                       title: `Correlation: ${selectedCorrelation.description.substring(0, 50)}...`,
@@ -633,14 +739,14 @@ export default function MultiSourceCorrelationEngine() {
                       metadata: {
                         confidence: selectedCorrelation.confidence,
                         type: selectedCorrelation.type,
-                        significance: selectedCorrelation.significance
-                      }
+                        significance: selectedCorrelation.significance,
+                      },
                     }}
                     investigations={[]} // This needs to be populated from context or props
                     onAddToInvestigation={(invId, item, relevance) => {
                       console.log('Add to investigation', invId, item, relevance);
-                      const event = new CustomEvent('add-to-investigation', { 
-                        detail: { investigationId: invId, item, relevance } 
+                      const event = new CustomEvent('add-to-investigation', {
+                        detail: { investigationId: invId, item, relevance },
                       });
                       window.dispatchEvent(event);
                     }}
@@ -655,7 +761,9 @@ export default function MultiSourceCorrelationEngine() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-400">Confidence</label>
-                    <p className={`text-gray-100 text-lg font-semibold ${getConfidenceColor(selectedCorrelation.confidence)}`}>
+                    <p
+                      className={`text-gray-100 text-lg font-semibold ${getConfidenceColor(selectedCorrelation.confidence)}`}
+                    >
                       {selectedCorrelation.confidence}%
                     </p>
                   </div>
@@ -671,7 +779,7 @@ export default function MultiSourceCorrelationEngine() {
                       <p className="text-gray-100">{selectedCorrelation.location}</p>
                     </div>
                   )}
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-400 mb-2">Evidence</label>
                     <div className="space-y-1">
@@ -685,14 +793,18 @@ export default function MultiSourceCorrelationEngine() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">Data Sources</label>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
+                      Data Sources
+                    </label>
                     <div className="space-y-1">
                       {selectedCorrelation.sources.map((sourceId, index) => {
-                        const source = dataSources.find(s => s.id === sourceId);
+                        const source = dataSources.find((s) => s.id === sourceId);
                         return (
                           <div key={index} className="flex items-center gap-2">
                             {source && getSourceIcon(source.type)}
-                            <span className="text-sm text-gray-300">{source?.name || sourceId}</span>
+                            <span className="text-sm text-gray-300">
+                              {source?.name || sourceId}
+                            </span>
                           </div>
                         );
                       })}

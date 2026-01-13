@@ -1,6 +1,6 @@
 /**
  * Document Viewer Component (Default)
- * 
+ *
  * Displays text-based evidence with formatting preserved
  */
 
@@ -24,12 +24,16 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
 
   const highlightText = (text: string, search: string) => {
     if (!search.trim()) return text;
-    
+
     const parts = text.split(new RegExp(`(${search})`, 'gi'));
-    return parts.map((part, index) => 
-      part.toLowerCase() === search.toLowerCase() ? 
-        <mark key={index} className="bg-yellow-200">{part}</mark> : 
+    return parts.map((part, index) =>
+      part.toLowerCase() === search.toLowerCase() ? (
+        <mark key={index} className="bg-yellow-200">
+          {part}
+        </mark>
+      ) : (
         part
+      ),
     );
   };
 
@@ -55,7 +59,7 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
             />
           </div>
         </div>
-        
+
         <div className="flex items-center gap-2">
           {(evidence.original_file_path || evidence.metadata?.source_original_url) && (
             <a
@@ -86,8 +90,8 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
           <button
             onClick={() => setShowRaw(!showRaw)}
             className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
-              showRaw 
-                ? 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200' 
+              showRaw
+                ? 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
                 : 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700 shadow-sm'
             }`}
             title={showRaw ? 'Showing raw OCR text' : 'Showing cleaned text'}
@@ -119,7 +123,9 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
       <div className="prose max-w-none">
         <div className="whitespace-pre-wrap text-gray-800 font-mono text-sm leading-relaxed bg-gray-50 p-6 rounded-lg">
           {(() => {
-            const displayText = showRaw ? evidence.extractedText : prettifyOCRText(evidence.extractedText);
+            const displayText = showRaw
+              ? evidence.extractedText
+              : prettifyOCRText(evidence.extractedText);
             return searchTerm ? highlightText(displayText, searchTerm) : displayText;
           })()}
         </div>

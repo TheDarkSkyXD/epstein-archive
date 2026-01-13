@@ -20,9 +20,10 @@ const mockPerson = {
   spice_score: 8,
   spice_rating: 4,
   spice_peppers: '****',
-  spice_description: 'Multiple high-risk associations with key individuals and suspicious financial transactions.',
+  spice_description:
+    'Multiple high-risk associations with key individuals and suspicious financial transactions.',
   red_flag_rating: 4,
-  fileReferences: []
+  fileReferences: [],
 };
 
 const mockDocument = {
@@ -34,7 +35,7 @@ const mockDocument = {
   mentions: 12,
   date: '2023-05-15',
   fileSize: '2.4 MB',
-  fileType: 'PDF'
+  fileType: 'PDF',
 };
 
 const mockMedia = {
@@ -43,7 +44,7 @@ const mockMedia = {
   fileType: 'JPEG',
   fileSize: '1.2 MB',
   linkedEntities: 3,
-  linkedDocument: 'Security Report #42'
+  linkedDocument: 'Security Report #42',
 };
 
 export const DesignSystemTest: React.FC = () => {
@@ -55,32 +56,23 @@ export const DesignSystemTest: React.FC = () => {
             <h3 className="text-[var(--font-size-h3)] font-semibold text-[var(--text-primary)] mb-[var(--space-3)]">
               Person Card
             </h3>
-            <PersonCardRefined 
-              person={mockPerson} 
-              onClick={() => console.log('Person clicked')}
-            />
+            <PersonCardRefined person={mockPerson} onClick={() => console.log('Person clicked')} />
           </div>
-          
+
           <div>
             <h3 className="text-[var(--font-size-h3)] font-semibold text-[var(--text-primary)] mb-[var(--space-3)]">
               Document Card
             </h3>
-            <DocumentCard 
-              document={mockDocument} 
-              onClick={() => console.log('Document clicked')}
-            />
+            <DocumentCard document={mockDocument} onClick={() => console.log('Document clicked')} />
           </div>
-          
+
           <div>
             <h3 className="text-[var(--font-size-h3)] font-semibold text-[var(--text-primary)] mb-[var(--space-3)]">
               Media Card
             </h3>
-            <MediaCard 
-              media={mockMedia} 
-              onClick={() => console.log('Media clicked')}
-            />
+            <MediaCard media={mockMedia} onClick={() => console.log('Media clicked')} />
           </div>
-          
+
           <div>
             <h3 className="text-[var(--font-size-h3)] font-semibold text-[var(--text-primary)] mb-[var(--space-3)]">
               Source Badges
@@ -91,7 +83,7 @@ export const DesignSystemTest: React.FC = () => {
               <SourceBadge source="Public Record" />
             </div>
           </div>
-          
+
           <div>
             <h3 className="text-[var(--font-size-h3)] font-semibold text-[var(--text-primary)] mb-[var(--space-3)]">
               Red Flag Index
@@ -128,13 +120,45 @@ export const DesignSystemTest: React.FC = () => {
                 </div>
               </div>
               <div>
-                <h4 className="text-sm font-medium text-slate-300 mb-2">Combined Variant (Accessible)</h4>
+                <h4 className="text-sm font-medium text-slate-300 mb-2">
+                  Combined Variant (Accessible)
+                </h4>
                 <div className="space-y-2">
-                  <RedFlagIndex value={1} size="sm" showLabel variant="combined" showTextLabel={true} />
-                  <RedFlagIndex value={2} size="sm" showLabel variant="combined" showTextLabel={true} />
-                  <RedFlagIndex value={3} size="md" showLabel variant="combined" showTextLabel={true} />
-                  <RedFlagIndex value={4} size="md" showLabel variant="combined" showTextLabel={true} />
-                  <RedFlagIndex value={5} size="lg" showLabel variant="combined" showTextLabel={true} />
+                  <RedFlagIndex
+                    value={1}
+                    size="sm"
+                    showLabel
+                    variant="combined"
+                    showTextLabel={true}
+                  />
+                  <RedFlagIndex
+                    value={2}
+                    size="sm"
+                    showLabel
+                    variant="combined"
+                    showTextLabel={true}
+                  />
+                  <RedFlagIndex
+                    value={3}
+                    size="md"
+                    showLabel
+                    variant="combined"
+                    showTextLabel={true}
+                  />
+                  <RedFlagIndex
+                    value={4}
+                    size="md"
+                    showLabel
+                    variant="combined"
+                    showTextLabel={true}
+                  />
+                  <RedFlagIndex
+                    value={5}
+                    size="lg"
+                    showLabel
+                    variant="combined"
+                    showTextLabel={true}
+                  />
                 </div>
               </div>
             </div>

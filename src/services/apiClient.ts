@@ -2,7 +2,12 @@
 import { Person } from '../types';
 import { PaginatedResponse, SearchFilters } from './optimizedDataLoader';
 
-const API_BASE_URL = (typeof window !== 'undefined' && typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || (typeof process !== 'undefined' && process.env?.VITE_API_URL) || '/api';
+const API_BASE_URL =
+  (typeof window !== 'undefined' &&
+    typeof import.meta !== 'undefined' &&
+    import.meta.env?.VITE_API_URL) ||
+  (typeof process !== 'undefined' && process.env?.VITE_API_URL) ||
+  '/api';
 
 // --- In-Memory Cache with TTL ---
 interface CacheEntry<T> {
@@ -17,13 +22,13 @@ const DEFAULT_CACHE_TTL = 30000; // 30 seconds
 function getCachedData<T>(key: string): T | null {
   const entry = cache.get(key);
   if (!entry) return null;
-  
+
   // Check if expired
   if (Date.now() - entry.timestamp > entry.ttl) {
     cache.delete(key);
     return null;
   }
-  
+
   return entry.data as T;
 }
 
@@ -31,7 +36,7 @@ function setCachedData<T>(key: string, data: T, ttl: number = DEFAULT_CACHE_TTL)
   cache.set(key, {
     data,
     timestamp: Date.now(),
-    ttl
+    ttl,
   });
 }
 
@@ -40,7 +45,7 @@ function invalidateCache(pattern?: string): void {
     cache.clear();
     return;
   }
-  
+
   // Invalidate entries matching pattern
   for (const key of cache.keys()) {
     if (key.includes(pattern)) {
@@ -51,22 +56,23 @@ function invalidateCache(pattern?: string): void {
 
 class ApiClient {
   private async fetchWithErrorHandling<T>(
-    url: string, 
-    options?: RequestInit & { useCache?: boolean; cacheTtl?: number }
+    url: string,
+    options?: RequestInit & { useCache?: boolean; cacheTtl?: number },
   ): Promise<T> {
     // Check cache for GET requests
-    const shouldCache = options?.useCache !== false && (!options?.method || options.method === 'GET');
-    
+    const shouldCache =
+      options?.useCache !== false && (!options?.method || options.method === 'GET');
+
     if (shouldCache) {
       const cached = getCachedData<T>(url);
       if (cached) {
         return cached;
       }
     }
-    
+
     // Extract our custom options before passing to fetch
     const { useCache: _, cacheTtl, ...fetchOptions } = options || {};
-    
+
     try {
       const response = await fetch(url, {
         headers: {
@@ -82,12 +88,12 @@ class ApiClient {
       }
 
       const data = await response.json();
-      
+
       // Cache the response
       if (shouldCache) {
         setCachedData(url, data, cacheTtl);
       }
-      
+
       return data;
     } catch (error) {
       if (error instanceof Error) {
@@ -101,17 +107,22 @@ class ApiClient {
     const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
     return this.fetchWithErrorHandling<T>(url, options);
   }
-  
+
   // Clear cache (useful after mutations)
   clearCache(pattern?: string): void {
     invalidateCache(pattern);
   }
 
-  async getEntities(filters: SearchFilters = {}, page: number = 1, limit: number = 24): Promise<PaginatedResponse> {
+  async getEntities(
+    filters: SearchFilters = {},
+    page: number = 1,
+    limit: number = 24,
+  ): Promise<PaginatedResponse> {
     const params = new URLSearchParams();
-    
+
     if (filters.searchTerm) params.append('search', filters.searchTerm);
-    if (filters.evidenceTypes && filters.evidenceTypes.length > 0) params.append('role', filters.evidenceTypes[0]);
+    if (filters.evidenceTypes && filters.evidenceTypes.length > 0)
+      params.append('role', filters.evidenceTypes[0]);
     // Support both 'likelihood' and 'likelihoodScore' filter property names
     const likelihoodValue = (filters as any).likelihood || filters.likelihoodScore;
     if (likelihoodValue && Array.isArray(likelihoodValue) && likelihoodValue.length > 0) {
@@ -121,9 +132,12 @@ class ApiClient {
     }
     if (filters.sortBy) params.append('sortBy', filters.sortBy);
     if (filters.sortOrder) params.append('sortOrder', filters.sortOrder);
-    if (filters.minRedFlagIndex !== undefined) params.append('minRedFlagIndex', filters.minRedFlagIndex.toString());
-    if (filters.maxRedFlagIndex !== undefined) params.append('maxRedFlagIndex', filters.maxRedFlagIndex.toString());
-    if (filters.entityType && filters.entityType !== 'all') params.append('type', filters.entityType);
+    if (filters.minRedFlagIndex !== undefined)
+      params.append('minRedFlagIndex', filters.minRedFlagIndex.toString());
+    if (filters.maxRedFlagIndex !== undefined)
+      params.append('maxRedFlagIndex', filters.maxRedFlagIndex.toString());
+    if (filters.entityType && filters.entityType !== 'all')
+      params.append('type', filters.entityType);
     if (page > 1) params.append('page', page.toString());
     if (limit !== 24) params.append('limit', limit.toString());
 
@@ -137,7 +151,8 @@ class ApiClient {
       red_flag_rating: e.red_flag_rating ?? e.redFlagRating ?? e.spiceRating ?? 0,
       files: e.files ?? e.documentCount ?? 0,
       blackBookEntry: e.blackBookEntry || null,
-    }));    return { ...(resp as any), data: normalized };
+    }));
+    return { ...(resp as any), data: normalized };
   }
 
   async getEntity(id: string): Promise<Person> {
@@ -151,20 +166,25 @@ class ApiClient {
       blackBookEntry: e.blackBookEntry || null,
     } as Person;
   }
-  async search(query: string, limit: number = 20): Promise<{ entities: Person[], documents: any[] }> {
+  async search(
+    query: string,
+    limit: number = 20,
+  ): Promise<{ entities: Person[]; documents: any[] }> {
     const params = new URLSearchParams();
     params.append('q', query);
     if (limit !== 20) params.append('limit', limit.toString());
 
     const url = `${API_BASE_URL}/search?${params.toString()}`;
     const r = await this.fetchWithErrorHandling<any>(url);
-    const ents = Array.isArray(r.entities) ? r.entities.map((e: any) => ({
-      ...e,
-      name: e.name ?? e.fullName ?? e.full_name,
-      fullName: e.fullName ?? e.name ?? e.full_name,
-      red_flag_rating: e.red_flag_rating ?? e.redFlagRating ?? e.spiceRating ?? 0,
-      blackBookEntry: e.blackBookEntry || null,
-    })) : [];
+    const ents = Array.isArray(r.entities)
+      ? r.entities.map((e: any) => ({
+          ...e,
+          name: e.name ?? e.fullName ?? e.full_name,
+          fullName: e.fullName ?? e.name ?? e.full_name,
+          red_flag_rating: e.red_flag_rating ?? e.redFlagRating ?? e.spiceRating ?? 0,
+          blackBookEntry: e.blackBookEntry || null,
+        }))
+      : [];
     return { entities: ents as Person[], documents: r.documents || [] };
   }
 
@@ -176,14 +196,14 @@ class ApiClient {
   async createEntity(data: any): Promise<any> {
     return this.fetchWithErrorHandling<any>(`${API_BASE_URL}/entities`, {
       method: 'POST',
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
     });
   }
 
   async createRelationship(data: any): Promise<any> {
     return this.fetchWithErrorHandling<any>(`${API_BASE_URL}/relationships`, {
       method: 'POST',
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
     });
   }
 
@@ -192,7 +212,7 @@ class ApiClient {
     return this.fetchWithErrorHandling<any>(url);
   }
 
-  async getDocumentPages(id: string): Promise<{ pages: string[], total: number }> {
+  async getDocumentPages(id: string): Promise<{ pages: string[]; total: number }> {
     try {
       const response = await fetch(`${API_BASE_URL}/documents/${id}/pages`);
       if (!response.ok) throw new Error('Failed to fetch document pages');
@@ -206,14 +226,14 @@ class ApiClient {
   async getEntityDocuments(entityId: string): Promise<any[]> {
     const url = `${API_BASE_URL}/entities/${entityId}/documents`;
     const response = await this.fetchWithErrorHandling<any>(url);
-    
+
     // Handle both array (dev/legacy) and paginated object (prod) formats
     if (Array.isArray(response)) {
       return response;
     } else if (response && Array.isArray(response.data)) {
       return response.data;
     }
-    
+
     return [];
   }
 
@@ -245,19 +265,29 @@ class ApiClient {
     };
   }
 
-  async getInvestigations(params: { status?: string; ownerId?: string; page?: number; limit?: number } = {}): Promise<any> {
+  async getInvestigations(
+    params: { status?: string; ownerId?: string; page?: number; limit?: number } = {},
+  ): Promise<any> {
     const usp = new URLSearchParams();
     if (params.status) usp.append('status', params.status);
     if (params.ownerId) usp.append('ownerId', params.ownerId);
     if (params.page) usp.append('page', String(params.page));
     if (params.limit) usp.append('limit', String(params.limit));
-    return this.fetchWithErrorHandling<any>(`${API_BASE_URL}/investigations${usp.toString() ? `?${usp.toString()}` : ''}`);
+    return this.fetchWithErrorHandling<any>(
+      `${API_BASE_URL}/investigations${usp.toString() ? `?${usp.toString()}` : ''}`,
+    );
   }
 
-  async createInvestigation(body: { title: string; description?: string; ownerId: string; scope?: string; collaboratorIds?: string[] }): Promise<any> {
+  async createInvestigation(body: {
+    title: string;
+    description?: string;
+    ownerId: string;
+    scope?: string;
+    collaboratorIds?: string[];
+  }): Promise<any> {
     return this.fetchWithErrorHandling<any>(`${API_BASE_URL}/investigations`, {
       method: 'POST',
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
     });
   }
 
@@ -269,7 +299,8 @@ class ApiClient {
     const params = new URLSearchParams();
     if (page > 1) params.append('page', page.toString());
     if (limit !== 50) params.append('limit', limit.toString());
-    if (filters.fileType && filters.fileType.length > 0) params.append('fileType', filters.fileType.join(','));
+    if (filters.fileType && filters.fileType.length > 0)
+      params.append('fileType', filters.fileType.join(','));
     if (filters.redFlagLevel?.min) params.append('minRedFlag', filters.redFlagLevel.min.toString());
     if (filters.redFlagLevel?.max) params.append('maxRedFlag', filters.redFlagLevel.max.toString());
     if (filters.sortBy) params.append('sortBy', filters.sortBy);
@@ -281,7 +312,9 @@ class ApiClient {
 
   async healthCheck(): Promise<{ status: string; timestamp: string; database: string }> {
     const url = `${API_BASE_URL}/health`;
-    return this.fetchWithErrorHandling<{ status: string; timestamp: string; database: string }>(url);
+    return this.fetchWithErrorHandling<{ status: string; timestamp: string; database: string }>(
+      url,
+    );
   }
 
   async getAllEntities(): Promise<any[]> {

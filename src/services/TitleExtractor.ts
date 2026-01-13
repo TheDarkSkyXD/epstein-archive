@@ -4,31 +4,91 @@ export interface TitleExtractionResult {
   cleanName: string;
   title: string | null;
   role: string | null;
-  confidence: number;  // 0-1 score
+  confidence: number; // 0-1 score
 }
 
 export class TitleExtractor {
   // Title patterns with their corresponding roles
   private static readonly TITLE_PATTERNS = [
     // Political titles
-    { pattern: /^(Former\s+)?(President|Vice President)\s+(.+)$/i, title: '$2', role: 'Political', titleGroup: 2, nameGroup: 3 },
-    { pattern: /^(Senator|Sen\.)\s+(.+)$/i, title: 'Senator', role: 'Political', titleGroup: 1, nameGroup: 2 },
-    { pattern: /^(Governor|Gov\.)\s+(.+)$/i, title: 'Governor', role: 'Political', titleGroup: 1, nameGroup: 2 },
-    { pattern: /^(Representative|Rep\.)\s+(.+)$/i, title: 'Representative', role: 'Political', titleGroup: 1, nameGroup: 2 },
-    { pattern: /^(Congressman|Congresswoman)\s+(.+)$/i, title: '$1', role: 'Political', titleGroup: 1, nameGroup: 2 },
-    
+    {
+      pattern: /^(Former\s+)?(President|Vice President)\s+(.+)$/i,
+      title: '$2',
+      role: 'Political',
+      titleGroup: 2,
+      nameGroup: 3,
+    },
+    {
+      pattern: /^(Senator|Sen\.)\s+(.+)$/i,
+      title: 'Senator',
+      role: 'Political',
+      titleGroup: 1,
+      nameGroup: 2,
+    },
+    {
+      pattern: /^(Governor|Gov\.)\s+(.+)$/i,
+      title: 'Governor',
+      role: 'Political',
+      titleGroup: 1,
+      nameGroup: 2,
+    },
+    {
+      pattern: /^(Representative|Rep\.)\s+(.+)$/i,
+      title: 'Representative',
+      role: 'Political',
+      titleGroup: 1,
+      nameGroup: 2,
+    },
+    {
+      pattern: /^(Congressman|Congresswoman)\s+(.+)$/i,
+      title: '$1',
+      role: 'Political',
+      titleGroup: 1,
+      nameGroup: 2,
+    },
+
     // Academic titles
-    { pattern: /^(Professor|Prof\.)\s+(.+)$/i, title: 'Professor', role: 'Academic', titleGroup: 1, nameGroup: 2 },
-    { pattern: /^(Dr\.|Doctor)\s+(.+)$/i, title: 'Dr', role: 'Academic', titleGroup: 1, nameGroup: 2 },
-    
+    {
+      pattern: /^(Professor|Prof\.)\s+(.+)$/i,
+      title: 'Professor',
+      role: 'Academic',
+      titleGroup: 1,
+      nameGroup: 2,
+    },
+    {
+      pattern: /^(Dr\.|Doctor)\s+(.+)$/i,
+      title: 'Dr',
+      role: 'Academic',
+      titleGroup: 1,
+      nameGroup: 2,
+    },
+
     // Royal/Noble titles
-    { pattern: /^(Prince|Princess|King|Queen|Duke|Duchess|Lord|Lady|Sir)\s+(.+)$/i, title: '$1', role: 'Royal', titleGroup: 1, nameGroup: 2 },
-    
+    {
+      pattern: /^(Prince|Princess|King|Queen|Duke|Duchess|Lord|Lady|Sir)\s+(.+)$/i,
+      title: '$1',
+      role: 'Royal',
+      titleGroup: 1,
+      nameGroup: 2,
+    },
+
     // Business titles
-    { pattern: /^(CEO|CFO|COO|CTO|Chairman|Director)\s+(.+)$/i, title: '$1', role: 'Business', titleGroup: 1, nameGroup: 2 },
-    
+    {
+      pattern: /^(CEO|CFO|COO|CTO|Chairman|Director)\s+(.+)$/i,
+      title: '$1',
+      role: 'Business',
+      titleGroup: 1,
+      nameGroup: 2,
+    },
+
     // Military titles
-    { pattern: /^(General|Colonel|Major|Captain|Lieutenant|Admiral)\s+(.+)$/i, title: '$1', role: 'Military', titleGroup: 1, nameGroup: 2 }
+    {
+      pattern: /^(General|Colonel|Major|Captain|Lieutenant|Admiral)\s+(.+)$/i,
+      title: '$1',
+      role: 'Military',
+      titleGroup: 1,
+      nameGroup: 2,
+    },
   ];
 
   /**
@@ -54,7 +114,7 @@ export class TitleExtractor {
           cleanName: extractedName.trim(),
           title: extractedTitle.trim(),
           role: role,
-          confidence: 0.95  // High confidence for pattern match
+          confidence: 0.95, // High confidence for pattern match
         };
       }
     }
@@ -65,7 +125,7 @@ export class TitleExtractor {
         cleanName: trimmed,
         title: null,
         role: null,
-        confidence: 1.0  // Highest confidence for clean name
+        confidence: 1.0, // Highest confidence for clean name
       };
     }
 
@@ -75,7 +135,7 @@ export class TitleExtractor {
         cleanName: trimmed,
         title: null,
         role: 'Organization',
-        confidence: 1.0
+        confidence: 1.0,
       };
     }
 
@@ -86,7 +146,9 @@ export class TitleExtractor {
   /**
    * Batch extract titles from multiple entities
    */
-  static extractBatch(entities: Array<{ id: string; full_name: string }>): Map<string, TitleExtractionResult> {
+  static extractBatch(
+    entities: Array<{ id: string; full_name: string }>,
+  ): Map<string, TitleExtractionResult> {
     const results = new Map<string, TitleExtractionResult>();
 
     for (const entity of entities) {
@@ -130,7 +192,7 @@ export class TitleExtractor {
       withTitle,
       withoutTitle,
       byRole,
-      avgConfidence: totalConfidence / results.size
+      avgConfidence: totalConfidence / results.size,
     };
   }
 
@@ -139,21 +201,21 @@ export class TitleExtractor {
    */
   static normalizeTitle(title: string): string {
     const normalized = title.trim().toLowerCase();
-    
+
     // Normalize common variations
     const titleMap: { [key: string]: string } = {
-      'pres': 'President',
+      pres: 'President',
       'pres.': 'President',
-      'sen': 'Senator',
+      sen: 'Senator',
       'sen.': 'Senator',
-      'gov': 'Governor',
+      gov: 'Governor',
       'gov.': 'Governor',
-      'rep': 'Representative',
+      rep: 'Representative',
       'rep.': 'Representative',
-      'prof': 'Professor',
+      prof: 'Professor',
       'prof.': 'Professor',
-      'dr': 'Dr',
-      'dr.': 'Dr'
+      dr: 'Dr',
+      'dr.': 'Dr',
     };
 
     return titleMap[normalized] || title;

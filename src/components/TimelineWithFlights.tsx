@@ -22,12 +22,12 @@ const TimelineWithFlights: React.FC<TimelineWithFlightsProps> = ({ className = '
         <div>
           <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">Investigation Timeline</h2>
           <p className="text-sm md:text-base text-slate-400">
-            {viewMode === 'events' 
+            {viewMode === 'events'
               ? 'Chronological sequence of significant events extracted from evidence files.'
               : 'Flight logs from Epstein private aircraft (1991-2006)'}
           </p>
         </div>
-        
+
         <div className="flex gap-2">
           <button
             onClick={() => setViewMode('events')}
@@ -55,11 +55,7 @@ const TimelineWithFlights: React.FC<TimelineWithFlightsProps> = ({ className = '
       </div>
 
       {/* Content based on view mode */}
-      {viewMode === 'events' ? (
-        <Timeline />
-      ) : (
-        <FlightTracker />
-      )}
+      {viewMode === 'events' ? <Timeline /> : <FlightTracker />}
     </div>
   );
 };

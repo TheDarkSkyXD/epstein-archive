@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card } from './Card';
 import { AddToInvestigationButton } from './AddToInvestigationButton';
+import { IconName } from './Icon';
 
 interface MediaItem {
   id: string;
@@ -18,8 +19,8 @@ interface MediaCardProps {
 }
 
 export const MediaCard: React.FC<MediaCardProps> = ({ media, onClick }) => {
-  const metadata = [
-    { label: 'Linked Entities', value: media.linkedEntities, icon: 'Link' }
+  const metadata: { label: string; value: string | number; icon: IconName }[] = [
+    { label: 'Linked Entities', value: media.linkedEntities, icon: 'Link' },
   ];
 
   if (media.linkedDocument) {
@@ -30,8 +31,8 @@ export const MediaCard: React.FC<MediaCardProps> = ({ media, onClick }) => {
     {
       label: 'View in Timeline',
       onClick: () => console.log('View in timeline clicked for:', media.title),
-      variant: 'secondary' as const
-    }
+      variant: 'secondary' as const,
+    },
   ];
 
   return (
@@ -47,13 +48,13 @@ export const MediaCard: React.FC<MediaCardProps> = ({ media, onClick }) => {
       className="group"
     >
       <div className="flex justify-end">
-        <AddToInvestigationButton 
+        <AddToInvestigationButton
           item={{
             id: media.id,
             title: media.title,
             description: `${media.fileType} media file`,
             type: 'evidence',
-            sourceId: media.id
+            sourceId: media.id,
           }}
           variant="quick"
           className="text-xs px-2 py-1"

@@ -1,4 +1,3 @@
-
 import { createWorker } from 'tesseract.js';
 import { OCREngine, OCRResult } from './types.js';
 import path from 'path';
@@ -21,10 +20,10 @@ export class TesseractEngine implements OCREngine {
   async process(filePath: string): Promise<OCRResult> {
     const start = Date.now();
     let worker = null;
-    
+
     try {
       worker = await createWorker('eng');
-      
+
       const result = await worker.recognize(filePath);
       const text = result.data.text;
       const confidence = result.data.confidence;
@@ -39,7 +38,7 @@ export class TesseractEngine implements OCREngine {
         metadata: {
           orientation_confidence: result.data.orientation_confidence,
           orientation_degrees: result.data.orientation_degrees,
-        }
+        },
       };
     } catch (error) {
       if (worker) {

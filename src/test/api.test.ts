@@ -24,19 +24,19 @@ async function testApiEndpoint(url: string, description: string) {
 
 async function runTests() {
   console.log('API Tests Started');
-  
+
   // Test 1: Health check
   await testApiEndpoint(`${API_BASE_URL}/health`, 'Health endpoint');
-  
+
   // Test 2: Stats endpoint
   const statsResult = await testApiEndpoint(`${API_BASE_URL}/stats`, 'Statistics endpoint');
-  
+
   // Test 3: Entities endpoint
   await testApiEndpoint(`${API_BASE_URL}/entities`, 'Entities endpoint');
-  
+
   // Test 4: Search endpoint
   await testApiEndpoint(`${API_BASE_URL}/search?q=Trump`, 'Search endpoint');
-  
+
   console.log('\nAPI Tests Completed');
 }
 

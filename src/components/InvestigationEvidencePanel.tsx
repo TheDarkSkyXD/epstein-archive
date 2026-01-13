@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  FileText, 
-  Plus, 
-  X, 
-  Search, 
-  AlertTriangle, 
+import {
+  FileText,
+  Plus,
+  X,
+  Search,
+  AlertTriangle,
   FileSearch,
   User,
   Calendar,
@@ -12,7 +12,7 @@ import {
   ExternalLink,
   Trash2,
   Filter,
-  BarChart3
+  BarChart3,
 } from 'lucide-react';
 import { ENTITY_CATEGORY_ICONS } from '../config/entityIcons';
 
@@ -43,7 +43,7 @@ interface InvestigationEvidencePanelProps {
 
 export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProps> = ({
   investigationId,
-  onClose
+  onClose,
 }) => {
   const [evidence, setEvidence] = useState<Evidence[]>([]);
   const [entityCoverage, setEntityCoverage] = useState<Entity[]>([]);
@@ -78,28 +78,28 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
 
   const searchEvidence = async () => {
     if (!searchQuery.trim()) return;
-    
+
     try {
       // Search across full dataset - documents, entities, and external sources
       const [evidenceResponse, documentsResponse, entitiesResponse] = await Promise.all([
         fetch(`/api/evidence/search?q=${encodeURIComponent(searchQuery)}&limit=20`),
         fetch(`/api/documents/search?q=${encodeURIComponent(searchQuery)}&limit=20`),
-        fetch(`/api/entities/search?q=${encodeURIComponent(searchQuery)}&limit=20`)
+        fetch(`/api/entities/search?q=${encodeURIComponent(searchQuery)}&limit=20`),
       ]);
-      
+
       const [evidenceData, documentsData, entitiesData] = await Promise.all([
         evidenceResponse.json(),
         documentsResponse.json(),
-        entitiesResponse.json()
+        entitiesResponse.json(),
       ]);
-      
+
       // Combine all search results
       const combinedResults = [
         ...(evidenceData.results || []).map((item: any) => ({ ...item, source: 'evidence' })),
         ...(documentsData.results || []).map((item: any) => ({ ...item, source: 'document' })),
-        ...(entitiesData.results || []).map((item: any) => ({ ...item, source: 'entity' }))
+        ...(entitiesData.results || []).map((item: any) => ({ ...item, source: 'entity' })),
       ];
-      
+
       setSearchResults(combinedResults);
     } catch (error) {
       console.error('Error searching evidence:', error);
@@ -114,8 +114,8 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
         body: JSON.stringify({
           investigationId,
           evidenceId,
-          relevance
-        })
+          relevance,
+        }),
       });
       loadEvidenceSummary();
       setShowAddModal(false);
@@ -128,10 +128,10 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
 
   const removeEvidence = async (investigationEvidenceId: number) => {
     if (!confirm('Remove this evidence from the investigation?')) return;
-    
+
     try {
       await fetch(`/api/investigation/remove-evidence/${investigationEvidenceId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
       });
       loadEvidenceSummary();
     } catch (error) {
@@ -139,8 +139,9 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
     }
   };
 
-  const filteredEvidence = evidence.filter(e => {
-    const matchesSearch = !searchTerm || 
+  const filteredEvidence = evidence.filter((e) => {
+    const matchesSearch =
+      !searchTerm ||
       e.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       e.description?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = filterType === 'all' || e.evidence_type === filterType;
@@ -149,14 +150,17 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
   });
 
   const getEvidenceTypeLabel = (type: string) => {
-    return type.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    return type
+      .split('_')
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ');
   };
 
   const getRelevanceBadge = (relevance: string) => {
     const colors = {
       high: 'bg-red-100 text-red-800',
       medium: 'bg-yellow-100 text-yellow-800',
-      low: 'bg-gray-100 text-gray-800'
+      low: 'bg-gray-100 text-gray-800',
     };
     return colors[relevance as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
@@ -179,8 +183,8 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
             <h2 className="text-2xl font-bold text-white">Evidence Collection</h2>
           </div>
           {onClose && (
-            <button 
-              onClick={onClose} 
+            <button
+              onClick={onClose}
               className="p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
             >
               <X className="w-6 h-6" />
@@ -223,12 +227,14 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
                 </div>
                 <div className="flex items-center space-x-3">
                   <div className="w-48 bg-slate-600 rounded-full h-2">
-                    <div 
+                    <div
                       className="bg-blue-500 h-2 rounded-full"
                       style={{ width: `${(count / evidence.length) * 100}%` }}
                     />
                   </div>
-                  <span className="text-sm font-semibold text-slate-200 w-8 text-right">{count}</span>
+                  <span className="text-sm font-semibold text-slate-200 w-8 text-right">
+                    {count}
+                  </span>
                 </div>
               </div>
             ))}
@@ -244,15 +250,20 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3 max-h-48 overflow-y-auto">
-          {entityCoverage.slice(0, 20).map(entity => {
+          {entityCoverage.slice(0, 20).map((entity) => {
             const IconComponent = (ENTITY_CATEGORY_ICONS as any)[entity.entity_category] || User;
             return (
-              <div key={entity.id} className="flex items-center justify-between p-2 bg-slate-700 rounded">
+              <div
+                key={entity.id}
+                className="flex items-center justify-between p-2 bg-slate-700 rounded"
+              >
                 <div className="flex items-center space-x-2 flex-1 min-w-0">
                   <IconComponent className="w-4 h-4 text-slate-400 flex-shrink-0" />
                   <span className="text-sm text-slate-200 truncate">{entity.full_name}</span>
                 </div>
-                <span className="text-xs font-semibold text-blue-400 ml-2">{entity.evidence_count}</span>
+                <span className="text-xs font-semibold text-blue-400 ml-2">
+                  {entity.evidence_count}
+                </span>
               </div>
             );
           })}
@@ -286,8 +297,8 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
             <Filter className="w-5 h-5 text-slate-400" />
           </div>
           <div className="flex items-center space-x-2 md:hidden mb-1">
-             <Filter className="w-4 h-4 text-slate-400" />
-             <span className="text-sm text-slate-400 font-medium">Filters</span>
+            <Filter className="w-4 h-4 text-slate-400" />
+            <span className="text-sm text-slate-400 font-medium">Filters</span>
           </div>
           <select
             value={filterType}
@@ -295,8 +306,10 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
             className="border border-slate-600 rounded-lg px-3 h-10 text-sm bg-slate-700 text-white w-full md:w-auto"
           >
             <option value="all">All Types</option>
-            {Object.keys(typeBreakdown).map(type => (
-              <option key={type} value={type}>{getEvidenceTypeLabel(type)}</option>
+            {Object.keys(typeBreakdown).map((type) => (
+              <option key={type} value={type}>
+                {getEvidenceTypeLabel(type)}
+              </option>
             ))}
           </select>
           <select
@@ -315,9 +328,9 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
       {/* Evidence List */}
       <div className="p-6 max-h-96 overflow-y-auto">
         <div className="space-y-3">
-          {filteredEvidence.map(item => (
-            <div 
-              key={item.id} 
+          {filteredEvidence.map((item) => (
+            <div
+              key={item.id}
               className="border border-slate-700 rounded-lg p-4 hover:bg-slate-700 transition cursor-pointer bg-slate-800"
               onClick={() => setSelectedEvidence(item)}
             >
@@ -325,20 +338,26 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
                 <div className="flex-1">
                   <div className="flex items-center space-x-2 mb-1">
                     <FileText className="w-4 h-4 text-slate-400" />
-                    <h4 className="font-semibold text-white truncate">{item.title || 'Untitled'}</h4>
+                    <h4 className="font-semibold text-white truncate">
+                      {item.title || 'Untitled'}
+                    </h4>
                   </div>
                   <p className="text-sm text-slate-300 line-clamp-2">{item.description}</p>
                 </div>
                 <div className="flex flex-col items-end space-y-1 ml-4">
                   {item.relevance && (
-                    <span className={`text-xs px-2 py-1 rounded ${getRelevanceBadge(item.relevance)}`}>
+                    <span
+                      className={`text-xs px-2 py-1 rounded ${getRelevanceBadge(item.relevance)}`}
+                    >
                       {item.relevance}
                     </span>
                   )}
                   {item.red_flag_rating > 0 && (
                     <div className="flex items-center space-x-1">
                       <AlertTriangle className="w-4 h-4 text-red-500" />
-                      <span className="text-xs font-semibold text-red-400">{item.red_flag_rating}</span>
+                      <span className="text-xs font-semibold text-red-400">
+                        {item.red_flag_rating}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -377,8 +396,8 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
             <div className="border-b border-slate-700 p-6">
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-bold text-white">Add Evidence</h3>
-                <button 
-                  onClick={() => setShowAddModal(false)} 
+                <button
+                  onClick={() => setShowAddModal(false)}
                   className="p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
                 >
                   <X className="w-6 h-6" />
@@ -403,31 +422,44 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
                 </button>
               </div>
               <div className="space-y-2 max-h-96 overflow-y-auto">
-                {searchResults.map(result => (
-                  <div key={`${result.source}-${result.id}`} className="border border-slate-700 rounded-lg p-4 bg-slate-700">
+                {searchResults.map((result) => (
+                  <div
+                    key={`${result.source}-${result.id}`}
+                    className="border border-slate-700 rounded-lg p-4 bg-slate-700"
+                  >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className={`text-xs px-2 py-1 rounded ${
-                            result.source === 'evidence' ? 'bg-blue-900 text-blue-200' :
-                            result.source === 'document' ? 'bg-green-900 text-green-200' :
-                            'bg-purple-900 text-purple-200'
-                          }`}>
+                          <span
+                            className={`text-xs px-2 py-1 rounded ${
+                              result.source === 'evidence'
+                                ? 'bg-blue-900 text-blue-200'
+                                : result.source === 'document'
+                                  ? 'bg-green-900 text-green-200'
+                                  : 'bg-purple-900 text-purple-200'
+                            }`}
+                          >
                             {result.source}
                           </span>
-                          <h4 className="font-semibold text-white truncate">{result.title || result.full_name || 'Untitled'}</h4>
+                          <h4 className="font-semibold text-white truncate">
+                            {result.title || result.full_name || 'Untitled'}
+                          </h4>
                         </div>
                         <p className="text-sm text-slate-300 line-clamp-2">{result.description}</p>
                         {result.source === 'entity' && (
-                          <p className="text-xs text-slate-400 mt-1">Category: {result.entity_category}</p>
+                          <p className="text-xs text-slate-400 mt-1">
+                            Category: {result.entity_category}
+                          </p>
                         )}
                       </div>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-slate-400">
-                        {result.source === 'evidence' ? getEvidenceTypeLabel(result.evidence_type) :
-                         result.source === 'document' ? 'Document' :
-                         'Entity'}
+                        {result.source === 'evidence'
+                          ? getEvidenceTypeLabel(result.evidence_type)
+                          : result.source === 'document'
+                            ? 'Document'
+                            : 'Entity'}
                       </span>
                       <div className="flex items-center space-x-2">
                         <button

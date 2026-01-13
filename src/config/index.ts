@@ -49,7 +49,7 @@ const getEnvVarAsBoolean = (name: string, defaultValue: boolean): boolean => {
 const getCorsOrigin = (): string | string[] => {
   const origin = getEnvVar('CORS_ORIGIN', 'http://localhost:3002');
   if (origin.includes(',')) {
-    return origin.split(',').map(o => o.trim());
+    return origin.split(',').map((o) => o.trim());
   }
   return origin;
 };

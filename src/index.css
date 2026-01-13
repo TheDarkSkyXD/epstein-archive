@@ -6,27 +6,27 @@
 
 :root {
   /* Core Colors - Cyber Noir Palette */
-  --bg-deep: #020617;     /* Slate 950 */
-  --bg-surface: #0f172a;  /* Slate 900 */
+  --bg-deep: #020617; /* Slate 950 */
+  --bg-surface: #0f172a; /* Slate 900 */
   --bg-elevated: #1e293b; /* Slate 800 */
-  
-  --primary: #06b6d4;     /* Cyan 500 */
+
+  --primary: #06b6d4; /* Cyan 500 */
   --primary-dim: #0e7490; /* Cyan 700 */
   --primary-glow: rgba(6, 182, 212, 0.4);
 
-  --secondary: #8b5cf6;   /* Violet 500 */
+  --secondary: #8b5cf6; /* Violet 500 */
   --secondary-dim: #6d28d9; /* Violet 700 */
-  
-  --accent: #ec4899;      /* Pink 500 */
-  
-  --text-main: #f8fafc;   /* Slate 50 */
-  --text-muted: #94a3b8;  /* Slate 400 */
-  --text-dim: #475569;    /* Slate 600 */
+
+  --accent: #ec4899; /* Pink 500 */
+
+  --text-main: #f8fafc; /* Slate 50 */
+  --text-muted: #94a3b8; /* Slate 400 */
+  --text-dim: #475569; /* Slate 600 */
 
   /* Semantic Colors */
-  --risk-high: #ef4444;   /* Red 500 */
-  --risk-med: #f59e0b;    /* Amber 500 */
-  --risk-low: #10b981;    /* Emerald 500 */
+  --risk-high: #ef4444; /* Red 500 */
+  --risk-med: #f59e0b; /* Amber 500 */
+  --risk-low: #10b981; /* Emerald 500 */
 }
 
 @layer base {
@@ -40,7 +40,7 @@
   body {
     @apply overflow-x-hidden min-h-screen;
   }
-  
+
   /* Custom Scrollbar */
   ::-webkit-scrollbar {
     width: 6px;
@@ -61,7 +61,7 @@
   .glass-panel {
     @apply bg-slate-900/60 backdrop-blur-xl border border-slate-700/50 shadow-xl;
   }
-  
+
   .glass-card {
     @apply bg-slate-800/40 backdrop-blur-md border border-slate-700/30 hover:border-cyan-500/30 transition-all duration-300;
   }
@@ -74,16 +74,18 @@
   .neon-text-cyan {
     text-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
   }
-  
+
   .neon-border-cyan {
-    box-shadow: 0 0 10px rgba(6, 182, 212, 0.2), inset 0 0 5px rgba(6, 182, 212, 0.1);
+    box-shadow:
+      0 0 10px rgba(6, 182, 212, 0.2),
+      inset 0 0 5px rgba(6, 182, 212, 0.1);
   }
 
   /* Layout Utilities */
   .content-container {
     @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
   }
-  
+
   .section-header {
     @apply text-2xl font-bold mb-6 flex items-center gap-3 text-white;
   }
@@ -93,19 +95,25 @@
   .text-glow {
     text-shadow: 0 0 15px currentColor;
   }
-  
+
   .animate-float {
     animation: float 6s ease-in-out infinite;
   }
-  
+
   @keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
   }
 
   .bg-grid-pattern {
-    background-image: linear-gradient(to right, rgba(51, 65, 85, 0.1) 1px, transparent 1px),
-                      linear-gradient(to bottom, rgba(51, 65, 85, 0.1) 1px, transparent 1px);
+    background-image:
+      linear-gradient(to right, rgba(51, 65, 85, 0.1) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(51, 65, 85, 0.1) 1px, transparent 1px);
     background-size: 40px 40px;
   }
 }
@@ -119,5 +127,7 @@
 .view-transition-enter-active {
   opacity: 1;
   transform: translateY(0);
-  transition: opacity 300ms ease-out, transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    opacity 300ms ease-out,
+    transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
 }

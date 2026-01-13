@@ -40,13 +40,24 @@
 }
 
 @keyframes sweep {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; box-shadow: 0 0 10px #00c8ff; }
-  50% { opacity: 0.7; box-shadow: 0 0 30px #00c8ff; }
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 10px #00c8ff;
+  }
+  50% {
+    opacity: 0.7;
+    box-shadow: 0 0 30px #00c8ff;
+  }
 }
 
 /* Header */
@@ -252,8 +263,13 @@
 }
 
 @keyframes fly {
-  0%, 100% { transform: translateX(0); }
-  50% { transform: translateX(10px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(10px);
+  }
 }
 
 .flight-passengers {
@@ -328,7 +344,9 @@
 }
 
 @keyframes dash {
-  to { stroke-dashoffset: -100; }
+  to {
+    stroke-dashoffset: -100;
+  }
 }
 
 .airport-marker {
@@ -340,8 +358,15 @@
 }
 
 @keyframes airport-pulse {
-  0%, 100% { r: inherit; opacity: 0.8; }
-  50% { r: calc(inherit + 3); opacity: 0.4; }
+  0%,
+  100% {
+    r: inherit;
+    opacity: 0.8;
+  }
+  50% {
+    r: calc(inherit + 3);
+    opacity: 0.4;
+  }
 }
 
 .airport-label {
@@ -645,7 +670,9 @@
 }
 
 @keyframes route-dash {
-  to { stroke-dashoffset: -100; }
+  to {
+    stroke-dashoffset: -100;
+  }
 }
 
 .route-endpoint {
@@ -727,22 +754,22 @@
     grid-template-columns: 1fr;
     gap: 1rem;
   }
-  
+
   .tracker-header {
     flex-direction: column;
     gap: 1.5rem;
   }
-  
+
   .header-stats {
     width: 100%;
     justify-content: space-around;
   }
-  
+
   .tracker-controls {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .filters {
     flex-wrap: wrap;
   }
@@ -752,26 +779,26 @@
   .flight-tracker {
     padding: 1rem;
   }
-  
+
   .tracker-header h1 {
     font-size: 1.5rem;
   }
-  
+
   .mini-stat .value {
     font-size: 1.5rem;
   }
-  
+
   .flight-modal {
     min-width: auto;
     margin: 1rem;
     padding: 1.5rem;
   }
-  
+
   .modal-route {
     flex-direction: column;
     gap: 1rem;
   }
-  
+
   .route-arrow {
     transform: rotate(90deg);
   }

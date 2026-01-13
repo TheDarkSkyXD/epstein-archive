@@ -25,9 +25,9 @@ console.log(`[Ingest] Found ${documents.length} documents in database`);
 // Build lookup by bates number
 const docLookup = new Map<string, number>();
 for (const doc of documents) {
-    if (doc.bates_number) {
-        docLookup.set(doc.bates_number, doc.id);
-    }
+  if (doc.bates_number) {
+    docLookup.set(doc.bates_number, doc.id);
+  }
 }
 
 // Update statement
@@ -38,29 +38,29 @@ const updateContent = db.prepare(`
 
 // Recursively find all text files
 function findTextFiles(dir: string): string[] {
-    const files: string[] = [];
-    if (!existsSync(dir)) return files;
-    
-    try {
-        const entries = readdirSync(dir);
-        for (const entry of entries) {
-            const fullPath = join(dir, entry);
-            try {
-                const stat = statSync(fullPath);
-                if (stat.isDirectory()) {
-                    files.push(...findTextFiles(fullPath));
-                } else if (entry.endsWith('.txt') || entry.endsWith('.rtf')) {
-                    files.push(fullPath);
-                }
-            } catch (e) {
-                // Skip inaccessible files
-            }
+  const files: string[] = [];
+  if (!existsSync(dir)) return files;
+
+  try {
+    const entries = readdirSync(dir);
+    for (const entry of entries) {
+      const fullPath = join(dir, entry);
+      try {
+        const stat = statSync(fullPath);
+        if (stat.isDirectory()) {
+          files.push(...findTextFiles(fullPath));
+        } else if (entry.endsWith('.txt') || entry.endsWith('.rtf')) {
+          files.push(fullPath);
         }
-    } catch (e) {
-        // Skip inaccessible directories
+      } catch (e) {
+        // Skip inaccessible files
+      }
     }
-    
-    return files;
+  } catch (e) {
+    // Skip inaccessible directories
+  }
+
+  return files;
 }
 
 console.log(`[Ingest] Scanning for text files in ${TEXT_ROOT}...`);
@@ -77,54 +77,54 @@ const insertDoc = db.prepare(`
 `);
 
 db.transaction(() => {
-    for (const filePath of textFiles) {
-        const filename = filePath.split('/').pop() || '';
-        const baseName = filename.replace(/\.(txt|rtf)$/i, '');
-        
-        // Try to match with existing document
-        const existingId = docLookup.get(baseName);
-        
-        // Read content
-        let content = '';
-        try {
-            content = readFileSync(filePath, 'utf-8');
-        } catch (e) {
-            console.warn(`[Ingest] Failed to read: ${filename}`);
-            continue;
-        }
-        
-        const words = content.trim().split(/\s+/).length;
-        const relPath = filePath.replace(DATA_ROOT, '/data');
-        
-        if (existingId) {
-            // Update existing document
-            updateContent.run({
-                id: existingId,
-                content,
-                words,
-                path: relPath
-            });
-            updated++;
-        } else if (content.length > 100) {
-            // Create new document for standalone files
-            try {
-                insertDoc.run({
-                    title: baseName,
-                    content,
-                    path: relPath,
-                    words,
-                    bates: baseName
-                });
-                newDocs++;
-            } catch (e) {
-                // Already exists
-            }
-        }
-        
-        if ((updated + newDocs) % 100 === 0) {
-            process.stdout.write(`\r[Ingest] Updated ${updated}, Created ${newDocs}`);
-        }
+  for (const filePath of textFiles) {
+    const filename = filePath.split('/').pop() || '';
+    const baseName = filename.replace(/\.(txt|rtf)$/i, '');
+
+    // Try to match with existing document
+    const existingId = docLookup.get(baseName);
+
+    // Read content
+    let content = '';
+    try {
+      content = readFileSync(filePath, 'utf-8');
+    } catch (e) {
+      console.warn(`[Ingest] Failed to read: ${filename}`);
+      continue;
     }
+
+    const words = content.trim().split(/\s+/).length;
+    const relPath = filePath.replace(DATA_ROOT, '/data');
+
+    if (existingId) {
+      // Update existing document
+      updateContent.run({
+        id: existingId,
+        content,
+        words,
+        path: relPath,
+      });
+      updated++;
+    } else if (content.length > 100) {
+      // Create new document for standalone files
+      try {
+        insertDoc.run({
+          title: baseName,
+          content,
+          path: relPath,
+          words,
+          bates: baseName,
+        });
+        newDocs++;
+      } catch (e) {
+        // Already exists
+      }
+    }
+
+    if ((updated + newDocs) % 100 === 0) {
+      process.stdout.write(`\r[Ingest] Updated ${updated}, Created ${newDocs}`);
+    }
+  }
 })();
 
 console.log(`\n[Ingest] Content ingestion complete!`);
@@ -132,13 +132,17 @@ console.log(`[Ingest] Updated: ${updated}`);
 console.log(`[Ingest] Created: ${newDocs}`);
 
 // Verify
-const stats = db.prepare(`
+const stats = db
+  .prepare(
+    `
     SELECT 
         COUNT(*) as total,
         SUM(CASE WHEN content IS NOT NULL AND LENGTH(content) > 0 THEN 1 ELSE 0 END) as with_content,
         SUM(word_count) as total_words
     FROM documents
-`).get() as { total: number; with_content: number; total_words: number };
+`,
+  )
+  .get() as { total: number; with_content: number; total_words: number };
 
 console.log(`\n[Ingest] Final Stats:`);
 console.log(`  Total documents: ${stats.total}`);

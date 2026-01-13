@@ -3,23 +3,35 @@ import { Person } from '../types';
 export const exportData = {
   // Export data as CSV
   toCSV: (people: Person[], filename: string = 'epstein_data.csv') => {
-    const headers = ['Full Name', 'Primary Role', 'Secondary Roles', 'Likelihood Level', 'Mentions', 'Current Status', 'Key Evidence', 'File References', 'Connections to Epstein'];
-    
+    const headers = [
+      'Full Name',
+      'Primary Role',
+      'Secondary Roles',
+      'Likelihood Level',
+      'Mentions',
+      'Current Status',
+      'Key Evidence',
+      'File References',
+      'Connections to Epstein',
+    ];
+
     const csvContent = [
       headers.join(','),
-      ...people.map(person => [
-        `"${person.name}"`,
-        `"${person.evidence_types?.[0] || 'Unknown'}"`,
-        `"${person.evidence_types?.slice(1).join(', ') || ''}"`,
-        `"${person.likelihood_score}"`,
-        `"${person.mentions}"`,
-        `"${person.likelihood_score}"`,
-        `"${person.red_flag_description || 'No key evidence'}"`,
-        "${person.files}",
-        "${person.contexts?.[0]?.context || 'No connections data'}"
-      ].join(','))
+      ...people.map((person) =>
+        [
+          `"${person.name}"`,
+          `"${person.evidence_types?.[0] || 'Unknown'}"`,
+          `"${person.evidence_types?.slice(1).join(', ') || ''}"`,
+          `"${person.likelihood_score}"`,
+          `"${person.mentions}"`,
+          `"${person.likelihood_score}"`,
+          `"${person.red_flag_description || 'No key evidence'}"`,
+          '${person.files}',
+          "${person.contexts?.[0]?.context || 'No connections data'}",
+        ].join(','),
+      ),
     ].join('\n');
-    
+
     downloadFile(csvContent, filename, 'text/csv');
   },
 
@@ -40,7 +52,7 @@ export const exportData = {
     // This would require html2canvas or similar library
     // For now, we'll create a placeholder function
     console.log('Chart export functionality requires html2canvas library');
-  }
+  },
 };
 
 function downloadFile(content: string, filename: string, mimeType: string) {
@@ -56,26 +68,29 @@ function downloadFile(content: string, filename: string, mimeType: string) {
 }
 
 function generateSummary(people: Person[]): string {
-  const highRisk = people.filter(p => p.likelihood_score === 'HIGH').length;
-  const mediumRisk = people.filter(p => p.likelihood_score === 'MEDIUM').length;
-  const lowRisk = people.filter(p => p.likelihood_score === 'LOW').length;
+  const highRisk = people.filter((p) => p.likelihood_score === 'HIGH').length;
+  const mediumRisk = people.filter((p) => p.likelihood_score === 'MEDIUM').length;
+  const lowRisk = people.filter((p) => p.likelihood_score === 'LOW').length;
   const totalMentions = people.reduce((sum, p) => sum + p.mentions, 0);
   const avgMentions = Math.round(totalMentions / people.length);
-  
+
   const topMentioned = people
     .sort((a, b) => b.mentions - a.mentions)
     .slice(0, 5)
     .map((p, i) => `${i + 1}. ${p.name}: ${p.mentions.toLocaleString()} mentions`)
     .join('\n');
 
-  const roleDistribution = people.reduce((acc, person) => {
-    const role = person.evidence_types?.[0] || 'Unknown';
-    acc[role] = (acc[role] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  const roleDistribution = people.reduce(
+    (acc, person) => {
+      const role = person.evidence_types?.[0] || 'Unknown';
+      acc[role] = (acc[role] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
   const topRoles = Object.entries(roleDistribution)
-    .sort(([,a], [,b]) => b - a)
+    .sort(([, a], [, b]) => b - a)
     .slice(0, 5)
     .map(([role, count]) => `${role}: ${count} people`)
     .join('\n');
@@ -100,7 +115,7 @@ ${topMentioned}
 ${topRoles}
 
 === KEY FINDINGS ===
-- Most mentioned individual appears in ${Math.max(...people.map(p => p.mentions)).toLocaleString()} documents
+- Most mentioned individual appears in ${Math.max(...people.map((p) => p.mentions)).toLocaleString()} documents
 - 0 individuals have been convicted (no conviction data available)
 - 0 individuals are deceased (no deceased data available)
 - Analysis covers ${people.reduce((sum, p) => sum + p.files, 0)} total files

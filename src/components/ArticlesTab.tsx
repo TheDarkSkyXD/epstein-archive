@@ -23,16 +23,16 @@ export const ArticlesTab: React.FC = () => {
     try {
       setLoading(true);
       const response = await fetch('/api/articles');
-      
+
       if (!response.ok) {
         console.warn('Articles API not available, using empty array');
         setArticles([]);
         setFilteredArticles([]);
         return;
       }
-      
+
       const data = await response.json();
-      
+
       // Check if data is an array
       if (Array.isArray(data)) {
         setArticles(data);
@@ -55,15 +55,16 @@ export const ArticlesTab: React.FC = () => {
     let filtered = articles;
 
     if (searchTerm) {
-      filtered = filtered.filter(article =>
-        article.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        article.summary.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        article.tags.toLowerCase().includes(searchTerm.toLowerCase())
+      filtered = filtered.filter(
+        (article) =>
+          article.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          article.summary.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          article.tags.toLowerCase().includes(searchTerm.toLowerCase()),
       );
     }
 
     if (selectedPublication !== 'all') {
-      filtered = filtered.filter(article => article.publication === selectedPublication);
+      filtered = filtered.filter((article) => article.publication === selectedPublication);
     }
 
     // Sort by Red Flag Index (highest first), then by date
@@ -77,7 +78,10 @@ export const ArticlesTab: React.FC = () => {
     setFilteredArticles(filtered);
   };
 
-  const publications = ['all', ...Array.from(new Set((articles || []).map(a => a.publication).filter(Boolean)))];
+  const publications = [
+    'all',
+    ...Array.from(new Set((articles || []).map((a) => a.publication).filter(Boolean))),
+  ];
 
   if (loading) {
     return (
@@ -123,7 +127,7 @@ export const ArticlesTab: React.FC = () => {
               onChange={(e) => setSelectedPublication(e.target.value)}
               className="px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-cyan-500 transition-colors"
             >
-              {publications.map(pub => (
+              {publications.map((pub) => (
                 <option key={pub} value={pub}>
                   {pub === 'all' ? 'All Publications' : pub}
                 </option>
@@ -141,9 +145,9 @@ export const ArticlesTab: React.FC = () => {
       {/* Articles Grid - New Substack-style Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
         {filteredArticles.map((article) => (
-          <ArticleCard 
-            key={article.id} 
-            article={article} 
+          <ArticleCard
+            key={article.id}
+            article={article}
             onClick={(a) => {
               setViewerArticle(a);
             }}
@@ -159,8 +163,12 @@ export const ArticlesTab: React.FC = () => {
           <p className="text-sm mt-2">Try adjusting your filters or search term.</p>
         </div>
       )}
-      
-      <ArticleViewerModal article={viewerArticle} highlight={searchTerm} onClose={() => setViewerArticle(null)} />
+
+      <ArticleViewerModal
+        article={viewerArticle}
+        highlight={searchTerm}
+        onClose={() => setViewerArticle(null)}
+      />
     </div>
   );
 };

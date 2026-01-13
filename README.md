@@ -14,58 +14,81 @@
 
 ---
 
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Node.js v18+
+- SQLite3
+
+### Installation
+
 ```bash
 # Install dependencies
 npm install
 
-# Start development server
+# Start development server (Frontend + API)
 npm run dev
-
-# Build for production
-npm run build:prod
 ```
 
-## Features
+### Production Build
 
-- [x] **44,000+ Entities** with relationship mapping and risk scoring
-- [x] **123,000+ Documents** with full-text search and integrated PDF viewing
-- [x] **912 Media Files** with 100% verified integrity (Zero 404s)
-- **Investigation Workspace** for hypothesis testing and evidence linking
-- **Timeline Visualization** with confidence scoring
-- **Network Graphs** showing entity relationships
+```bash
+# Build for production
+npm run build:prod
 
-## Documentation
+# Start production server
+npm run start
+```
 
-- [Comprehensive Wiki](docs/wiki.md) - Core memory for how the app works
-- [Data Governance Charter](docs/data-governance-standards.md) - Transparency & Forensic Accountability
-- [User Journey Mapping](docs/user-journey-mapping.md) - User experience analysis
-- [Technical Reference](docs/technical-reference.md) - Developer-focused technical guide
-- [User Guide](docs/wiki-user-guide.md) - End-user documentation
-- [API Reference](docs/API.md) - REST API endpoints
-- [Deployment Guide](docs/DEPLOYMENT.md) - Production deployment
-- [Development Setup](docs/DEPLOY.md) - Local development
+## ✨ Features
 
-## Project Structure
+- [x] **86,000+ Entities** with relationship mapping and risk scoring
+- [x] **51,000+ Documents** with full-text search and integrated PDF viewing
+- [x] **500+ Verified Media Files** (Photos, Videos, Audio)
+- [x] **Interactive Visualization**: Force-directed network graphs, timelines, and geospatial maps
+- [x] **Forensic Tools**: Chain of custody tracking, red flag index, and hypothesis testing
+- [x] **Admin Dashboard**: User management, audit logs, and system health monitoring
+
+## 📚 Documentation
+
+- [**Wiki & Architecture**](docs/wiki.md) - Core system architecture and logic
+- [**User Guide**](docs/wiki-user-guide.md) - End-user manual
+- [**API Reference**](docs/API.md) - REST API endpoints
+- [**Data Governance**](docs/data-governance-standards.md) - Standards for data integrity and privacy
+- [**User Journey**](docs/user-journey-mapping.md) - UX analysis
+- [**Technical Reference**](docs/technical-reference.md) - Deep dive for developers
+
+## 🛠️ Deployment
+
+The project includes a robust deployment script `deploy-to-production.sh` that handles:
+
+1.  **Verification**: Checks schema integrity and configuration.
+2.  **Backup**: Creates remote backups of code and database.
+3.  **Deployment**: Uploads, installs dependencies, and restarts services.
+4.  **Health Check**: Verifies critical endpoints post-deployment.
+
+```bash
+# Deploy to production
+./deploy-to-production.sh
+```
+
+## 📂 Project Structure
 
 ```
 epstein-archive/
-├── src/                    # Frontend React application
-│   ├── components/         # React components
-│   ├── services/           # API clients & data services
-│   ├── server/            # Backend Express server
-│   └── scripts/           # Database scripts
-├── data/                   # Media and OCR data
+├── src/
+│   ├── components/         # React UI components
+│   ├── pages/              # Application pages (AdminDashboard, etc.)
+│   ├── services/           # Frontend API services
+│   ├── server/             # Express backend & API routes
+│   └── scripts/            # Type-safe utility scripts
+├── scripts/                # Shell and maintenance scripts
 ├── docs/                   # Documentation
-├── scripts/                # Utility scripts
+├── data/                   # Raw media and OCR data (gitignored)
 └── public/                 # Static assets
 ```
 
-## Tech Stack
-
-- **Frontend**: React, TypeScript, Tailwind CSS, Recharts, D3
-- **Backend**: Express, SQLite, better-sqlite3
-- **Build**: Vite, esbuild
-
-## License
+## ⚖️ License
 
 This project is for research and educational purposes only.

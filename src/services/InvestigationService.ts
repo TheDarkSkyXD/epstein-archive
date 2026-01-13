@@ -42,10 +42,10 @@ export class InvestigationService {
   async getInvestigations(filters: InvestigationFilters = {}) {
     const { status, ownerId, page = 1, limit = 20 } = filters;
     const offset = (page - 1) * limit;
-    
+
     const where: string[] = [];
     const params: any = {};
-    
+
     if (status) {
       where.push('status = @status');
       params.status = status;
@@ -54,9 +54,9 @@ export class InvestigationService {
       where.push('owner_id = @ownerId');
       params.ownerId = ownerId;
     }
-    
+
     const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
-    
+
     const query = `
       SELECT id, uuid, title, description, owner_id, collaborator_ids, 
              status, scope, created_at, updated_at
@@ -65,18 +65,18 @@ export class InvestigationService {
       ORDER BY updated_at DESC
       LIMIT @limit OFFSET @offset
     `;
-    
+
     const countQuery = `SELECT COUNT(*) as total FROM investigations ${whereClause}`;
-    
+
     const investigations = this.db.prepare(query).all({ ...params, limit, offset }) as any[];
     const { total } = this.db.prepare(countQuery).get(params) as { total: number };
-    
+
     return {
-      data: investigations.map(inv => this.mapInvestigation(inv)),
+      data: investigations.map((inv) => this.mapInvestigation(inv)),
       total,
       page,
       pageSize: limit,
-      totalPages: Math.ceil(total / limit)
+      totalPages: Math.ceil(total / limit),
     };
   }
 
@@ -85,51 +85,62 @@ export class InvestigationService {
       INSERT INTO investigations (title, description, owner_id, scope, collaborator_ids)
       VALUES (@title, @description, @ownerId, @scope, @collaboratorIds)
     `);
-    
+
     const result = stmt.run({
       title: data.title,
       description: data.description || null,
       ownerId: data.ownerId,
       scope: data.scope || null,
-      collaboratorIds: JSON.stringify(data.collaboratorIds || [])
+      collaboratorIds: JSON.stringify(data.collaboratorIds || []),
     });
-    
+
     const investigation = await this.getInvestigationById(result.lastInsertRowid as number);
     if (!investigation) {
       throw new Error('Failed to create investigation');
     }
-    
+
     return investigation;
   }
 
   async getInvestigationById(id: number): Promise<Investigation | null> {
-    const inv = this.db.prepare(`
+    const inv = this.db
+      .prepare(
+        `
       SELECT id, uuid, title, description, owner_id, collaborator_ids, 
              status, scope, created_at, updated_at
       FROM investigations WHERE id = ?
-    `).get(id) as any;
-    
+    `,
+      )
+      .get(id) as any;
+
     if (!inv) return null;
-    
+
     return this.mapInvestigation(inv);
   }
 
   async getInvestigationByUuid(uuid: string): Promise<Investigation | null> {
-    const inv = this.db.prepare(`
+    const inv = this.db
+      .prepare(
+        `
       SELECT id, uuid, title, description, owner_id, collaborator_ids, 
              status, scope, created_at, updated_at
       FROM investigations WHERE uuid = ?
-    `).get(uuid) as any;
-    
+    `,
+      )
+      .get(uuid) as any;
+
     if (!inv) return null;
-    
+
     return this.mapInvestigation(inv);
   }
 
-  async updateInvestigation(id: number, updates: UpdateInvestigationInput): Promise<Investigation | null> {
+  async updateInvestigation(
+    id: number,
+    updates: UpdateInvestigationInput,
+  ): Promise<Investigation | null> {
     const fields: string[] = [];
     const params: any = { id };
-    
+
     if (updates.title !== undefined) {
       fields.push('title = @title');
       params.title = updates.title;
@@ -150,17 +161,21 @@ export class InvestigationService {
       fields.push('collaborator_ids = @collaboratorIds');
       params.collaboratorIds = JSON.stringify(updates.collaboratorIds);
     }
-    
+
     if (fields.length === 0) {
       return this.getInvestigationById(id);
     }
-    
-    this.db.prepare(`
+
+    this.db
+      .prepare(
+        `
       UPDATE investigations 
       SET ${fields.join(', ')}
       WHERE id = @id
-    `).run(params);
-    
+    `,
+      )
+      .run(params);
+
     return this.getInvestigationById(id);
   }
 
@@ -180,7 +195,7 @@ export class InvestigationService {
       status: row.status,
       scope: row.scope,
       created_at: row.created_at,
-      updated_at: row.updated_at
+      updated_at: row.updated_at,
     };
   }
 }

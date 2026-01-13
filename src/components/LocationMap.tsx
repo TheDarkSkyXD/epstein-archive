@@ -8,22 +8,22 @@ interface LocationMapProps {
   className?: string;
 }
 
-export const LocationMap: React.FC<LocationMapProps> = ({ 
-  latitude, 
-  longitude, 
+export const LocationMap: React.FC<LocationMapProps> = ({
+  latitude,
+  longitude,
   title = 'Location',
-  className = ''
+  className = '',
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  
+
   // Round coordinates for display
   const latDisplay = Math.abs(latitude).toFixed(5) + '° ' + (latitude >= 0 ? 'N' : 'S');
   const lngDisplay = Math.abs(longitude).toFixed(5) + '° ' + (longitude >= 0 ? 'E' : 'W');
-  
+
   // Generate map URLs
   const googleMapsUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
   const appleMapsUrl = `https://maps.apple.com/?ll=${latitude},${longitude}&q=${encodeURIComponent(title)}`;
-  
+
   // OpenStreetMap embed URL (free, no API key needed)
   const osmEmbedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${longitude - 0.01},${latitude - 0.01},${longitude + 0.01},${latitude + 0.01}&layer=mapnik&marker=${latitude},${longitude}`;
   const osmLargeUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${longitude - 0.05},${latitude - 0.05},${longitude + 0.05},${latitude + 0.05}&layer=mapnik&marker=${latitude},${longitude}`;
@@ -40,7 +40,9 @@ export const LocationMap: React.FC<LocationMapProps> = ({
             <MapPin className="w-5 h-5 text-blue-400" />
             <div>
               <h3 className="text-white font-semibold">{title}</h3>
-              <p className="text-sm text-slate-400">{latDisplay}, {lngDisplay}</p>
+              <p className="text-sm text-slate-400">
+                {latDisplay}, {lngDisplay}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -61,7 +63,7 @@ export const LocationMap: React.FC<LocationMapProps> = ({
             </button>
           </div>
         </div>
-        
+
         {/* Full map */}
         <div className="flex-1">
           <iframe
@@ -76,7 +78,9 @@ export const LocationMap: React.FC<LocationMapProps> = ({
   }
 
   return (
-    <div className={`bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden ${className}`}>
+    <div
+      className={`bg-slate-800/60 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden ${className}`}
+    >
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b border-slate-700/50">
         <div className="flex items-center gap-2">
@@ -91,7 +95,7 @@ export const LocationMap: React.FC<LocationMapProps> = ({
           <Maximize2 className="w-4 h-4" />
         </button>
       </div>
-      
+
       {/* Mini map */}
       <div className="relative h-32 cursor-pointer" onClick={() => setIsExpanded(true)}>
         <iframe
@@ -102,7 +106,7 @@ export const LocationMap: React.FC<LocationMapProps> = ({
         />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent pointer-events-none" />
       </div>
-      
+
       {/* Coordinates & Links */}
       <div className="p-3 space-y-2">
         <div className="text-xs text-slate-400 font-mono">

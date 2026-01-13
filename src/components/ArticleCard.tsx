@@ -37,12 +37,14 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, onClick }) =>
   };
 
   return (
-    <div 
+    <div
       className="group relative h-[400px] w-full overflow-hidden rounded-xl border border-slate-700 bg-slate-900 transition-all hover:scale-[1.01] hover:shadow-2xl hover:shadow-cyan-900/20 cursor-pointer"
       onClick={() => onClick(article)}
     >
       {/* Hero Image with Zoom Effect */}
-      <div className={`absolute inset-0 h-full w-full bg-gradient-to-br ${getPlaceholderGradient(article.id)}`}>
+      <div
+        className={`absolute inset-0 h-full w-full bg-gradient-to-br ${getPlaceholderGradient(article.id)}`}
+      >
         {article.imageUrl && (
           <LazyImage
             src={article.imageUrl}
@@ -81,7 +83,11 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, onClick }) =>
         <div className="flex items-center justify-between border-t border-white/10 pt-4">
           <div className="flex items-center gap-3">
             {article.authorAvatar ? (
-              <img src={article.authorAvatar} alt={article.author} className="h-8 w-8 rounded-full border border-white/20" />
+              <img
+                src={article.authorAvatar}
+                alt={article.author}
+                className="h-8 w-8 rounded-full border border-white/20"
+              />
             ) : (
               <div className="h-8 w-8 rounded-full bg-slate-700 border border-white/10 flex items-center justify-center text-xs font-bold text-white">
                 <User className="h-4 w-4" />
@@ -94,13 +100,13 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, onClick }) =>
               </span>
             </div>
           </div>
-          
+
           <div className="rounded-full bg-white/10 p-2 text-white backdrop-blur-sm transition-colors group-hover:bg-cyan-500 group-hover:text-white">
             <ArrowUpRight className="h-5 w-5" />
           </div>
         </div>
       </div>
-      
+
       {/* Red Flag Badge (Top Right) */}
       {article.redFlagRating > 0 && (
         <div className="absolute top-4 right-4 bg-red-500/20 backdrop-blur-md border border-red-500/50 px-3 py-1 rounded-full text-xs font-bold text-red-200 flex items-center gap-1 shadow-lg z-10">

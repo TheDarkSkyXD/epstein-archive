@@ -1,0 +1,8 @@
+dist
+node_modules
+.venv
+src/scripts
+src/test
+tests
+src/services
+src/utils

@@ -23,14 +23,14 @@ export interface RawDocument {
 export const transformToNetwork = (
   people: RawPerson[],
   documents: RawDocument[],
-  investigation?: Investigation
+  investigation?: Investigation,
 ): { entities: Entity[]; relationships: Relationship[] } => {
   const entities: Entity[] = [];
   const relationships: Relationship[] = [];
   const entityMap = new Map<string, Entity>();
 
   // 1. Create Person Entities
-  people.forEach(person => {
+  people.forEach((person) => {
     const entity: Entity = {
       id: person.id,
       type: 'person',
@@ -47,7 +47,7 @@ export const transformToNetwork = (
   });
 
   // 2. Create Document Entities
-  documents.forEach(doc => {
+  documents.forEach((doc) => {
     const entity: Entity = {
       id: doc.id,
       type: 'document',
@@ -63,9 +63,9 @@ export const transformToNetwork = (
   });
 
   // 3. Create Relationships (Person -> Document)
-  documents.forEach(doc => {
+  documents.forEach((doc) => {
     if (doc.mentionedEntities) {
-      doc.mentionedEntities.forEach(personId => {
+      doc.mentionedEntities.forEach((personId) => {
         if (entityMap.has(personId)) {
           relationships.push({
             id: `rel-${doc.id}-${personId}`,
@@ -86,7 +86,7 @@ export const transformToNetwork = (
   // If two people appear in the same document, create a link
   const coOccurrenceMap = new Map<string, { count: number; docs: string[] }>();
 
-  documents.forEach(doc => {
+  documents.forEach((doc) => {
     const mentioned = doc.mentionedEntities || [];
     for (let i = 0; i < mentioned.length; i++) {
       for (let j = i + 1; j < mentioned.length; j++) {
@@ -94,7 +94,7 @@ export const transformToNetwork = (
         const p2 = mentioned[j];
         // Sort IDs to ensure consistent key
         const key = [p1, p2].sort().join('-');
-        
+
         if (!coOccurrenceMap.has(key)) {
           coOccurrenceMap.set(key, { count: 0, docs: [] });
         }
@@ -114,10 +114,10 @@ export const transformToNetwork = (
         to: p2,
         type: 'co_occurrence',
         strength: Math.min(value.count, 5), // Cap strength visually
-        confidence: 0.8 + (value.count * 0.05), // Increase confidence with more co-occurrences
+        confidence: 0.8 + value.count * 0.05, // Increase confidence with more co-occurrences
         evidence: value.docs,
         properties: {
-          sharedDocuments: value.count
+          sharedDocuments: value.count,
         },
       });
     }
@@ -129,7 +129,10 @@ export const transformToNetwork = (
 /**
  * Helper to generate a mock dataset for testing/development
  */
-export const generateMockNetworkData = (): { entities: Entity[]; relationships: Relationship[] } => {
+export const generateMockNetworkData = (): {
+  entities: Entity[];
+  relationships: Relationship[];
+} => {
   const people: RawPerson[] = [
     { id: 'p1', name: 'Jeffrey Epstein', role: 'Financier', documents: ['d1', 'd2', 'd3'] },
     { id: 'p2', name: 'Ghislaine Maxwell', role: 'Associate', documents: ['d1', 'd2'] },

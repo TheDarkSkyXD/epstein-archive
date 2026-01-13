@@ -28,7 +28,7 @@ export class DatabaseService {
       verbose: process.env.NODE_ENV === 'development' ? console.log : undefined,
       timeout: 60000, // 60 second timeout for large operations (increased from 30s)
     });
-    
+
     // Enable foreign keys and optimize for performance
     this.db.pragma('foreign_keys = ON');
     this.db.pragma('journal_mode = WAL'); // Write-Ahead Logging for better concurrency
@@ -37,7 +37,7 @@ export class DatabaseService {
     this.db.pragma('cache_size = -1000000'); // 1GB cache size in KB
     this.db.pragma('temp_store = MEMORY'); // Use memory for temp tables
     this.db.pragma('mmap_size = 30000000000'); // 30GB memory-mapped file I/O
-    
+
     this.initializeDatabase();
     this.validateSchemaIntegrity();
   }
@@ -49,14 +49,14 @@ export class DatabaseService {
    */
   private validateSchemaIntegrity(): void {
     console.log('[DatabaseService] 🛡️ Validating database schema integrity...');
-    
+
     const requiredSchema = {
       entities: ['full_name', 'primary_role'],
       documents: ['file_path', 'red_flag_rating', ['md5_hash', 'content_hash']],
       media_items: ['red_flag_rating'],
       evidence: ['evidence_type', 'source_path', 'title'],
       evidence_entity: ['evidence_id', 'entity_id', 'role'],
-      investigation_evidence: ['investigation_id', 'evidence_id']
+      investigation_evidence: ['investigation_id', 'evidence_id'],
     };
 
     const errors: string[] = [];
@@ -64,15 +64,17 @@ export class DatabaseService {
     for (const [table, columns] of Object.entries(requiredSchema)) {
       try {
         const tableInfo = this.db.pragma(`table_info(${table})`) as { name: string }[];
-        const existingColumns = new Set(tableInfo.map(c => c.name));
-        
+        const existingColumns = new Set(tableInfo.map((c) => c.name));
+
         for (const col of columns) {
           // Handle array of acceptable column names
           if (Array.isArray(col)) {
             // At least one of the column names should exist
-            const found = col.some(name => existingColumns.has(name));
+            const found = col.some((name) => existingColumns.has(name));
             if (!found) {
-              errors.push(`Table '${table}' is missing required column: one of '${col.join(', ')}'`);
+              errors.push(
+                `Table '${table}' is missing required column: one of '${col.join(', ')}'`,
+              );
             }
           } else {
             // Single column name check
@@ -95,7 +97,7 @@ export class DatabaseService {
         The connected database (${this.DB_PATH}) does not match the expected schema.
         
         Missing key columns:
-        ${errors.map(e => ` - ${e}`).join('\n')}
+        ${errors.map((e) => ` - ${e}`).join('\n')}
         
         APPLICATION STARTUP HALTED TO PREVENT DATA CORRUPTION or RUNTIME ERRORS.
         Please ensure you are using the correct database file version (High Integrity Production Schema).
@@ -106,7 +108,7 @@ export class DatabaseService {
       // Throwing Error is better for stack traces.
       throw new Error(errorMessage);
     }
-    
+
     console.log('[DatabaseService] ✅ Schema integrity validated.');
   }
 
@@ -119,9 +121,11 @@ export class DatabaseService {
 
   private initializeDatabase(): void {
     // Check if essential tables exist before creating them
-    const tables = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as { name: string }[];
-    const tableNames = tables.map(t => t.name);
-    
+    const tables = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as {
+      name: string;
+    }[];
+    const tableNames = tables.map((t) => t.name);
+
     // Only create tables if they don't exist
     if (!tableNames.includes('entities') || !tableNames.includes('documents')) {
       this.db.exec(`
@@ -205,26 +209,7 @@ export class DatabaseService {
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
 
-        CREATE TABLE IF NOT EXISTS evidence_items (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          investigation_id INTEGER NOT NULL,
-          document_id INTEGER,
-          title TEXT,
-          type TEXT,
-          source_id TEXT,
-          source TEXT,
-          description TEXT,
-          relevance TEXT,
-          credibility TEXT,
-          extracted_at DATETIME,
-          extracted_by TEXT,
-          authenticity_score INTEGER,
-          hash TEXT,
-          sensitivity TEXT,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (investigation_id) REFERENCES investigations(id) ON DELETE CASCADE,
-          FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE SET NULL
-        );
+        -- evidence_items table DEPRECATED and REMOVED in favor of evidence and investigation_evidence
 
         CREATE TABLE IF NOT EXISTS chain_of_custody (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -234,7 +219,7 @@ export class DatabaseService {
           action TEXT,
           notes TEXT,
           signature TEXT,
-          FOREIGN KEY (evidence_id) REFERENCES evidence_items(id) ON DELETE CASCADE
+          FOREIGN KEY (evidence_id) REFERENCES evidence(id) ON DELETE CASCADE
         );
 
         CREATE TABLE IF NOT EXISTS investigation_timeline_events (
@@ -382,9 +367,11 @@ export class DatabaseService {
     `);
 
     // Check if FTS tables exist before creating them
-    const ftsTables = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '%fts%'").all() as { name: string }[];
-    const ftsTableNames = ftsTables.map(t => t.name);
-    
+    const ftsTables = this.db
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '%fts%'")
+      .all() as { name: string }[];
+    const ftsTableNames = ftsTables.map((t) => t.name);
+
     // Only create FTS tables if they don't exist
     if (!ftsTableNames.includes('entities_fts') || !ftsTableNames.includes('documents_fts')) {
       try {
@@ -414,7 +401,7 @@ export class DatabaseService {
         console.log('FTS tables may already exist, continuing...');
       }
     }
-    
+
     // Create FTS table for evidence
     try {
       this.db.exec(`
@@ -432,7 +419,7 @@ export class DatabaseService {
     } catch (e) {
       console.log('Evidence FTS table may already exist, continuing...');
     }
-    
+
     // Create triggers to keep evidence FTS in sync
     this.db.exec(`
       CREATE TRIGGER IF NOT EXISTS evidence_fts_insert AFTER INSERT ON evidence BEGIN
@@ -454,7 +441,7 @@ export class DatabaseService {
         DELETE FROM evidence_fts WHERE rowid = OLD.id;
       END;
     `);
-    
+
     // Create indexes for performance
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_evidence_type ON evidence(evidence_type);
@@ -466,7 +453,7 @@ export class DatabaseService {
       CREATE INDEX IF NOT EXISTS idx_investigation_evidence_investigation ON investigation_evidence(investigation_id);
       CREATE INDEX IF NOT EXISTS idx_investigation_evidence_evidence ON investigation_evidence(evidence_id);
     `);
-    
+
     // Create evidence summary view
     this.db.exec(`
       CREATE VIEW IF NOT EXISTS evidence_summary AS
@@ -486,7 +473,7 @@ export class DatabaseService {
       LEFT JOIN entities ent ON ee.entity_id = ent.id
       GROUP BY e.id;
     `);
-    
+
     // Create triggers to keep FTS tables in sync
     this.db.exec(`
       CREATE TRIGGER IF NOT EXISTS entities_fts_insert AFTER INSERT ON entities BEGIN
@@ -598,7 +585,11 @@ export class DatabaseService {
   }
 
   // Get paginated media items
-  async getMediaItemsPaginated(page: number = 1, limit: number = 24, filters?: { entityId?: string, verificationStatus?: string, minRedFlagRating?: number }) {
+  async getMediaItemsPaginated(
+    page: number = 1,
+    limit: number = 24,
+    filters?: { entityId?: string; verificationStatus?: string; minRedFlagRating?: number },
+  ) {
     return mediaRepository.getMediaItemsPaginated(page, limit, filters);
   }
 
@@ -607,7 +598,7 @@ export class DatabaseService {
     page: number = 1,
     limit: number = 24,
     filters?: SearchFilters,
-    sortBy?: SortOption
+    sortBy?: SortOption,
   ): Promise<{ entities: any[]; total: number }> {
     return entitiesRepository.getEntities(page, limit, filters, sortBy);
   }
@@ -616,14 +607,18 @@ export class DatabaseService {
   async getEntityById(id: string): Promise<any> {
     return entitiesRepository.getEntityById(id);
   }
-  
+
   // Get documents for a specific entity
   getEntityDocuments(entityId: string): any[] {
     return entitiesRepository.getEntityDocuments(entityId);
   }
 
   // Full-text search across entities and documents
-  async search(query: string, limit: number = 50, filters: { evidenceType?: string, redFlagBand?: string } = {}): Promise<{ entities: any[]; documents: any[] }> {
+  async search(
+    query: string,
+    limit: number = 50,
+    filters: { evidenceType?: string; redFlagBand?: string } = {},
+  ): Promise<{ entities: any[]; documents: any[] }> {
     return searchRepository.search(query, limit, filters);
   }
   // Get statistics for dashboard
@@ -670,7 +665,7 @@ export class DatabaseService {
     page: number = 1,
     limit: number = 50,
     filters?: any,
-    sortBy?: string
+    sortBy?: string,
   ): Promise<{ documents: any[]; total: number }> {
     // Convert sortBy parameter to match documentsRepository expectations
     let sortByParam = 'red_flag';
@@ -681,7 +676,7 @@ export class DatabaseService {
     } else if (sortBy === 'date') {
       sortByParam = 'date';
     }
-    
+
     // Convert filters to match documentsRepository expectations
     const repoFilters: any = {
       search: filters?.search,
@@ -689,14 +684,15 @@ export class DatabaseService {
       evidenceType: filters?.evidenceType,
       minRedFlag: filters?.redFlagLevel?.min,
       maxRedFlag: filters?.redFlagLevel?.max,
-      sortBy: sortByParam
+      sortBy: sortByParam,
     };
-    
+
     return documentsRepository.getDocuments(page, limit, repoFilters);
-  }  // Get timeline events
+  } // Get timeline events
   async getTimelineEvents() {
     return timelineRepository.getTimelineEvents();
-  }  async getArticles() {
+  }
+  async getArticles() {
     return articleRepository.getArticles();
   }
 
@@ -713,21 +709,29 @@ export class DatabaseService {
       avg_proximity_score: stats.avg_proximity_score,
       avg_risk_score: stats.avg_risk_score,
       avg_confidence: stats.avg_confidence,
-      top_entities_by_relationship_count: stats.top_entities_by_relationship_count
+      top_entities_by_relationship_count: stats.top_entities_by_relationship_count,
     };
-  }  async getRelationships(
+  }
+  async getRelationships(
     entityId: number,
-    filters: { minWeight?: number; minConfidence?: number; from?: string; to?: string; includeBreakdown?: boolean } = {}
+    filters: {
+      minWeight?: number;
+      minConfidence?: number;
+      from?: string;
+      to?: string;
+      includeBreakdown?: boolean;
+    } = {},
   ): Promise<any[]> {
     return relationshipsRepository.getRelationships(entityId, filters);
   }
   async getGraphSlice(
     entityId: number,
     depth: number = 2,
-    filters?: { from?: string; to?: string; evidenceType?: string }
+    filters?: { from?: string; to?: string; evidenceType?: string },
   ): Promise<{ nodes: any[]; edges: any[] }> {
     return relationshipsRepository.getGraphSlice(entityId, depth, filters);
-  }  async getEnrichmentStats(): Promise<{
+  }
+  async getEnrichmentStats(): Promise<{
     total_documents: number;
     documents_with_metadata_json: number;
     total_entities: number;
@@ -735,13 +739,23 @@ export class DatabaseService {
     last_enrichment_run?: string | null;
   }> {
     return statsRepository.getEnrichmentStats();
-  }  async listJobs(jobType?: string, status?: string): Promise<any[]> {
+  }
+  async listJobs(jobType?: string, status?: string): Promise<any[]> {
     return jobsRepository.listJobs(jobType, status);
-  }  async getAliasStats(): Promise<{ total_clusters: number; merges: number; last_run?: string | null }> {
+  }
+  async getAliasStats(): Promise<{
+    total_clusters: number;
+    merges: number;
+    last_run?: string | null;
+  }> {
     return statsRepository.getAliasStats();
-  }  async getEntitySummarySource(entityId: number, topN: number = 10): Promise<{ entity: any; relationships: any[]; documents: any[] }> {
+  }
+  async getEntitySummarySource(
+    entityId: number,
+    topN: number = 10,
+  ): Promise<{ entity: any; relationships: any[]; documents: any[] }> {
     return relationshipsRepository.getEntitySummarySource(entityId, topN);
-  }  // Get document by ID with full content
+  } // Get document by ID with full content
   async getDocumentById(id: string): Promise<any | null> {
     return documentsRepository.getDocumentById(id);
   }
@@ -758,7 +772,11 @@ export class DatabaseService {
     return blackBookRepository.getBlackBookReviewStats();
   }
 
-  updateBlackBookReview(entryId: number, correctedName: string, action: 'approve' | 'skip' | 'delete') {
+  updateBlackBookReview(
+    entryId: number,
+    correctedName: string,
+    action: 'approve' | 'skip' | 'delete',
+  ) {
     return blackBookRepository.updateBlackBookReview(entryId, correctedName, action);
   }
 
@@ -771,8 +789,18 @@ export class DatabaseService {
     return evidenceRepository.getEntityEvidence(entityId);
   }
 
-  async addEvidenceToInvestigation(investigationId: string, evidenceId: string, notes: string, relevance: string) {
-    return evidenceRepository.addEvidenceToInvestigation(investigationId, evidenceId, notes, relevance);
+  async addEvidenceToInvestigation(
+    investigationId: string,
+    evidenceId: string,
+    notes: string,
+    relevance: string,
+  ) {
+    return evidenceRepository.addEvidenceToInvestigation(
+      investigationId,
+      evidenceId,
+      notes,
+      relevance,
+    );
   }
 
   async getInvestigationEvidenceSummary(investigationId: string) {
@@ -806,7 +834,10 @@ export class DatabaseService {
     return evidenceRepository.getEvidenceTypes();
   }
 
-  async getEntityEvidenceList(entityId: string, params: { page?: string; limit?: string; type?: string }) {
+  async getEntityEvidenceList(
+    entityId: string,
+    params: { page?: string; limit?: string; type?: string },
+  ) {
     return evidenceRepository.getEntityEvidenceList(entityId, params);
   }
 

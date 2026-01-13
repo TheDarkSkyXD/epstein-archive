@@ -16,7 +16,7 @@ interface EntityTypeFilterProps {
 const EntityTypeFilter: React.FC<EntityTypeFilterProps> = ({ value, onChange, className = '' }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  
+
   const options: EntityTypeOption[] = [
     { value: 'all', label: 'All Types' },
     { value: 'Person', label: 'Person' },
@@ -39,7 +39,7 @@ const EntityTypeFilter: React.FC<EntityTypeFilterProps> = ({ value, onChange, cl
     };
   }, []);
 
-  const selectedOption = options.find(option => option.value === value) || options[0];
+  const selectedOption = options.find((option) => option.value === value) || options[0];
 
   return (
     <div className={`relative ${className}`} ref={dropdownRef}>
@@ -59,10 +59,7 @@ const EntityTypeFilter: React.FC<EntityTypeFilterProps> = ({ value, onChange, cl
 
       {isOpen && (
         <div className="absolute z-10 mt-1 w-full bg-slate-800 border border-slate-600 rounded-lg shadow-lg">
-          <ul 
-            role="listbox" 
-            className="py-1"
-          >
+          <ul role="listbox" className="py-1">
             {options.map((option) => (
               <li
                 key={option.value}

@@ -27,12 +27,12 @@ export const DataQualityDashboard: React.FC = () => {
 
   useEffect(() => {
     fetch('/api/data-quality/metrics')
-      .then(res => {
+      .then((res) => {
         if (!res.ok) throw new Error('Failed to fetch metrics');
         return res.json();
       })
       .then(setMetrics)
-      .catch(err => setError(err.message))
+      .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
 
@@ -55,8 +55,12 @@ export const DataQualityDashboard: React.FC = () => {
 
   if (!metrics) return null;
 
-  const coverageColor = metrics.provenanceCoverage >= 90 ? 'text-green-400' 
-    : metrics.provenanceCoverage >= 70 ? 'text-yellow-400' : 'text-red-400';
+  const coverageColor =
+    metrics.provenanceCoverage >= 90
+      ? 'text-green-400'
+      : metrics.provenanceCoverage >= 70
+        ? 'text-yellow-400'
+        : 'text-red-400';
 
   return (
     <div className="space-y-6">
@@ -83,7 +87,13 @@ export const DataQualityDashboard: React.FC = () => {
           title="Provenance Coverage"
           value={`${metrics.provenanceCoverage}%`}
           icon="Shield"
-          color={metrics.provenanceCoverage >= 90 ? 'green' : metrics.provenanceCoverage >= 70 ? 'yellow' : 'red'}
+          color={
+            metrics.provenanceCoverage >= 90
+              ? 'green'
+              : metrics.provenanceCoverage >= 70
+                ? 'yellow'
+                : 'red'
+          }
         />
         <MetricCard
           title="Total Entities"
@@ -93,7 +103,7 @@ export const DataQualityDashboard: React.FC = () => {
         />
         <MetricCard
           title="Entities with Roles"
-          value={`${Math.round(metrics.entityQuality.withRoles / metrics.entityQuality.total * 100)}%`}
+          value={`${Math.round((metrics.entityQuality.withRoles / metrics.entityQuality.total) * 100)}%`}
           icon="UserCheck"
           color="blue"
         />
@@ -106,17 +116,19 @@ export const DataQualityDashboard: React.FC = () => {
           Source Collections
         </h3>
         <div className="space-y-2">
-          {metrics.sourceCollections.slice(0, 8).map(src => {
-            const percentage = (src.count / metrics.totalDocuments * 100).toFixed(1);
+          {metrics.sourceCollections.slice(0, 8).map((src) => {
+            const percentage = ((src.count / metrics.totalDocuments) * 100).toFixed(1);
             return (
               <div key={src.name} className="flex items-center gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between text-xs mb-1">
                     <span className="text-slate-300 truncate">{src.name}</span>
-                    <span className="text-slate-500">{src.count.toLocaleString()} ({percentage}%)</span>
+                    <span className="text-slate-500">
+                      {src.count.toLocaleString()} ({percentage}%)
+                    </span>
                   </div>
                   <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                    <div 
+                    <div
                       className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full"
                       style={{ width: `${percentage}%` }}
                     />
@@ -131,12 +143,12 @@ export const DataQualityDashboard: React.FC = () => {
       {/* Evidence Types */}
       <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
         <h3 className="text-sm font-medium text-slate-300 mb-3 flex items-center gap-2">
-          <Icon name="Tags" size="sm" />
+          <Icon name="Tag" size="sm" />
           Evidence Type Distribution
         </h3>
         <div className="flex flex-wrap gap-2">
-          {metrics.evidenceTypeDistribution.slice(0, 10).map(ev => (
-            <span 
+          {metrics.evidenceTypeDistribution.slice(0, 10).map((ev) => (
+            <span
               key={ev.type}
               className="px-2 py-1 bg-slate-700/50 rounded text-xs text-slate-300 flex items-center gap-1"
             >
@@ -148,15 +160,17 @@ export const DataQualityDashboard: React.FC = () => {
       </div>
 
       {/* Trust Indicator */}
-      <div className={`bg-gradient-to-r ${
-        metrics.provenanceCoverage >= 90 
-          ? 'from-green-900/30 to-green-800/10 border-green-500/30' 
-          : 'from-yellow-900/30 to-yellow-800/10 border-yellow-500/30'
-      } rounded-lg p-4 border`}>
+      <div
+        className={`bg-gradient-to-r ${
+          metrics.provenanceCoverage >= 90
+            ? 'from-green-900/30 to-green-800/10 border-green-500/30'
+            : 'from-yellow-900/30 to-yellow-800/10 border-yellow-500/30'
+        } rounded-lg p-4 border`}
+      >
         <div className="flex items-center gap-3">
-          <Icon 
-            name={metrics.provenanceCoverage >= 90 ? 'CheckCircle' : 'AlertCircle'} 
-            size="lg" 
+          <Icon
+            name={metrics.provenanceCoverage >= 90 ? 'CheckCircle' : 'AlertCircle'}
+            size="lg"
             className={coverageColor}
           />
           <div>
@@ -171,28 +185,30 @@ export const DataQualityDashboard: React.FC = () => {
       </div>
 
       {/* Data Integrity Issues */}
-      {metrics.dataIntegrity && (metrics.dataIntegrity.orphanedEntityMentions > 0 || metrics.dataIntegrity.potentialJunkEntities > 0) && (
-        <div className="bg-slate-800/50 rounded-lg p-4 border border-amber-500/30">
-          <h3 className="text-sm font-medium text-amber-300 mb-3 flex items-center gap-2">
-            <Icon name="AlertTriangle" size="sm" />
-            Data Integrity Issues
-          </h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-amber-400">
-                {metrics.dataIntegrity.orphanedEntityMentions.toLocaleString()}
-              </p>
-              <p className="text-xs text-slate-400">Orphaned Entity Mentions</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-amber-400">
-                {metrics.dataIntegrity.potentialJunkEntities.toLocaleString()}
-              </p>
-              <p className="text-xs text-slate-400">Potential Junk Entities</p>
+      {metrics.dataIntegrity &&
+        (metrics.dataIntegrity.orphanedEntityMentions > 0 ||
+          metrics.dataIntegrity.potentialJunkEntities > 0) && (
+          <div className="bg-slate-800/50 rounded-lg p-4 border border-amber-500/30">
+            <h3 className="text-sm font-medium text-amber-300 mb-3 flex items-center gap-2">
+              <Icon name="AlertTriangle" size="sm" />
+              Data Integrity Issues
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-amber-400">
+                  {metrics.dataIntegrity.orphanedEntityMentions.toLocaleString()}
+                </p>
+                <p className="text-xs text-slate-400">Orphaned Entity Mentions</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-amber-400">
+                  {metrics.dataIntegrity.potentialJunkEntities.toLocaleString()}
+                </p>
+                <p className="text-xs text-slate-400">Potential Junk Entities</p>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
     </div>
   );
 };
@@ -216,7 +232,7 @@ const MetricCard: React.FC<{
   return (
     <div className={`bg-gradient-to-br ${colorClasses[color]} rounded-lg p-4 border`}>
       <div className="flex items-center gap-2 mb-2">
-        <Icon name={icon} size="sm" className={colorClasses[color].split(' ').pop()} />
+        <Icon name={icon as any} size="sm" className={colorClasses[color].split(' ').pop()} />
         <span className="text-xs text-slate-400">{title}</span>
       </div>
       <p className="text-2xl font-bold text-white">{value}</p>

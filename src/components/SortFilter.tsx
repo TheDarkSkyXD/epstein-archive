@@ -17,7 +17,7 @@ interface SortFilterProps {
 const SortFilter: React.FC<SortFilterProps> = ({ value, onChange, options, className = '' }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -32,7 +32,7 @@ const SortFilter: React.FC<SortFilterProps> = ({ value, onChange, options, class
     };
   }, []);
 
-  const selectedOption = options.find(option => option.value === value) || options[0];
+  const selectedOption = options.find((option) => option.value === value) || options[0];
 
   return (
     <div className={`relative ${className}`} ref={dropdownRef}>
@@ -44,18 +44,15 @@ const SortFilter: React.FC<SortFilterProps> = ({ value, onChange, options, class
         aria-expanded={isOpen}
       >
         <div className="flex items-center gap-2">
-           {selectedOption.icon}
-           <span>{selectedOption.label}</span>
+          {selectedOption.icon}
+          <span>{selectedOption.label}</span>
         </div>
         <Icon name="ChevronDown" size="sm" />
       </button>
 
       {isOpen && (
         <div className="absolute z-10 mt-1 w-full bg-slate-800 border border-slate-600 rounded-lg shadow-lg min-w-[140px] right-0 md:left-0 md:right-auto">
-          <ul 
-            role="listbox" 
-            className="py-1"
-          >
+          <ul role="listbox" className="py-1">
             {options.map((option) => (
               <li
                 key={option.value}

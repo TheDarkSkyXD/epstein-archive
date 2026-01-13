@@ -4,63 +4,65 @@ export const documentsRepository = {
   getDocuments: (
     page: number = 1,
     limit: number = 50,
-    filters: { 
-        search?: string, 
-        fileType?: string, 
-        evidenceType?: string, 
-        minRedFlag?: number, 
-        maxRedFlag?: number, 
-        sortBy?: string 
-    } = {}
+    filters: {
+      search?: string;
+      fileType?: string;
+      evidenceType?: string;
+      minRedFlag?: number;
+      maxRedFlag?: number;
+      sortBy?: string;
+    } = {},
   ) => {
     const db = getDb();
     const whereConditions: string[] = [];
     const params: any[] = [];
-    
+
     // Check if FTS is available and search term is present
-    let useFts = false;
+    const useFts = false;
     if (filters.search && filters.search.trim()) {
-        try {
-            // Simple check if table exists (cached or checked once)
-            // For now, just try-catch the query construction later? 
-            // Better to assume FTS if we are in "production" mode or fallback.
-            // Let's stick to LIKE for simple browse, but if search term is complex, FTS is better.
-            // For now, I'll keep LIKE for robustness as per previous patterns unless I can guarantee FTS table.
-            whereConditions.push('(file_name LIKE ? OR content LIKE ?)');
-            const searchPattern = `%${filters.search.trim()}%`;
-            params.push(searchPattern, searchPattern);
-        } catch (e) {
-            // Fallback
-        }
+      try {
+        // Simple check if table exists (cached or checked once)
+        // For now, just try-catch the query construction later?
+        // Better to assume FTS if we are in "production" mode or fallback.
+        // Let's stick to LIKE for simple browse, but if search term is complex, FTS is better.
+        // For now, I'll keep LIKE for robustness as per previous patterns unless I can guarantee FTS table.
+        whereConditions.push('(file_name LIKE ? OR content LIKE ?)');
+        const searchPattern = `%${filters.search.trim()}%`;
+        params.push(searchPattern, searchPattern);
+      } catch (e) {
+        // Fallback
+      }
     }
-    
+
     if (filters.fileType && filters.fileType !== 'all') {
       const types = filters.fileType.split(',');
       whereConditions.push(`file_type IN (${types.map(() => '?').join(',')})`);
       params.push(...types);
     }
-    
+
     if (filters.evidenceType && filters.evidenceType !== 'all') {
       whereConditions.push('evidence_type = ?');
       params.push(filters.evidenceType);
     }
-    
+
     if (filters.minRedFlag || filters.maxRedFlag) {
-       const min = filters.minRedFlag || 0;
-       const max = filters.maxRedFlag || 5;
-       whereConditions.push('(red_flag_rating IS NULL OR (red_flag_rating >= ? AND red_flag_rating <= ?))');
-       params.push(min, max);
+      const min = filters.minRedFlag || 0;
+      const max = filters.maxRedFlag || 5;
+      whereConditions.push(
+        '(red_flag_rating IS NULL OR (red_flag_rating >= ? AND red_flag_rating <= ?))',
+      );
+      params.push(min, max);
     }
 
     // Default to hiding child pages unless specifically requested or searching deeply
     if (!filters.search) {
-        // whereConditions.push('(is_hidden = 0 OR is_hidden IS NULL)');
-        // Temporarily disable hiding pages to debug email count regression (Issue #4769)
-        // Many emails might be marked as hidden pages incorrectly?
+      // whereConditions.push('(is_hidden = 0 OR is_hidden IS NULL)');
+      // Temporarily disable hiding pages to debug email count regression (Issue #4769)
+      // Many emails might be marked as hidden pages incorrectly?
     }
-    
+
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
-    
+
     let orderByClause = 'ORDER BY ';
     switch (filters.sortBy) {
       case 'date':
@@ -74,12 +76,12 @@ export const documentsRepository = {
         orderByClause += 'red_flag_rating DESC, date_created DESC';
         break;
     }
-    
+
     const offset = (page - 1) * limit;
-    
+
     const countQuery = `SELECT COUNT(*) as total FROM documents ${whereClause}`;
     const totalResult = db.prepare(countQuery).get(...params) as { total: number };
-    
+
     const sql = `
       SELECT 
         id,
@@ -102,32 +104,34 @@ export const documentsRepository = {
       ${orderByClause}
       LIMIT ? OFFSET ?
     `;
-    
+
     const documents = db.prepare(sql).all(...params, limit, offset);
-    
+
     return {
       documents: documents.map((doc: any) => {
         let metadata = {};
         try {
-           if (typeof doc.metadata === 'string') {
-             metadata = JSON.parse(doc.metadata);
-           } else if (typeof doc.metadata === 'object') {
-             metadata = doc.metadata;
-           }
-        } catch(e) { /* ignore */ }
+          if (typeof doc.metadata === 'string') {
+            metadata = JSON.parse(doc.metadata);
+          } else if (typeof doc.metadata === 'object') {
+            metadata = doc.metadata;
+          }
+        } catch (e) {
+          /* ignore */
+        }
         return { ...doc, metadata };
       }),
       total: totalResult.total,
       page,
       pageSize: limit,
-      totalPages: Math.ceil(totalResult.total / limit)
+      totalPages: Math.ceil(totalResult.total / limit),
     };
   },
 
   // Get document by ID with full content
   getDocumentById: (id: string): any | null => {
     const db = getDb();
-    
+
     const query = `
       SELECT 
         d.id,
@@ -148,9 +152,9 @@ export const documentsRepository = {
       LEFT JOIN documents orig ON d.original_file_id = orig.id
       WHERE d.id = ?
     `;
-    
+
     const document = db.prepare(query).get(id) as any;
-    
+
     if (!document) return null;
 
     // Parse metadata if it's a JSON string
@@ -165,50 +169,50 @@ export const documentsRepository = {
 
     // Transform original_file_path to URL
     if (document && document.original_file_path) {
-       // Assume /data/ is mapped to /files/data/ or similar.
-       // The server maps RAW_CORPUS_BASE_PATH to /files.
-       // If standard path is /data/originals/..., we want /files/originals/... if RAW_CORPUS_BASE_PATH is /data
-       // OR if full path is /app/data/originals, and CORPUS is /app/data.
-       // Safest bet for now: If it starts with /data/, map to /files/data/ (or just /files/ if it's relative).
-       // Actually, looking at Timeline.tsx: event.original_file_path.replace('/data/originals/', '')
-       // and href={`/files/${...}`}
-       
-       // Let's standardise on returning a usable URL path if possible, OR just passed the raw path and let frontend handle it?
-       // The plan said "transform... into a web-accessible URL".
-       
-       const rawPath = document.original_file_path;
-       // Quick fix for standard /data/originals structure
-       if (rawPath.includes('/data/originals/')) {
-           document.source_original_url = `/files/${rawPath.split('/data/originals/')[1]}`;
-       } else {
-           // Fallback or leave as is
-           document.source_original_url = `/files/${rawPath}`; 
-       }
-       // Also keep the raw path
+      // Assume /data/ is mapped to /files/data/ or similar.
+      // The server maps RAW_CORPUS_BASE_PATH to /files.
+      // If standard path is /data/originals/..., we want /files/originals/... if RAW_CORPUS_BASE_PATH is /data
+      // OR if full path is /app/data/originals, and CORPUS is /app/data.
+      // Safest bet for now: If it starts with /data/, map to /files/data/ (or just /files/ if it's relative).
+      // Actually, looking at Timeline.tsx: event.original_file_path.replace('/data/originals/', '')
+      // and href={`/files/${...}`}
+
+      // Let's standardise on returning a usable URL path if possible, OR just passed the raw path and let frontend handle it?
+      // The plan said "transform... into a web-accessible URL".
+
+      const rawPath = document.original_file_path;
+      // Quick fix for standard /data/originals structure
+      if (rawPath.includes('/data/originals/')) {
+        document.source_original_url = `/files/${rawPath.split('/data/originals/')[1]}`;
+      } else {
+        // Fallback or leave as is
+        document.source_original_url = `/files/${rawPath}`;
+      }
+      // Also keep the raw path
     }
 
     return {
       ...document,
       source_collection: 'Epstein Files',
       // Ensure top-level access to the URL
-      original_file_path: document.source_original_url || document.original_file_path
+      original_file_path: document.source_original_url || document.original_file_path,
     };
   },
-  
+
   search: (query: string, limit: number = 50) => {
-     // FTS or LIKE search
-     // documentsRepository.getDocuments implies filters, but FTS logic often separate.
-     // documentsRepository.getDocuments implies filters, but FTS logic often separate.
-     const db = getDb();
-     // If documents_fts exists, use it? Currently it's broken or not reliable without title triggers.
-     // Fallback to LIKE
-     const sql = `
+    // FTS or LIKE search
+    // documentsRepository.getDocuments implies filters, but FTS logic often separate.
+    // documentsRepository.getDocuments implies filters, but FTS logic often separate.
+    const db = getDb();
+    // If documents_fts exists, use it? Currently it's broken or not reliable without title triggers.
+    // Fallback to LIKE
+    const sql = `
         SELECT id, file_name, substr(content, 1, 300) as contentPreview 
         FROM documents 
         WHERE content LIKE ? OR file_name LIKE ? 
         LIMIT ?
      `;
-     const pattern = `%${query}%`;
-     return db.prepare(sql).all(pattern, pattern, limit);
-  }
+    const pattern = `%${query}%`;
+    return db.prepare(sql).all(pattern, pattern, limit);
+  },
 };

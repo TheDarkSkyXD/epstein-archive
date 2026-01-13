@@ -52,8 +52,11 @@ export interface Person {
     filePath: string;
     content?: string;
     contentPreview?: string;
-    contextText?: string;
-    aiSummary?: string;
+  }[];
+  photos?: {
+    id: string;
+    filePath: string;
+    title?: string;
     redFlagRating?: number;
   }[];
 }

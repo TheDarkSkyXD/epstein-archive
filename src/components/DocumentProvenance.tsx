@@ -22,7 +22,10 @@ interface DocumentProvenanceProps {
   compact?: boolean;
 }
 
-export const DocumentProvenance: React.FC<DocumentProvenanceProps> = ({ documentId, compact = false }) => {
+export const DocumentProvenance: React.FC<DocumentProvenanceProps> = ({
+  documentId,
+  compact = false,
+}) => {
   const [lineage, setLineage] = useState<DocumentLineage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,14 +33,14 @@ export const DocumentProvenance: React.FC<DocumentProvenanceProps> = ({ document
 
   useEffect(() => {
     if (!documentId) return;
-    
+
     fetch(`/api/documents/${documentId}/lineage`)
-      .then(res => {
+      .then((res) => {
         if (!res.ok) throw new Error('Failed to fetch lineage');
         return res.json();
       })
       .then(setLineage)
-      .catch(err => setError(err.message))
+      .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [documentId]);
 
@@ -100,10 +103,7 @@ export const DocumentProvenance: React.FC<DocumentProvenanceProps> = ({ document
           Document Provenance
         </h4>
         {compact && (
-          <button 
-            onClick={() => setExpanded(false)}
-            className="text-slate-500 hover:text-white"
-          >
+          <button onClick={() => setExpanded(false)} className="text-slate-500 hover:text-white">
             <Icon name="X" size="sm" />
           </button>
         )}
@@ -114,12 +114,14 @@ export const DocumentProvenance: React.FC<DocumentProvenanceProps> = ({ document
         <div className="grid grid-cols-2 gap-3 text-xs">
           <div>
             <span className="text-slate-500">Source Collection</span>
-            <p className="text-white font-medium">{lineage.document.sourceCollection || 'Not specified'}</p>
+            <p className="text-white font-medium">
+              {lineage.document.sourceCollection || 'Not specified'}
+            </p>
           </div>
           <div>
             <span className="text-slate-500">Credibility</span>
             <p className={`font-medium ${getCredibilityColor(lineage.document.credibilityScore)}`}>
-              {lineage.document.credibilityScore 
+              {lineage.document.credibilityScore
                 ? `${Math.round(lineage.document.credibilityScore * 100)}% (${getCredibilityLabel(lineage.document.credibilityScore)})`
                 : 'Not assessed'}
             </p>
@@ -130,14 +132,18 @@ export const DocumentProvenance: React.FC<DocumentProvenanceProps> = ({ document
         {lineage.document.ocrEngine && (
           <div className="flex items-center gap-4 text-xs bg-slate-700/30 rounded px-3 py-2">
             <div className="flex items-center gap-1.5">
-              <Icon name="Scan" size="xs" className="text-purple-400" />
+              <Icon name="FileSearch" size="xs" className="text-purple-400" />
               <span className="text-slate-400">OCR:</span>
               <span className="text-white">{lineage.document.ocrEngine}</span>
             </div>
             {lineage.document.ocrQualityScore && (
               <div className="flex items-center gap-1.5">
                 <span className="text-slate-400">Quality:</span>
-                <span className={lineage.document.ocrQualityScore >= 0.7 ? 'text-green-400' : 'text-yellow-400'}>
+                <span
+                  className={
+                    lineage.document.ocrQualityScore >= 0.7 ? 'text-green-400' : 'text-yellow-400'
+                  }
+                >
                   {Math.round(lineage.document.ocrQualityScore * 100)}%
                 </span>
               </div>
@@ -149,7 +155,7 @@ export const DocumentProvenance: React.FC<DocumentProvenanceProps> = ({ document
         {lineage.originalDocument && (
           <div className="text-xs">
             <span className="text-slate-500">Extracted from:</span>
-            <a 
+            <a
               href={`/documents/${lineage.originalDocument.id}`}
               className="text-cyan-400 hover:underline ml-1"
             >
@@ -161,9 +167,11 @@ export const DocumentProvenance: React.FC<DocumentProvenanceProps> = ({ document
         {/* Child Documents */}
         {lineage.childDocuments.length > 0 && (
           <div className="text-xs">
-            <span className="text-slate-500 mb-1 block">Contains {lineage.childDocuments.length} pages:</span>
+            <span className="text-slate-500 mb-1 block">
+              Contains {lineage.childDocuments.length} pages:
+            </span>
             <div className="flex flex-wrap gap-1">
-              {lineage.childDocuments.slice(0, 5).map(child => (
+              {lineage.childDocuments.slice(0, 5).map((child) => (
                 <span key={child.id} className="px-1.5 py-0.5 bg-slate-700 rounded text-slate-300">
                   Page {child.page_number}
                 </span>

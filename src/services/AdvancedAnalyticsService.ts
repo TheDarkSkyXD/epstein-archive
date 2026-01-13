@@ -51,7 +51,7 @@ export interface EntityRelationshipMap {
 export class AdvancedAnalyticsService {
   async detectPatterns(searchTerm?: string): Promise<PatternRecognitionResult[]> {
     const db = getDb();
-    
+
     // Complex pattern detection: find recurring patterns in documents and relationships
     let query = `
       SELECT 
@@ -68,30 +68,30 @@ export class AdvancedAnalyticsService {
       LEFT JOIN entity_relationships er ON (er.source_id = e1.id AND er.target_id = e2.id)
       WHERE e1.full_name != e2.full_name
     `;
-    
+
     const params: any = {};
     if (searchTerm) {
       query += ` AND (e1.full_name LIKE @searchTerm OR e2.full_name LIKE @searchTerm OR d.content LIKE @searchTerm)`;
       params.searchTerm = `%${searchTerm}%`;
     }
-    
+
     query += ` GROUP BY e1.id, e2.id, d.evidence_type HAVING COUNT(*) > 1 ORDER BY frequency DESC LIMIT 50`;
-    
+
     const results = db.prepare(query).all(params) as any[];
-    
+
     return results.map((row, index) => ({
       patternType: `Co-occurrence Pattern`,
       entities: [row.entity1, row.entity2],
       documents: [row.evidence_type],
       confidence: Math.min(1.0, row.avgStrength || 0.5),
-      description: `Entities "${row.entity1}" and "${row.entity2}" co-occur ${row.frequency} times in ${row.evidence_type} documents`
+      description: `Entities "${row.entity1}" and "${row.entity2}" co-occur ${row.frequency} times in ${row.evidence_type} documents`,
     }));
   }
 
   async reconstructTimeline(entityId?: number, searchTerm?: string): Promise<TimelineEvent[]> {
     const db = getDb();
-    
-    let query = `
+
+    const query = `
       SELECT 
         d.id as docId,
         d.file_name as title,
@@ -102,14 +102,14 @@ export class AdvancedAnalyticsService {
       LEFT JOIN entity_mentions em ON d.id = em.document_id
       LEFT JOIN entities e ON em.entity_id = e.id
     `;
-    
+
     let queryWithParams = query;
     const params: any = {};
-    
+
     if (entityId) {
       queryWithParams += ` WHERE em.entity_id = @entityId`;
       params.entityId = entityId;
-      
+
       if (searchTerm) {
         queryWithParams += ` AND (d.file_name LIKE @searchTerm OR d.content LIKE @searchTerm)`;
         params.searchTerm = `%${searchTerm}%`;
@@ -118,11 +118,11 @@ export class AdvancedAnalyticsService {
       queryWithParams += ` WHERE (d.file_name LIKE @searchTerm OR d.content LIKE @searchTerm)`;
       params.searchTerm = `%${searchTerm}%`;
     }
-    
+
     queryWithParams += ` ORDER BY d.date_created ASC LIMIT 100`;
-    
+
     const results = db.prepare(queryWithParams).all(params) as any[];
-    
+
     return results.map((row, index) => ({
       id: row.docId,
       title: row.title,
@@ -130,18 +130,20 @@ export class AdvancedAnalyticsService {
       date: row.date,
       entities: row.entityName ? [row.entityName] : [],
       documents: [row.title],
-      confidence: 0.8
+      confidence: 0.8,
     }));
   }
 
   async detectAnomalies(): Promise<AnomalyDetectionResult[]> {
     const db = getDb();
-    
+
     // Find documents with unusual characteristics
     const anomalies: AnomalyDetectionResult[] = [];
-    
+
     // 1. Documents with high red flag ratings but few mentions
-    const highRiskLowMention = db.prepare(`
+    const highRiskLowMention = db
+      .prepare(
+        `
       SELECT 
         d.id,
         d.file_name,
@@ -152,8 +154,10 @@ export class AdvancedAnalyticsService {
         AND (d.mentions_count IS NULL OR d.mentions_count < 5)
       ORDER BY d.red_flag_rating DESC
       LIMIT 10
-    `).all() as any[];
-    
+    `,
+      )
+      .all() as any[];
+
     for (const doc of highRiskLowMention) {
       anomalies.push({
         id: `doc-${doc.id}`,
@@ -164,13 +168,15 @@ export class AdvancedAnalyticsService {
         details: {
           redFlagRating: doc.red_flag_rating,
           mentionCount: doc.mentions_count,
-          fileName: doc.file_name
-        }
+          fileName: doc.file_name,
+        },
       });
     }
-    
+
     // 2. Entities with unusual relationship patterns
-    const unusualRelationships = db.prepare(`
+    const unusualRelationships = db
+      .prepare(
+        `
       SELECT 
         e.full_name,
         e.red_flag_rating,
@@ -181,8 +187,10 @@ export class AdvancedAnalyticsService {
         AND (er.id IS NULL OR relationshipCount < 3)
       ORDER BY e.red_flag_rating DESC
       LIMIT 10
-    `).all() as any[];
-    
+    `,
+      )
+      .all() as any[];
+
     for (const entity of unusualRelationships) {
       anomalies.push({
         id: `entity-${entity.id}`,
@@ -193,17 +201,17 @@ export class AdvancedAnalyticsService {
         details: {
           redFlagRating: entity.red_flag_rating,
           relationshipCount: entity.relationshipCount,
-          entityName: entity.full_name
-        }
+          entityName: entity.full_name,
+        },
       });
     }
-    
+
     return anomalies;
   }
 
   async assessRisk(entityId?: number): Promise<RiskAssessment[]> {
     const db = getDb();
-    
+
     let query = `
       SELECT 
         e.id,
@@ -215,31 +223,35 @@ export class AdvancedAnalyticsService {
       FROM entities e
       LEFT JOIN entity_relationships er ON e.id = er.source_id
     `;
-    
+
     const params: any = {};
     const conditions: string[] = [];
-    
+
     if (entityId) {
       conditions.push('e.id = @entityId');
       params.entityId = entityId;
     }
-    
+
     if (conditions.length > 0) {
       query += ` WHERE ${conditions.join(' AND ')}`;
     }
-    
+
     query += ` GROUP BY e.id ORDER BY e.red_flag_rating DESC, relationshipCount DESC LIMIT 50`;
-    
+
     const results = db.prepare(query).all(params) as any[];
-    
-    return results.map(row => {
-      const riskScore = Math.min(100, (row.red_flag_rating * 20) + (row.relationshipCount * 2) + (row.avgRelationshipStrength * 10));
+
+    return results.map((row) => {
+      const riskScore = Math.min(
+        100,
+        row.red_flag_rating * 20 + row.relationshipCount * 2 + row.avgRelationshipStrength * 10,
+      );
       const riskFactors: string[] = [];
-      
+
       if (row.red_flag_rating >= 4) riskFactors.push('High Red Flag Rating');
       if (row.relationshipCount > 10) riskFactors.push('High Connectivity');
-      if (row.primary_role && row.primary_role.toLowerCase().includes('financial')) riskFactors.push('Financial Role');
-      
+      if (row.primary_role && row.primary_role.toLowerCase().includes('financial'))
+        riskFactors.push('Financial Role');
+
       return {
         entity: row.full_name,
         riskScore: Math.round(riskScore),
@@ -248,17 +260,22 @@ export class AdvancedAnalyticsService {
         recommendations: [
           'Review associated documents',
           'Check for pattern violations',
-          'Validate entity connections'
-        ]
+          'Validate entity connections',
+        ],
       };
     });
   }
 
-  async mapEntityRelationships(entityId?: number, depth: number = 2): Promise<EntityRelationshipMap[]> {
+  async mapEntityRelationships(
+    entityId?: number,
+    depth: number = 2,
+  ): Promise<EntityRelationshipMap[]> {
     if (!entityId) {
       // If no entity ID provided, return top relationships
       const db = getDb();
-      const results = db.prepare(`
+      const results = db
+        .prepare(
+          `
         SELECT 
           e1.full_name as sourceEntity,
           e2.full_name as targetEntity,
@@ -270,37 +287,41 @@ export class AdvancedAnalyticsService {
         JOIN entities e2 ON er.target_id = e2.id
         ORDER BY er.strength DESC
         LIMIT 50
-      `).all() as any[];
-      
-      return results.map(row => ({
+      `,
+        )
+        .all() as any[];
+
+      return results.map((row) => ({
         sourceEntity: row.sourceEntity,
         targetEntity: row.targetEntity,
         relationshipType: row.relationship_type,
         strength: row.strength,
         confidence: row.confidence,
-        evidence: []
+        evidence: [],
       }));
     }
-    
+
     // Get relationships for specific entity with specified depth
-    return relationshipsRepository.getGraphSlice(entityId, depth).edges.map(edge => ({
+    return relationshipsRepository.getGraphSlice(entityId, depth).edges.map((edge) => ({
       sourceEntity: edge.source_id.toString(),
       targetEntity: edge.target_id.toString(),
       relationshipType: edge.relationship_type,
       strength: edge.proximity_score,
       confidence: edge.confidence,
-      evidence: []
+      evidence: [],
     }));
   }
 
   async getPredictiveInsights(): Promise<any[]> {
     // This would use historical data to predict potential connections or risks
     // For now, we'll return some example predictive insights based on existing patterns
-    
+
     const db = getDb();
-    
+
     // Find entities that are highly connected to high-risk entities but have low risk scores themselves
-    const potentiallyHighRisk = db.prepare(`
+    const potentiallyHighRisk = db
+      .prepare(
+        `
       SELECT 
         e.id,
         e.full_name,
@@ -316,21 +337,23 @@ export class AdvancedAnalyticsService {
       HAVING connectionsToHighRisk >= 3
       ORDER BY connectionsToHighRisk DESC
       LIMIT 10
-    `).all() as any[];
-    
-    return potentiallyHighRisk.map(row => ({
+    `,
+      )
+      .all() as any[];
+
+    return potentiallyHighRisk.map((row) => ({
       entity: row.full_name,
       currentRiskScore: row.red_flag_rating,
       connectionsToHighRiskEntities: row.connectionsToHighRisk,
       predictedRiskTrend: 'increasing',
       confidence: 0.7,
-      explanation: `Entity is highly connected to ${row.connectionsToHighRisk} high-risk entities`
+      explanation: `Entity is highly connected to ${row.connectionsToHighRisk} high-risk entities`,
     }));
   }
 
   async getCrossReferenceValidation(searchTerm: string): Promise<any[]> {
     const db = getDb();
-    
+
     // Find mentions of the search term across different document types and validate consistency
     const query = `
       SELECT 
@@ -344,15 +367,15 @@ export class AdvancedAnalyticsService {
       WHERE d.content LIKE ?
       GROUP BY d.evidence_type
     `;
-    
+
     const results = db.prepare(query).all(`%${searchTerm}%`) as any[];
-    
-    return results.map(row => ({
+
+    return results.map((row) => ({
       evidenceType: row.evidence_type,
       mentionCount: row.mentionCount,
       avgRedFlagRating: row.avgRedFlag,
       associatedEntities: row.associatedEntities ? row.associatedEntities.split(',') : [],
-      consistencyScore: this.calculateConsistencyScore(row.evidence_type, searchTerm)
+      consistencyScore: this.calculateConsistencyScore(row.evidence_type, searchTerm),
     }));
   }
 
@@ -364,20 +387,28 @@ export class AdvancedAnalyticsService {
 
   async getInvestigativeTaskSummary(): Promise<any> {
     const db = getDb();
-    
+
     // Get overall statistics for investigation planning
-    const entityStats = db.prepare('SELECT COUNT(*) as total FROM entities').get() as { total: number };
-    const documentStats = db.prepare('SELECT COUNT(*) as total FROM documents').get() as { total: number };
-    const relationshipStats = db.prepare('SELECT COUNT(*) as total FROM entity_relationships').get() as { total: number };
-    const highRiskEntities = db.prepare('SELECT COUNT(*) as total FROM entities WHERE red_flag_rating >= 4').get() as { total: number };
-    
+    const entityStats = db.prepare('SELECT COUNT(*) as total FROM entities').get() as {
+      total: number;
+    };
+    const documentStats = db.prepare('SELECT COUNT(*) as total FROM documents').get() as {
+      total: number;
+    };
+    const relationshipStats = db
+      .prepare('SELECT COUNT(*) as total FROM entity_relationships')
+      .get() as { total: number };
+    const highRiskEntities = db
+      .prepare('SELECT COUNT(*) as total FROM entities WHERE red_flag_rating >= 4')
+      .get() as { total: number };
+
     return {
       totalEntities: entityStats.total,
       totalDocuments: documentStats.total,
       totalRelationships: relationshipStats.total,
       highRiskEntities: highRiskEntities.total,
       dataCompleteness: this.calculateDataCompleteness(),
-      investigationReadiness: this.assessInvestigationReadiness()
+      investigationReadiness: this.assessInvestigationReadiness(),
     };
   }
 

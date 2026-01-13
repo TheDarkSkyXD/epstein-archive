@@ -1,5 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, DollarSign, Clock, User, Building, AlertTriangle, Filter, Download, Search, Calendar, MapPin, Shield, ShieldAlert, ShieldCheck, X } from 'lucide-react';
+import {
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Clock,
+  User,
+  Building,
+  AlertTriangle,
+  Filter,
+  Download,
+  Search,
+  Calendar,
+  MapPin,
+  Shield,
+  ShieldAlert,
+  ShieldCheck,
+  X,
+} from 'lucide-react';
 import Icon from './Icon';
 import { AddToInvestigationButton } from './AddToInvestigationButton';
 
@@ -40,7 +57,9 @@ interface FinancialTransactionMapperProps {
   investigationId?: string | number;
 }
 
-export default function FinancialTransactionMapper({ investigationId }: FinancialTransactionMapperProps = {}) {
+export default function FinancialTransactionMapper({
+  investigationId,
+}: FinancialTransactionMapperProps = {}) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [flowAnalysis, setFlowAnalysis] = useState<TransactionFlow[]>([]);
@@ -58,21 +77,21 @@ export default function FinancialTransactionMapper({ investigationId }: Financia
     const fetchTransactions = async () => {
       setLoading(true);
       setError(null);
-      
+
       try {
         // Use investigation-specific endpoint if ID provided, else global endpoint
-        const endpoint = investigationId 
+        const endpoint = investigationId
           ? `/api/investigations/${investigationId}/transactions`
           : '/api/financial/transactions';
-        
+
         const response = await fetch(endpoint);
-        
+
         if (!response.ok) {
           throw new Error('Failed to fetch transactions');
         }
-        
+
         const data = await response.json();
-        
+
         if (data && data.length > 0) {
           // Map API response to Transaction interface
           const mappedTransactions: Transaction[] = data.map((tx: any) => ({
@@ -87,9 +106,9 @@ export default function FinancialTransactionMapper({ investigationId }: Financia
             riskLevel: tx.risk_level || 'medium',
             description: tx.description || '',
             suspiciousIndicators: tx.suspiciousIndicators || [],
-            sourceDocuments: tx.sourceDocumentIds || []
+            sourceDocuments: tx.sourceDocumentIds || [],
           }));
-          
+
           setTransactions(mappedTransactions);
           analyzeTransactionFlows(mappedTransactions);
           detectFinancialPatterns(mappedTransactions);
@@ -113,7 +132,7 @@ export default function FinancialTransactionMapper({ investigationId }: Financia
   const analyzeTransactionFlows = (transactions: Transaction[]) => {
     const entityMap = new Map<string, TransactionFlow>();
 
-    transactions.forEach(tx => {
+    transactions.forEach((tx) => {
       // From entity analysis
       if (!entityMap.has(tx.fromEntity)) {
         entityMap.set(tx.fromEntity, {
@@ -123,7 +142,7 @@ export default function FinancialTransactionMapper({ investigationId }: Financia
           netFlow: 0,
           transactionCount: 0,
           riskScore: 0,
-          connections: []
+          connections: [],
         });
       }
 
@@ -136,7 +155,7 @@ export default function FinancialTransactionMapper({ investigationId }: Financia
           netFlow: 0,
           transactionCount: 0,
           riskScore: 0,
-          connections: []
+          connections: [],
         });
       }
 
@@ -167,41 +186,40 @@ export default function FinancialTransactionMapper({ investigationId }: Financia
     const patterns: FinancialPattern[] = [];
 
     // Detect layering pattern (multiple transfers to obscure source)
-    const layeringTxs = transactions.filter(tx => 
-      tx.type === 'transfer' && 
-      tx.riskLevel === 'critical' && 
-      tx.amount > 5000000
+    const layeringTxs = transactions.filter(
+      (tx) => tx.type === 'transfer' && tx.riskLevel === 'critical' && tx.amount > 5000000,
     );
 
     if (layeringTxs.length >= 2) {
       patterns.push({
         type: 'layering',
         confidence: 85,
-        transactions: layeringTxs.map(tx => tx.id),
+        transactions: layeringTxs.map((tx) => tx.id),
         description: 'Multiple large transfers suggesting money laundering layering phase',
-        severity: 'critical'
+        severity: 'critical',
       });
     }
 
     // Detect shell network pattern
-    const shellTxs = transactions.filter(tx => 
-      tx.type === 'transfer' && 
-      (tx.method === 'shell' || tx.toEntity.includes('Trust') || tx.toEntity.includes('LLC'))
+    const shellTxs = transactions.filter(
+      (tx) =>
+        tx.type === 'transfer' &&
+        (tx.method === 'shell' || tx.toEntity.includes('Trust') || tx.toEntity.includes('LLC')),
     );
 
     if (shellTxs.length >= 2) {
       patterns.push({
         type: 'shell_network',
         confidence: 92,
-        transactions: shellTxs.map(tx => tx.id),
+        transactions: shellTxs.map((tx) => tx.id),
         description: 'Network of shell companies used to obscure beneficial ownership',
-        severity: 'high'
+        severity: 'high',
       });
     }
 
     // Detect round-trip pattern
-    const epsteinTxs = transactions.filter(tx => 
-      tx.fromEntity === 'Jeffrey Epstein' || tx.toEntity === 'Jeffrey Epstein'
+    const epsteinTxs = transactions.filter(
+      (tx) => tx.fromEntity === 'Jeffrey Epstein' || tx.toEntity === 'Jeffrey Epstein',
     );
 
     const roundTripPattern = detectRoundTripPattern(epsteinTxs);
@@ -214,27 +232,29 @@ export default function FinancialTransactionMapper({ investigationId }: Financia
 
   const detectRoundTripPattern = (transactions: Transaction[]): FinancialPattern | null => {
     // Simplified round-trip detection
-    const epsteinOutflows = transactions.filter(tx => tx.fromEntity === 'Jeffrey Epstein');
-    const epsteinInflows = transactions.filter(tx => tx.toEntity === 'Jeffrey Epstein');
+    const epsteinOutflows = transactions.filter((tx) => tx.fromEntity === 'Jeffrey Epstein');
+    const epsteinInflows = transactions.filter((tx) => tx.toEntity === 'Jeffrey Epstein');
 
-    const suspiciousRoundTrip = epsteinOutflows.some(outTx => 
-      epsteinInflows.some(inTx => {
+    const suspiciousRoundTrip = epsteinOutflows.some((outTx) =>
+      epsteinInflows.some((inTx) => {
         const outDate = new Date(outTx.date);
         const inDate = new Date(inTx.date);
         const daysDiff = Math.abs((inDate.getTime() - outDate.getTime()) / (1000 * 3600 * 24));
-        
-        return daysDiff < 365 && // Within a year
-               Math.abs(inTx.amount - outTx.amount) < outTx.amount * 0.2; // Similar amounts
-      })
+
+        return (
+          daysDiff < 365 && // Within a year
+          Math.abs(inTx.amount - outTx.amount) < outTx.amount * 0.2
+        ); // Similar amounts
+      }),
     );
 
     if (suspiciousRoundTrip) {
       return {
         type: 'round_trip',
         confidence: 78,
-        transactions: transactions.map(tx => tx.id),
+        transactions: transactions.map((tx) => tx.id),
         description: 'Suspicious round-trip transactions suggesting artificial fund movement',
-        severity: 'high'
+        severity: 'high',
       };
     }
 
@@ -243,11 +263,16 @@ export default function FinancialTransactionMapper({ investigationId }: Financia
 
   const getRiskScore = (riskLevel: string): number => {
     switch (riskLevel) {
-      case 'low': return 1;
-      case 'medium': return 3;
-      case 'high': return 7;
-      case 'critical': return 10;
-      default: return 0;
+      case 'low':
+        return 1;
+      case 'medium':
+        return 3;
+      case 'high':
+        return 7;
+      case 'critical':
+        return 10;
+      default:
+        return 0;
     }
   };
 
@@ -256,25 +281,28 @@ export default function FinancialTransactionMapper({ investigationId }: Financia
       style: 'currency',
       currency: currency,
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      maximumFractionDigits: 0,
     }).format(amount);
   };
 
-  const filteredTransactions = transactions.filter(tx => {
-    const matchesSearch = searchTerm === '' || 
+  const filteredTransactions = transactions.filter((tx) => {
+    const matchesSearch =
+      searchTerm === '' ||
       tx.fromEntity.toLowerCase().includes(searchTerm.toLowerCase()) ||
       tx.toEntity.toLowerCase().includes(searchTerm.toLowerCase()) ||
       tx.description.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesRisk = filterRisk === 'all' || tx.riskLevel === filterRisk;
-    
-    const matchesAmount = filterAmount === 'all' || 
+
+    const matchesAmount =
+      filterAmount === 'all' ||
       (filterAmount === 'small' && tx.amount < 100000) ||
       (filterAmount === 'medium' && tx.amount >= 100000 && tx.amount < 5000000) ||
       (filterAmount === 'large' && tx.amount >= 5000000);
 
-    const matchesDate = (!dateRange.start || tx.date >= dateRange.start) &&
-                        (!dateRange.end || tx.date <= dateRange.end);
+    const matchesDate =
+      (!dateRange.start || tx.date >= dateRange.start) &&
+      (!dateRange.end || tx.date <= dateRange.end);
 
     return matchesSearch && matchesRisk && matchesAmount && matchesDate;
   });
@@ -284,7 +312,7 @@ export default function FinancialTransactionMapper({ investigationId }: Financia
       transactions: filteredTransactions,
       flowAnalysis: flowAnalysis,
       detectedPatterns: detectedPatterns,
-      exportDate: new Date().toISOString()
+      exportDate: new Date().toISOString(),
     };
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -304,7 +332,9 @@ export default function FinancialTransactionMapper({ investigationId }: Financia
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-red-400 mb-2">Financial Transaction Mapper</h1>
-          <p className="text-gray-400">Advanced forensic analysis of financial flows and suspicious patterns</p>
+          <p className="text-gray-400">
+            Advanced forensic analysis of financial flows and suspicious patterns
+          </p>
         </div>
 
         {/* Controls - Stacked Layout */}
@@ -355,14 +385,14 @@ export default function FinancialTransactionMapper({ investigationId }: Financia
                 </select>
               </div>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1">Start Date</label>
                 <input
                   type="date"
                   value={dateRange.start}
-                  onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                  onChange={(e) => setDateRange((prev) => ({ ...prev, start: e.target.value }))}
                   className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-red-500 text-sm"
                 />
               </div>
@@ -372,7 +402,7 @@ export default function FinancialTransactionMapper({ investigationId }: Financia
                 <input
                   type="date"
                   value={dateRange.end}
-                  onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                  onChange={(e) => setDateRange((prev) => ({ ...prev, end: e.target.value }))}
                   className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 focus:ring-2 focus:ring-red-500 text-sm"
                 />
               </div>
@@ -392,12 +422,14 @@ export default function FinancialTransactionMapper({ investigationId }: Financia
                 <option value="timeline">Timeline</option>
                 <option value="patterns">Detected Patterns</option>
               </select>
-              
+
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">{filteredTransactions.length} transactions</span>
+                <span className="text-xs text-gray-500">
+                  {filteredTransactions.length} transactions
+                </span>
               </div>
             </div>
-            
+
             <button
               onClick={exportTransactionData}
               className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors text-sm"
@@ -437,7 +469,11 @@ export default function FinancialTransactionMapper({ investigationId }: Financia
               <div>
                 <p className="text-gray-400 text-sm">High Risk</p>
                 <p className="text-2xl font-bold text-yellow-400">
-                  {filteredTransactions.filter(tx => tx.riskLevel === 'high' || tx.riskLevel === 'critical').length}
+                  {
+                    filteredTransactions.filter(
+                      (tx) => tx.riskLevel === 'high' || tx.riskLevel === 'critical',
+                    ).length
+                  }
                 </p>
               </div>
               <AlertTriangle className="w-8 h-8 text-yellow-400" />
@@ -476,18 +512,39 @@ export default function FinancialTransactionMapper({ investigationId }: Financia
                       <div className="flex justify-between items-start">
                         <div className="flex items-center gap-2 min-w-0 flex-1">
                           <User className="w-4 h-4 text-gray-400 shrink-0" />
-                          <span className="font-medium text-gray-100 whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px]" title={transaction.fromEntity}>{transaction.fromEntity}</span>
+                          <span
+                            className="font-medium text-gray-100 whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px]"
+                            title={transaction.fromEntity}
+                          >
+                            {transaction.fromEntity}
+                          </span>
                           <TrendingDown className="w-4 h-4 text-red-400 shrink-0" />
                           <User className="w-4 h-4 text-gray-400 shrink-0" />
-                          <span className="font-medium text-gray-100 whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px]" title={transaction.toEntity}>{transaction.toEntity}</span>
+                          <span
+                            className="font-medium text-gray-100 whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px]"
+                            title={transaction.toEntity}
+                          >
+                            {transaction.toEntity}
+                          </span>
                         </div>
-                        <div className="flex items-center gap-1" title={`Risk Level: ${transaction.riskLevel.toUpperCase()}`}>
-                          {transaction.riskLevel === 'critical' && <ShieldAlert className="w-5 h-5 text-red-400" />}
-                          {transaction.riskLevel === 'high' && <Shield className="w-5 h-5 text-yellow-400" />}
-                          {transaction.riskLevel === 'medium' && <ShieldCheck className="w-5 h-5 text-blue-400" />}
-                          {transaction.riskLevel === 'low' && <Shield className="w-5 h-5 text-green-400" />}
+                        <div
+                          className="flex items-center gap-1"
+                          title={`Risk Level: ${transaction.riskLevel.toUpperCase()}`}
+                        >
+                          {transaction.riskLevel === 'critical' && (
+                            <ShieldAlert className="w-5 h-5 text-red-400" />
+                          )}
+                          {transaction.riskLevel === 'high' && (
+                            <Shield className="w-5 h-5 text-yellow-400" />
+                          )}
+                          {transaction.riskLevel === 'medium' && (
+                            <ShieldCheck className="w-5 h-5 text-blue-400" />
+                          )}
+                          {transaction.riskLevel === 'low' && (
+                            <Shield className="w-5 h-5 text-green-400" />
+                          )}
                           <div onClick={(e) => e.stopPropagation()}>
-                            <AddToInvestigationButton 
+                            <AddToInvestigationButton
                               item={{
                                 id: transaction.id,
                                 title: `Transaction: ${transaction.fromEntity} -> ${transaction.toEntity}`,
@@ -497,14 +554,14 @@ export default function FinancialTransactionMapper({ investigationId }: Financia
                                 metadata: {
                                   amount: transaction.amount,
                                   date: transaction.date,
-                                  type: transaction.type
-                                }
+                                  type: transaction.type,
+                                },
                               }}
                               investigations={[]} // This needs to be populated from context or props
                               onAddToInvestigation={(invId, item, relevance) => {
                                 console.log('Add to investigation', invId, item, relevance);
-                                const event = new CustomEvent('add-to-investigation', { 
-                                  detail: { investigationId: invId, item, relevance } 
+                                const event = new CustomEvent('add-to-investigation', {
+                                  detail: { investigationId: invId, item, relevance },
                                 });
                                 window.dispatchEvent(event);
                               }}
@@ -514,24 +571,31 @@ export default function FinancialTransactionMapper({ investigationId }: Financia
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="flex justify-between items-center text-sm text-gray-400">
-                        <span className="font-semibold">{formatCurrency(transaction.amount, transaction.currency)}</span>
+                        <span className="font-semibold">
+                          {formatCurrency(transaction.amount, transaction.currency)}
+                        </span>
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
                           {transaction.date}
                         </span>
                         <span className="capitalize">{transaction.type.replace('_', ' ')}</span>
                       </div>
-                      
-                      <p className="text-sm text-gray-300 whitespace-normal break-words">{transaction.description}</p>
+
+                      <p className="text-sm text-gray-300 whitespace-normal break-words">
+                        {transaction.description}
+                      </p>
                     </div>
-                    
+
                     {transaction.suspiciousIndicators.length > 0 && (
                       <div className="mt-2">
                         <div className="flex flex-wrap gap-2">
                           {transaction.suspiciousIndicators.map((indicator, index) => (
-                            <span key={index} className="relative overflow-hidden px-2 py-1 bg-red-900/40 text-red-200 rounded text-xs border border-red-800/50 group">
+                            <span
+                              key={index}
+                              className="relative overflow-hidden px-2 py-1 bg-red-900/40 text-red-200 rounded text-xs border border-red-800/50 group"
+                            >
                               <span className="relative z-10 whitespace-normal">{indicator}</span>
                               <AlertTriangle className="absolute -right-1 -bottom-1 w-6 h-6 text-red-500/10 rotate-12" />
                             </span>
@@ -554,19 +618,43 @@ export default function FinancialTransactionMapper({ investigationId }: Financia
                 {flowAnalysis.slice(0, 5).map((flow, index) => (
                   <div key={index} className="p-2 bg-gray-700 rounded">
                     <div className="flex justify-between items-center mb-1">
-                      <span className="font-medium text-gray-100 text-xs truncate max-w-[120px]" title={flow.entity}>{flow.entity}</span>
-                      <span className={`text-xs px-1 py-0.5 rounded ${
-                        flow.riskScore > 20 ? 'bg-red-900 text-red-200' :
-                        flow.riskScore > 10 ? 'bg-yellow-900 text-yellow-200' :
-                        'bg-green-900 text-green-200'
-                      }`}>
+                      <span
+                        className="font-medium text-gray-100 text-xs truncate max-w-[120px]"
+                        title={flow.entity}
+                      >
+                        {flow.entity}
+                      </span>
+                      <span
+                        className={`text-xs px-1 py-0.5 rounded ${
+                          flow.riskScore > 20
+                            ? 'bg-red-900 text-red-200'
+                            : flow.riskScore > 10
+                              ? 'bg-yellow-900 text-yellow-200'
+                              : 'bg-green-900 text-green-200'
+                        }`}
+                      >
                         {flow.riskScore}
                       </span>
                     </div>
                     <div className="grid grid-cols-3 gap-1 text-xs text-gray-400">
-                      <div className="whitespace-nowrap overflow-hidden text-ellipsis" title={`In: ${formatCurrency(flow.inflow)}`}>In: {formatCurrency(flow.inflow)}</div>
-                      <div className="whitespace-nowrap overflow-hidden text-ellipsis" title={`Out: ${formatCurrency(flow.outflow)}`}>Out: {formatCurrency(flow.outflow)}</div>
-                      <div className="whitespace-nowrap overflow-hidden text-ellipsis" title={`Net: ${formatCurrency(Math.abs(flow.netFlow))}`}>Net: {formatCurrency(Math.abs(flow.netFlow))}</div>
+                      <div
+                        className="whitespace-nowrap overflow-hidden text-ellipsis"
+                        title={`In: ${formatCurrency(flow.inflow)}`}
+                      >
+                        In: {formatCurrency(flow.inflow)}
+                      </div>
+                      <div
+                        className="whitespace-nowrap overflow-hidden text-ellipsis"
+                        title={`Out: ${formatCurrency(flow.outflow)}`}
+                      >
+                        Out: {formatCurrency(flow.outflow)}
+                      </div>
+                      <div
+                        className="whitespace-nowrap overflow-hidden text-ellipsis"
+                        title={`Net: ${formatCurrency(Math.abs(flow.netFlow))}`}
+                      >
+                        Net: {formatCurrency(Math.abs(flow.netFlow))}
+                      </div>
                     </div>
                     <div className="text-xs text-gray-500 mt-1 truncate">
                       {flow.transactionCount} tx • {flow.connections.length} conn
@@ -587,15 +675,24 @@ export default function FinancialTransactionMapper({ investigationId }: Financia
                         <span className="font-medium text-gray-100 capitalize text-xs">
                           {pattern.type.replace('_', ' ')}
                         </span>
-                        <span className={`text-xs px-1 py-0.5 rounded ${
-                          pattern.severity === 'critical' ? 'bg-red-900 text-red-200' :
-                          pattern.severity === 'high' ? 'bg-yellow-900 text-yellow-200' :
-                          'bg-blue-900 text-blue-200'
-                        }`}>
+                        <span
+                          className={`text-xs px-1 py-0.5 rounded ${
+                            pattern.severity === 'critical'
+                              ? 'bg-red-900 text-red-200'
+                              : pattern.severity === 'high'
+                                ? 'bg-yellow-900 text-yellow-200'
+                                : 'bg-blue-900 text-blue-200'
+                          }`}
+                        >
                           {pattern.severity.substring(0, 1).toUpperCase()}
                         </span>
                       </div>
-                      <p className="text-xs text-gray-300 mb-1 line-clamp-2" title={pattern.description}>{pattern.description}</p>
+                      <p
+                        className="text-xs text-gray-300 mb-1 line-clamp-2"
+                        title={pattern.description}
+                      >
+                        {pattern.description}
+                      </p>
                       <div className="flex justify-between items-center text-xs text-gray-400">
                         <span>{pattern.confidence}% conf</span>
                         <span>{pattern.transactions.length} tx</span>
@@ -608,95 +705,109 @@ export default function FinancialTransactionMapper({ investigationId }: Financia
 
             {/* Transaction Details - Modal on Mobile, Inline on Desktop */}
             {selectedTransaction && (
-              <div className={`
+              <div
+                className={`
                 fixed inset-0 z-50 bg-gray-900/95 backdrop-blur-sm p-4 overflow-y-auto flex items-center justify-center md:static md:bg-transparent md:backdrop-blur-none md:p-0 md:block
-              `}>
+              `}
+              >
                 <div className="bg-gray-800 rounded-lg p-6 w-full max-w-lg md:max-w-none shadow-2xl md:shadow-none border border-gray-700 md:border-0 relative">
                   {/* Mobile Close Button */}
-                  <button 
+                  <button
                     onClick={() => setSelectedTransaction(null)}
                     className="absolute top-4 right-4 p-2 bg-gray-700 rounded-full text-gray-400 hover:text-white md:hidden"
                   >
                     <Icon name="X" className="w-5 h-5" />
                   </button>
-                  
+
                   <div className="flex items-center justify-between mb-4 pr-10 md:pr-0">
-                  <h3 className="text-lg font-semibold text-gray-100">Transaction Details</h3>
-                  <AddToInvestigationButton 
-                    item={{
-                      id: selectedTransaction.id,
-                      title: `Transaction: ${selectedTransaction.fromEntity} -> ${selectedTransaction.toEntity}`,
-                      description: selectedTransaction.description,
-                      type: 'evidence',
-                      sourceId: selectedTransaction.id,
-                      metadata: {
-                        amount: selectedTransaction.amount,
-                        date: selectedTransaction.date,
-                        type: selectedTransaction.type
-                      }
-                    }}
-                    investigations={[]} // This needs to be populated from context or props
-                    onAddToInvestigation={(invId, item, relevance) => {
-                      console.log('Add to investigation', invId, item, relevance);
-                      const event = new CustomEvent('add-to-investigation', { 
-                        detail: { investigationId: invId, item, relevance } 
-                      });
-                      window.dispatchEvent(event);
-                    }}
-                    variant="button"
-                    className="text-xs"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-400">From</label>
-                    <p className="text-gray-100 text-sm" title={selectedTransaction.fromEntity}>{selectedTransaction.fromEntity}</p>
+                    <h3 className="text-lg font-semibold text-gray-100">Transaction Details</h3>
+                    <AddToInvestigationButton
+                      item={{
+                        id: selectedTransaction.id,
+                        title: `Transaction: ${selectedTransaction.fromEntity} -> ${selectedTransaction.toEntity}`,
+                        description: selectedTransaction.description,
+                        type: 'evidence',
+                        sourceId: selectedTransaction.id,
+                        metadata: {
+                          amount: selectedTransaction.amount,
+                          date: selectedTransaction.date,
+                          type: selectedTransaction.type,
+                        },
+                      }}
+                      investigations={[]} // This needs to be populated from context or props
+                      onAddToInvestigation={(invId, item, relevance) => {
+                        console.log('Add to investigation', invId, item, relevance);
+                        const event = new CustomEvent('add-to-investigation', {
+                          detail: { investigationId: invId, item, relevance },
+                        });
+                        window.dispatchEvent(event);
+                      }}
+                      variant="button"
+                      className="text-xs"
+                    />
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-400">To</label>
-                    <p className="text-gray-100 text-sm" title={selectedTransaction.toEntity}>{selectedTransaction.toEntity}</p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-400">Amount</label>
-                    <p className="text-gray-100 font-semibold">
-                      {formatCurrency(selectedTransaction.amount, selectedTransaction.currency)}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-400">Date</label>
-                    <p className="text-gray-100 text-sm">{selectedTransaction.date}</p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-400">Type</label>
-                    <p className="text-gray-100 text-sm capitalize">{selectedTransaction.type.replace('_', ' ')}</p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-400">Method</label>
-                    <p className="text-gray-100 text-sm capitalize">{selectedTransaction.method}</p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-400">Description</label>
-                    <p className="text-gray-100 text-sm">{selectedTransaction.description}</p>
-                  </div>
-                  
-                  {selectedTransaction.sourceDocuments.length > 0 && (
+                  <div className="space-y-2">
                     <div>
-                      <label className="block text-xs font-medium text-gray-400 mb-1">Source Documents</label>
-                      <div className="space-y-1">
-                        {selectedTransaction.sourceDocuments.map((doc, index) => (
-                          <button
-                            key={index}
-                            className="block w-full text-left px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs text-blue-400 hover:text-blue-300 transition-colors truncate"
-                            onClick={() => {/* TODO: Open document */}}
-                            title={doc}
-                          >
-                            📄 {doc}
-                          </button>
-                        ))}
-                      </div>
+                      <label className="block text-xs font-medium text-gray-400">From</label>
+                      <p className="text-gray-100 text-sm" title={selectedTransaction.fromEntity}>
+                        {selectedTransaction.fromEntity}
+                      </p>
                     </div>
-                  )}
-                </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-400">To</label>
+                      <p className="text-gray-100 text-sm" title={selectedTransaction.toEntity}>
+                        {selectedTransaction.toEntity}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-400">Amount</label>
+                      <p className="text-gray-100 font-semibold">
+                        {formatCurrency(selectedTransaction.amount, selectedTransaction.currency)}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-400">Date</label>
+                      <p className="text-gray-100 text-sm">{selectedTransaction.date}</p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-400">Type</label>
+                      <p className="text-gray-100 text-sm capitalize">
+                        {selectedTransaction.type.replace('_', ' ')}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-400">Method</label>
+                      <p className="text-gray-100 text-sm capitalize">
+                        {selectedTransaction.method}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-400">Description</label>
+                      <p className="text-gray-100 text-sm">{selectedTransaction.description}</p>
+                    </div>
+
+                    {selectedTransaction.sourceDocuments.length > 0 && (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-400 mb-1">
+                          Source Documents
+                        </label>
+                        <div className="space-y-1">
+                          {selectedTransaction.sourceDocuments.map((doc, index) => (
+                            <button
+                              key={index}
+                              className="block w-full text-left px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs text-blue-400 hover:text-blue-300 transition-colors truncate"
+                              onClick={() => {
+                                /* TODO: Open document */
+                              }}
+                              title={doc}
+                            >
+                              📄 {doc}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

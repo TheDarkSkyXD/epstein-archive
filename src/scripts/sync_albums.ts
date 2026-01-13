@@ -1,6 +1,6 @@
 /**
  * Sync Albums and Ingest New Images
- * 
+ *
  * This script:
  * 1. Renames existing albums to match directory names on disk
  * 2. Creates new albums for directories not yet in DB
@@ -22,13 +22,13 @@ const db = new Database(DB_PATH);
 
 // Album renaming map: old DB name -> new disk name
 const ALBUM_RENAMES: Record<string, string> = {
-  'Epstein': 'Jeffrey Epstein',
-  'Ghislaine': 'Ghislaine Maxwell',
+  Epstein: 'Jeffrey Epstein',
+  Ghislaine: 'Ghislaine Maxwell',
   'Trump Epstein': 'Donald Trump',
   'Musk Epstein': 'Elon Musk',
   'Epstein Wexner': 'Les Wexner',
   '4 December 2025': '12.11.25 Estate Production', // Likely the same batch
-  'Perpetrators': 'Perpetrators', // Fix typo
+  Perpetrators: 'Perpetrators', // Fix typo
 };
 
 async function run() {
@@ -38,11 +38,18 @@ async function run() {
     const existing = db.prepare('SELECT id FROM media_albums WHERE name = ?').get(oldName) as any;
     if (existing) {
       // Check if new name already exists
-      const newExists = db.prepare('SELECT id FROM media_albums WHERE name = ?').get(newName) as any;
+      const newExists = db
+        .prepare('SELECT id FROM media_albums WHERE name = ?')
+        .get(newName) as any;
       if (newExists) {
-        console.log(`  Merging "${oldName}" (id:${existing.id}) into "${newName}" (id:${newExists.id})...`);
+        console.log(
+          `  Merging "${oldName}" (id:${existing.id}) into "${newName}" (id:${newExists.id})...`,
+        );
         // Move images from old album to new album
-        db.prepare('UPDATE media_images SET album_id = ? WHERE album_id = ?').run(newExists.id, existing.id);
+        db.prepare('UPDATE media_images SET album_id = ? WHERE album_id = ?').run(
+          newExists.id,
+          existing.id,
+        );
         // Delete old album
         db.prepare('DELETE FROM media_albums WHERE id = ?').run(existing.id);
       } else {
@@ -54,7 +61,7 @@ async function run() {
 
   // Step 2: Sync directories with albums
   console.log('\n[Step 2] Syncing directories with albums...');
-  const directories = fs.readdirSync(MEDIA_ROOT).filter(f => {
+  const directories = fs.readdirSync(MEDIA_ROOT).filter((f) => {
     const fullPath = path.join(MEDIA_ROOT, f);
     return fs.statSync(fullPath).isDirectory() && !f.startsWith('.');
   });
@@ -63,22 +70,21 @@ async function run() {
 
   for (const dirName of directories) {
     let album = db.prepare('SELECT id, name FROM media_albums WHERE name = ?').get(dirName) as any;
-    
+
     if (!album) {
       console.log(`  Creating new album: "${dirName}"`);
-      const result = db.prepare('INSERT INTO media_albums (name, description) VALUES (?, ?)').run(
-        dirName,
-        `Images from ${dirName}`
-      );
+      const result = db
+        .prepare('INSERT INTO media_albums (name, description) VALUES (?, ?)')
+        .run(dirName, `Images from ${dirName}`);
       album = { id: result.lastInsertRowid, name: dirName };
     }
-    
+
     albumMap.set(dirName, album.id as number);
   }
 
   // Step 3: Ingest new images
   console.log('\n[Step 3] Ingesting new images...');
-  
+
   const insertImage = db.prepare(`
     INSERT INTO media_images (
       filename, original_filename, path, thumbnail_path, title, album_id,
@@ -95,8 +101,8 @@ async function run() {
   for (const dirName of directories) {
     const albumId = albumMap.get(dirName)!;
     const albumPath = path.join(MEDIA_ROOT, dirName);
-    
-    const files = fs.readdirSync(albumPath).filter(f => {
+
+    const files = fs.readdirSync(albumPath).filter((f) => {
       const ext = path.extname(f).toLowerCase();
       return ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext) && !f.startsWith('.');
     });
@@ -106,9 +112,11 @@ async function run() {
     for (const file of files) {
       const filePath = path.join(albumPath, file);
       const webPath = `/data/media/images/${dirName}/${file}`;
-      
+
       // STRICT: Only insert if path doesn't exist - NEVER update existing
-      const existing = db.prepare('SELECT id, title FROM media_images WHERE path = ?').get(webPath) as any;
+      const existing = db
+        .prepare('SELECT id, title FROM media_images WHERE path = ?')
+        .get(webPath) as any;
       if (existing) {
         totalExisting++;
         continue; // Skip - preserve existing titles and orientations
@@ -117,7 +125,7 @@ async function run() {
       // Get file info
       const stats = fs.statSync(filePath);
       const ext = path.extname(file).slice(1).toLowerCase();
-      
+
       // Get dimensions with sharp
       let width = 0;
       let height = 0;
@@ -134,10 +142,10 @@ async function run() {
       if (!fs.existsSync(thumbDir)) {
         fs.mkdirSync(thumbDir, { recursive: true });
       }
-      
+
       const thumbPath = path.join(thumbDir, `thumb_${file}`);
       const thumbWebPath = `/data/media/images/${dirName}/thumbnails/thumb_${file}`;
-      
+
       try {
         await sharp(filePath)
           .resize(300, 300, { fit: 'cover' })
@@ -158,18 +166,25 @@ async function run() {
         file_size: stats.size,
         format: ext,
         width,
-        height
+        height,
       });
 
       totalNew++;
     }
 
     // Update album cover if not set
-    const album = db.prepare('SELECT id, cover_image_id FROM media_albums WHERE id = ?').get(albumId) as any;
+    const album = db
+      .prepare('SELECT id, cover_image_id FROM media_albums WHERE id = ?')
+      .get(albumId) as any;
     if (!album.cover_image_id) {
-      const firstImage = db.prepare('SELECT id FROM media_images WHERE album_id = ? LIMIT 1').get(albumId) as any;
+      const firstImage = db
+        .prepare('SELECT id FROM media_images WHERE album_id = ? LIMIT 1')
+        .get(albumId) as any;
       if (firstImage) {
-        db.prepare('UPDATE media_albums SET cover_image_id = ? WHERE id = ?').run(firstImage.id, albumId);
+        db.prepare('UPDATE media_albums SET cover_image_id = ? WHERE id = ?').run(
+          firstImage.id,
+          albumId,
+        );
       }
     }
   }
@@ -178,8 +193,12 @@ async function run() {
 
   // Print final album stats
   console.log('\n[Final Album Summary]');
-  const albums = db.prepare('SELECT a.id, a.name, COUNT(i.id) as image_count FROM media_albums a LEFT JOIN media_images i ON a.id = i.album_id GROUP BY a.id ORDER BY a.name').all() as any[];
-  albums.forEach(a => console.log(`  ${a.name}: ${a.image_count} images`));
+  const albums = db
+    .prepare(
+      'SELECT a.id, a.name, COUNT(i.id) as image_count FROM media_albums a LEFT JOIN media_images i ON a.id = i.album_id GROUP BY a.id ORDER BY a.name',
+    )
+    .all() as any[];
+  albums.forEach((a) => console.log(`  ${a.name}: ${a.image_count} images`));
 }
 
 run().catch(console.error);

@@ -1,4 +1,3 @@
-
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
@@ -9,13 +8,13 @@ const router = express.Router();
 // Map of release IDs (from AboutPage) to file paths
 // We can use the 'title' or a slug as the ID.
 const FILE_MAP: Record<string, string> = {
-  'black-book': './data/originals/Jeffrey Epstein\'s Black Book.pdf',
+  'black-book': "./data/originals/Jeffrey Epstein's Black Book.pdf",
   'flight-logs': './data/originals/EPSTEIN FLIGHT LOGS UNREDACTED.pdf',
 };
 
 router.get('/release/:id', async (req, res) => {
   const releaseId = req.params.id;
-  
+
   try {
     // 1. Check static map
     if (FILE_MAP[releaseId]) {
@@ -28,14 +27,13 @@ router.get('/release/:id', async (req, res) => {
     // 2. If not in map, maybe it's a tag?
     // If user asks for "house-oversight", we can't zips 20k files easily.
     // Return 404 or Not Implemented for now.
-    
+
     // Check if it matches a Tag
     const db = getDb();
     // Logic to maybe download ONE representative file?
-    
+
     console.warn(`Download requested for unknown release: ${releaseId}`);
     return res.status(404).json({ error: 'Download not available for this release' });
-
   } catch (err) {
     console.error('Download error:', err);
     res.status(500).json({ error: 'Internal server error' });

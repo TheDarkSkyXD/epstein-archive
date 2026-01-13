@@ -17,21 +17,23 @@ for (const e of entities) {
     const name = e.full_name.trim();
     if (name.length < 3) continue; // Skip very short names
     // Skip likely junk (e.g. "Page 1") if needed, but for now include all
-    
+
     const normalized = name.toLowerCase();
     entityMap.set(normalized, e.id);
-    
+
     const wordCount = normalized.split(/\s+/).length;
     if (wordCount > maxWords) maxWords = wordCount;
   }
 }
 // Cap max words to reasonable limit to avoid performance kill on outliers
-maxWords = Math.min(maxWords, 6); 
+maxWords = Math.min(maxWords, 6);
 
 console.log(`Loaded ${entityMap.size} entities. Max name length: ${maxWords} words.`);
 
 // 2. Process Documents
-const documents = db.prepare('SELECT id, content FROM documents WHERE content IS NOT NULL').all() as any[];
+const documents = db
+  .prepare('SELECT id, content FROM documents WHERE content IS NOT NULL')
+  .all() as any[];
 console.log(`Processing ${documents.length} documents...`);
 
 const insertStmt = db.prepare(`
@@ -54,56 +56,56 @@ db.transaction(() => {
     // Tokenize roughly by whitespace, keeping track of positions?
     // Regex to split but keep indices is tricky.
     // Simple approach: Match all words, reconstructing n-grams.
-    
+
     // Better: Normalized text for matching, original for context.
     const normalizedText = text.toLowerCase();
-    
+
     // We need word start indices to report position and extract context.
     // Regex to find words and their indices.
     const wordRegex = /[a-z0-9']+/g;
     let match;
-    const words: { str: string, index: number, end: number }[] = [];
-    
+    const words: { str: string; index: number; end: number }[] = [];
+
     while ((match = wordRegex.exec(normalizedText)) !== null) {
       words.push({
         str: match[0],
         index: match.index,
-        end: wordRegex.lastIndex
+        end: wordRegex.lastIndex,
       });
     }
-    
+
     const docMentions = new Set<string>(); // avoid duplicates per doc? Or just limit freq?
     // Storing (entityId + position) to allow multiple mentions
-    
+
     for (let i = 0; i < words.length; i++) {
       // Try n-grams starting at i
       let phrase = '';
-      for (let j = 0; j < maxWords && (i + j) < words.length; j++) {
+      for (let j = 0; j < maxWords && i + j < words.length; j++) {
         const wordObj = words[i + j];
         if (j > 0) phrase += ' '; // Simple space joining
         phrase += wordObj.str;
-        
+
         if (entityMap.has(phrase)) {
           const entityId = entityMap.get(phrase)!;
-          
+
           // Context window: approx 50 chars before and after
           const start = words[i].index;
           const end = wordObj.end;
           const contextStart = Math.max(0, start - 50);
           const contextEnd = Math.min(text.length, end + 50);
           const context = text.slice(contextStart, contextEnd).replace(/\s+/g, ' ').trim();
-          
+
           insertStmt.run({
             entityId: entityId,
             docId: doc.id,
             context: `...${context}...`,
-            pos: start
+            pos: start,
           });
-          
+
           totalMentions++;
-          
+
           // Optimization: If we matched "Jeffrey Epstein", we don't need to match "Jeffrey" at this position?
-          // Actually, "Jeffrey" might be ambiguous anyway. 
+          // Actually, "Jeffrey" might be ambiguous anyway.
           // If we matched a longer phrase, likely we shouldn't match sub-phrases starting at same `i`.
           // We can break inner loop?
           // But "New York" and "New York City" - if we match "New York", we might miss "City".

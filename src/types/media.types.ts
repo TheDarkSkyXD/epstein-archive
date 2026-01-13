@@ -31,7 +31,7 @@ export interface MediaImage {
   dateTaken?: string;
   dateAdded: string;
   dateModified: string;
-  
+
   // EXIF data
   cameraMake?: string;
   cameraModel?: string;
@@ -44,11 +44,12 @@ export interface MediaImage {
   longitude?: number;
   colorProfile?: string;
   orientation?: number;
-  
+
   // Related data
   // Related data
   tags?: string[];
   rating?: number;
+  isSensitive?: boolean;
 }
 
 export interface Album {

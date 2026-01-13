@@ -7,7 +7,7 @@ const ARTICLES_PATH = path.join(process.cwd(), 'src/data/articles.json');
 async function ingestArticles() {
   try {
     console.log('Ingesting articles from:', ARTICLES_PATH);
-    
+
     if (!fs.existsSync(ARTICLES_PATH)) {
       console.error('Articles file not found!');
       process.exit(1);
@@ -20,7 +20,7 @@ async function ingestArticles() {
 
     // Ensure database is initialized (accessing the instance does this)
     const db = databaseService.getDatabase();
-    
+
     // Explicitly ensure table exists just in case
     db.exec(`
         CREATE TABLE IF NOT EXISTS articles (
@@ -53,7 +53,7 @@ async function ingestArticles() {
           source: article.publication,
           imageUrl: article.imageUrl,
           guid: article.url, // Use URL as GUID
-          redFlagRating: article.redFlagRating
+          redFlagRating: article.redFlagRating,
         });
         count++;
       } catch (e) {
@@ -62,7 +62,6 @@ async function ingestArticles() {
     }
 
     console.log(`Successfully ingested ${count} articles.`);
-    
   } catch (error) {
     console.error('Error ingesting articles:', error);
     process.exit(1);

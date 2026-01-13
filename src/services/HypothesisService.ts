@@ -36,10 +36,10 @@ export class HypothesisService {
 
   async getHypotheses(investigationId?: number, page: number = 1, limit: number = 20) {
     const offset = (page - 1) * limit;
-    
+
     const where = investigationId ? 'WHERE investigation_id = @investigationId' : '';
     const params: any = investigationId ? { investigationId, limit, offset } : { limit, offset };
-    
+
     const query = `
       SELECT id, uuid, investigation_id, title, description, status, priority, 
              tags, created_by, created_at, updated_at
@@ -48,18 +48,20 @@ export class HypothesisService {
       ORDER BY priority DESC, updated_at DESC
       LIMIT @limit OFFSET @offset
     `;
-    
+
     const countQuery = `SELECT COUNT(*) as total FROM hypotheses ${where}`;
-    
+
     const hypotheses = this.db.prepare(query).all(params) as any[];
-    const { total } = this.db.prepare(countQuery).get(investigationId ? { investigationId } : {}) as { total: number };
-    
+    const { total } = this.db
+      .prepare(countQuery)
+      .get(investigationId ? { investigationId } : {}) as { total: number };
+
     return {
-      data: hypotheses.map(h => this.mapHypothesis(h)),
+      data: hypotheses.map((h) => this.mapHypothesis(h)),
       total,
       page,
       pageSize: limit,
-      totalPages: Math.ceil(total / limit)
+      totalPages: Math.ceil(total / limit),
     };
   }
 
@@ -68,40 +70,44 @@ export class HypothesisService {
       INSERT INTO hypotheses (investigation_id, title, description, priority, tags, created_by)
       VALUES (@investigationId, @title, @description, @priority, @tags, @createdBy)
     `);
-    
+
     const result = stmt.run({
       investigationId: data.investigationId,
       title: data.title,
       description: data.description || null,
       priority: data.priority || 'medium',
       tags: JSON.stringify(data.tags || []),
-      createdBy: data.createdBy
+      createdBy: data.createdBy,
     });
-    
+
     const hypothesis = await this.getHypothesisById(result.lastInsertRowid as number);
     if (!hypothesis) {
       throw new Error('Failed to create hypothesis');
     }
-    
+
     return hypothesis;
   }
 
   async getHypothesisById(id: number): Promise<Hypothesis | null> {
-    const h = this.db.prepare(`
+    const h = this.db
+      .prepare(
+        `
       SELECT id, uuid, investigation_id, title, description, status, priority, 
              tags, created_by, created_at, updated_at
       FROM hypotheses WHERE id = ?
-    `).get(id) as any;
-    
+    `,
+      )
+      .get(id) as any;
+
     if (!h) return null;
-    
+
     return this.mapHypothesis(h);
   }
 
   async updateHypothesis(id: number, updates: UpdateHypothesisInput): Promise<Hypothesis | null> {
     const fields: string[] = [];
     const params: any = { id };
-    
+
     if (updates.title !== undefined) {
       fields.push('title = @title');
       params.title = updates.title;
@@ -122,17 +128,21 @@ export class HypothesisService {
       fields.push('tags = @tags');
       params.tags = JSON.stringify(updates.tags);
     }
-    
+
     if (fields.length === 0) {
       return this.getHypothesisById(id);
     }
-    
-    this.db.prepare(`
+
+    this.db
+      .prepare(
+        `
       UPDATE hypotheses 
       SET ${fields.join(', ')}
       WHERE id = @id
-    `).run(params);
-    
+    `,
+      )
+      .run(params);
+
     return this.getHypothesisById(id);
   }
 
@@ -153,7 +163,7 @@ export class HypothesisService {
       tags: JSON.parse(row.tags || '[]'),
       created_by: row.created_by,
       created_at: row.created_at,
-      updated_at: row.updated_at
+      updated_at: row.updated_at,
     };
   }
 }

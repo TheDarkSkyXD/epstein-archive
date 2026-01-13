@@ -42,16 +42,16 @@ test.describe('Epstein Archive - Production E2E Tests', () => {
     await page.addInitScript(() => {
       localStorage.setItem('hasSeenInvestigationOnboarding', 'true');
     });
-    
+
     await page.goto('/');
     await page.click('text=Investigations');
-    
+
     // If onboarding is still visible, skip it
     const skipButton = page.locator('text=Skip Tour');
     if (await skipButton.isVisible()) {
       await skipButton.click();
     }
-    
+
     await expect(page).toHaveURL(/\/investigations/);
     await expect(page.locator('.investigation-workspace')).toBeVisible();
   });
@@ -61,22 +61,22 @@ test.describe('Epstein Archive - Production E2E Tests', () => {
     await page.addInitScript(() => {
       localStorage.setItem('hasSeenInvestigationOnboarding', 'true');
     });
-    
+
     await page.goto('/');
     await page.click('text=Investigations');
-    
+
     // If onboarding is still visible, skip it
     const skipButton = page.locator('text=Skip Tour');
     if (await skipButton.isVisible()) {
       await skipButton.click();
     }
-    
+
     await page.click('text=New Investigation');
-    
+
     await page.fill('input[name="title"]', 'Test Investigation');
     await page.fill('textarea[name="description"]', 'Testing investigation creation');
     await page.click('button:has-text("Create")');
-    
+
     await expect(page.locator('text=Test Investigation')).toBeVisible();
   });
 
@@ -85,21 +85,21 @@ test.describe('Epstein Archive - Production E2E Tests', () => {
     await page.addInitScript(() => {
       localStorage.setItem('hasSeenInvestigationOnboarding', 'true');
     });
-    
+
     await page.goto('/');
     await page.click('text=Investigations');
-    
+
     // If onboarding is still visible, skip it
     const skipButton = page.locator('text=Skip Tour');
     if (await skipButton.isVisible()) {
       await skipButton.click();
     }
-    
+
     // Click on the first investigation in the list or create one if none exist
     const newInvestigationButton = page.locator('text=New Investigation');
     const existingInvestigations = page.locator('.investigation-card');
-    
-    if (await existingInvestigations.count() > 0) {
+
+    if ((await existingInvestigations.count()) > 0) {
       await existingInvestigations.first().click();
     } else {
       // Create a test investigation
@@ -108,7 +108,7 @@ test.describe('Epstein Archive - Production E2E Tests', () => {
       await page.fill('textarea[name="description"]', 'Test investigation for e2e testing');
       await page.click('button:has-text("Create")');
     }
-    
+
     // Navigate to forensic analysis tab
     await page.click('text=Forensic Analysis');
     await expect(page.locator('.forensic-analysis-workspace')).toBeVisible();
@@ -117,7 +117,7 @@ test.describe('Epstein Archive - Production E2E Tests', () => {
   test('should handle API health check', async ({ page }) => {
     const response = await page.request.get('/api/health');
     expect(response.ok()).toBeTruthy();
-    
+
     const health = await response.json();
     expect(health.status).toBe('healthy');
     expect(health.database).toBe('connected');
@@ -137,7 +137,7 @@ test.describe('Epstein Archive - Production E2E Tests', () => {
     const startTime = Date.now();
     await page.goto('/');
     const loadTime = Date.now() - startTime;
-    
+
     expect(loadTime).toBeLessThan(5000); // Should load within 5 seconds
   });
 

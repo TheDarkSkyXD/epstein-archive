@@ -24,14 +24,15 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: process.env.NODE_ENV === 'production' ? 'https://epstein.academy' : 'http://localhost:3002',
-    
+    baseURL:
+      process.env.NODE_ENV === 'production' ? 'https://epstein.academy' : 'http://localhost:3002',
+
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
-    
+
     /* Screenshot on failure */
     screenshot: 'only-on-failure',
-    
+
     /* Video on failure */
     video: 'retain-on-failure',
   },
@@ -76,18 +77,21 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   /* Run your local dev server before starting the tests */
-  webServer: process.env.NODE_ENV === 'production' ? [] : [
-    {
-      command: 'npm run dev',
-      port: 3002,
-      reuseExistingServer: !process.env.CI,
-      timeout: 120 * 1000,
-    },
-    {
-      command: 'npm run server',
-      port: 3012,
-      reuseExistingServer: !process.env.CI,
-      timeout: 120 * 1000,
-    }
-  ],
+  webServer:
+    process.env.NODE_ENV === 'production'
+      ? []
+      : [
+          {
+            command: 'npm run dev',
+            port: 3002,
+            reuseExistingServer: !process.env.CI,
+            timeout: 120 * 1000,
+          },
+          {
+            command: 'npm run server',
+            port: 3012,
+            reuseExistingServer: !process.env.CI,
+            timeout: 120 * 1000,
+          },
+        ],
 });

@@ -13,9 +13,9 @@ export const validateEntityName = (req: Request, res: Response, next: NextFuncti
 
       // Check length
       if (trimmedName.length <= 2) {
-        return res.status(400).json({ 
-          error: 'Invalid entity name', 
-          message: 'Entity name must be more than 2 characters long' 
+        return res.status(400).json({
+          error: 'Invalid entity name',
+          message: 'Entity name must be more than 2 characters long',
         });
       }
 
@@ -69,14 +69,14 @@ export const validateEntityName = (req: Request, res: Response, next: NextFuncti
         /^Outside\s/i,
         /^[0-9]+$/,
         /^[A-Z]$/,
-        /^[a-z]$/
+        /^[a-z]$/,
       ];
 
       for (const pattern of junkPatterns) {
         if (pattern.test(trimmedName)) {
-          return res.status(400).json({ 
-            error: 'Invalid entity name', 
-            message: 'Entity name appears to be junk data or extraction artifact' 
+          return res.status(400).json({
+            error: 'Invalid entity name',
+            message: 'Entity name appears to be junk data or extraction artifact',
           });
         }
       }
@@ -89,10 +89,10 @@ export const validateEntityName = (req: Request, res: Response, next: NextFuncti
 // Validation middleware for document uploads
 export const validateDocumentUpload = (req: Request, res: Response, next: NextFunction) => {
   if (req.path === '/api/upload-document' && req.method === 'POST') {
-    // The multer validation is already in place in server.ts, 
+    // The multer validation is already in place in server.ts,
     // but we can add additional validation here if needed
   }
-  
+
   next();
 };
 
@@ -107,7 +107,7 @@ export const sanitizeInput = (req: Request, res: Response, next: NextFunction) =
       }
     }
   }
-  
+
   next();
 };
 
@@ -115,5 +115,5 @@ export const sanitizeInput = (req: Request, res: Response, next: NextFunction) =
 export const inputValidationMiddleware = [
   sanitizeInput,
   validateEntityName,
-  validateDocumentUpload
+  validateDocumentUpload,
 ];

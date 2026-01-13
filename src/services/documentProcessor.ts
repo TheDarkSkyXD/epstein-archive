@@ -1,4 +1,16 @@
-import { Document, DocumentMetadata, Entity, Passage, DocumentCollection, BrowseFilters, TechnicalMetadata, StructureMetadata, LinguisticMetadata, TemporalMetadata, NetworkMetadata } from '../types/documents';
+import {
+  Document,
+  DocumentMetadata,
+  Entity,
+  Passage,
+  DocumentCollection,
+  BrowseFilters,
+  TechnicalMetadata,
+  StructureMetadata,
+  LinguisticMetadata,
+  TemporalMetadata,
+  NetworkMetadata,
+} from '../types/documents';
 import { EntityNameService } from './EntityNameService';
 
 export class DocumentProcessor {
@@ -10,7 +22,7 @@ export class DocumentProcessor {
   private entityIndex: Map<string, Set<string>> = new Map();
   private dateIndex: Map<string, Set<string>> = new Map();
   private categoryIndex: Map<string, Set<string>> = new Map();
-  
+
   // Performance optimizations
 
   private searchCache: Map<string, Document[]> = new Map();
@@ -20,11 +32,29 @@ export class DocumentProcessor {
 
   // Keywords for spice rating calculation
   private readonly SPICY_KEYWORDS = {
-    'criminal': 5, 'indictment': 5, 'charges': 5, 'arrest': 5, 'conviction': 5,
-    'sex': 4, 'minor': 4, 'underage': 4, 'rape': 4, 'assault': 4,
-    'flight': 3, 'private jet': 3, 'island': 3, 'lolita': 3, 'massage': 3,
-    'trump': 2, 'clinton': 2, 'president': 2, 'prince': 2, 'senator': 2,
-    'epstein': 1, 'maxwell': 1, 'ghislaine': 1
+    criminal: 5,
+    indictment: 5,
+    charges: 5,
+    arrest: 5,
+    conviction: 5,
+    sex: 4,
+    minor: 4,
+    underage: 4,
+    rape: 4,
+    assault: 4,
+    flight: 3,
+    'private jet': 3,
+    island: 3,
+    lolita: 3,
+    massage: 3,
+    trump: 2,
+    clinton: 2,
+    president: 2,
+    prince: 2,
+    senator: 2,
+    epstein: 1,
+    maxwell: 1,
+    ghislaine: 1,
   };
 
   // Entity extraction patterns
@@ -34,7 +64,8 @@ export class DocumentProcessor {
     phone: /\b(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})\b/g,
     date: /\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}\b/g,
     amount: /\$[0-9,]+(?:\.[0-9]{2})?/g,
-    location: /\b(?:New York|Los Angeles|Chicago|Miami|Palm Beach|Little St James|Epstein Island|Russia|CIA|FBI|Mossad)\b/g
+    location:
+      /\b(?:New York|Los Angeles|Chicago|Miami|Palm Beach|Little St James|Epstein Island|Russia|CIA|FBI|Mossad)\b/g,
   };
 
   async processDocument(filePath: string, content: string): Promise<Document> {
@@ -72,7 +103,7 @@ export class DocumentProcessor {
       redFlagScore,
       redFlagRating: redFlagRating.rating,
       redFlagPeppers: redFlagRating.peppers,
-      redFlagDescription: redFlagRating.description
+      redFlagDescription: redFlagRating.description,
     };
 
     this.documents.set(id, document);
@@ -88,21 +119,26 @@ export class DocumentProcessor {
     return document;
   }
 
-  async processDocumentBatch(fileContents: Array<{path: string, content: string}>, batchSize: number = 100): Promise<Document[]> {
+  async processDocumentBatch(
+    fileContents: Array<{ path: string; content: string }>,
+    batchSize: number = 100,
+  ): Promise<Document[]> {
     const documents: Document[] = [];
-    
+
     // Process in batches to avoid memory issues with large datasets
     for (let i = 0; i < fileContents.length; i += batchSize) {
       const batch = fileContents.slice(i, i + batchSize);
-      const batchPromises = batch.map(file => this.processDocument(file.path, file.content));
-      
+      const batchPromises = batch.map((file) => this.processDocument(file.path, file.content));
+
       try {
         const batchResults = await Promise.all(batchPromises);
         documents.push(...batchResults);
-        
+
         // Log progress for large batches
         if (fileContents.length > 1000) {
-          console.log(`Processed batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(fileContents.length/batchSize)} - ${documents.length} documents total`);
+          console.log(
+            `Processed batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(fileContents.length / batchSize)} - ${documents.length} documents total`,
+          );
         }
       } catch (error) {
         console.error(`Error processing batch starting at index ${i}:`, error);
@@ -118,10 +154,18 @@ export class DocumentProcessor {
     let hash = 0;
     for (let i = 0; i < filePath.length; i++) {
       const char = filePath.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash; // Convert to 32-bit integer
     }
-    return Math.abs(hash).toString(36) + '_' + filePath.split('/').pop()?.replace(/[^a-zA-Z0-9]/g, '').substring(0, 10) || 'doc';
+    return (
+      Math.abs(hash).toString(36) +
+        '_' +
+        filePath
+          .split('/')
+          .pop()
+          ?.replace(/[^a-zA-Z0-9]/g, '')
+          .substring(0, 10) || 'doc'
+    );
   }
 
   private extractTitle(content: string, filePath: string): string {
@@ -133,18 +177,18 @@ export class DocumentProcessor {
 
     // Fallback to filename
     const filename = filePath.split('/').pop() || filePath;
-    return filename.replace(/\.[^/.]+$/, "").replace(/_/g, " ");
+    return filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' ');
   }
 
   private detectFileType(filePath: string): 'email' | 'pdf' | 'txt' | 'doc' | 'image' | 'other' {
     const ext = filePath.split('.').pop()?.toLowerCase();
-    
+
     if (filePath.includes('email') || ext === 'eml' || ext === 'msg') return 'email';
     if (ext === 'pdf') return 'pdf';
     if (ext === 'txt' || ext === 'text') return 'txt';
     if (ext === 'doc' || ext === 'docx') return 'doc';
     if (['jpg', 'jpeg', 'png', 'gif', 'bmp'].includes(ext || '')) return 'image';
-    
+
     return 'other';
   }
 
@@ -153,7 +197,7 @@ export class DocumentProcessor {
       tags: [],
       categories: [],
       confidentiality: 'public',
-      source: this.detectSource(filePath)
+      source: this.detectSource(filePath),
     };
 
     // Extract email-specific metadata
@@ -170,7 +214,11 @@ export class DocumentProcessor {
     }
 
     // Extract flight log metadata
-    if (content.includes('flight') || content.includes('N-number') || content.includes('tail number')) {
+    if (
+      content.includes('flight') ||
+      content.includes('N-number') ||
+      content.includes('tail number')
+    ) {
       const flightMatch = content.match(/Flight\s+(\w+)/i);
       const dateMatch = content.match(/Date[:\s]+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i);
       const fromMatch = content.match(/From[:\s]+([A-Za-z\s]+)/i);
@@ -183,7 +231,11 @@ export class DocumentProcessor {
     }
 
     // Extract legal metadata
-    if (content.includes('deposition') || content.includes('testimony') || content.includes('court')) {
+    if (
+      content.includes('deposition') ||
+      content.includes('testimony') ||
+      content.includes('court')
+    ) {
       metadata.categories.push('legal');
       const caseMatch = content.match(/Case\s+(?:No\.?\s*)?(\w+)/i);
       const depoMatch = content.match(/Deposition\s+Date[:\s]+([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i);
@@ -217,7 +269,7 @@ export class DocumentProcessor {
 
     // Extract people
     const peopleMatches = content.match(this.ENTITY_PATTERNS.person) || [];
-    peopleMatches.forEach(name => {
+    peopleMatches.forEach((name) => {
       if (EntityNameService.isValidPersonName(name)) {
         // Consolidate name variants
         const canonicalName = EntityNameService.consolidatePersonName(name);
@@ -227,31 +279,31 @@ export class DocumentProcessor {
 
     // Extract emails
     const emailMatches = content.match(this.ENTITY_PATTERNS.email) || [];
-    emailMatches.forEach(email => {
+    emailMatches.forEach((email) => {
       this.addEntity(entities, email, 'email', content, filePath);
     });
 
     // Extract phone numbers
     const phoneMatches = content.match(this.ENTITY_PATTERNS.phone) || [];
-    phoneMatches.forEach(phone => {
+    phoneMatches.forEach((phone) => {
       this.addEntity(entities, phone, 'phone', content, filePath);
     });
 
     // Extract dates
     const dateMatches = content.match(this.ENTITY_PATTERNS.date) || [];
-    dateMatches.forEach(date => {
+    dateMatches.forEach((date) => {
       this.addEntity(entities, date, 'date', content, filePath);
     });
 
     // Extract amounts
     const amountMatches = content.match(this.ENTITY_PATTERNS.amount) || [];
-    amountMatches.forEach(amount => {
+    amountMatches.forEach((amount) => {
       this.addEntity(entities, amount, 'amount', content, filePath);
     });
 
     // Extract locations and organizations
     const locationMatches = content.match(this.ENTITY_PATTERNS.location) || [];
-    locationMatches.forEach(location => {
+    locationMatches.forEach((location) => {
       if (EntityNameService.isValidOrganizationName(location)) {
         this.addEntity(entities, location, 'organization', content, filePath);
       } else {
@@ -264,7 +316,13 @@ export class DocumentProcessor {
     return EntityNameService.filterAndConsolidateEntities(entityArray);
   }
 
-  private addEntity(entities: Map<string, Entity>, name: string, type: Entity['type'], content: string, filePath: string) {
+  private addEntity(
+    entities: Map<string, Entity>,
+    name: string,
+    type: Entity['type'],
+    content: string,
+    filePath: string,
+  ) {
     if (!entities.has(name)) {
       entities.set(name, {
         name,
@@ -272,7 +330,7 @@ export class DocumentProcessor {
         mentions: 0,
         contexts: [],
         significance: 'medium',
-        relatedEntities: []
+        relatedEntities: [],
       });
     }
 
@@ -292,7 +350,7 @@ export class DocumentProcessor {
         context: context,
         position: match.index,
         file: filePath,
-        significance: this.calculateEntitySignificance(name, context)
+        significance: this.calculateEntitySignificance(name, context),
       });
     }
   }
@@ -307,22 +365,26 @@ export class DocumentProcessor {
 
   private calculateEntitySignificance(_name: string, context: string): 'high' | 'medium' | 'low' {
     const lowerContext = context.toLowerCase();
-    
+
     if (lowerContext.includes('epstein') || lowerContext.includes('maxwell')) {
       return 'high';
     }
-    
-    if (lowerContext.includes('flight') || lowerContext.includes('island') || lowerContext.includes('massage')) {
+
+    if (
+      lowerContext.includes('flight') ||
+      lowerContext.includes('island') ||
+      lowerContext.includes('massage')
+    ) {
       return 'medium';
     }
-    
+
     return 'low';
   }
 
   private extractPassages(content: string, filePath: string): Passage[] {
     const passages: Passage[] = [];
-    const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 10);
-    
+    const sentences = content.split(/[.!?]+/).filter((s) => s.trim().length > 10);
+
     sentences.forEach((sentence, index) => {
       const trimmedSentence = sentence.trim();
       if (trimmedSentence.length > 20) {
@@ -335,11 +397,11 @@ export class DocumentProcessor {
           content: trimmedSentence,
           context: this.getPassageContext(content, index, sentences),
           keywords,
-          entities: entities.map(e => e.name),
+          entities: entities.map((e) => e.name),
           redFlagLevel,
           significance: this.calculatePassageSignificance(redFlagLevel, entities.length),
           file: filePath,
-          position: content.indexOf(trimmedSentence)
+          position: content.indexOf(trimmedSentence),
         });
       }
     });
@@ -349,10 +411,10 @@ export class DocumentProcessor {
 
   private extractEntitiesFromPassage(passage: string): Entity[] {
     const entities: Entity[] = [];
-    
+
     // Simple entity extraction for passages
     const peopleMatches = passage.match(this.ENTITY_PATTERNS.person) || [];
-    peopleMatches.forEach(name => {
+    peopleMatches.forEach((name) => {
       if (this.isValidPersonName(name)) {
         entities.push({
           name,
@@ -360,7 +422,7 @@ export class DocumentProcessor {
           mentions: 1,
           contexts: [],
           significance: 'medium',
-          relatedEntities: []
+          relatedEntities: [],
         });
       }
     });
@@ -370,17 +432,57 @@ export class DocumentProcessor {
 
   private extractKeywords(text: string): string[] {
     const words = text.toLowerCase().split(/\s+/);
-    const keywords = words.filter(word => 
-      word.length > 3 && 
-      !this.isStopWord(word) &&
-      (this.SPICY_KEYWORDS[word as keyof typeof this.SPICY_KEYWORDS] || 0) > 0
+    const keywords = words.filter(
+      (word) =>
+        word.length > 3 &&
+        !this.isStopWord(word) &&
+        (this.SPICY_KEYWORDS[word as keyof typeof this.SPICY_KEYWORDS] || 0) > 0,
     );
-    
+
     return [...new Set(keywords)];
   }
 
   private isStopWord(word: string): boolean {
-    const stopWords = ['the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'had', 'her', 'was', 'one', 'our', 'out', 'day', 'get', 'has', 'him', 'his', 'how', 'man', 'new', 'now', 'old', 'see', 'two', 'way', 'who', 'boy', 'did', 'its', 'let', 'put', 'say', 'she', 'too', 'use'];
+    const stopWords = [
+      'the',
+      'and',
+      'for',
+      'are',
+      'but',
+      'not',
+      'you',
+      'all',
+      'can',
+      'had',
+      'her',
+      'was',
+      'one',
+      'our',
+      'out',
+      'day',
+      'get',
+      'has',
+      'him',
+      'his',
+      'how',
+      'man',
+      'new',
+      'now',
+      'old',
+      'see',
+      'two',
+      'way',
+      'who',
+      'boy',
+      'did',
+      'its',
+      'let',
+      'put',
+      'say',
+      'she',
+      'too',
+      'use',
+    ];
     return stopWords.includes(word);
   }
 
@@ -390,7 +492,10 @@ export class DocumentProcessor {
     return sentences.slice(start, end).join('. ').trim();
   }
 
-  private calculatePassageSignificance(redFlagLevel: number, entityCount: number): 'high' | 'medium' | 'low' {
+  private calculatePassageSignificance(
+    redFlagLevel: number,
+    entityCount: number,
+  ): 'high' | 'medium' | 'low' {
     if (redFlagLevel >= 4 || entityCount >= 3) return 'high';
     if (redFlagLevel >= 2 || entityCount >= 1) return 'medium';
     return 'low';
@@ -417,15 +522,35 @@ export class DocumentProcessor {
     return Math.min(score, 100); // Cap at 100
   }
 
-  private calculateSpiceRating(score: number): { rating: number; peppers: string; description: string } {
+  private calculateSpiceRating(score: number): {
+    rating: number;
+    peppers: string;
+    description: string;
+  } {
     if (score >= 50) {
-      return { rating: 5, peppers: '🚩🚩🚩🚩🚩', description: 'Red Flag Index 5 - Major criminal evidence' };
+      return {
+        rating: 5,
+        peppers: '🚩🚩🚩🚩🚩',
+        description: 'Red Flag Index 5 - Major criminal evidence',
+      };
     } else if (score >= 35) {
-      return { rating: 4, peppers: '🚩🚩🚩🚩', description: 'Red Flag Index 4 - Significant incriminating content' };
+      return {
+        rating: 4,
+        peppers: '🚩🚩🚩🚩',
+        description: 'Red Flag Index 4 - Significant incriminating content',
+      };
     } else if (score >= 20) {
-      return { rating: 3, peppers: '🚩🚩🚩', description: 'Red Flag Index 3 - Notable controversial mentions' };
+      return {
+        rating: 3,
+        peppers: '🚩🚩🚩',
+        description: 'Red Flag Index 3 - Notable controversial mentions',
+      };
     } else if (score >= 10) {
-      return { rating: 2, peppers: '🚩🚩', description: 'Red Flag Index 2 - Some interesting connections' };
+      return {
+        rating: 2,
+        peppers: '🚩🚩',
+        description: 'Red Flag Index 2 - Some interesting connections',
+      };
     } else {
       return { rating: 1, peppers: '🚩', description: 'Red Flag Index 1 - Minor mentions' };
     }
@@ -433,8 +558,8 @@ export class DocumentProcessor {
 
   private buildSearchIndex(document: Document) {
     const searchTerms = this.extractSearchTerms(document);
-    
-    searchTerms.forEach(term => {
+
+    searchTerms.forEach((term) => {
       if (!this.searchIndex.has(term)) {
         this.searchIndex.set(term, new Set());
       }
@@ -444,23 +569,23 @@ export class DocumentProcessor {
 
   private extractSearchTerms(document: Document): string[] {
     const terms: string[] = [];
-    
+
     // Add title terms
     terms.push(...document.title.toLowerCase().split(/\s+/));
-    
+
     // Add content terms (limit to avoid memory issues)
     const contentWords = document.content.toLowerCase().split(/\s+/);
-    const uniqueWords = [...new Set(contentWords)].filter(word => word.length > 2);
+    const uniqueWords = [...new Set(contentWords)].filter((word) => word.length > 2);
     terms.push(...uniqueWords.slice(0, 1000)); // Limit to first 1000 unique words
-    
+
     // Add entity names (safely handle undefined)
     const entities = document.entities || [];
-    entities.forEach(entity => {
+    entities.forEach((entity) => {
       if (entity && entity.name) {
         terms.push(entity.name.toLowerCase());
       }
     });
-    
+
     // Add keywords from passages (safely handle undefined)
     const passages = (document as any).passages || [];
     passages.forEach((passage: any) => {
@@ -468,12 +593,12 @@ export class DocumentProcessor {
         terms.push(...passage.keywords);
       }
     });
-    
-    return [...new Set(terms)].filter(term => term.length > 2);
+
+    return [...new Set(terms)].filter((term) => term.length > 2);
   }
 
   private updateEntityIndex(entities: Entity[]) {
-    entities.forEach(entity => {
+    entities.forEach((entity) => {
       if (!this.entities.has(entity.name)) {
         this.entities.set(entity.name, {
           name: entity.name,
@@ -481,17 +606,19 @@ export class DocumentProcessor {
           mentions: 0,
           contexts: [],
           significance: entity.significance,
-          relatedEntities: []
+          relatedEntities: [],
         });
       }
 
       const existingEntity = this.entities.get(entity.name)!;
       existingEntity.mentions += entity.mentions;
       existingEntity.contexts.push(...entity.contexts);
-      
+
       // Update significance if higher
-      if (entity.significance === 'high' || 
-          (entity.significance === 'medium' && existingEntity.significance === 'low')) {
+      if (
+        entity.significance === 'high' ||
+        (entity.significance === 'medium' && existingEntity.significance === 'low')
+      ) {
         existingEntity.significance = entity.significance;
       }
     });
@@ -499,9 +626,9 @@ export class DocumentProcessor {
 
   private buildInvertedIndex(document: Document) {
     const words = document.content.toLowerCase().split(/\s+/);
-    const uniqueWords = [...new Set(words)].filter(word => word.length > 2);
-    
-    uniqueWords.forEach(word => {
+    const uniqueWords = [...new Set(words)].filter((word) => word.length > 2);
+
+    uniqueWords.forEach((word) => {
       if (!this.invertedIndex.has(word)) {
         this.invertedIndex.set(word, new Set());
       }
@@ -510,7 +637,7 @@ export class DocumentProcessor {
   }
 
   private buildEntityIndex(document: Document) {
-    document.entities.forEach(entity => {
+    document.entities.forEach((entity) => {
       const entityKey = `${entity.type}:${entity.name.toLowerCase()}`;
       if (!this.entityIndex.has(entityKey)) {
         this.entityIndex.set(entityKey, new Set());
@@ -520,10 +647,11 @@ export class DocumentProcessor {
   }
 
   private buildDateIndex(document: Document) {
-    const datePattern = /\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}\b/g;
+    const datePattern =
+      /\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}\b/g;
     const dates = document.content.match(datePattern) || [];
-    
-    dates.forEach(date => {
+
+    dates.forEach((date) => {
       const dateKey = new Date(date).toISOString().split('T')[0];
       if (!this.dateIndex.has(dateKey)) {
         this.dateIndex.set(dateKey, new Set());
@@ -533,7 +661,7 @@ export class DocumentProcessor {
   }
 
   private buildCategoryIndex(document: Document) {
-    document.metadata.categories.forEach(category => {
+    document.metadata.categories.forEach((category) => {
       if (!this.categoryIndex.has(category)) {
         this.categoryIndex.set(category, new Set());
       }
@@ -564,8 +692,6 @@ export class DocumentProcessor {
     return null;
   }
 
-
-
   // Public methods for searching and browsing
   searchDocuments(query: string, filters?: BrowseFilters): Document[] {
     // Check cache first
@@ -573,24 +699,27 @@ export class DocumentProcessor {
     const cached = this.getCache(cacheKey);
     if (cached) return cached;
 
-    const searchTerms = query.toLowerCase().split(/\s+/).filter(term => term.length > 2);
+    const searchTerms = query
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((term) => term.length > 2);
     const matchingDocIds = new Set<string>();
 
     // Search in inverted index first (full-text search)
-    searchTerms.forEach(term => {
+    searchTerms.forEach((term) => {
       if (this.invertedIndex.has(term)) {
-        this.invertedIndex.get(term)!.forEach(docId => {
+        this.invertedIndex.get(term)!.forEach((docId) => {
           matchingDocIds.add(docId);
         });
       }
     });
 
     // Search in entity index for named entities
-    searchTerms.forEach(term => {
-      ['person', 'email', 'location'].forEach(entityType => {
+    searchTerms.forEach((term) => {
+      ['person', 'email', 'location'].forEach((entityType) => {
         const entityKey = `${entityType}:${term}`;
         if (this.entityIndex.has(entityKey)) {
-          this.entityIndex.get(entityKey)!.forEach(docId => {
+          this.entityIndex.get(entityKey)!.forEach((docId) => {
             matchingDocIds.add(docId);
           });
         }
@@ -600,21 +729,21 @@ export class DocumentProcessor {
     // Search in titles and entities directly
     if (matchingDocIds.size === 0) {
       // Fallback to title and entity search if no full-text matches
-      Array.from(this.documents.values()).forEach(doc => {
-        const titleMatch = searchTerms.some(term => 
-          doc.title.toLowerCase().includes(term)
+      Array.from(this.documents.values()).forEach((doc) => {
+        const titleMatch = searchTerms.some((term) => doc.title.toLowerCase().includes(term));
+        const entityMatch = doc.entities.some((entity) =>
+          searchTerms.some((term) => entity.name.toLowerCase().includes(term)),
         );
-        const entityMatch = doc.entities.some(entity => 
-          searchTerms.some(term => entity.name.toLowerCase().includes(term))
-        );
-        
+
         if (titleMatch || entityMatch) {
           matchingDocIds.add(doc.id);
         }
       });
     }
 
-    let results = Array.from(matchingDocIds).map(id => this.documents.get(id)!).filter(Boolean);
+    let results = Array.from(matchingDocIds)
+      .map((id) => this.documents.get(id)!)
+      .filter(Boolean);
 
     // Apply filters
     if (filters) {
@@ -637,60 +766,64 @@ export class DocumentProcessor {
 
   private calculateRelevanceScore(document: Document, searchTerms: string[]): number {
     let score = 0;
-    
+
     // Title matches (higher weight)
-    searchTerms.forEach(term => {
+    searchTerms.forEach((term) => {
       if (document.title.toLowerCase().includes(term)) {
         score += 5;
       }
     });
-    
+
     // Entity matches (medium weight)
-    document.entities.forEach(entity => {
-      searchTerms.forEach(term => {
+    document.entities.forEach((entity) => {
+      searchTerms.forEach((term) => {
         if (entity.name.toLowerCase().includes(term)) {
           score += 3;
         }
       });
     });
-    
+
     // Content matches (lower weight)
-    searchTerms.forEach(term => {
+    searchTerms.forEach((term) => {
       const contentLower = document.content.toLowerCase();
       const matches = contentLower.match(new RegExp(`\\b${term}\\b`, 'g'));
       if (matches) {
         score += matches.length;
       }
     });
-    
+
     // Spice score bonus
     score += document.redFlagRating * 0.5;
-    
+
     return score;
   }
 
-  browseDocuments(filters: BrowseFilters, sortBy: string = 'relevance', sortOrder: 'asc' | 'desc' = 'desc'): Document[] {
+  browseDocuments(
+    filters: BrowseFilters,
+    sortBy: string = 'relevance',
+    sortOrder: 'asc' | 'desc' = 'desc',
+  ): Document[] {
     // Check cache first
     const cacheKey = this.getCacheKey('browse', { filters, sortBy, sortOrder });
     const cached = this.getCache(cacheKey);
     if (cached) return cached;
 
     let documents = Array.from(this.documents.values());
-    
+
     // Apply filters
     documents = this.applyFilters(documents, filters);
-    
+
     // Sort results
     documents = this.sortDocuments(documents, sortBy, sortOrder);
-    
+
     // Cache results
     this.setCache(cacheKey, documents);
-    
+
     return documents;
   }
 
   private applyFilters(documents: Document[], filters: BrowseFilters): Document[] {
-    return documents.filter(doc => {
+    return documents.filter((doc) => {
       // File type filter
       if (filters.fileType && filters.fileType.length > 0) {
         if (!filters.fileType.includes(doc.fileType)) return false;
@@ -698,30 +831,35 @@ export class DocumentProcessor {
 
       // Date range filter
       if (filters.dateRange) {
-        if (filters.dateRange.start && doc.dateCreated && doc.dateCreated < filters.dateRange.start) return false;
-        if (filters.dateRange.end && doc.dateCreated && doc.dateCreated > filters.dateRange.end) return false;
+        if (filters.dateRange.start && doc.dateCreated && doc.dateCreated < filters.dateRange.start)
+          return false;
+        if (filters.dateRange.end && doc.dateCreated && doc.dateCreated > filters.dateRange.end)
+          return false;
       }
 
       // Entities filter
       if (filters.entities && filters.entities.length > 0) {
-        const docEntityNames = doc.entities.map(e => e.name);
-        const hasMatchingEntity = filters.entities.some(entity => 
-          docEntityNames.includes(entity)
+        const docEntityNames = doc.entities.map((e) => e.name);
+        const hasMatchingEntity = filters.entities.some((entity) =>
+          docEntityNames.includes(entity),
         );
         if (!hasMatchingEntity) return false;
       }
 
       // Categories filter
       if (filters.categories && filters.categories.length > 0) {
-        const hasMatchingCategory = filters.categories.some(category => 
-          doc.metadata.categories.includes(category)
+        const hasMatchingCategory = filters.categories.some((category) =>
+          doc.metadata.categories.includes(category),
         );
         if (!hasMatchingCategory) return false;
       }
 
       // Spice level filter
       if (filters.redFlagLevel) {
-        if (doc.redFlagRating < filters.redFlagLevel.min || doc.redFlagRating > filters.redFlagLevel.max) {
+        if (
+          doc.redFlagRating < filters.redFlagLevel.min ||
+          doc.redFlagRating > filters.redFlagLevel.max
+        ) {
           return false;
         }
       }
@@ -740,7 +878,11 @@ export class DocumentProcessor {
     });
   }
 
-  private sortDocuments(documents: Document[], sortBy: string, sortOrder: 'asc' | 'desc'): Document[] {
+  private sortDocuments(
+    documents: Document[],
+    sortBy: string,
+    sortOrder: 'asc' | 'desc',
+  ): Document[] {
     return documents.sort((a, b) => {
       let comparison = 0;
 
@@ -781,20 +923,22 @@ export class DocumentProcessor {
 
   getDocumentCollection(): DocumentCollection {
     const documents = Array.from(this.documents.values());
-    console.log(`DocumentProcessor: getDocumentCollection called, documents in Map: ${this.documents.size}, array length: ${documents.length}`);
+    console.log(
+      `DocumentProcessor: getDocumentCollection called, documents in Map: ${this.documents.size}, array length: ${documents.length}`,
+    );
     const fileTypes = new Map<string, number>();
     const categories = new Map<string, number>();
-    
-    documents.forEach(doc => {
+
+    documents.forEach((doc) => {
       fileTypes.set(doc.fileType, (fileTypes.get(doc.fileType) || 0) + 1);
-      doc.metadata.categories.forEach(cat => {
+      doc.metadata.categories.forEach((cat) => {
         categories.set(cat, (categories.get(cat) || 0) + 1);
       });
     });
 
     const dates = documents
-      .map(doc => doc.dateCreated)
-      .filter(date => date !== undefined)
+      .map((doc) => doc.dateCreated)
+      .filter((date) => date !== undefined)
       .sort();
 
     return {
@@ -804,10 +948,10 @@ export class DocumentProcessor {
       totalSize: documents.reduce((sum, doc) => sum + doc.fileSize, 0),
       dateRange: {
         earliest: dates[0],
-        latest: dates[dates.length - 1]
+        latest: dates[dates.length - 1],
       },
       fileTypes,
-      categories
+      categories,
     };
   }
 
@@ -815,20 +959,20 @@ export class DocumentProcessor {
 
   private extractTechnicalMetadata(content: string, filePath: string): TechnicalMetadata {
     const technical: TechnicalMetadata = {};
-    
+
     // Extract PDF metadata using regex
     const producerMatch = content.match(/\/Producer\s*\(([^)]+)\)/);
     if (producerMatch) technical.producer = producerMatch[1];
-    
+
     const creatorMatch = content.match(/\/Creator\s*\(([^)]+)\)/);
     if (creatorMatch) technical.creator = creatorMatch[1];
-    
+
     const createDateMatch = content.match(/\/CreationDate\s*\(D:([^)]+)\)/);
     if (createDateMatch) technical.createDate = this.parsePDFDate(createDateMatch[1]);
-    
+
     const modDateMatch = content.match(/\/ModDate\s*\(D:([^)]+)\)/);
     if (modDateMatch) technical.modifyDate = this.parsePDFDate(modDateMatch[1]);
-    
+
     return technical;
   }
 
@@ -850,65 +994,96 @@ export class DocumentProcessor {
 
   private analyzePDFStructure(content: string, filePath: string): StructureMetadata {
     const structure: StructureMetadata = {};
-    
+
     // Detect Javascript
     structure.hasJavascript = /\/JavaScript|\/JS\b/.test(content);
-    
+
     // Count fonts
     const fontMatches = content.match(/\/Font\b/g);
     structure.fontCount = fontMatches ? fontMatches.length : 0;
-    
+
     // Check if tagged
     structure.isTagged = /\/MarkInfo\s*<<\s*\/Marked\s+true/.test(content);
-    
+
     // PDF Version
     const versionMatch = content.match(/^\s*%PDF-(\d+\.\d+)/);
     if (versionMatch) structure.pdfVersion = versionMatch[1];
-    
+
     // Page count (estimate based on /Page objects)
     const pageMatches = content.match(/\/Type\s*\/Page\b/g);
     structure.pageCount = pageMatches ? pageMatches.length : 1;
-    
+
     return structure;
   }
 
   private analyzeLinguistics(content: string): LinguisticMetadata {
     const linguistics: LinguisticMetadata = {};
-    
+
     // Word count and unique words
     const words = content.toLowerCase().match(/\b\w+\b/g) || [];
     linguistics.wordCount = words.length;
     const uniqueWords = new Set(words);
     linguistics.uniqueWordCount = uniqueWords.size;
-    
+
     // Type-Token Ratio (TTR)
     linguistics.ttr = words.length > 0 ? uniqueWords.size / words.length : 0;
-    
+
     // Readability (Flesch-Kincaid Grade Level)
     // 0.39 * (words/sentences) + 11.8 * (syllables/words) - 15.59
-    const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 0);
+    const sentences = content.split(/[.!?]+/).filter((s) => s.trim().length > 0);
     const sentenceCount = Math.max(1, sentences.length);
     const syllableCount = this.countSyllables(content);
-    
+
     const avgWordsPerSentence = words.length / sentenceCount;
     const avgSyllablesPerWord = words.length > 0 ? syllableCount / words.length : 0;
-    
-    linguistics.readingLevel = Math.max(0, (0.39 * avgWordsPerSentence) + (11.8 * avgSyllablesPerWord) - 15.59);
-    
+
+    linguistics.readingLevel = Math.max(
+      0,
+      0.39 * avgWordsPerSentence + 11.8 * avgSyllablesPerWord - 15.59,
+    );
+
     // Sentiment (Simple keyword based)
-    const positiveWords = ['good', 'great', 'excellent', 'positive', 'success', 'happy', 'agree', 'confirm'];
-    const negativeWords = ['bad', 'poor', 'negative', 'fail', 'sad', 'deny', 'reject', 'criminal', 'guilty', 'abuse'];
-    
+    const positiveWords = [
+      'good',
+      'great',
+      'excellent',
+      'positive',
+      'success',
+      'happy',
+      'agree',
+      'confirm',
+    ];
+    const negativeWords = [
+      'bad',
+      'poor',
+      'negative',
+      'fail',
+      'sad',
+      'deny',
+      'reject',
+      'criminal',
+      'guilty',
+      'abuse',
+    ];
+
     let sentimentScore = 0;
-    words.forEach(word => {
+    words.forEach((word) => {
       if (positiveWords.includes(word)) sentimentScore += 1;
       if (negativeWords.includes(word)) sentimentScore -= 1;
     });
-    
+
     // Normalize score -1 to 1
-    linguistics.sentimentScore = Math.max(-1, Math.min(1, sentimentScore / Math.max(1, words.length * 0.1)));
-    linguistics.sentiment = linguistics.sentimentScore > 0.1 ? 'positive' : linguistics.sentimentScore < -0.1 ? 'negative' : 'neutral';
-    
+    linguistics.sentimentScore = Math.max(
+      -1,
+      Math.min(1, sentimentScore / Math.max(1, words.length * 0.1)),
+    );
+    linguistics.sentiment =
+      linguistics.sentimentScore > 0.1
+        ? 'positive'
+        : linguistics.sentimentScore < -0.1
+          ? 'negative'
+          : 'neutral';
+
     return linguistics;
   }
 
@@ -917,54 +1092,57 @@ export class DocumentProcessor {
     return text.toLowerCase().split(/[aeiouy]+/).length - 1;
   }
 
-  private analyzeTemporalPatterns(metadata: DocumentMetadata, technical: TechnicalMetadata): TemporalMetadata {
+  private analyzeTemporalPatterns(
+    metadata: DocumentMetadata,
+    technical: TechnicalMetadata,
+  ): TemporalMetadata {
     const temporal: TemporalMetadata = {};
-    
+
     // Use creation date if available
     const dateStr = technical.createDate || metadata.testimonyDate || metadata.flightDate;
-    
+
     if (dateStr) {
       const date = new Date(dateStr);
       if (!isNaN(date.getTime())) {
         const hour = date.getUTCHours();
         const day = date.getUTCDay();
-        
+
         // Business hours (9am - 5pm)
         temporal.isBusinessHours = hour >= 9 && hour <= 17 && day !== 0 && day !== 6;
-        
+
         const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         temporal.dayOfWeek = days[day];
-        
+
         // Timezone inference (very rough, based on offset in original string if we had it, but here we just have UTC date object)
         // Ideally we'd parse the offset from the raw string in extractTechnicalMetadata
       }
     }
-    
+
     return temporal;
   }
 
   private calculateNetworkMetrics(entities: Entity[], content: string): NetworkMetadata {
     const network: NetworkMetadata = {};
-    
+
     // Entity Density (Entities per 1000 words)
     const wordCount = content.split(/\s+/).length;
     network.entityDensity = wordCount > 0 ? (entities.length / wordCount) * 1000 : 0;
-    
+
     // Risk Score (Sum of significance)
     let riskScore = 0;
-    entities.forEach(e => {
+    entities.forEach((e) => {
       if (e.significance === 'high') riskScore += 10;
       if (e.significance === 'medium') riskScore += 5;
       if (e.significance === 'low') riskScore += 1;
     });
     network.riskScore = riskScore;
-    
+
     // Co-occurrence Risk (Pairs of high risk entities)
-    const highRiskEntities = entities.filter(e => e.significance === 'high');
+    const highRiskEntities = entities.filter((e) => e.significance === 'high');
     // n * (n-1) / 2 pairs
     const n = highRiskEntities.length;
     network.coOccurrenceRisk = (n * (n - 1)) / 2;
-    
+
     return network;
   }
 
@@ -975,10 +1153,10 @@ export class DocumentProcessor {
     const relatedDocs = new Map<string, number>();
 
     // Find documents with shared entities
-    document.entities.forEach(entity => {
+    document.entities.forEach((entity) => {
       const entityKey = `${entity.type}:${entity.name.toLowerCase()}`;
       if (this.entityIndex.has(entityKey)) {
-        this.entityIndex.get(entityKey)!.forEach(docId => {
+        this.entityIndex.get(entityKey)!.forEach((docId) => {
           if (docId !== documentId) {
             relatedDocs.set(docId, (relatedDocs.get(docId) || 0) + 1);
           }
@@ -987,9 +1165,9 @@ export class DocumentProcessor {
     });
 
     // Find documents with shared categories
-    document.metadata.categories.forEach(category => {
+    document.metadata.categories.forEach((category) => {
       if (this.categoryIndex.has(category)) {
-        this.categoryIndex.get(category)!.forEach(docId => {
+        this.categoryIndex.get(category)!.forEach((docId) => {
           if (docId !== documentId) {
             relatedDocs.set(docId, (relatedDocs.get(docId) || 0) + 0.5);
           }
@@ -1007,17 +1185,19 @@ export class DocumentProcessor {
 
   findDocumentsByEntity(entityName: string, entityType?: string): Document[] {
     const results: Document[] = [];
-    const searchKey = entityType ? `${entityType}:${entityName.toLowerCase()}` : entityName.toLowerCase();
+    const searchKey = entityType
+      ? `${entityType}:${entityName.toLowerCase()}`
+      : entityName.toLowerCase();
 
     if (entityType && this.entityIndex.has(searchKey)) {
-      this.entityIndex.get(searchKey)!.forEach(docId => {
+      this.entityIndex.get(searchKey)!.forEach((docId) => {
         results.push(this.documents.get(docId)!);
       });
     } else {
       // Search across all entity types
       Array.from(this.entityIndex.entries()).forEach(([key, docIds]) => {
         if (key.includes(searchKey)) {
-          docIds.forEach(docId => {
+          docIds.forEach((docId) => {
             results.push(this.documents.get(docId)!);
           });
         }
@@ -1032,7 +1212,7 @@ export class DocumentProcessor {
     const results: Document[] = [];
 
     if (this.dateIndex.has(dateKey)) {
-      this.dateIndex.get(dateKey)!.forEach(docId => {
+      this.dateIndex.get(dateKey)!.forEach((docId) => {
         results.push(this.documents.get(docId)!);
       });
     }
@@ -1040,27 +1220,33 @@ export class DocumentProcessor {
     return results;
   }
 
-  getEntityNetwork(entityName: string): { entity: Entity; connections: Array<{ entity: Entity; strength: number; sharedDocuments: string[] }> } {
+  getEntityNetwork(entityName: string): {
+    entity: Entity;
+    connections: Array<{ entity: Entity; strength: number; sharedDocuments: string[] }>;
+  } {
     const entity = this.entities.get(entityName);
     if (!entity) return { entity: null as any, connections: [] };
 
-    const connections = new Map<string, { entity: Entity; strength: number; sharedDocuments: string[] }>();
+    const connections = new Map<
+      string,
+      { entity: Entity; strength: number; sharedDocuments: string[] }
+    >();
 
     // Find all documents containing this entity
     const entityDocs = this.findDocumentsByEntity(entityName, entity.type);
 
-    entityDocs.forEach(doc => {
-      doc.entities.forEach(otherEntity => {
+    entityDocs.forEach((doc) => {
+      doc.entities.forEach((otherEntity) => {
         if (otherEntity.name !== entityName) {
           const key = otherEntity.name;
           if (!connections.has(key)) {
             connections.set(key, {
               entity: otherEntity,
               strength: 0,
-              sharedDocuments: []
+              sharedDocuments: [],
             });
           }
-          
+
           const connection = connections.get(key)!;
           connection.strength += 1;
           connection.sharedDocuments.push(doc.id);
@@ -1072,14 +1258,15 @@ export class DocumentProcessor {
       entity,
       connections: Array.from(connections.values())
         .sort((a, b) => b.strength - a.strength)
-        .slice(0, 20)
+        .slice(0, 20),
     };
   }
 
   getStatistics() {
     const collection = this.getDocumentCollection();
     const totalEntities = Array.from(this.entities.values()).length;
-    const avgSpiceScore = collection.documents.reduce((sum, doc) => sum + doc.redFlagScore, 0) / collection.totalFiles;
+    const avgSpiceScore =
+      collection.documents.reduce((sum, doc) => sum + doc.redFlagScore, 0) / collection.totalFiles;
 
     return {
       totalDocuments: collection.totalFiles,
@@ -1088,48 +1275,48 @@ export class DocumentProcessor {
       averageSpiceScore: Math.round(avgSpiceScore * 100) / 100,
       fileTypes: Array.from(collection.fileTypes.entries()),
       topEntities: this.getAllEntities().slice(0, 10),
-      dateRange: collection.dateRange
+      dateRange: collection.dateRange,
     };
   }
 
   // Load documents from an external source (e.g., API)
   async loadDocuments(documents: Document[]): Promise<void> {
     console.log(`DocumentProcessor: Loading ${documents.length} documents...`);
-    
+
     const BATCH_SIZE = 50;
-    
+
     for (let i = 0; i < documents.length; i += BATCH_SIZE) {
       const batch = documents.slice(i, i + BATCH_SIZE);
-      
+
       // Process batch synchronously
       for (const doc of batch) {
         // Store document in the Map
         this.documents.set(doc.id, doc);
-        
+
         // Build all indexes for this document
         this.buildSearchIndex(doc);
         this.buildInvertedIndex(doc);
         this.buildEntityIndex(doc);
         this.buildDateIndex(doc);
         this.buildCategoryIndex(doc);
-        
+
         // Update entity index if document has entities
         if (doc.entities && doc.entities.length > 0) {
           this.updateEntityIndex(doc.entities);
         }
-        
+
         // Store passages if available
         if (doc.passages && doc.passages.length > 0) {
           this.passages.set(doc.id, doc.passages);
         }
       }
-      
+
       // Yield to main thread to allow UI updates
       if (i + BATCH_SIZE < documents.length) {
-        await new Promise(resolve => setTimeout(resolve, 0));
+        await new Promise((resolve) => setTimeout(resolve, 0));
       }
     }
-    
+
     console.log(`DocumentProcessor: Loaded ${this.documents.size} total documents`);
   }
 }

@@ -32,16 +32,16 @@ function applyMigration(db: Database.Database, filename: string, sql: string) {
     // Triggers contain semicolons within their body, so simple splitting breaks them.
     // If the file defines triggers, we execute it as a single block (assuming it's written idempotently)
     const hasTriggers = sql.includes('CREATE TRIGGER');
-    
+
     if (hasTriggers) {
-       db.exec(sql);
+      db.exec(sql);
     } else {
       // Split by semicolon, remove comments and empty lines
       const statements = sql
         .replace(/--.*$/gm, '') // Remove comments
         .split(';')
-        .map(s => s.trim())
-        .filter(s => s.length > 0);
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
 
       for (const stmt of statements) {
         try {
@@ -56,7 +56,7 @@ function applyMigration(db: Database.Database, filename: string, sql: string) {
         }
       }
     }
-    
+
     db.prepare('INSERT INTO schema_migrations (filename) VALUES (?)').run(filename);
     db.exec('COMMIT');
     console.log(`✔ Applied ${filename}`);
@@ -79,7 +79,7 @@ function main() {
 
   const files = fs
     .readdirSync(MIGRATIONS_DIR)
-    .filter(f => f.endsWith('.sql'))
+    .filter((f) => f.endsWith('.sql'))
     .sort();
 
   for (const file of files) {

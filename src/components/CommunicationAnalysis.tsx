@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Investigation, EvidenceItem } from '../types/investigation';
 import {
   Activity,
@@ -8,7 +8,6 @@ import {
   TrendingUp,
   AlertTriangle,
   Filter,
-  Calendar,
   Mail,
   Phone,
   X,
@@ -41,7 +40,8 @@ export interface CommunicationPattern {
   recommendations: string[];
 }
 
-interface CommunicationEvent {
+// CommunicationEvent interface reserved for future use
+interface _CommunicationEvent {
   id: string;
   timestamp: string;
   sender: string;
@@ -57,8 +57,8 @@ interface CommunicationEvent {
 }
 
 export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
-  investigation,
-  evidence,
+  investigation: _investigation,
+  evidence: _evidence,
   onCommunicationPatternDetected,
 }) => {
   const [communicationPatterns, setCommunicationPatterns] = useState<CommunicationPattern[]>([]);

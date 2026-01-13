@@ -2,30 +2,7 @@ import { useState, useEffect, useCallback, useMemo, Suspense, lazy, useRef } fro
 import { preloader } from './utils/ResourcePreloader';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import {
-  Search,
-  User,
-  Users,
-  FileText,
-  TrendingUp,
-  BarChart3,
-  Newspaper,
-  Calendar,
-  Database as DatabaseIcon,
-  Globe,
-  Clock,
-  ChevronLeft,
-  ChevronRight,
-  Book,
-  CheckCircle2,
-  Target,
-  Shield,
-  Image,
-  Menu,
-  X,
-  Camera,
-  HelpCircle,
-} from 'lucide-react';
+// Icons imported as needed via Icon component
 import { Person } from './types';
 import { Document } from './types/documents';
 import { OptimizedDataService, SearchFilters } from './services/OptimizedDataService';
@@ -43,14 +20,14 @@ import MobileMenu from './components/MobileMenu';
 import UndoProvider from './components/UndoManager';
 import ToastProvider, { useToasts } from './components/ToastProvider';
 import ScopedErrorBoundary from './components/ScopedErrorBoundary';
-import ProgressBar from './components/ProgressBar';
+// ProgressBar available but not currently used
 import LoadingIndicator from './components/LoadingIndicator';
 import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
 import { Breadcrumb } from './components/Breadcrumb';
 import { VirtualList } from './components/VirtualList';
 import Icon from './components/Icon';
 import { RedactedLogo } from './components/RedactedLogo';
-import { getEntityTypeIcon } from './utils/entityTypeIcons';
+// getEntityTypeIcon available via Icon component
 import EntityTypeFilter from './components/EntityTypeFilter';
 import SortFilter from './components/SortFilter';
 import { FirstRunOnboarding } from './components/FirstRunOnboarding';
@@ -79,10 +56,10 @@ const DocumentBrowser = lazy(() =>
 const DocumentModal = lazy(() =>
   import('./components/DocumentModal').then((module) => ({ default: module.DocumentModal })),
 );
-const Timeline = lazy(() =>
+const _Timeline = lazy(() =>
   import('./components/Timeline').then((module) => ({ default: module.Timeline })),
 );
-const DocumentUploader = lazy(() =>
+const _DocumentUploader = lazy(() =>
   import('./components/DocumentUploader').then((module) => ({ default: module.DocumentUploader })),
 );
 const InvestigationWorkspace = lazy(() =>
@@ -516,7 +493,7 @@ function App() {
   });
   const [isInitializing, setIsInitializing] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState<string>('Initializing...');
-  const [loadingProgressValue, setLoadingProgressValue] = useState<number>(0);
+  const [_loadingProgressValue, setLoadingProgressValue] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [totalPeople, setTotalPeople] = useState(0);
@@ -706,7 +683,7 @@ function App() {
   }, [investigatePopoverOpen]);
 
   const [documentLoadingProgress, setDocumentLoadingProgress] = useState<string>('');
-  const [documentLoadingProgressValue, setDocumentLoadingProgressValue] = useState<number>(0);
+  const [_documentLoadingProgressValue, setDocumentLoadingProgressValue] = useState<number>(0);
 
   useEffect(() => {
     // Initialize document processor with REAL database documents
@@ -978,7 +955,7 @@ function App() {
     console.log('=== handleDocumentClick END ===');
   }, []);
 
-  const handleDocumentsUploaded = useCallback(
+  const _handleDocumentsUploaded = useCallback(
     (count: number) => {
       console.log(`Uploaded and processed ${count} documents`);
       // Refresh the document processor if needed

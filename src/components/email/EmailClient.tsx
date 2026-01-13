@@ -5,17 +5,14 @@ import {
   Search,
   ChevronDown,
   ChevronRight,
-  X,
   ChevronLeft,
   Clock,
   User,
-  Users,
   Loader2,
   Archive,
   Reply,
   Forward,
   Trash2,
-  MoreHorizontal,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from '../../services/apiClient';

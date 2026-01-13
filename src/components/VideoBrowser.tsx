@@ -3,14 +3,9 @@ import { VideoPlayer } from './VideoPlayer';
 import {
   Play,
   Film,
-  Clock,
-  User,
   Calendar,
   CheckSquare,
   Square,
-  Folder,
-  ChevronUp,
-  ChevronDown,
   AlertTriangle,
 } from 'lucide-react';
 import { SensitiveContent } from './SensitiveContent';

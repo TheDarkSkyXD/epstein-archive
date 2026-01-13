@@ -1,16 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AudioPlayer, TranscriptSegment, Chapter } from './AudioPlayer';
 import {
-  Play,
   Music,
   Clock,
-  User,
   Calendar,
   CheckSquare,
   Square,
-  Folder,
-  ChevronUp,
-  ChevronDown,
   AlertTriangle,
 } from 'lucide-react';
 import { SensitiveContent } from './SensitiveContent';

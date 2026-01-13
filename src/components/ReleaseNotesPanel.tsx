@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Calendar, BookOpen } from 'lucide-react';
+import React from 'react';
+import { Calendar, BookOpen } from 'lucide-react';
 
 interface ReleaseNote {
   version: string;

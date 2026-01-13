@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Play,
   Pause,
@@ -6,11 +6,7 @@ import {
   SkipForward,
   Volume2,
   VolumeX,
-  FastForward,
-  Maximize2,
   X,
-  Settings,
-  List,
   Shield,
 } from 'lucide-react';
 
@@ -56,7 +52,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [volume, setVolume] = useState(1);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
-  const [showTranscript, setShowTranscript] = useState(true);
+  const [showTranscript, _setShowTranscript] = useState(true);
   const [activeSegmentIndex, setActiveSegmentIndex] = useState<number>(-1);
   const [showChapters, setShowChapters] = useState(false);
 

@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import { Clock, FileText, Calendar, Users, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
-import { apiClient } from '../services/apiClient';
+import { FileText, Calendar, Users, ArrowUp, ArrowDown } from 'lucide-react';
 
 interface EntityLink {
   id: number;

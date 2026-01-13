@@ -1,16 +1,11 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Play,
   Pause,
-  SkipBack,
-  SkipForward,
   Volume2,
   VolumeX,
-  FastForward,
   Maximize2,
   X,
-  Settings,
-  List,
   Minimize2,
 } from 'lucide-react';
 import { TranscriptSegment, Chapter } from './AudioPlayer'; // Reuse types
@@ -42,7 +37,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [volume, setVolume] = useState(1);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
-  const [showTranscript, setShowTranscript] = useState(true);
+  const [showTranscript, _setShowTranscript] = useState(true);
   const [activeSegmentIndex, setActiveSegmentIndex] = useState<number>(-1);
   const [showChapters, setShowChapters] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);

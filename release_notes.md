@@ -1,5 +1,15 @@
 # Release Notes
 
+## V10.1.7 (January 13, 2026)
+### 🔗 Stable Tag Recovery
+*   **Media Tag Restoration**: Recovered and restored people tags for media items by analyzing file metadata and titles. Photos and videos are now correctly linked to key entities (Epstein, Maxwell, Trump, etc.) on the People Cards.
+*   **Path Stability**: Finalized absolute-to-relative path conversion to ensure media loads reliably on all devices.
+
+## V10.1.6 (January 13, 2026)
+### 🛠️ Media Stability Fix
+*   **Path Correction**: Standardized database file paths.
+# Release Notes
+
 ## V10.1.6 (January 13, 2026)
 ### 🛠️ Media Stability Fix
 *   **Path Correction**: Standardized database file paths for audio and video files, resolving the "Failed to load content" errors on the production environment.

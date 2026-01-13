@@ -1,40 +1,63 @@
 # Release Notes
 
+## V10.1.3 (January 13, 2026)
+### 🚑 Emergency Data Quality Fix
+*   **Junk Eradication**: Detected and removed **4,000+** junk entities including banking boilerplate ("Interest Checking", "Ending Balance"), search warrant artifacts ("Premises Known", "Seized File"), and OCR grammatical noise ("Of The", "To Be").
+*   **Top 10 Cleanup**: The Entity Index is now purged of non-human artifacts, restoring key figures (Epstein, Trump, etc.) to the top of the analytics dashboard.
+*   **Variant Merging**: Further consolidated "Jeffrey Epstein" OCR variants.
+
 ## V10.1.2 (January 13, 2026)
 ### 🧠 Advanced Entity Consolidation
-*   **Fuzzy Matching + Nicknames**: Implemented intelligent consolidation for Top 100 entities, capable of recognizing nicknames (e.g., "Bill" -> "William") and resolving typo-variations (e.g. "Jeffry" -> "Jeffrey").
-*   **Top 100 Cleanup**: Merged **500** duplicate profiles and **14,241** mentions for the most prominent figures and organizations in the archive.
-*   **Junk Filter**: Filtered out abstract noise entities (e.g. "In The", "Of The") from the top charts.
+*   **Fuzzy Matching + Nicknames**: Implemented intelligent consolidation for Top 100 entities.
+# Release Notes
+
+## V10.1.2 (January 13, 2026)
+
+### 🧠 Advanced Entity Consolidation
+
+- **Fuzzy Matching + Nicknames**: Implemented intelligent consolidation for Top 100 entities, capable of recognizing nicknames (e.g., "Bill" -> "William") and resolving typo-variations (e.g. "Jeffry" -> "Jeffrey").
+- **Top 100 Cleanup**: Merged **500** duplicate profiles and **14,241** mentions for the most prominent figures and organizations in the archive.
+- **Junk Filter**: Filtered out abstract noise entities (e.g. "In The", "Of The") from the top charts.
 
 ## V10.1.1 (January 13, 2026)
+
 ### 🧠 Intelligence Pipeline Restoration
-*   **Restored Ultimate Pipeline**: Re-implemented the sophisticated `ingest_intelligence` module to handle entity extraction, normalization, and consolidation automatically.
+
+- **Restored Ultimate Pipeline**: Re-implemented the sophisticated `ingest_intelligence` module to handle entity extraction, normalization, and consolidation automatically.
+
 # Release Notes
 
 ## V10.1.1 (January 13, 2026)
+
 ### 🧠 Intelligence Pipeline Restoration
-*   **Restored Ultimate Pipeline**: Re-implemented the sophisticated `ingest_intelligence` module to handle entity extraction, normalization, and consolidation automatically.
-*   **Entity Enrichment**: processed the entire document corpus to identify over **45,000 new entities** (Locations, Organizations, People) and map nearly **2 million co-occurrence relationships**.
-*   **Junk Filtering**: Implemented strict OCR junk filtering to prevent "noise" entities.
-*   **Consolidation**: Cleaned up duplicate "Jeffrey Epstein" entities and merged thousands of mentions.
+
+- **Restored Ultimate Pipeline**: Re-implemented the sophisticated `ingest_intelligence` module to handle entity extraction, normalization, and consolidation automatically.
+- **Entity Enrichment**: processed the entire document corpus to identify over **45,000 new entities** (Locations, Organizations, People) and map nearly **2 million co-occurrence relationships**.
+- **Junk Filtering**: Implemented strict OCR junk filtering to prevent "noise" entities.
+- **Consolidation**: Cleaned up duplicate "Jeffrey Epstein" entities and merged thousands of mentions.
 
 ### 🧹 Tech Debt Cleanup
-*   **Unified Ingestion**: Merged ingestion and intelligence steps into a single streamlined command.
-*   **Archive Removal**: Deleted legacy and one-off scripts to maintain a clean project structure.
+
+- **Unified Ingestion**: Merged ingestion and intelligence steps into a single streamlined command.
+- **Archive Removal**: Deleted legacy and one-off scripts to maintain a clean project structure.
 
 ---
+
 # 📣 Epstein Archive V10.1.0 - Media Unification & Audio Intelligence
+
 _Released: Jan 13, 2026_
 
 ## 🚀 Key Highlights
 
 ### 1. Unified Media Browser Experience 🖼️ 🎧 🎬
+
 - **Unified Tagging System**: You can now assign Tags and link People to **Audio** and **Video** files, just like you can with images.
 - **Batch Actions for All Media**: The powerful "Batch Select" toolbar has been ported to the Audio and Video browsers, allowing you to bulk-tag forensic evidence efficiently.
 - **"Images" Tab Renamed**: The "Media" tab is now correctly labeled "**Images**" to distinguish it from the specialized Audio and Video tabs.
 - **Consistent UI**: Audio and Video cards now display their assigned tags and linked people directly on the card.
 
 ### 2. Audio Metadata Enrichment 🎵
+
 - **Smart Albums**: Audio files are now organized into logical albums (e.g., "Sascha Barros Interviews", "Ghislaine Maxwell Interviews") based on file paths and context.
 - **Transcript-Derived Titles**: Audio titles and descriptions are now automatically generated from their associated text transcripts, making them much easier to identify than raw filenames.
 - **Enriched Metadata**: Descriptions now include snippets of the transcript context for immediate relevance checking.
@@ -48,6 +71,7 @@ _Released: Jan 13, 2026_
 ## 🚀 Key Highlights
 
 ### 1. Audio Intelligence & PDF Transcripts 🎧
+
 - **PDF-to-Text Integration**: Converted 6 PDF transcripts for SRTestimony files into searchable text.
 - **Smart Mapping**: Automatically linked `SRTestimony` audio files to their corresponding PDF transcripts.
 - **DOJ File Handling**: Mapped `DOJ-OGR-00030343.mp3` to its existing summary transcript.
@@ -55,13 +79,15 @@ _Released: Jan 13, 2026_
 - **Fake Segments**: For text-only transcripts, the system now generates paragraph-based segments so the Audio Player works immediately.
 
 ### 2. Entity Separations & Data Quality 👥
+
 - **William Riley Separation**: Successfully separated "William H. Riley" (PI) from "William Kyle Riley" (Pilot) and other variants.
-    - Created distinct entity for William H. Riley (PI).
-    - Updated William Kyle Riley (Pilot) profile.
-    - Re-assigned mentions based on contextual keywords ("Kiraly", "Sascha", etc.).
+  - Created distinct entity for William H. Riley (PI).
+  - Updated William Kyle Riley (Pilot) profile.
+  - Re-assigned mentions based on contextual keywords ("Kiraly", "Sascha", etc.).
 - **John Podesta Update**: Enriched profile with specific roles and context from House Oversight documents.
 
 ### 3. Community Credits 🤝
+
 - Added acknowledgments for Manuel Sascha Barros, Lisa Noelle Voldeng, and Gareth Wright for their contributions to the archive.
 
 ---

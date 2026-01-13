@@ -28,18 +28,24 @@ interface TranscriptSegment {
 }
 
 function extractKeyPhrases(transcript: TranscriptSegment[]): string[] {
-  const allText = transcript.map(s => s.text).join(' ');
+  const allText = transcript.map((s) => s.text).join(' ');
   const phrases: string[] = [];
 
   // Extract names (capitalized words that appear multiple times)
   const namePattern = /\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b/g;
   const names = allText.match(namePattern) || [];
-  const nameFreq = names.reduce((acc, name) => {
-    if (name.length > 3 && !['From', 'The', 'This', 'That', 'They', 'There', 'Then'].includes(name)) {
-      acc[name] = (acc[name] || 0) + 1;
-    }
-    return acc;
-  }, {} as Record<string, number>);
+  const nameFreq = names.reduce(
+    (acc, name) => {
+      if (
+        name.length > 3 &&
+        !['From', 'The', 'This', 'That', 'They', 'There', 'Then'].includes(name)
+      ) {
+        acc[name] = (acc[name] || 0) + 1;
+      }
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 
   // Get top 2 most frequent names
   const topNames = Object.entries(nameFreq)
@@ -51,9 +57,18 @@ function extractKeyPhrases(transcript: TranscriptSegment[]): string[] {
 
   // Extract key terms
   const keyTerms = [
-    'testimony', 'interview', 'deposition', 'statement',
-    'investigation', 'case', 'evidence', 'witness',
-    'information', 'call', 'voicemail', 'message'
+    'testimony',
+    'interview',
+    'deposition',
+    'statement',
+    'investigation',
+    'case',
+    'evidence',
+    'witness',
+    'information',
+    'call',
+    'voicemail',
+    'message',
   ];
 
   for (const term of keyTerms) {
@@ -84,20 +99,33 @@ function generateTitle(item: MediaItem, metadata: any): string {
 
     // Determine type of content
     let titleType = 'Recording';
-    if (firstText.toLowerCase().includes('testimony') || firstText.toLowerCase().includes('deposition')) {
+    if (
+      firstText.toLowerCase().includes('testimony') ||
+      firstText.toLowerCase().includes('deposition')
+    ) {
       titleType = 'Testimony';
     } else if (firstText.toLowerCase().includes('interview')) {
       titleType = 'Interview';
-    } else if (firstText.toLowerCase().includes('voicemail') || firstText.toLowerCase().includes('message')) {
+    } else if (
+      firstText.toLowerCase().includes('voicemail') ||
+      firstText.toLowerCase().includes('message')
+    ) {
       titleType = 'Voicemail';
-    } else if (firstText.toLowerCase().includes('news') || firstText.toLowerCase().includes('abc') || firstText.toLowerCase().includes('report')) {
+    } else if (
+      firstText.toLowerCase().includes('news') ||
+      firstText.toLowerCase().includes('abc') ||
+      firstText.toLowerCase().includes('report')
+    ) {
       titleType = 'News Report';
     } else if (firstText.toLowerCase().includes('call')) {
       titleType = 'Phone Call';
     }
 
     // Build title
-    const namePart = phrases.filter(p => p[0] === p[0].toUpperCase()).slice(0, 2).join(' & ');
+    const namePart = phrases
+      .filter((p) => p[0] === p[0].toUpperCase())
+      .slice(0, 2)
+      .join(' & ');
 
     if (namePart) {
       return `${titleType}: ${namePart}`;
@@ -121,7 +149,7 @@ function generateTitle(item: MediaItem, metadata: any): string {
   }
 
   // Last resort: use filename with spaces
-  return filename.replace(/[_-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  return filename.replace(/[_-]/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
 }
 
 async function main() {
@@ -132,12 +160,16 @@ async function main() {
 
   try {
     // Get all audio/video items
-    const items = db.prepare(`
+    const items = db
+      .prepare(
+        `
       SELECT id, title, file_path, file_type, metadata_json
       FROM media_items
       WHERE file_type LIKE 'audio/%' OR file_type LIKE 'video/%'
       ORDER BY id
-    `).all() as MediaItem[];
+    `,
+      )
+      .all() as MediaItem[];
 
     console.log(`📊 Found ${items.length} media items\n`);
 
@@ -176,7 +208,6 @@ async function main() {
     console.log(`   Updated: ${updated}`);
     console.log(`   Skipped: ${skipped}`);
     console.log(`   Total: ${items.length}`);
-
   } catch (error) {
     console.error('❌ Error during title generation:', error);
     process.exit(1);

@@ -155,24 +155,22 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
               <Shield className="h-8 w-8 text-red-500" />
             </div>
             <h3 className="text-xl font-bold text-white mb-2">Graphic Content Warning</h3>
-            <p className="text-slate-400 max-w-md mb-8 leading-relaxed">
-              {warningText}
-            </p>
+            <p className="text-slate-400 max-w-md mb-8 leading-relaxed">{warningText}</p>
             <div className="flex gap-4">
-               {onClose && (
+              {onClose && (
                 <button
                   onClick={onClose}
                   className="px-6 py-2 rounded-lg border border-slate-700 hover:bg-slate-800 text-slate-300 transition-colors font-medium"
                 >
                   Cancel
                 </button>
-               )}
+              )}
               <button
                 onClick={() => {
-                   if (audioRef.current) {
-                      audioRef.current.play().catch(console.error);
-                      setIsPlaying(true);
-                   }
+                  if (audioRef.current) {
+                    audioRef.current.play().catch(console.error);
+                    setIsPlaying(true);
+                  }
                 }}
                 className="px-6 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white font-medium shadow-lg shadow-red-900/20 transition-all hover:scale-105"
               >

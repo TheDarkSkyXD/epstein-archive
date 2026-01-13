@@ -377,59 +377,65 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
     }
   };
 
-  const toggleImageSelection = useCallback((imageId: number, index: number, event: React.MouseEvent) => {
-    let newSelectedImages = new Set(selectedImages);
+  const toggleImageSelection = useCallback(
+    (imageId: number, index: number, event: React.MouseEvent) => {
+      let newSelectedImages = new Set(selectedImages);
 
-    if (event.shiftKey && lastSelectedIndex !== null) {
-      // Shift+click: Select range (add to existing selection)
-      const start = Math.min(lastSelectedIndex, index);
-      const end = Math.max(lastSelectedIndex, index);
-      for (let i = start; i <= end; i++) {
-        newSelectedImages.add(images[i].id);
-      }
-    } else if (event.ctrlKey || event.metaKey) {
-      // Ctrl/Cmd+click: Toggle selection (add/remove from existing)
-      if (newSelectedImages.has(imageId)) {
-        newSelectedImages.delete(imageId);
-      } else {
-        newSelectedImages.add(imageId);
-      }
-      setLastSelectedIndex(index);
-    } else {
-      // Regular click: If in batch mode, deselect all and select only this one
-      if (isBatchMode) {
-        newSelectedImages = new Set([imageId]);
+      if (event.shiftKey && lastSelectedIndex !== null) {
+        // Shift+click: Select range (add to existing selection)
+        const start = Math.min(lastSelectedIndex, index);
+        const end = Math.max(lastSelectedIndex, index);
+        for (let i = start; i <= end; i++) {
+          newSelectedImages.add(images[i].id);
+        }
+      } else if (event.ctrlKey || event.metaKey) {
+        // Ctrl/Cmd+click: Toggle selection (add/remove from existing)
+        if (newSelectedImages.has(imageId)) {
+          newSelectedImages.delete(imageId);
+        } else {
+          newSelectedImages.add(imageId);
+        }
         setLastSelectedIndex(index);
+      } else {
+        // Regular click: If in batch mode, deselect all and select only this one
+        if (isBatchMode) {
+          newSelectedImages = new Set([imageId]);
+          setLastSelectedIndex(index);
+        } else {
+          // If external handler provided, use it (legacy), otherwise open viewer
+          if (onImageClick) {
+            onImageClick(images[index]);
+          } else {
+            setViewerStartIndex(index);
+            // URL update handled by MediaViewerModal or here?
+            // MediaViewerModal handles param set.
+          }
+        }
+      }
+
+      setSelectedImages(newSelectedImages);
+    },
+    [selectedImages, lastSelectedIndex, images, isBatchMode, onImageClick],
+  );
+
+  const handleImageClick = useCallback(
+    (image: MediaImage, index: number, event: React.MouseEvent) => {
+      // If in batch mode, handle selection
+      if (isBatchMode) {
+        toggleImageSelection(image.id, index, event);
       } else {
         // If external handler provided, use it (legacy), otherwise open viewer
         if (onImageClick) {
-          onImageClick(images[index]);
+          onImageClick(image);
         } else {
           setViewerStartIndex(index);
           // URL update handled by MediaViewerModal or here?
           // MediaViewerModal handles param set.
         }
       }
-    }
-
-    setSelectedImages(newSelectedImages);
-  }, [selectedImages, lastSelectedIndex, images, isBatchMode, onImageClick]);
-
-  const handleImageClick = useCallback((image: MediaImage, index: number, event: React.MouseEvent) => {
-    // If in batch mode, handle selection
-    if (isBatchMode) {
-      toggleImageSelection(image.id, index, event);
-    } else {
-      // If external handler provided, use it (legacy), otherwise open viewer
-      if (onImageClick) {
-        onImageClick(image);
-      } else {
-        setViewerStartIndex(index);
-        // URL update handled by MediaViewerModal or here?
-        // MediaViewerModal handles param set.
-      }
-    }
-  }, [isBatchMode, toggleImageSelection, onImageClick]);
+    },
+    [isBatchMode, toggleImageSelection, onImageClick],
+  );
 
   const enterBatchMode = () => {
     setIsBatchMode(true);

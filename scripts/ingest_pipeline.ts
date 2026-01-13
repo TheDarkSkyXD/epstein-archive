@@ -336,13 +336,13 @@ async function main() {
 
   console.log('='.repeat(80));
   console.log('✅ Ingestion complete! Now starting Intelligence Pipeline...');
-  
+
   // Trigger Intelligence Pipeline
   try {
-      const { execSync } = require('child_process');
-      execSync('npx tsx scripts/ingest_intelligence.ts', { stdio: 'inherit' });
+    const { execSync } = require('child_process');
+    execSync('npx tsx scripts/ingest_intelligence.ts', { stdio: 'inherit' });
   } catch (e) {
-      console.error('❌ Error running Intelligence Pipeline:', e);
+    console.error('❌ Error running Intelligence Pipeline:', e);
   }
 
   db.close();

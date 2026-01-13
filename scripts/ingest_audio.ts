@@ -23,7 +23,7 @@ const db = new Database(DB_PATH);
 async function transcribeAudio(filePath: string): Promise<{ transcript: any[]; duration: number }> {
   try {
     console.log(`🎙️ Transcribing ${path.basename(filePath)} with Whisper (${WHISPER_MODEL})...`);
-    
+
     // Create unique temp dir
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-'));
 
@@ -60,61 +60,63 @@ async function transcribeAudio(filePath: string): Promise<{ transcript: any[]; d
 
 // Helper to find external text transcript
 function findExternalTranscript(filenameWithoutExt: string): string | null {
-  
   // 1. Specific Logic for SRTestimony -> Lvoocaudiop1 PDF Transcripts
   // Filenames like: SRTestimonyBof6_PublicCopy_LNV_July242025E
   if (filenameWithoutExt.includes('SRTestimony')) {
-      const charMatch = filenameWithoutExt.match(/SRTestimony([A-F])of6/);
-      if (charMatch) {
-          const char = charMatch[1]; // A, B, C...
-          const index = char.charCodeAt(0) - 'A'.charCodeAt(0) + 1; // 1, 2, 3...
-          const pdfTranscriptPath = path.join(TEXT_ROOT, 'lvoocaudiop1', `${index}_eng.txt`);
-          
-          if (fs.existsSync(pdfTranscriptPath)) {
-              console.log(`📄 Mapped SRTestimony${char} to converted PDF transcript: ${path.basename(pdfTranscriptPath)}`);
-              return fs.readFileSync(pdfTranscriptPath, 'utf-8');
-          }
-      }
+    const charMatch = filenameWithoutExt.match(/SRTestimony([A-F])of6/);
+    if (charMatch) {
+      const char = charMatch[1]; // A, B, C...
+      const index = char.charCodeAt(0) - 'A'.charCodeAt(0) + 1; // 1, 2, 3...
+      const pdfTranscriptPath = path.join(TEXT_ROOT, 'lvoocaudiop1', `${index}_eng.txt`);
 
-      // 2. Logic for SRTestimony -> Maxwell (Fallback)
-      let dateMatch: string | null = null;
-      if (filenameWithoutExt.includes('July24')) dateMatch = '2025.07.24';
-      if (filenameWithoutExt.includes('July25') || filenameWithoutExt.includes('July26')) dateMatch = '2025.07.25';
-      
-      if (dateMatch) {
-          // Look for Maxwell...dateMatch..._cft.txt (prioritize) or just .txt
-          const pattern = `**/*Maxwell*${dateMatch}*cft*.txt`;
-          const matches = glob.sync(pattern, { cwd: TEXT_ROOT, nodir: true });
-          if (matches.length > 0) {
-              const fullPath = path.join(TEXT_ROOT, matches[0]);
-              console.log(`📄 Mapped SRTestimony to Maxwell transcript: ${matches[0]}`);
-              return fs.readFileSync(fullPath, 'utf-8');
-          }
-           // Fallback to non-cft
-          const pattern2 = `**/*Maxwell*${dateMatch}*.txt`;
-          const matches2 = glob.sync(pattern2, { cwd: TEXT_ROOT, nodir: true });
-          if (matches2.length > 0) {
-              const fullPath = path.join(TEXT_ROOT, matches2[0]);
-              console.log(`📄 Mapped SRTestimony to Maxwell transcript: ${matches2[0]}`);
-              return fs.readFileSync(fullPath, 'utf-8');
-          }
+      if (fs.existsSync(pdfTranscriptPath)) {
+        console.log(
+          `📄 Mapped SRTestimony${char} to converted PDF transcript: ${path.basename(pdfTranscriptPath)}`,
+        );
+        return fs.readFileSync(pdfTranscriptPath, 'utf-8');
       }
+    }
+
+    // 2. Logic for SRTestimony -> Maxwell (Fallback)
+    let dateMatch: string | null = null;
+    if (filenameWithoutExt.includes('July24')) dateMatch = '2025.07.24';
+    if (filenameWithoutExt.includes('July25') || filenameWithoutExt.includes('July26'))
+      dateMatch = '2025.07.25';
+
+    if (dateMatch) {
+      // Look for Maxwell...dateMatch..._cft.txt (prioritize) or just .txt
+      const pattern = `**/*Maxwell*${dateMatch}*cft*.txt`;
+      const matches = glob.sync(pattern, { cwd: TEXT_ROOT, nodir: true });
+      if (matches.length > 0) {
+        const fullPath = path.join(TEXT_ROOT, matches[0]);
+        console.log(`📄 Mapped SRTestimony to Maxwell transcript: ${matches[0]}`);
+        return fs.readFileSync(fullPath, 'utf-8');
+      }
+      // Fallback to non-cft
+      const pattern2 = `**/*Maxwell*${dateMatch}*.txt`;
+      const matches2 = glob.sync(pattern2, { cwd: TEXT_ROOT, nodir: true });
+      if (matches2.length > 0) {
+        const fullPath = path.join(TEXT_ROOT, matches2[0]);
+        console.log(`📄 Mapped SRTestimony to Maxwell transcript: ${matches2[0]}`);
+        return fs.readFileSync(fullPath, 'utf-8');
+      }
+    }
   }
 
   // 3. Default Logic: Exact name match
   const matches = glob.sync(`**/${filenameWithoutExt}*.txt`, { cwd: TEXT_ROOT, nodir: true });
-  
+
   if (matches.length > 0) {
-     const exact = matches.find(m => path.basename(m, '.txt') === filenameWithoutExt);
-     const target = exact || matches[0];
-     
-     try {
-       const fullPath = path.join(TEXT_ROOT, target);
-       console.log(`📄 Found external transcript: ${target}`);
-       return fs.readFileSync(fullPath, 'utf-8');
-     } catch (err) {
-       console.error(`Failed to read transcript ${target}`, err);
-     }
+    const exact = matches.find((m) => path.basename(m, '.txt') === filenameWithoutExt);
+    const target = exact || matches[0];
+
+    try {
+      const fullPath = path.join(TEXT_ROOT, target);
+      console.log(`📄 Found external transcript: ${target}`);
+      return fs.readFileSync(fullPath, 'utf-8');
+    } catch (err) {
+      console.error(`Failed to read transcript ${target}`, err);
+    }
   }
   return null;
 }
@@ -169,9 +171,9 @@ async function ingestAudio() {
     const existing = checkStmt.get(dbPath) as any;
     let existingMeta: any = {};
     if (existing) {
-        try {
-            existingMeta = JSON.parse(existing.metadata_json || '{}');
-        } catch(e) {}
+      try {
+        existingMeta = JSON.parse(existing.metadata_json || '{}');
+      } catch (e) {}
     }
 
     const filename = path.basename(file);
@@ -185,62 +187,70 @@ async function ingestAudio() {
       duration: existingMeta.duration || 0,
       transcript: existingMeta.transcript || [],
       chapters: existingMeta.chapters || [],
-      external_transcript_text: existingMeta.external_transcript_text || null
+      external_transcript_text: existingMeta.external_transcript_text || null,
     };
 
     // Try to find external transcript text if missing, or update it
     const externalText = findExternalTranscript(filenameWithoutExt);
     if (externalText && !metadata.external_transcript_text) {
-        metadata.external_transcript_text = externalText;
-        console.log(`Updated external transcript for ${filename}`);
+      metadata.external_transcript_text = externalText;
+      console.log(`Updated external transcript for ${filename}`);
     } else if (externalText) {
-       // Already have it, but maybe update logic if we want to ensure it matches
+      // Already have it, but maybe update logic if we want to ensure it matches
     }
 
     // Determine if we need to transcribe (Whisper)
     // Skip if we already have transcript segments OR if we have external text (we will fake segments)
     let shouldTranscribe = hasWhisper;
 
-    // IF we have external text, we prioritize it and do NOT run Whisper, 
+    // IF we have external text, we prioritize it and do NOT run Whisper,
     // BUT we must ensure 'transcript' is populated.
     if (metadata.external_transcript_text) {
-        shouldTranscribe = false;
+      shouldTranscribe = false;
 
-        if (!metadata.transcript || metadata.transcript.length === 0) {
-           console.log(`ℹ️ Generating paragraph-based transcript segments from external text for ${filename}...`);
-           
-           // Simple splitting by double newline to get paragraphs
-           const paragraphs = metadata.external_transcript_text.split(/\n\s*\n/);
-           const segmentCount = paragraphs.length;
-           const estimatedDuration = metadata.duration || 3600; 
-           const durationPerSeg = estimatedDuration / (segmentCount || 1);
-           
-           metadata.transcript = paragraphs.map((p: string, i: number) => ({
-               start: i * durationPerSeg,
-               end: (i + 1) * durationPerSeg,
-               text: p.trim()
-           })).filter((s:any) => s.text.length > 0);
-           
-           console.log(`✅ Created ${metadata.transcript.length} transcript segments from text.`);
-        } else {
-           console.log(`⏭️ Skipping Whisper for ${filename} (Already has transcript segments and external text)`);
-        }
+      if (!metadata.transcript || metadata.transcript.length === 0) {
+        console.log(
+          `ℹ️ Generating paragraph-based transcript segments from external text for ${filename}...`,
+        );
+
+        // Simple splitting by double newline to get paragraphs
+        const paragraphs = metadata.external_transcript_text.split(/\n\s*\n/);
+        const segmentCount = paragraphs.length;
+        const estimatedDuration = metadata.duration || 3600;
+        const durationPerSeg = estimatedDuration / (segmentCount || 1);
+
+        metadata.transcript = paragraphs
+          .map((p: string, i: number) => ({
+            start: i * durationPerSeg,
+            end: (i + 1) * durationPerSeg,
+            text: p.trim(),
+          }))
+          .filter((s: any) => s.text.length > 0);
+
+        console.log(`✅ Created ${metadata.transcript.length} transcript segments from text.`);
+      } else {
+        console.log(
+          `⏭️ Skipping Whisper for ${filename} (Already has transcript segments and external text)`,
+        );
+      }
     } else if (metadata.transcript.length > 0) {
-        shouldTranscribe = false;
-        console.log(`⏭️ Skipping Whisper for ${filename} (Already has transcript segments)`);
+      shouldTranscribe = false;
+      console.log(`⏭️ Skipping Whisper for ${filename} (Already has transcript segments)`);
     }
 
     // Now, run Whisper if still needed
     if (shouldTranscribe) {
-        console.log(`🎙️ Need transcription for ${filename}`);
-        const result = await transcribeAudio(fullPath);
-        if (result.transcript.length > 0) {
-            metadata.transcript = result.transcript;
-            metadata.duration = result.duration; // Update duration from actual audio analysis
-             // Also populate external text field for consistency?
-            metadata.external_transcript_text = result.transcript.map((s:any) => s.text).join('\n');
-            console.log(`✅ Transcription complete for ${filename} (${result.transcript.length} segments)`);
-        }
+      console.log(`🎙️ Need transcription for ${filename}`);
+      const result = await transcribeAudio(fullPath);
+      if (result.transcript.length > 0) {
+        metadata.transcript = result.transcript;
+        metadata.duration = result.duration; // Update duration from actual audio analysis
+        // Also populate external text field for consistency?
+        metadata.external_transcript_text = result.transcript.map((s: any) => s.text).join('\n');
+        console.log(
+          `✅ Transcription complete for ${filename} (${result.transcript.length} segments)`,
+        );
+      }
     }
 
     const metadataJson = JSON.stringify(metadata);
@@ -257,7 +267,7 @@ async function ingestAudio() {
         metadataJson,
         'unverified',
         0,
-        0
+        0,
       );
       added++;
     }

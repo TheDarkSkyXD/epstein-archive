@@ -535,7 +535,6 @@ export class MediaService {
     stmt.run(itemId, personId);
   }
 
-
   // ============ STATISTICS ============
 
   getMediaStats(): MediaStats {

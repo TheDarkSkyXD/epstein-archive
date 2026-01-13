@@ -1,6 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AudioPlayer, TranscriptSegment, Chapter } from './AudioPlayer';
-import { Play, Music, Clock, User, Calendar, CheckSquare, Square, Folder, ChevronUp, ChevronDown, AlertTriangle } from 'lucide-react';
+import {
+  Play,
+  Music,
+  Clock,
+  User,
+  Calendar,
+  CheckSquare,
+  Square,
+  Folder,
+  ChevronUp,
+  ChevronDown,
+  AlertTriangle,
+} from 'lucide-react';
 import { SensitiveContent } from './SensitiveContent';
 import BatchToolbar from './BatchToolbar';
 import Icon from './Icon';
@@ -80,34 +92,34 @@ export const AudioBrowser: React.FC = () => {
   };
 
   const handleBatchTag = async (tagIds: number[], action: 'add' | 'remove') => {
-      try {
-          await fetch('/api/media/items/batch/tags', {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ itemIds: Array.from(selectedItems), tagIds, action })
-          });
-          // Refresh data to show new tags
-          fetchAudio(1);
-          setSelectedItems(new Set());
-          setIsBatchMode(false);
-      } catch (e) {
-          console.error(e);
-      }
+    try {
+      await fetch('/api/media/items/batch/tags', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemIds: Array.from(selectedItems), tagIds, action }),
+      });
+      // Refresh data to show new tags
+      fetchAudio(1);
+      setSelectedItems(new Set());
+      setIsBatchMode(false);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleBatchPeople = async (personIds: number[]) => {
-       try {
-          await fetch('/api/media/items/batch/people', {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ itemIds: Array.from(selectedItems), personIds, action: 'add' })
-          });
-          fetchAudio(1);
-          setSelectedItems(new Set());
-          setIsBatchMode(false);
-      } catch (e) {
-          console.error(e);
-      }
+    try {
+      await fetch('/api/media/items/batch/people', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemIds: Array.from(selectedItems), personIds, action: 'add' }),
+      });
+      fetchAudio(1);
+      setSelectedItems(new Set());
+      setIsBatchMode(false);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const fetchAudio = async (pageNum: number) => {
@@ -115,7 +127,7 @@ export const AudioBrowser: React.FC = () => {
       setLoading(true);
       const params = new URLSearchParams({
         page: pageNum.toString(),
-        limit: '24'
+        limit: '24',
       });
       if (selectedAlbum) params.append('albumId', selectedAlbum.toString());
 
@@ -154,11 +166,11 @@ export const AudioBrowser: React.FC = () => {
     });
   };
 
-  const currentAlbum = albums.find(a => a.id === selectedAlbum);
-  const showSensitiveWarning = currentAlbum && (
-    currentAlbum.name.match(/Sensitive|Disturbing|Testimony|Victim|Survivor/i) ||
-    (currentAlbum.sensitiveCount && currentAlbum.sensitiveCount > 0)
-  );
+  const currentAlbum = albums.find((a) => a.id === selectedAlbum);
+  const showSensitiveWarning =
+    currentAlbum &&
+    (currentAlbum.name.match(/Sensitive|Disturbing|Testimony|Victim|Survivor/i) ||
+      (currentAlbum.sensitiveCount && currentAlbum.sensitiveCount > 0));
 
   return (
     <div className="flex flex-col h-full bg-slate-950 border border-slate-800 shadow-2xl overflow-hidden rounded-lg">
@@ -208,7 +220,9 @@ export const AudioBrowser: React.FC = () => {
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-light text-white">Audio Recordings</h2>
-            <p className="text-slate-400 text-xs hidden md:block">Forensic audio evidence and transcripts</p>
+            <p className="text-slate-400 text-xs hidden md:block">
+              Forensic audio evidence and transcripts
+            </p>
           </div>
           <button
             onClick={() => setIsBatchMode(!isBatchMode)}
@@ -268,7 +282,8 @@ export const AudioBrowser: React.FC = () => {
                   Sensitive & Disturbing Content
                 </h4>
                 <p className="text-red-300/90 text-sm mt-1">
-                  This album contains audio testimony from victims and survivors. Content may be graphic, traumatic, and disturbing. Listener discretion is strongly advised.
+                  This album contains audio testimony from victims and survivors. Content may be
+                  graphic, traumatic, and disturbing. Listener discretion is strongly advised.
                 </p>
               </div>
             </div>
@@ -302,10 +317,17 @@ export const AudioBrowser: React.FC = () => {
                         }
                       }}
                     >
-                      <SensitiveContent isSensitive={item.isSensitive} className="relative shrink-0">
+                      <SensitiveContent
+                        isSensitive={item.isSensitive}
+                        className="relative shrink-0"
+                      >
                         {isBatchMode && (
                           <div className="absolute top-2 left-2 z-20">
-                            {isSelected ? <CheckSquare className="text-cyan-500 fill-cyan-950" /> : <Square className="text-white/70" />}
+                            {isSelected ? (
+                              <CheckSquare className="text-cyan-500 fill-cyan-950" />
+                            ) : (
+                              <Square className="text-white/70" />
+                            )}
                           </div>
                         )}
                         <div className="aspect-video bg-slate-900 relative flex items-center justify-center group-hover:bg-slate-800 transition-colors">
@@ -324,19 +346,34 @@ export const AudioBrowser: React.FC = () => {
 
                       <div className="p-4 flex-1 flex flex-col">
                         <div className="flex items-start justify-between gap-2 mb-2">
-                          <h3 className="font-medium text-slate-200 group-hover:text-cyan-400 transition-colors line-clamp-2" title={item.title}>
+                          <h3
+                            className="font-medium text-slate-200 group-hover:text-cyan-400 transition-colors line-clamp-2"
+                            title={item.title}
+                          >
                             {item.title}
                           </h3>
                         </div>
 
                         {/* Tags/People Display */}
                         <div className="flex flex-wrap gap-1 mb-2">
-                          {item.tags && item.tags.map((t: any) => (
-                            <span key={t.id} className="text-[10px] bg-slate-800 text-cyan-400 px-1.5 py-0.5 rounded-full">{t.name}</span>
-                          ))}
-                          {item.people && item.people.map((p: any) => (
-                            <span key={p.id} className="text-[10px] bg-slate-800 text-amber-400 px-1.5 py-0.5 rounded-full">{p.name}</span>
-                          ))}
+                          {item.tags &&
+                            item.tags.map((t: any) => (
+                              <span
+                                key={t.id}
+                                className="text-[10px] bg-slate-800 text-cyan-400 px-1.5 py-0.5 rounded-full"
+                              >
+                                {t.name}
+                              </span>
+                            ))}
+                          {item.people &&
+                            item.people.map((p: any) => (
+                              <span
+                                key={p.id}
+                                className="text-[10px] bg-slate-800 text-amber-400 px-1.5 py-0.5 rounded-full"
+                              >
+                                {p.name}
+                              </span>
+                            ))}
                         </div>
 
                         <div className="mt-auto space-y-2">
@@ -345,7 +382,9 @@ export const AudioBrowser: React.FC = () => {
                             <span>{formatDate(item.createdAt)}</span>
                           </div>
                           {item.description && (
-                            <p className="text-xs text-slate-400 line-clamp-2">{item.description}</p>
+                            <p className="text-xs text-slate-400 line-clamp-2">
+                              {item.description}
+                            </p>
                           )}
                         </div>
                       </div>

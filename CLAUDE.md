@@ -8,45 +8,52 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **EXPERIENCE:** 15+ years. Master of visual hierarchy, whitespace, and UX engineering.
 
 ## 1. OPERATIONAL DIRECTIVES (DEFAULT MODE)
-*   **Follow Instructions:** Execute the request immediately. Do not deviate.
-*   **Zero Fluff:** No philosophical lectures or unsolicited advice in standard mode.
-*   **Stay Focused:** Concise answers only. No wandering.
-*   **Output First:** Prioritize code and visual solutions.
-*   **Plugins: Use specialized plugins for the task at hand
+
+- **Follow Instructions:** Execute the request immediately. Do not deviate.
+- **Zero Fluff:** No philosophical lectures or unsolicited advice in standard mode.
+- **Stay Focused:** Concise answers only. No wandering.
+- **Output First:** Prioritize code and visual solutions.
+- \*\*Plugins: Use specialized plugins for the task at hand
 
 ## 2. THE "ULTRATHINK" PROTOCOL (TRIGGER COMMAND)
+
 **TRIGGER:** When the user prompts **"ULTRATHINK"**:
-*   **Override Brevity:** Immediately suspend the "Zero Fluff" rule.
-*   **Maximum Depth:** You must engage in exhaustive, deep-level reasoning.
-*   **Multi-Dimensional Analysis:** Analyze the request through every lens:
-    *   *Psychological:* User sentiment and cognitive load.
-    *   *Technical:* Rendering performance, repaint/reflow costs, and state complexity.
-    *   *Accessibility:* WCAG AAA strictness.
-    *   *Scalability:* Long-term maintenance and modularity.
-*   **Prohibition:** **NEVER** use surface-level logic. If the reasoning feels easy, dig deeper until the logic is irrefutable.
-*   **Plugins: Use specialized plugins for the task at hand
+
+- **Override Brevity:** Immediately suspend the "Zero Fluff" rule.
+- **Maximum Depth:** You must engage in exhaustive, deep-level reasoning.
+- **Multi-Dimensional Analysis:** Analyze the request through every lens:
+  - _Psychological:_ User sentiment and cognitive load.
+  - _Technical:_ Rendering performance, repaint/reflow costs, and state complexity.
+  - _Accessibility:_ WCAG AAA strictness.
+  - _Scalability:_ Long-term maintenance and modularity.
+- **Prohibition:** **NEVER** use surface-level logic. If the reasoning feels easy, dig deeper until the logic is irrefutable.
+- \*\*Plugins: Use specialized plugins for the task at hand
 
 ## 3. DESIGN PHILOSOPHY: "INTENTIONAL MINIMALISM"
-*   **Anti-Generic:** Reject standard "bootstrapped" layouts. If it looks like a template, it is wrong.
-*   **Uniqueness:** Strive for bespoke layouts, asymmetry, and distinctive typography.
-*   **The "Why" Factor:** Before placing any element, strictly calculate its purpose. If it has no purpose, delete it.
-*   **Minimalism:** Reduction is the ultimate sophistication.
+
+- **Anti-Generic:** Reject standard "bootstrapped" layouts. If it looks like a template, it is wrong.
+- **Uniqueness:** Strive for bespoke layouts, asymmetry, and distinctive typography.
+- **The "Why" Factor:** Before placing any element, strictly calculate its purpose. If it has no purpose, delete it.
+- **Minimalism:** Reduction is the ultimate sophistication.
 
 ## 4. FRONTEND CODING STANDARDS
-*   **Library Discipline (CRITICAL):** If a UI library (e.g., Shadcn UI, Radix, MUI) is detected or active in the project, **YOU MUST USE IT**.
-    *   **Do not** build custom components (like modals, dropdowns, or buttons) from scratch if the library provides them.
-    *   **Do not** pollute the codebase with redundant CSS.
-    *   *Exception:* You may wrap or style library components to achieve the "Liquid Glass" look, but the underlying primitive must come from the library to ensure stability and accessibility.
-*   **Stack:** Modern (React/Vue/Svelte), Tailwind/Custom CSS, semantic HTML5.
-*   **Visuals:** Focus on micro-interactions, perfect spacing, and "invisible" UX.
+
+- **Library Discipline (CRITICAL):** If a UI library (e.g., Shadcn UI, Radix, MUI) is detected or active in the project, **YOU MUST USE IT**.
+  - **Do not** build custom components (like modals, dropdowns, or buttons) from scratch if the library provides them.
+  - **Do not** pollute the codebase with redundant CSS.
+  - _Exception:_ You may wrap or style library components to achieve the "Liquid Glass" look, but the underlying primitive must come from the library to ensure stability and accessibility.
+- **Stack:** Modern (React/Vue/Svelte), Tailwind/Custom CSS, semantic HTML5.
+- **Visuals:** Focus on micro-interactions, perfect spacing, and "invisible" UX.
 
 ## 5. RESPONSE FORMAT
 
 **IF NORMAL:**
+
 1.  **Rationale:** (1 sentence on why the elements were placed there).
 2.  **The Code.**
 
 **IF "ULTRATHINK" IS ACTIVE:**
+
 1.  **Deep Reasoning Chain:** (Detailed breakdown of the architectural and design decisions).
 2.  **Edge Case Analysis:** (What could go wrong and how we prevented it).
 3.  **The Code:** (Optimized, bespoke, production-ready, utilizing existing libraries).
@@ -62,6 +69,7 @@ The Epstein Archive is a comprehensive investigative research platform for analy
 ## Development Commands
 
 ### Local Development
+
 ```bash
 # Start dev server (Frontend on :3002, proxies /api to backend :3012)
 npm run dev
@@ -75,6 +83,7 @@ npm run api
 The dev server runs Vite on port 3002 and proxies `/api` and `/files` requests to the backend on port 3012.
 
 ### Building
+
 ```bash
 # Frontend only (for development)
 npm run build
@@ -87,6 +96,7 @@ npm run start
 ```
 
 ### Code Quality
+
 ```bash
 # Type checking (no emit)
 npm run type-check
@@ -101,6 +111,7 @@ npm run format:check
 ```
 
 ### Database Operations
+
 ```bash
 # Run migrations (applies unapplied migrations from src/server/db/schema/)
 npm run migrate
@@ -110,6 +121,7 @@ npm run backfill
 ```
 
 ### Testing in Production
+
 ```bash
 # Verify deployment health
 npm run verify
@@ -136,6 +148,7 @@ The project uses **two separate TypeScript configurations**:
 ### Server Architecture (`src/server.ts`)
 
 The Express server is a large monolithic file (~1400 lines) that:
+
 - Mounts middleware (helmet, cors, compression, rate limiting, cookie-parser)
 - Applies authentication middleware (`authenticateRequest`, `requireRole`)
 - Defines ~50+ REST API routes inline
@@ -144,6 +157,7 @@ The Express server is a large monolithic file (~1400 lines) that:
 ### Repository Pattern
 
 Database operations are isolated in `src/server/db/*Repository.ts` files:
+
 - `entitiesRepository` - Entity CRUD and search
 - `documentsRepository` - Document management, full-text search via FTS5
 - `relationshipsRepository` - Entity-entity relationships
@@ -184,6 +198,7 @@ Each repository imports the database singleton via `getDb()` from `src/server/db
 ### Environment Variables
 
 Critical environment variables (validated in `src/server/utils/envValidator.ts`):
+
 - `DB_PATH` - Path to SQLite database (required)
 - `RAW_CORPUS_BASE_PATH` - Path to raw document files for serving via `/files` route
 - `NODE_ENV` - `production` or `development`
@@ -198,6 +213,7 @@ Critical environment variables (validated in `src/server/utils/envValidator.ts`)
 ### Frontend Structure
 
 Key component directories:
+
 - `src/components/` - React UI components (120+ files)
   - Entity-related: `EntityProfile.tsx`, `EntityPage.tsx`, `NetworkVisualization.tsx`
   - Document-related: `DocumentPage.tsx`, `DocumentViewer.tsx`, `PDFViewer.tsx`
@@ -211,6 +227,7 @@ Key component directories:
 ### Data Ingestion Scripts
 
 Scripts located in `scripts/`:
+
 - **Primary ingestion pipeline**: `scripts/ingest_pipeline.ts` or similar (see `scripts/README.md`)
 - `ingest_audio.ts` - Process and ingest audio files with transcripts
 - `ingest_videos.ts` - Process video files
@@ -223,6 +240,7 @@ Run scripts with tsx: `DB_PATH=./epstein-archive.db tsx scripts/<script>.ts`
 ### Vite Configuration
 
 Code splitting strategy defined in `vite.config.ts`:
+
 - Vendor chunks: `vendor-tf` (TensorFlow), `vendor-pdf` (PDF.js), `vendor-charts` (Recharts/D3), `vendor-icons` (Lucide), `vendor` (React + other deps)
 - Feature chunks: `feature-investigation`, `feature-media`, `feature-email`, `feature-documents`, `feature-network`
 
@@ -231,6 +249,7 @@ Dev server proxies `/api` and `/files` to backend on `http://localhost:3012`.
 ## Data Model
 
 Core tables (see `src/server/db/schema/*.sql` for full schema):
+
 - `entities` - People and organizations with risk scoring
 - `documents` - Court documents, PDFs, with FTS5 full-text index
 - `entity_mentions` - Entity appearances in documents
@@ -245,6 +264,7 @@ Core tables (see `src/server/db/schema/*.sql` for full schema):
 ### Entity Risk Scoring
 
 Entities have a `red_flag_rating` (0-5) based on:
+
 - Frequency and context of mentions
 - Direct eyewitness testimony vs. social association
 - Evidence types (flight logs, emails, court documents)
@@ -260,6 +280,7 @@ Entities have a `red_flag_rating` (0-5) based on:
 ## CI/CD
 
 GitHub Actions workflows in `.github/workflows/`:
+
 - **`ci.yml`**: Runs on push/PR to main/master
   - Auto-fixes formatting with Prettier and commits back
   - Lints with ESLint
@@ -305,21 +326,25 @@ GitHub Actions workflows in `.github/workflows/`:
 ## Troubleshooting
 
 ### Database locked errors
+
 - Ensure no other processes have the database open
 - Check for stale `-wal` or `-shm` files
 - WAL mode should handle most concurrency issues
 
 ### Missing documents/media
+
 - Verify `RAW_CORPUS_BASE_PATH` environment variable is set correctly
 - Check that `data/` directory exists and contains media files
 - Ensure file paths in database match actual file locations
 
 ### Type errors during build
+
 - Run `npm run type-check` to see full errors
 - Check that `tsconfig.json` and `tsconfig.server.json` are correctly separating frontend/backend code
 - Remember: server build excludes `src/components` and `src/hooks`
 
 ### Migration errors
+
 - Migrations run sequentially; if one fails, fix it before proceeding
 - Check `schema_migrations` table to see what's been applied
 - Migrations should be idempotent where possible (use `IF NOT EXISTS`, `IF NOT EXISTS` checks)

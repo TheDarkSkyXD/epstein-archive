@@ -1,6 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { VideoPlayer } from './VideoPlayer';
-import { Play, Film, Clock, User, Calendar, CheckSquare, Square, Folder, ChevronUp, ChevronDown, AlertTriangle } from 'lucide-react';
+import {
+  Play,
+  Film,
+  Clock,
+  User,
+  Calendar,
+  CheckSquare,
+  Square,
+  Folder,
+  ChevronUp,
+  ChevronDown,
+  AlertTriangle,
+} from 'lucide-react';
 import { SensitiveContent } from './SensitiveContent';
 import BatchToolbar from './BatchToolbar';
 import Icon from './Icon';
@@ -81,33 +93,33 @@ export const VideoBrowser: React.FC = () => {
   };
 
   const handleBatchTag = async (tagIds: number[], action: 'add' | 'remove') => {
-      try {
-          await fetch('/api/media/items/batch/tags', {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ itemIds: Array.from(selectedItems), tagIds, action })
-          });
-          fetchVideos(1);
-          setSelectedItems(new Set());
-          setIsBatchMode(false);
-      } catch (e) {
-          console.error(e);
-      }
+    try {
+      await fetch('/api/media/items/batch/tags', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemIds: Array.from(selectedItems), tagIds, action }),
+      });
+      fetchVideos(1);
+      setSelectedItems(new Set());
+      setIsBatchMode(false);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleBatchPeople = async (personIds: number[]) => {
-       try {
-          await fetch('/api/media/items/batch/people', {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ itemIds: Array.from(selectedItems), personIds, action: 'add' })
-          });
-          fetchVideos(1);
-          setSelectedItems(new Set());
-          setIsBatchMode(false);
-      } catch (e) {
-          console.error(e);
-      }
+    try {
+      await fetch('/api/media/items/batch/people', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemIds: Array.from(selectedItems), personIds, action: 'add' }),
+      });
+      fetchVideos(1);
+      setSelectedItems(new Set());
+      setIsBatchMode(false);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const fetchVideos = async (pageNum: number) => {
@@ -115,7 +127,7 @@ export const VideoBrowser: React.FC = () => {
       setLoading(true);
       const params = new URLSearchParams({
         page: pageNum.toString(),
-        limit: '24'
+        limit: '24',
       });
       if (selectedAlbum) params.append('albumId', selectedAlbum.toString());
 
@@ -154,11 +166,11 @@ export const VideoBrowser: React.FC = () => {
     });
   };
 
-  const currentAlbum = albums.find(a => a.id === selectedAlbum);
-  const showSensitiveWarning = currentAlbum && (
-    currentAlbum.name.match(/Sensitive|Disturbing|Testimony|Victim|Survivor/i) ||
-    (currentAlbum.sensitiveCount && currentAlbum.sensitiveCount > 0)
-  );
+  const currentAlbum = albums.find((a) => a.id === selectedAlbum);
+  const showSensitiveWarning =
+    currentAlbum &&
+    (currentAlbum.name.match(/Sensitive|Disturbing|Testimony|Victim|Survivor/i) ||
+      (currentAlbum.sensitiveCount && currentAlbum.sensitiveCount > 0));
 
   return (
     <div className="flex flex-col h-full bg-slate-950 border border-slate-800 shadow-2xl overflow-hidden rounded-lg">
@@ -268,7 +280,8 @@ export const VideoBrowser: React.FC = () => {
                   Sensitive & Disturbing Content
                 </h4>
                 <p className="text-red-300/90 text-sm mt-1">
-                  This album contains video testimony from victims and survivors. Content may be graphic, traumatic, and disturbing. Viewer discretion is strongly advised.
+                  This album contains video testimony from victims and survivors. Content may be
+                  graphic, traumatic, and disturbing. Viewer discretion is strongly advised.
                 </p>
               </div>
             </div>
@@ -308,7 +321,11 @@ export const VideoBrowser: React.FC = () => {
                       >
                         {isBatchMode && (
                           <div className="absolute top-2 left-2 z-20">
-                            {isSelected ? <CheckSquare className="text-cyan-500 fill-cyan-950" /> : <Square className="text-white/70" />}
+                            {isSelected ? (
+                              <CheckSquare className="text-cyan-500 fill-cyan-950" />
+                            ) : (
+                              <Square className="text-white/70" />
+                            )}
                           </div>
                         )}
                         {item.metadata.thumbnailPath ? (
@@ -343,12 +360,24 @@ export const VideoBrowser: React.FC = () => {
 
                         {/* Tags/People Display */}
                         <div className="flex flex-wrap gap-1 mb-2">
-                          {item.tags && item.tags.map((t: any) => (
-                            <span key={t.id} className="text-[10px] bg-slate-800 text-cyan-400 px-1.5 py-0.5 rounded-full">{t.name}</span>
-                          ))}
-                          {item.people && item.people.map((p: any) => (
-                            <span key={p.id} className="text-[10px] bg-slate-800 text-amber-400 px-1.5 py-0.5 rounded-full">{p.name}</span>
-                          ))}
+                          {item.tags &&
+                            item.tags.map((t: any) => (
+                              <span
+                                key={t.id}
+                                className="text-[10px] bg-slate-800 text-cyan-400 px-1.5 py-0.5 rounded-full"
+                              >
+                                {t.name}
+                              </span>
+                            ))}
+                          {item.people &&
+                            item.people.map((p: any) => (
+                              <span
+                                key={p.id}
+                                className="text-[10px] bg-slate-800 text-amber-400 px-1.5 py-0.5 rounded-full"
+                              >
+                                {p.name}
+                              </span>
+                            ))}
                         </div>
 
                         {item.entityName && (

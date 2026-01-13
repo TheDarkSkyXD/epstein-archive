@@ -2633,12 +2633,15 @@ app.put(
     try {
       const { itemIds, tagIds, action } = req.body;
 
-      if (!Array.isArray(itemIds) || itemIds.length === 0) return res.status(400).json({ error: 'Invalid item IDs' });
-      if (!Array.isArray(tagIds) || tagIds.length === 0) return res.status(400).json({ error: 'Invalid tag IDs' });
-      if (!['add', 'remove'].includes(action)) return res.status(400).json({ error: 'Invalid action' });
+      if (!Array.isArray(itemIds) || itemIds.length === 0)
+        return res.status(400).json({ error: 'Invalid item IDs' });
+      if (!Array.isArray(tagIds) || tagIds.length === 0)
+        return res.status(400).json({ error: 'Invalid tag IDs' });
+      if (!['add', 'remove'].includes(action))
+        return res.status(400).json({ error: 'Invalid action' });
 
       const results = [];
-      
+
       for (const itemId of itemIds) {
         try {
           const id = parseInt(itemId);
@@ -2661,10 +2664,10 @@ app.put(
       }
       res.json({ results });
     } catch (error) {
-       console.error('Error batch tagging items:', error);
-       next(error);
+      console.error('Error batch tagging items:', error);
+      next(error);
     }
-  }
+  },
 );
 
 app.put(
@@ -2675,38 +2678,41 @@ app.put(
     try {
       const { itemIds, personIds, action } = req.body;
 
-      if (!Array.isArray(itemIds) || itemIds.length === 0) return res.status(400).json({ error: 'Invalid item IDs' });
-      if (!Array.isArray(personIds) || personIds.length === 0) return res.status(400).json({ error: 'Invalid person IDs' });
-      if (!['add', 'remove'].includes(action)) return res.status(400).json({ error: 'Invalid action' });
+      if (!Array.isArray(itemIds) || itemIds.length === 0)
+        return res.status(400).json({ error: 'Invalid item IDs' });
+      if (!Array.isArray(personIds) || personIds.length === 0)
+        return res.status(400).json({ error: 'Invalid person IDs' });
+      if (!['add', 'remove'].includes(action))
+        return res.status(400).json({ error: 'Invalid action' });
 
       const results = [];
-      
+
       for (const itemId of itemIds) {
         try {
-           const id = parseInt(itemId);
-           if (isNaN(id)) continue;
-           
-           for (const personId of personIds) {
-             const pid = parseInt(personId);
-             if (isNaN(pid)) continue;
-             
-             if (action === 'add') {
-               mediaService.addPersonToItem(id, pid);
-             } else {
-               mediaService.removePersonFromItem(id, pid);
-             }
-           }
-           results.push({ id, success: true });
+          const id = parseInt(itemId);
+          if (isNaN(id)) continue;
+
+          for (const personId of personIds) {
+            const pid = parseInt(personId);
+            if (isNaN(pid)) continue;
+
+            if (action === 'add') {
+              mediaService.addPersonToItem(id, pid);
+            } else {
+              mediaService.removePersonFromItem(id, pid);
+            }
+          }
+          results.push({ id, success: true });
         } catch (err) {
-           results.push({ id: itemId, success: false, error: (err as Error).message });
+          results.push({ id: itemId, success: false, error: (err as Error).message });
         }
       }
       res.json({ results });
     } catch (error) {
-       console.error('Error batch adding people to items:', error);
-       next(error);
+      console.error('Error batch adding people to items:', error);
+      next(error);
     }
-  }
+  },
 );
 
 // Batch update metadata

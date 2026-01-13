@@ -490,7 +490,6 @@ export const About: React.FC = () => {
         </div>
       </div>
 
-
       {/* Community Acknowledgments */}
       <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl p-8 mb-8 border border-slate-700">
         <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">

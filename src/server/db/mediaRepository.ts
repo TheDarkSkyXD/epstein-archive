@@ -231,22 +231,26 @@ export const mediaRepository = {
           console.error('Error parsing metadata for media item', item.id, e);
         }
 
-        const tags = item.tags ? item.tags.split(',').map((t: string) => {
-            const [id, name] = t.split(':');
-            return { id: parseInt(id), name };
-        }) : [];
+        const tags = item.tags
+          ? item.tags.split(',').map((t: string) => {
+              const [id, name] = t.split(':');
+              return { id: parseInt(id), name };
+            })
+          : [];
 
-        const people = item.people ? item.people.split(',').map((p: string) => {
-            const [id, name] = p.split(':');
-            return { id: parseInt(id), name };
-        }) : [];
+        const people = item.people
+          ? item.people.split(',').map((p: string) => {
+              const [id, name] = p.split(':');
+              return { id: parseInt(id), name };
+            })
+          : [];
 
         return {
           ...item,
           redFlagRating: item.redFlagRating,
           metadata,
           tags,
-          people
+          people,
         };
       }),
       total: totalResult.total,

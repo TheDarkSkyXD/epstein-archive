@@ -142,7 +142,7 @@ export class OptimizedDataService {
       console.log(`Cache hit for entities page ${page}`);
       return cached;
     }
-    
+
     // STRICT QUALITY FILTER for Page 1 default view
     // If no search, no specific filters, and page 1 -> We apply strict quality control
     const isDefaultView = !filters.searchTerm && !filters.role && !filters.entityType && page === 1;
@@ -192,18 +192,19 @@ export class OptimizedDataService {
                 evidence_types: person.evidenceTypes || person.evidence_types || [],
               }))
               .filter((p) => (term ? (p.name || '').toLowerCase().includes(term) : true));
-              
+
             // QUALITY FILTER: If default view, remove low-relevance noise
             if (isDefaultView) {
-               result.data = result.data.filter((p: any) => {
-                 // Keep if: High/Medium risk OR > 2 mentions OR explicitly labeled Role
-                 const isRisk = (p.red_flag_rating || 0) >= 2;
-                 const isPopular = (p.mentions || 0) >= 3;
-                 const hasRole = p.role && p.role !== 'Person of Interest' && p.role !== 'Unknown';
-                 const isVerified = p.likelihood_score === 'HIGH' || p.likelihood_score === 'CRITICAL';
-                 
-                 return isRisk || isPopular || hasRole || isVerified;
-               });
+              result.data = result.data.filter((p: any) => {
+                // Keep if: High/Medium risk OR > 2 mentions OR explicitly labeled Role
+                const isRisk = (p.red_flag_rating || 0) >= 2;
+                const isPopular = (p.mentions || 0) >= 3;
+                const hasRole = p.role && p.role !== 'Person of Interest' && p.role !== 'Unknown';
+                const isVerified =
+                  p.likelihood_score === 'HIGH' || p.likelihood_score === 'CRITICAL';
+
+                return isRisk || isPopular || hasRole || isVerified;
+              });
             }
           }
 

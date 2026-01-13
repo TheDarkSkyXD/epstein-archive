@@ -94,10 +94,10 @@ export const MediaAndArticlesTab: React.FC = () => {
           }
         >
           <div className="min-h-full flex flex-col">
-             {activeSubTab === 'articles' && <ArticlesTab />}
-             {activeSubTab === 'photos' && <MediaTab />}
-             {activeSubTab === 'audio' && <AudioTab />}
-             {activeSubTab === 'video' && <VideoTab />}
+            {activeSubTab === 'articles' && <ArticlesTab />}
+            {activeSubTab === 'photos' && <MediaTab />}
+            {activeSubTab === 'audio' && <AudioTab />}
+            {activeSubTab === 'video' && <VideoTab />}
           </div>
         </Suspense>
       </div>

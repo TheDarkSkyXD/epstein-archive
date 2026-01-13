@@ -14,7 +14,6 @@
 
 - **Junk Removal**: Aggressively removed more OCR garbage entities (e.g. "Total Cash Disbursements", "Various Verizon").
 
-
 ## V10.1.9 (January 13, 2026)
 
 ### 🎙️ Timed Transcripts

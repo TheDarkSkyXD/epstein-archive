@@ -4,7 +4,7 @@ import { AudioBrowser } from './AudioBrowser';
 
 const AudioTab: React.FC = () => {
   const location = useLocation();
-  
+
   const initialAlbumId = useMemo(() => {
     const params = new URLSearchParams(location.search);
     const id = params.get('albumId');

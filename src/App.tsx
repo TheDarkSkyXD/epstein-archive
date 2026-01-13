@@ -1619,26 +1619,40 @@ function App() {
                                   The Sascha Barros Testimony
                                 </h2>
                                 <p className="text-slate-300 max-w-2xl leading-relaxed">
-                                  Exclusive 6-part interview series revealing critical new details about the network's operation. 
-                                  Includes full audio recordings and searchable precision transcripts.
+                                  Exclusive 6-part interview series revealing critical new details
+                                  about the network's operation. Includes full audio recordings and
+                                  searchable precision transcripts.
                                 </p>
                               </div>
                               <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto mt-4 md:mt-0">
                                 <button
-                                  onClick={() => navigate('/media/audio?albumId=25')} 
+                                  onClick={() => navigate('/media/audio?albumId=25')}
                                   className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold shadow-lg shadow-blue-900/20 transition-all hover:scale-105 active:scale-95 group/btn"
                                 >
-                                  <svg className="w-5 h-5 fill-current group-hover/btn:scale-110 transition-transform" viewBox="0 0 24 24">
+                                  <svg
+                                    className="w-5 h-5 fill-current group-hover/btn:scale-110 transition-transform"
+                                    viewBox="0 0 24 24"
+                                  >
                                     <path d="M8 5v14l11-7z" />
                                   </svg>
                                   Listen to Interviews
                                 </button>
                                 <button
-                                  onClick={() => navigate('/media/articles?q=Sascha%20Barros')} 
+                                  onClick={() => navigate('/media/articles?q=Sascha%20Barros')}
                                   className="flex items-center justify-center gap-2 px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg font-medium transition-all hover:bg-slate-750"
                                 >
-                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                  <svg
+                                    className="w-5 h-5"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                    />
                                   </svg>
                                   Read Transcripts
                                 </button>

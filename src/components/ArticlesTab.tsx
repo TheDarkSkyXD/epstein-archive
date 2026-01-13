@@ -13,7 +13,7 @@ export const ArticlesTab: React.FC = () => {
     const params = new URLSearchParams(window.location.search);
     return params.get('q') || '';
   });
-  
+
   const [selectedPublication, setSelectedPublication] = useState<string>('all');
   const [viewerArticle, setViewerArticle] = useState<any | null>(null);
 

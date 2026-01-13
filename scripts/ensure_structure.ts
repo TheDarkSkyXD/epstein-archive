@@ -9,7 +9,8 @@ const ALBUMS = [
   {
     id: 25, // Fixed ID to ensure linking works
     title: 'The Sascha Barros Testimony',
-    description: 'Complete 6-part interview series with Sascha Barros. Credits: Interviews by Lisa Noelle Voldeng. Content Warning: Contains graphic descriptions of sexual abuse and trafficking.',
+    description:
+      'Complete 6-part interview series with Sascha Barros. Credits: Interviews by Lisa Noelle Voldeng. Content Warning: Contains graphic descriptions of sexual abuse and trafficking.',
     is_sensitive: 1,
     cover_image_id: null,
     items: [
@@ -19,8 +20,8 @@ const ALBUMS = [
       { part: 4, filename_match: 'Sascha Barros Testimony - Part 4' },
       { part: 5, filename_match: 'Sascha Barros Testimony - Part 5' },
       { part: 6, filename_match: 'Sascha Barros Testimony - Part 6' },
-    ]
-  }
+    ],
+  },
 ];
 
 // --- SEEDING LOGIC ---
@@ -45,7 +46,9 @@ function ensureStructure() {
       date_modified = CURRENT_TIMESTAMP
   `);
 
-  const findItem = db.prepare(`SELECT id FROM media_items WHERE title LIKE ? OR description LIKE ? LIMIT 1`);
+  const findItem = db.prepare(
+    `SELECT id FROM media_items WHERE title LIKE ? OR description LIKE ? LIMIT 1`,
+  );
   const insertAlbumItem = db.prepare(`
     INSERT OR IGNORE INTO media_album_items (album_id, media_item_id, "order", added_at)
     VALUES (?, ?, ?, CURRENT_TIMESTAMP)

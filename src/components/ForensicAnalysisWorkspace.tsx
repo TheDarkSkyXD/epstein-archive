@@ -105,8 +105,6 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
   ];
 
   const enabledToolsList = forensicTools.filter((tool) => tool.enabled);
-  // TODO: Use ActiveComponent for dynamic rendering - see UNUSED_VARIABLES_RECOMMENDATIONS.md
-  const _ActiveComponent = enabledToolsList.find((tool) => tool.id === activeTool)?.component;
 
   const toggleTool = (toolId: string) => {
     setEnabledTools((prev) => ({

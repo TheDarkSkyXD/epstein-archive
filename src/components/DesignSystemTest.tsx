@@ -4,8 +4,7 @@ import { DocumentCard } from './DocumentCard';
 import { MediaCard } from './MediaCard';
 import { SourceBadge } from './SourceBadge';
 import { RedFlagIndex } from './RedFlagIndex';
-// TODO: Implement CardGrid layout - see UNUSED_VARIABLES_RECOMMENDATIONS.md
-import { Layout, Section, CardGrid as _CardGrid } from './Layout';
+import { Layout, Section } from './Layout';
 
 // Mock data for testing
 const mockPerson = {

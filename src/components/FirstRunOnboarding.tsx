@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, ArrowRight, Filter, Search, FileText as _FileText, Flag, Plus } from 'lucide-react';
+import { X, ArrowRight, Filter, Search, Flag, Plus } from 'lucide-react';
 
 interface FirstRunOnboardingProps {
   onComplete: () => void;

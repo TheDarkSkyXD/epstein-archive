@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-// TODO: Add trending indicators - see UNUSED_VARIABLES_RECOMMENDATIONS.md
 import {
   FileText,
   AlertTriangle,
@@ -8,7 +7,6 @@ import {
   ExternalLink,
   User,
   BarChart3,
-  TrendingUp as _TrendingUp,
   Network,
 } from 'lucide-react';
 

@@ -159,17 +159,6 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
     onHypothesesUpdate(updatedHypotheses);
   };
 
-  // TODO: Implement confidence calculation - see UNUSED_VARIABLES_RECOMMENDATIONS.md
-  const _updateHypothesisConfidence = (hypothesisId: string, confidence: number) => {
-    const updatedHypotheses = hypotheses.map((hyp) =>
-      hyp.id === hypothesisId ? { ...hyp, confidence, updatedAt: new Date() } : hyp,
-    );
-    setHypotheses(updatedHypotheses);
-    if (activeHypothesis?.id === hypothesisId) {
-      setActiveHypothesis({ ...activeHypothesis, confidence, updatedAt: new Date() });
-    }
-    onHypothesesUpdate(updatedHypotheses);
-  };
 
   const linkEvidenceToHypothesis = (hypothesisId: string) => {
     if (!linkData.evidenceId) return;
@@ -283,19 +272,6 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
     return evidenceItems.find((item) => item.id === id);
   };
 
-  const _calculateOverallConfidence = (links: EvidenceLink[]) => {
-    if (links.length === 0) return 50;
-
-    const totalWeight = links.reduce((sum, link) => {
-      const weightMultiplier =
-        link.relevance === 'supporting' ? 1 : link.relevance === 'contradicting' ? -1 : 0;
-      return sum + link.weight * weightMultiplier;
-    }, 0);
-
-    // Normalize to 0-100 range
-    const normalized = Math.min(100, Math.max(0, 50 + totalWeight));
-    return Math.round(normalized);
-  };
 
   return (
     <div className="bg-slate-900 rounded-xl border border-slate-700">

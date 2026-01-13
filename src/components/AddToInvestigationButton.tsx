@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-// TODO: Use EvidenceItem type for validation - see UNUSED_VARIABLES_RECOMMENDATIONS.md
-import { Investigation, EvidenceItem as _EvidenceItem } from '../types/investigation';
+import { Investigation } from '../types/investigation';
 import Icon from './Icon';
 import { useInvestigations } from '../contexts/InvestigationsContext';
 
@@ -43,8 +42,6 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
   const [selectedInvestigationId, setSelectedInvestigationId] = useState<string>('');
   const [relevance, setRelevance] = useState<'high' | 'medium' | 'low'>('medium');
   const [isLoading, setIsLoading] = useState(false);
-  // TODO: Implement quick add feature - see UNUSED_VARIABLES_RECOMMENDATIONS.md
-  const [_showQuickAdd, _setShowQuickAdd] = useState(false);
 
   // Use investigations from context if not provided via props
   const investigations = propInvestigations || contextInvestigations;

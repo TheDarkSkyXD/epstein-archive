@@ -11,7 +11,6 @@ import {
   Calendar,
   Tag,
   ExternalLink,
-  Trash2 as _Trash2,
   Filter,
   BarChart3,
 } from 'lucide-react';
@@ -56,8 +55,7 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  // TODO: Implement evidence detail view - see UNUSED_VARIABLES_RECOMMENDATIONS.md
-  const [_selectedEvidence, setSelectedEvidence] = useState<Evidence | null>(null);
+  const [, setSelectedEvidence] = useState<Evidence | null>(null);
 
   useEffect(() => {
     loadEvidenceSummary();
@@ -125,20 +123,6 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
       setSearchResults([]);
     } catch (error) {
       console.error('Error adding evidence:', error);
-    }
-  };
-
-  // TODO: Implement evidence removal UI - see UNUSED_VARIABLES_RECOMMENDATIONS.md
-  const _removeEvidence = async (investigationEvidenceId: number) => {
-    if (!confirm('Remove this evidence from the investigation?')) return;
-
-    try {
-      await fetch(`/api/investigation/remove-evidence/${investigationEvidenceId}`, {
-        method: 'DELETE',
-      });
-      loadEvidenceSummary();
-    } catch (error) {
-      console.error('Error removing evidence:', error);
     }
   };
 

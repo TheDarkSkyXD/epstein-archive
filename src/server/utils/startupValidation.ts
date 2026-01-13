@@ -37,15 +37,6 @@ export function validateStartup() {
   // 4. Schema Integrity
   try {
     const db = getDb();
-    const _requiredTables = [
-      'entities',
-      'documents',
-      'relationships',
-      'investigations',
-      'evidence',
-      'users',
-      'audit_log',
-    ];
     // Note: 'relationships' might be 'entity_relationships' depending on schema version.
     // We check what we have.
 

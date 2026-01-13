@@ -1,10 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { TimelineEvent, EvidenceItem, Investigation, Hypothesis } from '../types/investigation';
 import { format, parseISO, isValid } from 'date-fns';
-// TODO: Add collapsible sections and visibility controls - see UNUSED_VARIABLES_RECOMMENDATIONS.md
 import {
-  ChevronDown as _ChevronDown,
-  ChevronUp as _ChevronUp,
   ChevronRight,
   Calendar,
   Clock,
@@ -16,7 +13,6 @@ import {
   Edit2,
   Trash2,
   Eye,
-  EyeOff as _EyeOff,
 } from 'lucide-react';
 
 interface TimelineBuilderProps {
@@ -43,8 +39,6 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
   onSaveEvent,
   onDeleteEvent,
 }) => {
-  // TODO: Implement event selection feature - see UNUSED_VARIABLES_RECOMMENDATIONS.md
-  const [_selectedEvent, _setSelectedEvent] = useState<TimelineEvent | null>(null);
   const [isAddingEvent, setIsAddingEvent] = useState(false);
   const [editingEvent, setEditingEvent] = useState<TimelineEvent | null>(null);
   const [timelineScale, setTimelineScale] = useState<'day' | 'week' | 'month' | 'year'>('day');

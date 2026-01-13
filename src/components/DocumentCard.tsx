@@ -22,21 +22,6 @@ interface DocumentCardProps {
 }
 
 export const DocumentCard: React.FC<DocumentCardProps> = ({ document, onClick }) => {
-  // TODO: Use getSourceColor for visual distinction - see UNUSED_VARIABLES_RECOMMENDATIONS.md
-  // Get source badge color
-  const _getSourceColor = (source: string) => {
-    switch (source) {
-      case 'Black Book':
-        return 'bg-[var(--accent-soft-danger)] text-[var(--accent-danger)]';
-      case 'Seventh Production':
-        return 'bg-[var(--accent-soft-primary)] text-[var(--accent-primary)]';
-      case 'Public Record':
-        return 'bg-[var(--accent-soft-secondary)] text-[var(--accent-secondary)]';
-      default:
-        return 'bg-[var(--bg-subtle)] text-[var(--text-secondary)]';
-    }
-  };
-
   const metadata = [];
   if (document.fileType) {
     metadata.push({ label: 'Type', value: document.fileType, icon: 'Hash' });

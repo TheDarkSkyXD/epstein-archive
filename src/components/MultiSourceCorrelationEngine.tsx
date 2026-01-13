@@ -1,16 +1,11 @@
 import React, { useState, useEffect } from 'react';
-// TODO: Add correlation filtering and timeline features - see UNUSED_VARIABLES_RECOMMENDATIONS.md
 import {
   Link,
-  Unlink as _Unlink,
   Search,
-  Filter as _Filter,
   Download,
   AlertTriangle,
   CheckCircle,
-  Clock as _Clock,
   MapPin,
-  Phone as _Phone,
   Mail,
   DollarSign,
   User,
@@ -146,98 +141,6 @@ export default function MultiSourceCorrelationEngine() {
     };
     load();
   }, []);
-
-  // TODO: Use mock data for demo mode - see UNUSED_VARIABLES_RECOMMENDATIONS.md
-  const _generateMockCorrelations = () => {
-    const mockCorrelations: CorrelationResult[] = [
-      {
-        id: 'corr-001',
-        type: 'temporal',
-        confidence: 94,
-        description:
-          'Ghislaine Maxwell and Jeffrey Epstein traveled to Paris within 24 hours in March 2006',
-        sources: ['travel-001', 'communication-001'],
-        entities: ['Jeffrey Epstein', 'Ghislaine Maxwell'],
-        timeRange: { start: '2006-03-15', end: '2006-03-16' },
-        location: 'Paris, France',
-        significance: 'critical',
-        evidence: [
-          'Flight records show both individuals on flights arriving within 24 hours',
-          'Hotel reservations at the same establishment',
-          'Phone records indicate 47 calls between parties during this period',
-        ],
-        anomalies: ['Unusual communication pattern', 'Coordinated travel timing'],
-      },
-      {
-        id: 'corr-002',
-        type: 'financial',
-        confidence: 87,
-        description:
-          '$15M transfer to Ghislaine Maxwell followed by increased communication activity',
-        sources: ['financial-001', 'communication-001'],
-        entities: ['Jeffrey Epstein', 'Ghislaine Maxwell'],
-        timeRange: { start: '2004-03-15', end: '2004-03-20' },
-        significance: 'high',
-        evidence: [
-          'Wire transfer record for $15M on March 15, 2004',
-          'Phone activity increased 340% in the 5 days following transfer',
-          'Email correspondence regarding "business arrangements"',
-        ],
-        anomalies: ['Large amount', 'Timing correlation', 'Vague business purpose'],
-      },
-      {
-        id: 'corr-003',
-        type: 'spatial',
-        confidence: 91,
-        description: 'Multiple properties purchased within 2-mile radius in Palm Beach',
-        sources: ['legal-001', 'financial-001'],
-        entities: ['Jeffrey Epstein', 'Epstein Virgin Islands Trust'],
-        timeRange: { start: '1990-01-01', end: '2010-12-31' },
-        location: 'Palm Beach, Florida',
-        significance: 'high',
-        evidence: [
-          'Property records show 5 purchases within 2-mile radius',
-          'Common ownership through trust structures',
-          'Purchases span 20-year period suggesting long-term strategy',
-        ],
-        anomalies: ['Concentrated geographic pattern', 'Trust ownership obfuscation'],
-      },
-      {
-        id: 'corr-004',
-        type: 'communication',
-        confidence: 83,
-        description: 'Jean-Luc Brunel contacted Epstein immediately after receiving $1M payment',
-        sources: ['financial-001', 'communication-001'],
-        entities: ['Jeffrey Epstein', 'Jean-Luc Brunel'],
-        timeRange: { start: '2014-12-14', end: '2014-12-15' },
-        significance: 'critical',
-        evidence: [
-          'Wire transfer of $1M on December 14, 2014',
-          'Phone call initiated by Brunel 23 minutes after transfer confirmation',
-          'Subsequent emails regarding "modeling business" arrangements',
-        ],
-        anomalies: ['Immediate contact', 'Cash-intensive business reference', 'Foreign national'],
-      },
-      {
-        id: 'corr-005',
-        type: 'behavioral',
-        confidence: 79,
-        description: 'Pattern of large transactions followed by charitable donations',
-        sources: ['financial-001', 'social-001'],
-        entities: ['Jeffrey Epstein'],
-        timeRange: { start: '2015-01-01', end: '2019-12-31' },
-        significance: 'medium',
-        evidence: [
-          '12 instances of donations within 30 days of large transactions',
-          'Donations to high-profile institutions and individuals',
-          'Media coverage often follows donation announcements',
-        ],
-        anomalies: ['Reputation management pattern', 'Timing consistency', 'Amount correlation'],
-      },
-    ];
-
-    setCorrelations(mockCorrelations);
-  };
 
   const runCorrelationAnalysis = async () => {
     setIsAnalyzing(true);

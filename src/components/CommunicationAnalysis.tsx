@@ -40,25 +40,9 @@ export interface CommunicationPattern {
   recommendations: string[];
 }
 
-// CommunicationEvent interface reserved for future use
-interface _CommunicationEvent {
-  id: string;
-  timestamp: string;
-  sender: string;
-  recipients: string[];
-  type: 'email' | 'phone' | 'text' | 'meeting';
-  content?: string;
-  metadata: {
-    duration?: number;
-    location?: string;
-    urgency?: 'low' | 'medium' | 'high';
-    encrypted?: boolean;
-  };
-}
-
 export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
-  investigation: _investigation,
-  evidence: _evidence,
+  investigation,
+  evidence,
   onCommunicationPatternDetected,
 }) => {
   const [communicationPatterns, setCommunicationPatterns] = useState<CommunicationPattern[]>([]);

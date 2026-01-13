@@ -110,15 +110,10 @@ export const EntityRelationshipMapper: React.FC<EntityRelationshipMapperProps> =
         .y((d) => d.y!)
         .addAll(nodes);
 
-      const _theta = 0.9; // Barns-Hut threshold
-
       nodes.forEach((_node) => {
         tree.visit((quad, x1, y1, x2, _y2) => {
           if (!quad.length) {
             // Internal node
-            const _width = x2 - x1;
-            // @ts-ignore - d3-quadtree types are sometimes tricky with custom props
-            const _quadEx = quad.data ? quad.data.x : (quad as any).x; // Center of mass X (simplification: center of quad)
             // d3-quadtree doesn't calculate center of mass by default without accumulation.
             // We'll use a simpler collision detection approach instead of full Barnes-Hut if we don't implement the mass accumulation.
             // Actually, a simpler repulsion is just visiting all nodes near us.
@@ -138,7 +133,6 @@ export const EntityRelationshipMapper: React.FC<EntityRelationshipMapperProps> =
             // Internal node
             // If we implemented center of mass, we could use BH here.
             // For now, let's just descend if the quad is close enough
-            const _width = x2 - x1;
             // Check if quad is far away
             // Keep fully visiting leaves
             return false;
@@ -440,7 +434,6 @@ export const EntityRelationshipMapper: React.FC<EntityRelationshipMapperProps> =
         onMouseDown={(e) => {
           const startX = e.clientX;
           const startY = e.clientY;
-          const _startTransform = { ...transform };
 
           const handleMouseMove = (moveEvent: MouseEvent) => {
             const dx = moveEvent.clientX - startX;

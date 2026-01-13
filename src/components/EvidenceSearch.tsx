@@ -13,22 +13,6 @@ import Icon from './Icon';
 import ProgressBar from './ProgressBar';
 import { AddToInvestigationButton } from './AddToInvestigationButton';
 
-// TODO: Use SearchResult type for better type safety
-interface _SearchResult {
-  person: Person;
-  matchingContexts: Array<{
-    file: string;
-    context: string;
-    date: string;
-  }>;
-  matchingPassages: Array<{
-    keyword: string;
-    passage: string;
-    filename: string;
-  }>;
-  score: number;
-}
-
 interface EvidenceSearchProps {
   onPersonClick?: (person: Person, searchTerm: string) => void;
 }

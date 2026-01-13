@@ -10,24 +10,17 @@ import { fileURLToPath } from 'url';
 import { getDb } from './server/db/connection.js';
 import { entitiesRepository } from './server/db/entitiesRepository.js';
 import { documentsRepository } from './server/db/documentsRepository.js';
-import { relationshipsRepository as _relationshipsRepository } from './server/db/relationshipsRepository.js';
-import { investigationsRepository as _investigationsRepository } from './server/db/investigationsRepository.js';
 import { statsRepository } from './server/db/statsRepository.js';
 import { mediaRepository } from './server/db/mediaRepository.js';
 import { searchRepository } from './server/db/searchRepository.js';
 import { timelineRepository } from './server/db/timelineRepository.js';
-import { jobsRepository as _jobsRepository } from './server/db/jobsRepository.js';
 import { forensicRepository } from './server/db/forensicRepository.js';
 import { runMigrations } from './server/db/migrator.js';
 import { validateStartup } from './server/utils/startupValidation.js';
 import { authenticateRequest, requireRole } from './server/auth/middleware.js';
 import authRoutes from './server/auth/routes.js';
 import { logAudit } from './server/utils/auditLogger.js';
-import {
-  validateEnvironment as _validateEnvironment,
-  getEnv,
-} from './server/utils/envValidator.js';
-import { InvestigationService as _InvestigationService } from './services/InvestigationService.js';
+import { getEnv } from './server/utils/envValidator.js';
 import { MediaService } from './services/MediaService.js';
 import investigationEvidenceRoutes from './routes/investigationEvidenceRoutes.js';
 import investigationsRouter from './server/routes/investigations.js';
@@ -37,8 +30,6 @@ import investigativeTasksRoutes from './server/routes/investigativeTasks.js';
 import crypto from 'crypto';
 import multer from 'multer';
 import fs from 'fs';
-// @ts-ignore - PDF parsing capability reserved for future use
-import { PDFParse as _PDFParse } from 'pdf-parse';
 import bcrypt from 'bcryptjs';
 import { SearchFilters, SortOption } from './types';
 import { config } from './config/index.js';
@@ -50,7 +41,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Paths
-const _DB_PATH = getEnv('DB_PATH', path.join(__dirname, '../../epstein-archive-production.db'));
 const CORPUS_BASE_PATH = process.env.RAW_CORPUS_BASE_PATH || '';
 // Warn if corpus path not configured (documents may not be accessible)
 if (!CORPUS_BASE_PATH) {
@@ -976,7 +966,6 @@ app.get('/api/entities/:id/documents', async (req, res, next) => {
     const entityId = req.params.id;
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 50));
-    const _sortBy = (req.query.sortBy as string) || 'mentions';
 
     // Get entity name first
     const entity = getDb()
@@ -1463,30 +1452,6 @@ app.get('/api/documents', async (req, res, next) => {
     // Query documents from database
     const offset = (page - 1) * limit;
 
-    // Explicitly select columns to avoid ambiguities
-    const _query = `
-      SELECT 
-        id,
-        file_name as fileName,
-        file_path as filePath,
-        file_type as fileType,
-        file_size as fileSize,
-        date_created as dateCreated,
-        substr(content, 1, 300) as contentPreview,
-        evidence_type as evidenceType,
-        0 as mentionsCount,
-        content,
-        metadata_json as metadata,
-        word_count as wordCount,
-        red_flag_rating as redFlagRating,
-        content_hash as contentHash,
-        file_name as title
-      FROM documents
-      ${whereClause}
-      ${orderByClause}
-      LIMIT ? OFFSET ?
-    `;
-
     // Use simple count
     const countQuery = `SELECT COUNT(*) as total FROM documents ${whereClause}`;
 
@@ -1864,18 +1829,6 @@ app.get('/api/evidence/search', async (req, res, next) => {
         connectionsToEpstein: entity.connectionsSummary || '',
       };
     });
-
-    // Transform documents to match expected API format
-    const _transformedDocuments = result.documents.map((doc: any) => ({
-      id: doc.id,
-      fileName: doc.fileName,
-      filePath: doc.filePath,
-      fileType: doc.fileType,
-      evidenceType: doc.evidenceType,
-      contentPreview: doc.contentPreview,
-      mentionsCount: doc.mentionsCount,
-      createdAt: doc.createdAt,
-    }));
 
     // Pagination
     const startIndex = (page - 1) * limit;

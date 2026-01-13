@@ -4,10 +4,10 @@ import {
   Phone,
   Mail,
   MapPin,
-  User as _User,
+  User,
   Book,
   Eye,
-  FileText as _FileText,
+  FileText,
   ExternalLink,
 } from 'lucide-react';
 import { extractCleanName, formatPhoneNumber } from '../utils/prettifyOCR';

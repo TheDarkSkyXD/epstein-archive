@@ -1,19 +1,5 @@
 import React from 'react';
-// TODO: Use metadata icons - see UNUSED_VARIABLES_RECOMMENDATIONS.md
-import {
-  FileText as _FileText,
-  Calendar as _Calendar,
-  Database,
-  Tag,
-  Shield,
-  AlertTriangle,
-  User as _User,
-  Hash as _Hash,
-  Layers as _Layers,
-  Globe,
-  Clock as _Clock,
-  File,
-} from 'lucide-react';
+import { Database, Tag, Shield, AlertTriangle, Globe, File } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface DocumentMetadataPanelProps {
@@ -22,10 +8,8 @@ interface DocumentMetadataPanelProps {
   className?: string;
 }
 
-// TODO: Use analysis for AI-powered insights - see UNUSED_VARIABLES_RECOMMENDATIONS.md
 export const DocumentMetadataPanel: React.FC<DocumentMetadataPanelProps> = ({
   document,
-  analysis: _analysis,
   className = '',
 }) => {
   if (!document) return null;

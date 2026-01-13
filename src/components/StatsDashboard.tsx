@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, AlertTriangle, FileText as _FileText, TrendingUp } from 'lucide-react';
+import { Users, AlertTriangle, FileText, TrendingUp } from 'lucide-react';
 import { Person } from '../types';
 
 interface StatsDashboardProps {

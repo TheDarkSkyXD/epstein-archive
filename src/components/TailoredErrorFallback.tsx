@@ -3,7 +3,7 @@ import {
   AlertTriangle,
   WifiOff,
   Database,
-  FileText as _FileText,
+  FileText,
   RefreshCw,
   Home,
 } from 'lucide-react';

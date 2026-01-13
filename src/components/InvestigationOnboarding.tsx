@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, ArrowRight, Filter, Search, FileText as _FileText, CheckCircle } from 'lucide-react';
+import { X, ArrowRight, Filter, Search, FileText, CheckCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface InvestigationOnboardingProps {

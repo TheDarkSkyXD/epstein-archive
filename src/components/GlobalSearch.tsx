@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-// TODO: Add close button to modal - see UNUSED_VARIABLES_RECOMMENDATIONS.md
 import {
   Search,
   Filter,
   Calendar,
   Eye,
   Download,
-  X as _X,
   ChevronDown,
   User,
   Building,

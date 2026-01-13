@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
-// TODO: Add info/about section - see UNUSED_VARIABLES_RECOMMENDATIONS.md
 import {
   ExternalLink,
   Heart,
   Shield,
-  Info as _Info,
   BookOpen,
   Github,
   Eye,

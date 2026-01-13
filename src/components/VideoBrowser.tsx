@@ -3,7 +3,7 @@ import { VideoPlayer } from './VideoPlayer';
 import {
   Play,
   Film,
-  Calendar as _Calendar,
+  Calendar,
   CheckSquare,
   Square,
   AlertTriangle,

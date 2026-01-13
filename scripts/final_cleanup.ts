@@ -3,86 +3,38 @@ import Database from 'better-sqlite3';
 const DB_PATH = process.env.DB_PATH || 'epstein-archive.db';
 const db = new Database(DB_PATH);
 
+// Import centralized blacklist
+import { ENTITY_BLACKLIST, ENTITY_PARTIAL_BLOCKLIST } from '../src/config/entityBlacklist';
+
 function finalCleanup() {
   console.log('🧹 Starting Final Entity Cleanup...');
 
-  // 1. Delete Junk Entities
-  // Based on the screenshot provided by user
-  const junkTerms = [
-    'Received Received From',
-    'United Sister Magise',
-    'Dear Mr',
-    'Trust Fund',
-    'Madison Ave',
-    'After Amerting',
-    'Allas Obscura',
-    'Approved Emad',
-    'Boat Permits',
-    'Jeffrey E. Epstein Setire',
-    'Jeffrey E. Epstein Voc',
-    'Jeffrey E. Epstein Princ%',
-    'Heurneau Released To',
-    'Not Mill City',
-    'Jeffrey Ambrosi Research Analyst',
-    'Jeffrey D. Brody Founding',
-    'Jeffrey Joerres Chairman',
-    'Jeffrey L. Bewkes Chairman',
-    'Jeffrey Sloman Becomes Involved',
-    'Jeffrey Tyrone Majette Relatives',
-    'Jeffrey Epsten Hoping',
-    'Bob Seniar',
-    'Bob Seniors',
-    'Car Phone Electric',
-    'Completion Notes',
-    'Deo Bre',
-    'Employee Beretts',
-    'Full Moon',
-    'Insurance Office',
-    'July August',
-    'Margaret Girand',
-    'Nan Dershowitz',
-    'Pepie Are Targets',
-    'Professional Growers Sinc',
-    'Really Stick',
-    'Run And',
-    'September October',
-    'Sour Sob',
-    'Tara That',
-    'The Finst Places',
-    'There Hend But',
-    'Total Cash Disbursements',
-    'Trayet And',
-    'Various Cingular',
-    'Various Comcast',
-    'Various Federal Express',
-    'Various Verizon',
-    'Visa Waiver Program',
-    'Warner Cable Tatyana',
-    'Wire Wire Wire',
-    'You Neally',
-    'The Four Seasons',
-    'Happy Birthday',
-    'Applicable Law',
-    'Toll Free',
-    'Peter St',
-    'Please Keep',
-    'Received By'
-  ];
-
+  // 1. Delete Junk Entities using Shared Configuration
   const deleteStmt = db.prepare('DELETE FROM entities WHERE full_name LIKE ?');
   let deleted = 0;
-
+  
+  // A. Exact matches from Blacklist
+  console.log(`   Processing ${ENTITY_BLACKLIST.length} blacklist terms...`);
   db.transaction(() => {
-    for (const term of junkTerms) {
-      const res = deleteStmt.run(term);
-      deleted += res.changes;
+    for (const term of ENTITY_BLACKLIST) {
+       const res = deleteStmt.run(term);
+       deleted += res.changes;
     }
-
-    // Also pattern matching for "Jeffrey%" junk
-    // Jeffrey ... Chairman
-    db.prepare("DELETE FROM entities WHERE full_name LIKE 'Jeffrey%Chairman%'").run();
-    db.prepare("DELETE FROM entities WHERE full_name LIKE 'Jeffrey%Founding%'").run();
-    db.prepare("DELETE FROM entities WHERE full_name LIKE 'Jeffrey%Research%'").run();
+  })();
+  
+  // B. Partial matches from Blacklist
+  console.log(`   Processing ${ENTITY_PARTIAL_BLOCKLIST.length} partial blocklist terms...`);
+  const deleteLike = db.prepare('DELETE FROM entities WHERE full_name LIKE ?');
+  db.transaction(() => {
+      for (const term of ENTITY_PARTIAL_BLOCKLIST) {
+          const res = deleteLike.run(`%${term}%`);
+          deleted += res.changes;
+      }
+      
+      // Legacy specific cleanup
+      db.prepare("DELETE FROM entities WHERE full_name LIKE 'Jeffrey%Chairman%'").run();
+      db.prepare("DELETE FROM entities WHERE full_name LIKE 'Jeffrey%Founding%'").run();
+      db.prepare("DELETE FROM entities WHERE full_name LIKE 'Jeffrey%Research%'").run();
   })();
 
   console.log(`✅ Deleted ${deleted} junk entities (approx).`);

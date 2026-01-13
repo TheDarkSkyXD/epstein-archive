@@ -1,5 +1,16 @@
 # Release Notes
 
+## V10.1.18 (January 13, 2026)
+### 🛡️ Ingestion Hardening
+*   **Centralized Filtering**: Implemented a master blocklist for data ingestion to prevent junk entities from entering the system.
+*   **Ingestion Logic Improved**: `ingest_intelligence` now strictly filters generic terms, legal jargon, and partial OCR headers using robust regex patterns.
+*   **Cleanup Synced**: The maintenance cleanup script now shares the same logic, preventing "zombie" junk entities from reappearing.
+
+## V10.1.17 (January 13, 2026)
+### 🧹 Integrity Update
+*   **Junk Removal**: Aggressively removed more OCR garbage entities (e.g. "Total Cash Disbursements", "Various Verizon").
+# Release Notes
+
 ## V10.1.17 (January 13, 2026)
 ### 🧹 Integrity Update
 *   **Junk Removal**: Aggressively removed more OCR garbage entities (e.g. "Total Cash Disbursements", "Various Verizon").

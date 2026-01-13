@@ -58,77 +58,10 @@ function detectType(name: string): 'Person' | 'Organization' | 'Location' | 'Oth
   return 'Other';
 }
 
-const JUNK_TERMS = [
-  'The',
-  'A',
-  'An',
-  'On',
-  'In',
-  'To',
-  'From',
-  'By',
-  'Of',
-  'For',
-  'With',
-  'Mr',
-  'Mrs',
-  'Ms',
-  'Dr',
-  'Prof',
-  'Hon',
-  'Sir',
-  'Madam',
-  'Court',
-  'District',
-  'Circuit',
-  'Appeal',
-  'Supreme',
-  'Plaintiff',
-  'Defendant',
-  'Appellant',
-  'Appellee',
-  'Judge',
-  'Justice',
-  'Attorney',
-  'Lawyer',
-  'Counsel',
-  'United States',
-  'New York',
-  'Florida',
-  'Virgin Islands',
-  'Epstein', // standalone surname
-  'November',
-  'December',
-  'January',
-  'February', // months
-  'Monday',
-  'Tuesday',
-  'Wednesday', // days
-  'Exhibit',
-  'Appendix',
-  'Figure',
-  'Table',
-  'Page',
-  'Paragraph',
-  'Section',
-  'Email',
-  'Fax',
-  'Phone',
-  'Tel',
-  'Habeas',
-  'Corpus',
-  'Certiorari',
-  'Pro',
-  'Se',
-  'Et',
-  'Al',
-  'Seal',
-  'Sealed',
-  'Confidential',
-  'Redacted',
-];
+// Import centralized blacklist
+import { ENTITY_BLACKLIST, ENTITY_BLACKLIST_REGEX, ENTITY_PARTIAL_BLOCKLIST } from '../src/config/entityBlacklist';
 
-const JUNK_REGEX = new RegExp(`^(${JUNK_TERMS.join('|')})$`, 'i');
+const JUNK_REGEX = ENTITY_BLACKLIST_REGEX;
 
 // Entity Normalizer
 function normalizeName(name: string): string {
@@ -224,6 +157,11 @@ function rebuildEntityPipeline() {
           if (cleanName.length < 4) continue;
           if (JUNK_REGEX.test(cleanName)) continue;
           if (cleanName.includes('Epstein') && !cleanName.includes('Island')) continue; // Skip generic Epstein, allow Island
+          
+          // Check partial blocklist (e.g. "Received Received")
+          if (ENTITY_PARTIAL_BLOCKLIST.some(term => cleanName.toLowerCase().includes(term.toLowerCase()))) {
+            continue;
+          }
 
           // B. Resolve
           const lowerName = cleanName.toLowerCase();

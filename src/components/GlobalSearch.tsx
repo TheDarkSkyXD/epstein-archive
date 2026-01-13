@@ -1,15 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import {
-  Search,
-  Filter,
-  Calendar,
-  Eye,
-  Download,
-  ChevronDown,
-  User,
-  Building,
-} from 'lucide-react';
+import { Search, Filter, Calendar, Eye, Download, ChevronDown, User, Building } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
 import { Person } from '../types';
 

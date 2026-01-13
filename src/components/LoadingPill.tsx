@@ -1,10 +1,4 @@
-import React, {
-  useState,
-  createContext,
-  useContext,
-  useCallback,
-  ReactNode,
-} from 'react';
+import React, { useState, createContext, useContext, useCallback, ReactNode } from 'react';
 
 interface LoadingTask {
   id: string;

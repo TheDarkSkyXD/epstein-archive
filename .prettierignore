@@ -1,0 +1,17 @@
+# Ignore artifacts:
+dist
+build
+coverage
+
+# Ignore dependencies:
+node_modules
+.venv
+
+# Ignore data and assets:
+data
+public/data
+uploads
+assets
+
+# Ignore docs archive:
+docs_archive

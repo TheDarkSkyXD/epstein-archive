@@ -1,5 +1,14 @@
 # Release Notes
 
+## V10.1.11 (January 13, 2026)
+### 🏷️ Entity Tagging Fix
+*   **Resolved Tagging Error**: Fixed a schema mismatch that prevented Sascha Barron's entity creation. Verified all 7 key figures are now correctly tagged to the testimony audio.
+
+## V10.1.10 (January 13, 2026)
+### 🏷️ Entity Tagging
+*   **Sascha Barron Testimony Tags**: Explicitly linked key figures.
+# Release Notes
+
 ## V10.1.10 (January 13, 2026)
 ### 🏷️ Entity Tagging
 *   **Sascha Barron Testimony Tags**: Explicitly linked Donald Trump, Andy Biggs, Lindsey Graham, Jim Jordan, Clarence Thomas, William Kyle Riley, and Sascha Barron to the testimony audio files.

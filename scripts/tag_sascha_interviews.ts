@@ -11,7 +11,7 @@ function tagSaschaInterviews() {
   let sascha = db.prepare('SELECT id FROM entities WHERE full_name = ?').get('Sascha Barron') as {id: number} | undefined;
   if (!sascha) {
       console.log('   Creating Sascha Barron entity...');
-      const info = db.prepare("INSERT INTO entities (full_name, entity_type, description) VALUES (?, 'Person', 'Witness/Survivor giving testimony.')").run('Sascha Barron');
+      const info = db.prepare("INSERT INTO entities (full_name, entity_type) VALUES (?, 'Person')").run('Sascha Barron');
       sascha = { id: info.lastInsertRowid as number };
   } else {
       console.log(`   Found Sascha Barron (ID: ${sascha.id})`);

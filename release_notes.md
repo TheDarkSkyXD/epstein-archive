@@ -1,5 +1,15 @@
 # Release Notes
 
+## V10.1.13 (January 13, 2026)
+### 🎨 Visual Polish
+*   **Audio Covers**: Added dedicated alternating cover art for the Sascha Barros testimony series.
+*   **Refinement**: Ensured consistent display of thumbnails in the media browser.
+
+## V10.1.12 (January 13, 2026)
+### 📝 Correction & Stability
+*   **Name Correction**: Updated "Sascha Barron" to **Sascha Barros**.
+# Release Notes
+
 ## V10.1.12 (January 13, 2026)
 ### 📝 Correction & Stability
 *   **Name Correction**: Updated "Sascha Barron" to **Sascha Barros** across the entire archive (Entities, Albums, Audio Files).

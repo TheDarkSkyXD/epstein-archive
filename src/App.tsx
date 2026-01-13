@@ -1217,7 +1217,7 @@ function App() {
               </div>
             </header>
 
-            <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8 relative z-10 flex-grow overflow-hidden">
+            <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8 relative z-10 flex-grow">
               {/* Mobile Stats Row */}
               <div className="md:hidden grid grid-cols-3 gap-2 mb-6 text-center">
                 <button
@@ -1358,13 +1358,14 @@ function App() {
                   </button>
                   {investigatePopoverOpen &&
                     activeTab !== 'investigations' &&
+                    investigatePopoverPos.x !== 0 && // Ensure valid position
                     createPortal(
                       <div
-                        className="fixed w-[320px] bg-slate-900 border border-pink-500/40 rounded-xl shadow-xl p-4"
+                        className="fixed w-[320px] bg-slate-900 border border-pink-500/40 rounded-xl shadow-xl p-4 pointer-events-auto" // Ensure it doesn't block if transparent? Actually it has bg.
                         style={{
                           left: investigatePopoverPos.x,
                           top: investigatePopoverPos.y,
-                          zIndex: 2147483647,
+                          zIndex: 50, // Reduce from max int to something reasonable but high
                         }}
                       >
                         <div

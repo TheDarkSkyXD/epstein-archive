@@ -30,7 +30,9 @@ function assignCovers() {
       let meta: any = {};
       try {
         meta = JSON.parse(file.metadata_json || '{}');
-      } catch {}
+      } catch {
+        // Ignore parse errors, use empty object
+      }
 
       meta.cover_image = cover;
       // Also set as 'thumbnail' just in case

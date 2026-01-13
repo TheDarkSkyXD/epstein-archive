@@ -1,14 +1,30 @@
 # Release Notes
 
+## V10.1.15 (January 13, 2026)
+### 🐛 Stability Fixes
+*   **UI Unblock**: Fixed an issue where the interface would become unclickable on some pages.
+*   **Layout Fix**: Resolved layout clipping that could hide the page footer.
+*   **Optimization**: Removed unnecessary overflow constraints.
+
 ## V10.1.14 (January 13, 2026)
 ### 🧹 Data Polish & UI Fixes
 *   **Entity Cleanup**: Consolidated duplicate "Jeffrey Epstein" records and removed OCR junk data.
-*   **Photos Restored**: Fixed an issue where photos were not appearing on people cards.
-*   **UI Hardening**: Improved footer visibility and layout stability.
+# Release Notes
+
+## V10.1.14 (January 13, 2026)
+
+### 🧹 Data Polish & UI Fixes
+
+- **Entity Cleanup**: Consolidated duplicate "Jeffrey Epstein" records and removed OCR junk data.
+- **Photos Restored**: Fixed an issue where photos were not appearing on people cards.
+- **UI Hardening**: Improved footer visibility and layout stability.
 
 ## V10.1.13 (January 13, 2026)
+
 ### 🎨 Visual Polish
-*   **Audio Covers**: Added dedicated alternating cover art for the Sascha Barros testimony series.
+
+- **Audio Covers**: Added dedicated alternating cover art for the Sascha Barros testimony series.
+
 # Release Notes
 
 ## V10.1.13 (January 13, 2026)

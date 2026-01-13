@@ -84,7 +84,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
           <div key={index} className="flex items-center space-x-2 mb-1">
             <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }}></div>
             <span className="text-gray-300">
-              {entry.name}: <span className="font-bold text-white">{entry.value.toLocaleString()}</span>
+              {entry.name}:{' '}
+              <span className="font-bold text-white">{entry.value.toLocaleString()}</span>
             </span>
           </div>
         ))}

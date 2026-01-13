@@ -113,7 +113,9 @@ function fixSaschaTranscripts() {
         let meta: any = {};
         try {
           meta = JSON.parse(record.metadata_json || '{}');
-        } catch {}
+        } catch {
+          // Ignore parse errors, use empty object
+        }
 
         // UNIFY KEYS
         // Most of the app uses 'transcript_segments' or 'transcript' ?

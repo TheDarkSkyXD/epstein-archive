@@ -35,9 +35,9 @@ export const MediaAndArticlesTab: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col h-full space-y-4">
       {/* Sub-tab Navigation */}
-      <div className="flex gap-2 border-b border-slate-700 overflow-x-auto">
+      <div className="flex-none flex gap-2 border-b border-slate-700 overflow-x-auto bg-slate-950/50 backdrop-blur-sm sticky top-0 z-20">
         <button
           onClick={() => navigateToTab('articles')}
           className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${
@@ -84,19 +84,21 @@ export const MediaAndArticlesTab: React.FC = () => {
         </button>
       </div>
 
-      {/* Content with Suspense boundary */}
-      <Suspense
-        fallback={
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-          </div>
-        }
-      >
-        {activeSubTab === 'articles' && <ArticlesTab />}
-        {activeSubTab === 'photos' && <MediaTab />}
-        {activeSubTab === 'audio' && <AudioTab />}
-        {activeSubTab === 'video' && <VideoTab />}
-      </Suspense>
+      {/* Content with Suspense boundary - Use flex-grow to fill remaining space */}
+      <div className="flex-grow relative min-h-0">
+        <Suspense
+          fallback={
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            </div>
+          }
+        >
+          {activeSubTab === 'articles' && <ArticlesTab />}
+          {activeSubTab === 'photos' && <MediaTab />}
+          {activeSubTab === 'audio' && <AudioTab />}
+          {activeSubTab === 'video' && <VideoTab />}
+        </Suspense>
+      </div>
     </div>
   );
 };

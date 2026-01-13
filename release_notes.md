@@ -1,5 +1,15 @@
 # Release Notes
 
+## V10.1.16 (January 13, 2026)
+### 🛠️ Final Polish
+*   **Media Layout**: Fixed a layout regression that was hiding the footer on the Media page.
+*   **Cleanup**: Removed remaining junk entity records.
+
+## V10.1.15 (January 13, 2026)
+### 🐛 Stability Fixes
+*   **UI Unblock**: Fixed an issue where the interface would become unclickable on some pages.
+# Release Notes
+
 ## V10.1.15 (January 13, 2026)
 ### 🐛 Stability Fixes
 *   **UI Unblock**: Fixed an issue where the interface would become unclickable on some pages.

@@ -30,6 +30,23 @@ function finalCleanup() {
     'Jeffrey Sloman Becomes Involved',
     'Jeffrey Tyrone Majette Relatives',
     'Jeffrey Epsten Hoping',
+    'Bob Seniar',
+    'Bob Seniors',
+    'Car Phone Electric',
+    'Completion Notes',
+    'Deo Bre',
+    'Employee Beretts',
+    'Full Moon',
+    'Insurance Office',
+    'July August',
+    'Margaret Girand',
+    'Nan Dershowitz',
+    'Pepie Are Targets',
+    'Professional Growers Sinc',
+    'Really Stick',
+    'Run And',
+    'September October',
+    'Sour Sob',
   ];
 
   const deleteStmt = db.prepare('DELETE FROM entities WHERE full_name LIKE ?');

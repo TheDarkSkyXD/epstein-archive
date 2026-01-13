@@ -11,6 +11,7 @@ import {
   X,
   Settings,
   List,
+  Shield,
 } from 'lucide-react';
 
 export interface TranscriptSegment {
@@ -32,6 +33,8 @@ interface AudioPlayerProps {
   chapters?: Chapter[];
   onClose?: () => void;
   autoPlay?: boolean;
+  isSensitive?: boolean;
+  warningText?: string;
 }
 
 export const AudioPlayer: React.FC<AudioPlayerProps> = ({
@@ -41,6 +44,8 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   chapters = [],
   onClose,
   autoPlay = false,
+  isSensitive = false,
+  warningText = 'This content contains graphic descriptions of violence, sexual assault, child exploitation and murder.',
 }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
@@ -142,7 +147,41 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         </div>
       </div>
 
-      <div className="flex flex-1 min-h-0 overflow-hidden">
+      <div className="flex flex-1 min-h-0 overflow-hidden relative">
+        {/* Sensitive Content Warning Overlay */}
+        {isSensitive && !isPlaying && currentTime === 0 && (
+          <div className="absolute inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
+            <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-6 ring-1 ring-red-500/30">
+              <Shield className="h-8 w-8 text-red-500" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">Graphic Content Warning</h3>
+            <p className="text-slate-400 max-w-md mb-8 leading-relaxed">
+              {warningText}
+            </p>
+            <div className="flex gap-4">
+               {onClose && (
+                <button
+                  onClick={onClose}
+                  className="px-6 py-2 rounded-lg border border-slate-700 hover:bg-slate-800 text-slate-300 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+               )}
+              <button
+                onClick={() => {
+                   if (audioRef.current) {
+                      audioRef.current.play().catch(console.error);
+                      setIsPlaying(true);
+                   }
+                }}
+                className="px-6 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white font-medium shadow-lg shadow-red-900/20 transition-all hover:scale-105"
+              >
+                Reveal & Play
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Main Content (Visuals + Controls) */}
         <div className="flex-1 flex flex-col p-4 md:p-6 overflow-y-auto">
           {/* Visualizer Placeholder */}

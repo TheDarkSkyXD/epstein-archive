@@ -36,7 +36,7 @@ export const MediaAndArticlesTab: React.FC = () => {
           }`}
         >
           <Image className="h-5 w-5" />
-          <span className="font-medium">Media</span>
+          <span className="font-medium">Images</span>
         </button>
         <button
           onClick={() => setActiveSubTab('audio')}

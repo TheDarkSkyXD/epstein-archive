@@ -2057,17 +2057,30 @@ app.get('/api/media/albums/:id/images', async (req, res, next) => {
     next(error);
   }
 });
+// Get albums for audio
+app.get('/api/media/audio/albums', async (_req, res, next) => {
+  try {
+    const albums = mediaRepository.getAlbumsByMediaType('audio');
+    res.json(albums);
+  } catch (error) {
+    console.error('Error fetching audio albums:', error);
+    next(error);
+  }
+});
+
 // Get audio files
 app.get('/api/media/audio', async (req, res, next) => {
   try {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(100, parseInt(req.query.limit as string) || 24);
+    const albumId = req.query.albumId ? parseInt(req.query.albumId as string) : undefined;
 
     // Use mediaRepository with fileType='audio'
     // Note: getMediaItemsPaginated on mediaRepository queries the media_items table
     const result = await mediaRepository.getMediaItemsPaginated(page, limit, {
       fileType: 'audio',
       entityId: req.query.entityId as string,
+      albumId,
     });
 
     res.json(result);
@@ -2103,16 +2116,29 @@ app.get('/api/media/audio/:id/stream', async (req, res, next) => {
   }
 });
 
+// Get albums for video
+app.get('/api/media/video/albums', async (_req, res, next) => {
+  try {
+    const albums = mediaRepository.getAlbumsByMediaType('video');
+    res.json(albums);
+  } catch (error) {
+    console.error('Error fetching video albums:', error);
+    next(error);
+  }
+});
+
 // Get video files
 app.get('/api/media/video', async (req, res, next) => {
   try {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(100, parseInt(req.query.limit as string) || 24);
+    const albumId = req.query.albumId ? parseInt(req.query.albumId as string) : undefined;
 
     // Use mediaRepository with fileType='video'
     const result = await mediaRepository.getMediaItemsPaginated(page, limit, {
       fileType: 'video',
       entityId: req.query.entityId as string,
+      albumId,
     });
 
     res.json(result);
@@ -2596,6 +2622,91 @@ app.put(
       next(error);
     }
   },
+);
+
+// Batch tagging for Audio/Video (Media Items)
+app.put(
+  '/api/media/items/batch/tags',
+  authenticateRequest,
+  requireRole('admin'),
+  async (req, res, next) => {
+    try {
+      const { itemIds, tagIds, action } = req.body;
+
+      if (!Array.isArray(itemIds) || itemIds.length === 0) return res.status(400).json({ error: 'Invalid item IDs' });
+      if (!Array.isArray(tagIds) || tagIds.length === 0) return res.status(400).json({ error: 'Invalid tag IDs' });
+      if (!['add', 'remove'].includes(action)) return res.status(400).json({ error: 'Invalid action' });
+
+      const results = [];
+      
+      for (const itemId of itemIds) {
+        try {
+          const id = parseInt(itemId);
+          if (isNaN(id)) continue;
+
+          for (const tagId of tagIds) {
+            const tid = parseInt(tagId);
+            if (isNaN(tid)) continue;
+
+            if (action === 'add') {
+              mediaService.addTagToItem(id, tid);
+            } else {
+              mediaService.removeTagFromItem(id, tid);
+            }
+          }
+          results.push({ id, success: true });
+        } catch (err) {
+          results.push({ id: itemId, success: false, error: (err as Error).message });
+        }
+      }
+      res.json({ results });
+    } catch (error) {
+       console.error('Error batch tagging items:', error);
+       next(error);
+    }
+  }
+);
+
+app.put(
+  '/api/media/items/batch/people',
+  authenticateRequest,
+  requireRole('admin'),
+  async (req, res, next) => {
+    try {
+      const { itemIds, personIds, action } = req.body;
+
+      if (!Array.isArray(itemIds) || itemIds.length === 0) return res.status(400).json({ error: 'Invalid item IDs' });
+      if (!Array.isArray(personIds) || personIds.length === 0) return res.status(400).json({ error: 'Invalid person IDs' });
+      if (!['add', 'remove'].includes(action)) return res.status(400).json({ error: 'Invalid action' });
+
+      const results = [];
+      
+      for (const itemId of itemIds) {
+        try {
+           const id = parseInt(itemId);
+           if (isNaN(id)) continue;
+           
+           for (const personId of personIds) {
+             const pid = parseInt(personId);
+             if (isNaN(pid)) continue;
+             
+             if (action === 'add') {
+               mediaService.addPersonToItem(id, pid);
+             } else {
+               mediaService.removePersonFromItem(id, pid);
+             }
+           }
+           results.push({ id, success: true });
+        } catch (err) {
+           results.push({ id: itemId, success: false, error: (err as Error).message });
+        }
+      }
+      res.json({ results });
+    } catch (error) {
+       console.error('Error batch adding people to items:', error);
+       next(error);
+    }
+  }
 );
 
 // Batch update metadata

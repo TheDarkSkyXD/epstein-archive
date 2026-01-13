@@ -19,7 +19,7 @@ export const About: React.FC = () => {
           Epstein Archive Investigation Platform
         </h1>
         <p className="text-xl text-slate-400">
-          Version 9.2.0 - Comprehensive Evidence Analysis System
+          Version 10.0.0 - Comprehensive Evidence Analysis System
         </p>
       </div>
 
@@ -487,6 +487,77 @@ export const About: React.FC = () => {
               Photo book and messages given to Epstein for his 50th birthday.
             </p>
           </a>
+        </div>
+      </div>
+
+
+      {/* Community Acknowledgments */}
+      <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl p-8 mb-8 border border-slate-700">
+        <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+          <Users className="h-6 w-6 text-purple-400" />
+          Community Acknowledgments
+        </h2>
+        <div className="space-y-4 text-slate-300">
+          <p>
+            This platform is built upon the courageous work of survivors and independent researchers
+            who have fought to bring these documents to light.
+          </p>
+          <ul className="space-y-3 mt-4">
+            <li className="flex items-start gap-3">
+              <span className="text-purple-500 mt-1">•</span>
+              <div>
+                <strong>Manuel Sascha Barros</strong> (
+                <a
+                  href="https://www.threads.com/@saschabarros"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-cyan-400 hover:text-cyan-300 hover:underline"
+                >
+                  @saschabarros
+                </a>
+                ) — For their courageous testimony and continued fight for survivors.
+              </div>
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="text-purple-500 mt-1">•</span>
+              <div>
+                <strong>Lisa Noelle Voldeng</strong> (
+                <a
+                  href="https://www.threads.com/@lvoldeng"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-cyan-400 hover:text-cyan-300 hover:underline"
+                >
+                  @lvoldeng
+                </a>
+                ) — For the interview and bringing this into the sunlight. (
+                <a
+                  href="https://lisevoldeng.substack.com/p/dont-worry-boys-are-hard-to-find?r=1uodw7&triedRedirect=true"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-cyan-400 hover:text-cyan-300 hover:underline"
+                >
+                  Read on Substack
+                </a>
+                )
+              </div>
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="text-purple-500 mt-1">•</span>
+              <div>
+                <strong>Gareth Wright</strong> (
+                <a
+                  href="https://www.threads.com/@roguerevision"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-cyan-400 hover:text-cyan-300 hover:underline"
+                >
+                  @roguerevision
+                </a>
+                ) — For the comprehensive transcriptions.
+              </div>
+            </li>
+          </ul>
         </div>
       </div>
 

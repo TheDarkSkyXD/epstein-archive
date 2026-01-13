@@ -12,10 +12,10 @@ export function runMigrations() {
 
   // 0. Ensure migration history table exists
   db.exec(`
-    CREATE TABLE IF NOT EXISTS migration_history (
+    CREATE TABLE IF NOT EXISTS schema_migrations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      filename TEXT UNIQUE,
-      executed_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      filename TEXT UNIQUE NOT NULL,
+      applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
 
@@ -39,7 +39,7 @@ export function runMigrations() {
 
   for (const file of files) {
     // Check if migration already executed
-    const alreadyRun = db.prepare('SELECT 1 FROM migration_history WHERE filename = ?').get(file);
+    const alreadyRun = db.prepare('SELECT 1 FROM schema_migrations WHERE filename = ?').get(file);
     if (alreadyRun) {
       continue;
     }
@@ -52,7 +52,7 @@ export function runMigrations() {
     const transaction = db.transaction(() => {
       // We use .exec() as it handles multi-statement strings correctly in better-sqlite3
       db.exec(sql);
-      db.prepare('INSERT INTO migration_history (filename) VALUES (?)').run(file);
+      db.prepare('INSERT INTO schema_migrations (filename) VALUES (?)').run(file);
     });
 
     try {

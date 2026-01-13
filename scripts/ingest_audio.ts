@@ -4,13 +4,15 @@ import Database from 'better-sqlite3';
 import { glob } from 'glob';
 import { exec } from 'child_process';
 import util from 'util';
+import os from 'os';
 
 const execAsync = util.promisify(exec);
 
 // Configuration
 const DB_PATH = process.env.DB_PATH || 'epstein-archive.db';
 const AUDIO_ROOT = 'data/media/audio';
-const WHISPER_MODEL = 'medium'; // 'tiny', 'base', 'small', 'medium', 'large'
+const TEXT_ROOT = 'data/text'; // Root for finding text transcripts
+const WHISPER_MODEL = 'base'; // Switched to base as per plan
 
 // Extensions to ingest
 const AUDIO_EXTS = ['.mp3', '.m4a', '.wav', '.ogg'];
@@ -21,11 +23,8 @@ const db = new Database(DB_PATH);
 async function transcribeAudio(filePath: string): Promise<{ transcript: any[]; duration: number }> {
   try {
     console.log(`🎙️ Transcribing ${path.basename(filePath)} with Whisper (${WHISPER_MODEL})...`);
-    const outputDir = path.dirname(filePath); // Output next to file or tmp?
-    // Using output directory same as source for now to keep artifacts, or tmp?
-    // Let's use tmp to avoid cluttering source if not desired,
-    // BUT keeping specific .json transcript next to audio is good practice.
-    // Let's us specific temp dir.
+    
+    // Create unique temp dir
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-'));
 
     // Command: whisper "file" --model base --output_format json --output_dir "tempDir"
@@ -59,7 +58,66 @@ async function transcribeAudio(filePath: string): Promise<{ transcript: any[]; d
   return { transcript: [], duration: 0 };
 }
 
-import os from 'os';
+// Helper to find external text transcript
+function findExternalTranscript(filenameWithoutExt: string): string | null {
+  
+  // 1. Specific Logic for SRTestimony -> Lvoocaudiop1 PDF Transcripts
+  // Filenames like: SRTestimonyBof6_PublicCopy_LNV_July242025E
+  if (filenameWithoutExt.includes('SRTestimony')) {
+      const charMatch = filenameWithoutExt.match(/SRTestimony([A-F])of6/);
+      if (charMatch) {
+          const char = charMatch[1]; // A, B, C...
+          const index = char.charCodeAt(0) - 'A'.charCodeAt(0) + 1; // 1, 2, 3...
+          const pdfTranscriptPath = path.join(TEXT_ROOT, 'lvoocaudiop1', `${index}_eng.txt`);
+          
+          if (fs.existsSync(pdfTranscriptPath)) {
+              console.log(`📄 Mapped SRTestimony${char} to converted PDF transcript: ${path.basename(pdfTranscriptPath)}`);
+              return fs.readFileSync(pdfTranscriptPath, 'utf-8');
+          }
+      }
+
+      // 2. Logic for SRTestimony -> Maxwell (Fallback)
+      let dateMatch: string | null = null;
+      if (filenameWithoutExt.includes('July24')) dateMatch = '2025.07.24';
+      if (filenameWithoutExt.includes('July25') || filenameWithoutExt.includes('July26')) dateMatch = '2025.07.25';
+      
+      if (dateMatch) {
+          // Look for Maxwell...dateMatch..._cft.txt (prioritize) or just .txt
+          const pattern = `**/*Maxwell*${dateMatch}*cft*.txt`;
+          const matches = glob.sync(pattern, { cwd: TEXT_ROOT, nodir: true });
+          if (matches.length > 0) {
+              const fullPath = path.join(TEXT_ROOT, matches[0]);
+              console.log(`📄 Mapped SRTestimony to Maxwell transcript: ${matches[0]}`);
+              return fs.readFileSync(fullPath, 'utf-8');
+          }
+           // Fallback to non-cft
+          const pattern2 = `**/*Maxwell*${dateMatch}*.txt`;
+          const matches2 = glob.sync(pattern2, { cwd: TEXT_ROOT, nodir: true });
+          if (matches2.length > 0) {
+              const fullPath = path.join(TEXT_ROOT, matches2[0]);
+              console.log(`📄 Mapped SRTestimony to Maxwell transcript: ${matches2[0]}`);
+              return fs.readFileSync(fullPath, 'utf-8');
+          }
+      }
+  }
+
+  // 3. Default Logic: Exact name match
+  const matches = glob.sync(`**/${filenameWithoutExt}*.txt`, { cwd: TEXT_ROOT, nodir: true });
+  
+  if (matches.length > 0) {
+     const exact = matches.find(m => path.basename(m, '.txt') === filenameWithoutExt);
+     const target = exact || matches[0];
+     
+     try {
+       const fullPath = path.join(TEXT_ROOT, target);
+       console.log(`📄 Found external transcript: ${target}`);
+       return fs.readFileSync(fullPath, 'utf-8');
+     } catch (err) {
+       console.error(`Failed to read transcript ${target}`, err);
+     }
+  }
+  return null;
+}
 
 async function ingestAudio() {
   console.log(`🚀 Starting Audio Ingestion from ${AUDIO_ROOT}...`);
@@ -109,96 +167,106 @@ async function ingestAudio() {
     const dbPath = '/' + path.join(AUDIO_ROOT, file);
 
     const existing = checkStmt.get(dbPath) as any;
-
-    // Logic: If new, insert. If existing but (empty transcript AND hasWhisper), transcribe and update.
-
-    let shouldTranscribe = hasWhisper;
-    const isNew = !existing;
-
-    if (!isNew) {
-      // Check if existing has transcript
-      try {
-        const meta = JSON.parse(existing.metadata_json || '{}');
-        if (meta.transcript && meta.transcript.length > 0) {
-          shouldTranscribe = false; // Already has transcript
-        }
-      } catch (e) {}
-    }
-
-    if (!isNew && !shouldTranscribe) {
-      skipped++;
-      // console.log(`Skipping ${path.basename(file)} (already ingested/transcribed)`);
-      continue;
+    let existingMeta: any = {};
+    if (existing) {
+        try {
+            existingMeta = JSON.parse(existing.metadata_json || '{}');
+        } catch(e) {}
     }
 
     const filename = path.basename(file);
+    const filenameWithoutExt = path.basename(file, path.extname(file));
     const ext = path.extname(file).toLowerCase().slice(1);
     const title = path.basename(file, '.' + ext);
 
-    // Determine mime type
-    let mime = 'audio/mpeg';
-    if (ext === 'm4a') mime = 'audio/mp4';
-    if (ext === 'wav') mime = 'audio/wav';
-    if (ext === 'ogg') mime = 'audio/ogg';
-
+    // Initial metadata structure
     let metadata: any = {
       format: ext,
-      duration: 0,
-      transcript: [],
-      chapters: [],
+      duration: existingMeta.duration || 0,
+      transcript: existingMeta.transcript || [],
+      chapters: existingMeta.chapters || [],
+      external_transcript_text: existingMeta.external_transcript_text || null
     };
 
-    // Preserve existing metadata if updating
-    if (!isNew) {
-      try {
-        metadata = { ...metadata, ...JSON.parse(existing.metadata_json || '{}') };
-      } catch (e) {}
+    // Try to find external transcript text if missing, or update it
+    const externalText = findExternalTranscript(filenameWithoutExt);
+    if (externalText && !metadata.external_transcript_text) {
+        metadata.external_transcript_text = externalText;
+        console.log(`Updated external transcript for ${filename}`);
+    } else if (externalText) {
+       // Already have it, but maybe update logic if we want to ensure it matches
     }
 
+    // Determine if we need to transcribe (Whisper)
+    // Skip if we already have transcript segments OR if we have external text (we will fake segments)
+    let shouldTranscribe = hasWhisper;
+
+    // IF we have external text, we prioritize it and do NOT run Whisper, 
+    // BUT we must ensure 'transcript' is populated.
+    if (metadata.external_transcript_text) {
+        shouldTranscribe = false;
+
+        if (!metadata.transcript || metadata.transcript.length === 0) {
+           console.log(`ℹ️ Generating paragraph-based transcript segments from external text for ${filename}...`);
+           
+           // Simple splitting by double newline to get paragraphs
+           const paragraphs = metadata.external_transcript_text.split(/\n\s*\n/);
+           const segmentCount = paragraphs.length;
+           const estimatedDuration = metadata.duration || 3600; 
+           const durationPerSeg = estimatedDuration / (segmentCount || 1);
+           
+           metadata.transcript = paragraphs.map((p: string, i: number) => ({
+               start: i * durationPerSeg,
+               end: (i + 1) * durationPerSeg,
+               text: p.trim()
+           })).filter((s:any) => s.text.length > 0);
+           
+           console.log(`✅ Created ${metadata.transcript.length} transcript segments from text.`);
+        } else {
+           console.log(`⏭️ Skipping Whisper for ${filename} (Already has transcript segments and external text)`);
+        }
+    } else if (metadata.transcript.length > 0) {
+        shouldTranscribe = false;
+        console.log(`⏭️ Skipping Whisper for ${filename} (Already has transcript segments)`);
+    }
+
+    // Now, run Whisper if still needed
     if (shouldTranscribe) {
-      const result = await transcribeAudio(fullPath);
-      if (result.transcript.length > 0) {
-        metadata.transcript = result.transcript;
-        metadata.duration = result.duration; // Update duration from whisper
-        console.log(
-          `✅ Transcription complete for ${filename} (${result.transcript.length} segments)`,
-        );
-      }
+        console.log(`🎙️ Need transcription for ${filename}`);
+        const result = await transcribeAudio(fullPath);
+        if (result.transcript.length > 0) {
+            metadata.transcript = result.transcript;
+            metadata.duration = result.duration; // Update duration from actual audio analysis
+             // Also populate external text field for consistency?
+            metadata.external_transcript_text = result.transcript.map((s:any) => s.text).join('\n');
+            console.log(`✅ Transcription complete for ${filename} (${result.transcript.length} segments)`);
+        }
     }
 
-    if (isNew) {
-      try {
-        insertStmt.run(
-          dbPath,
-          mime,
-          title,
-          `Imported audio file: ${filename}`,
-          JSON.stringify(metadata),
-          'unverified',
-          1,
-          0,
-        );
-        console.log(`✅ Added: ${filename}`);
-        added++;
-      } catch (err) {
-        console.error(`❌ Failed to add ${filename}:`, err);
-      }
+    const metadataJson = JSON.stringify(metadata);
+
+    if (existing) {
+      updateStmt.run(metadataJson, existing.id);
+      updated++;
     } else {
-      // Update
-      try {
-        updateStmt.run(JSON.stringify(metadata), existing.id);
-        console.log(`🔄 Updated: ${filename} with new metadata`);
-        updated++;
-      } catch (err) {
-        console.error(`❌ Failed to update ${filename}:`, err);
-      }
+      insertStmt.run(
+        dbPath,
+        'audio',
+        title,
+        'Ingested audio file',
+        metadataJson,
+        'unverified',
+        0,
+        0
+      );
+      added++;
     }
   }
 
-  console.log(`\nIngestion Complete.`);
-  console.log(`Added: ${added}`);
-  console.log(`Updated: ${updated}`);
-  console.log(`Skipped: ${skipped}`);
+  console.log(`\n🎉 Ingestion Complete:`);
+  console.log(`   Added: ${added}`);
+  console.log(`   Updated: ${updated}`);
+  console.log(`   Skipped: ${skipped}`);
 }
 
 ingestAudio();

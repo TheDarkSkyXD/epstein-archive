@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sqlite3:*)",
+      "Bash(DB_PATH=./epstein-archive.db tsx scripts/ingest_sr_testimony.ts:*)",
+      "Bash(DB_PATH=./epstein-archive.db npx tsx:*)"
+    ]
+  }
+}

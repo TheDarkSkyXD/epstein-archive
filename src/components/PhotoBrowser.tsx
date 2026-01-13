@@ -377,7 +377,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
     }
   };
 
-  const toggleImageSelection = (imageId: number, index: number, event: React.MouseEvent) => {
+  const toggleImageSelection = useCallback((imageId: number, index: number, event: React.MouseEvent) => {
     let newSelectedImages = new Set(selectedImages);
 
     if (event.shiftKey && lastSelectedIndex !== null) {
@@ -413,9 +413,9 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
     }
 
     setSelectedImages(newSelectedImages);
-  };
+  }, [selectedImages, lastSelectedIndex, images, isBatchMode, onImageClick]);
 
-  const handleImageClick = (image: MediaImage, index: number, event: React.MouseEvent) => {
+  const handleImageClick = useCallback((image: MediaImage, index: number, event: React.MouseEvent) => {
     // If in batch mode, handle selection
     if (isBatchMode) {
       toggleImageSelection(image.id, index, event);
@@ -429,7 +429,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
         // MediaViewerModal handles param set.
       }
     }
-  };
+  }, [isBatchMode, toggleImageSelection, onImageClick]);
 
   const enterBatchMode = () => {
     setIsBatchMode(true);

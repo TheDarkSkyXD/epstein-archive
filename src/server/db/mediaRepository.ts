@@ -1,6 +1,30 @@
 import { getDb } from './connection.js';
 
 export const mediaRepository = {
+  // Get all albums with counts for a specific media type
+  getAlbumsByMediaType: (fileType: 'audio' | 'video') => {
+    const db = getDb();
+    const likePattern = `${fileType}/%`;
+    const query = `
+      SELECT
+        a.id,
+        a.name,
+        a.description,
+        a.created_at as createdAt,
+        a.date_modified as dateModified,
+        COUNT(m.id) as itemCount,
+        SUM(CASE WHEN m.is_sensitive = 1 THEN 1 ELSE 0 END) as sensitiveCount
+      FROM media_albums a
+      LEFT JOIN media_items m ON a.id = m.album_id AND m.file_type LIKE ?
+      GROUP BY a.id
+      HAVING itemCount > 0 OR a.id IN (
+        SELECT DISTINCT album_id FROM media_items WHERE album_id IS NOT NULL
+      )
+      ORDER BY a.name
+    `;
+    return db.prepare(query).all(likePattern) as any[];
+  },
+
   // Get media items for an entity
   getMediaItems: async (entityId: string) => {
     const db = getDb();
@@ -122,6 +146,7 @@ export const mediaRepository = {
       verificationStatus?: string;
       minRedFlagRating?: number;
       fileType?: string; // 'image' or 'audio' or mimetype
+      albumId?: number;
     },
   ) => {
     const db = getDb();
@@ -154,26 +179,39 @@ export const mediaRepository = {
       }
     }
 
+    if (filters?.albumId !== undefined) {
+      whereConditions.push('album_id = ?');
+      params.push(filters.albumId);
+    }
+
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
     const offset = (page - 1) * limit;
 
     const query = `
       SELECT 
-        id,
-        entity_id as entityId,
-        document_id as documentId,
-        file_path as filePath,
-        file_type as fileType,
-        title,
-        description,
-        is_sensitive as isSensitive,
-        verification_status as verificationStatus,
-        red_flag_rating as redFlagRating,
-        metadata_json as metadataJson,
-        created_at as createdAt
-      FROM media_items
+        m.id,
+        m.entity_id as entityId,
+        m.document_id as documentId,
+        m.file_path as filePath,
+        m.file_type as fileType,
+        m.title,
+        m.description,
+        m.album_id as albumId,
+        m.is_sensitive as isSensitive,
+        m.verification_status as verificationStatus,
+        m.red_flag_rating as redFlagRating,
+        m.metadata_json as metadataJson,
+        m.created_at as createdAt,
+        GROUP_CONCAT(DISTINCT t.id || ':' || t.name) as tags,
+        GROUP_CONCAT(DISTINCT e.id || ':' || e.full_name) as people
+      FROM media_items m
+      LEFT JOIN media_item_tags mt ON m.id = mt.media_item_id
+      LEFT JOIN media_tags t ON mt.tag_id = t.id
+      LEFT JOIN media_item_people mp ON m.id = mp.media_item_id
+      LEFT JOIN entities e ON mp.entity_id = e.id
       ${whereClause}
-      ORDER BY red_flag_rating DESC, created_at DESC
+      GROUP BY m.id
+      ORDER BY m.red_flag_rating DESC, m.created_at DESC
       LIMIT ? OFFSET ?
     `;
 
@@ -193,10 +231,22 @@ export const mediaRepository = {
           console.error('Error parsing metadata for media item', item.id, e);
         }
 
+        const tags = item.tags ? item.tags.split(',').map((t: string) => {
+            const [id, name] = t.split(':');
+            return { id: parseInt(id), name };
+        }) : [];
+
+        const people = item.people ? item.people.split(',').map((p: string) => {
+            const [id, name] = p.split(':');
+            return { id: parseInt(id), name };
+        }) : [];
+
         return {
           ...item,
           redFlagRating: item.redFlagRating,
           metadata,
+          tags,
+          people
         };
       }),
       total: totalResult.total,

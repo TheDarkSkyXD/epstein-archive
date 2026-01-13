@@ -1,3 +1,46 @@
+# 📣 Epstein Archive V10.1.0 - Media Unification & Audio Intelligence
+_Released: Jan 13, 2026_
+
+## 🚀 Key Highlights
+
+### 1. Unified Media Browser Experience 🖼️ 🎧 🎬
+- **Unified Tagging System**: You can now assign Tags and link People to **Audio** and **Video** files, just like you can with images.
+- **Batch Actions for All Media**: The powerful "Batch Select" toolbar has been ported to the Audio and Video browsers, allowing you to bulk-tag forensic evidence efficiently.
+- **"Images" Tab Renamed**: The "Media" tab is now correctly labeled "**Images**" to distinguish it from the specialized Audio and Video tabs.
+- **Consistent UI**: Audio and Video cards now display their assigned tags and linked people directly on the card.
+
+### 2. Audio Metadata Enrichment 🎵
+- **Smart Albums**: Audio files are now organized into logical albums (e.g., "Sascha Barros Interviews", "Ghislaine Maxwell Interviews") based on file paths and context.
+- **Transcript-Derived Titles**: Audio titles and descriptions are now automatically generated from their associated text transcripts, making them much easier to identify than raw filenames.
+- **Enriched Metadata**: Descriptions now include snippets of the transcript context for immediate relevance checking.
+
+---
+
+# 📣 Epstein Archive V10.0.0 - Major Audio Update & Entity Enrichment
+
+_Released: Jan 13, 2026_
+
+## 🚀 Key Highlights
+
+### 1. Audio Intelligence & PDF Transcripts 🎧
+- **PDF-to-Text Integration**: Converted 6 PDF transcripts for SRTestimony files into searchable text.
+- **Smart Mapping**: Automatically linked `SRTestimony` audio files to their corresponding PDF transcripts.
+- **DOJ File Handling**: Mapped `DOJ-OGR-00030343.mp3` to its existing summary transcript.
+- **Whisper Optimization**: Transcription pipeline now intelligently skips Whisper processing when external text is found, saving significant compute time.
+- **Fake Segments**: For text-only transcripts, the system now generates paragraph-based segments so the Audio Player works immediately.
+
+### 2. Entity Separations & Data Quality 👥
+- **William Riley Separation**: Successfully separated "William H. Riley" (PI) from "William Kyle Riley" (Pilot) and other variants.
+    - Created distinct entity for William H. Riley (PI).
+    - Updated William Kyle Riley (Pilot) profile.
+    - Re-assigned mentions based on contextual keywords ("Kiraly", "Sascha", etc.).
+- **John Podesta Update**: Enriched profile with specific roles and context from House Oversight documents.
+
+### 3. Community Credits 🤝
+- Added acknowledgments for Manuel Sascha Barros, Lisa Noelle Voldeng, and Gareth Wright for their contributions to the archive.
+
+---
+
 # 📣 Epstein Archive V9.2.0 - Media Revolution & Deep Cleanup
 
 _Released: Jan 12, 2026_

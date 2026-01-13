@@ -501,6 +501,41 @@ export class MediaService {
     return stmt.all(imageId) as MediaTag[];
   }
 
+  // ============ MEDIA ITEM (AUDIO/VIDEO) TAGS ============
+
+  addTagToItem(itemId: number, tagId: number): void {
+    const stmt = this.db.prepare(`
+      INSERT OR IGNORE INTO media_item_tags (media_item_id, tag_id)
+      VALUES (?, ?)
+    `);
+    stmt.run(itemId, tagId);
+  }
+
+  removeTagFromItem(itemId: number, tagId: number): void {
+    const stmt = this.db.prepare(`
+      DELETE FROM media_item_tags
+      WHERE media_item_id = ? AND tag_id = ?
+    `);
+    stmt.run(itemId, tagId);
+  }
+
+  addPersonToItem(itemId: number, personId: number): void {
+    const stmt = this.db.prepare(`
+      INSERT OR IGNORE INTO media_item_people (media_item_id, entity_id)
+      VALUES (?, ?)
+    `);
+    stmt.run(itemId, personId);
+  }
+
+  removePersonFromItem(itemId: number, personId: number): void {
+    const stmt = this.db.prepare(`
+      DELETE FROM media_item_people
+      WHERE media_item_id = ? AND entity_id = ?
+    `);
+    stmt.run(itemId, personId);
+  }
+
+
   // ============ STATISTICS ============
 
   getMediaStats(): MediaStats {

@@ -1,45 +1,65 @@
 # Release Notes
 
 ## V10.1.18 (January 13, 2026)
+
 ### 🛡️ Ingestion Hardening
-*   **Centralized Filtering**: Implemented a master blocklist for data ingestion to prevent junk entities from entering the system.
-*   **Ingestion Logic Improved**: `ingest_intelligence` now strictly filters generic terms, legal jargon, and partial OCR headers using robust regex patterns.
-*   **Cleanup Synced**: The maintenance cleanup script now shares the same logic, preventing "zombie" junk entities from reappearing.
+
+- **Centralized Filtering**: Implemented a master blocklist for data ingestion to prevent junk entities from entering the system.
+- **Ingestion Logic Improved**: `ingest_intelligence` now strictly filters generic terms, legal jargon, and partial OCR headers using robust regex patterns.
+- **Cleanup Synced**: The maintenance cleanup script now shares the same logic, preventing "zombie" junk entities from reappearing.
 
 ## V10.1.17 (January 13, 2026)
+
 ### 🧹 Integrity Update
-*   **Junk Removal**: Aggressively removed more OCR garbage entities (e.g. "Total Cash Disbursements", "Various Verizon").
+
+- **Junk Removal**: Aggressively removed more OCR garbage entities (e.g. "Total Cash Disbursements", "Various Verizon").
+
 # Release Notes
 
 ## V10.1.17 (January 13, 2026)
+
 ### 🧹 Integrity Update
-*   **Junk Removal**: Aggressively removed more OCR garbage entities (e.g. "Total Cash Disbursements", "Various Verizon").
-*   **Sorting Fix**: Changed the default "Spice Level" sort to prioritize **Red Flag Rating** first, then Mention Count. This pushes high-risk individuals to the top and buries low-quality noise.
+
+- **Junk Removal**: Aggressively removed more OCR garbage entities (e.g. "Total Cash Disbursements", "Various Verizon").
+- **Sorting Fix**: Changed the default "Spice Level" sort to prioritize **Red Flag Rating** first, then Mention Count. This pushes high-risk individuals to the top and buries low-quality noise.
 
 ## V10.1.16 (January 13, 2026)
+
 ### 🛠️ Final Polish
-*   **Media Layout**: Fixed a layout regression that was hiding the footer on the Media page.
+
+- **Media Layout**: Fixed a layout regression that was hiding the footer on the Media page.
+
 # Release Notes
 
 ## V10.1.16 (January 13, 2026)
+
 ### 🛠️ Final Polish
-*   **Media Layout**: Fixed a layout regression that was hiding the footer on the Media page.
-*   **Cleanup**: Removed remaining junk entity records.
+
+- **Media Layout**: Fixed a layout regression that was hiding the footer on the Media page.
+- **Cleanup**: Removed remaining junk entity records.
 
 ## V10.1.15 (January 13, 2026)
+
 ### 🐛 Stability Fixes
-*   **UI Unblock**: Fixed an issue where the interface would become unclickable on some pages.
+
+- **UI Unblock**: Fixed an issue where the interface would become unclickable on some pages.
+
 # Release Notes
 
 ## V10.1.15 (January 13, 2026)
+
 ### 🐛 Stability Fixes
-*   **UI Unblock**: Fixed an issue where the interface would become unclickable on some pages.
-*   **Layout Fix**: Resolved layout clipping that could hide the page footer.
-*   **Optimization**: Removed unnecessary overflow constraints.
+
+- **UI Unblock**: Fixed an issue where the interface would become unclickable on some pages.
+- **Layout Fix**: Resolved layout clipping that could hide the page footer.
+- **Optimization**: Removed unnecessary overflow constraints.
 
 ## V10.1.14 (January 13, 2026)
+
 ### 🧹 Data Polish & UI Fixes
-*   **Entity Cleanup**: Consolidated duplicate "Jeffrey Epstein" records and removed OCR junk data.
+
+- **Entity Cleanup**: Consolidated duplicate "Jeffrey Epstein" records and removed OCR junk data.
+
 # Release Notes
 
 ## V10.1.14 (January 13, 2026)

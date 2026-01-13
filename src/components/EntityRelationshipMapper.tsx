@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import * as d3Selection from 'd3-selection';
-import * as d3Scale from 'd3-scale';
+// TODO: Implement advanced scaling features - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+// import * as d3Scale from 'd3-scale';
 import * as d3Quadtree from 'd3-quadtree';
-import { ZoomIn, ZoomOut, RefreshCw, Maximize, Filter } from 'lucide-react';
+// TODO: Add graph controls - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+// import { ZoomIn, ZoomOut, RefreshCw, Maximize, Filter } from 'lucide-react';
 
 export interface Entity {
   id: string;
@@ -35,11 +37,12 @@ interface EntityRelationshipMapperProps {
   onRelationshipSelect?: (relationship: Relationship) => void;
 }
 
+// TODO: Implement relationship selection - see UNUSED_VARIABLES_RECOMMENDATIONS.md
 export const EntityRelationshipMapper: React.FC<EntityRelationshipMapperProps> = ({
   entities,
   relationships,
   onEntitySelect,
-  onRelationshipSelect,
+  onRelationshipSelect: _onRelationshipSelect,
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -113,15 +116,15 @@ export const EntityRelationshipMapper: React.FC<EntityRelationshipMapperProps> =
         .y((d) => d.y!)
         .addAll(nodes);
 
-      const theta = 0.9; // Barns-Hut threshold
+      const _theta = 0.9; // Barns-Hut threshold
 
-      nodes.forEach((node) => {
-        tree.visit((quad, x1, y1, x2, y2) => {
+      nodes.forEach((_node) => {
+        tree.visit((quad, x1, y1, x2, _y2) => {
           if (!quad.length) {
             // Internal node
-            const width = x2 - x1;
+            const _width = x2 - x1;
             // @ts-ignore - d3-quadtree types are sometimes tricky with custom props
-            const quadEx = quad.data ? quad.data.x : (quad as any).x; // Center of mass X (simplification: center of quad)
+            const _quadEx = quad.data ? quad.data.x : (quad as any).x; // Center of mass X (simplification: center of quad)
             // d3-quadtree doesn't calculate center of mass by default without accumulation.
             // We'll use a simpler collision detection approach instead of full Barnes-Hut if we don't implement the mass accumulation.
             // Actually, a simpler repulsion is just visiting all nodes near us.
@@ -141,7 +144,7 @@ export const EntityRelationshipMapper: React.FC<EntityRelationshipMapperProps> =
             // Internal node
             // If we implemented center of mass, we could use BH here.
             // For now, let's just descend if the quad is close enough
-            const width = x2 - x1;
+            const _width = x2 - x1;
             // Check if quad is far away
             // Keep fully visiting leaves
             return false;
@@ -443,7 +446,7 @@ export const EntityRelationshipMapper: React.FC<EntityRelationshipMapperProps> =
         onMouseDown={(e) => {
           const startX = e.clientX;
           const startY = e.clientY;
-          const startTransform = { ...transform };
+          const _startTransform = { ...transform };
 
           const handleMouseMove = (moveEvent: MouseEvent) => {
             const dx = moveEvent.clientX - startX;

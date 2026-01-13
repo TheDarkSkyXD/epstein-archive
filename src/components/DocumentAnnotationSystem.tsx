@@ -98,7 +98,8 @@ export const DocumentAnnotationSystem: React.FC<DocumentAnnotationSystemProps> =
       });
 
       // Calculate text position for annotation
-      const textContent = contentRef.current.textContent || '';
+      // TODO: Use textContent for text extraction API - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+      const _textContent = contentRef.current.textContent || '';
       const startOffset = getTextOffset(range.startContainer, range.startOffset);
       const endOffset = startOffset + selectedText.length;
 
@@ -234,7 +235,8 @@ export const DocumentAnnotationSystem: React.FC<DocumentAnnotationSystemProps> =
       const annotationClass = getAnnotationColor(annotation.type)
         .replace('bg-', 'bg-opacity-30 ')
         .replace('text-', '');
-      const IconComponent = getAnnotationIcon(annotation.type);
+      // TODO: Use IconComponent for annotation templates - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+      const _IconComponent = getAnnotationIcon(annotation.type);
 
       result = `${beforeText}<span class="${annotationClass} cursor-pointer hover:bg-opacity-50 transition-colors" data-annotation-id="${annotation.id}">${highlightedText}</span>${afterText}`;
       offset += 40; // Account for added HTML

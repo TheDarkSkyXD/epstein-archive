@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { AudioPlayer, TranscriptSegment, Chapter } from './AudioPlayer';
-import { Music, Clock, Calendar, CheckSquare, Square, AlertTriangle } from 'lucide-react';
+import {
+  Music,
+  Clock as _Clock,
+  Calendar as _Calendar,
+  CheckSquare,
+  Square,
+  AlertTriangle,
+} from 'lucide-react';
 import { SensitiveContent } from './SensitiveContent';
 import BatchToolbar from './BatchToolbar';
 import Icon from './Icon';
@@ -297,7 +304,7 @@ export const AudioBrowser: React.FC = () => {
                     <div
                       key={item.id}
                       className={`bg-slate-900/50 border rounded-lg overflow-hidden transition-all group cursor-pointer flex flex-col ${isSelected ? 'border-cyan-500 ring-1 ring-cyan-500' : 'border-slate-800 hover:border-cyan-500/30'}`}
-                      onClick={(e) => {
+                      onClick={(_e) => {
                         if (isBatchMode) {
                           toggleSelection(item.id);
                         } else {

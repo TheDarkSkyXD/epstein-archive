@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -31,7 +31,8 @@ import { Breadcrumb } from './Breadcrumb';
 import { SourceBadge } from './SourceBadge';
 import DocumentSkeleton from './DocumentSkeleton';
 import { AddToInvestigationButton } from './AddToInvestigationButton';
-import { prettifyOCRText } from '../utils/prettifyOCR';
+// TODO: Apply OCR prettification - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+// import { prettifyOCRText } from '../utils/prettifyOCR';
 import { DocumentContentRenderer } from './DocumentContentRenderer';
 
 // --- Virtualized Renderers for DocumentBrowser ---
@@ -211,7 +212,8 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
     'red_flag',
   );
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [collection, setCollection] = useState<DocumentCollection | null>(null);
+  // TODO: Implement document collections - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+  const [collection, _setCollection] = useState<DocumentCollection | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   // const [useVirtualScrolling, setUseVirtualScrolling] = useState(false);
   // const [displayLimit, setDisplayLimit] = useState(100); // Start with 100 documents
@@ -550,7 +552,8 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const DocumentCard: React.FC<{ document: Document }> = ({ document }) => {
+  // TODO: Implement document card view - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+  const _DocumentCard: React.FC<{ document: Document }> = ({ document }) => {
     // Generate human-readable title from content or use existing title
     const getDisplayTitle = () => {
       if (document.title && document.title !== document.filename) {

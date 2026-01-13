@@ -58,7 +58,8 @@ function recoverMediaTags() {
     .prepare('SELECT id, title, file_path, description FROM media_items')
     .all() as { id: number; title: string; file_path: string; description: string }[];
 
-  const filenameTags = 0;
+  // TODO: Extract tags from filename patterns - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+  const _filenameTags = 0;
 
   /* 
      Simple substring match. 

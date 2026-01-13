@@ -5,7 +5,14 @@
  */
 
 import React from 'react';
-import { Mail, User, Calendar, Paperclip, Copy, Download } from 'lucide-react';
+import {
+  Mail,
+  User as _User,
+  Calendar as _Calendar,
+  Paperclip,
+  Copy,
+  Download,
+} from 'lucide-react';
 
 interface EmailViewerProps {
   evidence: {

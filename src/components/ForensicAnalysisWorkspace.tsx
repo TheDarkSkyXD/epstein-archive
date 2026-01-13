@@ -29,10 +29,11 @@ interface ForensicAnalysisWorkspaceProps {
   useGlobalContext?: boolean;
 }
 
+// TODO: Implement evidence update callback - see UNUSED_VARIABLES_RECOMMENDATIONS.md
 export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps> = ({
   investigation,
   evidence,
-  onEvidenceUpdate,
+  onEvidenceUpdate: _onEvidenceUpdate,
   timelineEvents,
   useGlobalContext = false,
 }) => {
@@ -104,7 +105,8 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
   ];
 
   const enabledToolsList = forensicTools.filter((tool) => tool.enabled);
-  const ActiveComponent = enabledToolsList.find((tool) => tool.id === activeTool)?.component;
+  // TODO: Use ActiveComponent for dynamic rendering - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+  const _ActiveComponent = enabledToolsList.find((tool) => tool.id === activeTool)?.component;
 
   const toggleTool = (toolId: string) => {
     setEnabledTools((prev) => ({

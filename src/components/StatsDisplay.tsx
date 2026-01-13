@@ -21,8 +21,6 @@ export function StatsDisplay({
   onResetFilters,
 }: StatsDisplayProps) {
   // Animate all stats with count-up effect
-
-  const totalMentionsCount = useCountUp(stats.totalMentions, 1200);
   const highRiskCount = useCountUp(stats.highRisk, 1400);
   const mediumRiskCount = useCountUp(stats.mediumRisk, 1600);
   const lowRiskCount = useCountUp(stats.lowRisk, 1800);

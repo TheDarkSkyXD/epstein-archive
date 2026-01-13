@@ -1,23 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { Investigation, EvidenceItem, TimelineEvent } from '../types/investigation';
+import React, { useState } from 'react';
 import {
   BarChart3,
-  TrendingUp,
-  AlertTriangle,
   Target,
   Clock,
   DollarSign,
   Users,
   MapPin,
-  FileText,
   Activity,
   X,
 } from 'lucide-react';
 
 interface PatternRecognitionAIProps {
-  investigation: Investigation;
-  evidence: EvidenceItem[];
-  timelineEvents: TimelineEvent[];
   onPatternDetected?: (patterns: DetectedPattern[]) => void;
 }
 
@@ -44,9 +37,6 @@ export interface DetectedPattern {
 }
 
 export const PatternRecognitionAI: React.FC<PatternRecognitionAIProps> = ({
-  investigation,
-  evidence,
-  timelineEvents,
   onPatternDetected,
 }) => {
   const [detectedPatterns, setDetectedPatterns] = useState<DetectedPattern[]>([]);

@@ -10,7 +10,10 @@
       "Bash(npx eslint:*)",
       "Bash(npm run build:*)",
       "Bash(npm run lint:*)",
-      "Bash(tee:*)"
+      "Bash(tee:*)",
+      "Bash(grep:*)",
+      "Bash(cd /Users/veland/Downloads/Epstein\\\\ Files/epstein-archive:*)",
+      "Bash(cd:*)"
     ]
   }
 }

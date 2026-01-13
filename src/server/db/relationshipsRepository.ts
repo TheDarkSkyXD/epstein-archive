@@ -60,10 +60,11 @@ export const relationshipsRepository = {
     }));
   },
 
+  // TODO: Apply filters to graph traversal - see UNUSED_VARIABLES_RECOMMENDATIONS.md
   getGraphSlice: (
     entityId: number | string,
     depth: number = 2,
-    filters: { from?: string; to?: string } = {},
+    _filters: { from?: string; to?: string } = {},
   ) => {
     const db = getDb();
     // BFS traversal

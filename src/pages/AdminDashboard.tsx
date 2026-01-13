@@ -61,7 +61,8 @@ export const AdminDashboard: React.FC = () => {
 
   const [loading, setLoading] = useState(true);
   const [auditLoading, setAuditLoading] = useState(false);
-  const [error, setError] = useState('');
+  // TODO: Display error messages in UI - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+  const [_error, setError] = useState('');
 
   const [searchTerm, setSearchTerm] = useState('');
 

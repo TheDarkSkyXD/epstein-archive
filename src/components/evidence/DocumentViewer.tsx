@@ -5,7 +5,7 @@
  */
 
 import React, { useState } from 'react';
-import { Search, Copy, Check, Eye, FileText, Download } from 'lucide-react';
+import { Search, Copy, Check, Eye, FileText as _FileText, Download } from 'lucide-react';
 import { prettifyOCRText } from '../../utils/prettifyOCR';
 
 interface DocumentViewerProps {

@@ -7,9 +7,10 @@ interface EvidencePacketExporterProps {
   onExport: (format: 'json' | 'zip') => void;
 }
 
+// TODO: Use investigation metadata in export - see UNUSED_VARIABLES_RECOMMENDATIONS.md
 export const EvidencePacketExporter: React.FC<EvidencePacketExporterProps> = ({
-  investigationId,
-  investigationTitle,
+  investigationId: _investigationId,
+  investigationTitle: _investigationTitle,
   onExport,
 }) => {
   const [selectedFormat, setSelectedFormat] = useState<'json' | 'zip'>('zip');

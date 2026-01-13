@@ -18,7 +18,8 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
   const [showAnnotations, setShowAnnotations] = useState(false);
   // Optimize entity lookup map
   const [entityMap, setEntityMap] = useState<Map<string, any>>(new Map());
-  const [entities, setEntities] = useState<any[]>([]);
+  // TODO: Use entities for related entities sidebar - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+  const [_entities, setEntities] = useState<any[]>([]);
   const [entityRegex, setEntityRegex] = useState<RegExp | null>(null);
 
   // Fetch all entities for linking - optimized

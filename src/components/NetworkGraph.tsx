@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
-import { ZoomIn, ZoomOut, Move, RefreshCw, Filter, AlertTriangle, Link2 } from 'lucide-react';
+import { ZoomIn, ZoomOut, Move, RefreshCw, AlertTriangle, Link2 } from 'lucide-react';
 
 interface EntityNode {
   id: number;
@@ -100,7 +100,8 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
   const [draggedNode, setDraggedNode] = useState<number | null>(null);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const [modifierKeyPressed, setModifierKeyPressed] = useState(false);
-  const [spacePressed, setSpacePressed] = useState(false);
+  // TODO: Track space key for pan mode - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+  const [spacePressed, _setSpacePressed] = useState(false);
   const [totalDragDistance, setTotalDragDistance] = useState(0);
   const workerRef = useRef<Worker | null>(null);
   const useWorkerRef = useRef(false);
@@ -633,7 +634,7 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
                       setTotalDragDistance(0);
                     }
                   }}
-                  onClick={(e) => {
+                  onClick={(_e) => {
                     // Only trigger click if drag distance is small (was just a click)
                     if (totalDragDistance < 5) {
                       onEntityClick?.(node);

@@ -119,7 +119,8 @@ function emergencyCleanup() {
   console.log('🚨 Starting Emergency Data Cleanup...');
 
   // 1. Delete Exact Junk Matches
-  const deleteList = [...JUNK_TERMS_EXACT];
+  // TODO: Implement audit trail - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+  const _deleteList = [...JUNK_TERMS_EXACT];
 
   // 2. Scan for "Stars With" Junk
   const allEntities = db.prepare('SELECT id, full_name, mentions FROM entities').all() as {

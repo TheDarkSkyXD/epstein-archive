@@ -60,8 +60,8 @@ router.post('/login', loginLimiter, (req, res) => {
     db.prepare('UPDATE users SET last_active = CURRENT_TIMESTAMP WHERE id = ?').run(user.id);
 
     // Return user info (sanitize)
-    // Return user info (sanitize)
-    const { password_hash, ...userInfo } = user;
+    // TODO: Use password_hash for security logging - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+    const { password_hash: _password_hash, ...userInfo } = user;
 
     // Secure Cookie
     res.cookie('token', token, {
@@ -94,7 +94,8 @@ router.get('/me', optionalAuthenticate, (req: any, res) => {
     // Return null user instead of 401 to suppress console errors
     return res.json({ user: null });
   }
-  const { password_hash, ...userInfo } = req.user;
+  // TODO: Use password_hash for security logging - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+  const { password_hash: _password_hash2, ...userInfo } = req.user;
   res.json({ user: userInfo });
 });
 

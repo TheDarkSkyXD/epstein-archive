@@ -1,6 +1,17 @@
 import React, { useState } from 'react';
 import { Investigation, Investigator } from '../types/investigation';
-import { Users, Plus, Mail, UserPlus, Crown, Shield, User, Building, Eye } from 'lucide-react';
+// TODO: Add team member feature - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+import {
+  Users,
+  Plus as _Plus,
+  Mail,
+  UserPlus,
+  Crown,
+  Shield,
+  User as _User,
+  Building,
+  Eye,
+} from 'lucide-react';
 import { useToasts } from './ToastProvider';
 
 interface InvestigationTeamManagementProps {

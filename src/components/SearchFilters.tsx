@@ -1,5 +1,5 @@
 import React from 'react';
-import { Filter, Users, Calendar, AlertTriangle } from 'lucide-react';
+import { Filter, Users, Calendar as _Calendar, AlertTriangle } from 'lucide-react';
 import { SearchFilters as ISearchFilters } from '../types';
 
 interface SearchFiltersProps {

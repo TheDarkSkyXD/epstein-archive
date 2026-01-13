@@ -59,7 +59,12 @@ function detectType(name: string): 'Person' | 'Organization' | 'Location' | 'Oth
 }
 
 // Import centralized blacklist
-import { ENTITY_BLACKLIST, ENTITY_BLACKLIST_REGEX, ENTITY_PARTIAL_BLOCKLIST } from '../src/config/entityBlacklist';
+// TODO: Use ENTITY_BLACKLIST for validation - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+import {
+  ENTITY_BLACKLIST as _ENTITY_BLACKLIST,
+  ENTITY_BLACKLIST_REGEX,
+  ENTITY_PARTIAL_BLOCKLIST,
+} from '../src/config/entityBlacklist';
 
 const JUNK_REGEX = ENTITY_BLACKLIST_REGEX;
 
@@ -147,7 +152,8 @@ function rebuildEntityPipeline() {
         const POTENTIAL_ENTITY_REGEX = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,5})\b/g;
 
         const matches = [...content.matchAll(POTENTIAL_ENTITY_REGEX)];
-        const docMentions = new Set<string>(); // avoid dups per doc if context weak
+        // TODO: Track entity mentions per document - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+        const _docMentions = new Set<string>(); // avoid dups per doc if context weak
 
         for (const match of matches) {
           const rawName = match[0];
@@ -157,9 +163,13 @@ function rebuildEntityPipeline() {
           if (cleanName.length < 4) continue;
           if (JUNK_REGEX.test(cleanName)) continue;
           if (cleanName.includes('Epstein') && !cleanName.includes('Island')) continue; // Skip generic Epstein, allow Island
-          
+
           // Check partial blocklist (e.g. "Received Received")
-          if (ENTITY_PARTIAL_BLOCKLIST.some(term => cleanName.toLowerCase().includes(term.toLowerCase()))) {
+          if (
+            ENTITY_PARTIAL_BLOCKLIST.some((term) =>
+              cleanName.toLowerCase().includes(term.toLowerCase()),
+            )
+          ) {
             continue;
           }
 

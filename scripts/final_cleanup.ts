@@ -12,29 +12,51 @@ function finalCleanup() {
   // 1. Delete Junk Entities using Shared Configuration
   const deleteStmt = db.prepare('DELETE FROM entities WHERE full_name LIKE ?');
   let deleted = 0;
-  
+
   // A. Exact matches from Blacklist
   console.log(`   Processing ${ENTITY_BLACKLIST.length} blacklist terms...`);
   db.transaction(() => {
     for (const term of ENTITY_BLACKLIST) {
-       const res = deleteStmt.run(term);
-       deleted += res.changes;
+      const res = deleteStmt.run(term);
+      deleted += res.changes;
     }
   })();
-  
+
   // B. Partial matches from Blacklist
   console.log(`   Processing ${ENTITY_PARTIAL_BLOCKLIST.length} partial blocklist terms...`);
   const deleteLike = db.prepare('DELETE FROM entities WHERE full_name LIKE ?');
   db.transaction(() => {
-      for (const term of ENTITY_PARTIAL_BLOCKLIST) {
-          const res = deleteLike.run(`%${term}%`);
-          deleted += res.changes;
+    for (const term of ENTITY_PARTIAL_BLOCKLIST) {
+      const res = deleteLike.run(`%${term}%`);
+      deleted += res.changes;
+    }
+
+    // Legacy specific cleanup
+    db.prepare("DELETE FROM entities WHERE full_name LIKE 'Jeffrey%Chairman%'").run();
+    db.prepare("DELETE FROM entities WHERE full_name LIKE 'Jeffrey%Founding%'").run();
+    db.prepare("DELETE FROM entities WHERE full_name LIKE 'Jeffrey%Research%'").run();
+
+    // NUCLEAR OPTION: Specific user-reported junk that must die
+    // Using broad LIKE patterns to catch whitespace/encoding variants
+    const nuclearTargets = [
+      '%Total Cash Disbursements%',
+      '%Verizon%',
+      '%Happy Birthday%',
+      '%Received Received%',
+      '%United Sister Magise%',
+      '%Madison Ave%',
+      '%Trust Fund%'
+    ];
+    
+    console.log('☢️ Running NUCLEAR cleanup on persistent junk...');
+    const nuclearStmt = db.prepare('DELETE FROM entities WHERE full_name LIKE ?');
+    for (const target of nuclearTargets) {
+      const res = nuclearStmt.run(target);
+      if (res.changes > 0) {
+        console.log(`   ☢️ Nuked ${res.changes} entities matching "${target}"`);
+        deleted += res.changes;
       }
-      
-      // Legacy specific cleanup
-      db.prepare("DELETE FROM entities WHERE full_name LIKE 'Jeffrey%Chairman%'").run();
-      db.prepare("DELETE FROM entities WHERE full_name LIKE 'Jeffrey%Founding%'").run();
-      db.prepare("DELETE FROM entities WHERE full_name LIKE 'Jeffrey%Research%'").run();
+    }
   })();
 
   console.log(`✅ Deleted ${deleted} junk entities (approx).`);

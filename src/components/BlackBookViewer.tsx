@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Phone, Mail, MapPin, User, Book, Eye, FileText, ExternalLink } from 'lucide-react';
+import {
+  Search,
+  Phone,
+  Mail,
+  MapPin,
+  User as _User,
+  Book,
+  Eye,
+  FileText as _FileText,
+  ExternalLink,
+} from 'lucide-react';
 import { extractCleanName, formatPhoneNumber } from '../utils/prettifyOCR';
 import { EvidenceModal } from './EvidenceModal';
 import { apiClient } from '../services/apiClient';

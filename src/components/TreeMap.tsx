@@ -135,7 +135,8 @@ export const TreeMap: React.FC<TreeMapProps> = ({ people, onPersonClick }) => {
           <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.k})`}>
             {layout.map((node, index) => {
               const isHovered = hoveredNode?.name === node.name;
-              const percentage = ((node.value / total) * 100).toFixed(1);
+              // TODO: Display percentage in tooltip - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+              const _percentage = ((node.value / total) * 100).toFixed(1);
               const [stop1, stop2] = getGradientColors(node.redFlagRating);
 
               return (
@@ -242,7 +243,8 @@ function squarify(nodes: TreeMapNode[], width: number, height: number) {
 
   // Sort by value descending
   const sorted = [...nodes].sort((a, b) => b.value - a.value);
-  const totalValue = sorted.reduce((sum, node) => sum + node.value, 0);
+  // TODO: Use totalValue for normalization - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+  const _totalValue = sorted.reduce((sum, node) => sum + node.value, 0);
 
   // Recursive tiling function
   function tile(items: TreeMapNode[], x: number, y: number, w: number, h: number) {
@@ -254,7 +256,8 @@ function squarify(nodes: TreeMapNode[], width: number, height: number) {
     }
 
     // Split items into two groups roughly equal in value
-    const mid = Math.ceil(items.length / 2);
+    // TODO: Use mid point for balanced splitting - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+    const _mid = Math.ceil(items.length / 2);
     // Optimization: find split point that balances value sum better
     let bestSplit = 1;
     let minDiff = Infinity;

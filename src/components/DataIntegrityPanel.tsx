@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, Clock, Database } from 'lucide-react';
+import { AlertTriangle, Clock as _Clock, Database } from 'lucide-react';
 
 interface DataIntegrityStats {
   entitiesWithDocuments: number;

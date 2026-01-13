@@ -506,14 +506,6 @@ export const memoryRepository = {
       entityConfidence: number;
     },
   ): MemoryQualityMetrics => {
-    // Calculate overall score
-    const overallScore =
-      (metrics.sourceReliability +
-        metrics.evidenceStrength +
-        metrics.temporalRelevance +
-        metrics.entityConfidence) /
-      4;
-
     const stmt = db.prepare(`
       INSERT INTO memory_quality_metrics (
         memory_entry_id, source_reliability, evidence_strength, 

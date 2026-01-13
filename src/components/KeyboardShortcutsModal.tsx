@@ -1,4 +1,5 @@
-import React, { useRef } from 'react';
+// TODO: Add scroll refs for keyboard shortcuts - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+import React, { useRef as _useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useModalFocusTrap } from '../hooks/useModalFocusTrap';

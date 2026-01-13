@@ -9,10 +9,11 @@ interface MobileMenuProps {
   onClose: () => void;
 }
 
+// TODO: Implement search in mobile menu - see UNUSED_VARIABLES_RECOMMENDATIONS.md
 export const MobileMenu: React.FC<MobileMenuProps> = ({
   open,
-  searchTerm,
-  onSearchTermChange,
+  searchTerm: _searchTerm,
+  onSearchTermChange: _onSearchTermChange,
   onNavigate,
   onClose,
 }) => {

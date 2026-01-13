@@ -17,8 +17,6 @@ export const documentsRepository = {
     const whereConditions: string[] = [];
     const params: any[] = [];
 
-    // Check if FTS is available and search term is present
-    const useFts = false;
     if (filters.search && filters.search.trim()) {
       try {
         // Simple check if table exists (cached or checked once)

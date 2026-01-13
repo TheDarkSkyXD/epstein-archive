@@ -33,7 +33,6 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import { format } from 'date-fns';
 import { DocumentMetadataPanel } from './DocumentMetadataPanel';
 
 // Set up PDF.js worker
@@ -148,11 +147,12 @@ interface ForensicDocumentAnalyzerProps {
   };
 }
 
+// TODO: Use case context for document analysis - see UNUSED_VARIABLES_RECOMMENDATIONS.md
 export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> = ({
   documentUrl,
   documentId,
   onAnalysisComplete,
-  caseContext,
+  caseContext: _caseContext,
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -297,8 +297,8 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
     }
   }, [activeTab, activeId]);
 
-  // Mock forensic analysis data
-  const generateMockAnalysis = (): ForensicAnalysis => {
+  // TODO: Use mock forensic analysis for testing - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+  const _generateMockAnalysis = (): ForensicAnalysis => {
     return {
       id: `analysis-${Date.now()}`,
       documentId: activeId,

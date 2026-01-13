@@ -1,14 +1,15 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
+// TODO: Add metadata display and rotation controls - see UNUSED_VARIABLES_RECOMMENDATIONS.md
 import {
   X,
   ChevronLeft,
   ChevronRight,
   Info,
-  Calendar,
+  Calendar as _Calendar,
   Camera,
-  MapPin,
+  MapPin as _MapPin,
   Tag,
   FileImage,
   Maximize2,
@@ -17,7 +18,7 @@ import {
   Check,
   Save,
   RotateCw,
-  RotateCcw,
+  RotateCcw as _RotateCcw,
 } from 'lucide-react';
 import { MediaImage } from '../types/media.types';
 import Icon from './Icon';

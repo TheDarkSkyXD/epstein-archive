@@ -72,11 +72,12 @@ export const formatErrorResponse = (error: AppError, req?: Request): ErrorRespon
 };
 
 // Global error handler middleware
+// TODO: Use next for error chaining - see UNUSED_VARIABLES_RECOMMENDATIONS.md
 export const globalErrorHandler = (
   err: Error,
   req: Request,
   res: Response,
-  next: NextFunction,
+  _next: NextFunction,
 ): void => {
   console.error('Global error handler caught:', {
     message: err.message,

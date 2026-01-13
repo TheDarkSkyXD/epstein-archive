@@ -3,11 +3,13 @@ import { createPortal } from 'react-dom';
 import { X, ChevronUp, ChevronDown, Network } from 'lucide-react';
 import { Person } from '../types';
 import { apiClient } from '../services/apiClient';
-import { ArticleFeed } from './ArticleFeed';
+// TODO: Add article feed integration - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+// import { ArticleFeed } from './ArticleFeed';
 import { RedFlagIndex } from './RedFlagIndex';
 import { Breadcrumb } from './Breadcrumb';
 import { SourceBadge } from './SourceBadge';
-import FormField from './FormField';
+// TODO: Add form fields for evidence editing
+// import FormField from './FormField';
 import Tooltip from './Tooltip';
 import Icon from './Icon';
 import { useModalFocusTrap } from '../hooks/useModalFocusTrap';

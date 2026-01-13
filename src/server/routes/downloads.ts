@@ -27,10 +27,6 @@ router.get('/release/:id', async (req, res) => {
     // If user asks for "house-oversight", we can't zips 20k files easily.
     // Return 404 or Not Implemented for now.
 
-    // Check if it matches a Tag
-    const _db = getDb();
-    // Logic to maybe download ONE representative file?
-
     console.warn(`Download requested for unknown release: ${releaseId}`);
     return res.status(404).json({ error: 'Download not available for this release' });
   } catch (err) {

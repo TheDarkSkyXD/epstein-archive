@@ -1,25 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { Investigation, EvidenceItem } from '../types/investigation';
+import React, { useState } from 'react';
 import {
   DollarSign,
   TrendingUp,
   TrendingDown,
   Calendar,
   ArrowRight,
-  Search,
   Filter,
-  Download,
   AlertTriangle,
-  Building,
-  CreditCard,
   X,
   MapPin,
   Users,
 } from 'lucide-react';
 
 interface FinancialTransactionAnalysisProps {
-  investigation: Investigation;
-  evidence: EvidenceItem[];
   onTransactionPatternDetected?: (patterns: TransactionPattern[]) => void;
 }
 
@@ -46,26 +39,7 @@ export interface TransactionPattern {
   recommendations: string[];
 }
 
-interface FinancialTransaction {
-  id: string;
-  date: string;
-  amount: number;
-  type: 'transfer' | 'payment' | 'investment' | 'purchase' | 'sale';
-  sender: string;
-  recipient: string;
-  location: string;
-  description?: string;
-  metadata: {
-    currency?: string;
-    method?: string;
-    urgency?: 'low' | 'medium' | 'high';
-    suspicious?: boolean;
-  };
-}
-
 export const FinancialTransactionAnalysis: React.FC<FinancialTransactionAnalysisProps> = ({
-  investigation,
-  evidence,
   onTransactionPatternDetected,
 }) => {
   const [transactionPatterns, setTransactionPatterns] = useState<TransactionPattern[]>([]);
@@ -443,9 +417,6 @@ export const FinancialTransactionAnalysis: React.FC<FinancialTransactionAnalysis
           <div className="grid gap-4">
             {sortedPatterns.map((pattern) => {
               const Icon = getPatternIcon(pattern.type);
-              const FlowIcon = pattern.metadata.flowDirection
-                ? getFlowIcon(pattern.metadata.flowDirection)
-                : null;
 
               return (
                 <div

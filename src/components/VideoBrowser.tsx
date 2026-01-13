@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { VideoPlayer } from './VideoPlayer';
-import { Play, Film, Calendar, CheckSquare, Square, AlertTriangle, User } from 'lucide-react';
+import {
+  Play,
+  Film,
+  Calendar as _Calendar,
+  CheckSquare,
+  Square,
+  AlertTriangle,
+  User,
+} from 'lucide-react';
 import { SensitiveContent } from './SensitiveContent';
 import BatchToolbar from './BatchToolbar';
 import Icon from './Icon';

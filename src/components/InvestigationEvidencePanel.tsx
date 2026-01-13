@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+// TODO: Add evidence deletion feature - see UNUSED_VARIABLES_RECOMMENDATIONS.md
 import {
   FileText,
   Plus,
@@ -10,7 +11,7 @@ import {
   Calendar,
   Tag,
   ExternalLink,
-  Trash2,
+  Trash2 as _Trash2,
   Filter,
   BarChart3,
 } from 'lucide-react';
@@ -55,7 +56,8 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedEvidence, setSelectedEvidence] = useState<Evidence | null>(null);
+  // TODO: Implement evidence detail view - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+  const [_selectedEvidence, setSelectedEvidence] = useState<Evidence | null>(null);
 
   useEffect(() => {
     loadEvidenceSummary();
@@ -126,7 +128,8 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
     }
   };
 
-  const removeEvidence = async (investigationEvidenceId: number) => {
+  // TODO: Implement evidence removal UI - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+  const _removeEvidence = async (investigationEvidenceId: number) => {
     if (!confirm('Remove this evidence from the investigation?')) return;
 
     try {

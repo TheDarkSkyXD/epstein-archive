@@ -1,14 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  Network,
-  Link,
-  Users,
-  FileText,
-  AlertTriangle,
-  Search,
-  Filter,
-  Download,
-} from 'lucide-react';
+import { Network, FileText, Search, Filter, Download } from 'lucide-react';
 
 export interface NetworkNode {
   id: string;
@@ -71,7 +62,6 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   height = 600,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const [nodes, setNodes] = useState<NetworkNode[]>([]);
   const [edges, setEdges] = useState<NetworkEdge[]>([]);
   const [filteredNodes, setFilteredNodes] = useState<NetworkNode[]>([]);
@@ -81,7 +71,6 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   const [filterRisk, setFilterRisk] = useState<string>('all');
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [lastPan, setLastPan] = useState({ x: 0, y: 0 });
@@ -505,40 +494,8 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     }
   };
 
-  const handleTouchEnd = (event: React.TouchEvent<HTMLCanvasElement>) => {
-    // If it was a tap (no drag), handle it as a click
-    // Simple heuristic: if drag distance is small
-    // For now just stop dragging
+  const handleTouchEnd = () => {
     setIsDragging(false);
-  };
-
-  const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
-    if (!interactive) return;
-
-    event.preventDefault();
-    const delta = event.deltaY > 0 ? 0.9 : 1.1;
-
-    // Get canvas center position
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
-
-    // Convert screen coordinates to world coordinates
-    const worldCenterX = (centerX - pan.x) / zoom;
-    const worldCenterY = (centerY - pan.y) / zoom;
-
-    // Apply zoom
-    const newZoom = Math.max(0.1, Math.min(3, zoom * delta));
-
-    // Adjust pan to keep center fixed
-    const newPanX = centerX - worldCenterX * newZoom;
-    const newPanY = centerY - worldCenterY * newZoom;
-
-    setZoom(newZoom);
-    setPan({ x: newPanX, y: newPanY });
   };
 
   // Enhanced zoom to center on mouse position

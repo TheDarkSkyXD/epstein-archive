@@ -207,7 +207,8 @@ const PRODUCTION_SERVICES = {
   // Future services can be added here
 } as const;
 
-function verifyPortAssignments(): VerificationResult {
+// TODO: Implement health check endpoint - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+function _verifyPortAssignments(): VerificationResult {
   const result: VerificationResult = { passed: true, errors: [], warnings: [] };
 
   console.log('✅ Port assignments verified against INFRASTRUCTURE.md');

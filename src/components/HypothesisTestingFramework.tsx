@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
+// TODO: Add hypothesis tracking indicators - see UNUSED_VARIABLES_RECOMMENDATIONS.md
 import {
   Target,
   Plus,
   Edit3,
   Trash2,
   Link,
-  TrendingUp,
-  Calendar,
+  TrendingUp as _TrendingUp,
+  Calendar as _Calendar,
   User,
   FileText,
-  AlertTriangle,
+  AlertTriangle as _AlertTriangle,
 } from 'lucide-react';
 import { EvidenceItem, Hypothesis as BaseHypothesis } from '../types/investigation';
 
@@ -170,7 +171,8 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
     onHypothesesUpdate(updatedHypotheses);
   };
 
-  const updateHypothesisConfidence = (hypothesisId: string, confidence: number) => {
+  // TODO: Implement confidence calculation - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+  const _updateHypothesisConfidence = (hypothesisId: string, confidence: number) => {
     const updatedHypotheses = hypotheses.map((hyp) =>
       hyp.id === hypothesisId ? { ...hyp, confidence, updatedAt: new Date() } : hyp,
     );
@@ -293,7 +295,7 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
     return evidenceItems.find((item) => item.id === id);
   };
 
-  const calculateOverallConfidence = (links: EvidenceLink[]) => {
+  const _calculateOverallConfidence = (links: EvidenceLink[]) => {
     if (links.length === 0) return 50;
 
     const totalWeight = links.reduce((sum, link) => {

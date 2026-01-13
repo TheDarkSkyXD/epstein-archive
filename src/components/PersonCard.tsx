@@ -13,10 +13,11 @@ interface PersonCardProps {
   searchTerm?: string;
 }
 
+// TODO: Implement document navigation - see UNUSED_VARIABLES_RECOMMENDATIONS.md
 const PersonCard: React.FC<PersonCardProps> = ({
   person,
   onClick,
-  onDocumentClick,
+  onDocumentClick: _onDocumentClick,
   searchTerm,
 }) => {
   const navigate = useNavigate();
@@ -112,7 +113,7 @@ const PersonCard: React.FC<PersonCardProps> = ({
         <div
           className={`flex-shrink-0 flex items-center gap-1 px-2 py-1 rounded-full border text-xs font-medium ${getRiskColor(rating)}`}
         >
-          {Array.from({ length: Math.min(5, rating) }).map((_, i) => (
+          {Array.from({ length: Math.min(5, rating) }).map((_, _i) => (
             <Icon name="Flag" size="xs" color="inherit" />
           ))}
         </div>

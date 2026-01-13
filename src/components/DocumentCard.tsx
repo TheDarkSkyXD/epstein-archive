@@ -1,7 +1,8 @@
 import React from 'react';
 import { Card } from './Card';
 import { AddToInvestigationButton } from './AddToInvestigationButton';
-import Icon from './Icon';
+// TODO: Icon usage for document metadata - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+// import Icon from './Icon';
 
 interface Document {
   id: string;
@@ -21,8 +22,9 @@ interface DocumentCardProps {
 }
 
 export const DocumentCard: React.FC<DocumentCardProps> = ({ document, onClick }) => {
+  // TODO: Use getSourceColor for visual distinction - see UNUSED_VARIABLES_RECOMMENDATIONS.md
   // Get source badge color
-  const getSourceColor = (source: string) => {
+  const _getSourceColor = (source: string) => {
     switch (source) {
       case 'Black Book':
         return 'bg-[var(--accent-soft-danger)] text-[var(--accent-danger)]';

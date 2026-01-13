@@ -13,10 +13,11 @@ interface PersonCardProps {
   searchTerm?: string;
 }
 
+// TODO: Implement document navigation - see UNUSED_VARIABLES_RECOMMENDATIONS.md
 export const PersonCardRefined: React.FC<PersonCardProps> = ({
   person,
   onClick,
-  onDocumentClick,
+  onDocumentClick: _onDocumentClick,
   searchTerm,
 }) => {
   // Get entity type icon

@@ -6,11 +6,12 @@ import {
   Hypothesis,
   Annotation,
 } from '../types/investigation';
+// TODO: Add preview feature - see UNUSED_VARIABLES_RECOMMENDATIONS.md
 import {
   FileText,
   Download,
   Share2,
-  Eye,
+  Eye as _Eye,
   Lock,
   Globe,
   Newspaper,

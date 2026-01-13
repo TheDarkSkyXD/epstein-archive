@@ -1,5 +1,12 @@
 import React from 'react';
-import { AlertTriangle, WifiOff, Database, FileText, RefreshCw, Home } from 'lucide-react';
+import {
+  AlertTriangle,
+  WifiOff,
+  Database,
+  FileText as _FileText,
+  RefreshCw,
+  Home,
+} from 'lucide-react';
 
 interface TailoredErrorFallbackProps {
   errorType: 'network' | 'database' | 'document' | 'generic';

@@ -7,12 +7,14 @@ import { RedFlagIndex } from './RedFlagIndex';
 import { useUndo } from './UndoManager';
 import FormField from './FormField';
 import Tooltip from './Tooltip';
-import HelpText from './HelpText';
+// TODO: Add help text for search features
+// import HelpText from './HelpText';
 import Icon from './Icon';
 import ProgressBar from './ProgressBar';
 import { AddToInvestigationButton } from './AddToInvestigationButton';
 
-interface SearchResult {
+// TODO: Use SearchResult type for better type safety
+interface _SearchResult {
   person: Person;
   matchingContexts: Array<{
     file: string;

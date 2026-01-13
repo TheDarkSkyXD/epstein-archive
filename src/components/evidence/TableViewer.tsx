@@ -19,7 +19,8 @@ interface TableViewerProps {
 }
 
 export function TableViewer({ evidence }: TableViewerProps) {
-  const { extractedText, metadata } = evidence;
+  // TODO: Use metadata for table formatting hints - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+  const { extractedText, metadata: _metadata } = evidence;
 
   const { headers, rows } = useMemo(() => {
     const lines = extractedText.split('\n').filter((line) => line.trim());

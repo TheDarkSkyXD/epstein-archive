@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
+// TODO: Add correlation filtering and timeline features - see UNUSED_VARIABLES_RECOMMENDATIONS.md
 import {
   Link,
-  Unlink,
+  Unlink as _Unlink,
   Search,
-  Filter,
+  Filter as _Filter,
   Download,
   AlertTriangle,
   CheckCircle,
-  Clock,
+  Clock as _Clock,
   MapPin,
-  Phone,
+  Phone as _Phone,
   Mail,
   DollarSign,
   User,
@@ -146,7 +147,8 @@ export default function MultiSourceCorrelationEngine() {
     load();
   }, []);
 
-  const generateMockCorrelations = () => {
+  // TODO: Use mock data for demo mode - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+  const _generateMockCorrelations = () => {
     const mockCorrelations: CorrelationResult[] = [
       {
         id: 'corr-001',

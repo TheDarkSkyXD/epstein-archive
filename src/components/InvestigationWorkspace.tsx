@@ -3,46 +3,34 @@ import {
   Investigation,
   EvidenceItem,
   TimelineEvent,
-  Hypothesis as BaseHypothesis,
   Annotation,
   Investigator,
 } from '../types/investigation';
 import { EvidenceChainService } from '../services/evidenceChainService';
 import {
-  MessageSquare,
-  Phone,
-  Mail,
   Calendar,
   User,
   ArrowRight,
   Search,
-  Filter,
   Download,
-  AlertTriangle,
-  X,
   Plus,
   Users,
   Target,
   FileText,
   BarChart3,
-  Settings,
   Share2,
-  Lock,
   Microscope,
   Network,
-  FileSearch,
-  Database,
   DollarSign,
 } from 'lucide-react';
 import FinancialTransactionMapper from './FinancialTransactionMapper';
-import ChainOfCustodyModal from './ChainOfCustodyModal';
+// Removed unused ChainOfCustodyModal import
 import { NetworkVisualization, NetworkNode, NetworkEdge } from './NetworkVisualization';
 import { InvestigationTimelineBuilder } from './InvestigationTimelineBuilder';
 import { InvestigationExportTools } from './InvestigationExportTools';
 import { ForensicAnalysisWorkspace } from './ForensicAnalysisWorkspace';
 import { useInvestigationOnboarding } from '../hooks/useInvestigationOnboarding';
 import { InvestigationOnboarding } from './InvestigationOnboarding';
-// import { ExampleInvestigationCard } from './ExampleInvestigationCard'; // Removed
 import { useLocation, useNavigate } from 'react-router-dom';
 import { DataIntegrityPanel } from './DataIntegrityPanel';
 import { EvidencePacketExporter } from './EvidencePacketExporter';
@@ -84,11 +72,8 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
   const [evidenceItems, setEvidenceItems] = useState<EvidenceItem[]>([]);
   const [hypotheses, setHypotheses] = useState<any[]>([]);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
-  const [showExampleInvestigation, setShowExampleInvestigation] = useState(false);
   const [evidenceLoading, setEvidenceLoading] = useState(false);
-  const [custodyEvidenceId, setCustodyEvidenceId] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [forensicToolsCollapsed, setForensicToolsCollapsed] = useState(false);
   const [selectedNetworkNode, setSelectedNetworkNode] = useState<NetworkNode | null>(null);
   const [selectedNetworkEdge, setSelectedNetworkEdge] = useState<NetworkEdge | null>(null);
   const [networkNodes, setNetworkNodes] = useState<NetworkNode[]>([]);
@@ -289,8 +274,6 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
 
   // Investigation onboarding hook
   const { hasSeenOnboarding, markOnboardingAsSeen } = useInvestigationOnboarding();
-
-  const evidenceChainService = EvidenceChainService.getInstance();
 
   useEffect(() => {
     loadInvestigations();
@@ -768,45 +751,6 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
     }
   };
 
-  const createExampleInvestigation = async () => {
-    try {
-      setIsLoading(true);
-      const exampleData = {
-        title: 'Example: Flight logs and deposition cross-check',
-        description:
-          'Demonstrates how Red Flag Index + evidence types can be used to build a case trail. Tracing connections between entities through documents and media.',
-        hypothesis:
-          'High correlation between flight log dates and deposition inconsistencies indicates obscured meetings.',
-        priority: 'medium',
-        dueDate: new Date().toISOString().split('T')[0],
-      };
-
-      const response = await fetch('/api/investigations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(exampleData),
-      });
-
-      if (response.ok) {
-        const newInv = await response.json();
-        // Add Investigations
-        setInvestigations((prev) => [...prev, newInv]);
-        setSelectedInvestigation(newInv);
-        addToast({ text: 'Example investigation created successfully.', type: 'success' });
-
-        // TODO: Populate with example evidence/timeline data if needed
-        // For now, just the shell is enough to "restore" it.
-        // We could chain deeper calls here to add entities/documents.
-      } else {
-        addToast({ text: 'Failed to create example investigation.', type: 'error' });
-      }
-    } catch (error) {
-      console.error('Error creating example:', error);
-      addToast({ text: 'Error creating example investigation.', type: 'error' });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   if (isLoading) {
     return (

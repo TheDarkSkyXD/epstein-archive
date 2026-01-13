@@ -5,6 +5,7 @@ This document catalogs unused variables throughout the codebase and provides rec
 ## Overview
 
 The Epstein Archive is a comprehensive relational database containing:
+
 - **Entities** (people, organizations, locations)
 - **Documents** with full-text search
 - **Media** (photos, audio, video) with transcripts
@@ -18,11 +19,13 @@ The Epstein Archive is a comprehensive relational database containing:
 ### emergency_cleanup.ts
 
 **Unused**: `deleteList` (line 122)
+
 ```typescript
 const deleteList = [...JUNK_TERMS_EXACT];
 ```
 
 **Recommendation**: **Audit Trail System**
+
 - Log deleted entities to a `cleanup_audit` table
 - Track: entity_id, name, reason, deleted_at, deleted_by
 - Enable rollback functionality
@@ -37,11 +40,13 @@ const deleteList = [...JUNK_TERMS_EXACT];
 **Unused**: `filenameTags` (line 61)
 
 **Recommendation**: **Enhanced Entity Linking**
+
 - Use `docMentions` to create document-entity links in `entity_mentions` table
 - Track confidence scores for mentions
 - **Feature Value**: Cross-reference entities across documents, find co-occurrence patterns
 
 **Recommendation**: **Automatic Tagging System**
+
 - Use `filenameTags` to auto-tag media/documents based on filename patterns
 - Create `media_tags` entries automatically
 - **Feature Value**: Better organization and searchability of evidence
@@ -59,6 +64,7 @@ No unused variables - this script is well-utilized.
 **Unused**: `verifyPortAssignments` (line 210)
 
 **Recommendation**: **Health Check Dashboard**
+
 - Expose health check endpoint: `/api/health`
 - Check database connectivity, port availability, file system access
 - Display in Admin Dashboard with status indicators
@@ -73,12 +79,14 @@ No unused variables - this script is well-utilized.
 **Unused**: `_Timeline`, `_DocumentUploader`, `_loadingProgressValue`, `_documentLoadingProgressValue`, `_handleDocumentsUploaded`
 
 **Recommendation**: **Upload Progress UI**
+
 - Show progress bar for document uploads
 - Display current file being processed
 - Allow cancellation of uploads
 - **Feature Value**: Better UX for bulk document ingestion
 
 **Recommendation**: **Timeline View Integration**
+
 - Add timeline to main navigation
 - Show chronological view of all events (flights, documents, media dates)
 - Filter by date range, entity, event type
@@ -91,6 +99,7 @@ No unused variables - this script is well-utilized.
 **Unused**: `EvidenceItem` type import
 
 **Recommendation**: **Evidence Type Safety**
+
 - Use the type to validate evidence structure before adding to investigations
 - Create evidence preview tooltips
 - **Feature Value**: Type-safe evidence management
@@ -102,6 +111,7 @@ No unused variables - this script is well-utilized.
 **Unused**: `showQuickAdd`, `setShowQuickAdd`
 
 **Recommendation**: **Quick Add Article Feature**
+
 - Add floating "+" button to quickly add articles from web
 - Browser extension integration
 - Paste URL to auto-fetch article content
@@ -114,6 +124,7 @@ No unused variables - this script is well-utilized.
 **Unused**: `_setShowTranscript`
 
 **Recommendation**: **Transcript Toggle Settings**
+
 - Add user preference to show/hide transcripts by default
 - Save preference to localStorage or user settings
 - Toggle button in player controls
@@ -132,6 +143,7 @@ No major unused variables - this component is efficient.
 **Unused**: Various chart-related imports
 
 **Recommendation**: **Advanced Analytics Dashboard**
+
 - Implement zoom/pan controls for charts
 - Add filters by risk level, entity type, date range
 - Export chart data as CSV/JSON
@@ -144,11 +156,13 @@ No major unused variables - this component is efficient.
 **Unused**: `textContent`, `IconComponent`
 
 **Recommendation**: **Annotation Templates**
+
 - Use `IconComponent` to show visual indicators for annotation types
 - Create annotation categories with custom icons (evidence, contradiction, question, note)
 - **Feature Value**: Visual distinction between annotation types
 
 **Recommendation**: **Text Extraction API**
+
 - Use `textContent` to provide API endpoint for extracting annotated text
 - Generate evidence summaries automatically
 - **Feature Value**: Automated report generation
@@ -160,18 +174,21 @@ No major unused variables - this component is efficient.
 **Unused**: `useCallback`, `prettifyOCRText`, `setCollection`, `DocumentCard`
 
 **Recommendation**: **Document Collections Feature**
+
 - Enable creation of custom document collections
 - Use `setCollection` to assign documents to collections
 - Collections UI similar to playlists
 - **Feature Value**: Organize documents by investigation or topic
 
 **Recommendation**: **OCR Quality Improvement**
+
 - Apply `prettifyOCRText` to all OCR documents
 - Show original vs. cleaned text toggle
 - Re-OCR capability for poor quality documents
 - **Feature Value**: Better searchability and readability
 
 **Recommendation**: **Document Card View**
+
 - Implement grid view with `DocumentCard` component
 - Show thumbnail, title, date, entities mentioned
 - Pinterest-style masonry layout
@@ -184,11 +201,13 @@ No major unused variables - this component is efficient.
 **Unused**: `highlight`, `showMediaViewer`, `setShowMediaViewer`
 
 **Recommendation**: **Inline Media Viewer**
+
 - Open media files directly in modal without leaving document
 - Show related photos/audio inline with document
 - **Feature Value**: Seamless evidence review
 
 **Recommendation**: **Search Highlighting**
+
 - Use `highlight` to emphasize search terms in document text
 - Jump to next/previous occurrence
 - **Feature Value**: Faster evidence location
@@ -200,6 +219,7 @@ No major unused variables - this component is efficient.
 **Unused**: Various icon imports (`FileText`, `Calendar`, `User`, `Hash`, `Layers`, `Clock`)
 
 **Recommendation**: **Document Metadata Panel**
+
 - Show document metadata with icons:
   - 📄 FileText: Document type
   - 📅 Calendar: Date created/modified
@@ -216,6 +236,7 @@ No major unused variables - this component is efficient.
 **Unused**: `entities`
 
 **Recommendation**: **Related Entities Sidebar**
+
 - Show entities mentioned in same documents
 - Network graph of connected entities
 - "People also linked with" section
@@ -228,6 +249,7 @@ No major unused variables - this component is efficient.
 **Unused**: `analysis`
 
 **Recommendation**: **AI-Powered Insights**
+
 - Generate automated analysis reports
 - Identify patterns, outliers, anomalies
 - Natural language summaries of data trends
@@ -240,6 +262,7 @@ No major unused variables - this component is efficient.
 **Unused**: `prettifyOCRText`
 
 **Recommendation**: **Document Quality Score**
+
 - Rate OCR quality on each document
 - Suggest re-scanning for low quality docs
 - Batch OCR improvement tool
@@ -252,6 +275,7 @@ No major unused variables - this component is efficient.
 **Unused**: `d3Scale`, `ZoomIn`, `ZoomOut`, `RefreshCw`, `Maximize`, `Filter`, `onRelationshipSelect`, `theta`, `node`, `y2`
 
 **Recommendation**: **Interactive Network Controls**
+
 - Zoom in/out buttons
 - Refresh to re-layout graph
 - Maximize to fullscreen mode
@@ -265,6 +289,7 @@ No major unused variables - this component is efficient.
 ## Implementation Priority
 
 ### High Priority (Core Features)
+
 1. **Document Collections** - Organize evidence by investigation
 2. **Enhanced Entity Linking** - Automatic mention detection
 3. **Audit Trail System** - Track data changes
@@ -272,6 +297,7 @@ No major unused variables - this component is efficient.
 5. **Search Highlighting** - Find evidence faster
 
 ### Medium Priority (UX Improvements)
+
 6. **Upload Progress UI** - Better feedback during ingestion
 7. **Media Viewer Integration** - Inline media in documents
 8. **Quick Add Article** - Faster evidence collection
@@ -279,6 +305,7 @@ No major unused variables - this component is efficient.
 10. **Document Card View** - Visual browsing
 
 ### Low Priority (Advanced Features)
+
 11. **Timeline View** - Temporal analysis
 12. **Network Graph Controls** - Advanced graph manipulation
 13. **Health Check Dashboard** - System monitoring
@@ -366,6 +393,7 @@ POST   /api/audit/rollback/:id
 ## Conclusion
 
 The unused variables represent partially implemented features or infrastructure that could significantly enhance the Epstein Archive's capabilities. Prioritize based on:
+
 - **User needs**: What makes investigations more effective?
 - **Data integrity**: Audit trails and quality tracking
 - **Discoverability**: Better search, highlighting, collections

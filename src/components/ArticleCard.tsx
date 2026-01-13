@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Clock, ArrowUpRight, User } from 'lucide-react';
+import { Calendar, ArrowUpRight, User } from 'lucide-react';
 import LazyImage from './LazyImage';
 
 export interface Article {

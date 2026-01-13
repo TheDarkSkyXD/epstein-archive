@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { Search, User, Phone, Mail, MapPin } from 'lucide-react';
+import { Search, User as _User, Phone, Mail, MapPin } from 'lucide-react';
 
 interface ContactListViewerProps {
   evidence: {

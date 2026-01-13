@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+// TODO: Add media filtering state - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+import React, { useState as _useState } from 'react';
 import PhotoBrowser from './PhotoBrowser';
 
 interface MediaTabProps {

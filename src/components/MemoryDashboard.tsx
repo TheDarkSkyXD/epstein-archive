@@ -3,11 +3,12 @@ import { useMemory } from '../contexts/MemoryContext';
 import type { MemoryEntry, MemorySearchFilters } from '../types/memory';
 
 const MemoryDashboard: React.FC = () => {
+  // TODO: Implement memory entry editing - see UNUSED_VARIABLES_RECOMMENDATIONS.md
   const {
     state,
     loadMemoryEntries,
     createMemoryEntry,
-    updateMemoryEntry,
+    updateMemoryEntry: _updateMemoryEntry,
     deleteMemoryEntry,
     selectMemoryEntry,
     searchMemoryEntries,

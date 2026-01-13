@@ -9,9 +9,13 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
@@ -22,8 +26,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Check Formatting
-        run: npm run format:check
+      - name: Auto-fix Formatting
+        run: npm run format
+
+      - name: Commit and Push Changes
+        # Commit back to the branch if changes were made (and it's not a fork PR without permissions)
+        if: github.repository_owner == 'ErikVeland'
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git config --global user.name "github-actions[bot]"
+            git config --global user.email "github-actions[bot]@users.noreply.github.com"
+            git add .
+            git commit -m "style: auto-fix formatting"
+            git push
+          fi
 
       - name: Lint Code
         run: npm run lint
@@ -33,3 +49,4 @@ jobs:
 
       - name: Verify Build
         run: npm run build
+

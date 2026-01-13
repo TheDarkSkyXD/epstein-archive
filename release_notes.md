@@ -1,63 +1,104 @@
 # Release Notes
 
+## V10.1.14 (January 13, 2026)
+### 🧹 Data Polish & UI Fixes
+*   **Entity Cleanup**: Consolidated duplicate "Jeffrey Epstein" records and removed OCR junk data.
+*   **Photos Restored**: Fixed an issue where photos were not appearing on people cards.
+*   **UI Hardening**: Improved footer visibility and layout stability.
+
 ## V10.1.13 (January 13, 2026)
 ### 🎨 Visual Polish
 *   **Audio Covers**: Added dedicated alternating cover art for the Sascha Barros testimony series.
-*   **Refinement**: Ensured consistent display of thumbnails in the media browser.
+# Release Notes
+
+## V10.1.13 (January 13, 2026)
+
+### 🎨 Visual Polish
+
+- **Audio Covers**: Added dedicated alternating cover art for the Sascha Barros testimony series.
+- **Refinement**: Ensured consistent display of thumbnails in the media browser.
 
 ## V10.1.12 (January 13, 2026)
+
 ### 📝 Correction & Stability
-*   **Name Correction**: Updated "Sascha Barron" to **Sascha Barros**.
+
+- **Name Correction**: Updated "Sascha Barron" to **Sascha Barros**.
+
 # Release Notes
 
 ## V10.1.12 (January 13, 2026)
+
 ### 📝 Correction & Stability
-*   **Name Correction**: Updated "Sascha Barron" to **Sascha Barros** across the entire archive (Entities, Albums, Audio Files).
-*   **Stability**: Forced a clean deployment to ensure all latest audio fixes and tags are active.
+
+- **Name Correction**: Updated "Sascha Barron" to **Sascha Barros** across the entire archive (Entities, Albums, Audio Files).
+- **Stability**: Forced a clean deployment to ensure all latest audio fixes and tags are active.
 
 ## V10.1.11 (January 13, 2026)
+
 ### 🏷️ Entity Tagging Fix
-*   **Resolved Tagging Error**: Fixed a schema mismatch.
+
+- **Resolved Tagging Error**: Fixed a schema mismatch.
+
 # Release Notes
 
 ## V10.1.11 (January 13, 2026)
+
 ### 🏷️ Entity Tagging Fix
-*   **Resolved Tagging Error**: Fixed a schema mismatch that prevented Sascha Barron's entity creation. Verified all 7 key figures are now correctly tagged to the testimony audio.
+
+- **Resolved Tagging Error**: Fixed a schema mismatch that prevented Sascha Barron's entity creation. Verified all 7 key figures are now correctly tagged to the testimony audio.
 
 ## V10.1.10 (January 13, 2026)
+
 ### 🏷️ Entity Tagging
-*   **Sascha Barron Testimony Tags**: Explicitly linked key figures.
+
+- **Sascha Barron Testimony Tags**: Explicitly linked key figures.
+
 # Release Notes
 
 ## V10.1.10 (January 13, 2026)
+
 ### 🏷️ Entity Tagging
-*   **Sascha Barron Testimony Tags**: Explicitly linked Donald Trump, Andy Biggs, Lindsey Graham, Jim Jordan, Clarence Thomas, William Kyle Riley, and Sascha Barron to the testimony audio files.
-*   **Searchability**: Testimony now appears on the profile cards of all involved figures.
+
+- **Sascha Barron Testimony Tags**: Explicitly linked Donald Trump, Andy Biggs, Lindsey Graham, Jim Jordan, Clarence Thomas, William Kyle Riley, and Sascha Barron to the testimony audio files.
+- **Searchability**: Testimony now appears on the profile cards of all involved figures.
 
 ## V10.1.9 (January 13, 2026)
+
 ### 🎙️ Timed Transcripts
-*   **Precision Audio Sync**: Implemented sub-second timing.
+
+- **Precision Audio Sync**: Implemented sub-second timing.
+
 # Release Notes
 
 ## V10.1.9 (January 13, 2026)
+
 ### 🎙️ Timed Transcripts
-*   **Precision Audio Sync**: Implemented sub-second timing for the Sascha Barron testimony transcripts. Users can now click any sentence to jump to that moment in the audio.
-*   **Speaker Attribution**: Transcripts now clearly identify speakers (Sascha Riley vs. Lisa Noelle Voldeng).
+
+- **Precision Audio Sync**: Implemented sub-second timing for the Sascha Barron testimony transcripts. Users can now click any sentence to jump to that moment in the audio.
+- **Speaker Attribution**: Transcripts now clearly identify speakers (Sascha Riley vs. Lisa Noelle Voldeng).
 
 ## V10.1.8 (January 13, 2026)
+
 ### 🎙️ Audio Experience Upgrade
-*   **Sascha Barron Testimony**: Enriched metadata and album grouping.
+
+- **Sascha Barron Testimony**: Enriched metadata and album grouping.
+
 # Release Notes
 
 ## V10.1.8 (January 13, 2026)
+
 ### 🎙️ Audio Experience Upgrade
-*   **Sascha Barron Testimony**: Fully enriched the 6-part testimony with proper titles, chapter markers, and full credits to Sascha Barron and Lisa Noelle Voldeng.
-*   **Transcript Support**: Ensured timed transcripts are fully linked and searchable for all testimony files.
-*   **Safety**: Applied sensitive content warnings to the album.
+
+- **Sascha Barron Testimony**: Fully enriched the 6-part testimony with proper titles, chapter markers, and full credits to Sascha Barron and Lisa Noelle Voldeng.
+- **Transcript Support**: Ensured timed transcripts are fully linked and searchable for all testimony files.
+- **Safety**: Applied sensitive content warnings to the album.
 
 ## V10.1.7 (January 13, 2026)
+
 ### 🔗 Stable Tag Recovery
-*   **Media Tag Restoration**: Recovered and restored people tags.
+
+- **Media Tag Restoration**: Recovered and restored people tags.
+
 # Release Notes
 
 ## V10.1.7 (January 13, 2026)

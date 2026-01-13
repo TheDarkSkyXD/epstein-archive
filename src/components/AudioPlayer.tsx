@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, X, Shield } from 'lucide-react';
 
 export interface TranscriptSegment {
@@ -105,6 +105,14 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     }
   };
 
+  // Pre-compute visualizer bar heights to avoid calling Math.random() during render
+  const visualizerBars = useMemo(() => {
+    return Array.from({ length: 20 }, (_, i) => ({
+      height: 20 + Math.random() * 80,
+      delay: i * 0.05,
+    }));
+  }, []);
+
   return (
     <div className="flex flex-col h-full bg-slate-950 border border-slate-800 rounded-lg shadow-2xl overflow-hidden">
       {/* Header */}
@@ -173,11 +181,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           <div className="flex-1 min-h-[100px] bg-slate-900/50 rounded-lg border border-slate-800/50 mb-6 flex items-center justify-center relative overflow-hidden group">
             {/* Animated bars simulation */}
             <div className="flex items-end justify-center gap-1 h-1/3 w-full px-10 opacity-30">
-              {[...Array(20)].map((_, i) => (
+              {visualizerBars.map((bar, i) => (
                 <div
                   key={i}
                   className={`w-2 bg-cyan-500/50 rounded-t transition-all duration-300 ${isPlaying ? 'animate-pulse' : ''}`}
-                  style={{ height: `${20 + Math.random() * 80}%`, animationDelay: `${i * 0.05}s` }}
+                  style={{ height: `${bar.height}%`, animationDelay: `${bar.delay}s` }}
                 />
               ))}
             </div>

@@ -200,7 +200,7 @@ export const DocumentAnnotationSystem: React.FC<DocumentAnnotationSystemProps> =
   };
 
   const renderHighlightedContent = () => {
-    if (!content || !contentRef.current) return content;
+    if (!content) return content;
 
     let result = content;
 

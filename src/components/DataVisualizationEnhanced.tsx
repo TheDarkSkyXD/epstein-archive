@@ -74,6 +74,26 @@ const AnimatedCounter: React.FC<{
   );
 };
 
+// Custom tooltip with enhanced styling - moved outside component to avoid recreation
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-gray-900/95 backdrop-blur-sm p-4 rounded-xl shadow-2xl border border-gray-600">
+        <p className="text-white font-bold text-lg mb-2">{label}</p>
+        {payload.map((entry: any, index: number) => (
+          <div key={index} className="flex items-center space-x-2 mb-1">
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }}></div>
+            <span className="text-gray-300">
+              {entry.name}: <span className="font-bold text-white">{entry.value.toLocaleString()}</span>
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
+
 export const DataVisualization: React.FC<DataVisualizationProps> = ({ people }) => {
   const [animationKey, setAnimationKey] = useState(0);
 
@@ -176,27 +196,6 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({ people }) 
     role: person.evidence_types?.[0] || 'Unknown',
   }));
 
-  // Custom tooltip with enhanced styling
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-gray-900/95 backdrop-blur-sm p-4 rounded-xl shadow-2xl border border-gray-600">
-          <p className="text-white font-bold text-lg mb-2">{label}</p>
-          {payload.map((entry: any, index: number) => (
-            <div key={index} className="flex items-center space-x-2 mb-1">
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }}></div>
-              <span className="text-gray-300">
-                {entry.name}:{' '}
-                <span className="font-bold text-white">{entry.value.toLocaleString()}</span>
-              </span>
-            </div>
-          ))}
-        </div>
-      );
-    }
-    return null;
-  };
-
   return (
     <div className="space-y-8" key={animationKey}>
       {/* Animated Header Stats */}
@@ -257,7 +256,7 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({ people }) 
                     />
                   ))}
                 </Pie>
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={CustomTooltip} />
                 <Legend
                   verticalAlign="bottom"
                   height={36}
@@ -298,7 +297,7 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({ people }) 
                   interval={0}
                 />
                 <YAxis stroke="#9ca3af" fontSize={12} />
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={CustomTooltip} />
                 <Bar
                   dataKey="count"
                   fill="url(#statusGradient)"
@@ -341,7 +340,7 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({ people }) 
                 fontSize={11}
                 tick={{ fill: '#9ca3af' }}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={CustomTooltip} />
               <Bar dataKey="mentions" radius={[0, 8, 8, 0]} animationDuration={2500}>
                 {topMentions.map((entry, index) => (
                   <Cell
@@ -411,7 +410,7 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({ people }) 
                 interval={0}
               />
               <YAxis stroke="#9ca3af" fontSize={12} />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={CustomTooltip} />
               <Area
                 type="monotone"
                 dataKey="count"
@@ -446,7 +445,7 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({ people }) 
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
               <XAxis dataKey="range" stroke="#9ca3af" fontSize={12} />
               <YAxis stroke="#9ca3af" fontSize={12} />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={CustomTooltip} />
               <Bar
                 dataKey="count"
                 fill="url(#intensityGradient)"

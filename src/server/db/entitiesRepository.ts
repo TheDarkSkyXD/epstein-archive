@@ -110,7 +110,44 @@ export const entitiesRepository = {
             LIMIT @limit OFFSET @offset
         `;
 
-    const entities = db.prepare(sql).all({ ...params, limit, offset });
+    const entities = db.prepare(sql).all({ ...params, limit, offset }) as any[];
+
+    // Fetch photos for these entities
+    if (entities.length > 0) {
+        const entityIds = entities.map(e => e.id);
+        const photosSql = `
+            SELECT mip.entity_id, mi.id, mi.title, mi.file_path 
+            FROM media_item_people mip 
+            JOIN media_items mi ON mip.media_item_id = mi.id 
+            WHERE mip.entity_id IN (${entityIds.join(',')})
+            AND (mi.file_type LIKE 'image/%' OR mi.file_type IS NULL) -- looser check
+            ORDER BY mi.red_flag_rating DESC
+        `;
+        
+        try {
+            const photos = db.prepare(photosSql).all() as any[];
+            
+            // Map photos to entities
+            const photosByEntity: Record<number, any[]> = {};
+            for (const p of photos) {
+                if (!photosByEntity[p.entity_id]) photosByEntity[p.entity_id] = [];
+                if (photosByEntity[p.entity_id].length < 5) { // Limit to 5 per entity
+                    photosByEntity[p.entity_id].push({
+                        id: p.id,
+                        title: p.title || 'Photo',
+                        url: `/api/media/images/${p.id}/thumbnail`
+                    });
+                }
+            }
+            
+            // Attach to entities
+            for (const entity of entities) {
+                entity.photos = photosByEntity[entity.id] || [];
+            }
+        } catch (e) {
+            console.error("Error fetching photos for entity list:", e);
+        }
+    }
 
     return {
       entities,

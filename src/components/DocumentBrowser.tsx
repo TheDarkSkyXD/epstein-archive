@@ -677,7 +677,13 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
     const navigate = useNavigate();
 
     // Determine active tab from URL
-    type DocumentTab = 'content' | 'original' | 'entities' | 'related' | 'annotations' | 'redactions';
+    type DocumentTab =
+      | 'content'
+      | 'original'
+      | 'entities'
+      | 'related'
+      | 'annotations'
+      | 'redactions';
 
     const getActiveTab = (): DocumentTab => {
       const params = new URLSearchParams(location.search);

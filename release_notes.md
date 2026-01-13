@@ -1,24 +1,44 @@
 # Release Notes
 
+## V10.1.5 (January 13, 2026)
+### 🎨 UI Simplification
+*   **Zero-Distraction Mode**: Removed all remaining background animations, blobs, and pulse effects from the application. The interface is now completely static to ensure maximum performance and zero blocking overlays.
+*   **Media Tab Fix**: Resolved potential Z-index conflicts causing the Media Tab to become unresponsive.
+
 ## V10.1.4 (January 13, 2026)
 ### 🐛 UI Bug Fixes
-*   **Removed Broken Particle Effect**: Fixed an issue where floating UI particles caused visual glitching and blocked interaction on the media page.
-*   **Performance Stability**: Improved rendering performance by removing unstable background animations.
+*   **Removed Broken Particle Effect**: Fixed an issue where floating UI particles caused visual glitching.
+# Release Notes
+
+## V10.1.4 (January 13, 2026)
+
+### 🐛 UI Bug Fixes
+
+- **Removed Broken Particle Effect**: Fixed an issue where floating UI particles caused visual glitching and blocked interaction on the media page.
+- **Performance Stability**: Improved rendering performance by removing unstable background animations.
 
 ## V10.1.3 (January 13, 2026)
+
 ### 🚑 Emergency Data Quality Fix
-*   **Junk Eradication**: Detected and removed **4,000+** junk entities including banking boilerplate and artifacts.
+
+- **Junk Eradication**: Detected and removed **4,000+** junk entities including banking boilerplate and artifacts.
+
 # Release Notes
 
 ## V10.1.3 (January 13, 2026)
+
 ### 🚑 Emergency Data Quality Fix
-*   **Junk Eradication**: Detected and removed **4,000+** junk entities including banking boilerplate ("Interest Checking", "Ending Balance"), search warrant artifacts ("Premises Known", "Seized File"), and OCR grammatical noise ("Of The", "To Be").
-*   **Top 10 Cleanup**: The Entity Index is now purged of non-human artifacts, restoring key figures (Epstein, Trump, etc.) to the top of the analytics dashboard.
-*   **Variant Merging**: Further consolidated "Jeffrey Epstein" OCR variants.
+
+- **Junk Eradication**: Detected and removed **4,000+** junk entities including banking boilerplate ("Interest Checking", "Ending Balance"), search warrant artifacts ("Premises Known", "Seized File"), and OCR grammatical noise ("Of The", "To Be").
+- **Top 10 Cleanup**: The Entity Index is now purged of non-human artifacts, restoring key figures (Epstein, Trump, etc.) to the top of the analytics dashboard.
+- **Variant Merging**: Further consolidated "Jeffrey Epstein" OCR variants.
 
 ## V10.1.2 (January 13, 2026)
+
 ### 🧠 Advanced Entity Consolidation
-*   **Fuzzy Matching + Nicknames**: Implemented intelligent consolidation for Top 100 entities.
+
+- **Fuzzy Matching + Nicknames**: Implemented intelligent consolidation for Top 100 entities.
+
 # Release Notes
 
 ## V10.1.2 (January 13, 2026)

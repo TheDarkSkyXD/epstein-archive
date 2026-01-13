@@ -70,7 +70,10 @@ export function resolveAndCheckPath(
  * @param fallbackDir - Optional fallback directory for relative paths
  * @returns The first resolved path that exists, or null if none exist
  */
-export function findFirstExistingPath(paths: string[], fallbackDir: string = 'data'): string | null {
+export function findFirstExistingPath(
+  paths: string[],
+  fallbackDir: string = 'data',
+): string | null {
   for (const dbPath of paths) {
     if (!dbPath) continue;
 

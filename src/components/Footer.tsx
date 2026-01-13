@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from 'react';
 // TODO: Add info/about section - see UNUSED_VARIABLES_RECOMMENDATIONS.md
-import { ExternalLink, Heart, Shield, Info as _Info, BookOpen, Github, Eye, EyeOff } from 'lucide-react';
+import {
+  ExternalLink,
+  Heart,
+  Shield,
+  Info as _Info,
+  BookOpen,
+  Github,
+  Eye,
+  EyeOff,
+} from 'lucide-react';
 import { useSensitiveSettings } from '../contexts/SensitiveSettingsContext';
 import { Link } from 'react-router-dom';
 import { apiClient } from '../services/apiClient';

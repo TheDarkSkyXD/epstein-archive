@@ -1,14 +1,5 @@
 import React, { useState } from 'react';
-import {
-  BarChart3,
-  Target,
-  Clock,
-  DollarSign,
-  Users,
-  MapPin,
-  Activity,
-  X,
-} from 'lucide-react';
+import { BarChart3, Target, Clock, DollarSign, Users, MapPin, Activity, X } from 'lucide-react';
 
 interface PatternRecognitionAIProps {
   onPatternDetected?: (patterns: DetectedPattern[]) => void;

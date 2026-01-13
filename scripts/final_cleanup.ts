@@ -45,9 +45,9 @@ function finalCleanup() {
       '%Received Received%',
       '%United Sister Magise%',
       '%Madison Ave%',
-      '%Trust Fund%'
+      '%Trust Fund%',
     ];
-    
+
     console.log('☢️ Running NUCLEAR cleanup on persistent junk...');
     const nuclearStmt = db.prepare('DELETE FROM entities WHERE full_name LIKE ?');
     for (const target of nuclearTargets) {

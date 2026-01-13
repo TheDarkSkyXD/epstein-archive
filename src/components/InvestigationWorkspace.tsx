@@ -751,7 +751,6 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
     }
   };
 
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">

@@ -338,7 +338,7 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({ initialAlbumId }) =>
                           <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700 group-hover:scale-110 transition-transform shadow-lg">
                             <Music size={32} className="text-cyan-500" />
                           </div>
-                          {item.metadata.duration && (
+                          {item.metadata.duration > 0 && (
                             <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/80 text-white text-xs rounded-full font-mono flex items-center gap-1">
                               <Clock size={10} />
                               {Math.floor(item.metadata.duration / 60)}:

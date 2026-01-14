@@ -93,7 +93,9 @@ import releaseNotesRaw from '../release_notes.md?raw';
 const parseReleaseNotes = (markdown: string) => {
   try {
     // Split on ## Version headers, lowercase v, or the fancy header format
-    const sections = markdown.split(/^## [Vv]ersion |^## v|^# 📣 Epstein Archive V/m).filter(Boolean);
+    const sections = markdown
+      .split(/^## [Vv]ersion |^## v|^# 📣 Epstein Archive V/m)
+      .filter(Boolean);
 
     return sections
       .map((section) => {

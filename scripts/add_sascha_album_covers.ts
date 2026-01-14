@@ -23,9 +23,7 @@ const stats = statSync(coverImagePath);
 
 try {
   // Check if image already exists
-  const existing = db
-    .prepare('SELECT id FROM media_images WHERE path = ?')
-    .get(coverImagePath);
+  const existing = db.prepare('SELECT id FROM media_images WHERE path = ?').get(coverImagePath);
 
   let coverImageId: number;
 

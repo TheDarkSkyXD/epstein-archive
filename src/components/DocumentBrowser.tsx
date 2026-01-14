@@ -932,7 +932,11 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                         const r = await fetch('/api/investigations?page=1&limit=50');
                         if (r.ok) {
                           const data = await r.json();
-                          const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+                          const list = Array.isArray(data?.data)
+                            ? data.data
+                            : Array.isArray(data)
+                              ? data
+                              : [];
                           setInvestigationsList(list);
                         }
                       }}

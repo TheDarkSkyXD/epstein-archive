@@ -195,6 +195,24 @@ const dataPath = path.join(process.cwd(), 'data');
 if (fs.existsSync(dataPath)) {
   app.use('/data', express.static(dataPath));
 }
+// Also try resolving relative to project root (handles different CWDs)
+try {
+  const projectDataPath = path.join(__dirname, '..', 'data');
+  if (fs.existsSync(projectDataPath)) {
+    app.use('/data', express.static(projectDataPath));
+  }
+} catch {
+  void 0;
+}
+// And absolute /data (Docker/host volume)
+const absDataPath = '/data';
+try {
+  if (fs.existsSync(absDataPath)) {
+    app.use('/data', express.static(absDataPath));
+  }
+} catch {
+  void 0;
+}
 // Local development document images (
 // maps absolute dataset folder to /files)
 try {
@@ -202,8 +220,30 @@ try {
     app.use('/files', express.static(CORPUS_BASE_PATH));
   }
 } catch {
-  // Ignore filesystem access errors - static serving is optional
+  void 0;
 }
+
+// Robust static resolver for files under /data
+app.get('/api/static', async (req, res, next) => {
+  try {
+    const p = String(req.query.path || '');
+    if (!p) return res.status(400).json({ error: 'path required' });
+    if (!p.includes('/data/')) return res.status(400).json({ error: 'invalid path' });
+    const rel = p.replace(/^.*[/\\]data[/\\]/, '').replace(/\\/g, '/');
+    const candidates: string[] = [];
+    candidates.push(path.join(process.cwd(), 'data', rel));
+    candidates.push(path.join(__dirname, '..', 'data', rel));
+    candidates.push(path.join('/data', rel.startsWith('/') ? rel.substring(1) : rel));
+    for (const fp of candidates) {
+      if (fs.existsSync(fp)) {
+        return res.sendFile(fp);
+      }
+    }
+    return res.status(404).json({ error: 'File not found' });
+  } catch (e) {
+    next(e);
+  }
+});
 
 // Health check endpoint
 app.get('/api/health', (_req, res) => {
@@ -2074,6 +2114,7 @@ app.get('/api/media/audio', async (req, res, next) => {
       fileType: 'audio',
       entityId: req.query.entityId as string,
       albumId,
+      sortBy: req.query.sortBy as 'title' | 'date' | 'rating' | undefined,
     });
 
     res.json(result);
@@ -2090,14 +2131,17 @@ app.get('/api/media/audio/:id/stream', async (req, res, next) => {
     if (!item) return res.status(404).json({ error: 'Audio not found' });
 
     // Resolve path similar to images
+    // Resolve path robustly
     let filePath = item.file_path || item.filePath;
-    if (filePath.startsWith('/data/') || filePath.startsWith('/')) {
-      const relativePath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
-      const candidatePath = path.join(process.cwd(), relativePath);
-      if (fs.existsSync(candidatePath)) {
-        filePath = candidatePath;
-      }
+
+    // If path is relative, resolve it against CWD
+    if (!path.isAbsolute(filePath)) {
+      // Remove leading slash if present to avoid joining issues (though path.join handles it usually, consistent logic is better)
+      if (filePath.startsWith('/')) filePath = filePath.slice(1);
+      filePath = path.join(process.cwd(), filePath);
     }
+
+    console.log(`[Stream] Resolved path for ID ${id}: ${filePath}`); // Debug log
 
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: 'Audio file not found on server' });
@@ -2148,14 +2192,13 @@ app.get('/api/media/video/:id/stream', async (req, res, next) => {
     if (!item) return res.status(404).json({ error: 'Video not found' });
 
     // Resolve path similar to images
+    // Resolve path robustly
     let filePath = item.file_path || item.filePath;
-    if (filePath.startsWith('/data/') || filePath.startsWith('/')) {
-      const relativePath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
-      // Handle potentially different path structure for videos if needed, but standard logic should apply
-      const candidatePath = path.join(process.cwd(), relativePath);
-      if (fs.existsSync(candidatePath)) {
-        filePath = candidatePath;
-      }
+
+    // If path is relative, resolve it against CWD
+    if (!path.isAbsolute(filePath)) {
+      if (filePath.startsWith('/')) filePath = filePath.slice(1);
+      filePath = path.join(process.cwd(), filePath);
     }
 
     if (!fs.existsSync(filePath)) {
@@ -2184,13 +2227,13 @@ app.get('/api/media/video/:id/thumbnail', async (req, res, next) => {
     }
 
     // Resolve path if it's relative or db path
+    // Resolve path robustly
     let filePath = thumbnailPath;
-    if (filePath.startsWith('/data/') || filePath.startsWith('/')) {
-      const relativePath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
-      const candidatePath = path.join(process.cwd(), relativePath);
-      if (fs.existsSync(candidatePath)) {
-        filePath = candidatePath;
-      }
+
+    // If path is relative, resolve it against CWD
+    if (!path.isAbsolute(filePath)) {
+      if (filePath.startsWith('/')) filePath = filePath.slice(1);
+      filePath = path.join(process.cwd(), filePath);
     }
 
     if (!fs.existsSync(filePath)) {
@@ -2313,21 +2356,20 @@ app.get('/api/media/images/:id/file', async (req, res, next) => {
 
     // Since all real data is in /data, we'll resolve paths relative to that
     let absPath = p;
-
+    const candidates: string[] = [];
     if (p.startsWith('/data/')) {
-      // For paths starting with /data/, resolve relative to current working directory
-      // Must remove leading slash for path.join to append correctly
-      absPath = path.join(process.cwd(), p.substring(1));
+      candidates.push(path.join(process.cwd(), p.substring(1)));
+      candidates.push(path.join('/data', p.substring('/data/'.length)));
     } else if (p.startsWith('data/')) {
-      // For paths starting with data/, resolve relative to current working directory
-      absPath = path.join(process.cwd(), p);
+      candidates.push(path.join(process.cwd(), p));
+      candidates.push(path.join('/data', p.substring('data/'.length)));
     } else if (path.isAbsolute(p)) {
-      // Absolute paths (like from new ingestion) that don't start with /data/
-      absPath = p;
+      candidates.push(p);
     } else {
-      // For other paths, assume they're relative to the data directory
-      absPath = path.join(process.cwd(), 'data', p);
+      candidates.push(path.join(process.cwd(), 'data', p));
+      candidates.push(path.join('/data', p));
     }
+    absPath = candidates.find((c) => fs.existsSync(c)) || candidates[0];
 
     if (!fs.existsSync(absPath)) {
       return res.status(404).json({ error: 'Image file not found' });
@@ -2355,16 +2397,20 @@ app.get('/api/media/images/:id/raw', async (req, res, next) => {
 
     // Since all real data is in /data, we'll resolve paths relative to that
     let absPath = p;
-
+    const candidates: string[] = [];
     if (p.startsWith('/data/')) {
-      absPath = path.join(process.cwd(), p.substring(1));
+      candidates.push(path.join(process.cwd(), p.substring(1)));
+      candidates.push(path.join('/data', p.substring('/data/'.length)));
     } else if (p.startsWith('data/')) {
-      absPath = path.join(process.cwd(), p);
+      candidates.push(path.join(process.cwd(), p));
+      candidates.push(path.join('/data', p.substring('data/'.length)));
     } else if (path.isAbsolute(p)) {
-      absPath = p;
+      candidates.push(p);
     } else {
-      absPath = path.join(process.cwd(), 'data', p);
+      candidates.push(path.join(process.cwd(), 'data', p));
+      candidates.push(path.join('/data', p));
     }
+    absPath = candidates.find((c) => fs.existsSync(c)) || candidates[0];
 
     if (!fs.existsSync(absPath)) {
       return res.status(404).json({ error: 'Image file not found' });
@@ -2393,34 +2439,42 @@ app.get('/api/media/images/:id/thumbnail', async (req, res, next) => {
 
     if (thumbnailPath && thumbnailPath.includes('thumbnails')) {
       // Use the thumbnail
+      const candidates: string[] = [];
       if (thumbnailPath.startsWith('/data/')) {
-        absPath = path.join(process.cwd(), thumbnailPath.substring(1));
+        candidates.push(path.join(process.cwd(), thumbnailPath.substring(1)));
+        candidates.push(path.join('/data', thumbnailPath.substring('/data/'.length)));
       } else if (thumbnailPath.startsWith('data/')) {
-        absPath = path.join(process.cwd(), thumbnailPath);
+        candidates.push(path.join(process.cwd(), thumbnailPath));
+        candidates.push(path.join('/data', thumbnailPath.substring('data/'.length)));
       } else if (thumbnailPath.startsWith('/thumbnails/')) {
-        absPath = path.join(process.cwd(), 'data', thumbnailPath.substring(1));
+        candidates.push(path.join(process.cwd(), 'data', thumbnailPath.substring(1)));
+        candidates.push(path.join('/data', thumbnailPath.substring(1)));
       } else if (path.isAbsolute(thumbnailPath)) {
-        absPath = thumbnailPath;
+        candidates.push(thumbnailPath);
       } else {
-        absPath = path.join(process.cwd(), 'data', thumbnailPath);
+        candidates.push(path.join(process.cwd(), 'data', thumbnailPath));
+        candidates.push(path.join('/data', thumbnailPath));
       }
+      absPath = candidates.find((c) => fs.existsSync(c)) || candidates[0];
     }
 
     // Fall back to original image if thumbnail doesn't exist
     if (!absPath || !fs.existsSync(absPath)) {
       const p = ((image as any).path || (image as any).file_path || '').toString();
-      let fallbackPath = '';
-
+      const candidates: string[] = [];
       if (p.startsWith('/data/')) {
-        fallbackPath = path.join(process.cwd(), p.substring(1));
+        candidates.push(path.join(process.cwd(), p.substring(1)));
+        candidates.push(path.join('/data', p.substring('/data/'.length)));
       } else if (p.startsWith('data/')) {
-        fallbackPath = path.join(process.cwd(), p);
+        candidates.push(path.join(process.cwd(), p));
+        candidates.push(path.join('/data', p.substring('data/'.length)));
       } else if (path.isAbsolute(p)) {
-        fallbackPath = p;
+        candidates.push(p);
       } else {
-        fallbackPath = path.join(process.cwd(), 'data', p);
+        candidates.push(path.join(process.cwd(), 'data', p));
+        candidates.push(path.join('/data', p));
       }
-      absPath = fallbackPath;
+      absPath = candidates.find((c) => fs.existsSync(c)) || candidates[0];
     }
 
     if (!absPath || !fs.existsSync(absPath)) {

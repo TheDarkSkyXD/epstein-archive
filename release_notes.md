@@ -1,5 +1,44 @@
 # Release Notes
 
+## v10.3.2 (2026-01-15) - Mobile UX Improvements
+
+### Mobile Responsiveness
+
+- **Document Browser Filter Drawer**: Filter panel now opens as a bottom sheet drawer on mobile devices, preventing content overflow and providing a native-feeling iOS-style interface.
+- **Analytics Mobile Support**: The complex network graph on the Analytics page now shows a simplified, scrollable entity list on mobile instead of the unusable network visualization.
+
+---
+
+## v10.3.1 (2026-01-15) - Media Experience Optimization
+
+### Navigation & Gestures
+
+- **Touch Swipe Support**: Added horizontal swipe gestures to the Image Viewer for seamless navigation on mobile and touch devices.
+
+### Mobile UX Improvements
+
+- **Adaptive Player Layouts**: Audio and Video player transcripts now open as full-width overlays on mobile, preventing viewport squishing and improving readability.
+- **Enhanced Fullscreen**: Improved cross-browser fullscreen support for the video player, specifically for iOS and Safari.
+
+### Content Improvements
+
+- **Dynamic Audio Credits**: Credits in the audio player are now context-aware and only display when relevant to the "Sascha" investigation series.
+
+---
+
+## v10.3.0 (2026-01-15) - UX Navigation & Performance
+
+### Navigation Fixes
+
+- **Overlay Context Restoration**: Closing modals (entity details, documents) now returns users to the **original page** they were viewing, instead of always navigating to `/people`. Deep links remain shareable.
+
+### Performance Improvements
+
+- **Non-Blocking Photos Tab**: The Photos tab no longer locks up the UI while loading. Tab navigation is now **instant** thanks to `startTransition()` wrapping of loading state updates.
+- **Click-Through Loading Overlay**: The loading spinner in PhotoBrowser now uses `pointer-events-none`, allowing interaction while content loads.
+
+---
+
 ## v10.2.0 (2025-01-14) - Performance & Security Hardening
 
 ### ⚡ Performance Optimizations

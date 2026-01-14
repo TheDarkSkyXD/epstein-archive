@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   FixedSizeGrid as Grid,
@@ -1560,8 +1561,9 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
             </div>
           </div>
 
+          {/* Desktop inline filters (hidden on mobile) */}
           {showFilters && (
-            <div className="bg-gray-900 border border-gray-700 rounded-lg p-4">
+            <div className="hidden md:block bg-gray-900 border border-gray-700 rounded-lg p-4">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* File Type Filter */}
                 <div>
@@ -1677,6 +1679,135 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
               </div>
             </div>
           )}
+
+          {/* Mobile Filter Bottom Sheet */}
+          <AnimatePresence>
+            {showFilters && (
+              <>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 bg-black/60 z-40 md:hidden"
+                  onClick={() => setShowFilters(false)}
+                />
+                <motion.div
+                  initial={{ y: '100%' }}
+                  animate={{ y: 0 }}
+                  exit={{ y: '100%' }}
+                  transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                  className="fixed bottom-0 left-0 right-0 bg-slate-900 rounded-t-3xl z-50 md:hidden max-h-[80vh] overflow-hidden"
+                >
+                  <div className="flex justify-center py-3">
+                    <div className="w-10 h-1 bg-slate-700 rounded-full" />
+                  </div>
+                  <div className="px-4 pb-2 flex items-center justify-between">
+                    <h2 className="text-lg font-bold text-white">Filters</h2>
+                    <button
+                      onClick={() => setShowFilters(false)}
+                      className="p-2 text-slate-400 hover:text-white"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div className="overflow-y-auto pb-8 px-4 space-y-6 max-h-[calc(80vh-80px)]">
+                    {/* Sort Options */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-slate-300">Sort By</label>
+                      <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value as any)}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-3 text-sm text-white"
+                      >
+                        <option value="relevance">Relevance</option>
+                        <option value="date">Date</option>
+                        <option value="red_flag">Red Flag Index</option>
+                        <option value="fileType">File Type</option>
+                        <option value="size">File Size</option>
+                      </select>
+                    </div>
+
+                    {/* Sort Order */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-slate-300">Order</label>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setSortOrder('desc')}
+                          className={`flex-1 py-3 rounded-lg text-sm font-medium transition-colors ${
+                            sortOrder === 'desc'
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-slate-800 text-slate-300 border border-slate-700'
+                          }`}
+                        >
+                          Descending
+                        </button>
+                        <button
+                          onClick={() => setSortOrder('asc')}
+                          className={`flex-1 py-3 rounded-lg text-sm font-medium transition-colors ${
+                            sortOrder === 'asc'
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-slate-800 text-slate-300 border border-slate-700'
+                          }`}
+                        >
+                          Ascending
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Red Flag Index */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-slate-300">Red Flag Index</label>
+                      <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-2xl">🚩</span>
+                          <span className="text-slate-300 text-sm">
+                            {filters.redFlagLevel?.min || 0} - {filters.redFlagLevel?.max || 5}
+                          </span>
+                          <span className="text-2xl">🚩🚩🚩🚩🚩</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="5"
+                          value={filters.redFlagLevel?.min || 0}
+                          onChange={(e) =>
+                            handleRedFlagLevelChange(
+                              parseInt(e.target.value),
+                              filters.redFlagLevel?.max || 5,
+                            )
+                          }
+                          className="w-full"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Credibility Filter */}
+                    <div>
+                      <label
+                        className="flex items-center gap-3 p-4 bg-slate-800 rounded-lg border border-slate-700"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={hideLowCredibility}
+                          onChange={(e) => setHideLowCredibility(e.target.checked)}
+                          className="w-5 h-5 rounded"
+                        />
+                        <span className="text-sm text-slate-300">Hide low credibility material</span>
+                      </label>
+                    </div>
+
+                    {/* Apply Button */}
+                    <button
+                      onClick={() => setShowFilters(false)}
+                      className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg transition-colors"
+                    >
+                      Apply Filters
+                    </button>
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Results Header */}

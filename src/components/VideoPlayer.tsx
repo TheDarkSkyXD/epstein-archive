@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, Volume2, VolumeX, Maximize2, X, Minimize2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Play, Pause, Volume2, VolumeX, Maximize2, X, Minimize2, Shield } from 'lucide-react';
 import { TranscriptSegment, Chapter } from './AudioPlayer'; // Reuse types
 
 interface VideoPlayerProps {
@@ -9,6 +10,9 @@ interface VideoPlayerProps {
   chapters?: Chapter[];
   onClose?: () => void;
   autoPlay?: boolean;
+  isSensitive?: boolean;
+  warningText?: string;
+  documentId?: number;
 }
 
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({
@@ -18,10 +22,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   chapters = [],
   onClose,
   autoPlay = false,
+  isSensitive = false,
+  warningText = 'This content contains graphic descriptions of violence, sexual assault, child exploitation and murder.',
+  documentId,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -30,7 +38,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [playbackRate, setPlaybackRate] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [showTranscript, setShowTranscript] = useState(() => {
-    // Load transcript preference from localStorage
     const saved = localStorage.getItem('video-player-show-transcript');
     return saved !== null ? saved === 'true' : true;
   });
@@ -39,6 +46,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [showFullTranscriptOverlay, setShowFullTranscriptOverlay] = useState(false);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const lastInteractionRef = useRef<number>(Date.now());
+
+  const [hasRevealed, setHasRevealed] = useState(!isSensitive);
 
   // Toggle transcript visibility and persist preference
   const toggleTranscript = () => {
@@ -49,16 +61,20 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     });
   };
 
-  // Initialize
+  // Reset hasRevealed if isSensitive changes
+  useEffect(() => {
+    setHasRevealed(!isSensitive);
+  }, [isSensitive]);
+
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.volume = volume;
       videoRef.current.playbackRate = playbackRate;
-      if (autoPlay) {
+      if (autoPlay && !isSensitive) {
         videoRef.current.play().catch((e) => console.warn('Autoplay failed:', e));
       }
     }
-  }, [autoPlay]);
+  }, [autoPlay, isSensitive]);
 
   // Handle fullscreen change
   useEffect(() => {
@@ -75,7 +91,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       const time = videoRef.current.currentTime;
       setCurrentTime(time);
 
-      // Find active segment
       if (transcript.length > 0) {
         const index = transcript.findIndex((seg) => time >= seg.start && time < seg.end);
         if (index !== -1 && index !== activeSegmentIndex) {
@@ -87,10 +102,19 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   };
 
   const scrollToSegment = (index: number) => {
-    if (transcriptRef.current) {
-      const el = transcriptRef.current.children[index] as HTMLElement;
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (transcriptRef.current && transcriptRef.current.parentElement) {
+      const container = transcriptRef.current.parentElement;
+      const element = transcriptRef.current.children[index] as HTMLElement;
+      
+      if (element) {
+        const containerTop = container.getBoundingClientRect().top;
+        const elementTop = element.getBoundingClientRect().top;
+        const offset = elementTop - containerTop + container.scrollTop;
+        
+        container.scrollTo({
+          top: offset - container.clientHeight / 2 + element.clientHeight / 2,
+          behavior: 'smooth'
+        });
       }
     }
   };
@@ -109,15 +133,31 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
+  const handleReveal = () => {
+    setHasRevealed(true);
+    if (videoRef.current) {
+      videoRef.current.play().catch(console.error);
+      setIsPlaying(true);
+    }
+  };
+
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
 
-    if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen().catch((err) => {
+    // Standard Request Method
+    const req = (containerRef.current as any).requestFullscreen || 
+                (containerRef.current as any).webkitRequestFullscreen || 
+                (containerRef.current as any).mozRequestFullScreen || 
+                (containerRef.current as any).msRequestFullscreen;
+
+    if (!document.fullscreenElement && req) {
+      req.call(containerRef.current).catch((err: any) => {
         console.error(`Error attempting to enable fullscreen mode: ${err.message}`);
       });
-    } else {
+    } else if (document.exitFullscreen) {
       document.exitFullscreen();
+    } else if ((document as any).webkitExitFullscreen) {
+      (document as any).webkitExitFullscreen();
     }
   };
 
@@ -154,6 +194,25 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              setShowFullTranscriptOverlay(true);
+              lastInteractionRef.current = Date.now();
+              setTimeout(() => {
+                if (!overlayRef.current) return;
+                const idx = transcript.findIndex((seg) => currentTime >= seg.start && currentTime < seg.end);
+                const el = overlayRef.current.children[idx] as HTMLElement;
+                if (el) overlayRef.current.scrollTo({ top: el.offsetTop - overlayRef.current.clientHeight / 2 + el.clientHeight / 2, behavior: 'smooth' });
+              }, 50);
+            }}
+            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs text-cyan-400 rounded-full transition-colors flex items-center gap-2 border border-slate-700"
+            title="Read full transcript overlay"
+          >
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Read Full Transcript
+          </button>
           {(transcript.length > 0 || chapters.length > 0) && (
             <button
               onClick={toggleTranscript}
@@ -189,6 +248,33 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           onMouseMove={handleMouseMove}
           onMouseLeave={() => isPlaying && setShowControls(false)}
         >
+          {/* Sensitive Content Warning Overlay */}
+          {!hasRevealed && (
+            <div className="absolute inset-0 z-50 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
+              <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-6 ring-1 ring-red-500/30">
+                <Shield className="h-8 w-8 text-red-500" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">Graphic Content Warning</h3>
+              <p className="text-slate-400 max-w-md mb-8 leading-relaxed">{warningText}</p>
+              <div className="flex gap-4">
+                {onClose && (
+                  <button
+                    onClick={onClose}
+                    className="px-6 py-2 rounded-lg border border-slate-700 hover:bg-slate-800 text-slate-300 transition-colors font-medium"
+                  >
+                    Cancel
+                  </button>
+                )}
+                <button
+                  onClick={handleReveal}
+                  className="px-6 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white font-medium shadow-lg shadow-red-900/20 transition-all hover:scale-105"
+                >
+                  Reveal & Play
+                </button>
+              </div>
+            </div>
+          )}
+
           <video
             ref={videoRef}
             src={src}
@@ -320,9 +406,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         {/* Sidebar (Transcript/Chapters) */}
         {(transcript.length > 0 || chapters.length > 0) && (
           <div
-            className={`w-80 border-l border-slate-800 bg-slate-900/30 flex flex-col ${showTranscript ? 'block' : 'hidden'} md:block shrink-0`}
+            className={`fixed md:relative inset-0 md:inset-auto z-40 md:z-0 md:w-80 border-l border-slate-800 bg-slate-900 md:bg-slate-900/30 flex flex-col transition-transform duration-300 ${showTranscript ? 'translate-x-0' : 'translate-x-full md:hidden'} md:translate-x-0 shrink-0`}
           >
-            <div className="flex border-b border-slate-800">
+            <div className="flex border-b border-slate-800 shrink-0">
               <button
                 onClick={() => setShowChapters(false)}
                 className={`flex-1 py-3 text-xs font-medium uppercase tracking-wider ${!showChapters ? 'text-cyan-400 border-b-2 border-cyan-500 bg-slate-800/50' : 'text-slate-500 hover:text-slate-300'}`}
@@ -337,6 +423,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   Chapters
                 </button>
               )}
+              <button
+                onClick={() => setShowTranscript(false)}
+                className="md:hidden px-4 text-slate-400 hover:text-white"
+              >
+                <X size={18} />
+              </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-0 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent max-h-[40vh] md:max-h-none">
@@ -393,6 +485,58 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </div>
         )}
       </div>
+      {showFullTranscriptOverlay && (
+        <div className="fixed inset-0 z-[1300] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-5xl h-[80vh] bg-slate-950 border border-slate-800 rounded-lg shadow-2xl overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-3 bg-slate-900 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={togglePlay}
+                  className="px-3 py-1 rounded bg-cyan-600 hover:bg-cyan-500 text-white text-xs"
+                >
+                  {isPlaying ? 'Pause' : 'Play'}
+                </button>
+                <button
+                  onClick={() => {
+                    setIsMuted(!isMuted);
+                    if (videoRef.current) videoRef.current.muted = !isMuted;
+                  }}
+                  className="px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs"
+                >
+                  {isMuted ? 'Unmute' : 'Mute'}
+                </button>
+              </div>
+              <button
+                onClick={() => setShowFullTranscriptOverlay(false)}
+                className="p-2 text-slate-400 hover:text-white"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div
+              ref={overlayRef}
+              className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent"
+              onScroll={() => { lastInteractionRef.current = Date.now(); }}
+              onWheel={() => { lastInteractionRef.current = Date.now(); }}
+              onTouchMove={() => { lastInteractionRef.current = Date.now(); }}
+            >
+              {transcript.map((seg, i) => (
+                <button
+                  key={i}
+                  onClick={() => seek(seg.start)}
+                  className={`w-full text-left p-3 rounded border border-slate-800/50 hover:bg-slate-800/50 transition-colors ${currentTime >= seg.start && currentTime < seg.end ? 'bg-cyan-900/20' : ''}`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-mono text-slate-500">{formatTime(seg.start)}</span>
+                    {seg.speaker && <span className="text-xs font-bold text-slate-300">{seg.speaker}</span>}
+                  </div>
+                  <p className="text-sm text-slate-300">{seg.text}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

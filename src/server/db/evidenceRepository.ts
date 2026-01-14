@@ -197,6 +197,154 @@ export const evidenceRepository = {
       entities,
     };
   },
+  addMediaToInvestigation: async (
+    investigationId: string,
+    mediaItemId: string,
+    notes: string,
+    relevance: string,
+  ) => {
+    const db = getDb();
+    const media = db
+      .prepare(
+        `
+      SELECT 
+        id,
+        file_path,
+        file_type,
+        title,
+        description,
+        red_flag_rating,
+        metadata_json,
+        created_at
+      FROM media_items
+      WHERE id = ?
+    `,
+      )
+      .get(mediaItemId) as any;
+    if (!media) {
+      throw new Error('Media not found');
+    }
+    const sourcePath = media.file_path;
+    const existing = db.prepare(`SELECT id FROM evidence WHERE source_path = ?`).get(sourcePath) as any;
+    let evidenceId: number;
+    if (existing) {
+      evidenceId = existing.id;
+    } else {
+      let metadata: any = {};
+      try {
+        metadata = media.metadata_json ? JSON.parse(media.metadata_json) : {};
+      } catch {
+        metadata = {};
+      }
+      const transcriptText =
+        metadata.external_transcript_text ||
+        (Array.isArray(metadata.transcript)
+          ? metadata.transcript.map((s: any) => s.text).join('\n')
+          : null);
+      const evidenceType =
+        media.file_type === 'audio'
+          ? 'audio'
+          : media.file_type === 'video'
+          ? 'video'
+          : 'media_scan';
+      const tags = db
+        .prepare(
+          `
+        SELECT t.name 
+        FROM media_item_tags mt 
+        INNER JOIN media_tags t ON t.id = mt.tag_id 
+        WHERE mt.media_item_id = ?
+      `,
+        )
+        .all(mediaItemId) as any[];
+      const evidenceTags = JSON.stringify(tags.map((t) => t.name));
+      const ins = db
+        .prepare(
+          `
+        INSERT INTO evidence (
+          evidence_type,
+          source_path,
+          original_filename,
+          title,
+          description,
+          extracted_text,
+          created_at,
+          ingested_at,
+          red_flag_rating,
+          evidence_tags,
+          metadata_json
+        ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), ?, ?, ?)
+      `,
+        )
+        .run(
+          evidenceType,
+          sourcePath,
+          sourcePath ? sourcePath.split('/').pop() : `media_${media.id}`,
+          media.title || `Media ${media.id}`,
+          media.description || '',
+          transcriptText || '',
+          media.red_flag_rating || 0,
+          evidenceTags,
+          JSON.stringify({
+            media_item_id: media.id,
+            file_type: media.file_type,
+            duration: metadata.duration,
+            chapters: metadata.chapters,
+          }),
+        );
+      evidenceId = Number(ins.lastInsertRowid);
+      const people = db
+        .prepare(
+          `
+        SELECT entity_id, role 
+        FROM media_item_people 
+        WHERE media_item_id = ?
+      `,
+        )
+        .all(mediaItemId) as any[];
+      for (const p of people) {
+        db
+          .prepare(
+            `
+          INSERT OR IGNORE INTO evidence_entity (
+            evidence_id,
+            entity_id,
+            role,
+            confidence,
+            context_snippet
+          ) VALUES (?, ?, ?, ?, ?)
+        `,
+          )
+          .run(evidenceId, p.entity_id, p.role || 'participant', 0.8, '');
+      }
+    }
+    const res = db
+      .prepare(
+        `
+      INSERT OR IGNORE INTO investigation_evidence (
+        investigation_id, 
+        evidence_id, 
+        notes, 
+        relevance,
+        added_at
+      ) VALUES (?, ?, ?, ?, datetime('now'))
+    `,
+      )
+      .run(investigationId, evidenceId, notes || '', relevance || 'medium');
+    const evidence = db
+      .prepare(
+        `
+      SELECT id, evidence_type, title, description, source_path, red_flag_rating, created_at
+      FROM evidence
+      WHERE id = ?
+    `,
+      )
+      .get(evidenceId);
+    return {
+      investigationEvidenceId: res.lastInsertRowid,
+      evidence,
+    };
+  },
 
   // Get evidence summary for an investigation
   getInvestigationEvidenceSummary: async (investigationId: string) => {

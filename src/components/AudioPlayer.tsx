@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, X, Shield } from 'lucide-react';
 
 export interface TranscriptSegment {
@@ -22,6 +23,9 @@ interface AudioPlayerProps {
   autoPlay?: boolean;
   isSensitive?: boolean;
   warningText?: string;
+  documentId?: number;
+  initialTime?: number;
+  albumImages?: string[];
 }
 
 export const AudioPlayer: React.FC<AudioPlayerProps> = ({
@@ -33,16 +37,28 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   autoPlay = false,
   isSensitive = false,
   warningText = 'This content contains graphic descriptions of violence, sexual assault, child exploitation and murder.',
+  documentId,
+  initialTime = 0,
+  albumImages = [],
 }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
+  const [currentTime, setCurrentTime] = useState(initialTime);
   const [volume, setVolume] = useState(1);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
+  const initialSeekDone = useRef(false);
+
+  useEffect(() => {
+    // Reset initial seek state when src changes
+    initialSeekDone.current = false;
+    setCurrentTime(initialTime);
+  }, [src, initialTime]);
   const [showTranscript, setShowTranscript] = useState(() => {
     // Load transcript preference from localStorage
     const saved = localStorage.getItem('audio-player-show-transcript');
@@ -50,6 +66,16 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   });
   const [activeSegmentIndex, setActiveSegmentIndex] = useState<number>(-1);
   const [showChapters, setShowChapters] = useState(false);
+  const [showFullTranscriptOverlay, setShowFullTranscriptOverlay] = useState(false);
+  const lastInteractionRef = useRef<number>(Date.now());
+  const [barHeights, setBarHeights] = useState<number[]>(Array.from({ length: 24 }).map(() => 20));
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const [renderWindow, setRenderWindow] = useState<{ start: number; end: number }>({
+    start: 0,
+    end: 200,
+  });
 
   // Toggle transcript visibility and persist preference
   const toggleTranscript = () => {
@@ -65,11 +91,67 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     if (audioRef.current) {
       audioRef.current.volume = volume;
       audioRef.current.playbackRate = playbackRate;
-      if (autoPlay) {
+      // Only autoplay if not sensitive (wait for reveal otherwise)
+      if (autoPlay && !isSensitive) {
         audioRef.current.play().catch((e) => console.warn('Autoplay failed:', e));
       }
+      if (!audioContextRef.current) {
+        const Ctor = (window as any).AudioContext || (window as any).webkitAudioContext;
+        if (Ctor) {
+          const ctx = new Ctor();
+          audioContextRef.current = ctx;
+          const source = ctx.createMediaElementSource(audioRef.current);
+          const analyser = ctx.createAnalyser();
+          analyser.fftSize = 128;
+          analyser.smoothingTimeConstant = 0.6;
+          source.connect(analyser);
+          analyser.connect(ctx.destination);
+          analyserRef.current = analyser;
+          sourceRef.current = source;
+          const bufferLength = analyser.frequencyBinCount;
+          const dataArray = new Uint8Array(bufferLength);
+          const animate = () => {
+            if (!analyserRef.current) return;
+            analyserRef.current.getByteFrequencyData(dataArray);
+            const bars = 24;
+            const step = Math.max(1, Math.floor(bufferLength / bars));
+            const targetHeights: number[] = [];
+            for (let i = 0; i < bars; i++) {
+              const start = i * step;
+              const end = Math.min(bufferLength, (i + 1) * step);
+              let sum = 0;
+              for (let j = start; j < end; j++) sum += dataArray[j];
+              const avg = sum / (end - start);
+              const norm = Math.min(100, Math.max(5, (avg / 255) * 100));
+              targetHeights.push(norm);
+            }
+            setBarHeights((prev) => {
+              const decay = 0.8;
+              return prev.map((p, i) => {
+                const t = targetHeights[i] ?? p;
+                return t > p ? t : Math.max(0, p - decay);
+              });
+            });
+            requestAnimationFrame(animate);
+          };
+          requestAnimationFrame(animate);
+        }
+      }
     }
-  }, [autoPlay]);
+  }, [autoPlay, isSensitive]);
+
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  // Slideshow effect
+  useEffect(() => {
+    if (!albumImages || albumImages.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prev) => (prev + 1) % albumImages.length);
+    }, 15000); // 15 seconds
+
+    return () => clearInterval(interval);
+  }, [albumImages]);
 
   // Handle time update
   const handleTimeUpdate = () => {
@@ -82,17 +164,33 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         const index = transcript.findIndex((seg) => time >= seg.start && time < seg.end);
         if (index !== -1 && index !== activeSegmentIndex) {
           setActiveSegmentIndex(index);
-          scrollToSegment(index);
+          if (Date.now() - lastInteractionRef.current > 5000) {
+            scrollToSegment(index);
+          }
+          const start = Math.max(0, index - 50);
+          const end = Math.min(transcript.length, index + 150);
+          setRenderWindow({ start, end });
         }
       }
     }
   };
 
   const scrollToSegment = (index: number) => {
-    if (transcriptRef.current) {
-      const el = transcriptRef.current.children[index] as HTMLElement;
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (transcriptRef.current && transcriptRef.current.parentElement) {
+      const container = transcriptRef.current.parentElement;
+      const element = transcriptRef.current.children[index] as HTMLElement;
+
+      if (element) {
+        const containerRect = container.getBoundingClientRect();
+        const elementRect = element.getBoundingClientRect();
+
+        // Always scroll to center the active element
+        const offset = element.offsetTop - container.offsetTop;
+
+        container.scrollTo({
+          top: offset - container.clientHeight / 2 + element.clientHeight / 2,
+          behavior: 'smooth',
+        });
       }
     }
   };
@@ -115,9 +213,71 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     if (audioRef.current) {
       audioRef.current.currentTime = Math.max(0, Math.min(time, duration));
       setCurrentTime(audioRef.current.currentTime);
+      lastInteractionRef.current = Date.now();
     }
   };
 
+  const computedChapters: Chapter[] = useMemo(() => {
+    if (Array.isArray(chapters) && chapters.length > 0) return chapters;
+    if (!transcript || transcript.length === 0) return [];
+    const starts: number[] = [transcript[0].start];
+    for (let i = 1; i < transcript.length; i++) {
+      const prev = transcript[i - 1];
+      const curr = transcript[i];
+      if (curr.start - prev.end > 30 || curr.speaker !== prev.speaker) {
+        starts.push(curr.start);
+      }
+    }
+    return starts.map((start) => {
+      const seg = transcript.find((s) => s.start === start) || transcript[0];
+      const words = (seg.text || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .split(/\s+/)
+        .filter(
+          (w) =>
+            w.length > 3 &&
+            ![
+              'this',
+              'that',
+              'with',
+              'from',
+              'have',
+              'will',
+              'into',
+              'over',
+              'they',
+              'them',
+              'been',
+              'when',
+              'what',
+              'where',
+              'which',
+              'because',
+              'about',
+              'there',
+              'their',
+              'also',
+              'said',
+              'just',
+              'like',
+              'very',
+              'more',
+              'than',
+            ].includes(w),
+        );
+      const freq: Record<string, number> = {};
+      for (const w of words) freq[w] = (freq[w] || 0) + 1;
+      const top = Object.entries(freq)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 2)
+        .map(([w]) => w);
+      const title = top.length
+        ? top.map((t) => t[0].toUpperCase() + t.slice(1)).join(' • ')
+        : 'Chapter';
+      return { startTime: start, title };
+    });
+  }, [chapters, transcript]);
   // Pre-compute visualizer bar heights with deterministic values
   const visualizerBars = useMemo(() => {
     // Use deterministic pattern based on index for predictable rendering
@@ -126,6 +286,21 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       delay: i * 0.05,
     }));
   }, []);
+
+  const [hasRevealed, setHasRevealed] = useState(!isSensitive);
+
+  // Reset hasRevealed if isSensitive changes (though key prop in parent should handle full reset)
+  useEffect(() => {
+    setHasRevealed(!isSensitive);
+  }, [isSensitive]);
+
+  const handleReveal = () => {
+    setHasRevealed(true);
+    if (audioRef.current) {
+      audioRef.current.play().catch(console.error);
+      setIsPlaying(true);
+    }
+  };
 
   return (
     <div className="flex flex-col h-full bg-slate-950 border border-slate-800 rounded-lg shadow-2xl overflow-hidden">
@@ -140,11 +315,48 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
               {title}
             </h3>
             <p className="text-xs text-slate-500">
-              {chapters.length > 0 ? `${chapters.length} chapters` : 'Audio Recording'}
+              {Array.isArray(chapters) && chapters.length > 0
+                ? `${chapters.length} chapters`
+                : 'Audio Recording'}
             </p>
+            {title.includes('Sascha') && (
+              <p className="text-[10px] text-slate-500 mt-0.5">
+                Interview: Sascha Riley • Investigation: Lisa Noelle Volding
+              </p>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              setShowFullTranscriptOverlay(true);
+              lastInteractionRef.current = Date.now();
+              setTimeout(() => {
+                if (!overlayRef.current) return;
+                const idx = transcript.findIndex(
+                  (seg) => currentTime >= seg.start && currentTime < seg.end,
+                );
+                const el = overlayRef.current.children[idx] as HTMLElement;
+                if (el)
+                  overlayRef.current.scrollTo({
+                    top: el.offsetTop - overlayRef.current.clientHeight / 2 + el.clientHeight / 2,
+                    behavior: 'smooth',
+                  });
+              }, 50);
+            }}
+            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs text-cyan-400 rounded-full transition-colors flex items-center gap-2 border border-slate-700"
+            title="Read full transcript overlay"
+          >
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+            Read Full Transcript
+          </button>
           {(transcript.length > 0 || chapters.length > 0) && (
             <button
               onClick={toggleTranscript}
@@ -174,7 +386,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
       <div className="flex flex-1 min-h-0 overflow-hidden relative">
         {/* Sensitive Content Warning Overlay */}
-        {isSensitive && !isPlaying && currentTime === 0 && (
+        {!hasRevealed && (
           <div className="absolute inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
             <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-6 ring-1 ring-red-500/30">
               <Shield className="h-8 w-8 text-red-500" />
@@ -191,12 +403,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 </button>
               )}
               <button
-                onClick={() => {
-                  if (audioRef.current) {
-                    audioRef.current.play().catch(console.error);
-                    setIsPlaying(true);
-                  }
-                }}
+                onClick={handleReveal}
                 className="px-6 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white font-medium shadow-lg shadow-red-900/20 transition-all hover:scale-105"
               >
                 Reveal & Play
@@ -207,31 +414,78 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
         {/* Main Content (Visuals + Controls) */}
         <div className="flex-1 flex flex-col p-4 md:p-6 overflow-y-auto">
-          {/* Visualizer Placeholder */}
+          {/* Visualizer / Slideshow Area */}
           <div className="flex-1 min-h-[100px] bg-slate-900/50 rounded-lg border border-slate-800/50 mb-6 flex items-center justify-center relative overflow-hidden group">
-            {/* Animated bars simulation */}
-            <div className="flex items-end justify-center gap-1 h-1/3 w-full px-10 opacity-30">
-              {visualizerBars.map((bar, i) => (
-                <div
-                  key={i}
-                  className={`w-2 bg-cyan-500/50 rounded-t transition-all duration-300 ${isPlaying ? 'animate-pulse' : ''}`}
-                  style={{ height: `${bar.height}%`, animationDelay: `${bar.delay}s` }}
-                />
-              ))}
-            </div>
+            {albumImages && albumImages.length > 0 ? (
+              // Slideshow Mode
+              <div className="absolute inset-0 w-full h-full">
+                {albumImages.map((img, i) => (
+                  <img
+                    key={i}
+                    src={`/api/static?path=${encodeURIComponent(img)}`}
+                    alt="Album Art"
+                    className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${i === currentImageIndex ? 'opacity-50' : 'opacity-0'}`}
+                    data-fb="0"
+                    onError={(e) => {
+                      const t = e.currentTarget;
+                      const tried = t.getAttribute('data-fb') === '1';
+                      if (!tried) {
+                        t.setAttribute('data-fb', '1');
+                        const u = new URL(t.src, window.location.origin);
+                        const p = u.searchParams.get('path') || '';
+                        const next = p.endsWith('.jpg')
+                          ? p.replace('.jpg', '.webp')
+                          : p.replace('.webp', '.jpg');
+                        t.src = `/api/static?path=${encodeURIComponent(next)}`;
+                      } else {
+                        t.src = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
+                      }
+                    }}
+                  />
+                ))}
+
+                {/* Visualizer overlay on top of images */}
+                <div className="absolute bottom-0 left-0 right-0 h-1/2 flex items-end justify-center gap-1 px-10 pb-4 opacity-70 z-10">
+                  {visualizerBars.map((bar, i) => (
+                    <div
+                      key={i}
+                      className={`w-2 bg-gradient-to-t from-cyan-400 to-transparent rounded-t transition-all duration-300 ${isPlaying ? 'animate-pulse' : ''}`}
+                      style={{
+                        height: `${(barHeights[i] ?? bar.height) * 0.6}%`,
+                        animationDelay: `${bar.delay}s`,
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : (
+              // Default Visualizer Mode
+              <div className="flex items-end justify-center gap-1 h-1/3 w-full px-10 opacity-30">
+                {visualizerBars.map((bar, i) => (
+                  <div
+                    key={i}
+                    className={`w-2 bg-gradient-to-t from-cyan-500 to-blue-500 rounded-t transition-all duration-300 ${isPlaying ? 'animate-pulse' : ''}`}
+                    style={{
+                      height: `${barHeights[i] ?? bar.height}%`,
+                      animationDelay: `${bar.delay}s`,
+                    }}
+                  />
+                ))}
+              </div>
+            )}
 
             {/* Active Chapter Display */}
-            {chapters.length > 0 && (
-              <div className="absolute top-4 left-4 right-4 text-center">
-                <span className="text-xs font-mono text-cyan-500 uppercase tracking-widest">
+            {computedChapters.length > 0 && (
+              <div className="absolute top-4 left-4 right-4 text-center z-20">
+                <span className="text-xs font-mono text-cyan-500 uppercase tracking-widest bg-black/50 px-2 py-1 rounded">
                   Current Chapter
                 </span>
-                <h4 className="text-lg text-white font-light">
-                  {chapters
+                <h4 className="text-lg text-white font-light drop-shadow-md mt-1">
+                  {computedChapters
                     .slice()
                     .reverse()
                     .find((c) => currentTime >= c.startTime)?.title ||
-                    chapters[0]?.title ||
+                    computedChapters[0]?.title ||
                     'Unknown'}
                 </h4>
               </div>
@@ -249,7 +503,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
               className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500 hover:bg-slate-700 transition-colors"
             />
             {/* Chapter Markers */}
-            {chapters.map((chapter, i) => (
+            {computedChapters.map((chapter, i) => (
               <div
                 key={i}
                 className="absolute top-0 w-0.5 h-2 bg-slate-500 hover:bg-white cursor-pointer z-10 transition-colors"
@@ -340,16 +594,16 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         {/* Sidebar (Transcript/Chapters) */}
         {(transcript.length > 0 || chapters.length > 0) && (
           <div
-            className={`w-80 border-l border-slate-800 bg-slate-900/30 flex flex-col ${showTranscript ? 'block' : 'hidden'} md:block`}
+            className={`fixed md:relative inset-0 md:inset-auto z-40 md:z-0 md:w-80 border-l border-slate-800 bg-slate-900 md:bg-slate-900/30 flex flex-col transition-transform duration-300 ${showTranscript ? 'translate-x-0' : 'translate-x-full md:hidden'} md:translate-x-0`}
           >
-            <div className="flex border-b border-slate-800">
+            <div className="flex border-b border-slate-800 shrink-0">
               <button
                 onClick={() => setShowChapters(false)}
                 className={`flex-1 py-3 text-xs font-medium uppercase tracking-wider ${!showChapters ? 'text-cyan-400 border-b-2 border-cyan-500 bg-slate-800/50' : 'text-slate-500 hover:text-slate-300'}`}
               >
                 Transcript
               </button>
-              {chapters.length > 0 && (
+              {computedChapters.length > 0 && (
                 <button
                   onClick={() => setShowChapters(true)}
                   className={`flex-1 py-3 text-xs font-medium uppercase tracking-wider ${showChapters ? 'text-cyan-400 border-b-2 border-cyan-500 bg-slate-800/50' : 'text-slate-500 hover:text-slate-300'}`}
@@ -357,33 +611,55 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                   Chapters
                 </button>
               )}
+              <button
+                onClick={() => setShowTranscript(false)}
+                className="md:hidden px-4 text-slate-400 hover:text-white"
+              >
+                <X size={18} />
+              </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-0 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+            <div
+              className="flex-1 overflow-y-auto p-0 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent"
+              onScroll={() => {
+                lastInteractionRef.current = Date.now();
+              }}
+              onWheel={() => {
+                lastInteractionRef.current = Date.now();
+              }}
+              onTouchMove={() => {
+                lastInteractionRef.current = Date.now();
+              }}
+            >
               {!showChapters ? (
                 <div ref={transcriptRef} className="flex flex-col">
                   {transcript.length > 0 ? (
-                    transcript.map((seg, i) => (
-                      <button
-                        key={i}
-                        onClick={() => seek(seg.start)}
-                        className={`p-4 text-left border-b border-slate-800/50 transition-colors hover:bg-slate-800/50 ${activeSegmentIndex === i ? 'bg-cyan-900/20' : ''}`}
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-mono text-slate-500">
-                            {formatTime(seg.start)}
-                          </span>
-                          {seg.speaker && (
-                            <span className="text-xs font-bold text-slate-300">{seg.speaker}</span>
-                          )}
-                        </div>
-                        <p
-                          className={`text-sm leading-relaxed ${activeSegmentIndex === i ? 'text-white' : 'text-slate-400'}`}
+                    transcript.slice(renderWindow.start, renderWindow.end).map((seg, i) => {
+                      const idx = renderWindow.start + i;
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => seek(seg.start)}
+                          className={`p-4 text-left border-b border-slate-800/50 transition-colors hover:bg-slate-800/50 ${activeSegmentIndex === idx ? 'bg-cyan-900/20' : ''}`}
                         >
-                          {seg.text}
-                        </p>
-                      </button>
-                    ))
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-mono text-slate-500">
+                              {formatTime(seg.start)}
+                            </span>
+                            {seg.speaker && (
+                              <span className="text-xs font-bold text-slate-300">
+                                {seg.speaker}
+                              </span>
+                            )}
+                          </div>
+                          <p
+                            className={`text-sm leading-relaxed ${activeSegmentIndex === idx ? 'text-white' : 'text-slate-400'}`}
+                          >
+                            {seg.text}
+                          </p>
+                        </button>
+                      );
+                    })
                   ) : (
                     <div className="p-8 text-center text-slate-500 text-sm">
                       No transcript available.
@@ -392,7 +668,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 </div>
               ) : (
                 <div className="flex flex-col">
-                  {chapters.map((chapter, i) => (
+                  {computedChapters.map((chapter, i) => (
                     <button
                       key={i}
                       onClick={() => seek(chapter.startTime)}
@@ -414,11 +690,81 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         )}
       </div>
 
+      {showFullTranscriptOverlay && (
+        <div className="fixed inset-0 z-[1300] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-5xl h-[80vh] bg-slate-950 border border-slate-800 rounded-lg shadow-2xl overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-3 bg-slate-900 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={togglePlay}
+                  className="px-3 py-1 rounded bg-cyan-600 hover:bg-cyan-500 text-white text-xs"
+                >
+                  {isPlaying ? 'Pause' : 'Play'}
+                </button>
+                <button
+                  onClick={() => {
+                    setIsMuted(!isMuted);
+                    if (audioRef.current) audioRef.current.muted = !isMuted;
+                  }}
+                  className="px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs"
+                >
+                  {isMuted ? 'Unmute' : 'Mute'}
+                </button>
+              </div>
+              <button
+                onClick={() => setShowFullTranscriptOverlay(false)}
+                className="p-2 text-slate-400 hover:text-white"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div
+              ref={overlayRef}
+              className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent"
+              onScroll={() => {
+                lastInteractionRef.current = Date.now();
+              }}
+              onWheel={() => {
+                lastInteractionRef.current = Date.now();
+              }}
+              onTouchMove={() => {
+                lastInteractionRef.current = Date.now();
+              }}
+            >
+              {transcript.map((seg, i) => (
+                <button
+                  key={i}
+                  onClick={() => seek(seg.start)}
+                  className={`w-full text-left p-3 rounded border border-slate-800/50 hover:bg-slate-800/50 transition-colors ${currentTime >= seg.start && currentTime < seg.end ? 'bg-cyan-900/20' : ''}`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-mono text-slate-500">
+                      {formatTime(seg.start)}
+                    </span>
+                    {seg.speaker && (
+                      <span className="text-xs font-bold text-slate-300">{seg.speaker}</span>
+                    )}
+                  </div>
+                  <p className="text-sm text-slate-300">{seg.text}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       <audio
         ref={audioRef}
         src={src}
         onTimeUpdate={handleTimeUpdate}
-        onLoadedMetadata={() => setDuration(audioRef.current?.duration || 0)}
+        onLoadedMetadata={() => {
+          setDuration(audioRef.current?.duration || 0);
+          if (initialTime > 0 && !initialSeekDone.current && audioRef.current) {
+            audioRef.current.currentTime = initialTime;
+            setCurrentTime(initialTime);
+            initialSeekDone.current = true;
+          }
+        }}
         onEnded={() => setIsPlaying(false)}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}

@@ -232,9 +232,17 @@ function App() {
   });
   const [filteredPeople, setFilteredPeople] = useState<Person[]>(people);
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
+  const [previousPath, setPreviousPath] = useState<string>('/people'); // Track path before modal opens
   const [searchTermForModal, setSearchTermForModal] = useState<string>('');
   const [selectedDocumentId, setSelectedDocumentId] = useState<string>('');
   const [selectedDocumentSearchTerm, setSelectedDocumentSearchTerm] = useState<string>('');
+  const [showAudioCTA, setShowAudioCTA] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('cta_audio_dismissed') !== '1';
+    } catch {
+      return true;
+    }
+  });
   const [documentModalId, setDocumentModalId] = useState<string>('');
   const [documentModalInitial, setDocumentModalInitial] = useState<any | null>(null);
   const [investigateAttract, setInvestigateAttract] = useState<boolean>(false);
@@ -338,6 +346,20 @@ function App() {
         .catch((err) => console.error('Error loading entity from URL:', err));
     }
   }, [location.pathname, selectedPerson]);
+
+  // Load document from URL on page load (for shareable links)
+  useEffect(() => {
+    const docMatch = location.pathname.match(/^\/documents\/(\d+)/);
+    if (docMatch && !documentModalId) {
+      const docId = docMatch[1];
+      // Set IDs to trigger modal opening
+      setDocumentModalId(docId);
+      setSelectedDocumentId(docId);
+
+      // Optionally fetch document details if needed immediately,
+      // but DocumentModal usually handles fetching if passed an ID
+    }
+  }, [location.pathname, documentModalId]);
 
   // Update navigation context when search term changes
   useEffect(() => {
@@ -912,6 +934,10 @@ function App() {
 
   const handlePersonClick = useCallback((person: Person, searchTerm?: string) => {
     console.log('Person clicked:', person.name, 'Search term:', searchTerm);
+
+    // Save current path before opening modal so we can restore it on close
+    setPreviousPath(location.pathname + location.search);
+
     setSelectedPerson(person);
     setSearchTermForModal(searchTerm || '');
 
@@ -1924,7 +1950,8 @@ function App() {
                     person={selectedPerson}
                     onClose={() => {
                       setSelectedPerson(null);
-                      window.history.pushState({}, '', '/people');
+                      // Restore the original path the user was on before opening the modal
+                      window.history.pushState({}, '', previousPath);
                     }}
                     searchTerm={searchTermForModal}
                     onDocumentClick={handleDocumentClick}
@@ -1990,6 +2017,55 @@ function App() {
             )}
 
             <Footer onVersionClick={() => setShowReleaseNotes(true)} />
+            {showAudioCTA && activeTab !== 'media' && (
+              <div className="fixed bottom-4 right-4 z-50">
+                <div className="flex items-center gap-3 px-4 py-3 rounded-full bg-slate-900/90 border border-cyan-600 shadow-xl backdrop-blur">
+                  <button
+                    onClick={() => {
+                      navigate('/media/audio?albumId=25&quickstart=1');
+                      try {
+                        localStorage.setItem('cta_audio_dismissed', '1');
+                      } catch {}
+                      setShowAudioCTA(false);
+                    }}
+                    className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-full text-xs"
+                  >
+                    Listen Now
+                  </button>
+                  <span className="text-xs text-slate-300">New: Sascha Barros Testimony</span>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const resp = await fetch(
+                          `/api/investigations/by-title?title=${encodeURIComponent('Sascha Barros Testimony')}`,
+                        );
+                        if (resp.ok) {
+                          const inv = await resp.json();
+                          navigate(`/investigations/${inv.id}`);
+                        }
+                      } catch {
+                        /* ignore */
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-amber-700 hover:bg-amber-600 text-white rounded-full text-xs border border-amber-500"
+                  >
+                    Open Investigation
+                  </button>
+                  <button
+                    onClick={() => {
+                      try {
+                        localStorage.setItem('cta_audio_dismissed', '1');
+                      } catch {}
+                      setShowAudioCTA(false);
+                    }}
+                    className="text-slate-400 hover:text-white"
+                    aria-label="Dismiss"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </InvestigationsProvider>
       </UndoProvider>

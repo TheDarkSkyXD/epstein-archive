@@ -153,6 +153,7 @@ export const mediaRepository = {
       minRedFlagRating?: number;
       fileType?: string; // 'image' or 'audio' or mimetype
       albumId?: number;
+      sortBy?: 'title' | 'date' | 'rating';
     },
   ) => {
     const db = getDb();
@@ -194,6 +195,14 @@ export const mediaRepository = {
       params.push(filters.albumId);
     }
 
+    // Determine Sort Order
+    let orderByClause = 'm.red_flag_rating DESC, m.created_at DESC'; // Default
+    if (filters?.sortBy === 'title') {
+      orderByClause = 'm.title ASC';
+    } else if (filters?.sortBy === 'date') {
+      orderByClause = 'm.created_at DESC';
+    }
+
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
     const offset = (page - 1) * limit;
 
@@ -221,7 +230,7 @@ export const mediaRepository = {
       LEFT JOIN entities e ON mp.entity_id = e.id
       ${whereClause}
       GROUP BY m.id
-      ORDER BY m.red_flag_rating DESC, m.created_at DESC
+      ORDER BY ${orderByClause}
       LIMIT ? OFFSET ?
     `;
 

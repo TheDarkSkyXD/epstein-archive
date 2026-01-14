@@ -201,6 +201,71 @@ async function ingestAudio() {
       // Already have it, but maybe update logic if we want to ensure it matches
     }
 
+    // Attempt fuzzy thumbnail mapping from images if missing
+    if (!existingMeta.thumbnailPath) {
+      try {
+        const base = filenameWithoutExt.toLowerCase();
+        const like = `%${base}%`;
+        const thumbRow = db
+          .prepare(
+            `SELECT path, file_size FROM media_images 
+             WHERE LOWER(original_filename) LIKE ? OR LOWER(path) LIKE ?
+             ORDER BY file_size DESC LIMIT 1`,
+          )
+          .get(like, like) as { path: string; file_size: number } | undefined;
+        if (thumbRow?.path) {
+          metadata.thumbnailPath = thumbRow.path;
+          console.log(`🖼️ Mapped thumbnail for ${filename} -> ${thumbRow.path}`);
+        }
+      } catch (e) {
+        console.warn('Thumbnail fuzzy search failed:', e);
+      }
+      // Secondary pass: use folder segment or album name to find a related image
+      if (!metadata.thumbnailPath) {
+        try {
+          const relParts = file.split(path.sep);
+          const segment = (relParts[0] || '').toLowerCase();
+          if (segment) {
+            const albumRow = db
+              .prepare(
+                `SELECT id FROM media_albums 
+                 WHERE LOWER(name) LIKE ? 
+                 ORDER BY date_modified DESC LIMIT 1`,
+              )
+              .get(`%${segment}%`) as { id: number } | undefined;
+            if (albumRow?.id) {
+              const imgRow = db
+                .prepare(
+                  `SELECT path, file_size FROM media_images 
+                   WHERE album_id = ? 
+                   ORDER BY file_size DESC LIMIT 1`,
+                )
+                .get(albumRow.id) as { path: string; file_size: number } | undefined;
+              if (imgRow?.path) {
+                metadata.thumbnailPath = imgRow.path;
+                console.log(`🖼️ Mapped by album "${segment}" for ${filename} -> ${imgRow.path}`);
+              }
+            } else {
+              // Fallback: search images by segment in path
+              const segRow = db
+                .prepare(
+                  `SELECT path, file_size FROM media_images 
+                   WHERE LOWER(path) LIKE ? 
+                   ORDER BY file_size DESC LIMIT 1`,
+                )
+                .get(`%${segment}%`) as { path: string; file_size: number } | undefined;
+              if (segRow?.path) {
+                metadata.thumbnailPath = segRow.path;
+                console.log(`🖼️ Mapped by folder segment "${segment}" -> ${segRow.path}`);
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Secondary thumbnail mapping failed:', e);
+        }
+      }
+    }
+
     // Determine if we need to transcribe (Whisper)
     // Skip if we already have transcript segments OR if we have external text (we will fake segments)
     let shouldTranscribe = hasWhisper;

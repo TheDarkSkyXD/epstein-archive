@@ -26,7 +26,9 @@ export const MediaAndArticlesTab: React.FC = () => {
   // Redirect /media to /media/photos by default
   useEffect(() => {
     if (location.pathname === '/media') {
-      navigate('/media/photos', { replace: true });
+      const params = new URLSearchParams(location.search);
+      const hasAudioHints = params.has('albumId') || params.has('id');
+      navigate(hasAudioHints ? '/media/audio' : '/media/photos', { replace: true });
     }
   }, [location.pathname, navigate]);
 

@@ -744,7 +744,51 @@ export const AboutPage: React.FC = () => {
               <span className="text-green-400">✓</span>
               Categorised media library with {stats.media.toLocaleString()} images
             </li>
+            <li className="flex items-center gap-2 text-blue-300 font-semibold">
+              <span className="text-blue-400">✨</span>
+              Audio & Video with synchronized transcripts and chapter markers
+            </li>
           </ul>
+        </div>
+      </section>
+
+      {/* Audio & Video Credits */}
+      <section className="bg-slate-900/60 rounded-lg p-8 space-y-6 border border-slate-700/60">
+        <div className="flex items-center gap-3 mb-2">
+          <ImageIcon className="h-8 w-8 text-blue-400" />
+          <h2 className="text-3xl font-bold text-white">Audio & Video with Transcripts</h2>
+        </div>
+        <p className="text-slate-300">
+          The archive features interview audio with precision transcripts, chapter markers, and a synchronized reading experience.
+        </p>
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
+            <h3 className="text-lg font-semibold text-white mb-2">Credits</h3>
+            <ul className="space-y-2 text-slate-300">
+              <li>
+                Testimony & Interview: 
+                <a href="https://www.threads.com/@saschabarros" className="text-cyan-400 hover:underline ml-1">Sascha Riley</a>
+              </li>
+              <li>
+                Investigation & Publication:
+                <a href="https://www.threads.com/@lvoldeng" className="text-cyan-400 hover:underline ml-1">Lisa Noelle Volding</a>
+              </li>
+              <li>
+                Transcripts:
+                <a href="https://www.threads.com/@roguerevision" className="text-cyan-400 hover:underline ml-1">Gareth Wright</a>
+              </li>
+            </ul>
+          </div>
+          <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
+            <h3 className="text-lg font-semibold text-white mb-2">Original Publication</h3>
+            <p className="text-slate-300 mb-3">Read the original briefing and recordings:</p>
+            <a 
+              href="https://lisevoldeng.substack.com/p/dont-worry-boys-are-hard-to-find?r=1uodw7&triedRedirect=true"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold shadow-lg shadow-blue-900/20"
+            >
+              Read Full Briefing on Substack
+            </a>
+          </div>
         </div>
       </section>
 

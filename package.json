@@ -1,7 +1,8 @@
 {
   "name": "epstein-archive",
   "private": true,
-  "version": "10.2.3",
+  "version": "10.5.1",
+
   "description": "Epstein Archive Analyzer",
   "type": "module",
   "scripts": {
@@ -15,6 +16,7 @@
     "migrate": "DB_PATH=./epstein-archive.db tsx scripts/migrate.ts",
     "seed:structure": "DB_PATH=./epstein-archive.db tsx scripts/ensure_structure.ts",
     "verify": "DB_PATH=./epstein-archive.db tsx scripts/verify_deployment.ts",
+    "seed:sascha-investigation": "DB_PATH=./epstein-archive.db tsx scripts/create_sascha_investigation.ts",
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "format": "prettier --write .",

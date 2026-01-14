@@ -71,10 +71,18 @@ export const entitiesRepository = {
       params.role = filters.role;
     }
 
-    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
 
     // 5. Sorting
     let orderByClause = '';
+    const dateLimit = new Date();
+    dateLimit.setMonth(dateLimit.getMonth() - 24); // Focus on relatively recent prominence if needed, but here mentions are lifetime
+
+    // Default sorting logic improvements
+    const hasPhotoOrder = '(SELECT COUNT(*) FROM media_item_people WHERE entity_id = entities.id) > 0 DESC';
+    const mentionsOrder = 'COALESCE(mentions, 0) DESC';
+    const safetyOrder = 'red_flag_rating DESC';
+    
     switch (sortBy) {
       case 'name':
         orderByClause = 'ORDER BY full_name ASC';
@@ -83,18 +91,50 @@ export const entitiesRepository = {
         orderByClause = 'ORDER BY id DESC';
         break;
       case 'mentions':
-        orderByClause = 'ORDER BY document_count DESC, red_flag_rating DESC, full_name ASC';
+        orderByClause = `ORDER BY ${hasPhotoOrder}, mentions DESC, red_flag_rating DESC, full_name ASC`;
         break;
       case 'spice':
       case 'risk':
       case 'red_flag':
       default:
-        orderByClause = 'ORDER BY red_flag_rating DESC, COALESCE(mentions, 0) DESC, full_name ASC';
+        // Default: Quality (Mentions + Photos) > Risk
+        orderByClause = `ORDER BY ${hasPhotoOrder}, ${mentionsOrder}, ${safetyOrder}, full_name ASC`;
         break;
     }
 
     // Use entities table directly (entity_summary view has stale document_count)
     const sourceTable = 'entities';
+
+    // QUALITY FILTER (Default View)
+    // If we're on page 1 with no filters, we aggressively remove junk/mislabeled entities
+    const isDefaultView = !filters?.searchTerm && (!filters?.likelihoodScore || filters.likelihoodScore.length === 0) && !filters?.role && page === 1;
+    
+    if (isDefaultView) {
+      // Exclude suspected non-person entities from "People" tab
+      // These are often locations or organizations mislabeled as "Person"
+      const junkPatterns = [
+        '%House%', '%Office%', '%Street%', '%Road%', '%Avenue%', '%Park%', '%Beach%', '%Islands%', 
+        '%Times%', '%Post%', '%News%', '%Press%', '%Journal%', '%Magazine%',
+        '%Inc%', '%LLC%', '%Corp%', '%Ltd%', '%Group%', '%Trust%', '%Foundation%',
+        '%University%', '%College%', '%School%', '%Academy%',
+        '%Judge%', '%Court%', '%Attorney%', '%Justice%', '%Department%', '%Bureau%', '%Agency%',
+        '%Police%', '%Sheriff%', '%FBI%', '%CIA%', '%Secret Service%'
+      ];
+      
+      const junkConditions = junkPatterns.map((p, i) => {
+        const pName = `junkPattern${i}`;
+        params[pName] = p;
+        return `full_name NOT LIKE @${pName}`;
+      });
+      
+      whereConditions.push(`(${junkConditions.join(' AND ')})`);
+      
+      // Also ensure minimum relevance for default view
+      whereConditions.push('(mentions >= 3 OR red_flag_rating >= 2 OR (SELECT COUNT(*) FROM media_item_people WHERE entity_id = entities.id) > 0)');
+    }
+
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
 
     // Count Query
     const countSql = `SELECT COUNT(*) as total FROM ${sourceTable} ${whereClause}`;

@@ -32,7 +32,13 @@
       "Bash(git stash:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(claude config:*)",
+      "Bash(claude logout:*)",
+      "Bash(claude auth status:*)",
+      "Bash(claude whoami:*)",
+      "Bash(security find-generic-password -s \"claude-cli\" -a \"auth-token\")",
+      "Bash(lsof:*)"
     ]
   }
 }

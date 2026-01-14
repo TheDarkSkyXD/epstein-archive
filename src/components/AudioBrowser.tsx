@@ -14,6 +14,7 @@ interface AudioItem {
   filePath: string;
   fileType: string;
   isSensitive: boolean;
+  documentId?: number;
   albumId?: number;
   albumName?: string;
   metadata: {
@@ -39,12 +40,22 @@ interface Album {
 
 interface AudioBrowserProps {
   initialAlbumId?: number;
+  initialAudioId?: number;
+  initialTimestamp?: number;
+  quickStart?: boolean;
 }
 
-export const AudioBrowser: React.FC<AudioBrowserProps> = ({ initialAlbumId }) => {
+export const AudioBrowser: React.FC<AudioBrowserProps> = ({
+  initialAlbumId,
+  initialAudioId,
+  initialTimestamp,
+  quickStart = false,
+}) => {
   const [items, setItems] = useState<AudioItem[]>([]);
   const [albums, setAlbums] = useState<Album[]>([]);
   const [selectedAlbum, setSelectedAlbum] = useState<number | null>(null);
+  const [coverTick, setCoverTick] = useState(0);
+  const [libraryTotalCount, setLibraryTotalCount] = useState(0);
 
   // Effect to select album when loaded if initialAlbumId is provided
   useEffect(() => {
@@ -55,13 +66,50 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({ initialAlbumId }) =>
         setSelectedAlbum(match.id);
       }
     }
+    if (initialAlbumId && albums.length > 0 && selectedAlbum === null) {
+      const match = albums.find((a) => a.id === initialAlbumId);
+      if (match) {
+        console.log(`Selecting requested album: ${match.name} (${match.id})`);
+        setSelectedAlbum(match.id);
+      }
+    }
   }, [initialAlbumId, albums, selectedAlbum]);
+
+  // Effect to load specific item if requested via URL
+  useEffect(() => {
+    if (initialAudioId && !selectedItem) {
+      // Fetch the specific item
+      fetch(`/api/media/audio/${initialAudioId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && data.id) {
+            console.log('Loaded direct link item:', data.title);
+            // Transform to AudioItem format if needed, or assume API returns correct shape
+            // The list API returns AudioItem, single endpoint likely does too (check repository)
+            // Note: Single endpoint might not return 'metadata' parsed if it's raw DB row.
+            // We'll wrap in try/catch and ensure metadata parsing if needed.
+            // Assuming the repo returns parsed metadata or we need to parse it.
+            // Let's assume standard shape for now or standardise:
+            const item = {
+              ...data,
+              metadata:
+                typeof data.metadata === 'string' ? JSON.parse(data.metadata) : data.metadata,
+            };
+            setSelectedItem(item);
+          }
+        })
+        .catch(console.error);
+    }
+  }, [initialAudioId]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<AudioItem | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [showAlbumDropdown, setShowAlbumDropdown] = useState(false);
+  const [investigationId, setInvestigationId] = useState<number | null>(null);
+  const [investigationSummary, setInvestigationSummary] = useState<any | null>(null);
 
   // Batch Mode State
   const [isBatchMode, setIsBatchMode] = useState(false);
@@ -72,10 +120,60 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({ initialAlbumId }) =>
     loadAlbums();
   }, []);
 
+  useEffect(() => {
+    const id = setInterval(() => {
+      setCoverTick((t) => (t + 1) % 2);
+    }, 12000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const loadTotals = async () => {
+      try {
+        const res = await fetch('/api/media/audio?page=1&limit=1');
+        if (res.ok) {
+          const json = await res.json();
+          if (typeof json?.total === 'number') setLibraryTotalCount(json.total);
+        }
+      } catch {
+        void 0;
+      }
+    };
+    loadTotals();
+  }, []);
   // Load items when album selection changes
   useEffect(() => {
     fetchAudio(1);
   }, [selectedAlbum]);
+
+  useEffect(() => {
+    const isSascha =
+      (currentAlbum && currentAlbum.name.includes('Sascha')) ||
+      items.some((it) => it.title.includes('Sascha'));
+    if (!isSascha) {
+      setInvestigationId(null);
+      setInvestigationSummary(null);
+      return;
+    }
+    (async () => {
+      try {
+        const resp = await fetch(
+          `/api/investigations/by-title?title=${encodeURIComponent('Sascha Barros Testimony')}`,
+        );
+        if (resp.ok) {
+          const inv = await resp.json();
+          setInvestigationId(inv.id);
+          const sumResp = await fetch(`/api/investigation/${inv.id}/evidence-summary`);
+          if (sumResp.ok) {
+            const summary = await sumResp.json();
+            setInvestigationSummary(summary);
+          }
+        }
+      } catch {
+        void 0;
+      }
+    })();
+  }, [currentAlbum, items]);
 
   const loadAlbums = async () => {
     try {
@@ -134,7 +232,11 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({ initialAlbumId }) =>
         page: pageNum.toString(),
         limit: '24',
       });
-      if (selectedAlbum) params.append('albumId', selectedAlbum.toString());
+      if (selectedAlbum) {
+        params.append('albumId', selectedAlbum.toString());
+      }
+      // Always sort by title as requested ("sorted by name by tranche")
+      params.append('sortBy', 'title');
 
       const res = await fetch(`/api/media/audio?${params}`);
       if (!res.ok) throw new Error('Failed to load audio files');
@@ -146,6 +248,10 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({ initialAlbumId }) =>
         setItems(newItems);
       } else {
         setItems((prev) => [...prev, ...newItems]);
+      }
+
+      if (pageNum === 1 && quickStart && !selectedItem && newItems.length > 0) {
+        setSelectedItem(newItems[0]);
       }
 
       setHasMore(newItems.length === 24);
@@ -221,16 +327,34 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({ initialAlbumId }) =>
       const startIdx = index * columns;
       const rowItems = items.slice(startIdx, startIdx + columns);
 
+      // Manual padding offset: Shift top down by 24px (py-6 top)
+      const adjustedStyle = {
+        ...style,
+        top: (typeof style.top === 'number' ? style.top : parseFloat(style.top as string)) + 24,
+        height:
+          typeof style.height === 'number' ? style.height : parseFloat(style.height as string),
+      };
+
       return (
-        <div style={style} className="px-6">
+        <div style={adjustedStyle} className="px-6">
           <div
             className="grid gap-6 pb-6"
             style={{
               gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
             }}
           >
-            {rowItems.map((item) => {
+            {rowItems.map((item, i) => {
               const isSelected = selectedItems.has(item.id);
+              const isSascha =
+                item.title.includes('Sascha') ||
+                (item.albumName && item.albumName.includes('Sascha'));
+              const thumb = item.metadata?.thumbnailPath || null;
+              const displayImage = thumb
+                ? `/api/static?path=${encodeURIComponent(thumb)}`
+                : isSascha
+                  ? `/data/media/audio/lvoocaudiop1/lvoocaudiop1.webp`
+                  : null;
+
               return (
                 <div
                   key={item.id}
@@ -243,7 +367,7 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({ initialAlbumId }) =>
                     }
                   }}
                 >
-                  <SensitiveContent isSensitive={item.isSensitive} className="relative shrink-0">
+                  <SensitiveContent isSensitive={false} className="relative shrink-0">
                     {isBatchMode && (
                       <div className="absolute top-2 left-2 z-20">
                         {isSelected ? (
@@ -253,10 +377,34 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({ initialAlbumId }) =>
                         )}
                       </div>
                     )}
-                    <div className="aspect-video bg-slate-900 relative flex items-center justify-center group-hover:bg-slate-800 transition-colors">
-                      <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700 group-hover:scale-110 transition-transform shadow-lg">
-                        <Music size={32} className="text-cyan-500" />
-                      </div>
+                    <div className="aspect-video bg-slate-900 relative flex items-center justify-center group-hover:bg-slate-800 transition-colors overflow-hidden">
+                      {displayImage ? (
+                        <img
+                          src={displayImage}
+                          alt="Album Art"
+                          className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+                          onError={(e) => {
+                            const t = e.currentTarget;
+                            const tried = t.getAttribute('data-fb') === '1';
+                            if (!tried) {
+                              t.setAttribute('data-fb', '1');
+                              const u = new URL(t.src, window.location.origin);
+                              const p = u.searchParams.get('path') || '';
+                              const next = p.endsWith('.jpg')
+                                ? p.replace('.jpg', '.webp')
+                                : p.replace('.webp', '.jpg');
+                              t.src = `/api/static?path=${encodeURIComponent(next)}`;
+                            } else {
+                              t.src = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
+                            }
+                          }}
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700 group-hover:scale-110 transition-transform shadow-lg">
+                          <Music size={32} className="text-cyan-500" />
+                        </div>
+                      )}
+
                       {item.metadata.duration > 0 && (
                         <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/80 text-white text-xs rounded-full font-mono flex items-center gap-1">
                           <Clock size={10} />
@@ -304,7 +452,7 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({ initialAlbumId }) =>
                         <span>{formatDate(item.createdAt)}</span>
                       </div>
                       {item.description && (
-                        <p className="text-xs text-slate-400 line-clamp-2">{item.description}</p>
+                        <p className="text-xs text-slate-400 line-clamp-6">{item.description}</p>
                       )}
                     </div>
                   </div>
@@ -318,10 +466,29 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({ initialAlbumId }) =>
     [items, columns, selectedItems, isBatchMode, formatDate],
   );
 
+  // Update URL when item or album is selected
+  useEffect(() => {
+    const url = new URL(window.location.href);
+
+    if (selectedItem) {
+      url.searchParams.set('id', selectedItem.id.toString());
+    } else {
+      url.searchParams.delete('id');
+    }
+
+    if (selectedAlbum) {
+      url.searchParams.set('albumId', selectedAlbum.toString());
+    } else {
+      url.searchParams.delete('albumId');
+    }
+
+    window.history.pushState({}, '', url.toString());
+  }, [selectedItem, selectedAlbum]);
+
   return (
     <div className="flex flex-col h-full min-h-[500px] bg-slate-950 border border-slate-800 shadow-2xl overflow-hidden rounded-lg">
       {/* Header */}
-      <div className="bg-slate-900 border-b border-slate-800 flex flex-col md:flex-row md:items-center justify-between px-3 py-2 md:px-4 md:h-14 shrink-0 z-10 gap-2">
+      <div className="bg-slate-900 border-b border-slate-800 flex flex-col md:flex-row md:items-center justify-between px-3 py-2 md:px-6 md:h-14 shrink-0 z-10 gap-2">
         {/* Mobile Album Dropdown */}
         <div className="md:hidden">
           <button
@@ -344,7 +511,7 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({ initialAlbumId }) =>
                 }}
               >
                 <span>All Audio</span>
-                <span className="text-xs opacity-70">{items.length}</span>
+                <span className="text-xs opacity-70">{libraryTotalCount}</span>
               </button>
               {albums.map((album) => (
                 <button
@@ -369,12 +536,60 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({ initialAlbumId }) =>
             <p className="text-slate-400 text-xs hidden md:block">
               Forensic audio evidence and transcripts
             </p>
+            {investigationSummary && (
+              <div className="mt-1 text-xs flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded-full bg-amber-800/40 text-amber-300 border border-amber-700">
+                  Evidence {investigationSummary.totalEvidence}
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-green-800/30 text-green-300 border border-green-700">
+                  High{' '}
+                  {
+                    (investigationSummary.evidence || []).filter((e: any) => e.relevance === 'high')
+                      .length
+                  }
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-blue-800/30 text-blue-300 border border-blue-700">
+                  Medium{' '}
+                  {
+                    (investigationSummary.evidence || []).filter(
+                      (e: any) => e.relevance === 'medium',
+                    ).length
+                  }
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-slate-800/60 text-slate-300 border border-slate-700">
+                  Low{' '}
+                  {
+                    (investigationSummary.evidence || []).filter((e: any) => e.relevance === 'low')
+                      .length
+                  }
+                </span>
+              </div>
+            )}
           </div>
           <button
             onClick={() => setIsBatchMode(!isBatchMode)}
             className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${isBatchMode ? 'bg-cyan-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'}`}
           >
             {isBatchMode ? 'Exit Batch' : 'Batch Edit'}
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                const resp = await fetch(
+                  `/api/investigations/by-title?title=${encodeURIComponent('Sascha Barros Testimony')}`,
+                );
+                if (resp.ok) {
+                  const inv = await resp.json();
+                  window.location.href = `/investigations/${inv.id}`;
+                }
+              } catch {
+                void 0;
+              }
+            }}
+            className="px-3 py-1.5 rounded-lg text-xs bg-amber-700 hover:bg-amber-600 text-white border border-amber-500"
+            title="Open Investigation"
+          >
+            Open Investigation
           </button>
         </div>
       </div>
@@ -392,7 +607,7 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({ initialAlbumId }) =>
             >
               <span className="truncate">All Audio</span>
               <span className="text-xs opacity-70 bg-slate-800 px-1.5 py-0.5 rounded-full">
-                {items.length}
+                {libraryTotalCount}
               </span>
             </button>
             {albums.map((album) => (
@@ -452,14 +667,26 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({ initialAlbumId }) =>
                 <List
                   height={containerRef.current?.clientHeight || 600}
                   itemCount={rowCount}
-                  itemSize={380}
+                  itemSize={440}
                   width="100%"
                   overscanCount={2}
-                  className="scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent pt-6"
+                  className="scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent"
+                  innerElementType={React.forwardRef<HTMLDivElement, any>(
+                    ({ style, ...rest }, ref) => (
+                      <div
+                        ref={ref}
+                        style={{
+                          ...style,
+                          height: `${parseFloat(style.height) + 48}px`, // +24px top, +24px bottom
+                        }}
+                        {...rest}
+                      />
+                    ),
+                  )}
                   onScroll={({ scrollOffset, scrollUpdateWasRequested }) => {
                     if (scrollUpdateWasRequested) return;
                     const containerHeight = containerRef.current?.clientHeight || 600;
-                    const totalHeight = rowCount * 380;
+                    const totalHeight = rowCount * 520;
                     if (
                       scrollOffset + containerHeight >= totalHeight - 200 &&
                       !loading &&
@@ -510,14 +737,31 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({ initialAlbumId }) =>
           <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 md:p-8 animate-in fade-in duration-200">
             <div className="w-full max-w-5xl h-[80vh] shadow-2xl ring-1 ring-white/10 rounded-lg overflow-hidden">
               <AudioPlayer
+                key={selectedItem.id}
                 src={`/api/media/audio/${selectedItem.id}/stream`}
                 title={selectedItem.title}
                 transcript={selectedItem.metadata.transcript}
                 chapters={selectedItem.metadata.chapters}
-                onClose={() => setSelectedItem(null)}
                 autoPlay
                 isSensitive={selectedItem.isSensitive}
                 warningText={selectedItem.description}
+                documentId={selectedItem.documentId}
+                initialTime={selectedItem.id === initialAudioId ? initialTimestamp : 0}
+                albumImages={
+                  selectedItem.title.includes('Sascha') ||
+                  (selectedItem.albumName && selectedItem.albumName.includes('Sascha')) ||
+                  (currentAlbum && currentAlbum.name.includes('Sascha'))
+                    ? ['/data/media/audio/lvoocaudiop1/lvoocaudiop1.webp']
+                    : []
+                }
+                onClose={() => {
+                  setSelectedItem(null);
+                  // Clear URL params but keep album if selected
+                  const url = new URL(window.location.href);
+                  url.searchParams.delete('id');
+                  url.searchParams.delete('t');
+                  window.history.pushState({}, '', url.toString());
+                }}
               />
             </div>
           </div>,

@@ -47,6 +47,8 @@ export const VideoBrowser: React.FC = () => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [showAlbumDropdown, setShowAlbumDropdown] = useState(false);
+  const [libraryTotalCount, setLibraryTotalCount] = useState(0);
+  const prefetchRef = useRef<number | null>(null);
 
   // Batch Mode State
   const [isBatchMode, setIsBatchMode] = useState(false);
@@ -57,6 +59,32 @@ export const VideoBrowser: React.FC = () => {
     loadAlbums();
   }, []);
 
+  useEffect(() => {
+    const id = setTimeout(() => {
+      if (!loading && hasMore) {
+        const next = page + 1;
+        if (prefetchRef.current !== next) {
+          prefetchRef.current = next;
+          fetchVideos(next);
+        }
+      }
+    }, 2000);
+    return () => clearTimeout(id);
+  }, [page, loading, hasMore]);
+  useEffect(() => {
+    const loadTotals = async () => {
+      try {
+        const res = await fetch('/api/media/video?page=1&limit=1');
+        if (res.ok) {
+          const json = await res.json();
+          if (typeof json?.total === 'number') setLibraryTotalCount(json.total);
+        }
+      } catch {
+        void 0;
+      }
+    };
+    loadTotals();
+  }, []);
   // Load items when album selection changes
   useEffect(() => {
     fetchVideos(1);
@@ -119,6 +147,8 @@ export const VideoBrowser: React.FC = () => {
         limit: '24',
       });
       if (selectedAlbum) params.append('albumId', selectedAlbum.toString());
+      // Always sort by title as requested
+      params.append('sortBy', 'title');
 
       const res = await fetch(`/api/media/video?${params}`);
       if (!res.ok) throw new Error('Failed to load video files');
@@ -201,8 +231,14 @@ export const VideoBrowser: React.FC = () => {
       const startIdx = index * columns;
       const rowItems = items.slice(startIdx, startIdx + columns);
 
+      // Manual padding offset: Shift top down by 24px (py-6 top)
+      const adjustedStyle = {
+        ...style,
+        top: (typeof style.top === 'number' ? style.top : parseFloat(style.top as string)) + 24,
+      };
+
       return (
-        <div style={style} className="px-6">
+        <div style={adjustedStyle} className="px-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
             {rowItems.map((item) => {
               const isSelected = selectedItems.has(item.id);
@@ -304,10 +340,27 @@ export const VideoBrowser: React.FC = () => {
     [items, columns, selectedItems, isBatchMode, formatDate],
   );
 
+  // Update URL when item or album is selected
+  useEffect(() => {
+    const url = new URL(window.location.href);
+
+    // For video items, we might not be tracking id in URL as strictly or we need to check how VideoBrowser handles item selection via URL.
+    // Assuming we want to track albumId primarily here based on user request "route when I select album".
+
+    if (selectedAlbum) {
+      url.searchParams.set('albumId', selectedAlbum.toString());
+    } else {
+      url.searchParams.delete('albumId');
+    }
+
+    // Preserve other params if needed, or push state.
+    window.history.pushState({}, '', url.toString());
+  }, [selectedAlbum]); // Intentionally not tracking selectedItem here unless requested, as Video modal usually manages its own state or overlay.
+
   return (
     <div className="flex flex-col h-full bg-slate-950 border border-slate-800 shadow-2xl overflow-hidden rounded-lg">
       {/* Header */}
-      <div className="bg-slate-900 border-b border-slate-800 flex flex-col md:flex-row md:items-center justify-between px-3 py-2 md:px-4 md:h-14 shrink-0 z-10 gap-2">
+      <div className="bg-slate-900 border-b border-slate-800 flex flex-col md:flex-row md:items-center justify-between px-3 py-2 md:px-6 md:h-14 shrink-0 z-10 gap-2">
         {/* Mobile Album Dropdown */}
         <div className="md:hidden">
           <button
@@ -330,7 +383,7 @@ export const VideoBrowser: React.FC = () => {
                 }}
               >
                 <span>All Videos</span>
-                <span className="text-xs opacity-70">{items.length}</span>
+                <span className="text-xs opacity-70">{libraryTotalCount}</span>
               </button>
               {albums.map((album) => (
                 <button
@@ -376,7 +429,7 @@ export const VideoBrowser: React.FC = () => {
             >
               <span className="truncate">All Videos</span>
               <span className="text-xs opacity-70 bg-slate-800 px-1.5 py-0.5 rounded-full">
-                {items.length}
+                {libraryTotalCount}
               </span>
             </button>
             {albums.map((album) => (
@@ -439,6 +492,19 @@ export const VideoBrowser: React.FC = () => {
                   itemSize={420}
                   width="100%"
                   overscanCount={2}
+                  className="scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent"
+                  innerElementType={React.forwardRef<HTMLDivElement, any>(
+                    ({ style, ...rest }, ref) => (
+                      <div
+                        ref={ref}
+                        style={{
+                          ...style,
+                          height: `${parseFloat(style.height) + 48}px`, // +24px top, +24px bottom
+                        }}
+                        {...rest}
+                      />
+                    ),
+                  )}
                   onScroll={({ scrollOffset, scrollUpdateWasRequested }) => {
                     if (scrollUpdateWasRequested) return;
                     const containerHeight = containerRef.current?.clientHeight || 600;
@@ -498,6 +564,9 @@ export const VideoBrowser: React.FC = () => {
               chapters={selectedItem.metadata.chapters}
               onClose={() => setSelectedItem(null)}
               autoPlay
+              isSensitive={selectedItem.isSensitive}
+              warningText={selectedItem.description}
+              documentId={selectedItem.metadata.documentId || (selectedItem as any).documentId}
             />
           </div>
         </div>

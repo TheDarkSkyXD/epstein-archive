@@ -50,9 +50,25 @@ router.post('/add-evidence', async (req: Request, res: Response) => {
   } catch (error: any) {
     if (error.message === 'Evidence not found') {
       return res.status(404).json({ error: 'Evidence not found' });
+router.post('/add-media', async (req: Request, res: Response) => {
+  try {
+    const { investigationId, mediaItemId, notes, relevance } = req.body;
+    if (!investigationId || !mediaItemId) {
+      return res.status(400).json({ error: 'Missing required fields' });
     }
-    console.error('Error adding evidence to investigation:', error);
-    res.status(500).json({ error: 'Failed to add evidence to investigation' });
+    const result = await databaseService.addMediaToInvestigation(
+      investigationId,
+      mediaItemId,
+      notes,
+      relevance,
+    );
+    res.json({ success: true, ...result });
+  } catch (error: any) {
+    if (error.message === 'Media not found') {
+      return res.status(404).json({ error: 'Media not found' });
+    }
+    console.error('Error adding media to investigation:', error);
+    res.status(500).json({ error: 'Failed to add media to investigation' });
   }
 });
 

@@ -8,7 +8,7 @@ const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), 'epstein-archive
 const ALBUMS = [
   {
     id: 25, // Fixed ID to ensure linking works
-    title: 'The Sascha Barros Testimony',
+    title: 'Sascha Riley (Barros) Testimony',
     description:
       'Complete 6-part interview series with Sascha Barros. Credits: Interviews by Lisa Noelle Voldeng. Content Warning: Contains graphic descriptions of sexual abuse and trafficking.',
     is_sensitive: 1,

@@ -810,6 +810,19 @@ export class DatabaseService {
   async removeEvidenceFromInvestigation(investigationEvidenceId: string) {
     return evidenceRepository.removeEvidenceFromInvestigation(investigationEvidenceId);
   }
+  async addMediaToInvestigation(
+    investigationId: string,
+    mediaItemId: string,
+    notes: string,
+    relevance: string,
+  ) {
+    return evidenceRepository.addMediaToInvestigation(
+      investigationId,
+      mediaItemId,
+      notes,
+      relevance,
+    );
+  }
 
   // Evidence search and retrieval methods
   async searchEvidence(params: {

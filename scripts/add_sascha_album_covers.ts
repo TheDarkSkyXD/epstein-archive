@@ -13,49 +13,78 @@ const db = new Database(dbPath);
 console.log('[INFO] Adding Sascha Barros album covers...');
 
 // Check if cover images exist
-const coverImagePath = 'data/media/audio/lvoocaudiop1/lvoocaudiop1.jpg';
-if (!existsSync(coverImagePath)) {
-  console.error('[ERROR] Cover image not found:', coverImagePath);
+const coverImagePathJpg = 'data/media/audio/lvoocaudiop1/lvoocaudiop1.jpg';
+const coverImagePathWebp = 'data/media/audio/lvoocaudiop1/lvoocaudiop1.webp';
+if (!existsSync(coverImagePathJpg)) {
+  console.error('[ERROR] JPG cover image not found:', coverImagePathJpg);
+  process.exit(1);
+}
+if (!existsSync(coverImagePathWebp)) {
+  console.error('[ERROR] WEBP cover image not found:', coverImagePathWebp);
   process.exit(1);
 }
 
-const stats = statSync(coverImagePath);
+const statsJpg = statSync(coverImagePathJpg);
+const statsWebp = statSync(coverImagePathWebp);
 
 try {
-  // Check if image already exists
-  const existing = db.prepare('SELECT id FROM media_images WHERE path = ?').get(coverImagePath);
-
+  // Ensure JPG exists in DB
+  const existingJpg = db.prepare('SELECT id FROM media_images WHERE path = ?').get(coverImagePathJpg);
   let coverImageId: number;
-
-  if (existing) {
-    coverImageId = (existing as { id: number }).id;
-    console.log(`[INFO] Cover image already exists with ID: ${coverImageId}`);
+  if (existingJpg) {
+    coverImageId = (existingJpg as { id: number }).id;
+    console.log(`[INFO] JPG cover already exists with ID: ${coverImageId}`);
   } else {
-    // Insert the cover image
-    const insertResult = db
+    const insertJpg = db
       .prepare(
         `INSERT INTO media_images (
-        filename, original_filename, path, thumbnail_path,
-        title, description, album_id, file_size, format, date_added
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+          filename, original_filename, path, thumbnail_path,
+          title, description, album_id, file_size, format, date_added
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
       )
       .run(
         'lvoocaudiop1.jpg',
         'lvoocaudiop1.jpg',
-        coverImagePath,
-        'data/media/audio/lvoocaudiop1/lvoocaudiop1.webp',
-        'Sascha Barros Testimony Album Cover',
-        'Album cover for The Sascha Barros Testimony interview series',
-        25, // Album ID for Sascha
-        stats.size,
+        coverImagePathJpg,
+        null,
+        'Sascha Barros Testimony Album Cover (JPG)',
+        'Album cover (JPEG) for The Sascha Barros Testimony interview series',
+        25,
+        statsJpg.size,
         'jpeg',
       );
-
-    coverImageId = Number(insertResult.lastInsertRowid);
-    console.log(`[INFO] Inserted cover image with ID: ${coverImageId}`);
+    coverImageId = Number(insertJpg.lastInsertRowid);
+    console.log(`[INFO] Inserted JPG cover image with ID: ${coverImageId}`);
   }
 
-  // Update the album to use this cover image
+  // Ensure WEBP exists in DB as a separate image
+  const existingWebp = db.prepare('SELECT id FROM media_images WHERE path = ?').get(coverImagePathWebp);
+  if (existingWebp) {
+    console.log(`[INFO] WEBP cover already exists with ID: ${(existingWebp as { id: number }).id}`);
+  } else {
+    const insertWebp = db
+      .prepare(
+        `INSERT INTO media_images (
+          filename, original_filename, path, thumbnail_path,
+          title, description, album_id, file_size, format, date_added
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+      )
+      .run(
+        'lvoocaudiop1.webp',
+        'lvoocaudiop1.webp',
+        coverImagePathWebp,
+        null,
+        'Sascha Barros Testimony Album Cover (WEBP)',
+        'Album cover (WEBP) for The Sascha Barros Testimony interview series',
+        25,
+        statsWebp.size,
+        'webp',
+      );
+    const webpId = Number(insertWebp.lastInsertRowid);
+    console.log(`[INFO] Inserted WEBP cover image with ID: ${webpId}`);
+  }
+
+  // Set album cover to the JPG by default (can be changed later)
   db.prepare('UPDATE media_albums SET cover_image_id = ? WHERE id = 25').run(coverImageId);
 
   console.log('[INFO] ✅ Successfully set album cover for Sascha Barros Testimony');

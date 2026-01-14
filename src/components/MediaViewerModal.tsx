@@ -95,6 +95,33 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
   // Cache-buster version to force image refresh after rotation
   const [imageVersion, setImageVersion] = useState(0);
 
+  // Touch gesture support
+  const touchStartRef = useRef<number | null>(null);
+  const touchEndRef = useRef<number | null>(null);
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchEndRef.current = null;
+    touchStartRef.current = e.targetTouches[0].clientX;
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    touchEndRef.current = e.targetTouches[0].clientX;
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStartRef.current || !touchEndRef.current) return;
+    const distance = touchStartRef.current - touchEndRef.current;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe) {
+      handleNext();
+    } else if (isRightSwipe) {
+      handlePrev();
+    }
+  };
+
   // Tags and people state
   const [imageTags, setImageTags] = useState<any[]>([]);
   const [imagePeople, setImagePeople] = useState<any[]>([]);
@@ -380,6 +407,9 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
         <div
           className="flex-1 flex items-center justify-center p-4 overflow-hidden relative"
           onClick={() => setShowSidebar(false)}
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
         >
           {imageLoading && (
             <div className="absolute inset-0 flex items-center justify-center z-10">

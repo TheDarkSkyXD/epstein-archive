@@ -629,7 +629,7 @@ export class MediaService {
     }
 
     try {
-      let pipeline = sharp(resolvedPath).rotate(); // Auto-orient based on original file EXIF first
+      let pipeline = sharp(resolvedPath).rotate();
 
       // Apply DB-specified orientation if provided
       // 1: 0deg, 3: 180deg, 6: 90deg, 8: 270deg
@@ -651,7 +651,35 @@ export class MediaService {
         }
       }
 
-      await pipeline.resize(300, 300, { fit: 'cover' }).toFile(thumbnailPath);
+      const isFake =
+        /fake/i.test(imagePath) ||
+        /confirmed[\s_-]*fake/i.test(imagePath) ||
+        /\/fake\//i.test(imagePath);
+      const resized = pipeline.resize(300, 300, { fit: 'cover' });
+      if (isFake) {
+        const svg = Buffer.from(
+          `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300">
+            <defs>
+              <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="rgba(255,0,0,0.0)"/>
+                <stop offset="0.5" stop-color="rgba(255,0,0,0.18)"/>
+                <stop offset="1" stop-color="rgba(255,0,0,0.0)"/>
+              </linearGradient>
+            </defs>
+            <rect width="300" height="300" fill="url(#g)"/>
+            <g transform="translate(150,150) rotate(-30)">
+              <text x="0" y="0" text-anchor="middle" dominant-baseline="middle"
+                font-family="Arial, Helvetica, sans-serif" font-size="72"
+                fill="rgba(255,0,0,0.35)" stroke="rgba(255,255,255,0.25)" stroke-width="2">
+                FAKE
+              </text>
+            </g>
+          </svg>`,
+        );
+        await resized.composite([{ input: svg, gravity: 'center' }]).toFile(thumbnailPath);
+      } else {
+        await resized.toFile(thumbnailPath);
+      }
 
       return thumbnailPath;
     } catch (error) {
@@ -674,6 +702,37 @@ export class MediaService {
       console.warn('Failed to parse EXIF data:', e);
     }
 
+    const isFakePath =
+      /fake/i.test(file.path) ||
+      /confirmed[\s_-]*fake/i.test(file.path) ||
+      /\/fake\//i.test(file.path);
+    if (isFakePath) {
+      try {
+        const meta = await sharp(buffer).metadata();
+        const w = meta.width || 0;
+        const h = meta.height || 0;
+        const svg = Buffer.from(
+          `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+            <defs>
+              <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="rgba(255,0,0,0.0)"/>
+                <stop offset="0.5" stop-color="rgba(255,0,0,0.18)"/>
+                <stop offset="1" stop-color="rgba(255,0,0,0.0)"/>
+              </linearGradient>
+            </defs>
+            <rect width="${w}" height="${h}" fill="url(#g)"/>
+            <g transform="translate(${Math.floor(w / 2)},${Math.floor(h / 2)}) rotate(-30)">
+              <text x="0" y="0" text-anchor="middle" dominant-baseline="middle"
+                font-family="Arial, Helvetica, sans-serif" font-size="${Math.floor(Math.min(w, h) * 0.18)}"
+                fill="rgba(255,0,0,0.35)" stroke="rgba(255,255,255,0.25)" stroke-width="${Math.max(1, Math.floor(Math.min(w, h) * 0.005))}">
+                FAKE
+              </text>
+            </g>
+          </svg>`,
+        );
+        await sharp(buffer).rotate().composite([{ input: svg, gravity: 'center' }]).toFile(file.path);
+      } catch {}
+    }
     // Insert into DB
     const stmt = this.db.prepare(`
       INSERT INTO media_images (

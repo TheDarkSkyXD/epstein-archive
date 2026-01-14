@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useTransition, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   FixedSizeGrid as Grid,
@@ -190,6 +190,13 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
 
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [isPending, startTransition] = useTransition();
+  const imagesAbortRef = useRef<AbortController | null>(null);
+  const filtersAbortRef = useRef<AbortController | null>(null);
+  const [libraryTotalCount, setLibraryTotalCount] = useState<number>(0);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const [autoLoading, setAutoLoading] = useState(false);
+  const prefetchRef = useRef<number | null>(null);
 
   // Track if URL params have been initialized
   const [initialized, setInitialized] = useState(false);
@@ -211,33 +218,49 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
     setInitialized(true);
   }, []);
 
-  // Load available tags and people
+  // Load available tags
   useEffect(() => {
     const loadFilters = async () => {
       try {
-        const [tagsRes, peopleRes] = await Promise.all([
-          fetch('/api/media/tags'),
-          fetch('/api/entities/all'),
-        ]);
-
+        filtersAbortRef.current?.abort();
+        filtersAbortRef.current = new AbortController();
+        const tagsRes = await fetch('/api/media/tags', { signal: filtersAbortRef.current.signal });
         if (tagsRes.ok) {
           const tags = await tagsRes.json();
           setAvailableTags(tags);
         }
-
-        if (peopleRes.ok) {
-          const people = await peopleRes.json();
-          setAvailablePeople(people);
-        }
-      } catch (error) {
-        console.error('Failed to load filters:', error);
+      } catch {
+        void 0;
       }
     };
     loadFilters();
+    return () => {
+      filtersAbortRef.current?.abort();
+    };
   }, []);
 
   useEffect(() => {
     loadAlbums();
+  }, []);
+  useEffect(() => {
+    const loadLibraryTotal = async () => {
+      try {
+        const res = await fetch('/api/media/stats');
+        if (res.ok) {
+          const json = await res.json();
+          if (typeof json?.totalImages === 'number') {
+            setLibraryTotalCount(json.totalImages);
+            return;
+          }
+        }
+        const res2 = await fetch('/api/media/images?page=1&limit=1&slim=true');
+        const totalHeader = res2.headers.get('X-Total-Count');
+        if (totalHeader) setLibraryTotalCount(parseInt(totalHeader) || 0);
+      } catch {
+        // leave default 0
+      }
+    };
+    loadLibraryTotal();
   }, []);
 
   // Sync URL with filters
@@ -297,8 +320,13 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
   const fetchImages = async (pageNum: number, append: boolean) => {
     if (append && !hasMore) return;
 
-    setLoading(true);
+    // Use startTransition to make loading state non-blocking (allows tab switching)
+    startTransition(() => {
+      setLoading(true);
+    });
     try {
+      imagesAbortRef.current?.abort();
+      imagesAbortRef.current = new AbortController();
       const params = new URLSearchParams();
       if (selectedAlbum) params.append('albumId', selectedAlbum.toString());
       if (selectedTag) params.append('tagId', selectedTag.toString());
@@ -309,7 +337,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
       if (searchQuery) params.append('search', searchQuery);
 
       // Pagination
-      const limit = 50;
+      const limit = 24;
       params.append('page', pageNum.toString());
       params.append('limit', limit.toString());
 
@@ -317,7 +345,9 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
       params.append('slim', 'true');
 
       // Removed cache busting to enable browser caching - thumbnails rarely change
-      const response = await fetch(`/api/media/images?${params}`);
+      const response = await fetch(`/api/media/images?${params}`, {
+        signal: imagesAbortRef.current.signal,
+      });
       const data = await response.json();
 
       // Backend now returns consistent camelCase in slim mode - minimal normalization needed
@@ -330,9 +360,13 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
         : [];
 
       if (append) {
-        setImages((prev) => [...prev, ...normalized]);
+        startTransition(() => {
+          setImages((prev) => [...prev, ...normalized]);
+        });
       } else {
-        setImages(normalized);
+        startTransition(() => {
+          setImages(normalized);
+        });
       }
 
       // Determine if there are more items
@@ -362,7 +396,74 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
     } catch (error) {
       console.error('Failed to load images:', error);
     } finally {
-      setLoading(false);
+      // Use startTransition here too to keep UI responsive
+      startTransition(() => {
+        setLoading(false);
+      });
+    }
+  };
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry.isIntersecting && !loading && hasMore && !autoLoading) {
+          setAutoLoading(true);
+          const next = page + 1;
+          fetchImages(next, true).finally(() => setAutoLoading(false));
+          setPage(next);
+        }
+      },
+      { root: null, rootMargin: '200px', threshold: 0.1 },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [
+    page,
+    loading,
+    hasMore,
+    autoLoading,
+    initialized,
+    selectedAlbum,
+    selectedTag,
+    selectedPerson,
+    hasPeopleOnly,
+    sortField,
+    sortOrder,
+    searchQuery,
+  ]);
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      if (!loading && hasMore) {
+        const next = page + 1;
+        if (prefetchRef.current !== next) {
+          prefetchRef.current = next;
+          fetchImages(next, true);
+        }
+      }
+    }, 2000);
+    return () => clearTimeout(id);
+  }, [page, loading, hasMore]);
+
+  // Lazy load people list when dropdown focused
+  const loadPeopleOptions = async () => {
+    try {
+      if (availablePeople.length > 0) return;
+      filtersAbortRef.current?.abort();
+      filtersAbortRef.current = new AbortController();
+      const res = await fetch('/api/entities?page=1&limit=100', {
+        signal: filtersAbortRef.current.signal,
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const data = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
+        setAvailablePeople(data.map((p: any) => ({ id: p.id, name: p.fullName || p.name })));
+      }
+    } catch {
+      void 0;
     }
   };
 
@@ -757,7 +858,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
                 }}
               >
                 <span>All Photos</span>
-                <span className="text-xs opacity-70">{images.length}</span>
+                <span className="text-xs opacity-70">{libraryTotalCount}</span>
               </button>
               {albums.map((album) => (
                 <button
@@ -837,6 +938,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
             <select
               value={selectedPerson || ''}
               onChange={(e) => setSelectedPerson(e.target.value ? parseInt(e.target.value) : null)}
+              onFocus={loadPeopleOptions}
               className="bg-slate-800 border border-slate-700 rounded text-slate-300 text-xs px-2 py-1 focus:outline-none focus:border-cyan-500 h-8 max-w-[100px]"
             >
               <option value="">All People</option>
@@ -922,7 +1024,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
             >
               <span className="truncate">All Photos</span>
               <span className="text-xs opacity-70 bg-slate-800 px-1.5 py-0.5 rounded-full">
-                {images.length}
+                {libraryTotalCount}
               </span>
             </button>
             {albums.map((album) => (
@@ -944,7 +1046,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
         {/* Main Content */}
         <div className="flex-1 bg-slate-950 flex flex-col overflow-hidden relative">
           {loading ? (
-            <div className="absolute inset-0 flex items-center justify-center z-20 bg-slate-950/50 backdrop-blur-sm">
+            <div className="absolute inset-0 flex items-center justify-center z-20 bg-slate-950/50 backdrop-blur-sm pointer-events-none">
               <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
             </div>
           ) : null}
@@ -1017,10 +1119,11 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
             ) : (
               <AutoSizer>
                 {({ width, height }) => {
+                  if (width < 50) return null; // Avoid invalid calculations
                   if (viewMode === 'grid') {
                     const minColumnWidth = 200;
                     const gap = 16; // gap-4
-                    const availableWidth = width - 32; // p-4 equivalent padding
+                    const availableWidth = width - 48; // p-6 equivalent padding
                     const columnCount = Math.max(
                       1,
                       Math.floor((availableWidth + gap) / (minColumnWidth + gap)),
@@ -1050,7 +1153,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
                         rowHeight={rowHeight + gap}
                         width={width}
                         itemData={itemData}
-                        className="scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent p-4"
+                        className="scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent p-6"
                         style={{ overflowX: 'hidden' }}
                         onItemsRendered={({ visibleRowStopIndex }) => {
                           const visibleIndex = visibleRowStopIndex * columnCount;
@@ -1083,7 +1186,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
                         itemSize={72} // Height of list item
                         width={width}
                         itemData={itemData}
-                        className="scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent p-4"
+                        className="scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent p-6"
                         onItemsRendered={({ visibleStopIndex }) => {
                           if (visibleStopIndex >= images.length - 10 && hasMore && !loading) {
                             const nextPage = page + 1;
@@ -1162,6 +1265,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
           }}
         />
       )}
+      <div ref={sentinelRef} className="h-4 w-full"></div>
     </div>
   );
 });

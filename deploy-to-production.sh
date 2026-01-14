@@ -234,7 +234,7 @@ prepare_deployment_package() {
     # cp epstein-archive.db "$TEMP_DIR/" 
 
     # Create deployment package
-    DEPLOY_PACKAGE="epstein-archive-deployment-$(date +%Y%m%d-%H%M%S).tar.gz"
+    DEPLOY_PACKAGE="$(pwd)/epstein-archive-deployment-$(date +%Y%m%d-%H%M%S).tar.gz"
     tar -czf "$DEPLOY_PACKAGE" -C "$TEMP_DIR" .
 
     # Clean up temporary directory
@@ -256,12 +256,13 @@ deploy_to_production() {
 
     # Extract and deploy on server
     log_info "Extracting and deploying on production server..."
+    REMOTE_PACKAGE=$(basename "$DEPLOY_PACKAGE")
     ssh -i "$SSH_KEY_PATH" "$PRODUCTION_USER@$PRODUCTION_SERVER" "
         cd $PRODUCTION_PATH &&
         echo '📦 Extracting new version...' &&
         rm -rf dist &&
-        tar -xzf $DEPLOY_PACKAGE &&
-        rm $DEPLOY_PACKAGE &&
+        tar -xzf $REMOTE_PACKAGE &&
+        rm $REMOTE_PACKAGE &&
         rm -f epstein-archive-deployment-*.tar.gz &&
         rm -f epstein-archive.sql &&
         echo '🏗️ Installing dependencies...' &&
@@ -284,8 +285,11 @@ deploy_to_production() {
         fi
         echo '🔄 Running migrations...' &&
         npm run seed:structure &&
+        echo '🔎 Seeding Sascha investigation...' &&
+        npm run seed:sascha-investigation || true &&
         echo '🚀 Starting application...' &&
-        pm2 reload ecosystem.config.cjs --env production --update-env || pm2 start ecosystem.config.cjs --env production &&
+        pm2 delete epstein-archive || true &&
+        pm2 start ecosystem.config.cjs --env production --update-env &&
         pm2 save
     "
 

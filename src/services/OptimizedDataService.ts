@@ -194,19 +194,15 @@ export class OptimizedDataService {
               }))
               .filter((p) => (term ? (p.name || '').toLowerCase().includes(term) : true));
 
-            // QUALITY FILTER: If default view, remove low-relevance noise
+            // QUALITY FILTER: The backend now handles aggressive junk filtering for the default view.
+            // We keep a lightweight version here for safety or fallback.
             if (isDefaultView) {
               result.data = result.data.filter((p: any) => {
-                // Keep if: High/Medium risk OR > 2 mentions OR explicitly labeled Role
-                const isRisk = (p.red_flag_rating || 0) >= 2;
-                const isPopular = (p.mentions || 0) >= 3;
-                const hasRole = p.role && p.role !== 'Person of Interest' && p.role !== 'Unknown';
-                const isVerified =
-                  p.likelihood_score === 'HIGH' || p.likelihood_score === 'CRITICAL';
-
-                return isRisk || isPopular || hasRole || isVerified;
+                // Relaxed check: Keep if any relevance signal is present
+                return (p.red_flag_rating || 0) >= 1 || (p.mentions || 0) >= 1 || (p.photos && p.photos.length > 0) || (p.role && p.role !== 'Unknown');
               });
             }
+
           }
 
           // Note: Server-side filtering by likelihoodScore (via red_flag_rating ranges) is now used.

@@ -580,6 +580,10 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
   }) => {
     const location = useLocation();
     const navigate = useNavigate();
+    const [snippetText, setSnippetText] = useState<string>('');
+    const [addingSnippet, setAddingSnippet] = useState<boolean>(false);
+    const [investigationChoice, setInvestigationChoice] = useState<number | null>(null);
+    const [investigationsList, setInvestigationsList] = useState<any[]>([]);
 
     // Determine active tab from URL
     type DocumentTab =
@@ -687,6 +691,55 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
         return () => clearTimeout(timer);
       }
     }, [document.id, searchTerm, activeTab]);
+
+    useEffect(() => {
+      const handler = () => {
+        if (!contentRef.current) return;
+        const sel = window.getSelection();
+        if (!sel || sel.isCollapsed) {
+          setSnippetText('');
+          return;
+        }
+        const text = sel.toString();
+        setSnippetText(text.length > 0 ? text : '');
+      };
+      document.addEventListener('mouseup', handler);
+      return () => document.removeEventListener('mouseup', handler);
+    }, []);
+
+    const addSnippet = async () => {
+      if (!snippetText || !snippetText.trim()) return;
+      try {
+        setAddingSnippet(true);
+        let invId = investigationChoice;
+        if (!invId) {
+          const resp = await fetch(
+            `/api/investigations/by-title?title=${encodeURIComponent('Sascha Barros Testimony')}`,
+          );
+          if (resp.ok) {
+            const inv = await resp.json();
+            invId = inv.id;
+          }
+        }
+        if (!invId) return;
+        const res = await fetch('/api/investigation/add-snippet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            investigationId: invId,
+            documentId: document.id,
+            snippetText,
+            notes: '',
+            relevance: 'high',
+          }),
+        });
+        if (res.ok) {
+          setSnippetText('');
+        }
+      } finally {
+        setAddingSnippet(false);
+      }
+    };
 
     const handleDownload = () => {
       // Construct download URL for the text file
@@ -864,6 +917,49 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                   searchTerm={searchTerm}
                   showRaw={showRaw}
                 />
+              )}
+              {activeTab === 'content' && snippetText && (
+                <div className="fixed bottom-6 right-6 z-40 bg-gray-800 border border-gray-700 rounded-lg p-3 shadow-xl">
+                  <div className="text-xs text-gray-300 max-w-xs line-clamp-3 mb-2">
+                    {snippetText}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={investigationChoice ?? ''}
+                      onChange={(e) => setInvestigationChoice(parseInt(e.target.value) || null)}
+                      onFocus={async () => {
+                        if (investigationsList.length > 0) return;
+                        const r = await fetch('/api/investigations?page=1&limit=50');
+                        if (r.ok) {
+                          const data = await r.json();
+                          const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+                          setInvestigationsList(list);
+                        }
+                      }}
+                      className="text-xs bg-gray-700 text-white border border-gray-600 rounded px-2 py-1"
+                    >
+                      <option value="">Sascha Barros Testimony</option>
+                      {investigationsList.map((inv: any) => (
+                        <option key={inv.id} value={inv.id}>
+                          {inv.title}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={addSnippet}
+                      disabled={addingSnippet}
+                      className="px-3 py-1.5 text-xs rounded bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50"
+                    >
+                      Add Snippet
+                    </button>
+                    <button
+                      onClick={() => setSnippetText('')}
+                      className="px-2 py-1.5 text-xs rounded bg-gray-700 text-gray-300"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
               )}
 
               {activeTab === 'original' && (

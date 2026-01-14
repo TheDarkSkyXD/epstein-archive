@@ -188,6 +188,9 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
     Array<{ action: string; imageIds: number[]; prevState: MediaImage[] }>
   >([]);
 
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+
   // Track if URL params have been initialized
   const [initialized, setInitialized] = useState(false);
 
@@ -237,9 +240,9 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
     loadAlbums();
   }, []);
 
-  // Sync URL with filters and load images - only after initialized
+  // Sync URL with filters
   useEffect(() => {
-    if (!initialized) return; // Don't run until URL params are parsed
+    if (!initialized) return;
 
     const url = new URL(window.location.href);
 
@@ -256,44 +259,25 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
     else url.searchParams.delete('hasPeople');
 
     window.history.replaceState({}, '', url);
-    loadImages();
   }, [initialized, selectedAlbum, selectedTag, selectedPerson, hasPeopleOnly]);
 
-  // Keyboard shortcuts
+  // Main data fetch efffect
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if typing in an input
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return;
-      }
-
-      // Batch mode shortcuts
-      if (isBatchMode) {
-        if (e.key === 'Escape') {
-          exitBatchMode();
-        } else if (e.key === 'a' && (e.ctrlKey || e.metaKey)) {
-          e.preventDefault();
-          selectAllImages();
-        } else if (e.key === 'i') {
-          clearSelection();
-        }
-      } else {
-        // Enter batch mode with Ctrl/Cmd+B
-        if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
-          e.preventDefault();
-          enterBatchMode();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isBatchMode]);
-
-  useEffect(() => {
-    if (!initialized) return; // Don't run until URL params are parsed
-    loadImages();
-  }, [initialized, sortField, sortOrder, searchQuery]);
+    if (!initialized) return;
+    
+    // Reset to page 1 for any filter change
+    setPage(1);
+    fetchImages(1, false);
+  }, [
+    initialized, 
+    selectedAlbum, 
+    selectedTag, 
+    selectedPerson, 
+    hasPeopleOnly, 
+    sortField, 
+    sortOrder, 
+    searchQuery
+  ]);
 
   const loadAlbums = async () => {
     try {
@@ -310,7 +294,9 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
     }
   };
 
-  const loadImages = async () => {
+  const fetchImages = async (pageNum: number, append: boolean) => {
+    if (append && !hasMore) return;
+    
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -321,6 +307,11 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
       if (sortField) params.append('sortField', sortField);
       if (sortOrder) params.append('sortOrder', sortOrder);
       if (searchQuery) params.append('search', searchQuery);
+
+      // Pagination
+      const limit = 50;
+      params.append('page', pageNum.toString());
+      params.append('limit', limit.toString());
 
       // Request slim response for faster grid view loading
       params.append('slim', 'true');
@@ -337,15 +328,35 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
             fileSize: img.fileSize || 0,
           }))
         : [];
-      setImages(normalized);
+      
+      if (append) {
+        setImages(prev => [...prev, ...normalized]);
+      } else {
+        setImages(normalized);
+      }
+      
+      // Determine if there are more items
+      const totalCountHeader = response.headers.get('X-Total-Count');
+      if (totalCountHeader) {
+        const total = parseInt(totalCountHeader);
+        const currentCount = (pageNum - 1) * limit + normalized.length;
+        setHasMore(currentCount < total);
+      } else {
+        setHasMore(normalized.length === limit);
+      }
 
-      // Check for photoId deep link
-      const urlParams = new URLSearchParams(window.location.search);
-      const photoId = urlParams.get('photoId');
-      if (photoId) {
-        const index = normalized.findIndex((img) => img.id.toString() === photoId);
-        if (index !== -1) {
-          setViewerStartIndex(index);
+      // Check for photoId deep link (only on initial load)
+      if (pageNum === 1) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const photoId = urlParams.get('photoId');
+        if (photoId) {
+          // If the photo is not in the first page, we might miss it.
+          // Ideally, we'd fetch that specific photo or jump to its page.
+          // For now, check if it's in the loaded batch.
+          const index = normalized.findIndex((img) => img.id.toString() === photoId);
+          if (index !== -1) {
+            setViewerStartIndex(index);
+          }
         }
       }
     } catch (error) {
@@ -721,7 +732,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 border border-slate-800 shadow-2xl overflow-hidden rounded-lg">
+    <div className="flex flex-col h-full min-h-[500px] bg-slate-950 border border-slate-800 shadow-2xl overflow-hidden rounded-lg">
       {/* Header with controls */}
       <div className="bg-slate-900 border-b border-slate-800 flex flex-col md:flex-row md:items-center justify-between px-3 py-2 md:px-4 md:h-14 shrink-0 z-10 gap-2">
         {/* Mobile Album Dropdown */}
@@ -1041,6 +1052,14 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
                         itemData={itemData}
                         className="scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent p-4"
                         style={{ overflowX: 'hidden' }}
+                        onItemsRendered={({ visibleRowStopIndex }) => {
+                          const visibleIndex = visibleRowStopIndex * columnCount;
+                          if (visibleIndex >= images.length - 20 && hasMore && !loading) {
+                            const nextPage = page + 1;
+                            setPage(nextPage);
+                            fetchImages(nextPage, true);
+                          }
+                        }}
                       >
                         {GridCell}
                       </Grid>
@@ -1065,6 +1084,13 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
                         width={width}
                         itemData={itemData}
                         className="scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent p-4"
+                        onItemsRendered={({ visibleStopIndex }) => {
+                          if (visibleStopIndex >= images.length - 10 && hasMore && !loading) {
+                            const nextPage = page + 1;
+                            setPage(nextPage);
+                            fetchImages(nextPage, true);
+                          }
+                        }}
                       >
                         {ListRow}
                       </List>

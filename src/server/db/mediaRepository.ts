@@ -22,7 +22,13 @@ export const mediaRepository = {
       )
       ORDER BY a.name
     `;
-    return db.prepare(query).all(likePattern) as any[];
+    const result = db.prepare(query).all(likePattern) as any[];
+    console.log(`getAlbumsByMediaType(${fileType}) found ${result.length} albums`);
+    const sacha = result.find(a => a.id === 25);
+    if (sacha) {
+      console.log('Sacha album debug:', sacha);
+    }
+    return result;
   },
 
   // Get media items for an entity
@@ -172,12 +178,16 @@ export const mediaRepository = {
       if (filters.fileType === 'image') {
         whereConditions.push("file_type LIKE 'image/%'");
       } else if (filters.fileType === 'audio') {
-        whereConditions.push("file_type LIKE 'audio/%'");
+        // Relaxed filter to catch any audio type
+        whereConditions.push("file_type LIKE '%audio%'");
       } else {
         whereConditions.push('file_type LIKE ?');
         params.push(`${filters.fileType}%`);
       }
     }
+
+    console.log('getMediaItemsPaginated params:', { page, limit, filters });
+    console.log('getMediaItemsPaginated whereConditions:', whereConditions);
 
     if (filters?.albumId !== undefined) {
       whereConditions.push('album_id = ?');

@@ -185,12 +185,16 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({ initialAlbumId }) =>
     return () => observer.disconnect();
   }, []);
 
-  // Calculate columns based on container width (matching Tailwind breakpoints)
+  // Calculate columns dynamically based on available width
   const columns = useMemo(() => {
-    if (containerWidth >= 1280) return 4; // xl
-    if (containerWidth >= 1024) return 3; // lg
-    if (containerWidth >= 768) return 2; // md
-    return 1; // sm
+    if (containerWidth === 0) return 1;
+    // Target card width roughly 320px-350px
+    const gap = 24; // gap-6
+    const padding = 48; // px-6 * 2
+    const minCardWidth = 320;
+    const available = containerWidth - padding;
+    const cols = Math.floor((available + gap) / (minCardWidth + gap));
+    return Math.max(1, cols);
   }, [containerWidth]);
 
   const rowCount = Math.ceil(items.length / columns);
@@ -219,7 +223,12 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({ initialAlbumId }) =>
 
       return (
         <div style={style} className="px-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
+          <div 
+            className="grid gap-6 pb-6"
+            style={{ 
+              gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` 
+            }}
+          >
             {rowItems.map((item) => {
               const isSelected = selectedItems.has(item.id);
               return (
@@ -310,7 +319,7 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({ initialAlbumId }) =>
   );
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 border border-slate-800 shadow-2xl overflow-hidden rounded-lg">
+    <div className="flex flex-col h-full min-h-[500px] bg-slate-950 border border-slate-800 shadow-2xl overflow-hidden rounded-lg">
       {/* Header */}
       <div className="bg-slate-900 border-b border-slate-800 flex flex-col md:flex-row md:items-center justify-between px-3 py-2 md:px-4 md:h-14 shrink-0 z-10 gap-2">
         {/* Mobile Album Dropdown */}
@@ -443,13 +452,14 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({ initialAlbumId }) =>
                 <List
                   height={containerRef.current?.clientHeight || 600}
                   itemCount={rowCount}
-                  itemSize={450}
+                  itemSize={380}
                   width="100%"
                   overscanCount={2}
+                  className="scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent pt-6"
                   onScroll={({ scrollOffset, scrollUpdateWasRequested }) => {
                     if (scrollUpdateWasRequested) return;
                     const containerHeight = containerRef.current?.clientHeight || 600;
-                    const totalHeight = rowCount * 450;
+                    const totalHeight = rowCount * 380;
                     if (
                       scrollOffset + containerHeight >= totalHeight - 200 &&
                       !loading &&

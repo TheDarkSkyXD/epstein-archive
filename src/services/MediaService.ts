@@ -43,6 +43,7 @@ export class MediaService {
       LEFT JOIN media_images i ON a.id = i.album_id
       LEFT JOIN media_images ci ON a.cover_image_id = ci.id
       GROUP BY a.id
+      HAVING imageCount > 0
       ORDER BY a.name
     `);
     return stmt.all() as Album[];

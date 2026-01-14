@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { AudioPlayer, TranscriptSegment, Chapter } from './AudioPlayer';
 import { Music, CheckSquare, Square, AlertTriangle, Clock, Calendar } from 'lucide-react';
 import { SensitiveContent } from './SensitiveContent';
@@ -434,22 +435,24 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({ initialAlbumId }) =>
       )}
 
       {/* Audio Player Modal */}
-      {selectedItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 md:p-8">
-          <div className="w-full max-w-5xl h-[80vh]">
-            <AudioPlayer
-              src={`/api/media/audio/${selectedItem.id}/stream`}
-              title={selectedItem.title}
-              transcript={selectedItem.metadata.transcript}
-              chapters={selectedItem.metadata.chapters}
-              onClose={() => setSelectedItem(null)}
-              autoPlay
-              isSensitive={selectedItem.isSensitive}
-              warningText={selectedItem.description}
-            />
-          </div>
-        </div>
-      )}
+      {selectedItem &&
+        createPortal(
+          <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 md:p-8 animate-in fade-in duration-200">
+            <div className="w-full max-w-5xl h-[80vh] shadow-2xl ring-1 ring-white/10 rounded-lg overflow-hidden">
+              <AudioPlayer
+                src={`/api/media/audio/${selectedItem.id}/stream`}
+                title={selectedItem.title}
+                transcript={selectedItem.metadata.transcript}
+                chapters={selectedItem.metadata.chapters}
+                onClose={() => setSelectedItem(null)}
+                autoPlay
+                isSensitive={selectedItem.isSensitive}
+                warningText={selectedItem.description}
+              />
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 };

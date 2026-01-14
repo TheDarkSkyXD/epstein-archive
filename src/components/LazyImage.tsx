@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
+import { useSharedIntersectionObserver } from '../hooks/useSharedIntersectionObserver';
 
 interface LazyImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   placeholderSrc?: string;
@@ -17,32 +18,17 @@ export const LazyImage: React.FC<LazyImageProps> = ({
   const [isInView, setIsInView] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setIsInView(true);
-            observer.unobserve(entry.target);
-          }
-        });
-      },
-      {
-        threshold,
-        rootMargin: '200px', // Start loading 200px before it enters viewport
-      },
-    );
-
-    if (imgRef.current) {
-      observer.observe(imgRef.current);
+  // Use shared IntersectionObserver instead of creating one per image
+  const handleIntersection = useCallback((intersecting: boolean) => {
+    if (intersecting) {
+      setIsInView(true);
     }
+  }, []);
 
-    return () => {
-      if (imgRef.current) {
-        observer.unobserve(imgRef.current);
-      }
-    };
-  }, [threshold]);
+  useSharedIntersectionObserver(imgRef, handleIntersection, {
+    threshold,
+    rootMargin: '200px',
+  });
 
   return (
     <div

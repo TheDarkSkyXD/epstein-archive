@@ -2173,18 +2173,14 @@ app.get('/api/media/images', async (req, res, next) => {
   try {
     const filter: any = {};
     const sort: any = {};
-
-    // Pagination params - only apply if explicitly requested
-    const hasPagination = req.query.page || req.query.limit;
     const slim = req.query.slim === 'true'; // Return minimal fields for grid view
 
-    if (hasPagination) {
-      const page = Math.max(1, parseInt(req.query.page as string) || 1);
-      const limit = Math.min(1000, Math.max(1, parseInt(req.query.limit as string) || 100));
-      const offset = (page - 1) * limit;
-      filter.limit = limit;
-      filter.offset = offset;
-    }
+    // Pagination params - apply defaults if not provided to prevent loading all images
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(1000, Math.max(1, parseInt(req.query.limit as string) || 50));
+    const offset = (page - 1) * limit;
+    filter.limit = limit;
+    filter.offset = offset;
 
     if (req.query.albumId) {
       filter.albumId = parseInt(req.query.albumId as string);
@@ -2223,16 +2219,17 @@ app.get('/api/media/images', async (req, res, next) => {
     res.set('X-Total-Count', totalCount.toString());
     res.set('Access-Control-Expose-Headers', 'X-Total-Count');
 
-    // If slim mode, return only essential fields for grid view
+    // If slim mode, return only essential fields for grid view (minimize payload)
     if (slim && Array.isArray(images)) {
       const slimImages = images.map((img: any) => ({
         id: img.id,
-        path: img.path,
-        thumbnail_path: img.thumbnail_path,
         title: img.title,
-        album_id: img.album_id,
-        width: img.width,
-        height: img.height,
+        isSensitive: img.is_sensitive,
+        albumId: img.album_id,
+        dateTaken: img.date_taken,
+        dateAdded: img.date_added,
+        dateModified: img.date_modified,
+        fileSize: img.file_size,
       }));
       return res.json(slimImages);
     }
@@ -2395,11 +2392,22 @@ app.get('/api/media/images/:id/thumbnail', async (req, res, next) => {
       return res.status(404).json({ error: 'Thumbnail not found' });
     }
 
-    // Set cache headers for thumbnails
+    // Set aggressive cache headers for thumbnails (immutable - never change)
+    const stat = fs.statSync(absPath);
+    const etag = `"${imageId}-${stat.mtime.getTime()}"`;
+
     res.set({
-      'Cache-Control': 'public, max-age=31536000',
+      'Cache-Control': 'public, max-age=31536000, immutable',
       'Content-Type': 'image/jpeg',
+      ETag: etag,
+      'Last-Modified': stat.mtime.toUTCString(),
     });
+
+    // Handle conditional GET requests (304 Not Modified)
+    if (req.headers['if-none-match'] === etag) {
+      return res.status(304).end();
+    }
+
     res.sendFile(absPath);
   } catch (error) {
     next(error);

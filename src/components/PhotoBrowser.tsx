@@ -325,38 +325,16 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
       // Request slim response for faster grid view loading
       params.append('slim', 'true');
 
-      params.append('_t', Date.now().toString()); // Cache busting
+      // Removed cache busting to enable browser caching - thumbnails rarely change
       const response = await fetch(`/api/media/images?${params}`);
       const data = await response.json();
+
+      // Backend now returns consistent camelCase in slim mode - minimal normalization needed
       const normalized: MediaImage[] = Array.isArray(data)
         ? data.map((img: any) => ({
-            id: img.id,
-            filename: img.filename || img.fileName,
-            originalFilename: img.original_filename || img.originalFilename,
-            path: img.path || img.filePath,
-            thumbnailPath: img.thumbnail_path || img.thumbnailPath || img.path || img.filePath,
-            title: img.title || img.filename,
-            description: img.description || '',
-            albumId: img.album_id || img.albumId,
-            albumName: img.albumName,
-            width: img.width || 0,
-            height: img.height || 0,
-            fileSize: img.file_size || img.fileSize || 0,
-            format: img.format || 'unknown',
-            dateTaken: img.date_taken || img.dateTaken,
-            dateAdded: img.date_added || img.dateAdded,
-            dateModified: img.date_modified || img.dateModified,
-            tags: img.tags || [],
-            cameraMake: img.camera_make || img.cameraMake,
-            cameraModel: img.camera_model || img.cameraModel,
-            lens: img.lens,
-            focalLength: img.focal_length || img.focalLength,
-            aperture: img.aperture,
-            shutterSpeed: img.shutter_speed || img.shutterSpeed,
-            iso: img.iso,
+            ...img,
             isSensitive: Boolean(img.isSensitive),
-            latitude: img.latitude,
-            longitude: img.longitude,
+            fileSize: img.fileSize || 0,
           }))
         : [];
       setImages(normalized);
@@ -709,7 +687,8 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
     }
   };
 
-  const formatFileSize = (bytes: number | string | undefined): string => {
+  // Memoize formatters to prevent recreation on every render (performance optimization)
+  const formatFileSize = useCallback((bytes: number | string | undefined): string => {
     const numBytes = Number(bytes);
     if (bytes === undefined || bytes === null || bytes === '' || !Number.isFinite(numBytes))
       return 'Unknown';
@@ -717,9 +696,9 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
     if (numBytes < 1024) return `${numBytes} B`;
     if (numBytes < 1024 * 1024) return `${(numBytes / 1024).toFixed(1)} KB`;
     return `${(numBytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
+  }, []);
 
-  const formatDate = (dateString: string | undefined | null): string => {
+  const formatDate = useCallback((dateString: string | undefined | null): string => {
     if (!dateString) return 'Unknown';
     try {
       const date = new Date(dateString);
@@ -732,7 +711,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
     } catch (e) {
       return 'Unknown';
     }
-  };
+  }, []);
 
   const handleCloseViewer = () => {
     setViewerStartIndex(null);

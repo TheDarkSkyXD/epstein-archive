@@ -67,8 +67,14 @@ export function runMigrations() {
             db.exec(stmt);
           } catch (err: any) {
             // Ignore duplicate column errors (manual IF NOT EXISTS)
-            if (err.message && (err.message.includes('duplicate column name') || err.message.includes('already exists'))) {
-              console.log(`[Migrator]   ⚠ Skipping duplicate/existing: ${stmt.substring(0, 50)}...`);
+            if (
+              err.message &&
+              (err.message.includes('duplicate column name') ||
+                err.message.includes('already exists'))
+            ) {
+              console.log(
+                `[Migrator]   ⚠ Skipping duplicate/existing: ${stmt.substring(0, 50)}...`,
+              );
               continue;
             }
             throw err;

@@ -12,16 +12,16 @@ function getDb() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      filename TEXT UNIQUE NOT NULL,
-      applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      name TEXT UNIQUE NOT NULL,
+      run_on DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
   return db;
 }
 
 function getAppliedMigrations(db: Database.Database): Set<string> {
-  const rows = db.prepare('SELECT filename FROM schema_migrations ORDER BY id').all();
-  return new Set(rows.map((r: any) => r.filename as string));
+  const rows = db.prepare('SELECT name FROM schema_migrations ORDER BY id').all();
+  return new Set(rows.map((r: any) => r.name as string));
 }
 
 function applyMigration(db: Database.Database, filename: string, sql: string) {
@@ -57,7 +57,7 @@ function applyMigration(db: Database.Database, filename: string, sql: string) {
       }
     }
 
-    db.prepare('INSERT INTO schema_migrations (filename) VALUES (?)').run(filename);
+    db.prepare('INSERT INTO schema_migrations (name) VALUES (?)').run(filename);
     db.exec('COMMIT');
     console.log(`✔ Applied ${filename}`);
   } catch (err) {

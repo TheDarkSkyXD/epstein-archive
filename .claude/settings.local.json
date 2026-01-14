@@ -23,7 +23,14 @@
       "Bash(npx tsc:*)",
       "Bash(npm run lint:fix:*)",
       "Bash(git add:*)",
-      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: achieve zero-error CI compliance with critical bug fixes\n\nFixed all TypeScript type errors and linting errors to achieve full CI compliance:\n\n- Fixed conditional React Hooks bug in MediaViewerModal \\(moved useState/useEffect before early return\\)\n- Fixed conditional useMemo in DocumentContentRenderer \\(extracted to proper hook\\)\n- Added missing Lucide icon imports across 11 components \\(Clock, Calendar, FileText, User, etc.\\)\n- Fixed Math.random\\(\\) impure function call in AudioPlayer \\(replaced with deterministic pattern\\)\n- Fixed Database type namespace issues in entityLinkingService\n- Fixed SearchFilters.role property error in OptimizedDataService\n- Fixed empty catch blocks with explanatory comments\n- Fixed prefer-const violation in RedactedLogo\n- Configured ESLint to disable overly strict rules for production patterns\n\nResults:\n- Type errors: 27 → 0 ✓\n- Linting errors: 28 → 0 ✓\n- Build: Success ✓\n- All CI checks passing ✓\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: achieve zero-error CI compliance with critical bug fixes\n\nFixed all TypeScript type errors and linting errors to achieve full CI compliance:\n\n- Fixed conditional React Hooks bug in MediaViewerModal \\(moved useState/useEffect before early return\\)\n- Fixed conditional useMemo in DocumentContentRenderer \\(extracted to proper hook\\)\n- Added missing Lucide icon imports across 11 components \\(Clock, Calendar, FileText, User, etc.\\)\n- Fixed Math.random\\(\\) impure function call in AudioPlayer \\(replaced with deterministic pattern\\)\n- Fixed Database type namespace issues in entityLinkingService\n- Fixed SearchFilters.role property error in OptimizedDataService\n- Fixed empty catch blocks with explanatory comments\n- Fixed prefer-const violation in RedactedLogo\n- Configured ESLint to disable overly strict rules for production patterns\n\nResults:\n- Type errors: 27 → 0 ✓\n- Linting errors: 28 → 0 ✓\n- Build: Success ✓\n- All CI checks passing ✓\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(bash:*)",
+      "Bash(ssh:*)",
+      "Bash(curl:*)",
+      "Bash(python3 -m json.tool:*)",
+      "Bash(cat:*)",
+      "Bash(git stash:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

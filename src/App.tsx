@@ -132,11 +132,14 @@ const parseReleaseNotes = (markdown: string) => {
           }
         }
 
-        // Find all bullet points
+        // Find all bullet points and section headers
         const notes: string[] = [];
         for (const line of lines) {
           if (line.startsWith('- ') || line.startsWith('* ')) {
             notes.push(line.substring(2));
+          } else if (line.startsWith('### ')) {
+            // Include markdown section headers
+            notes.push(line);
           }
         }
 

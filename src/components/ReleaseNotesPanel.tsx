@@ -94,24 +94,40 @@ export const ReleaseNotesPanel: React.FC<ReleaseNotesPanelProps> = ({
                     </h3>
                   </div>
 
-                  <ul className="space-y-3 bg-slate-800/30 rounded-lg p-4 border border-slate-700/50">
-                    {release.notes.map((note, noteIndex) => (
-                      <li key={noteIndex} className="flex items-start gap-3">
-                        <span className="text-cyan-500/70 mt-1.5 text-[10px]">●</span>
-                        <div className="text-sm text-slate-300 leading-relaxed">
-                          {note.split(/(\*\*.*?\*\*)/).map((part, i) =>
-                            part.startsWith('**') && part.endsWith('**') ? (
-                              <strong key={i} className="font-semibold text-cyan-100">
-                                {part.slice(2, -2)}
-                              </strong>
-                            ) : (
-                              <span key={i}>{part}</span>
-                            ),
-                          )}
+                  <div className="space-y-3 bg-slate-800/30 rounded-lg p-4 border border-slate-700/50">
+                    {release.notes.map((note, noteIndex) => {
+                      // Check if this is a markdown header (### text)
+                      if (note.startsWith('### ')) {
+                        const headerText = note.substring(4).trim();
+                        return (
+                          <h4
+                            key={noteIndex}
+                            className="text-base font-semibold text-cyan-300 mt-4 first:mt-0 mb-2"
+                          >
+                            {headerText}
+                          </h4>
+                        );
+                      }
+
+                      // Regular bullet point
+                      return (
+                        <div key={noteIndex} className="flex items-start gap-3">
+                          <span className="text-cyan-500/70 mt-1.5 text-[10px]">●</span>
+                          <div className="text-sm text-slate-300 leading-relaxed">
+                            {note.split(/(\*\*.*?\*\*)/).map((part, i) =>
+                              part.startsWith('**') && part.endsWith('**') ? (
+                                <strong key={i} className="font-semibold text-cyan-100">
+                                  {part.slice(2, -2)}
+                                </strong>
+                              ) : (
+                                <span key={i}>{part}</span>
+                              ),
+                            )}
+                          </div>
                         </div>
-                      </li>
-                    ))}
-                  </ul>
+                      );
+                    })}
+                  </div>
                 </div>
               ))}
             </div>

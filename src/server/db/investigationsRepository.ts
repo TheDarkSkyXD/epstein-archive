@@ -320,9 +320,6 @@ export const investigationsRepository = {
       description?: string;
       scope?: string;
       status?: 'open' | 'in_review' | 'closed' | 'archived';
-      collaboratorIds?: string[];
-    },
-  ) => {
     const db = getDb();
     const fields: string[] = [];
     const params: any = { id };
@@ -331,6 +328,61 @@ export const investigationsRepository = {
       fields.push('title = @title');
       params.title = updates.title;
     }
+
+  getNotebook: async (investigationId: number) => {
+    const db = getDb();
+    const row = db
+      .prepare(
+        `
+      SELECT investigation_id as investigationId, order_json as orderJson, annotations_json as annotationsJson, updated_at as updatedAt
+      FROM investigation_notebook
+      WHERE investigation_id = ?
+    `,
+      )
+      .get(investigationId) as any;
+    if (!row) {
+      return { investigationId, order: [], annotations: [], updatedAt: null };
+    }
+    let order = [];
+    let annotations = [];
+    try {
+      order = row.orderJson ? JSON.parse(row.orderJson) : [];
+    } catch {
+      order = [];
+    }
+    try {
+      annotations = row.annotationsJson ? JSON.parse(row.annotationsJson) : [];
+    } catch {
+      annotations = [];
+    }
+    return { investigationId, order, annotations, updatedAt: row.updatedAt };
+  },
+
+  saveNotebook: async (investigationId: number, payload: { order?: number[]; annotations?: any[] }) => {
+    const db = getDb();
+    const existing = db
+      .prepare(`SELECT investigation_id FROM investigation_notebook WHERE investigation_id = ?`)
+      .get(investigationId);
+    const orderJson = JSON.stringify(payload.order || []);
+    const annotationsJson = JSON.stringify(payload.annotations || []);
+    if (existing) {
+      db.prepare(
+        `
+        UPDATE investigation_notebook
+        SET order_json = ?, annotations_json = ?, updated_at = datetime('now')
+        WHERE investigation_id = ?
+      `,
+      ).run(orderJson, annotationsJson, investigationId);
+    } else {
+      db.prepare(
+        `
+        INSERT INTO investigation_notebook (investigation_id, order_json, annotations_json, updated_at)
+        VALUES (?, ?, ?, datetime('now'))
+      `,
+      ).run(investigationId, orderJson, annotationsJson);
+    }
+    return true;
+  },
     if (updates.description !== undefined) {
       fields.push('description = @description');
       params.description = updates.description;

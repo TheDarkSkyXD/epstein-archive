@@ -262,6 +262,15 @@ export class DatabaseService {
         ('user-1', 'Admin User', 'admin@example.com', 'admin'),
         ('user-2', 'Lead Investigator', 'lead@example.com', 'investigator'),
         ('user-3', 'Analyst', 'analyst@example.com', 'viewer');
+
+        -- Evidence Notebook persistence
+        CREATE TABLE IF NOT EXISTS investigation_notebook (
+          investigation_id INTEGER PRIMARY KEY,
+          order_json TEXT,
+          annotations_json TEXT,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (investigation_id) REFERENCES investigations(id) ON DELETE CASCADE
+        );
     `);
 
     // Ensure financial_transactions exists (added later)

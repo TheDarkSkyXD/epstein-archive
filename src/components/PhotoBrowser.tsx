@@ -174,7 +174,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
   const [loading, setLoading] = useState(true);
   const [viewerStartIndex, setViewerStartIndex] = useState<number | null>(null);
   const [showAlbumDropdown, setShowAlbumDropdown] = useState(false); // Mobile album dropdown
-  const [hasPeopleOnly, setHasPeopleOnly] = useState(false); // Filter: Has people
+  const [hasPeopleOnly, setHasPeopleOnly] = useState(true); // Default to people-linked images
   const [availableTags, setAvailableTags] = useState<any[]>([]);
   const [availablePeople, setAvailablePeople] = useState<any[]>([]);
 
@@ -332,6 +332,10 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
       if (selectedTag) params.append('tagId', selectedTag.toString());
       if (selectedPerson) params.append('personId', selectedPerson.toString());
       if (hasPeopleOnly) params.append('hasPeople', 'true');
+      params.append('verificationStatus', 'verified');
+      params.append('minRedFlagRating', '2');
+      params.append('sortField', 'date_added');
+      params.append('sortOrder', 'desc');
       if (sortField) params.append('sortField', sortField);
       if (sortOrder) params.append('sortOrder', sortOrder);
       if (searchQuery) params.append('search', searchQuery);

@@ -35,6 +35,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { DataIntegrityPanel } from './DataIntegrityPanel';
 import { EvidencePacketExporter } from './EvidencePacketExporter';
 import { InvestigationEvidencePanel } from './InvestigationEvidencePanel';
+import { EvidenceNotebook } from './EvidenceNotebook';
 import { HypothesisTestingFramework } from './HypothesisTestingFramework';
 import { InvestigationTeamManagement } from './InvestigationTeamManagement';
 import { AddToInvestigationButton } from './AddToInvestigationButton';
@@ -955,6 +956,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                     { id: 'overview', label: 'Overview' },
                     { id: 'evidence', label: 'Evidence' },
                     { id: 'hypotheses', label: 'Hypotheses' },
+                    { id: 'notebook', label: 'Notebook' },
                     { id: 'financial', label: 'Financial' },
                     { id: 'timeline', label: 'Timeline' },
                     { id: 'forensic', label: 'Forensic' },
@@ -986,6 +988,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                   { id: 'overview', label: 'Overview', icon: Search },
                   { id: 'evidence', label: 'Evidence', icon: FileText },
                   { id: 'hypotheses', label: 'Hypotheses', icon: Target },
+                  { id: 'notebook', label: 'Notebook', icon: FileText },
                   { id: 'financial', label: 'Financial', icon: DollarSign },
                   { id: 'timeline', label: 'Timeline', icon: Calendar },
                   { id: 'forensic', label: 'Forensic', icon: Microscope },
@@ -1116,6 +1119,11 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                 evidenceItems={evidenceItems}
                 onHypothesesUpdate={setHypotheses}
               />
+            )}
+            {activeTab === 'notebook' && selectedInvestigation && (
+              <div>
+                <EvidenceNotebook investigationId={selectedInvestigation.id} />
+              </div>
             )}
 
             {activeTab === 'financial' && (

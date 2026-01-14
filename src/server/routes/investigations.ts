@@ -186,4 +186,55 @@ router.post('/:id/evidence', authenticateRequest, async (req, res, next) => {
   }
 });
 
+// Notebook persistence
+router.get('/:id/notebook', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const notebook = await investigationsRepository.getNotebook(parseInt(id));
+    res.json(notebook);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put('/:id/notebook', authenticateRequest, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { order, annotations } = req.body || {};
+    await investigationsRepository.saveNotebook(parseInt(id), { order, annotations });
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Publish Briefing (Markdown)
+router.get('/:id/briefing', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const repoModule = await import('../db/evidenceRepository.js');
+    const summary = await repoModule.evidenceRepository.getInvestigationEvidenceSummary(id);
+    let md = `# Investigation Briefing\\n\\nTotal Evidence: ${summary.totalEvidence}\\n\\n`;
+    const byType: Record<string, any[]> = {};
+    for (const e of summary.evidence) {
+      const t = e.evidence_type || 'unknown';
+      byType[t] = byType[t] || [];
+      byType[t].push(e);
+    }
+    for (const [type, list] of Object.entries(byType)) {
+      md += `## ${type.toUpperCase()}\\n`;
+      for (const e of list) {
+        const title = e.title || 'Untitled';
+        const desc = e.description || '';
+        md += `- ${title}\\n`;
+        if (desc) md += `  - ${desc}\\n`;
+      }
+      md += `\\n`;
+    }
+    res.header('Content-Type', 'text/markdown').send(md);
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

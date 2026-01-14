@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { FixedSizeList as List } from 'react-window';
 import { VideoPlayer } from './VideoPlayer';
 import { Play, Film, Calendar, CheckSquare, Square, AlertTriangle, User } from 'lucide-react';
 import { SensitiveContent } from './SensitiveContent';
@@ -146,19 +147,159 @@ export const VideoBrowser: React.FC = () => {
     fetchVideos(nextPage);
   };
 
-  const formatDate = (dateStr: string) => {
+  const formatDate = useCallback((dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     });
-  };
+  }, []);
+
+  // Virtualization setup
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  // Measure container width for responsive grid calculation
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      setContainerWidth(entries[0].contentRect.width);
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  // Calculate columns based on container width (matching Tailwind breakpoints)
+  const columns = useMemo(() => {
+    if (containerWidth >= 1280) return 4; // xl
+    if (containerWidth >= 1024) return 3; // lg
+    if (containerWidth >= 768) return 2; // md
+    return 1; // sm
+  }, [containerWidth]);
+
+  const rowCount = Math.ceil(items.length / columns);
+  const isItemLoaded = (index: number) => index < rowCount;
+  const loadMoreItems = useCallback(
+    (_startIndex: number, _stopIndex: number) => {
+      if (!loading && hasMore) {
+        return handleLoadMore();
+      }
+      return Promise.resolve();
+    },
+    [loading, hasMore],
+  );
 
   const currentAlbum = albums.find((a) => a.id === selectedAlbum);
   const showSensitiveWarning =
     currentAlbum &&
     (currentAlbum.name.match(/Sensitive|Disturbing|Testimony|Victim|Survivor/i) ||
       (currentAlbum.sensitiveCount && currentAlbum.sensitiveCount > 0));
+
+  // Row renderer for virtualized list
+  const Row = useCallback(
+    ({ index, style }: { index: number; style: React.CSSProperties }) => {
+      const startIdx = index * columns;
+      const rowItems = items.slice(startIdx, startIdx + columns);
+
+      return (
+        <div style={style} className="px-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
+            {rowItems.map((item) => {
+              const isSelected = selectedItems.has(item.id);
+              return (
+                <div
+                  key={item.id}
+                  className={`bg-slate-900/50 border rounded-lg overflow-hidden transition-all group cursor-pointer ${isSelected ? 'border-cyan-500 ring-1 ring-cyan-500' : 'border-slate-800 hover:border-cyan-500/30'}`}
+                  onClick={() => {
+                    if (isBatchMode) {
+                      toggleSelection(item.id);
+                    } else {
+                      setSelectedItem(item);
+                    }
+                  }}
+                >
+                  <SensitiveContent isSensitive={item.isSensitive} className="relative aspect-video bg-black">
+                    {isBatchMode && (
+                      <div className="absolute top-2 left-2 z-20">
+                        {isSelected ? (
+                          <CheckSquare className="text-cyan-500 fill-cyan-950" />
+                        ) : (
+                          <Square className="text-white/70" />
+                        )}
+                      </div>
+                    )}
+                    {item.metadata.thumbnailPath ? (
+                      <img
+                        src={`/api/media/video/${item.id}/thumbnail`}
+                        alt={item.title}
+                        className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-slate-900">
+                        <Film size={48} className="text-slate-700" />
+                      </div>
+                    )}
+
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-full bg-black/50 border border-white/20 flex items-center justify-center backdrop-blur-sm group-hover:scale-110 transition-transform">
+                        <Play size={20} className="text-white fill-white ml-1" />
+                      </div>
+                    </div>
+
+                    <div className="absolute bottom-3 right-3 bg-black/80 text-xs px-2 py-1 rounded text-slate-300 font-mono flex items-center gap-1">
+                      {item.metadata.duration
+                        ? `${Math.floor(item.metadata.duration / 60)}:${(item.metadata.duration % 60).toString().padStart(2, '0').split('.')[0]}`
+                        : '--:--'}
+                    </div>
+                  </SensitiveContent>
+
+                  <div className="p-4">
+                    <h3 className="text-slate-200 font-medium truncate mb-1 text-lg group-hover:text-cyan-400 transition-colors">
+                      {item.title || 'Untitled Video'}
+                    </h3>
+
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {item.tags &&
+                        item.tags.map((t: any) => (
+                          <span
+                            key={t.id}
+                            className="text-[10px] bg-slate-800 text-cyan-400 px-1.5 py-0.5 rounded-full"
+                          >
+                            {t.name}
+                          </span>
+                        ))}
+                      {item.people &&
+                        item.people.map((p: any) => (
+                          <span
+                            key={p.id}
+                            className="text-[10px] bg-slate-800 text-amber-400 px-1.5 py-0.5 rounded-full"
+                          >
+                            {p.name}
+                          </span>
+                        ))}
+                    </div>
+
+                    {item.entityName && (
+                      <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-3">
+                        <User size={12} />
+                        <span>{item.entityName}</span>
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2 text-xs text-slate-500 border-t border-slate-800/50 pt-3 mt-1">
+                      <Calendar size={12} />
+                      <span>{formatDate(item.createdAt)}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    },
+    [items, columns, selectedItems, isBatchMode, formatDate],
+  );
 
   return (
     <div className="flex flex-col h-full bg-slate-950 border border-slate-800 shadow-2xl overflow-hidden rounded-lg">
@@ -281,121 +422,38 @@ export const VideoBrowser: React.FC = () => {
             </div>
           )}
 
-          <div className="flex-1 overflow-y-auto p-6">
+          <div ref={containerRef} className="flex-1 overflow-hidden">
             {items.length === 0 && !loading ? (
               <div className="flex flex-col items-center justify-center h-full text-slate-500">
                 <Icon name="Film" size="lg" className="mb-2 opacity-50" />
                 <p>No video recordings found</p>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {items.map((item) => {
-                  const isSelected = selectedItems.has(item.id);
-                  return (
-                    <div
-                      key={item.id}
-                      className={`bg-slate-900/50 border rounded-lg overflow-hidden transition-all group cursor-pointer ${isSelected ? 'border-cyan-500 ring-1 ring-cyan-500' : 'border-slate-800 hover:border-cyan-500/30'}`}
-                      onClick={() => {
-                        if (isBatchMode) {
-                          toggleSelection(item.id);
-                        } else {
-                          setSelectedItem(item);
-                        }
-                      }}
-                    >
-                      <SensitiveContent
-                        isSensitive={item.isSensitive}
-                        className="relative aspect-video bg-black"
-                      >
-                        {isBatchMode && (
-                          <div className="absolute top-2 left-2 z-20">
-                            {isSelected ? (
-                              <CheckSquare className="text-cyan-500 fill-cyan-950" />
-                            ) : (
-                              <Square className="text-white/70" />
-                            )}
-                          </div>
-                        )}
-                        {item.metadata.thumbnailPath ? (
-                          <img
-                            src={`/api/media/video/${item.id}/thumbnail`}
-                            alt={item.title}
-                            className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-slate-900">
-                            <Film size={48} className="text-slate-700" />
-                          </div>
-                        )}
-
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="w-12 h-12 rounded-full bg-black/50 border border-white/20 flex items-center justify-center backdrop-blur-sm group-hover:scale-110 transition-transform">
-                            <Play size={20} className="text-white fill-white ml-1" />
-                          </div>
-                        </div>
-
-                        <div className="absolute bottom-3 right-3 bg-black/80 text-xs px-2 py-1 rounded text-slate-300 font-mono flex items-center gap-1">
-                          {item.metadata.duration
-                            ? `${Math.floor(item.metadata.duration / 60)}:${(item.metadata.duration % 60).toString().padStart(2, '0').split('.')[0]}`
-                            : '--:--'}
-                        </div>
-                      </SensitiveContent>
-
-                      <div className="p-4">
-                        <h3 className="text-slate-200 font-medium truncate mb-1 text-lg group-hover:text-cyan-400 transition-colors">
-                          {item.title || 'Untitled Video'}
-                        </h3>
-
-                        {/* Tags/People Display */}
-                        <div className="flex flex-wrap gap-1 mb-2">
-                          {item.tags &&
-                            item.tags.map((t: any) => (
-                              <span
-                                key={t.id}
-                                className="text-[10px] bg-slate-800 text-cyan-400 px-1.5 py-0.5 rounded-full"
-                              >
-                                {t.name}
-                              </span>
-                            ))}
-                          {item.people &&
-                            item.people.map((p: any) => (
-                              <span
-                                key={p.id}
-                                className="text-[10px] bg-slate-800 text-amber-400 px-1.5 py-0.5 rounded-full"
-                              >
-                                {p.name}
-                              </span>
-                            ))}
-                        </div>
-
-                        {item.entityName && (
-                          <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-3">
-                            <User size={12} />
-                            <span>{item.entityName}</span>
-                          </div>
-                        )}
-
-                        <div className="flex items-center gap-2 text-xs text-slate-500 border-t border-slate-800/50 pt-3 mt-1">
-                          <Calendar size={12} />
-                          <span>{formatDate(item.createdAt)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {hasMore && !loading && items.length > 0 && (
-              <div className="text-center mt-8">
-                <button
-                  onClick={handleLoadMore}
-                  className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-full text-sm font-medium transition-colors"
+            ) : containerWidth > 0 ? (
+              <div className="h-full flex flex-col">
+                <List
+                  height={containerRef.current?.clientHeight || 600}
+                  itemCount={rowCount}
+                  itemSize={420}
+                  width="100%"
+                  overscanCount={2}
+                  onScroll={({ scrollOffset, scrollUpdateWasRequested }) => {
+                    if (scrollUpdateWasRequested) return;
+                    const containerHeight = containerRef.current?.clientHeight || 600;
+                    const totalHeight = rowCount * 420;
+                    if (scrollOffset + containerHeight >= totalHeight - 200 && !loading && hasMore) {
+                      loadMoreItems(0, 0);
+                    }
+                  }}
                 >
-                  Load More
-                </button>
+                  {Row}
+                </List>
+                {loading && (
+                  <div className="py-4 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-cyan-500"></div>
+                  </div>
+                )}
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

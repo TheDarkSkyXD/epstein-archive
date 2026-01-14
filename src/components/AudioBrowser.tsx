@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { FixedSizeList as List } from 'react-window';
 import { AudioPlayer, TranscriptSegment, Chapter } from './AudioPlayer';
 import { Music, CheckSquare, Square, AlertTriangle, Clock, Calendar } from 'lucide-react';
 import { SensitiveContent } from './SensitiveContent';
@@ -162,19 +163,151 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({ initialAlbumId }) =>
     fetchAudio(nextPage);
   };
 
-  const formatDate = (dateStr: string) => {
+  const formatDate = useCallback((dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     });
-  };
+  }, []);
+
+  // Virtualization setup
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  // Measure container width for responsive grid calculation
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      setContainerWidth(entries[0].contentRect.width);
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  // Calculate columns based on container width (matching Tailwind breakpoints)
+  const columns = useMemo(() => {
+    if (containerWidth >= 1280) return 4; // xl
+    if (containerWidth >= 1024) return 3; // lg
+    if (containerWidth >= 768) return 2; // md
+    return 1; // sm
+  }, [containerWidth]);
+
+  const rowCount = Math.ceil(items.length / columns);
+  const isItemLoaded = (index: number) => index < rowCount;
+  const loadMoreItems = useCallback(
+    (_startIndex: number, _stopIndex: number) => {
+      if (!loading && hasMore) {
+        return handleLoadMore();
+      }
+      return Promise.resolve();
+    },
+    [loading, hasMore],
+  );
 
   const currentAlbum = albums.find((a) => a.id === selectedAlbum);
   const showSensitiveWarning =
     currentAlbum &&
     (currentAlbum.name.match(/Sensitive|Disturbing|Testimony|Victim|Survivor/i) ||
       (currentAlbum.sensitiveCount && currentAlbum.sensitiveCount > 0));
+
+  // Row renderer for virtualized list
+  const Row = useCallback(
+    ({ index, style }: { index: number; style: React.CSSProperties }) => {
+      const startIdx = index * columns;
+      const rowItems = items.slice(startIdx, startIdx + columns);
+
+      return (
+        <div style={style} className="px-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
+            {rowItems.map((item) => {
+              const isSelected = selectedItems.has(item.id);
+              return (
+                <div
+                  key={item.id}
+                  className={`bg-slate-900/50 border rounded-lg overflow-hidden transition-all group cursor-pointer flex flex-col ${isSelected ? 'border-cyan-500 ring-1 ring-cyan-500' : 'border-slate-800 hover:border-cyan-500/30'}`}
+                  onClick={(_e) => {
+                    if (isBatchMode) {
+                      toggleSelection(item.id);
+                    } else {
+                      setSelectedItem(item);
+                    }
+                  }}
+                >
+                  <SensitiveContent isSensitive={item.isSensitive} className="relative shrink-0">
+                    {isBatchMode && (
+                      <div className="absolute top-2 left-2 z-20">
+                        {isSelected ? (
+                          <CheckSquare className="text-cyan-500 fill-cyan-950" />
+                        ) : (
+                          <Square className="text-white/70" />
+                        )}
+                      </div>
+                    )}
+                    <div className="aspect-video bg-slate-900 relative flex items-center justify-center group-hover:bg-slate-800 transition-colors">
+                      <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700 group-hover:scale-110 transition-transform shadow-lg">
+                        <Music size={32} className="text-cyan-500" />
+                      </div>
+                      {item.metadata.duration > 0 && (
+                        <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/80 text-white text-xs rounded-full font-mono flex items-center gap-1">
+                          <Clock size={10} />
+                          {Math.floor(item.metadata.duration / 60)}:
+                          {(item.metadata.duration % 60).toString().padStart(2, '0')}
+                        </div>
+                      )}
+                    </div>
+                  </SensitiveContent>
+
+                  <div className="p-4 flex-1 flex flex-col">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <h3
+                        className="font-medium text-slate-200 group-hover:text-cyan-400 transition-colors line-clamp-2"
+                        title={item.title}
+                      >
+                        {item.title}
+                      </h3>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {item.tags &&
+                        item.tags.map((t: any) => (
+                          <span
+                            key={t.id}
+                            className="text-[10px] bg-slate-800 text-cyan-400 px-1.5 py-0.5 rounded-full"
+                          >
+                            {t.name}
+                          </span>
+                        ))}
+                      {item.people &&
+                        item.people.map((p: any) => (
+                          <span
+                            key={p.id}
+                            className="text-[10px] bg-slate-800 text-amber-400 px-1.5 py-0.5 rounded-full"
+                          >
+                            {p.name}
+                          </span>
+                        ))}
+                    </div>
+
+                    <div className="mt-auto space-y-2">
+                      <div className="flex items-center gap-2 text-xs text-slate-500">
+                        <Calendar size={12} />
+                        <span>{formatDate(item.createdAt)}</span>
+                      </div>
+                      {item.description && (
+                        <p className="text-xs text-slate-400 line-clamp-2">{item.description}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    },
+    [items, columns, selectedItems, isBatchMode, formatDate],
+  );
 
   return (
     <div className="flex flex-col h-full bg-slate-950 border border-slate-800 shadow-2xl overflow-hidden rounded-lg">
@@ -299,115 +432,38 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({ initialAlbumId }) =>
             </div>
           )}
 
-          <div className="flex-1 overflow-y-auto p-6">
+          <div ref={containerRef} className="flex-1 overflow-hidden">
             {items.length === 0 && !loading ? (
               <div className="flex flex-col items-center justify-center h-full text-slate-500">
                 <Icon name="Music" size="lg" className="mb-2 opacity-50" />
                 <p>No audio recordings found</p>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {items.map((item) => {
-                  const isSelected = selectedItems.has(item.id);
-                  return (
-                    <div
-                      key={item.id}
-                      className={`bg-slate-900/50 border rounded-lg overflow-hidden transition-all group cursor-pointer flex flex-col ${isSelected ? 'border-cyan-500 ring-1 ring-cyan-500' : 'border-slate-800 hover:border-cyan-500/30'}`}
-                      onClick={(_e) => {
-                        if (isBatchMode) {
-                          toggleSelection(item.id);
-                        } else {
-                          setSelectedItem(item);
-                        }
-                      }}
-                    >
-                      <SensitiveContent
-                        isSensitive={item.isSensitive}
-                        className="relative shrink-0"
-                      >
-                        {isBatchMode && (
-                          <div className="absolute top-2 left-2 z-20">
-                            {isSelected ? (
-                              <CheckSquare className="text-cyan-500 fill-cyan-950" />
-                            ) : (
-                              <Square className="text-white/70" />
-                            )}
-                          </div>
-                        )}
-                        <div className="aspect-video bg-slate-900 relative flex items-center justify-center group-hover:bg-slate-800 transition-colors">
-                          <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700 group-hover:scale-110 transition-transform shadow-lg">
-                            <Music size={32} className="text-cyan-500" />
-                          </div>
-                          {item.metadata.duration > 0 && (
-                            <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/80 text-white text-xs rounded-full font-mono flex items-center gap-1">
-                              <Clock size={10} />
-                              {Math.floor(item.metadata.duration / 60)}:
-                              {(item.metadata.duration % 60).toString().padStart(2, '0')}
-                            </div>
-                          )}
-                        </div>
-                      </SensitiveContent>
-
-                      <div className="p-4 flex-1 flex flex-col">
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <h3
-                            className="font-medium text-slate-200 group-hover:text-cyan-400 transition-colors line-clamp-2"
-                            title={item.title}
-                          >
-                            {item.title}
-                          </h3>
-                        </div>
-
-                        {/* Tags/People Display */}
-                        <div className="flex flex-wrap gap-1 mb-2">
-                          {item.tags &&
-                            item.tags.map((t: any) => (
-                              <span
-                                key={t.id}
-                                className="text-[10px] bg-slate-800 text-cyan-400 px-1.5 py-0.5 rounded-full"
-                              >
-                                {t.name}
-                              </span>
-                            ))}
-                          {item.people &&
-                            item.people.map((p: any) => (
-                              <span
-                                key={p.id}
-                                className="text-[10px] bg-slate-800 text-amber-400 px-1.5 py-0.5 rounded-full"
-                              >
-                                {p.name}
-                              </span>
-                            ))}
-                        </div>
-
-                        <div className="mt-auto space-y-2">
-                          <div className="flex items-center gap-2 text-xs text-slate-500">
-                            <Calendar size={12} />
-                            <span>{formatDate(item.createdAt)}</span>
-                          </div>
-                          {item.description && (
-                            <p className="text-xs text-slate-400 line-clamp-2">
-                              {item.description}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {hasMore && !loading && items.length > 0 && (
-              <div className="text-center mt-8">
-                <button
-                  onClick={handleLoadMore}
-                  className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-full text-sm font-medium transition-colors"
+            ) : containerWidth > 0 ? (
+              <div className="h-full flex flex-col">
+                <List
+                  height={containerRef.current?.clientHeight || 600}
+                  itemCount={rowCount}
+                  itemSize={450}
+                  width="100%"
+                  overscanCount={2}
+                  onScroll={({ scrollOffset, scrollUpdateWasRequested }) => {
+                    if (scrollUpdateWasRequested) return;
+                    const containerHeight = containerRef.current?.clientHeight || 600;
+                    const totalHeight = rowCount * 450;
+                    if (scrollOffset + containerHeight >= totalHeight - 200 && !loading && hasMore) {
+                      loadMoreItems(0, 0);
+                    }
+                  }}
                 >
-                  Load More
-                </button>
+                  {Row}
+                </List>
+                {loading && (
+                  <div className="py-4 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-cyan-500"></div>
+                  </div>
+                )}
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

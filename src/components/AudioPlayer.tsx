@@ -43,9 +43,22 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [volume, setVolume] = useState(1);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
-  const [showTranscript, _setShowTranscript] = useState(true);
+  const [showTranscript, setShowTranscript] = useState(() => {
+    // Load transcript preference from localStorage
+    const saved = localStorage.getItem('audio-player-show-transcript');
+    return saved !== null ? saved === 'true' : true;
+  });
   const [activeSegmentIndex, setActiveSegmentIndex] = useState<number>(-1);
   const [showChapters, setShowChapters] = useState(false);
+
+  // Toggle transcript visibility and persist preference
+  const toggleTranscript = () => {
+    setShowTranscript((prev) => {
+      const newValue = !prev;
+      localStorage.setItem('audio-player-show-transcript', String(newValue));
+      return newValue;
+    });
+  };
 
   // Initialize
   useEffect(() => {
@@ -105,10 +118,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     }
   };
 
-  // Pre-compute visualizer bar heights to avoid calling Math.random() during render
+  // Pre-compute visualizer bar heights with deterministic values
   const visualizerBars = useMemo(() => {
+    // Use deterministic pattern based on index for predictable rendering
     return Array.from({ length: 20 }, (_, i) => ({
-      height: 20 + Math.random() * 80,
+      height: 20 + ((i * 37) % 80), // Deterministic pattern using modulo
       delay: i * 0.05,
     }));
   }, []);
@@ -131,6 +145,22 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {(transcript.length > 0 || chapters.length > 0) && (
+            <button
+              onClick={toggleTranscript}
+              className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors"
+              title={showTranscript ? 'Hide transcript' : 'Show transcript'}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+            </button>
+          )}
           {onClose && (
             <button
               onClick={onClose}

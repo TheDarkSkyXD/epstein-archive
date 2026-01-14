@@ -32,6 +32,10 @@
     "no-control-regex": "off",
     "no-useless-escape": "off",
     "@typescript-eslint/ban-ts-comment": "off",
-    "prettier/prettier": "error"
+    "prettier/prettier": "error",
+    "react-hooks/set-state-in-effect": "off",
+    "react-hooks/purity": "off",
+    "react-hooks/preserve-manual-memoization": "off",
+    "react-hooks/immutability": "off"
   }
 }

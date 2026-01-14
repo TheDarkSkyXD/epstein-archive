@@ -22,9 +22,6 @@ export const RedactedLogo: React.FC<RedactedLogoProps> = ({ text, className = ''
     // Initial delay before first animation (4-8 seconds after mount)
     const initialDelay = 4000 + Math.random() * 4000;
 
-    // eslint-disable-next-line prefer-const
-    let animationTimeout: NodeJS.Timeout;
-    // eslint-disable-next-line prefer-const
     let intervalId: NodeJS.Timeout;
 
     const runAnimation = () => {
@@ -81,7 +78,7 @@ export const RedactedLogo: React.FC<RedactedLogoProps> = ({ text, className = ''
     };
 
     // First animation after initial delay
-    animationTimeout = setTimeout(() => {
+    const animationTimeout = setTimeout(() => {
       runAnimation();
       // Set up recurring animations every 15-25 seconds
       intervalId = setInterval(runAnimation, 15000 + Math.random() * 10000);

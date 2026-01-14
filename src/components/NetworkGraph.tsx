@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
-import { ZoomIn, ZoomOut, Move, RefreshCw, AlertTriangle, Link2 } from 'lucide-react';
+import { ZoomIn, ZoomOut, Move, RefreshCw, AlertTriangle, Link2, Filter } from 'lucide-react';
 
 interface EntityNode {
   id: number;

@@ -145,7 +145,8 @@ export class OptimizedDataService {
 
     // STRICT QUALITY FILTER for Page 1 default view
     // If no search, no specific filters, and page 1 -> We apply strict quality control
-    const isDefaultView = !filters.searchTerm && !filters.role && !filters.entityType && page === 1;
+    const isDefaultView =
+      !filters.searchTerm && !filters.evidenceTypes?.length && !filters.entityType && page === 1;
 
     // Check if we're already fetching this page (prefetch)
     if (this.prefetchCache.has(cacheKey)) {

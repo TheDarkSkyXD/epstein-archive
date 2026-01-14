@@ -14,8 +14,8 @@ export function runMigrations() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      filename TEXT UNIQUE NOT NULL,
-      applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      name TEXT UNIQUE NOT NULL,
+      run_on DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
 
@@ -39,7 +39,7 @@ export function runMigrations() {
 
   for (const file of files) {
     // Check if migration already executed
-    const alreadyRun = db.prepare('SELECT 1 FROM schema_migrations WHERE filename = ?').get(file);
+    const alreadyRun = db.prepare('SELECT 1 FROM schema_migrations WHERE name = ?').get(file);
     if (alreadyRun) {
       continue;
     }
@@ -50,9 +50,33 @@ export function runMigrations() {
 
     // Execute as a single transaction
     const transaction = db.transaction(() => {
-      // We use .exec() as it handles multi-statement strings correctly in better-sqlite3
-      db.exec(sql);
-      db.prepare('INSERT INTO schema_migrations (filename) VALUES (?)').run(file);
+      const hasTriggers = sql.includes('CREATE TRIGGER');
+
+      if (hasTriggers) {
+        db.exec(sql);
+      } else {
+        // Split by semicolon, remove comments and empty lines
+        const statements = sql
+          .replace(/--.*$/gm, '') // Remove comments
+          .split(';')
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0);
+
+        for (const stmt of statements) {
+          try {
+            db.exec(stmt);
+          } catch (err: any) {
+            // Ignore duplicate column errors (manual IF NOT EXISTS)
+            if (err.message && (err.message.includes('duplicate column name') || err.message.includes('already exists'))) {
+              console.log(`[Migrator]   ⚠ Skipping duplicate/existing: ${stmt.substring(0, 50)}...`);
+              continue;
+            }
+            throw err;
+          }
+        }
+      }
+
+      db.prepare('INSERT INTO schema_migrations (name) VALUES (?)').run(file);
     });
 
     try {

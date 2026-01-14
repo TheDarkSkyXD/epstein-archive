@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, AlertTriangle, TrendingUp } from 'lucide-react';
+import { Calendar, AlertTriangle, TrendingUp, FileText, Clock, User } from 'lucide-react';
 import { Person } from '../types';
 
 interface TimelineEvent {

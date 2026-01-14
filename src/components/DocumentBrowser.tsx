@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -34,6 +34,8 @@ import { AddToInvestigationButton } from './AddToInvestigationButton';
 // TODO: Apply OCR prettification - see UNUSED_VARIABLES_RECOMMENDATIONS.md
 // import { prettifyOCRText } from '../utils/prettifyOCR';
 import { DocumentContentRenderer } from './DocumentContentRenderer';
+import { useHighlightNavigation } from '../hooks/useHighlightNavigation';
+import { HighlightNavigationControls } from './HighlightNavigationControls';
 
 // --- Virtualized Renderers for DocumentBrowser ---
 
@@ -232,6 +234,13 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
     confidentiality: [],
     source: [],
   });
+
+  // Ref for highlight navigation
+  const documentContainerRef = useRef<HTMLDivElement>(null);
+
+  // Use highlight navigation hook
+  const { currentHighlightIndex, totalHighlights, nextHighlight, prevHighlight, hasHighlights } =
+    useHighlightNavigation(effectiveSearchTerm, documentContainerRef);
 
   // Function to highlight search terms in text
   const highlightText = (text: string, term?: string) => {
@@ -1419,6 +1428,15 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                 className="w-full pl-10 pr-4 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500 min-h-[44px]"
               />
             </div>
+            {hasHighlights && (
+              <HighlightNavigationControls
+                currentHighlightIndex={currentHighlightIndex}
+                totalHighlights={totalHighlights}
+                onNext={nextHighlight}
+                onPrev={prevHighlight}
+                className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 shrink-0"
+              />
+            )}
             <button
               onClick={() => setShowFilters(!showFilters)}
               className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 min-h-[44px] shrink-0"
@@ -1709,7 +1727,10 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
           <DocumentSkeleton count={12} />
         ) : filteredDocuments.length > 0 && viewMode === 'grid' ? (
           // Virtualized grid view
-          <div style={{ height: 'calc(100vh - 400px)', minHeight: '500px' }}>
+          <div
+            ref={documentContainerRef}
+            style={{ height: 'calc(100vh - 400px)', minHeight: '500px' }}
+          >
             <AutoSizer>
               {({ height, width }) => {
                 const columnCount = width >= 1024 ? 3 : width >= 768 ? 2 : 1;
@@ -1749,7 +1770,10 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
           </div>
         ) : filteredDocuments.length > 0 ? (
           // Virtualized list view
-          <div style={{ height: 'calc(100vh - 400px)', minHeight: '500px' }}>
+          <div
+            ref={documentContainerRef}
+            style={{ height: 'calc(100vh - 400px)', minHeight: '500px' }}
+          >
             <AutoSizer>
               {({ height, width }) => {
                 const itemData: DocItemData = {

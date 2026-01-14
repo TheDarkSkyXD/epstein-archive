@@ -1,13 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  ExternalLink,
-  Heart,
-  Shield,
-  BookOpen,
-  Github,
-  Eye,
-  EyeOff,
-} from 'lucide-react';
+import { ExternalLink, Heart, Shield, BookOpen, Github, Eye, EyeOff } from 'lucide-react';
 import { useSensitiveSettings } from '../contexts/SensitiveSettingsContext';
 import { Link } from 'react-router-dom';
 import { apiClient } from '../services/apiClient';

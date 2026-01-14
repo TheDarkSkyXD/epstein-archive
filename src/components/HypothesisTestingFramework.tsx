@@ -159,7 +159,6 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
     onHypothesesUpdate(updatedHypotheses);
   };
 
-
   const linkEvidenceToHypothesis = (hypothesisId: string) => {
     if (!linkData.evidenceId) return;
 
@@ -271,7 +270,6 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
   const getEvidenceItemById = (id: string) => {
     return evidenceItems.find((item) => item.id === id);
   };
-
 
   return (
     <div className="bg-slate-900 rounded-xl border border-slate-700">

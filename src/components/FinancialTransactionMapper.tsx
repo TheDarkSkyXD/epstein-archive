@@ -9,6 +9,9 @@ import {
   Shield,
   ShieldAlert,
   ShieldCheck,
+  Search,
+  Download,
+  User,
 } from 'lucide-react';
 import Icon from './Icon';
 import { AddToInvestigationButton } from './AddToInvestigationButton';

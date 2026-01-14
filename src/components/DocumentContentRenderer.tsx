@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Document } from '../types/documents';
 import { DocumentAnnotationSystem } from './DocumentAnnotationSystem';
 import { prettifyOCRText } from '../utils/prettifyOCR';
@@ -137,6 +137,16 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
     container.addEventListener('click', handleClick);
     return () => container.removeEventListener('click', handleClick);
   }, []);
+
+  // Memoize processed content to avoid re-computation on every render
+  const processedContent = useMemo(() => {
+    // Apply prettifyOCRText unless showRaw is true
+    const content = showRaw ? doc.content : prettifyOCRText(doc.content);
+    // Apply entity linking (now optimized single-pass)
+    // Only run linking if we have the regex ready
+    const contentWithEntities = entityRegex ? linkEntitiesInText(content) : content;
+    return searchTerm ? highlightText(contentWithEntities, searchTerm) : contentWithEntities;
+  }, [doc.content, showRaw, entityRegex, searchTerm]);
 
   return (
     <div className="prose prose-invert max-w-none">
@@ -657,16 +667,7 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
             <pre
               className="whitespace-pre-wrap text-sm text-gray-300 font-mono leading-relaxed break-words bg-gray-900/50 p-4 rounded-lg border border-gray-700/50 min-h-[600px] overflow-y-auto max-h-[80vh]"
               dangerouslySetInnerHTML={{
-                __html: React.useMemo(() => {
-                  // Apply prettifyOCRText unless showRaw is true
-                  const content = showRaw ? doc.content : prettifyOCRText(doc.content);
-                  // Apply entity linking (now optimized single-pass)
-                  // Only run linking if we have the regex ready
-                  const contentWithEntities = entityRegex ? linkEntitiesInText(content) : content;
-                  return searchTerm
-                    ? highlightText(contentWithEntities, searchTerm)
-                    : contentWithEntities;
-                }, [doc.content, showRaw, entityRegex, searchTerm]), // Dependencies ensure update only when needed
+                __html: processedContent,
               }}
             />
           </div>

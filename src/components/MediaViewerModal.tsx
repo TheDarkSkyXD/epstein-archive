@@ -48,6 +48,7 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editDesc, setEditDesc] = useState('');
+  const [showCopied, setShowCopied] = useState(false);
 
   const currentImage = images[currentIndex];
 
@@ -264,6 +265,15 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
     };
   }, [handleKeyDown]);
 
+  // Sync URL with current image
+  useEffect(() => {
+    if (currentImage) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('photoId', currentImage.id.toString());
+      window.history.replaceState({}, '', url);
+    }
+  }, [currentImage]);
+
   if (!currentImage) return null;
 
   const formatDate = (dateString: string | undefined | null) => {
@@ -278,8 +288,6 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
-  const [showCopied, setShowCopied] = useState(false);
-
   const handleShare = () => {
     const url = new URL(window.location.href);
     url.searchParams.set('photoId', currentImage.id.toString());
@@ -288,15 +296,6 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
       setTimeout(() => setShowCopied(false), 2000);
     });
   };
-
-  // Sync URL with current image
-  useEffect(() => {
-    if (currentImage) {
-      const url = new URL(window.location.href);
-      url.searchParams.set('photoId', currentImage.id.toString());
-      window.history.replaceState({}, '', url);
-    }
-  }, [currentImage]);
 
   return createPortal(
     <div className="fixed inset-0 z-[1100] bg-black flex overflow-hidden">

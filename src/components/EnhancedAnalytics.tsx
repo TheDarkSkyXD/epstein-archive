@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Info, Users, Shield, Database, Activity } from 'lucide-react';
+import { Info, Users, Shield, Database, Activity, FileText, TrendingUp } from 'lucide-react';
 import { SunburstChart } from './SunburstChart';
 import { AreaTimeline } from './AreaTimeline';
 import { NetworkGraph } from './NetworkGraph';

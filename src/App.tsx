@@ -122,13 +122,25 @@ const parseReleaseNotes = (markdown: string) => {
         }
         if (!date) date = 'Recent';
 
-        // Find title (first non-empty line after header, not starting with ** or ---)
+        // Find title - first try to extract from header line after " - "
         let title = 'Maintenance Update';
-        for (let i = 1; i < lines.length; i++) {
-          const line = lines[i];
-          if (line && !line.startsWith('**') && !line.startsWith('---') && !line.startsWith('-')) {
-            title = line;
-            break;
+        const titleInHeader = headerLine.match(/ - (.+)$/);
+        if (titleInHeader) {
+          title = titleInHeader[1];
+        } else {
+          // Fallback: look for title in subsequent lines (not starting with ** or --- or - or ###)
+          for (let i = 1; i < lines.length; i++) {
+            const line = lines[i];
+            if (
+              line &&
+              !line.startsWith('**') &&
+              !line.startsWith('---') &&
+              !line.startsWith('-') &&
+              !line.startsWith('###')
+            ) {
+              title = line;
+              break;
+            }
           }
         }
 

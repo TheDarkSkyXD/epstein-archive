@@ -264,19 +264,19 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
   // Main data fetch efffect
   useEffect(() => {
     if (!initialized) return;
-    
+
     // Reset to page 1 for any filter change
     setPage(1);
     fetchImages(1, false);
   }, [
-    initialized, 
-    selectedAlbum, 
-    selectedTag, 
-    selectedPerson, 
-    hasPeopleOnly, 
-    sortField, 
-    sortOrder, 
-    searchQuery
+    initialized,
+    selectedAlbum,
+    selectedTag,
+    selectedPerson,
+    hasPeopleOnly,
+    sortField,
+    sortOrder,
+    searchQuery,
   ]);
 
   const loadAlbums = async () => {
@@ -296,7 +296,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
 
   const fetchImages = async (pageNum: number, append: boolean) => {
     if (append && !hasMore) return;
-    
+
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -328,13 +328,13 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
             fileSize: img.fileSize || 0,
           }))
         : [];
-      
+
       if (append) {
-        setImages(prev => [...prev, ...normalized]);
+        setImages((prev) => [...prev, ...normalized]);
       } else {
         setImages(normalized);
       }
-      
+
       // Determine if there are more items
       const totalCountHeader = response.headers.get('X-Total-Count');
       if (totalCountHeader) {

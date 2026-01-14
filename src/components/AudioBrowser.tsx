@@ -223,10 +223,10 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({ initialAlbumId }) =>
 
       return (
         <div style={style} className="px-6">
-          <div 
+          <div
             className="grid gap-6 pb-6"
-            style={{ 
-              gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` 
+            style={{
+              gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
             }}
           >
             {rowItems.map((item) => {

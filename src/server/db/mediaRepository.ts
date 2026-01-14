@@ -24,7 +24,7 @@ export const mediaRepository = {
     `;
     const result = db.prepare(query).all(likePattern) as any[];
     console.log(`getAlbumsByMediaType(${fileType}) found ${result.length} albums`);
-    const sacha = result.find(a => a.id === 25);
+    const sacha = result.find((a) => a.id === 25);
     if (sacha) {
       console.log('Sacha album debug:', sacha);
     }

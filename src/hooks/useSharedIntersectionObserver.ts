@@ -13,17 +13,14 @@ const observerCallbacks = new Map<Element, ObserverCallback>();
 
 function getGlobalObserver(options: IntersectionObserverInit): IntersectionObserver {
   if (!globalObserver) {
-    globalObserver = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          const callback = observerCallbacks.get(entry.target);
-          if (callback) {
-            callback(entry.isIntersecting);
-          }
-        });
-      },
-      options,
-    );
+    globalObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        const callback = observerCallbacks.get(entry.target);
+        if (callback) {
+          callback(entry.isIntersecting);
+        }
+      });
+    }, options);
   }
   return globalObserver;
 }

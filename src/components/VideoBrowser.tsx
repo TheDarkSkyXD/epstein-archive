@@ -218,7 +218,10 @@ export const VideoBrowser: React.FC = () => {
                     }
                   }}
                 >
-                  <SensitiveContent isSensitive={item.isSensitive} className="relative aspect-video bg-black">
+                  <SensitiveContent
+                    isSensitive={item.isSensitive}
+                    className="relative aspect-video bg-black"
+                  >
                     {isBatchMode && (
                       <div className="absolute top-2 left-2 z-20">
                         {isSelected ? (
@@ -440,7 +443,11 @@ export const VideoBrowser: React.FC = () => {
                     if (scrollUpdateWasRequested) return;
                     const containerHeight = containerRef.current?.clientHeight || 600;
                     const totalHeight = rowCount * 420;
-                    if (scrollOffset + containerHeight >= totalHeight - 200 && !loading && hasMore) {
+                    if (
+                      scrollOffset + containerHeight >= totalHeight - 200 &&
+                      !loading &&
+                      hasMore
+                    ) {
                       loadMoreItems(0, 0);
                     }
                   }}

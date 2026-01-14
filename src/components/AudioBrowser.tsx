@@ -450,7 +450,11 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({ initialAlbumId }) =>
                     if (scrollUpdateWasRequested) return;
                     const containerHeight = containerRef.current?.clientHeight || 600;
                     const totalHeight = rowCount * 450;
-                    if (scrollOffset + containerHeight >= totalHeight - 200 && !loading && hasMore) {
+                    if (
+                      scrollOffset + containerHeight >= totalHeight - 200 &&
+                      !loading &&
+                      hasMore
+                    ) {
                       loadMoreItems(0, 0);
                     }
                   }}

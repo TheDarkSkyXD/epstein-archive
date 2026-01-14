@@ -86,6 +86,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, onClick }) =>
               <img
                 src={article.authorAvatar}
                 alt={article.author}
+                loading="lazy"
                 className="h-8 w-8 rounded-full border border-white/20"
               />
             ) : (

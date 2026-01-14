@@ -36,9 +36,44 @@ import { config } from './config/index.js';
 import { blackBookRepository } from './server/db/blackBookRepository.js';
 import { globalErrorHandler } from './server/utils/errorHandler.js';
 import { memoryRepository } from './server/db/memoryRepository.js';
+import NodeCache from 'node-cache';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// API Response Cache - 5 minute TTL for high-traffic endpoints
+const apiCache = new NodeCache({
+  stdTTL: 300, // 5 minutes
+  checkperiod: 60, // Check for expired keys every 60s
+  useClones: false, // Don't clone objects (faster, but be careful with mutations)
+});
+
+// Cache middleware helper
+const cacheMiddleware = (ttl?: number) => {
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    // Generate cache key from URL + query params
+    const cacheKey = req.originalUrl || req.url;
+
+    // Try to get cached response
+    const cachedResponse = apiCache.get(cacheKey);
+    if (cachedResponse) {
+      // Send cached response
+      res.set('X-Cache', 'HIT');
+      return res.json(cachedResponse);
+    }
+
+    // Store original res.json to intercept response
+    const originalJson = res.json.bind(res);
+    res.json = function (body: any) {
+      // Cache the response
+      apiCache.set(cacheKey, body, ttl || 300);
+      res.set('X-Cache', 'MISS');
+      return originalJson(body);
+    };
+
+    next();
+  };
+};
 
 // Paths
 const CORPUS_BASE_PATH = process.env.RAW_CORPUS_BASE_PATH || '';
@@ -716,7 +751,7 @@ app.post('/api/upload-document', upload.single('document'), async (req, res, nex
 });
 
 // API routes with comprehensive error handling
-app.get('/api/entities', async (req, res, next) => {
+app.get('/api/entities', cacheMiddleware(300), async (req, res, next) => {
   try {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 24));
@@ -879,7 +914,7 @@ app.patch('/api/entities/:id', async (req, res, next) => {
 });
 
 // Get all entities for document linking
-app.get('/api/entities/all', async (_req, res, next) => {
+app.get('/api/entities/all', cacheMiddleware(300), async (_req, res, next) => {
   try {
     const entities = entitiesRepository.getAllEntities();
     res.json(entities);
@@ -1038,7 +1073,7 @@ app.get('/api/entities/:id/documents', async (req, res, next) => {
 });
 
 // Black Book endpoint - returns entries from Black Book table
-app.get('/api/black-book', async (req, res, next) => {
+app.get('/api/black-book', cacheMiddleware(300), async (req, res, next) => {
   try {
     const filters = {
       letter: req.query.letter as string | undefined,
@@ -1083,7 +1118,7 @@ app.get('/api/black-book', async (req, res, next) => {
 });
 
 // Get database statistics
-app.get('/api/stats', async (_req, res, next) => {
+app.get('/api/stats', cacheMiddleware(300), async (_req, res, next) => {
   try {
     const stats = statsRepository.getStatistics();
     res.set('Cache-Control', 'public, max-age=300'); // 5 min cache

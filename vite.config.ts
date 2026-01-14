@@ -28,7 +28,6 @@ export default defineConfig({
         manualChunks(id) {
           if (id.includes('node_modules')) {
             // Keep truly massive/isolated libraries separate
-            if (id.includes('tensorflow') || id.includes('@tensorflow')) return 'vendor-tf';
             if (id.includes('react-pdf') || id.includes('pdfjs-dist')) return 'vendor-pdf';
             if (id.includes('recharts') || id.includes('d3')) return 'vendor-charts';
             if (id.includes('lucide-react')) return 'vendor-icons';

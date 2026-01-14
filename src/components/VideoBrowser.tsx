@@ -49,6 +49,9 @@ export const VideoBrowser: React.FC = () => {
   const [showAlbumDropdown, setShowAlbumDropdown] = useState(false);
   const [libraryTotalCount, setLibraryTotalCount] = useState(0);
   const prefetchRef = useRef<number | null>(null);
+  const [pickerOpenId, setPickerOpenId] = useState<number | null>(null);
+  const [investigationsList, setInvestigationsList] = useState<any[]>([]);
+  const [addingId, setAddingId] = useState<number | null>(null);
 
   // Batch Mode State
   const [isBatchMode, setIsBatchMode] = useState(false);
@@ -279,6 +282,71 @@ export const VideoBrowser: React.FC = () => {
                       </div>
                     )}
 
+                    <div className="absolute top-2 right-2 z-30 flex items-center gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPickerOpenId(pickerOpenId === item.id ? null : item.id);
+                          if (investigationsList.length === 0) {
+                            fetch('/api/investigations?page=1&limit=50')
+                              .then((r) => r.json())
+                              .then((data) => {
+                                const list = Array.isArray(data?.data)
+                                  ? data.data
+                                  : Array.isArray(data)
+                                    ? data
+                                    : [];
+                                setInvestigationsList(list);
+                              })
+                              .catch(() => {});
+                          }
+                        }}
+                        className="px-2 py-1 rounded bg-amber-700 text-white text-[10px] border border-amber-500"
+                      >
+                        Add
+                      </button>
+                      {pickerOpenId === item.id && (
+                        <div className="bg-slate-900 border border-slate-700 rounded p-2 shadow-xl">
+                          <select
+                            onChange={async (e) => {
+                              const invId = parseInt(e.target.value);
+                              if (!invId) return;
+                              setAddingId(item.id);
+                              try {
+                                const res = await fetch('/api/investigation/add-media', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    investigationId: invId,
+                                    mediaItemId: item.id,
+                                    notes: '',
+                                    relevance: 'high',
+                                  }),
+                                });
+                                if (res.ok) {
+                                  setPickerOpenId(null);
+                                }
+                              } finally {
+                                setAddingId(null);
+                              }
+                            }}
+                            className="text-xs bg-slate-800 text-white border border-slate-700 rounded px-2 py-1"
+                          >
+                            <option value="">Select investigation</option>
+                            {investigationsList.map((inv: any) => (
+                              <option key={inv.id} value={inv.id}>
+                                {inv.title}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      {addingId === item.id && (
+                        <div className="text-[10px] text-white bg-black/60 px-2 py-0.5 rounded">
+                          …
+                        </div>
+                      )}
+                    </div>
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="w-12 h-12 rounded-full bg-black/50 border border-white/20 flex items-center justify-center backdrop-blur-sm group-hover:scale-110 transition-transform">
                         <Play size={20} className="text-white fill-white ml-1" />

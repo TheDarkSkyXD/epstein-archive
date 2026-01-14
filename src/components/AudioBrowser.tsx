@@ -110,6 +110,9 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
   const [showAlbumDropdown, setShowAlbumDropdown] = useState(false);
   const [investigationId, setInvestigationId] = useState<number | null>(null);
   const [investigationSummary, setInvestigationSummary] = useState<any | null>(null);
+  const [pickerOpenId, setPickerOpenId] = useState<number | null>(null);
+  const [investigationsList, setInvestigationsList] = useState<any[]>([]);
+  const [addingId, setAddingId] = useState<number | null>(null);
 
   // Batch Mode State
   const [isBatchMode, setIsBatchMode] = useState(false);
@@ -368,6 +371,74 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
                   }}
                 >
                   <SensitiveContent isSensitive={false} className="relative shrink-0">
+                    <div className="absolute top-2 right-2 z-30 flex items-center gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPickerOpenId(pickerOpenId === item.id ? null : item.id);
+                          if (investigationsList.length === 0) {
+                            fetch('/api/investigations?page=1&limit=50')
+                              .then((r) => r.json())
+                              .then((data) => {
+                                const list = Array.isArray(data?.data)
+                                  ? data.data
+                                  : Array.isArray(data)
+                                    ? data
+                                    : [];
+                                setInvestigationsList(list);
+                              })
+                              .catch(() => {});
+                          }
+                        }}
+                        className="px-2 py-1 rounded bg-amber-700 text-white text-[10px] border border-amber-500"
+                      >
+                        Add
+                      </button>
+                      {pickerOpenId === item.id && (
+                        <div className="bg-slate-900 border border-slate-700 rounded p-2 shadow-xl">
+                          <select
+                            onChange={async (e) => {
+                              const invId = parseInt(e.target.value);
+                              if (!invId) return;
+                              setAddingId(item.id);
+                              try {
+                                const res = await fetch('/api/investigation/add-media', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    investigationId: invId,
+                                    mediaItemId: item.id,
+                                    notes: '',
+                                    relevance: 'high',
+                                  }),
+                                });
+                                if (res.ok) {
+                                  setPickerOpenId(null);
+                                }
+                              } finally {
+                                setAddingId(null);
+                              }
+                            }}
+                            className="text-xs bg-slate-800 text-white border border-slate-700 rounded px-2 py-1"
+                          >
+                            <option value="">Select investigation</option>
+                            <option value={investigationId || ''}>
+                              {investigationId ? 'Sascha Barros Testimony' : 'Default'}
+                            </option>
+                            {investigationsList.map((inv: any) => (
+                              <option key={inv.id} value={inv.id}>
+                                {inv.title}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      {addingId === item.id && (
+                        <div className="text-[10px] text-white bg-black/60 px-2 py-0.5 rounded">
+                          …
+                        </div>
+                      )}
+                    </div>
                     {isBatchMode && (
                       <div className="absolute top-2 left-2 z-20">
                         {isSelected ? (

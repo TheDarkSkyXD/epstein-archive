@@ -37,11 +37,17 @@ async function watermarkFile(filePath: string) {
       </g>
     </svg>`,
   );
-  await sharp(buf).rotate().composite([{ input: svg, gravity: 'center' }]).toFile(filePath);
+  await sharp(buf)
+    .rotate()
+    .composite([{ input: svg, gravity: 'center' }])
+    .toFile(filePath);
 }
 
 async function run() {
-  const args = process.argv.slice(2).map((a) => parseInt(a)).filter((n) => !isNaN(n));
+  const args = process.argv
+    .slice(2)
+    .map((a) => parseInt(a))
+    .filter((n) => !isNaN(n));
   const targets = args.length ? args : [7, 9, 11];
   const dir = dirCandidates.find((d) => fs.existsSync(d));
   if (!dir) {

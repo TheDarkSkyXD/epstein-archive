@@ -199,10 +199,14 @@ export class OptimizedDataService {
             if (isDefaultView) {
               result.data = result.data.filter((p: any) => {
                 // Relaxed check: Keep if any relevance signal is present
-                return (p.red_flag_rating || 0) >= 1 || (p.mentions || 0) >= 1 || (p.photos && p.photos.length > 0) || (p.role && p.role !== 'Unknown');
+                return (
+                  (p.red_flag_rating || 0) >= 1 ||
+                  (p.mentions || 0) >= 1 ||
+                  (p.photos && p.photos.length > 0) ||
+                  (p.role && p.role !== 'Unknown')
+                );
               });
             }
-
           }
 
           // Note: Server-side filtering by likelihoodScore (via red_flag_rating ranges) is now used.

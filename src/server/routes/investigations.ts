@@ -28,10 +28,9 @@ router.get('/by-title', async (req, res, next) => {
     const { title } = req.query as any;
     if (!title) return res.status(400).json({ error: 'title required' });
     const dbResult = await investigationsRepository.getInvestigations({ page: 1, limit: 5 } as any);
-    const match =
-      Array.isArray(dbResult?.data)
-        ? dbResult.data.find((inv: any) => inv.title === String(title))
-        : null;
+    const match = Array.isArray(dbResult?.data)
+      ? dbResult.data.find((inv: any) => inv.title === String(title))
+      : null;
     if (!match) return res.status(404).json({ error: 'Investigation not found' });
     res.json(match);
   } catch (error) {

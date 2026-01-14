@@ -11,7 +11,7 @@ const AudioTab: React.FC = () => {
     const audioId = params.get('id');
     const timestamp = params.get('t'); // Support 't' like YouTube
     const quick = params.get('quickstart') === '1';
-    
+
     return {
       initialAlbumId: albumId ? parseInt(albumId, 10) : undefined,
       initialAudioId: audioId ? parseInt(audioId, 10) : undefined,
@@ -22,8 +22,8 @@ const AudioTab: React.FC = () => {
 
   return (
     <div className="h-full">
-      <AudioBrowser 
-        initialAlbumId={initialAlbumId} 
+      <AudioBrowser
+        initialAlbumId={initialAlbumId}
         initialAudioId={initialAudioId}
         initialTimestamp={initialTimestamp}
         quickStart={quickStart}

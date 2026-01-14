@@ -730,7 +730,10 @@ export class MediaService {
             </g>
           </svg>`,
         );
-        await sharp(buffer).rotate().composite([{ input: svg, gravity: 'center' }]).toFile(file.path);
+        await sharp(buffer)
+          .rotate()
+          .composite([{ input: svg, gravity: 'center' }])
+          .toFile(file.path);
       } catch {}
     }
     // Insert into DB

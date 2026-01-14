@@ -105,15 +105,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (transcriptRef.current && transcriptRef.current.parentElement) {
       const container = transcriptRef.current.parentElement;
       const element = transcriptRef.current.children[index] as HTMLElement;
-      
+
       if (element) {
         const containerTop = container.getBoundingClientRect().top;
         const elementTop = element.getBoundingClientRect().top;
         const offset = elementTop - containerTop + container.scrollTop;
-        
+
         container.scrollTo({
           top: offset - container.clientHeight / 2 + element.clientHeight / 2,
-          behavior: 'smooth'
+          behavior: 'smooth',
         });
       }
     }
@@ -145,10 +145,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (!containerRef.current) return;
 
     // Standard Request Method
-    const req = (containerRef.current as any).requestFullscreen || 
-                (containerRef.current as any).webkitRequestFullscreen || 
-                (containerRef.current as any).mozRequestFullScreen || 
-                (containerRef.current as any).msRequestFullscreen;
+    const req =
+      (containerRef.current as any).requestFullscreen ||
+      (containerRef.current as any).webkitRequestFullscreen ||
+      (containerRef.current as any).mozRequestFullScreen ||
+      (containerRef.current as any).msRequestFullscreen;
 
     if (!document.fullscreenElement && req) {
       req.call(containerRef.current).catch((err: any) => {
@@ -200,16 +201,27 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               lastInteractionRef.current = Date.now();
               setTimeout(() => {
                 if (!overlayRef.current) return;
-                const idx = transcript.findIndex((seg) => currentTime >= seg.start && currentTime < seg.end);
+                const idx = transcript.findIndex(
+                  (seg) => currentTime >= seg.start && currentTime < seg.end,
+                );
                 const el = overlayRef.current.children[idx] as HTMLElement;
-                if (el) overlayRef.current.scrollTo({ top: el.offsetTop - overlayRef.current.clientHeight / 2 + el.clientHeight / 2, behavior: 'smooth' });
+                if (el)
+                  overlayRef.current.scrollTo({
+                    top: el.offsetTop - overlayRef.current.clientHeight / 2 + el.clientHeight / 2,
+                    behavior: 'smooth',
+                  });
               }, 50);
             }}
             className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs text-cyan-400 rounded-full transition-colors flex items-center gap-2 border border-slate-700"
             title="Read full transcript overlay"
           >
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
             </svg>
             Read Full Transcript
           </button>
@@ -516,9 +528,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
             <div
               ref={overlayRef}
               className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent"
-              onScroll={() => { lastInteractionRef.current = Date.now(); }}
-              onWheel={() => { lastInteractionRef.current = Date.now(); }}
-              onTouchMove={() => { lastInteractionRef.current = Date.now(); }}
+              onScroll={() => {
+                lastInteractionRef.current = Date.now();
+              }}
+              onWheel={() => {
+                lastInteractionRef.current = Date.now();
+              }}
+              onTouchMove={() => {
+                lastInteractionRef.current = Date.now();
+              }}
             >
               {transcript.map((seg, i) => (
                 <button
@@ -527,8 +545,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   className={`w-full text-left p-3 rounded border border-slate-800/50 hover:bg-slate-800/50 transition-colors ${currentTime >= seg.start && currentTime < seg.end ? 'bg-cyan-900/20' : ''}`}
                 >
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-mono text-slate-500">{formatTime(seg.start)}</span>
-                    {seg.speaker && <span className="text-xs font-bold text-slate-300">{seg.speaker}</span>}
+                    <span className="text-xs font-mono text-slate-500">
+                      {formatTime(seg.start)}
+                    </span>
+                    {seg.speaker && (
+                      <span className="text-xs font-bold text-slate-300">{seg.speaker}</span>
+                    )}
                   </div>
                   <p className="text-sm text-slate-300">{seg.text}</p>
                 </button>

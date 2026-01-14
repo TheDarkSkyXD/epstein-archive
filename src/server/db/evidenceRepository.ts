@@ -191,7 +191,9 @@ export const evidenceRepository = {
       )
       .run(investigationId, evidenceId, notes || '', relevance || 'medium');
     const evidence = db
-      .prepare(`SELECT id, title, description, evidence_type, source_path FROM evidence WHERE id = ?`)
+      .prepare(
+        `SELECT id, title, description, evidence_type, source_path FROM evidence WHERE id = ?`,
+      )
       .get(evidenceId);
     return {
       investigationEvidenceId: link.lastInsertRowid,
@@ -295,7 +297,9 @@ export const evidenceRepository = {
       throw new Error('Media not found');
     }
     const sourcePath = media.file_path;
-    const existing = db.prepare(`SELECT id FROM evidence WHERE source_path = ?`).get(sourcePath) as any;
+    const existing = db
+      .prepare(`SELECT id FROM evidence WHERE source_path = ?`)
+      .get(sourcePath) as any;
     let evidenceId: number;
     if (existing) {
       evidenceId = existing.id;
@@ -315,8 +319,8 @@ export const evidenceRepository = {
         media.file_type === 'audio'
           ? 'audio'
           : media.file_type === 'video'
-          ? 'video'
-          : 'media_scan';
+            ? 'video'
+            : 'media_scan';
       const tags = db
         .prepare(
           `
@@ -373,9 +377,8 @@ export const evidenceRepository = {
         )
         .all(mediaItemId) as any[];
       for (const p of people) {
-        db
-          .prepare(
-            `
+        db.prepare(
+          `
           INSERT OR IGNORE INTO evidence_entity (
             evidence_id,
             entity_id,
@@ -384,8 +387,7 @@ export const evidenceRepository = {
             context_snippet
           ) VALUES (?, ?, ?, ?, ?)
         `,
-          )
-          .run(evidenceId, p.entity_id, p.role || 'participant', 0.8, '');
+        ).run(evidenceId, p.entity_id, p.role || 'participant', 0.8, '');
       }
     }
     const res = db

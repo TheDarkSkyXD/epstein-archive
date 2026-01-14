@@ -236,11 +236,15 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
                 onClick={() => onEntitySelect?.(entity.id)}
                 className="w-full flex items-center gap-3 p-3 bg-slate-800/50 hover:bg-slate-700/50 rounded-lg border border-slate-700/50 transition-colors text-left"
               >
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
-                  entity.riskLevel >= 4 ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
-                  entity.riskLevel >= 2 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' :
-                  'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                }`}>
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
+                    entity.riskLevel >= 4
+                      ? 'bg-red-500/20 text-red-300 border border-red-500/30'
+                      : entity.riskLevel >= 2
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                  }`}
+                >
                   {i + 1}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -249,9 +253,7 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
                     {entity.connectionCount} connections • {entity.mentions} mentions
                   </div>
                 </div>
-                <div className="text-lg shrink-0">
-                  {'🚩'.repeat(Math.min(entity.riskLevel, 5))}
-                </div>
+                <div className="text-lg shrink-0">{'🚩'.repeat(Math.min(entity.riskLevel, 5))}</div>
               </button>
             ))}
           </div>

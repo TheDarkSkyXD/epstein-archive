@@ -29,7 +29,9 @@ const statsWebp = statSync(coverImagePathWebp);
 
 try {
   // Ensure JPG exists in DB
-  const existingJpg = db.prepare('SELECT id FROM media_images WHERE path = ?').get(coverImagePathJpg);
+  const existingJpg = db
+    .prepare('SELECT id FROM media_images WHERE path = ?')
+    .get(coverImagePathJpg);
   let coverImageId: number;
   if (existingJpg) {
     coverImageId = (existingJpg as { id: number }).id;
@@ -58,7 +60,9 @@ try {
   }
 
   // Ensure WEBP exists in DB as a separate image
-  const existingWebp = db.prepare('SELECT id FROM media_images WHERE path = ?').get(coverImagePathWebp);
+  const existingWebp = db
+    .prepare('SELECT id FROM media_images WHERE path = ?')
+    .get(coverImagePathWebp);
   if (existingWebp) {
     console.log(`[INFO] WEBP cover already exists with ID: ${(existingWebp as { id: number }).id}`);
   } else {

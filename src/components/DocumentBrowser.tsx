@@ -1713,7 +1713,9 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                   <div className="overflow-y-auto pb-8 px-4 space-y-6 max-h-[calc(80vh-80px)]">
                     {/* Sort Options */}
                     <div>
-                      <label className="block text-sm font-medium mb-2 text-slate-300">Sort By</label>
+                      <label className="block text-sm font-medium mb-2 text-slate-300">
+                        Sort By
+                      </label>
                       <select
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value as any)}
@@ -1756,7 +1758,9 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
 
                     {/* Red Flag Index */}
                     <div>
-                      <label className="block text-sm font-medium mb-2 text-slate-300">Red Flag Index</label>
+                      <label className="block text-sm font-medium mb-2 text-slate-300">
+                        Red Flag Index
+                      </label>
                       <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
                         <div className="flex items-center justify-between mb-3">
                           <span className="text-2xl">🚩</span>
@@ -1783,16 +1787,16 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
 
                     {/* Credibility Filter */}
                     <div>
-                      <label
-                        className="flex items-center gap-3 p-4 bg-slate-800 rounded-lg border border-slate-700"
-                      >
+                      <label className="flex items-center gap-3 p-4 bg-slate-800 rounded-lg border border-slate-700">
                         <input
                           type="checkbox"
                           checked={hideLowCredibility}
                           onChange={(e) => setHideLowCredibility(e.target.checked)}
                           className="w-5 h-5 rounded"
                         />
-                        <span className="text-sm text-slate-300">Hide low credibility material</span>
+                        <span className="text-sm text-slate-300">
+                          Hide low credibility material
+                        </span>
                       </label>
                     </div>
 

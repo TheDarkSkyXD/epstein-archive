@@ -15,9 +15,11 @@ interface TranscriptSegment {
 
 function generateTranscripts() {
   console.log(`Generating transcripts for Album ID ${ALBUM_ID}...`);
-  
-  const items = db.prepare('SELECT id, title, metadata_json, document_id FROM media_items WHERE album_id = ?').all(ALBUM_ID) as any[];
-  
+
+  const items = db
+    .prepare('SELECT id, title, metadata_json, document_id FROM media_items WHERE album_id = ?')
+    .all(ALBUM_ID) as any[];
+
   const insertDoc = db.prepare(`
     INSERT INTO documents (
       file_name, file_path, file_type, content, is_sensitive, created_at, date_modified
@@ -37,7 +39,7 @@ function generateTranscripts() {
         continue;
       }
       if (!item.metadata_json) continue;
-      
+
       let metadata;
       try {
         metadata = JSON.parse(item.metadata_json);
@@ -54,11 +56,11 @@ function generateTranscripts() {
       // Generate Clean Transcript
       let cleanText = `Transcript: ${item.title}\n\n`;
       let lastSpeaker = '';
-      
-      for (const seg of (metadata.transcript as TranscriptSegment[])) {
+
+      for (const seg of metadata.transcript as TranscriptSegment[]) {
         const speaker = seg.speaker ? seg.speaker.trim() : 'Unknown';
         const text = seg.text ? seg.text.trim() : '';
-        
+
         if (speaker !== lastSpeaker) {
           cleanText += `\n**${speaker}**:\n${text}`;
           lastSpeaker = speaker;
@@ -78,7 +80,7 @@ function generateTranscripts() {
 
       // Link to Media Item
       updateMedia.run(docId, item.id);
-      
+
       console.log(`Generated transcript for item ${item.id} -> Document ${docId}`);
       count++;
     }

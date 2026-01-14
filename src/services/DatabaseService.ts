@@ -823,6 +823,21 @@ export class DatabaseService {
       relevance,
     );
   }
+  async addSnippetToInvestigation(
+    investigationId: string,
+    documentId: string,
+    snippetText: string,
+    notes: string,
+    relevance: string,
+  ) {
+    return evidenceRepository.addSnippetToInvestigation(
+      investigationId,
+      documentId,
+      snippetText,
+      notes,
+      relevance,
+    );
+  }
 
   // Evidence search and retrieval methods
   async searchEvidence(params: {

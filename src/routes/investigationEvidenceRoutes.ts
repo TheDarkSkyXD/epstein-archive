@@ -31,25 +31,25 @@ router.get('/evidence/:entityId', async (req: Request, res: Response) => {
 router.post('/add-evidence', async (req: Request, res: Response) => {
   try {
     const { investigationId, evidenceId, notes, relevance } = req.body;
-
     if (!investigationId || !evidenceId) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-
     const result = await databaseService.addEvidenceToInvestigation(
       investigationId,
       evidenceId,
       notes,
       relevance,
     );
-
-    res.json({
-      success: true,
-      ...result,
-    });
+    res.json({ success: true, ...result });
   } catch (error: any) {
     if (error.message === 'Evidence not found') {
       return res.status(404).json({ error: 'Evidence not found' });
+    }
+    console.error('Error adding evidence to investigation:', error);
+    res.status(500).json({ error: 'Failed to add evidence to investigation' });
+  }
+});
+
 router.post('/add-media', async (req: Request, res: Response) => {
   try {
     const { investigationId, mediaItemId, notes, relevance } = req.body;
@@ -72,6 +72,32 @@ router.post('/add-media', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * POST /api/investigation/add-snippet
+ * Add a text snippet from a document to an investigation
+ */
+router.post('/add-snippet', async (req: Request, res: Response) => {
+  try {
+    const { investigationId, documentId, snippetText, notes, relevance } = req.body;
+    if (!investigationId || !documentId || !snippetText) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    const result = await databaseService.addSnippetToInvestigation(
+      investigationId,
+      documentId,
+      snippetText,
+      notes,
+      relevance,
+    );
+    res.json({ success: true, ...result });
+  } catch (error: any) {
+    if (error.message === 'Document not found') {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+    console.error('Error adding snippet to investigation:', error);
+    res.status(500).json({ error: 'Failed to add snippet to investigation' });
+  }
+});
 /**
  * GET /api/investigation/:investigationId/evidence-summary
  * Get evidence summary for an investigation

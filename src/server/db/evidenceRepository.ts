@@ -128,6 +128,76 @@ export const evidenceRepository = {
       },
     };
   },
+  addSnippetToInvestigation: async (
+    investigationId: string,
+    documentId: string,
+    snippetText: string,
+    notes: string,
+    relevance: string,
+  ) => {
+    const db = getDb();
+    const doc = db
+      .prepare(
+        `
+      SELECT id, file_path, file_name, evidence_type, red_flag_rating
+      FROM documents
+      WHERE id = ?
+    `,
+      )
+      .get(documentId) as any;
+    if (!doc) {
+      throw new Error('Document not found');
+    }
+    const sourcePath = doc.file_path || `doc:${doc.id}`;
+    const ins = db
+      .prepare(
+        `
+      INSERT INTO evidence (
+        evidence_type,
+        source_path,
+        original_filename,
+        title,
+        description,
+        extracted_text,
+        created_at,
+        ingested_at,
+        red_flag_rating,
+        metadata_json
+      ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), ?, ?)
+    `,
+      )
+      .run(
+        doc.evidence_type || 'investigative_report',
+        sourcePath,
+        doc.file_name || `Document ${doc.id}`,
+        `Snippet from ${doc.file_name || 'Document'} (${doc.id})`,
+        notes || '',
+        snippetText || '',
+        doc.red_flag_rating || 0,
+        JSON.stringify({ document_id: doc.id }),
+      );
+    const evidenceId = Number(ins.lastInsertRowid);
+    const link = db
+      .prepare(
+        `
+      INSERT OR IGNORE INTO investigation_evidence (
+        investigation_id,
+        evidence_id,
+        notes,
+        relevance,
+        added_at
+      ) VALUES (?, ?, ?, ?, datetime('now'))
+    `,
+      )
+      .run(investigationId, evidenceId, notes || '', relevance || 'medium');
+    const evidence = db
+      .prepare(`SELECT id, title, description, evidence_type, source_path FROM evidence WHERE id = ?`)
+      .get(evidenceId);
+    return {
+      investigationEvidenceId: link.lastInsertRowid,
+      evidence,
+    };
+  },
 
   // Add evidence to an investigation session
   addEvidenceToInvestigation: async (

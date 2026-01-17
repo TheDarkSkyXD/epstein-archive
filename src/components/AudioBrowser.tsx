@@ -54,8 +54,36 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
   const [items, setItems] = useState<AudioItem[]>([]);
   const [albums, setAlbums] = useState<Album[]>([]);
   const [selectedAlbum, setSelectedAlbum] = useState<number | null>(null);
+  const [selectedItem, setSelectedItem] = useState<AudioItem | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [coverTick, setCoverTick] = useState(0);
   const [libraryTotalCount, setLibraryTotalCount] = useState(0);
+  const [showAlbumDropdown, setShowAlbumDropdown] = useState(false);
+  const [investigationId, setInvestigationId] = useState<number | null>(null);
+  const [investigationSummary, setInvestigationSummary] = useState<any | null>(null);
+  const [pickerOpenId, setPickerOpenId] = useState<number | null>(null);
+  const [investigationsList, setInvestigationsList] = useState<any[]>([]);
+  const [addingId, setAddingId] = useState<number | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Transcript search (within album or across all audio)
+  const [transcriptSearch, setTranscriptSearch] = useState('');
+  // Optional timecode from URL (e.g. shared links)
+  const [initialUrlTimestamp, setInitialUrlTimestamp] = useState<number | undefined>(
+    initialTimestamp,
+  );
+
+  // Batch Mode State
+  const [isBatchMode, setIsBatchMode] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
+
+  const currentAlbum = useMemo(
+    () => albums.find((a) => a.id === selectedAlbum),
+    [albums, selectedAlbum],
+  );
 
   // Effect to select album when loaded if initialAlbumId is provided
   useEffect(() => {
@@ -66,30 +94,33 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
         setSelectedAlbum(match.id);
       }
     }
-    if (initialAlbumId && albums.length > 0 && selectedAlbum === null) {
-      const match = albums.find((a) => a.id === initialAlbumId);
-      if (match) {
-        console.log(`Selecting requested album: ${match.name} (${match.id})`);
-        setSelectedAlbum(match.id);
-      }
-    }
   }, [initialAlbumId, albums, selectedAlbum]);
 
-  // Effect to load specific item if requested via URL
+  // Effect to load specific item if requested via URL or props
   useEffect(() => {
-    if (initialAudioId && !selectedItem) {
+    const url = new URL(window.location.href);
+    const urlId = url.searchParams.get('id');
+    const urlT = url.searchParams.get('t');
+
+    const targetId = initialAudioId || (urlId ? parseInt(urlId, 10) : undefined);
+    const targetT =
+      initialTimestamp !== undefined
+        ? initialTimestamp
+        : urlT && !Number.isNaN(parseInt(urlT, 10))
+          ? parseInt(urlT, 10)
+          : undefined;
+
+    if (targetT !== undefined && initialUrlTimestamp === undefined) {
+      setInitialUrlTimestamp(targetT);
+    }
+
+    if (targetId && !selectedItem) {
       // Fetch the specific item
-      fetch(`/api/media/audio/${initialAudioId}`)
+      fetch(`/api/media/audio/${targetId}`)
         .then((res) => res.json())
         .then((data) => {
           if (data && data.id) {
             console.log('Loaded direct link item:', data.title);
-            // Transform to AudioItem format if needed, or assume API returns correct shape
-            // The list API returns AudioItem, single endpoint likely does too (check repository)
-            // Note: Single endpoint might not return 'metadata' parsed if it's raw DB row.
-            // We'll wrap in try/catch and ensure metadata parsing if needed.
-            // Assuming the repo returns parsed metadata or we need to parse it.
-            // Let's assume standard shape for now or standardise:
             const item = {
               ...data,
               metadata:
@@ -100,27 +131,12 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
         })
         .catch(console.error);
     }
-  }, [initialAudioId]);
-
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedItem, setSelectedItem] = useState<AudioItem | null>(null);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [showAlbumDropdown, setShowAlbumDropdown] = useState(false);
-  const [investigationId, setInvestigationId] = useState<number | null>(null);
-  const [investigationSummary, setInvestigationSummary] = useState<any | null>(null);
-  const [pickerOpenId, setPickerOpenId] = useState<number | null>(null);
-  const [investigationsList, setInvestigationsList] = useState<any[]>([]);
-  const [addingId, setAddingId] = useState<number | null>(null);
-
-  // Batch Mode State
-  const [isBatchMode, setIsBatchMode] = useState(false);
-  const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
+  }, [initialAudioId, initialTimestamp, selectedItem, initialUrlTimestamp]);
 
   // Load albums on mount
   useEffect(() => {
     loadAlbums();
+    return () => abortControllerRef.current?.abort();
   }, []);
 
   useEffect(() => {
@@ -144,10 +160,10 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
     };
     loadTotals();
   }, []);
-  // Load items when album selection changes
+  // Load items when album selection or transcript search changes
   useEffect(() => {
     fetchAudio(1);
-  }, [selectedAlbum]);
+  }, [selectedAlbum, transcriptSearch]);
 
   useEffect(() => {
     const isSascha =
@@ -231,6 +247,13 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
   const fetchAudio = async (pageNum: number) => {
     try {
       setLoading(true);
+      
+      // Abort previous request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+
       const params = new URLSearchParams({
         page: pageNum.toString(),
         limit: '24',
@@ -238,10 +261,15 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
       if (selectedAlbum) {
         params.append('albumId', selectedAlbum.toString());
       }
+      if (transcriptSearch.trim()) {
+        params.append('transcriptQuery', transcriptSearch.trim());
+      }
       // Always sort by title as requested ("sorted by name by tranche")
       params.append('sortBy', 'title');
 
-      const res = await fetch(`/api/media/audio?${params}`);
+      const res = await fetch(`/api/media/audio?${params}`, {
+        signal: abortControllerRef.current.signal,
+      });
       if (!res.ok) throw new Error('Failed to load audio files');
 
       const data = await res.json();
@@ -260,6 +288,7 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
       setHasMore(newItems.length === 24);
       setPage(pageNum);
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return;
       console.error(err);
       setError('Failed to load audio content');
     } finally {
@@ -318,7 +347,6 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
     [loading, hasMore],
   );
 
-  const currentAlbum = albums.find((a) => a.id === selectedAlbum);
   const showSensitiveWarning =
     currentAlbum &&
     (currentAlbum.name.match(/Sensitive|Disturbing|Testimony|Victim|Survivor/i) ||
@@ -390,9 +418,9 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
                               .catch(() => {});
                           }
                         }}
-                        className="px-2 py-1 rounded bg-amber-700 text-white text-[10px] border border-amber-500"
+                        className="w-6 h-6 flex items-center justify-center rounded bg-amber-700 text-white text-[11px] font-bold border border-amber-500"
                       >
-                        Add
+                        +
                       </button>
                       {pickerOpenId === item.id && (
                         <div className="bg-slate-900 border border-slate-700 rounded p-2 shadow-xl">
@@ -525,6 +553,51 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
                       {item.description && (
                         <p className="text-xs text-slate-400 line-clamp-6">{item.description}</p>
                       )}
+
+                      {/* When transcriptSearch is active, surface matching transcript
+                          segments here so users see what text is being matched and
+                          can jump straight to the relevant timecodes. */}
+                      {transcriptSearch.trim() &&
+                        Array.isArray(item.metadata?.transcript) &&
+                        item.metadata.transcript.length > 0 && (
+                          <div className="mt-3 border-t border-slate-800 pt-2 space-y-1">
+                            <p className="text-[10px] uppercase tracking-wide text-slate-500">
+                              Transcript matches
+                            </p>
+                            {item.metadata.transcript
+                              .map((seg: TranscriptSegment, idx: number) => ({ seg, idx }))
+                              .filter(({ seg }) =>
+                                (seg.text || '')
+                                  .toLowerCase()
+                                  .includes(transcriptSearch.trim().toLowerCase()),
+                              )
+                              .slice(0, 3)
+                              .map(({ seg }, matchIdx) => (
+                                <button
+                                  key={matchIdx}
+                                  type="button"
+                                  className="w-full text-left text-[11px] text-slate-300 hover:text-cyan-300 hover:bg-slate-800/60 rounded px-2 py-1 flex items-start gap-2"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    // Open this item at the segment start time.
+                                    setSelectedItem(item);
+                                    const url = new URL(window.location.href);
+                                    url.searchParams.set('id', item.id.toString());
+                                    url.searchParams.set('t', Math.floor(seg.start || 0).toString());
+                                    window.history.pushState({}, '', url.toString());
+                                  }}
+                                >
+                                  <span className="font-mono text-[10px] text-slate-500 min-w-[40px]">
+                                    {Math.floor((seg.start || 0) / 60)}:
+                                    {Math.floor((seg.start || 0) % 60)
+                                      .toString()
+                                      .padStart(2, '0')}
+                                  </span>
+                                  <span className="flex-1 line-clamp-2">{seg.text}</span>
+                                </button>
+                              ))}
+                          </div>
+                        )}
                     </div>
                   </div>
                 </div>
@@ -601,7 +674,7 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 flex-1">
           <div>
             <h2 className="text-lg font-light text-white">Audio Recordings</h2>
             <p className="text-slate-400 text-xs hidden md:block">
@@ -637,6 +710,25 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
               </div>
             )}
           </div>
+
+          {/* Transcript search within current album / all audio */}
+          <div className="flex-1 flex items-center gap-2 min-w-[160px]">
+            <div className="relative w-full max-w-xs">
+              <Icon
+                name="Search"
+                size="sm"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"
+              />
+              <input
+                type="text"
+                value={transcriptSearch}
+                onChange={(e) => setTranscriptSearch(e.target.value)}
+                placeholder={selectedAlbum ? 'Search transcripts in this album…' : 'Search transcripts…'}
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg text-slate-200 pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-cyan-500 placeholder-slate-500"
+              />
+            </div>
+          </div>
+
           <button
             onClick={() => setIsBatchMode(!isBatchMode)}
             className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${isBatchMode ? 'bg-cyan-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'}`}
@@ -805,7 +897,7 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
       {/* Audio Player Modal */}
       {selectedItem &&
         createPortal(
-          <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 md:p-8 animate-in fade-in duration-200">
+          <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 md:p-8 animate-in fade-in duration-200">
             <div className="w-full max-w-5xl h-[80vh] shadow-2xl ring-1 ring-white/10 rounded-lg overflow-hidden">
               <AudioPlayer
                 key={selectedItem.id}
@@ -816,13 +908,20 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
                 autoPlay
                 isSensitive={selectedItem.isSensitive}
                 warningText={selectedItem.description}
-                documentId={selectedItem.documentId}
-                initialTime={selectedItem.id === initialAudioId ? initialTimestamp : 0}
+                documentId={selectedItem.id}
+                initialTime={
+                  initialUrlTimestamp !== undefined && selectedItem.id === (initialAudioId || selectedItem.id)
+                    ? initialUrlTimestamp
+                    : 0
+                }
                 albumImages={
                   selectedItem.title.includes('Sascha') ||
                   (selectedItem.albumName && selectedItem.albumName.includes('Sascha')) ||
                   (currentAlbum && currentAlbum.name.includes('Sascha'))
-                    ? ['/data/media/audio/lvoocaudiop1/lvoocaudiop1.webp']
+                    ? [
+                        '/data/media/audio/lvoocaudiop1/lvoocaudiop1.webp',
+                        '/data/media/audio/lvoocaudiop1/lvoocaudiop1.jpg',
+                      ]
                     : []
                 }
                 onClose={() => {

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, Pause, Volume2, VolumeX, Maximize2, X, Minimize2, Shield } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Maximize2, X, Minimize2, Shield, Share2, Check } from 'lucide-react';
 import { TranscriptSegment, Chapter } from './AudioPlayer'; // Reuse types
 
 interface VideoPlayerProps {
@@ -38,8 +38,17 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [playbackRate, setPlaybackRate] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [showTranscript, setShowTranscript] = useState(() => {
-    const saved = localStorage.getItem('video-player-show-transcript');
-    return saved !== null ? saved === 'true' : true;
+    try {
+      const saved = typeof window !== 'undefined'
+        ? window.localStorage.getItem('video-player-show-transcript')
+        : null;
+      if (saved !== null) return saved === 'true';
+      // Default closed on mobile where sidebar can crowd controls
+      if (typeof window !== 'undefined' && window.innerWidth < 768) return false;
+      return true;
+    } catch {
+      return false;
+    }
   });
   const [activeSegmentIndex, setActiveSegmentIndex] = useState<number>(-1);
   const [showChapters, setShowChapters] = useState(false);
@@ -49,6 +58,36 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [showFullTranscriptOverlay, setShowFullTranscriptOverlay] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
   const lastInteractionRef = useRef<number>(Date.now());
+  const [showCopied, setShowCopied] = useState(false);
+  const sidebarSearchInputRef = useRef<HTMLInputElement | null>(null);
+  const overlaySearchInputRef = useRef<HTMLInputElement | null>(null);
+
+  // In-player transcript search state
+  const [transcriptSearch, setTranscriptSearch] = useState('');
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+
+  const normalizedTranscriptQuery = React.useMemo(
+    () => transcriptSearch.trim().toLowerCase(),
+    [transcriptSearch],
+  );
+
+  const transcriptMatches = React.useMemo(
+    () => {
+      if (!normalizedTranscriptQuery || !Array.isArray(transcript)) return [] as number[];
+      return transcript
+        .map((seg, index) => ({
+          index,
+          text: `${seg.text || ''} ${seg.speaker || ''}`.toLowerCase(),
+        }))
+        .filter(({ text }) => text.includes(normalizedTranscriptQuery))
+        .map(({ index }) => index);
+    },
+    [transcript, normalizedTranscriptQuery],
+  );
+
+  useEffect(() => {
+    setCurrentMatchIndex(0);
+  }, [normalizedTranscriptQuery, transcriptMatches.length]);
 
   const [hasRevealed, setHasRevealed] = useState(!isSensitive);
 
@@ -56,9 +95,32 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const toggleTranscript = () => {
     setShowTranscript((prev) => {
       const newValue = !prev;
-      localStorage.setItem('video-player-show-transcript', String(newValue));
+      try {
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem('video-player-show-transcript', String(newValue));
+        }
+      } catch {
+        // ignore storage errors
+      }
       return newValue;
     });
+  };
+
+  const handleShare = () => {
+    try {
+      const url = new URL(window.location.href);
+      // Encode current playback position so shared links restore time.
+      url.searchParams.set('t', Math.floor(currentTime).toString());
+      if (documentId != null) {
+        url.searchParams.set('id', String(documentId));
+      }
+      navigator.clipboard.writeText(url.toString()).then(() => {
+        setShowCopied(true);
+        setTimeout(() => setShowCopied(false), 2000);
+      });
+    } catch (e) {
+      console.error('Failed to copy link', e);
+    }
   };
 
   // Reset hasRevealed if isSensitive changes
@@ -107,9 +169,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       const element = transcriptRef.current.children[index] as HTMLElement;
 
       if (element) {
-        const containerTop = container.getBoundingClientRect().top;
-        const elementTop = element.getBoundingClientRect().top;
-        const offset = elementTop - containerTop + container.scrollTop;
+        const offset = element.offsetTop - container.offsetTop;
 
         container.scrollTo({
           top: offset - container.clientHeight / 2 + element.clientHeight / 2,
@@ -118,6 +178,66 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       }
     }
   };
+
+  const scrollOverlayToSegment = (index: number) => {
+    if (!overlayRef.current) return;
+    const element = overlayRef.current.children[index] as HTMLElement;
+    if (element) {
+      overlayRef.current.scrollTo({
+        top:
+          element.offsetTop -
+          overlayRef.current.clientHeight / 2 + element.clientHeight / 2,
+        behavior: 'smooth',
+      });
+    }
+  };
+
+  const jumpToTranscriptMatch = (nextIndex: number) => {
+    if (!transcriptMatches.length) return;
+    const wrapped = (nextIndex + transcriptMatches.length) % transcriptMatches.length;
+    const segIndex = transcriptMatches[wrapped];
+    const seg = transcript[segIndex];
+    if (!seg) return;
+    setCurrentMatchIndex(wrapped);
+    seek(seg.start);
+    scrollToSegment(segIndex);
+    scrollOverlayToSegment(segIndex);
+  };
+
+  const goToNextTranscriptMatch = () => jumpToTranscriptMatch(currentMatchIndex + 1);
+  const goToPrevTranscriptMatch = () => jumpToTranscriptMatch(currentMatchIndex - 1);
+
+  // Keyboard shortcuts for transcript navigation
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+        return;
+      }
+      if (!showTranscript && !showFullTranscriptOverlay) return;
+
+      if (e.key === '/') {
+        e.preventDefault();
+        if (showFullTranscriptOverlay && overlaySearchInputRef.current) {
+          overlaySearchInputRef.current.focus();
+        } else if (sidebarSearchInputRef.current) {
+          sidebarSearchInputRef.current.focus();
+        }
+        return;
+      }
+
+      if (e.key === 'n' && !e.shiftKey) {
+        e.preventDefault();
+        goToNextTranscriptMatch();
+      } else if ((e.key === 'N') || (e.key === 'n' && e.shiftKey)) {
+        e.preventDefault();
+        goToPrevTranscriptMatch();
+      }
+    };
+
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [showTranscript, showFullTranscriptOverlay, goToNextTranscriptMatch, goToPrevTranscriptMatch]);
 
   const formatTime = (time: number) => {
     const mins = Math.floor(time / 60);
@@ -180,58 +300,50 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   return (
     <div className="flex flex-col h-full bg-slate-950 border border-slate-800 rounded-lg shadow-2xl overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800 shrink-0">
-        <div className="flex items-center gap-3 overflow-hidden">
-          <div className="w-8 h-8 rounded bg-cyan-900/30 flex items-center justify-center text-cyan-400">
-            <Play size={16} />
+      <div className="px-4 py-3 bg-slate-900 border-b border-slate-800 shrink-0">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="w-8 h-8 rounded bg-cyan-900/30 flex items-center justify-center text-cyan-400">
+              <Play size={16} />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-sm font-medium text-slate-200 truncate" title={title}>
+                {title}
+              </h3>
+              <p className="text-xs text-slate-500">
+                {chapters.length > 0 ? `${chapters.length} chapters` : 'Video Recording'}
+              </p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <h3 className="text-sm font-medium text-slate-200 truncate" title={title}>
-              {title}
-            </h3>
-            <p className="text-xs text-slate-500">
-              {chapters.length > 0 ? `${chapters.length} chapters` : 'Video Recording'}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              setShowFullTranscriptOverlay(true);
-              lastInteractionRef.current = Date.now();
-              setTimeout(() => {
-                if (!overlayRef.current) return;
-                const idx = transcript.findIndex(
-                  (seg) => currentTime >= seg.start && currentTime < seg.end,
-                );
-                const el = overlayRef.current.children[idx] as HTMLElement;
-                if (el)
-                  overlayRef.current.scrollTo({
-                    top: el.offsetTop - overlayRef.current.clientHeight / 2 + el.clientHeight / 2,
-                    behavior: 'smooth',
-                  });
-              }, 50);
-            }}
-            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs text-cyan-400 rounded-full transition-colors flex items-center gap-2 border border-slate-700"
-            title="Read full transcript overlay"
-          >
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            Read Full Transcript
-          </button>
-          {(transcript.length > 0 || chapters.length > 0) && (
+          <div className="flex items-center gap-2 flex-wrap justify-start md:justify-end">
             <button
-              onClick={toggleTranscript}
+              onClick={handleShare}
               className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors"
-              title={showTranscript ? 'Hide transcript' : 'Show transcript'}
+              title="Copy link"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {showCopied ? <Check size={16} className="text-green-400" /> : <Share2 size={16} />}
+            </button>
+            <button
+              onClick={() => {
+                setShowFullTranscriptOverlay(true);
+                lastInteractionRef.current = Date.now();
+                setTimeout(() => {
+                  if (!overlayRef.current) return;
+                  const idx = transcript.findIndex(
+                    (seg) => currentTime >= seg.start && currentTime < seg.end,
+                  );
+                  const el = overlayRef.current.children[idx] as HTMLElement;
+                  if (el)
+                    overlayRef.current.scrollTo({
+                      top: el.offsetTop - overlayRef.current.clientHeight / 2 + el.clientHeight / 2,
+                      behavior: 'smooth',
+                    });
+                }, 50);
+              }}
+              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs text-cyan-400 rounded-full transition-colors flex items-center gap-2 border border-slate-700"
+              title="Read full transcript overlay"
+            >
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -239,16 +351,33 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                 />
               </svg>
+              Read Full Transcript
             </button>
-          )}
-          {onClose && (
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white"
-            >
-              <X size={18} />
-            </button>
-          )}
+            {(transcript.length > 0 || chapters.length > 0) && (
+              <button
+                onClick={toggleTranscript}
+                className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors"
+                title={showTranscript ? 'Hide transcript' : 'Show transcript'}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+              </button>
+            )}
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white"
+              >
+                <X size={18} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -445,14 +574,64 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
             <div className="flex-1 overflow-y-auto p-0 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent max-h-[40vh] md:max-h-none">
               {!showChapters ? (
-                <div ref={transcriptRef} className="flex flex-col">
-                  {transcript.length > 0 ? (
-                    transcript.map((seg, i) => (
-                      <button
-                        key={i}
-                        onClick={() => seek(seg.start)}
-                        className={`p-4 text-left border-b border-slate-800/50 transition-colors hover:bg-slate-800/50 ${activeSegmentIndex === i ? 'bg-cyan-900/20' : ''}`}
-                      >
+                <>
+                  {transcript.length > 0 && (
+                    <div className="sticky top-0 z-10 bg-slate-900/95 px-3 py-2 border-b border-slate-800 flex items-center gap-2">
+                      <input
+                        ref={sidebarSearchInputRef}
+                        type="text"
+                        value={transcriptSearch}
+                        onChange={(e) => {
+                          setTranscriptSearch(e.target.value);
+                          lastInteractionRef.current = Date.now();
+                        }}
+                        placeholder="Search in transcript…"
+                        className="flex-1 bg-slate-800 border border-slate-700 rounded text-slate-200 text-xs px-2 py-1 focus:outline-none focus:ring-1 focus:ring-cyan-500 placeholder-slate-500"
+                      />
+                      {normalizedTranscriptQuery && (
+                        <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                          <span>
+                            {transcriptMatches.length
+                              ? `${currentMatchIndex + 1}/${transcriptMatches.length}`
+                              : '0/0'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={goToPrevTranscriptMatch}
+                            disabled={!transcriptMatches.length}
+                            className="px-1 py-0.5 rounded bg-slate-800 border border-slate-700 disabled:opacity-40"
+                          >
+                            ↑
+                          </button>
+                          <button
+                            type="button"
+                            onClick={goToNextTranscriptMatch}
+                            disabled={!transcriptMatches.length}
+                            className="px-1 py-0.5 rounded bg-slate-800 border border-slate-700 disabled:opacity-40"
+                          >
+                            ↓
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div ref={transcriptRef} className="flex flex-col">
+                    {transcript.length > 0 ? (
+                      transcript.map((seg, i) => {
+                        const isMatch =
+                          !!normalizedTranscriptQuery && transcriptMatches.includes(i);
+                        const isCurrent =
+                          isMatch && transcriptMatches[currentMatchIndex] === i;
+                        return (
+                          <button
+                            key={i}
+                            onClick={() => seek(seg.start)}
+                            className={`p-4 text-left border-b border-slate-800/50 transition-colors hover:bg-slate-800/50 ${
+                              activeSegmentIndex === i ? 'bg-cyan-900/20' : ''
+                            } ${isCurrent ? 'ring-1 ring-amber-400 border-amber-400' : ''} ${
+                              !isCurrent && isMatch ? 'border-amber-500/60' : ''
+                            }`}
+                          >
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-xs font-mono text-slate-500">
                             {formatTime(seg.start)}
@@ -462,18 +641,22 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                           )}
                         </div>
                         <p
-                          className={`text-sm leading-relaxed ${activeSegmentIndex === i ? 'text-white' : 'text-slate-400'}`}
+                          className={`text-sm leading-relaxed ${
+                            activeSegmentIndex === i ? 'text-white' : 'text-slate-400'
+                          }`}
                         >
                           {seg.text}
                         </p>
                       </button>
-                    ))
+                    );
+                  })
                   ) : (
                     <div className="p-8 text-center text-slate-500 text-sm">
                       No transcript available.
                     </div>
                   )}
                 </div>
+                </>
               ) : (
                 <div className="flex flex-col">
                   {chapters.map((chapter, i) => (
@@ -525,25 +708,75 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 <X size={18} />
               </button>
             </div>
-            <div
-              ref={overlayRef}
-              className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent"
-              onScroll={() => {
-                lastInteractionRef.current = Date.now();
-              }}
-              onWheel={() => {
-                lastInteractionRef.current = Date.now();
-              }}
-              onTouchMove={() => {
-                lastInteractionRef.current = Date.now();
-              }}
-            >
-              {transcript.map((seg, i) => (
-                <button
-                  key={i}
-                  onClick={() => seek(seg.start)}
-                  className={`w-full text-left p-3 rounded border border-slate-800/50 hover:bg-slate-800/50 transition-colors ${currentTime >= seg.start && currentTime < seg.end ? 'bg-cyan-900/20' : ''}`}
-                >
+            <div className="flex-1 flex flex-col">
+              <div className="px-4 py-2 bg-slate-900/80 border-b border-slate-800 flex items-center gap-2">
+                <input
+                  ref={overlaySearchInputRef}
+                  type="text"
+                  value={transcriptSearch}
+                  onChange={(e) => {
+                    setTranscriptSearch(e.target.value);
+                    lastInteractionRef.current = Date.now();
+                  }}
+                  placeholder="Search in transcript…"
+                  className="flex-1 bg-slate-800 border border-slate-700 rounded text-slate-200 text-xs px-2 py-1 focus:outline-none focus:ring-1 focus:ring-cyan-500 placeholder-slate-500"
+                />
+                {normalizedTranscriptQuery && (
+                  <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                    <span>
+                      {transcriptMatches.length
+                        ? `${currentMatchIndex + 1}/${transcriptMatches.length}`
+                        : '0/0'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={goToPrevTranscriptMatch}
+                      disabled={!transcriptMatches.length}
+                      className="px-1 py-0.5 rounded bg-slate-800 border border-slate-700 disabled:opacity-40"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      onClick={goToNextTranscriptMatch}
+                      disabled={!transcriptMatches.length}
+                      className="px-1 py-0.5 rounded bg-slate-800 border border-slate-700 disabled:opacity-40"
+                    >
+                      ↓
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div
+                ref={overlayRef}
+                className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent"
+                onScroll={() => {
+                  lastInteractionRef.current = Date.now();
+                }}
+                onWheel={() => {
+                  lastInteractionRef.current = Date.now();
+                }}
+                onTouchMove={() => {
+                  lastInteractionRef.current = Date.now();
+                }}
+              >
+                {transcript.map((seg, i) => {
+                  const isMatch =
+                    !!normalizedTranscriptQuery && transcriptMatches.includes(i);
+                  const isCurrent =
+                    isMatch && transcriptMatches[currentMatchIndex] === i;
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => seek(seg.start)}
+                      className={`w-full text-left p-3 rounded border border-slate-800/50 hover:bg-slate-800/50 transition-colors ${
+                        currentTime >= seg.start && currentTime < seg.end
+                          ? 'bg-cyan-900/20'
+                          : ''
+                      } ${isCurrent ? 'ring-1 ring-amber-400 border-amber-400' : ''} ${
+                        !isCurrent && isMatch ? 'border-amber-500/60' : ''
+                      }`}
+                    >
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-xs font-mono text-slate-500">
                       {formatTime(seg.start)}
@@ -554,7 +787,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   </div>
                   <p className="text-sm text-slate-300">{seg.text}</p>
                 </button>
-              ))}
+              );
+            })}
+              </div>
             </div>
           </div>
         </div>

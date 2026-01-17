@@ -1,5 +1,42 @@
 # Release Notes
 
+## v10.7.1 (2026-01-15) - Media Player UX Polish
+
+- Split audio and video player headers into a two-row, responsive layout to reduce control crowding on mobile while preserving a compact desktop view.
+- Default transcripts to closed on small screens (with persisted toggle state) to avoid confusing overlays without playback controls, while keeping transcripts open by default on desktop.
+- Added share/copy-link buttons to audio and video players so any media item can be deep-linked directly from the player header.
+- Enhanced Sascha testimony playback by alternating album art between JPG and WEBP variants with a smooth cross-fade.
+
+## v10.7.0 (2026-01-15) - Notebook, Briefing, Redactions, Video Layout
+
+### Investigation Notebook
+- Added server-persistent Evidence Notebook with GET/PUT endpoints and UI integration
+- “Publish Briefing” export produces grouped markdown with citations and deep links
+
+### About Page Redactions
+- Corrected color coding: heavy redaction is red, moderate yellow, none green
+- Estimates now sourced from ingestion pipeline redaction metrics
+
+### Video Browser
+- Adjusted grid sizing and row height for proper multi-column layout on production
+- Added header status and Reload control for resilience
+
+### Katie Johnson Ingestion
+- New ingestion script seeds videos under `data/media/videos/KatieJohnson`, extracts audio, runs Whisper, and stores transcripts
+- Items added to “Katie Johnson Complaint” album with verified status
+
+---
+
+## v10.6.0 (2026-01-15) - Media Stability & Layout
+
+### Media Browser
+
+- Fixed audio album discovery by aligning backend album queries with the `media_items` file type conventions, so all ingested audio now appears in the Audio browser.
+- Added a dedicated `/api/media/audio/:id` endpoint to fully support deep links into specific audio items in the Audio browser.
+- Tightened the video grid layout to allow more columns on wider screens and reduce excessive spacing between video cards while preserving readability.
+
+---
+
 ## v10.3.2 (2026-01-15) - Mobile UX Improvements
 
 ### Mobile Responsiveness

@@ -313,21 +313,49 @@ export const investigationsRepository = {
     return result.lastInsertRowid;
   },
 
-  updateInvestigation: async (
-    id: number,
-    updates: {
-      title?: string;
-      description?: string;
-      scope?: string;
-      status?: 'open' | 'in_review' | 'closed' | 'archived';
+  updateInvestigation: async (id: number, updates: { 
+      title?: string; 
+      description?: string; 
+      scope?: string; 
+      status?: 'open' | 'in_review' | 'closed' | 'archived'; 
+      collaboratorIds?: string[] 
+  }) => {
     const db = getDb();
     const fields: string[] = [];
     const params: any = { id };
-
     if (updates.title !== undefined) {
       fields.push('title = @title');
       params.title = updates.title;
     }
+    if (updates.description !== undefined) {
+      fields.push('description = @description');
+      params.description = updates.description;
+    }
+    if (updates.scope !== undefined) {
+      fields.push('scope = @scope');
+      params.scope = updates.scope;
+    }
+    if (updates.status !== undefined) {
+      fields.push('status = @status');
+      params.status = updates.status;
+    }
+    if (updates.collaboratorIds !== undefined) {
+      fields.push('collaborator_ids = @collaboratorIds');
+      params.collaboratorIds = JSON.stringify(updates.collaboratorIds);
+    }
+
+    if (fields.length === 0) return investigationsRepository.getInvestigationById(id);
+
+    db.prepare(
+      `
+      UPDATE investigations 
+      SET ${fields.join(', ')}
+      WHERE id = @id
+    `,
+    ).run(params);
+
+    return investigationsRepository.getInvestigationById(id);
+  },
 
   getNotebook: async (investigationId: number) => {
     const db = getDb();
@@ -347,12 +375,12 @@ export const investigationsRepository = {
     let annotations = [];
     try {
       order = row.orderJson ? JSON.parse(row.orderJson) : [];
-    } catch {
+    } catch (e) {
       order = [];
     }
     try {
       annotations = row.annotationsJson ? JSON.parse(row.annotationsJson) : [];
-    } catch {
+    } catch (e) {
       annotations = [];
     }
     return { investigationId, order, annotations, updatedAt: row.updatedAt };
@@ -382,35 +410,6 @@ export const investigationsRepository = {
       ).run(investigationId, orderJson, annotationsJson);
     }
     return true;
-  },
-    if (updates.description !== undefined) {
-      fields.push('description = @description');
-      params.description = updates.description;
-    }
-    if (updates.scope !== undefined) {
-      fields.push('scope = @scope');
-      params.scope = updates.scope;
-    }
-    if (updates.status !== undefined) {
-      fields.push('status = @status');
-      params.status = updates.status;
-    }
-    if (updates.collaboratorIds !== undefined) {
-      fields.push('collaborator_ids = @collaboratorIds');
-      params.collaboratorIds = JSON.stringify(updates.collaboratorIds);
-    }
-
-    if (fields.length === 0) return investigationsRepository.getInvestigationById(id);
-
-    db.prepare(
-      `
-      UPDATE investigations 
-      SET ${fields.join(', ')}
-      WHERE id = @id
-    `,
-    ).run(params);
-
-    return investigationsRepository.getInvestigationById(id);
   },
 };
 

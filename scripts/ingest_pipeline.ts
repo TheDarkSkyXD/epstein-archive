@@ -17,12 +17,14 @@
 
 import Database from 'better-sqlite3';
 import { join, basename, extname } from 'path';
-import { statSync, readFileSync, existsSync } from 'fs';
+import { statSync, readFileSync, existsSync, mkdtempSync } from 'fs';
+import { tmpdir } from 'os';
 import { globSync } from 'glob';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const pdfParse = require('pdf-parse');
 import * as crypto from 'crypto';
+import { execFile } from 'child_process';
 
 // ============================================================================
 // CONFIGURATION
@@ -125,7 +127,7 @@ function verifyDatabase() {
 }
 
 // ============================================================================
-// PDF TEXT EXTRACTION
+// PDF TEXT EXTRACTION & UNREDACTION
 // ============================================================================
 
 async function extractTextFromPdf(buffer: Buffer): Promise<{ text: string; pageCount: number }> {
@@ -139,6 +141,72 @@ async function extractTextFromPdf(buffer: Buffer): Promise<{ text: string; pageC
     console.warn('  ⚠️  PDF extraction failed:', (e as Error).message);
     return { text: '', pageCount: 0 };
   }
+}
+
+/**
+ * Run the Python unredact pipeline on a PDF and return the path to the
+ * unredacted PDF if successful, otherwise fall back to the original.
+ *
+ * This is intentionally conservative: failures will not break ingestion,
+ * they just skip unredaction.
+ */
+async function maybeUnredactPdf(originalPath: string): Promise<string> {
+  // Only run on obvious PDF paths
+  if (!originalPath.toLowerCase().endsWith('.pdf')) return originalPath;
+
+  return await new Promise((resolve) => {
+    try {
+      const tmpDir = mkdtempSync(join(tmpdir(), 'unredact-'));
+      const scriptPath = join(
+        // scripts/ingest_pipeline.ts lives in scripts/, unredact in scripts/unredact.py/src/unredact.py
+        process.cwd(),
+        'scripts',
+        'unredact.py',
+        'src',
+        'unredact.py',
+      );
+
+      const args = [
+        scriptPath,
+        '-i',
+        originalPath,
+        '-o',
+        tmpDir,
+        '-b',
+        '1',
+        '--highlight',
+        '0',
+      ];
+
+      const child = execFile('python3', args, { cwd: tmpDir }, (err) => {
+        if (err) {
+          console.warn('  ⚠️  unredact.py failed, using original PDF:', err.message);
+          return resolve(originalPath);
+        }
+
+        // Infer name: original.pdf -> original_UNREDACTED.pdf
+        const base = basename(originalPath, '.pdf');
+        const candidate = join(tmpDir, `${base}_UNREDACTED.pdf`);
+        if (existsSync(candidate)) {
+          console.log(`   🧰 Using unredacted PDF for OCR: ${candidate}`);
+          return resolve(candidate);
+        }
+
+        // Fallback to original if we cannot locate output
+        console.warn('  ⚠️  unredact.py completed but output not found, using original PDF');
+        resolve(originalPath);
+      });
+
+      // If the process errors before callback
+      child.on('error', (err) => {
+        console.warn('  ⚠️  Failed to spawn unredact.py, using original PDF:', err.message);
+        resolve(originalPath);
+      });
+    } catch (e) {
+      console.warn('  ⚠️  Exception running unredact.py, using original PDF:', (e as Error).message);
+      resolve(originalPath);
+    }
+  });
 }
 
 // ============================================================================
@@ -173,7 +241,11 @@ async function processDocument(
 
     // Extract text based on file type
     if (ext === '.pdf') {
-      const result = await extractTextFromPdf(buffer);
+      // Try to unredact the PDF before extracting any text so we capture
+      // redacted-under graphics/text where possible.
+      const pdfPathForOcr = await maybeUnredactPdf(filePath);
+      const pdfBuffer = readFileSync(pdfPathForOcr);
+      const result = await extractTextFromPdf(pdfBuffer);
       content = result.text.trim();
       pageCount = result.pageCount;
     } else if (['.txt', '.rtf'].includes(ext)) {

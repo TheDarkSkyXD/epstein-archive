@@ -1,6 +1,17 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, X, Shield, Share2, Check } from 'lucide-react';
+import {
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
+  Volume2,
+  VolumeX,
+  X,
+  Shield,
+  Share2,
+  Check,
+} from 'lucide-react';
 
 export interface TranscriptSegment {
   start: number;
@@ -62,9 +73,10 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [showTranscript, setShowTranscript] = useState(() => {
     // Load transcript preference from localStorage
     try {
-      const saved = typeof window !== 'undefined'
-        ? window.localStorage.getItem('audio-player-show-transcript')
-        : null;
+      const saved =
+        typeof window !== 'undefined'
+          ? window.localStorage.getItem('audio-player-show-transcript')
+          : null;
       if (saved !== null) return saved === 'true';
       // Default: closed on small screens (mobile), open on desktop
       if (typeof window !== 'undefined' && window.innerWidth < 768) return false;
@@ -88,19 +100,16 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     [transcriptSearch],
   );
 
-  const transcriptMatches = useMemo(
-    () => {
-      if (!normalizedTranscriptQuery || !Array.isArray(transcript)) return [] as number[];
-      return transcript
-        .map((seg, index) => ({
-          index,
-          text: `${seg.text || ''} ${seg.speaker || ''}`.toLowerCase(),
-        }))
-        .filter(({ text }) => text.includes(normalizedTranscriptQuery))
-        .map(({ index }) => index);
-    },
-    [transcript, normalizedTranscriptQuery],
-  );
+  const transcriptMatches = useMemo(() => {
+    if (!normalizedTranscriptQuery || !Array.isArray(transcript)) return [] as number[];
+    return transcript
+      .map((seg, index) => ({
+        index,
+        text: `${seg.text || ''} ${seg.speaker || ''}`.toLowerCase(),
+      }))
+      .filter(({ text }) => text.includes(normalizedTranscriptQuery))
+      .map(({ index }) => index);
+  }, [transcript, normalizedTranscriptQuery]);
 
   useEffect(() => {
     setCurrentMatchIndex(0);
@@ -259,10 +268,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     const element = overlayRef.current.children[index] as HTMLElement;
     if (element) {
       overlayRef.current.scrollTo({
-        top:
-          element.offsetTop -
-          overlayRef.current.clientHeight / 2 +
-          element.clientHeight / 2,
+        top: element.offsetTop - overlayRef.current.clientHeight / 2 + element.clientHeight / 2,
         behavior: 'smooth',
       });
     }
@@ -306,7 +312,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       if (e.key === 'n' && !e.shiftKey) {
         e.preventDefault();
         goToNextTranscriptMatch();
-      } else if ((e.key === 'N') || (e.key === 'n' && e.shiftKey)) {
+      } else if (e.key === 'N' || (e.key === 'n' && e.shiftKey)) {
         e.preventDefault();
         goToPrevTranscriptMatch();
       }
@@ -809,9 +815,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                         const idx = renderWindow.start + i;
                         const isMatch =
                           !!normalizedTranscriptQuery && transcriptMatches.includes(idx);
-                        const isCurrent =
-                          isMatch &&
-                          transcriptMatches[currentMatchIndex] === idx;
+                        const isCurrent = isMatch && transcriptMatches[currentMatchIndex] === idx;
                         return (
                           <button
                             key={idx}
@@ -822,32 +826,32 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                               !isCurrent && isMatch ? 'border-amber-500/60' : ''
                             }`}
                           >
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-mono text-slate-500">
-                              {formatTime(seg.start)}
-                            </span>
-                            {seg.speaker && (
-                              <span className="text-xs font-bold text-slate-300">
-                                {seg.speaker}
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-mono text-slate-500">
+                                {formatTime(seg.start)}
                               </span>
-                            )}
-                          </div>
-                          <p
-                            className={`text-sm leading-relaxed ${
-                              activeSegmentIndex === idx ? 'text-white' : 'text-slate-400'
-                            }`}
-                          >
-                            {seg.text}
-                          </p>
-                        </button>
-                      );
-                    })
-                  ) : (
-                    <div className="p-8 text-center text-slate-500 text-sm">
-                      No transcript available.
-                    </div>
-                  )}
-                </div>
+                              {seg.speaker && (
+                                <span className="text-xs font-bold text-slate-300">
+                                  {seg.speaker}
+                                </span>
+                              )}
+                            </div>
+                            <p
+                              className={`text-sm leading-relaxed ${
+                                activeSegmentIndex === idx ? 'text-white' : 'text-slate-400'
+                              }`}
+                            >
+                              {seg.text}
+                            </p>
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <div className="p-8 text-center text-slate-500 text-sm">
+                        No transcript available.
+                      </div>
+                    )}
+                  </div>
                 </>
               ) : (
                 <div className="flex flex-col">
@@ -954,34 +958,30 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 }}
               >
                 {transcript.map((seg, i) => {
-                  const isMatch =
-                    !!normalizedTranscriptQuery && transcriptMatches.includes(i);
-                  const isCurrent =
-                    isMatch && transcriptMatches[currentMatchIndex] === i;
+                  const isMatch = !!normalizedTranscriptQuery && transcriptMatches.includes(i);
+                  const isCurrent = isMatch && transcriptMatches[currentMatchIndex] === i;
                   return (
                     <button
                       key={i}
                       onClick={() => seek(seg.start)}
                       className={`w-full text-left p-3 rounded border border-slate-800/50 hover:bg-slate-800/50 transition-colors ${
-                        currentTime >= seg.start && currentTime < seg.end
-                          ? 'bg-cyan-900/20'
-                          : ''
+                        currentTime >= seg.start && currentTime < seg.end ? 'bg-cyan-900/20' : ''
                       } ${isCurrent ? 'ring-1 ring-amber-400 border-amber-400' : ''} ${
                         !isCurrent && isMatch ? 'border-amber-500/60' : ''
                       }`}
                     >
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-mono text-slate-500">
-                      {formatTime(seg.start)}
-                    </span>
-                    {seg.speaker && (
-                      <span className="text-xs font-bold text-slate-300">{seg.speaker}</span>
-                    )}
-                  </div>
-                  <p className="text-sm text-slate-300">{seg.text}</p>
-                </button>
-              );
-            })}
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-mono text-slate-500">
+                          {formatTime(seg.start)}
+                        </span>
+                        {seg.speaker && (
+                          <span className="text-xs font-bold text-slate-300">{seg.speaker}</span>
+                        )}
+                      </div>
+                      <p className="text-sm text-slate-300">{seg.text}</p>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>

@@ -313,13 +313,16 @@ export const investigationsRepository = {
     return result.lastInsertRowid;
   },
 
-  updateInvestigation: async (id: number, updates: { 
-      title?: string; 
-      description?: string; 
-      scope?: string; 
-      status?: 'open' | 'in_review' | 'closed' | 'archived'; 
-      collaboratorIds?: string[] 
-  }) => {
+  updateInvestigation: async (
+    id: number,
+    updates: {
+      title?: string;
+      description?: string;
+      scope?: string;
+      status?: 'open' | 'in_review' | 'closed' | 'archived';
+      collaboratorIds?: string[];
+    },
+  ) => {
     const db = getDb();
     const fields: string[] = [];
     const params: any = { id };
@@ -386,7 +389,10 @@ export const investigationsRepository = {
     return { investigationId, order, annotations, updatedAt: row.updatedAt };
   },
 
-  saveNotebook: async (investigationId: number, payload: { order?: number[]; annotations?: any[] }) => {
+  saveNotebook: async (
+    investigationId: number,
+    payload: { order?: number[]; annotations?: any[] },
+  ) => {
     const db = getDb();
     const existing = db
       .prepare(`SELECT investigation_id FROM investigation_notebook WHERE investigation_id = ?`)

@@ -17,18 +17,22 @@
 ## v10.7.0 (2026-01-15) - Notebook, Briefing, Redactions, Video Layout
 
 ### Investigation Notebook
+
 - Added server-persistent Evidence Notebook with GET/PUT endpoints and UI integration
 - “Publish Briefing” export produces grouped markdown with citations and deep links
 
 ### About Page Redactions
+
 - Corrected color coding: heavy redaction is red, moderate yellow, none green
 - Estimates now sourced from ingestion pipeline redaction metrics
 
 ### Video Browser
+
 - Adjusted grid sizing and row height for proper multi-column layout on production
 - Added header status and Reload control for resilience
 
 ### Katie Johnson Ingestion
+
 - New ingestion script seeds videos under `data/media/videos/KatieJohnson`, extracts audio, runs Whisper, and stores transcripts
 - Items added to “Katie Johnson Complaint” album with verified status
 

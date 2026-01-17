@@ -9,7 +9,8 @@ import os from 'os';
 const execAsync = util.promisify(exec);
 
 const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), 'epstein-archive.db');
-const VIDEO_ROOT = process.env.KJ_VIDEO_ROOT || path.join('data', 'media', 'videos', 'KatieJohnson');
+const VIDEO_ROOT =
+  process.env.KJ_VIDEO_ROOT || path.join('data', 'media', 'videos', 'KatieJohnson');
 const ALBUM_NAME = 'Katie Johnson Complaint';
 const ALBUM_DESC = 'Video evidence and related materials for the 2016 Katie Johnson complaint.';
 
@@ -19,7 +20,9 @@ function ensureAlbum(name: string, description?: string): number {
   const existing = db.prepare('SELECT id FROM media_albums WHERE name = ?').get(name) as any;
   if (existing?.id) return existing.id;
   const res = db
-    .prepare('INSERT INTO media_albums (name, description, created_at, date_modified) VALUES (?, ?, datetime(\'now\'), datetime(\'now\'))')
+    .prepare(
+      "INSERT INTO media_albums (name, description, created_at, date_modified) VALUES (?, ?, datetime('now'), datetime('now'))",
+    )
     .run(name, description || null);
   return Number(res.lastInsertRowid);
 }
@@ -38,7 +41,9 @@ async function extractAudio(inputVideo: string, outDir: string): Promise<string 
 async function runWhisper(audioPath: string): Promise<{ transcript: any[]; duration: number }> {
   try {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'whisper-kj-'));
-    await execAsync(`whisper "${audioPath}" --model base --output_format json --output_dir "${tempDir}"`);
+    await execAsync(
+      `whisper "${audioPath}" --model base --output_format json --output_dir "${tempDir}"`,
+    );
     const baseName = path.basename(audioPath, path.extname(audioPath));
     const jsonPath = path.join(tempDir, `${baseName}.json`);
     if (fs.existsSync(jsonPath)) {
@@ -77,7 +82,9 @@ async function ingest() {
       album_id, is_sensitive, verification_status, red_flag_rating, metadata_json, created_at
     ) VALUES (NULL, NULL, ?, ?, ?, ?, ?, 1, 'verified', 5, ?, datetime('now'))
   `);
-  const updateStmt = db.prepare(`UPDATE media_items SET metadata_json = ?, album_id = ? WHERE id = ?`);
+  const updateStmt = db.prepare(
+    `UPDATE media_items SET metadata_json = ?, album_id = ? WHERE id = ?`,
+  );
   const existingStmt = db.prepare(`SELECT id, metadata_json FROM media_items WHERE file_path = ?`);
 
   let added = 0;
@@ -123,4 +130,3 @@ async function ingest() {
 }
 
 ingest();
-

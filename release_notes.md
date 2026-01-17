@@ -1,5 +1,12 @@
 # Release Notes
 
+## v10.9.0 (2026-01-17) - Unredact Integration & Timecoded Links
+
+- **Unredacted PDFs in ingest**: The core ingestion pipeline now calls `scripts/unredact.py` for PDFs before text extraction, stripping vector/image redaction overlays where possible while preserving originals and failing safely to the old behavior if Python dependencies are missing.
+- **Transcript-first media search**: Audio transcript search now shows concrete transcript segments with timestamps under each result, making it obvious what text matched and letting investigators jump straight to that moment in the recording.
+- **Deep-linked timecodes**: Audio and Video players’ share buttons now copy URLs that include both media id and timecode (`?id=…&t=…`), so any quote in a transcript can be linked and shared at exact playback position.
+- **Deployment hygiene**: Standardized `npm run deploy:prod` → `deploy-to-production.sh` and encoded the rule that version history must always be updated when shipping to production.
+
 ## v10.7.1 (2026-01-15) - Media Player UX Polish
 
 - Split audio and video player headers into a two-row, responsive layout to reduce control crowding on mobile while preserving a compact desktop view.

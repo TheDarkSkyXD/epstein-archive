@@ -277,6 +277,13 @@ Entities have a `red_flag_rating` (0-5) based on:
 - **No `any` restrictions**: `@typescript-eslint/no-explicit-any: off` (database types use `any`)
 - **Comments**: No docstring convention; code is self-documenting where possible
 
+## Release & CI/CD Rules
+
+- **Version history MUST be updated on every production deploy.**
+  - When bumping the app version (e.g. `package.json` → 10.9.0) and deploying to https://epstein.academy,
+    you MUST also update the canonical version history (CHANGELOG, release notes, and any user-facing
+    "Version History" UI) in the same change.
+
 ## CI/CD
 
 GitHub Actions workflows in `.github/workflows/`:

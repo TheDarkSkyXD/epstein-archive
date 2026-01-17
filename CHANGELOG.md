@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## 10.9.0 — 2026-01-17
+
+- Unredacted document ingestion
+  - Wired `scripts/unredact.py/src/unredact.py` into the unified ingestion pipeline so PDFs are pre-processed to remove vector/image redaction overlays before OCR, while safely falling back to originals on any error.
+  - Keeps original files and redaction metadata intact so downstream spans and entities can be traced back to both redacted and unredacted variants.
+- Transcript timecode links
+  - Audio and Video players now generate share links that include both the media id and precise timecode (`?id=…&t=…`), allowing deep-links to any moment in a recording.
+  - Audio Browser transcript search surfaces matching segments with timecodes under each result, enabling one-click jumps to the relevant point in the player.
+- Deployment ergonomics
+  - Added `npm run deploy:prod` wrapper for `deploy-to-production.sh` to standardize prod deploys.
+  - Codified the rule that version history (CHANGELOG, release notes, and user-facing history) must be updated on every production deploy.
+
 ## 10.8.0 — 2026-01-17
 
 - Katie Johnson video evidence

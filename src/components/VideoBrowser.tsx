@@ -408,7 +408,9 @@ export const VideoBrowser: React.FC = () => {
                 type="text"
                 value={transcriptSearch}
                 onChange={(e) => setTranscriptSearch(e.target.value)}
-                placeholder={selectedAlbum ? 'Search transcripts in this album…' : 'Search transcripts…'}
+                placeholder={
+                  selectedAlbum ? 'Search transcripts in this album…' : 'Search transcripts…'
+                }
                 className="w-full bg-slate-800 border border-slate-700 rounded-lg text-slate-200 pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-cyan-500 placeholder-slate-500"
               />
             </div>

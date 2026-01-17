@@ -2266,7 +2266,7 @@ app.get('/api/media/video/:id/thumbnail', async (req, res, next) => {
 
     // Check various possible locations
     const candidates: string[] = [];
-    
+
     // If it starts with /data/ or data/, try resolving relative to CWD
     if (filePath.startsWith('/data/')) {
       candidates.push(path.join(process.cwd(), filePath.substring(1)));
@@ -2288,7 +2288,10 @@ app.get('/api/media/video/:id/thumbnail', async (req, res, next) => {
     const absPath = candidates.find((c) => fs.existsSync(c)) || candidates[0];
 
     if (!fs.existsSync(absPath)) {
-      console.error(`[Thumbnail] Failed to resolve video thumbnail for ID ${id}. Tried:`, candidates);
+      console.error(
+        `[Thumbnail] Failed to resolve video thumbnail for ID ${id}. Tried:`,
+        candidates,
+      );
       return res.status(404).json({ error: 'Thumbnail file not found on server' });
     }
 

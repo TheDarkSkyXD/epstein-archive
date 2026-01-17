@@ -247,7 +247,7 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
   const fetchAudio = async (pageNum: number) => {
     try {
       setLoading(true);
-      
+
       // Abort previous request
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
@@ -583,7 +583,10 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
                                     setSelectedItem(item);
                                     const url = new URL(window.location.href);
                                     url.searchParams.set('id', item.id.toString());
-                                    url.searchParams.set('t', Math.floor(seg.start || 0).toString());
+                                    url.searchParams.set(
+                                      't',
+                                      Math.floor(seg.start || 0).toString(),
+                                    );
                                     window.history.pushState({}, '', url.toString());
                                   }}
                                 >
@@ -723,7 +726,9 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
                 type="text"
                 value={transcriptSearch}
                 onChange={(e) => setTranscriptSearch(e.target.value)}
-                placeholder={selectedAlbum ? 'Search transcripts in this album…' : 'Search transcripts…'}
+                placeholder={
+                  selectedAlbum ? 'Search transcripts in this album…' : 'Search transcripts…'
+                }
                 className="w-full bg-slate-800 border border-slate-700 rounded-lg text-slate-200 pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-cyan-500 placeholder-slate-500"
               />
             </div>
@@ -910,7 +915,8 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
                 warningText={selectedItem.description}
                 documentId={selectedItem.id}
                 initialTime={
-                  initialUrlTimestamp !== undefined && selectedItem.id === (initialAudioId || selectedItem.id)
+                  initialUrlTimestamp !== undefined &&
+                  selectedItem.id === (initialAudioId || selectedItem.id)
                     ? initialUrlTimestamp
                     : 0
                 }

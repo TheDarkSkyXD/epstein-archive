@@ -95,7 +95,9 @@ export const MediaAndArticlesTab: React.FC = () => {
               <div className="absolute inset-0 flex items-center justify-center bg-slate-950">
                 <div className="flex flex-col items-center gap-3">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                  <p className="text-slate-500 text-xs font-mono tracking-widest uppercase">Decryption in progress...</p>
+                  <p className="text-slate-500 text-xs font-mono tracking-widest uppercase">
+                    Decryption in progress...
+                  </p>
                 </div>
               </div>
             }

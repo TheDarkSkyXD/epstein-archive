@@ -166,17 +166,7 @@ async function maybeUnredactPdf(originalPath: string): Promise<string> {
         'unredact.py',
       );
 
-      const args = [
-        scriptPath,
-        '-i',
-        originalPath,
-        '-o',
-        tmpDir,
-        '-b',
-        '1',
-        '--highlight',
-        '0',
-      ];
+      const args = [scriptPath, '-i', originalPath, '-o', tmpDir, '-b', '1', '--highlight', '0'];
 
       const child = execFile('python3', args, { cwd: tmpDir }, (err) => {
         if (err) {
@@ -203,7 +193,10 @@ async function maybeUnredactPdf(originalPath: string): Promise<string> {
         resolve(originalPath);
       });
     } catch (e) {
-      console.warn('  ⚠️  Exception running unredact.py, using original PDF:', (e as Error).message);
+      console.warn(
+        '  ⚠️  Exception running unredact.py, using original PDF:',
+        (e as Error).message,
+      );
       resolve(originalPath);
     }
   });

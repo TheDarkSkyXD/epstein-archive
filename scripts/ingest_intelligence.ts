@@ -91,22 +91,23 @@ function rebuildEntityPipeline() {
     'INSERT INTO entities (full_name, entity_type, red_flag_rating) VALUES (?, ?, ?)',
   );
   // Check existing entity_mentions schema to see if extended columns are present.
-  const mentionsColumns = db
-    .prepare("PRAGMA table_info(entity_mentions)")
-    .all() as { name: string }[];
+  const mentionsColumns = db.prepare('PRAGMA table_info(entity_mentions)').all() as {
+    name: string;
+  }[];
   const hasAssignedBy = mentionsColumns.some((c) => c.name === 'assigned_by');
   const hasScoreCol = mentionsColumns.some((c) => c.name === 'score');
   const hasDecisionVersion = mentionsColumns.some((c) => c.name === 'decision_version');
   const hasEvidenceJson = mentionsColumns.some((c) => c.name === 'evidence_json');
   const hasMentionIdCol = mentionsColumns.some((c) => c.name === 'mention_id');
 
-  const insertEntityMention = hasAssignedBy && hasScoreCol && hasDecisionVersion && hasEvidenceJson && hasMentionIdCol
-    ? db.prepare(
-        'INSERT INTO entity_mentions (entity_id, document_id, mention_context, keyword, assigned_by, score, decision_version, evidence_json, mention_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      )
-    : db.prepare(
-        'INSERT INTO entity_mentions (entity_id, document_id, mention_context, keyword) VALUES (?, ?, ?, ?)',
-      );
+  const insertEntityMention =
+    hasAssignedBy && hasScoreCol && hasDecisionVersion && hasEvidenceJson && hasMentionIdCol
+      ? db.prepare(
+          'INSERT INTO entity_mentions (entity_id, document_id, mention_context, keyword, assigned_by, score, decision_version, evidence_json, mention_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        )
+      : db.prepare(
+          'INSERT INTO entity_mentions (entity_id, document_id, mention_context, keyword) VALUES (?, ?, ?, ?)',
+        );
 
   // Optional new-schema integration (document_spans, mentions, resolution_candidates, relations)
   const hasDocumentSpans = !!db
@@ -144,7 +145,7 @@ function rebuildEntityPipeline() {
 
   const insertResolutionCandidate = hasResolutionCandidates
     ? db.prepare(
-        'INSERT INTO resolution_candidates (id, left_entity_id, right_entity_id, mention_id, candidate_type, score, feature_vector_json, decision, decided_at, decided_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime(\'now\'), ?)',
+        "INSERT INTO resolution_candidates (id, left_entity_id, right_entity_id, mention_id, candidate_type, score, feature_vector_json, decision, decided_at, decided_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)",
       )
     : null;
 
@@ -333,7 +334,13 @@ function rebuildEntityPipeline() {
 
           // Insert into entity_mentions, either with extended columns when
           // available, or in the legacy 4-column shape.
-          if (hasAssignedBy && hasScoreCol && hasDecisionVersion && hasEvidenceJson && hasMentionIdCol) {
+          if (
+            hasAssignedBy &&
+            hasScoreCol &&
+            hasDecisionVersion &&
+            hasEvidenceJson &&
+            hasMentionIdCol
+          ) {
             insertEntityMention.run(
               entityId,
               doc.id,

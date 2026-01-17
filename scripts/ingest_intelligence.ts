@@ -123,6 +123,12 @@ function rebuildEntityPipeline() {
   const hasRelationsTable = !!db
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'relations'")
     .get();
+  const hasRelationEvidence = !!db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'relation_evidence'")
+    .get();
+  const hasQualityFlags = !!db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'quality_flags'")
+    .get();
 
   const insertSpan = hasDocumentSpans
     ? db.prepare(
@@ -145,6 +151,18 @@ function rebuildEntityPipeline() {
   const insertRelation = hasRelationsTable
     ? db.prepare(
         "INSERT INTO relations (id, subject_entity_id, object_entity_id, predicate, direction, weight, first_seen_at, last_seen_at, status) VALUES (?, ?, ?, 'mentioned_with', 'undirected', ?, datetime('now'), datetime('now'), 'active') ON CONFLICT(id) DO UPDATE SET weight = weight + excluded.weight, last_seen_at = excluded.last_seen_at",
+      )
+    : null;
+
+  const insertRelationEvidence = hasRelationEvidence
+    ? db.prepare(
+        'INSERT INTO relation_evidence (id, relation_id, document_id, span_id, quote_text, confidence, mention_ids) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      )
+    : null;
+
+  const insertQualityFlag = hasQualityFlags
+    ? db.prepare(
+        "INSERT INTO quality_flags (id, target_type, target_id, flag_type, severity, details_json, created_at, resolved_at) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), NULL)",
       )
     : null;
 
@@ -224,6 +242,7 @@ function rebuildEntityPipeline() {
         const matches = [...content.matchAll(POTENTIAL_ENTITY_REGEX)];
         // TODO: Track entity mentions per document - see UNUSED_VARIABLES_RECOMMENDATIONS.md
         const _docMentions = new Set<string>(); // avoid dups per doc if context weak
+        const docEntityFirstMention = new Map<number, string>();
 
         for (const match of matches) {
           const rawName = match[0];
@@ -304,6 +323,12 @@ function rebuildEntityPipeline() {
               content.substring(idx + rawName.length, end),
               JSON.stringify({ source: 'ingest_intelligence_v1' }),
             );
+
+            // Track the first mention id per entity in this document for
+            // relationship evidence.
+            if (!docEntityFirstMention.has(entityId)) {
+              docEntityFirstMention.set(entityId, mentionId);
+            }
           }
 
           // Insert into entity_mentions, either with extended columns when
@@ -343,6 +368,20 @@ function rebuildEntityPipeline() {
               JSON.stringify(featureVector),
               'merged',
               'auto',
+            );
+          }
+
+          // Add a low_evidence quality flag for lower-confidence mentions
+          // when the table is available.
+          if (insertQualityFlag && hasQualityFlags && mentionId && score < 0.9) {
+            const flagId = makeId();
+            insertQualityFlag.run(
+              flagId,
+              'mention',
+              mentionId,
+              'low_evidence',
+              'low',
+              JSON.stringify({ score, rawName, cleanName }),
             );
           }
         }

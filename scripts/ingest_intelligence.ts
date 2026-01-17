@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 // fs imports reserved for future file operations
+import * as crypto from 'crypto';
 
 // Simplistic NLP / Term Extraction
 // In a real "Ultimate" pipeline, we might call an LLM here,
@@ -78,15 +79,74 @@ function normalizeName(name: string): string {
     .trim();
 }
 
+function makeId(): string {
+  // Simple 128-bit hex id for spans, mentions, etc.
+  return crypto.randomBytes(16).toString('hex');
+}
+
 function rebuildEntityPipeline() {
   console.log('🚀 Starting ULTIMATE Entity Ingestion Pipeline...');
 
   const insertEntity = db.prepare(
     'INSERT INTO entities (full_name, entity_type, red_flag_rating) VALUES (?, ?, ?)',
   );
-  const insertMention = db.prepare(
-    'INSERT INTO entity_mentions (entity_id, document_id, mention_context, keyword) VALUES (?, ?, ?, ?)',
-  );
+  // Check existing entity_mentions schema to see if extended columns are present.
+  const mentionsColumns = db
+    .prepare("PRAGMA table_info(entity_mentions)")
+    .all() as { name: string }[];
+  const hasAssignedBy = mentionsColumns.some((c) => c.name === 'assigned_by');
+  const hasScoreCol = mentionsColumns.some((c) => c.name === 'score');
+  const hasDecisionVersion = mentionsColumns.some((c) => c.name === 'decision_version');
+  const hasEvidenceJson = mentionsColumns.some((c) => c.name === 'evidence_json');
+  const hasMentionIdCol = mentionsColumns.some((c) => c.name === 'mention_id');
+
+  const insertEntityMention = hasAssignedBy && hasScoreCol && hasDecisionVersion && hasEvidenceJson && hasMentionIdCol
+    ? db.prepare(
+        'INSERT INTO entity_mentions (entity_id, document_id, mention_context, keyword, assigned_by, score, decision_version, evidence_json, mention_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      )
+    : db.prepare(
+        'INSERT INTO entity_mentions (entity_id, document_id, mention_context, keyword) VALUES (?, ?, ?, ?)',
+      );
+
+  // Optional new-schema integration (document_spans, mentions, resolution_candidates, relations)
+  const hasDocumentSpans = !!db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'document_spans'")
+    .get();
+  const hasMentionsTable = !!db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'mentions'")
+    .get();
+  const hasResolutionCandidates = !!db
+    .prepare(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'resolution_candidates'",
+    )
+    .get();
+  const hasRelationsTable = !!db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'relations'")
+    .get();
+
+  const insertSpan = hasDocumentSpans
+    ? db.prepare(
+        'INSERT INTO document_spans (id, document_id, page_num, span_start_char, span_end_char, raw_text, cleaned_text, ocr_confidence, layout_json) VALUES (?, ?, NULL, ?, ?, ?, ?, NULL, NULL)',
+      )
+    : null;
+
+  const insertMentionRow = hasMentionsTable
+    ? db.prepare(
+        'INSERT INTO mentions (id, document_id, span_id, mention_start_char, mention_end_char, surface_text, normalised_text, entity_type, ner_model, ner_confidence, context_window_before, context_window_after, sentence_id, paragraph_id, extracted_features_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?)',
+      )
+    : null;
+
+  const insertResolutionCandidate = hasResolutionCandidates
+    ? db.prepare(
+        'INSERT INTO resolution_candidates (id, left_entity_id, right_entity_id, mention_id, candidate_type, score, feature_vector_json, decision, decided_at, decided_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime(\'now\'), ?)',
+      )
+    : null;
+
+  const insertRelation = hasRelationsTable
+    ? db.prepare(
+        "INSERT INTO relations (id, subject_entity_id, object_entity_id, predicate, direction, weight, first_seen_at, last_seen_at, status) VALUES (?, ?, ?, 'mentioned_with', 'undirected', ?, datetime('now'), datetime('now'), 'active') ON CONFLICT(id) DO UPDATE SET weight = weight + excluded.weight, last_seen_at = excluded.last_seen_at",
+      )
+    : null;
 
   // Stats
   let totalEntities = 0;
@@ -148,6 +208,16 @@ function rebuildEntityPipeline() {
     db.transaction(() => {
       for (const doc of docs) {
         const content = doc.content as string;
+
+        // Create a coarse span covering the whole document content when the
+        // new schema is available. This gives us a substrate for mentions
+        // without needing per-page layout yet.
+        let spanId: string | null = null;
+        if (hasDocumentSpans && insertSpan) {
+          spanId = makeId();
+          insertSpan.run(spanId, doc.id, 0, content.length, content, content);
+        }
+
         // Heuristic: Capitalized words (2-5 words long)
         const POTENTIAL_ENTITY_REGEX = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,5})\b/g;
 
@@ -202,8 +272,79 @@ function rebuildEntityPipeline() {
           const end = Math.min(content.length, idx + rawName.length + 50);
           const context = content.substring(start, end).replace(/\s+/g, ' ');
 
-          insertMention.run(entityId, doc.id, context, cleanName);
+          // Simple feature-style scoring for now: exact match gets 1.0,
+          // otherwise treat as slightly lower confidence.
+          const exactMatch = lowerName === normalizeName(cleanName).toLowerCase();
+          const score = exactMatch ? 1.0 : 0.85;
+
+          // Build evidence payload (very lightweight starter version)
+          const evidence = {
+            context,
+            rawName,
+            cleanName,
+            entityType,
+          };
+
+          let mentionId: string | null = null;
+
+          if (hasMentionsTable && insertMentionRow && spanId) {
+            mentionId = makeId();
+            insertMentionRow.run(
+              mentionId,
+              doc.id,
+              spanId,
+              match.index || 0,
+              (match.index || 0) + rawName.length,
+              rawName,
+              cleanName.toLowerCase(),
+              entityType,
+              'regex-capitalized-heuristic',
+              score,
+              content.substring(start, idx),
+              content.substring(idx + rawName.length, end),
+              JSON.stringify({ source: 'ingest_intelligence_v1' }),
+            );
+          }
+
+          // Insert into entity_mentions, either with extended columns when
+          // available, or in the legacy 4-column shape.
+          if (hasAssignedBy && hasScoreCol && hasDecisionVersion && hasEvidenceJson && hasMentionIdCol) {
+            insertEntityMention.run(
+              entityId,
+              doc.id,
+              context,
+              cleanName,
+              'auto',
+              score,
+              1,
+              JSON.stringify(evidence),
+              mentionId,
+            );
+          } else {
+            insertEntityMention.run(entityId, doc.id, context, cleanName);
+          }
+
           newMentions++;
+
+          // Also record a resolution_candidate row for auditability when table exists.
+          if (hasResolutionCandidates && insertResolutionCandidate && mentionId) {
+            const candidateId = makeId();
+            const featureVector = {
+              F_name_exact: exactMatch ? 1 : 0,
+              F_name_soft: 1,
+            };
+            insertResolutionCandidate.run(
+              candidateId,
+              null,
+              entityId,
+              mentionId,
+              'mention_to_entity',
+              score,
+              JSON.stringify(featureVector),
+              'merged',
+              'auto',
+            );
+          }
         }
         markAnalyzed.run(doc.id);
       }
@@ -254,6 +395,16 @@ function mapCoOccurrences() {
         DO UPDATE SET strength = strength + ?
     `);
 
+  const hasRelationsTable = !!db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'relations'")
+    .get();
+
+  const insertNewRel = hasRelationsTable
+    ? db.prepare(
+        "INSERT INTO relations (id, subject_entity_id, object_entity_id, predicate, direction, weight, first_seen_at, last_seen_at, status) VALUES (?, ?, ?, 'mentioned_with', 'undirected', ?, datetime('now'), datetime('now'), 'active') ON CONFLICT(id) DO UPDATE SET weight = weight + excluded.weight, last_seen_at = excluded.last_seen_at",
+      )
+    : null;
+
   let pairsCount = 0;
 
   const tx = db.transaction((pairs: [number, number][]) => {
@@ -290,6 +441,22 @@ function mapCoOccurrences() {
     tx(buffer);
     pairsCount += buffer.length;
   }
+
+  // Also populate the new relations table with a coarse "mentioned_with" edge
+  // when available. We use a deterministic id based on sorted entity ids and
+  // predicate so repeated passes simply increment weight.
+  if (insertNewRel) {
+    const relTx = db.transaction((pairs: [number, number][]) => {
+      for (const [a, b] of pairs) {
+        const lo = Math.min(a, b);
+        const hi = Math.max(a, b);
+        const relId = `${lo}-${hi}-mentioned_with`;
+        insertNewRel.run(relId, lo, hi, 1);
+      }
+    });
+    relTx(buffer as [number, number][]);
+  }
+
   console.log(`   ✅ Created/Updated ${pairsCount} relationship links.`);
 }
 

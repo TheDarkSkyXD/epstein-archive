@@ -15,6 +15,9 @@ import archiver from 'archiver';
 
 export class MediaService {
   private db: any;
+  // Cached schema metadata so we can adapt to slightly different
+  // production/local database schemas without throwing SQL errors.
+  private mediaImagesColumns: Set<string> | null = null;
 
   constructor(dbOrPath: string | any) {
     if (typeof dbOrPath === 'string') {
@@ -22,6 +25,51 @@ export class MediaService {
     } else {
       this.db = dbOrPath;
     }
+  }
+
+  /**
+   * Check if a table exists in the current database. Used to gracefully
+   * degrade when running against older production schemas.
+   */
+  private hasTable(tableName: string): boolean {
+    try {
+      const row = this.db
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
+        .get(tableName) as { name?: string } | undefined;
+      return !!row?.name;
+    } catch (error) {
+      console.error('MediaService.hasTable failed for', tableName, error);
+      return false;
+    }
+  }
+
+  /**
+   * Lazily introspect the media_images table to see which columns are
+   * actually available. This lets us avoid referencing non-existent
+   * columns in ORDER BY / WHERE clauses on older schemas.
+   */
+  private ensureMediaImagesColumns(): void {
+    if (this.mediaImagesColumns) return;
+    this.mediaImagesColumns = new Set<string>();
+    try {
+      if (!this.hasTable('media_images')) {
+        return;
+      }
+      const rows = this.db.prepare('PRAGMA table_info(media_images)').all() as { name: string }[];
+      for (const row of rows) {
+        if (row?.name) {
+          this.mediaImagesColumns.add(row.name);
+        }
+      }
+    } catch (error) {
+      console.error('MediaService.ensureMediaImagesColumns failed', error);
+      // Leave the set empty; callers will treat columns as missing.
+    }
+  }
+
+  private hasMediaImagesColumn(column: string): boolean {
+    this.ensureMediaImagesColumns();
+    return this.mediaImagesColumns?.has(column) ?? false;
   }
 
   // ============ TAG OPERATIONS ============
@@ -136,15 +184,21 @@ export class MediaService {
   // ============ IMAGE OPERATIONS ============
 
   getAllImages(filter?: ImageFilter, sort?: ImageSort): MediaImage[] {
+    // If the core table is missing entirely, fail soft with an empty
+    // result set instead of throwing and 500-ing the API.
+    if (!this.hasTable('media_images')) {
+      console.error('getAllImages: media_images table not found; returning empty result set');
+      return [];
+    }
+
+    // NOTE: We intentionally avoid joining media_image_tags/media_tags here
+    // so this works even if those auxiliary tables are missing on older databases.
     let query = `
       SELECT 
         i.*,
-        a.name as albumName,
-        GROUP_CONCAT(t.name, ', ') as tags
+        a.name as albumName
       FROM media_images i
       LEFT JOIN media_albums a ON i.album_id = a.id
-      LEFT JOIN media_image_tags it ON i.id = it.image_id
-      LEFT JOIN media_tags t ON it.tag_id = t.id
     `;
 
     const conditions: string[] = [];
@@ -155,27 +209,29 @@ export class MediaService {
         conditions.push('i.album_id = ?');
         params.push(filter.albumId);
       }
-      if (filter.tagId) {
-        conditions.push('i.id IN (SELECT image_id FROM media_image_tags WHERE tag_id = ?)');
-        params.push(filter.tagId);
-      }
-      if (filter.personId) {
+      // Tag-based filtering is disabled here to keep this endpoint compatible
+      // with databases that may not yet have media_image_tags.
+      // if (filter.tagId) {
+      //   conditions.push('i.id IN (SELECT image_id FROM media_image_tags WHERE tag_id = ?)');
+      //   params.push(filter.tagId);
+      // }
+      if (filter.personId && this.hasTable('media_people')) {
         conditions.push('i.id IN (SELECT media_id FROM media_people WHERE entity_id = ?)');
         params.push(filter.personId);
       }
-      if (filter.format) {
+      if (filter.format && this.hasMediaImagesColumn('format')) {
         conditions.push('i.format = ?');
         params.push(filter.format);
       }
-      if (filter.dateFrom) {
+      if (filter.dateFrom && this.hasMediaImagesColumn('date_taken')) {
         conditions.push('i.date_taken >= ?');
         params.push(filter.dateFrom);
       }
-      if (filter.dateTo) {
+      if (filter.dateTo && this.hasMediaImagesColumn('date_taken')) {
         conditions.push('i.date_taken <= ?');
         params.push(filter.dateTo);
       }
-      if (filter.searchQuery) {
+      if (filter.searchQuery && this.hasTable('media_images_fts')) {
         conditions.push(`i.id IN (
           SELECT rowid FROM media_images_fts 
           WHERE media_images_fts MATCH ?
@@ -193,11 +249,17 @@ export class MediaService {
 
     query += ' GROUP BY i.id';
 
+    // Build a schema-aware ORDER BY clause so we don't reference columns
+    // that might not exist on older databases.
+    let orderBy = 'i.id DESC';
     if (sort && sort.field && sort.order) {
-      query += ` ORDER BY i.${sort.field} ${sort.order.toUpperCase()}`;
-    } else {
-      query += ' ORDER BY i.date_added DESC';
+      if (this.hasMediaImagesColumn(sort.field)) {
+        orderBy = `i.${sort.field} ${sort.order.toUpperCase()}`;
+      }
+    } else if (this.hasMediaImagesColumn('date_added')) {
+      orderBy = 'i.date_added DESC';
     }
+    query += ` ORDER BY ${orderBy}`;
 
     // Add pagination if specified
     if (filter?.limit) {
@@ -212,20 +274,18 @@ export class MediaService {
 
     return results.map((row) => ({
       ...row,
-      tags: row.tags ? row.tags.split(', ') : [],
+      // Tags are resolved via separate /api/media/images/:id/tags endpoint.
+      tags: [],
     }));
   }
 
   getImageCount(filter?: ImageFilter): number {
-    let query = 'SELECT COUNT(DISTINCT i.id) as count FROM media_images i';
+    if (!this.hasTable('media_images')) {
+      console.error('getImageCount: media_images table not found; returning 0');
+      return 0;
+    }
 
-    // Join needed tables if filtering by them
-    if (filter?.albumId) {
-      // i.album_id is on media_images, no join needed unless we want to be strict
-    }
-    if (filter?.tagId) {
-      // Handled by subquery
-    }
+    let query = 'SELECT COUNT(DISTINCT i.id) as count FROM media_images i';
 
     const conditions: string[] = [];
     const params: any[] = [];
@@ -235,27 +295,28 @@ export class MediaService {
         conditions.push('i.album_id = ?');
         params.push(filter.albumId);
       }
-      if (filter.tagId) {
-        conditions.push('i.id IN (SELECT image_id FROM media_image_tags WHERE tag_id = ?)');
-        params.push(filter.tagId);
-      }
-      if (filter.personId) {
+      // See getAllImages: tag-based filtering is disabled for broad compatibility.
+      // if (filter.tagId) {
+      //   conditions.push('i.id IN (SELECT image_id FROM media_image_tags WHERE tag_id = ?)');
+      //   params.push(filter.tagId);
+      // }
+      if (filter.personId && this.hasTable('media_people')) {
         conditions.push('i.id IN (SELECT media_id FROM media_people WHERE entity_id = ?)');
         params.push(filter.personId);
       }
-      if (filter.format) {
+      if (filter.format && this.hasMediaImagesColumn('format')) {
         conditions.push('i.format = ?');
         params.push(filter.format);
       }
-      if (filter.dateFrom) {
+      if (filter.dateFrom && this.hasMediaImagesColumn('date_taken')) {
         conditions.push('i.date_taken >= ?');
         params.push(filter.dateFrom);
       }
-      if (filter.dateTo) {
+      if (filter.dateTo && this.hasMediaImagesColumn('date_taken')) {
         conditions.push('i.date_taken <= ?');
         params.push(filter.dateTo);
       }
-      if (filter.searchQuery) {
+      if (filter.searchQuery && this.hasTable('media_images_fts')) {
         conditions.push(`i.id IN (
           SELECT rowid FROM media_images_fts 
           WHERE media_images_fts MATCH ?
@@ -273,24 +334,21 @@ export class MediaService {
   }
 
   getImageById(id: number): MediaImage | undefined {
+    // Keep this focused on core image/album fields; tags are fetched separately.
     const stmt = this.db.prepare(`
       SELECT 
         i.*,
-        a.name as albumName,
-        GROUP_CONCAT(t.name, ', ') as tags
+        a.name as albumName
       FROM media_images i
       LEFT JOIN media_albums a ON i.album_id = a.id
-      LEFT JOIN media_image_tags it ON i.id = it.image_id
-      LEFT JOIN media_tags t ON it.tag_id = t.id
       WHERE i.id = ?
-      GROUP BY i.id
     `);
     const result = stmt.get(id) as any;
     if (!result) return undefined;
 
     return {
       ...result,
-      tags: result.tags ? result.tags.split(', ') : [],
+      tags: [],
     };
   }
 

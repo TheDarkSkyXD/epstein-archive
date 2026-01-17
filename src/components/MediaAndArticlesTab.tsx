@@ -1,6 +1,7 @@
 import React, { Suspense, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Newspaper, Image, Music, Film } from 'lucide-react';
+import ScopedErrorBoundary from './ScopedErrorBoundary';
 
 // Lazy load the tabs to prevent crashes
 const ArticlesTab = React.lazy(() => import('./ArticlesTab'));
@@ -37,71 +38,90 @@ export const MediaAndArticlesTab: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full space-y-4">
+    <div className="flex flex-col h-full bg-slate-950 overflow-hidden">
       {/* Sub-tab Navigation */}
-      <div className="flex-none flex gap-2 border-b border-slate-700 overflow-x-auto bg-slate-950/50 backdrop-blur-sm sticky top-0 z-20">
+      <div className="flex-none flex gap-2 border-b border-slate-800 bg-slate-900 px-4 pt-2 z-20 overflow-x-auto scrollbar-thin scrollbar-thumb-slate-700/60 scrollbar-track-transparent -mx-4 sm:mx-0">
         <button
           onClick={() => navigateToTab('articles')}
-          className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${
+          className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-all ${
             activeSubTab === 'articles'
-              ? 'border-blue-500 text-blue-500'
-              : 'border-transparent text-slate-400 hover:text-white'
+              ? 'border-blue-500 text-blue-500 bg-blue-500/5'
+              : 'border-transparent text-slate-500 hover:text-slate-300 hover:bg-slate-800/50'
           }`}
         >
-          <Newspaper className="h-5 w-5" />
-          <span className="font-medium">Articles</span>
+          <Newspaper className="h-4 w-4" />
+          <span className="font-medium text-sm">Articles</span>
         </button>
         <button
           onClick={() => navigateToTab('photos')}
-          className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${
+          className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-all ${
             activeSubTab === 'photos'
-              ? 'border-blue-500 text-blue-500'
-              : 'border-transparent text-slate-400 hover:text-white'
+              ? 'border-blue-500 text-blue-500 bg-blue-500/5'
+              : 'border-transparent text-slate-500 hover:text-slate-300 hover:bg-slate-800/50'
           }`}
         >
-          <Image className="h-5 w-5" />
-          <span className="font-medium">Images</span>
+          <Image className="h-4 w-4" />
+          <span className="font-medium text-sm">Images</span>
         </button>
         <button
           onClick={() => navigateToTab('audio')}
-          className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${
+          className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-all ${
             activeSubTab === 'audio'
-              ? 'border-blue-500 text-blue-500'
-              : 'border-transparent text-slate-400 hover:text-white'
+              ? 'border-blue-500 text-blue-500 bg-blue-500/5'
+              : 'border-transparent text-slate-500 hover:text-slate-300 hover:bg-slate-800/50'
           }`}
         >
-          <Music className="h-5 w-5" />
-          <span className="font-medium">Audio</span>
+          <Music className="h-4 w-4" />
+          <span className="font-medium text-sm">Audio</span>
         </button>
         <button
           onClick={() => navigateToTab('video')}
-          className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${
+          className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-all ${
             activeSubTab === 'video'
-              ? 'border-blue-500 text-blue-500'
-              : 'border-transparent text-slate-400 hover:text-white'
+              ? 'border-blue-500 text-blue-500 bg-blue-500/5'
+              : 'border-transparent text-slate-500 hover:text-slate-300 hover:bg-slate-800/50'
           }`}
         >
-          <Film className="h-5 w-5" />
-          <span className="font-medium">Video</span>
+          <Film className="h-4 w-4" />
+          <span className="font-medium text-sm">Video</span>
         </button>
       </div>
 
-      {/* Content with Suspense boundary - Use flex-grow to fill remaining space */}
-      <div className="flex-grow relative min-h-0 overflow-y-auto">
-        <Suspense
-          fallback={
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-            </div>
-          }
-        >
-          <div className="min-h-full flex flex-col">
-            {activeSubTab === 'articles' && <ArticlesTab />}
-            {activeSubTab === 'photos' && <MediaTab />}
-            {activeSubTab === 'audio' && <AudioTab />}
-            {activeSubTab === 'video' && <VideoTab />}
-          </div>
-        </Suspense>
+      {/* Content Area with isolation */}
+      <div className="flex-grow relative min-h-0 bg-slate-950">
+        <ScopedErrorBoundary>
+          <Suspense
+            fallback={
+              <div className="absolute inset-0 flex items-center justify-center bg-slate-950">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                  <p className="text-slate-500 text-xs font-mono tracking-widest uppercase">Decryption in progress...</p>
+                </div>
+              </div>
+            }
+          >
+            {activeSubTab === 'articles' && (
+              <ScopedErrorBoundary>
+                <ArticlesTab />
+              </ScopedErrorBoundary>
+            )}
+            {activeSubTab === 'photos' && (
+              <ScopedErrorBoundary>
+                <MediaTab />
+              </ScopedErrorBoundary>
+            )}
+            {activeSubTab === 'audio' && (
+              <ScopedErrorBoundary>
+                <AudioTab />
+              </ScopedErrorBoundary>
+            )}
+            {activeSubTab === 'video' && (
+              <ScopedErrorBoundary>
+                <VideoTab />
+              </ScopedErrorBoundary>
+            )}
+          </Suspense>
+        </ScopedErrorBoundary>
       </div>
     </div>
   );

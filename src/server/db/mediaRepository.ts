@@ -4,7 +4,18 @@ export const mediaRepository = {
   // Get all albums with counts for a specific media type
   getAlbumsByMediaType: (fileType: 'audio' | 'video') => {
     const db = getDb();
-    const likePattern = `${fileType}/%`;
+
+    // Match how getMediaItemsPaginated filters by fileType so albums always
+    // reflect the actual media_items rows (audio uses plain "audio").
+    let likePattern: string;
+    if (fileType === 'audio') {
+      // Ingest scripts store audio as plain "audio" in file_type
+      likePattern = '%audio%';
+    } else {
+      // Videos (and images if added later) use the "type/*" convention
+      likePattern = `${fileType}/%`;
+    }
+
     const query = `
       SELECT
         a.id,
@@ -17,9 +28,7 @@ export const mediaRepository = {
       FROM media_albums a
       LEFT JOIN media_items m ON a.id = m.album_id AND m.file_type LIKE ?
       GROUP BY a.id
-      HAVING itemCount > 0 OR a.id IN (
-        SELECT DISTINCT album_id FROM media_items WHERE album_id IS NOT NULL
-      )
+      HAVING itemCount > 0
       ORDER BY a.name
     `;
     const result = db.prepare(query).all(likePattern) as any[];
@@ -154,6 +163,12 @@ export const mediaRepository = {
       fileType?: string; // 'image' or 'audio' or mimetype
       albumId?: number;
       sortBy?: 'title' | 'date' | 'rating';
+      /**
+       * Optional free-text query to search within transcript text stored
+       * in metadata_json. This is a simple LIKE-based search but combined
+       * with albumId it gives us "search transcripts within this album".
+       */
+      transcriptQuery?: string;
     },
   ) => {
     const db = getDb();
@@ -187,13 +202,21 @@ export const mediaRepository = {
       }
     }
 
-    console.log('getMediaItemsPaginated params:', { page, limit, filters });
-    console.log('getMediaItemsPaginated whereConditions:', whereConditions);
-
     if (filters?.albumId !== undefined) {
       whereConditions.push('album_id = ?');
       params.push(filters.albumId);
     }
+
+    if (filters?.transcriptQuery) {
+      // Simple LIKE-based search over metadata_json which holds transcript
+      // text for audio/video items. This is not FTS but works well enough
+      // for targeted transcript queries.
+      whereConditions.push('metadata_json LIKE ?');
+      params.push(`%${filters.transcriptQuery}%`);
+    }
+
+    console.log('getMediaItemsPaginated params:', { page, limit, filters });
+    console.log('getMediaItemsPaginated whereConditions:', whereConditions);
 
     // Determine Sort Order
     let orderByClause = 'm.red_flag_rating DESC, m.created_at DESC'; // Default

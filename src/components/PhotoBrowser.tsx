@@ -399,6 +399,9 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
       }
     } catch (error) {
       console.error('Failed to load images:', error);
+      startTransition(() => {
+        setImages([]);
+      });
     } finally {
       // Use startTransition here too to keep UI responsive
       startTransition(() => {
@@ -1114,7 +1117,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
             </div>
           )}
 
-          <div className="flex-1 overflow-hidden relative bg-slate-950" onClick={handleGridClick}>
+          <div className="flex-1 min-h-[360px] overflow-hidden relative bg-slate-950" onClick={handleGridClick}>
             {!loading && images.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-slate-500">
                 <Icon name="Image" size="lg" className="mb-2 opacity-50" />

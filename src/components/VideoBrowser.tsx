@@ -1,7 +1,22 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { FixedSizeList as List } from 'react-window';
+import {
+  FixedSizeGrid as Grid,
+  FixedSizeList as List,
+  GridChildComponentProps,
+  areEqual,
+} from 'react-window';
+import AutoSizer from './AutoSizer';
 import { VideoPlayer } from './VideoPlayer';
-import { Play, Film, Calendar, CheckSquare, Square, AlertTriangle, User } from 'lucide-react';
+import {
+  Play,
+  Film,
+  Calendar,
+  CheckSquare,
+  Square,
+  AlertTriangle,
+  User,
+  Clock,
+} from 'lucide-react';
 import { SensitiveContent } from './SensitiveContent';
 import BatchToolbar from './BatchToolbar';
 import Icon from './Icon';
@@ -37,43 +52,128 @@ interface Album {
   sensitiveCount?: number;
 }
 
+const VideoCell = React.memo(({ columnIndex, rowIndex, style, data }: GridChildComponentProps) => {
+  const {
+    items,
+    selectedItems,
+    isBatchMode,
+    onVideoClick,
+    toggleSelection,
+    columnCount,
+    formatDate,
+  } = data as any;
+  const index = rowIndex * columnCount + columnIndex;
+
+  if (index >= items.length) return null;
+
+  const video = items[index];
+  const isSelected = selectedItems.has(video.id);
+
+  return (
+    <div style={{ ...style, padding: '4px' }}>
+      <button
+        className={`w-full h-full group relative bg-slate-900 border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 shadow-lg hover:shadow-blue-500/20 ${
+          isSelected
+            ? 'border-blue-500 ring-2 ring-blue-500/30'
+            : 'border-slate-800 hover:border-slate-700'
+        }`}
+        onClick={() => onVideoClick(video, index)}
+        tabIndex={isBatchMode ? 0 : -1}
+      >
+        <div className="aspect-video relative overflow-hidden bg-black">
+          <SensitiveContent isSensitive={video.isSensitive} className="w-full h-full">
+            <img
+              src={`/api/media/video/${video.id}/thumbnail?v=${new Date(video.createdAt).getTime()}`}
+              alt={video.title}
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+              loading="lazy"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src =
+                  'https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?w=800&q=80';
+              }}
+            />
+            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center shadow-xl transform scale-90 group-hover:scale-100 transition-transform">
+                <Play className="text-white fill-white h-6 w-6 ml-1" />
+              </div>
+            </div>
+          </SensitiveContent>
+
+          {isBatchMode && (
+            <div
+              className={`absolute top-2 left-2 z-10 w-6 h-6 rounded-md border flex items-center justify-center transition-colors ${
+                isSelected ? 'bg-blue-600 border-blue-500' : 'bg-black/50 border-slate-400'
+              }`}
+            >
+              {isSelected && <CheckSquare className="h-4 w-4 text-white" />}
+            </div>
+          )}
+
+          {video.metadata?.duration && (
+            <div className="absolute bottom-2 right-2 bg-black/80 px-1.5 py-0.5 rounded text-[10px] text-white font-medium flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              {Math.floor(video.metadata.duration / 60)}:
+              {
+                Math.floor(video.metadata.duration % 60)
+                  .toString()
+                  .padStart(2, '0')
+                  .split('.')[0]
+              }
+            </div>
+          )}
+        </div>
+
+        <div className="p-3">
+          <h3 className="text-sm font-medium text-slate-100 truncate group-hover:text-blue-400 transition-colors">
+            {video.title}
+          </h3>
+          <div className="flex items-center gap-3 mt-1.5">
+            <div className="text-[10px] text-slate-500 flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              {formatDate(video.createdAt)}
+            </div>
+          </div>
+        </div>
+      </button>
+    </div>
+  );
+}, areEqual);
+
 export const VideoBrowser: React.FC = () => {
   const [items, setItems] = useState<VideoItem[]>([]);
   const [albums, setAlbums] = useState<Album[]>([]);
   const [selectedAlbum, setSelectedAlbum] = useState<number | null>(null);
+  const [selectedItem, setSelectedItem] = useState<VideoItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedItem, setSelectedItem] = useState<VideoItem | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [showAlbumDropdown, setShowAlbumDropdown] = useState(false);
   const [libraryTotalCount, setLibraryTotalCount] = useState(0);
-  const prefetchRef = useRef<number | null>(null);
   const [pickerOpenId, setPickerOpenId] = useState<number | null>(null);
   const [investigationsList, setInvestigationsList] = useState<any[]>([]);
   const [addingId, setAddingId] = useState<number | null>(null);
+
+  // Transcript search (within album or across all videos)
+  const [transcriptSearch, setTranscriptSearch] = useState('');
 
   // Batch Mode State
   const [isBatchMode, setIsBatchMode] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
 
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const currentAlbum = useMemo(
+    () => albums.find((a) => a.id === selectedAlbum),
+    [albums, selectedAlbum],
+  );
+
   // Load albums on mount
   useEffect(() => {
     loadAlbums();
+    return () => abortControllerRef.current?.abort();
   }, []);
 
-  useEffect(() => {
-    const id = setTimeout(() => {
-      if (!loading && hasMore) {
-        const next = page + 1;
-        if (prefetchRef.current !== next) {
-          prefetchRef.current = next;
-          fetchVideos(next);
-        }
-      }
-    }, 2000);
-    return () => clearTimeout(id);
-  }, [page, loading, hasMore]);
   useEffect(() => {
     const loadTotals = async () => {
       try {
@@ -88,10 +188,10 @@ export const VideoBrowser: React.FC = () => {
     };
     loadTotals();
   }, []);
-  // Load items when album selection changes
+  // Load items when album selection or transcript search changes
   useEffect(() => {
     fetchVideos(1);
-  }, [selectedAlbum]);
+  }, [selectedAlbum, transcriptSearch]);
 
   const loadAlbums = async () => {
     try {
@@ -145,15 +245,25 @@ export const VideoBrowser: React.FC = () => {
   const fetchVideos = async (pageNum: number) => {
     try {
       setLoading(true);
+
+      // Abort previous request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+
       const params = new URLSearchParams({
         page: pageNum.toString(),
         limit: '24',
       });
       if (selectedAlbum) params.append('albumId', selectedAlbum.toString());
+      if (transcriptSearch.trim()) params.append('transcriptQuery', transcriptSearch.trim());
       // Always sort by title as requested
       params.append('sortBy', 'title');
 
-      const res = await fetch(`/api/media/video?${params}`);
+      const res = await fetch(`/api/media/video?${params}`, {
+        signal: abortControllerRef.current.signal,
+      });
       if (!res.ok) throw new Error('Failed to load video files');
 
       const data = await res.json();
@@ -168,16 +278,12 @@ export const VideoBrowser: React.FC = () => {
       setHasMore(newItems.length === 24);
       setPage(pageNum);
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return;
       console.error(err);
       setError('Failed to load video content');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleLoadMore = () => {
-    const nextPage = page + 1;
-    fetchVideos(nextPage);
   };
 
   const formatDate = useCallback((dateStr: string) => {
@@ -188,224 +294,39 @@ export const VideoBrowser: React.FC = () => {
     });
   }, []);
 
-  // Virtualization setup
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [containerWidth, setContainerWidth] = useState(0);
+  const loadMoreItems = useCallback(() => {
+    if (!loading && hasMore) {
+      fetchVideos(page + 1);
+    }
+  }, [loading, hasMore, page]);
 
-  // Measure container width for responsive grid calculation
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const observer = new ResizeObserver((entries) => {
-      setContainerWidth(entries[0].contentRect.width);
-    });
-    observer.observe(containerRef.current);
-    return () => observer.disconnect();
-  }, []);
-
-  // Calculate columns based on container width (matching Tailwind breakpoints)
-  const columns = useMemo(() => {
-    if (containerWidth >= 1280) return 4; // xl
-    if (containerWidth >= 1024) return 3; // lg
-    if (containerWidth >= 768) return 2; // md
-    return 1; // sm
-  }, [containerWidth]);
-
-  const rowCount = Math.ceil(items.length / columns);
-  const isItemLoaded = (index: number) => index < rowCount;
-  const loadMoreItems = useCallback(
-    (_startIndex: number, _stopIndex: number) => {
-      if (!loading && hasMore) {
-        return handleLoadMore();
-      }
-      return Promise.resolve();
-    },
-    [loading, hasMore],
-  );
-
-  const currentAlbum = albums.find((a) => a.id === selectedAlbum);
   const showSensitiveWarning =
     currentAlbum &&
     (currentAlbum.name.match(/Sensitive|Disturbing|Testimony|Victim|Survivor/i) ||
       (currentAlbum.sensitiveCount && currentAlbum.sensitiveCount > 0));
 
-  // Row renderer for virtualized list
-  const Row = useCallback(
-    ({ index, style }: { index: number; style: React.CSSProperties }) => {
-      const startIdx = index * columns;
-      const rowItems = items.slice(startIdx, startIdx + columns);
-
-      // Manual padding offset: Shift top down by 24px (py-6 top)
-      const adjustedStyle = {
-        ...style,
-        top: (typeof style.top === 'number' ? style.top : parseFloat(style.top as string)) + 24,
-      };
-
-      return (
-        <div style={adjustedStyle} className="px-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-6">
-            {rowItems.map((item) => {
-              const isSelected = selectedItems.has(item.id);
-              return (
-                <div
-                  key={item.id}
-                  className={`bg-slate-900/50 border rounded-lg overflow-hidden transition-all group cursor-pointer ${isSelected ? 'border-cyan-500 ring-1 ring-cyan-500' : 'border-slate-800 hover:border-cyan-500/30'}`}
-                  onClick={() => {
-                    if (isBatchMode) {
-                      toggleSelection(item.id);
-                    } else {
-                      setSelectedItem(item);
-                    }
-                  }}
-                >
-                  <SensitiveContent
-                    isSensitive={item.isSensitive}
-                    className="relative aspect-video bg-black"
-                  >
-                    {isBatchMode && (
-                      <div className="absolute top-2 left-2 z-20">
-                        {isSelected ? (
-                          <CheckSquare className="text-cyan-500 fill-cyan-950" />
-                        ) : (
-                          <Square className="text-white/70" />
-                        )}
-                      </div>
-                    )}
-                    {item.metadata.thumbnailPath ? (
-                      <img
-                        src={`/api/media/video/${item.id}/thumbnail`}
-                        alt={item.title}
-                        className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-slate-900">
-                        <Film size={48} className="text-slate-700" />
-                      </div>
-                    )}
-
-                    <div className="absolute top-2 right-2 z-30 flex items-center gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setPickerOpenId(pickerOpenId === item.id ? null : item.id);
-                          if (investigationsList.length === 0) {
-                            fetch('/api/investigations?page=1&limit=50')
-                              .then((r) => r.json())
-                              .then((data) => {
-                                const list = Array.isArray(data?.data)
-                                  ? data.data
-                                  : Array.isArray(data)
-                                    ? data
-                                    : [];
-                                setInvestigationsList(list);
-                              })
-                              .catch(() => {});
-                          }
-                        }}
-                        className="px-2 py-1 rounded bg-amber-700 text-white text-[10px] border border-amber-500"
-                      >
-                        Add
-                      </button>
-                      {pickerOpenId === item.id && (
-                        <div className="bg-slate-900 border border-slate-700 rounded p-2 shadow-xl">
-                          <select
-                            onChange={async (e) => {
-                              const invId = parseInt(e.target.value);
-                              if (!invId) return;
-                              setAddingId(item.id);
-                              try {
-                                const res = await fetch('/api/investigation/add-media', {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({
-                                    investigationId: invId,
-                                    mediaItemId: item.id,
-                                    notes: '',
-                                    relevance: 'high',
-                                  }),
-                                });
-                                if (res.ok) {
-                                  setPickerOpenId(null);
-                                }
-                              } finally {
-                                setAddingId(null);
-                              }
-                            }}
-                            className="text-xs bg-slate-800 text-white border border-slate-700 rounded px-2 py-1"
-                          >
-                            <option value="">Select investigation</option>
-                            {investigationsList.map((inv: any) => (
-                              <option key={inv.id} value={inv.id}>
-                                {inv.title}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-                      {addingId === item.id && (
-                        <div className="text-[10px] text-white bg-black/60 px-2 py-0.5 rounded">
-                          …
-                        </div>
-                      )}
-                    </div>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-12 h-12 rounded-full bg-black/50 border border-white/20 flex items-center justify-center backdrop-blur-sm group-hover:scale-110 transition-transform">
-                        <Play size={20} className="text-white fill-white ml-1" />
-                      </div>
-                    </div>
-
-                    <div className="absolute bottom-3 right-3 bg-black/80 text-xs px-2 py-1 rounded text-slate-300 font-mono flex items-center gap-1">
-                      {item.metadata.duration
-                        ? `${Math.floor(item.metadata.duration / 60)}:${(item.metadata.duration % 60).toString().padStart(2, '0').split('.')[0]}`
-                        : '--:--'}
-                    </div>
-                  </SensitiveContent>
-
-                  <div className="p-4">
-                    <h3 className="text-slate-200 font-medium truncate mb-1 text-lg group-hover:text-cyan-400 transition-colors">
-                      {item.title || 'Untitled Video'}
-                    </h3>
-
-                    <div className="flex flex-wrap gap-1 mb-2">
-                      {item.tags &&
-                        item.tags.map((t: any) => (
-                          <span
-                            key={t.id}
-                            className="text-[10px] bg-slate-800 text-cyan-400 px-1.5 py-0.5 rounded-full"
-                          >
-                            {t.name}
-                          </span>
-                        ))}
-                      {item.people &&
-                        item.people.map((p: any) => (
-                          <span
-                            key={p.id}
-                            className="text-[10px] bg-slate-800 text-amber-400 px-1.5 py-0.5 rounded-full"
-                          >
-                            {p.name}
-                          </span>
-                        ))}
-                    </div>
-
-                    {item.entityName && (
-                      <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-3">
-                        <User size={12} />
-                        <span>{item.entityName}</span>
-                      </div>
-                    )}
-
-                    <div className="flex items-center gap-2 text-xs text-slate-500 border-t border-slate-800/50 pt-3 mt-1">
-                      <Calendar size={12} />
-                      <span>{formatDate(item.createdAt)}</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      );
+  // Handle video click
+  const handleVideoClick = useCallback(
+    (video: VideoItem, index: number) => {
+      if (isBatchMode) {
+        toggleSelection(video.id);
+      } else {
+        setSelectedItem(video);
+      }
     },
-    [items, columns, selectedItems, isBatchMode, formatDate],
+    [isBatchMode, toggleSelection],
+  );
+
+  const gridData = useMemo(
+    () => ({
+      items,
+      selectedItems,
+      isBatchMode,
+      onVideoClick: handleVideoClick,
+      toggleSelection,
+      formatDate,
+    }),
+    [items, selectedItems, isBatchMode, handleVideoClick, toggleSelection, formatDate],
   );
 
   // Update URL when item or album is selected
@@ -426,7 +347,7 @@ export const VideoBrowser: React.FC = () => {
   }, [selectedAlbum]); // Intentionally not tracking selectedItem here unless requested, as Video modal usually manages its own state or overlay.
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 border border-slate-800 shadow-2xl overflow-hidden rounded-lg">
+    <div className="flex flex-col h-full min-h-[500px] bg-slate-950 border border-slate-800 shadow-2xl overflow-hidden rounded-lg">
       {/* Header */}
       <div className="bg-slate-900 border-b border-slate-800 flex flex-col md:flex-row md:items-center justify-between px-3 py-2 md:px-6 md:h-14 shrink-0 z-10 gap-2">
         {/* Mobile Album Dropdown */}
@@ -470,10 +391,37 @@ export const VideoBrowser: React.FC = () => {
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 flex-1">
           <div>
             <h2 className="text-lg font-light text-white">Video Recordings</h2>
             <p className="text-slate-400 text-xs hidden md:block">Forensic video evidence</p>
+          </div>
+          <div className="flex-1 flex items-center gap-3 justify-end">
+            {/* Transcript search within current album / all videos */}
+            <div className="relative w-full max-w-xs">
+              <Icon
+                name="Search"
+                size="sm"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"
+              />
+              <input
+                type="text"
+                value={transcriptSearch}
+                onChange={(e) => setTranscriptSearch(e.target.value)}
+                placeholder={selectedAlbum ? 'Search transcripts in this album…' : 'Search transcripts…'}
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg text-slate-200 pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-cyan-500 placeholder-slate-500"
+              />
+            </div>
+            <span className="text-xs text-slate-400 whitespace-nowrap">
+              {items.length} loaded{libraryTotalCount ? ` / ${libraryTotalCount}` : ''}
+            </span>
+            <button
+              onClick={() => fetchVideos(1)}
+              className="px-2 py-1 rounded-lg text-xs bg-slate-800 text-slate-300 hover:text-white border border-slate-700"
+              title="Reload"
+            >
+              Reload
+            </button>
           </div>
           <button
             onClick={() => setIsBatchMode(!isBatchMode)}
@@ -546,55 +494,61 @@ export const VideoBrowser: React.FC = () => {
             </div>
           )}
 
-          <div ref={containerRef} className="flex-1 overflow-hidden">
-            {items.length === 0 && !loading ? (
-              <div className="flex flex-col items-center justify-center h-full text-slate-500">
-                <Icon name="Film" size="lg" className="mb-2 opacity-50" />
-                <p>No video recordings found</p>
+          <div className="flex-1 min-h-[360px] overflow-hidden relative">
+            <AutoSizer>
+              {({ width, height }) => {
+                if (width < 50) return null;
+
+                // Match PhotoBrowser padding and gap logic, but tuned for 16:9 video cards
+                const minColumnWidth = 220;
+                const gap = 16;
+                const availableWidth = width - 48; // p-6 equivalent padding
+                const columnCount = Math.max(
+                  1,
+                  Math.floor((availableWidth + gap) / (minColumnWidth + gap)),
+                );
+                const columnWidth = (availableWidth - gap * (columnCount - 1)) / columnCount;
+                const rowCount = Math.ceil(items.length / columnCount);
+                // Video thumbnail (16:9) plus title/metadata block
+                const rowHeight = (columnWidth * 9) / 16 + 72;
+
+                return (
+                  <Grid
+                    columnCount={columnCount}
+                    columnWidth={columnWidth + gap}
+                    height={height}
+                    rowCount={rowCount}
+                    rowHeight={rowHeight + gap}
+                    width={width}
+                    itemData={{ ...gridData, columnCount }}
+                    className="scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent p-6"
+                    style={{ overflowX: 'hidden' }}
+                    onItemsRendered={({ visibleRowStopIndex }) => {
+                      if (
+                        visibleRowStopIndex * columnCount >= items.length - 12 &&
+                        hasMore &&
+                        !loading
+                      ) {
+                        loadMoreItems();
+                      }
+                    }}
+                  >
+                    {VideoCell}
+                  </Grid>
+                );
+              }}
+            </AutoSizer>
+
+            {loading && items.length === 0 && (
+              <div className="absolute inset-0 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm z-10">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-slate-400 font-medium font-mono text-xs uppercase tracking-widest animate-pulse">
+                    Crunching Evidence...
+                  </p>
+                </div>
               </div>
-            ) : containerWidth > 0 ? (
-              <div className="h-full flex flex-col">
-                <List
-                  height={containerRef.current?.clientHeight || 600}
-                  itemCount={rowCount}
-                  itemSize={420}
-                  width="100%"
-                  overscanCount={2}
-                  className="scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent"
-                  innerElementType={React.forwardRef<HTMLDivElement, any>(
-                    ({ style, ...rest }, ref) => (
-                      <div
-                        ref={ref}
-                        style={{
-                          ...style,
-                          height: `${parseFloat(style.height) + 48}px`, // +24px top, +24px bottom
-                        }}
-                        {...rest}
-                      />
-                    ),
-                  )}
-                  onScroll={({ scrollOffset, scrollUpdateWasRequested }) => {
-                    if (scrollUpdateWasRequested) return;
-                    const containerHeight = containerRef.current?.clientHeight || 600;
-                    const totalHeight = rowCount * 420;
-                    if (
-                      scrollOffset + containerHeight >= totalHeight - 200 &&
-                      !loading &&
-                      hasMore
-                    ) {
-                      loadMoreItems(0, 0);
-                    }
-                  }}
-                >
-                  {Row}
-                </List>
-                {loading && (
-                  <div className="py-4 flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-cyan-500"></div>
-                  </div>
-                )}
-              </div>
-            ) : null}
+            )}
           </div>
         </div>
       </div>
@@ -623,7 +577,7 @@ export const VideoBrowser: React.FC = () => {
 
       {/* Video Player Modal */}
       {selectedItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 md:p-8">
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 md:p-8">
           <div className="w-full max-w-6xl h-[85vh]">
             <VideoPlayer
               src={`/api/media/video/${selectedItem.id}/stream`}

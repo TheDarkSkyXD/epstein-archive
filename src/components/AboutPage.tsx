@@ -16,7 +16,7 @@ const DOCUMENT_SOURCES = [
     title: 'Unredacted Black Book',
     description: "Jeffrey Epstein's personal address book (2004-2005).",
     redactionStatus: 'Unredacted (0%)',
-    redactionColor: 'red',
+    redactionColor: 'green',
     impact: 'CRITICAL',
     impactColor: 'purple',
     link: '/blackbook',
@@ -26,7 +26,7 @@ const DOCUMENT_SOURCES = [
     title: 'Flight Logs',
     description: "Pilot logs for Epstein's aircraft (1991-2003).",
     redactionStatus: 'Unredacted (0%)',
-    redactionColor: 'red',
+    redactionColor: 'green',
     impact: 'CRITICAL',
     impactColor: 'purple',
     link: null,
@@ -46,7 +46,7 @@ const DOCUMENT_SOURCES = [
     title: 'Maxwell Deposition 2016',
     description: 'Deposition of Ghislaine Maxwell in Giuffre v. Maxwell.',
     redactionStatus: 'Unredacted (0%)',
-    redactionColor: 'red',
+    redactionColor: 'green',
     impact: 'HIGH',
     impactColor: 'blue',
     link: null,
@@ -56,7 +56,7 @@ const DOCUMENT_SOURCES = [
     title: 'Giuffre Deposition 2016',
     description: "Transcript of Virginia Giuffre's testimony.",
     redactionStatus: 'Unredacted (0%)',
-    redactionColor: 'red',
+    redactionColor: 'green',
     impact: 'HIGH',
     impactColor: 'blue',
     link: null,
@@ -66,7 +66,7 @@ const DOCUMENT_SOURCES = [
     title: 'Sjoberg Deposition 2016',
     description: 'Testimony regarding Prince Andrew and Maxwell.',
     redactionStatus: 'Unredacted (0%)',
-    redactionColor: 'red',
+    redactionColor: 'green',
     impact: 'HIGH',
     impactColor: 'blue',
     link: null,
@@ -76,7 +76,7 @@ const DOCUMENT_SOURCES = [
     title: 'Katie Johnson Complaint',
     description: '2016 lawsuit against Epstein and Trump.',
     redactionStatus: 'Unredacted (0%)',
-    redactionColor: 'red',
+    redactionColor: 'green',
     impact: 'HIGH',
     impactColor: 'blue',
     link: null,
@@ -86,7 +86,7 @@ const DOCUMENT_SOURCES = [
     title: 'Federal Indictment 2019',
     description: 'SDNY indictment charging sex trafficking.',
     redactionStatus: 'Unredacted (0%)',
-    redactionColor: 'red',
+    redactionColor: 'green',
     impact: 'HIGH',
     impactColor: 'blue',
     link: null,
@@ -96,7 +96,7 @@ const DOCUMENT_SOURCES = [
     title: "FBI Files 'Phase 1'",
     description: 'FBI interview summaries and internal memos.',
     redactionStatus: 'Moderately Redacted (~35%)',
-    redactionColor: 'slate',
+    redactionColor: 'yellow',
     impact: 'MEDIUM',
     impactColor: 'slate',
     link: null,
@@ -106,7 +106,7 @@ const DOCUMENT_SOURCES = [
     title: 'Estate Emails',
     description: 'Post-2008 correspondence (House Oversight).',
     redactionStatus: 'Low Redaction (~12%)',
-    redactionColor: 'yellow',
+    redactionColor: 'green',
     impact: 'MEDIUM',
     impactColor: 'slate',
     link: null,
@@ -116,7 +116,7 @@ const DOCUMENT_SOURCES = [
     title: 'The Birthday Book',
     description: '2003 Birthday messages and photos.',
     redactionStatus: 'Unredacted (0%)',
-    redactionColor: 'red',
+    redactionColor: 'green',
     impact: 'MEDIUM',
     impactColor: 'slate',
     link: null,
@@ -126,7 +126,7 @@ const DOCUMENT_SOURCES = [
     title: 'DOJ Discovery VOL00001',
     description: 'FBI evidence from July 2019 NY mansion search (3,158 items).',
     redactionStatus: 'Unredacted (0%)',
-    redactionColor: 'red',
+    redactionColor: 'green',
     impact: 'CRITICAL',
     impactColor: 'purple',
     link: null,
@@ -136,7 +136,7 @@ const DOCUMENT_SOURCES = [
     title: 'DOJ Discovery VOL00002-6',
     description: 'Additional discovery volumes containing heavily redacted documents.',
     redactionStatus: 'Heavy Redaction (~95%)',
-    redactionColor: 'slate',
+    redactionColor: 'red',
     impact: 'LOW',
     impactColor: 'slate',
     link: null,
@@ -211,13 +211,13 @@ const timelineEvents = [
 const getStatusColor = (color: string) => {
   switch (color) {
     case 'red':
-      return { bg: 'bg-red-400', text: 'text-red-300' };
+      return { bg: 'bg-red-500', text: 'text-red-300' };
     case 'yellow':
-      return { bg: 'bg-yellow-400', text: 'text-yellow-300' };
-    case 'slate':
-      return { bg: 'bg-slate-400', text: 'text-slate-300' };
+      return { bg: 'bg-yellow-500', text: 'text-yellow-300' };
+    case 'green':
+      return { bg: 'bg-green-500', text: 'text-green-300' };
     default:
-      return { bg: 'bg-slate-400', text: 'text-slate-300' };
+      return { bg: 'bg-slate-500', text: 'text-slate-300' };
   }
 };
 

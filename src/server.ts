@@ -226,14 +226,24 @@ try {
 // Robust static resolver for files under /data
 app.get('/api/static', async (req, res, next) => {
   try {
-    const p = String(req.query.path || '');
-    if (!p) return res.status(400).json({ error: 'path required' });
-    if (!p.includes('/data/')) return res.status(400).json({ error: 'invalid path' });
-    const rel = p.replace(/^.*[/\\]data[/\\]/, '').replace(/\\/g, '/');
+    let raw = String(req.query.path || '');
+    if (!raw) return res.status(400).json({ error: 'path required' });
+
+    // Normalize common forms:
+    // - "data/..."   → "/data/..."
+    // - already absolute "/data/..." is left as-is
+    if (raw.startsWith('data/')) {
+      raw = '/data/' + raw.substring('data/'.length);
+    }
+
+    if (!raw.includes('/data/')) return res.status(400).json({ error: 'invalid path' });
+
+    const rel = raw.replace(/^.*[/\\]data[/\\]/, '').replace(/\\/g, '/');
     const candidates: string[] = [];
     candidates.push(path.join(process.cwd(), 'data', rel));
     candidates.push(path.join(__dirname, '..', 'data', rel));
     candidates.push(path.join('/data', rel.startsWith('/') ? rel.substring(1) : rel));
+
     for (const fp of candidates) {
       if (fs.existsSync(fp)) {
         return res.sendFile(fp);
@@ -2107,6 +2117,7 @@ app.get('/api/media/audio', async (req, res, next) => {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(100, parseInt(req.query.limit as string) || 24);
     const albumId = req.query.albumId ? parseInt(req.query.albumId as string) : undefined;
+    const transcriptQuery = (req.query.transcriptQuery as string | undefined)?.trim() || undefined;
 
     // Use mediaRepository with fileType='audio'
     // Note: getMediaItemsPaginated on mediaRepository queries the media_items table
@@ -2115,11 +2126,32 @@ app.get('/api/media/audio', async (req, res, next) => {
       entityId: req.query.entityId as string,
       albumId,
       sortBy: req.query.sortBy as 'title' | 'date' | 'rating' | undefined,
+      transcriptQuery,
     });
 
     res.json(result);
   } catch (error) {
     console.error('Error fetching audio:', error);
+    next(error);
+  }
+});
+
+// Get single audio item metadata by ID (used for deep-linking into AudioBrowser)
+app.get('/api/media/audio/:id', async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (Number.isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid audio ID' });
+    }
+
+    const item = mediaRepository.getMediaItemById(id);
+    if (!item) {
+      return res.status(404).json({ error: 'Audio not found' });
+    }
+
+    res.json(item);
+  } catch (error) {
+    console.error('Error fetching audio item by id:', error);
     next(error);
   }
 });
@@ -2170,12 +2202,15 @@ app.get('/api/media/video', async (req, res, next) => {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(100, parseInt(req.query.limit as string) || 24);
     const albumId = req.query.albumId ? parseInt(req.query.albumId as string) : undefined;
+    const transcriptQuery = (req.query.transcriptQuery as string | undefined)?.trim() || undefined;
 
     // Use mediaRepository with fileType='video'
     const result = await mediaRepository.getMediaItemsPaginated(page, limit, {
       fileType: 'video',
       entityId: req.query.entityId as string,
       albumId,
+      sortBy: req.query.sortBy as 'title' | 'date' | 'rating' | undefined,
+      transcriptQuery,
     });
 
     res.json(result);
@@ -2226,21 +2261,38 @@ app.get('/api/media/video/:id/thumbnail', async (req, res, next) => {
       return res.status(404).json({ error: 'Thumbnail not found' });
     }
 
-    // Resolve path if it's relative or db path
     // Resolve path robustly
     let filePath = thumbnailPath;
 
-    // If path is relative, resolve it against CWD
-    if (!path.isAbsolute(filePath)) {
-      if (filePath.startsWith('/')) filePath = filePath.slice(1);
-      filePath = path.join(process.cwd(), filePath);
+    // Check various possible locations
+    const candidates: string[] = [];
+    
+    // If it starts with /data/ or data/, try resolving relative to CWD
+    if (filePath.startsWith('/data/')) {
+      candidates.push(path.join(process.cwd(), filePath.substring(1)));
+      candidates.push(path.join('/data', filePath.substring('/data/'.length)));
+    } else if (filePath.startsWith('data/')) {
+      candidates.push(path.join(process.cwd(), filePath));
+      candidates.push(path.join('/data', filePath.substring('data/'.length)));
+    } else if (path.isAbsolute(filePath)) {
+      candidates.push(filePath);
+      // Also try stripping root if it looks like a container path
+      if (filePath.startsWith('/')) {
+        candidates.push(path.join(process.cwd(), filePath.substring(1)));
+      }
+    } else {
+      candidates.push(path.join(process.cwd(), 'data', filePath));
+      candidates.push(path.join('/data', filePath));
     }
 
-    if (!fs.existsSync(filePath)) {
+    const absPath = candidates.find((c) => fs.existsSync(c)) || candidates[0];
+
+    if (!fs.existsSync(absPath)) {
+      console.error(`[Thumbnail] Failed to resolve video thumbnail for ID ${id}. Tried:`, candidates);
       return res.status(404).json({ error: 'Thumbnail file not found on server' });
     }
 
-    res.sendFile(filePath);
+    res.sendFile(absPath);
   } catch (error) {
     next(error);
   }

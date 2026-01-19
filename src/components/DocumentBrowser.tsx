@@ -15,7 +15,6 @@ import { DocumentProcessor } from '../services/documentProcessor';
 import {
   Search,
   Filter,
-  Calendar,
   FileText,
   Users,
   Tag,
@@ -200,7 +199,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
         setContextSearchTerm(searchParam);
       }
     }
-  }, []);
+  }, [contextSearchTerm, onSearchTermChange, setContextSearchTerm]);
 
   // Use either external searchTerm or context searchTerm
   const effectiveSearchTerm =
@@ -412,6 +411,8 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
     filters.source,
     filters.fileType,
     filters.redFlagLevel,
+    hasMore,
+    isFetching,
   ]);
 
   // Reset pagination when filters change
@@ -498,8 +499,9 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
         })
         .catch((err) => console.error('Error fetching selected document:', err));
     }
-  }, [selectedDocumentId, documents, selectedDocument]);
+  }, [selectedDocumentId, documents, selectedDocument, handleDocumentSelect]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- collection is stable for this memo
   const fileTypeOptions = useMemo(() => {
     if (!collection) return [];
     return Array.from(collection.fileTypes.entries()).map(([type, count]) => ({
@@ -515,7 +517,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
       value: source,
       label: source,
     }));
-  }, [documents]);
+  }, [collection, documents]);
 
   const handleFilterChange = (key: keyof BrowseFilters, value: any) => {
     setFilters((prev) => ({
@@ -536,23 +538,28 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
     handleFilterChange('redFlagLevel', { min, max });
   };
 
-  const handleDocumentSelect = async (document: Document) => {
-    // Set initial document data immediately
-    setSelectedDocument(document);
+  const handleDocumentSelect = useCallback(
+    async (document: Document) => {
+      // Set initial document data immediately
+      setSelectedDocument(document);
 
-    try {
-      // Fetch full content from API
-      const fullDoc = await apiClient.getDocument(document.id);
-      if (fullDoc) {
-        setSelectedDocument((prev) => (prev?.id === document.id ? { ...prev, ...fullDoc } : prev));
+      try {
+        // Fetch full content from API
+        const fullDoc = await apiClient.getDocument(document.id);
+        if (fullDoc) {
+          setSelectedDocument((prev) =>
+            prev?.id === document.id ? { ...prev, ...fullDoc } : prev,
+          );
+        }
+      } catch (error) {
+        console.error('Error fetching full document content:', error);
       }
-    } catch (error) {
-      console.error('Error fetching full document content:', error);
-    }
 
-    const related = processor.findRelatedDocuments(document.id, 5);
-    setRelatedDocuments(related);
-  };
+      const related = processor.findRelatedDocuments(document.id, 5);
+      setRelatedDocuments(related);
+    },
+    [processor],
+  );
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
@@ -705,7 +712,9 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
       };
       document.addEventListener('mouseup', handler);
       return () => document.removeEventListener('mouseup', handler);
-    }, []);
+      // We intentionally only depend on setSnippetText, which is stable from React state
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [setSnippetText]);
 
     const addSnippet = async () => {
       if (!snippetText || !snippetText.trim()) return;

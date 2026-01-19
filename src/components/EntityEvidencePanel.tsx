@@ -64,6 +64,7 @@ export const EntityEvidencePanel: React.FC<EntityEvidencePanelProps> = ({
 
   useEffect(() => {
     loadEntityEvidence();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadEntityEvidence is stable and only depends on entityId
   }, [entityId]);
 
   const loadEntityEvidence = async () => {

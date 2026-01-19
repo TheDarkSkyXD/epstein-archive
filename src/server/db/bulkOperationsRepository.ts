@@ -59,7 +59,7 @@ export const bulkOperationsRepository = {
             // We use a simple check here. For high performance with millions of rows,
             // we might want to cache recent document IDs or use INSERT OR IGNORE with a returning clause if supported.
             // Since we added a UNIQUE index on file_path, we can use that.
-            let documentId: number | bigint;
+            let _documentId: number | bigint;
 
             const existingDoc = db
               .prepare('SELECT id FROM documents WHERE file_path = ?')

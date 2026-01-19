@@ -49,3 +49,13 @@ jobs:
 
       - name: Verify Build
         run: npm run build
+
+      - name: Smoke tests (API)
+        env:
+          SMOKE_API_BASE_URL: 'http://localhost:3000'
+        run: |
+          DB_PATH=./epstein-archive.db RAW_CORPUS_BASE_PATH=./data npm run server &
+          SERVER_PID=$!
+          npx wait-on http://localhost:3000/api/ready --timeout 60000
+          npm run test:smoke
+          kill $SERVER_PID

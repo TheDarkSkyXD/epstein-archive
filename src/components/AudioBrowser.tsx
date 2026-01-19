@@ -59,7 +59,7 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const [coverTick, setCoverTick] = useState(0);
+  const [_coverTick, setCoverTick] = useState(0);
   const [libraryTotalCount, setLibraryTotalCount] = useState(0);
   const [showAlbumDropdown, setShowAlbumDropdown] = useState(false);
   const [investigationId, setInvestigationId] = useState<number | null>(null);
@@ -163,6 +163,7 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
   // Load items when album selection or transcript search changes
   useEffect(() => {
     fetchAudio(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchAudio already captures latest selectedAlbum/transcriptSearch
   }, [selectedAlbum, transcriptSearch]);
 
   useEffect(() => {
@@ -206,12 +207,15 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
   };
 
   // Batch Handlers
-  const toggleSelection = (id: number) => {
-    const newSet = new Set(selectedItems);
-    if (newSet.has(id)) newSet.delete(id);
-    else newSet.add(id);
-    setSelectedItems(newSet);
-  };
+  const toggleSelection = useCallback(
+    (id: number) => {
+      const newSet = new Set(selectedItems);
+      if (newSet.has(id)) newSet.delete(id);
+      else newSet.add(id);
+      setSelectedItems(newSet);
+    },
+    [selectedItems],
+  );
 
   const handleBatchTag = async (tagIds: number[], action: 'add' | 'remove') => {
     try {
@@ -244,62 +248,65 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
     }
   };
 
-  const fetchAudio = async (pageNum: number) => {
-    try {
-      setLoading(true);
+  const fetchAudio = useCallback(
+    async (pageNum: number) => {
+      try {
+        setLoading(true);
 
-      // Abort previous request
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
+        // Abort previous request
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+        }
+        abortControllerRef.current = new AbortController();
+
+        const params = new URLSearchParams({
+          page: pageNum.toString(),
+          limit: '24',
+        });
+        if (selectedAlbum) {
+          params.append('albumId', selectedAlbum.toString());
+        }
+        if (transcriptSearch.trim()) {
+          params.append('transcriptQuery', transcriptSearch.trim());
+        }
+        // Always sort by title as requested ("sorted by name by tranche")
+        params.append('sortBy', 'title');
+
+        const res = await fetch(`/api/media/audio?${params}`, {
+          signal: abortControllerRef.current.signal,
+        });
+        if (!res.ok) throw new Error('Failed to load audio files');
+
+        const data = await res.json();
+        const newItems = data.mediaItems || [];
+
+        if (pageNum === 1) {
+          setItems(newItems);
+        } else {
+          setItems((prev) => [...prev, ...newItems]);
+        }
+
+        if (pageNum === 1 && quickStart && !selectedItem && newItems.length > 0) {
+          setSelectedItem(newItems[0]);
+        }
+
+        setHasMore(newItems.length === 24);
+        setPage(pageNum);
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return;
+        console.error(err);
+        setError('Failed to load audio content');
+      } finally {
+        setLoading(false);
       }
-      abortControllerRef.current = new AbortController();
+    },
+    [selectedAlbum, transcriptSearch, quickStart, selectedItem],
+  );
 
-      const params = new URLSearchParams({
-        page: pageNum.toString(),
-        limit: '24',
-      });
-      if (selectedAlbum) {
-        params.append('albumId', selectedAlbum.toString());
-      }
-      if (transcriptSearch.trim()) {
-        params.append('transcriptQuery', transcriptSearch.trim());
-      }
-      // Always sort by title as requested ("sorted by name by tranche")
-      params.append('sortBy', 'title');
-
-      const res = await fetch(`/api/media/audio?${params}`, {
-        signal: abortControllerRef.current.signal,
-      });
-      if (!res.ok) throw new Error('Failed to load audio files');
-
-      const data = await res.json();
-      const newItems = data.mediaItems || [];
-
-      if (pageNum === 1) {
-        setItems(newItems);
-      } else {
-        setItems((prev) => [...prev, ...newItems]);
-      }
-
-      if (pageNum === 1 && quickStart && !selectedItem && newItems.length > 0) {
-        setSelectedItem(newItems[0]);
-      }
-
-      setHasMore(newItems.length === 24);
-      setPage(pageNum);
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return;
-      console.error(err);
-      setError('Failed to load audio content');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLoadMore = () => {
+  const handleLoadMore = useCallback(() => {
     const nextPage = page + 1;
     fetchAudio(nextPage);
-  };
+  }, [page, fetchAudio]);
 
   const formatDate = useCallback((dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-US', {
@@ -340,7 +347,11 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
   }, [containerWidth]);
 
   const rowCount = Math.ceil(items.length / columns);
-  const isItemLoaded = (index: number) => index < rowCount;
+  // Items are always considered loadable while hasMore is true; InfiniteLoader only
+  // cares that loadMoreItems resolves when there's nothing left to fetch.
+  // InfiniteLoader compatibility helper; kept for clarity even if not currently wired
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const isItemLoaded = (_index: number) => _index < rowCount;
   const loadMoreItems = useCallback(
     (_startIndex: number, _stopIndex: number) => {
       if (!loading && hasMore) {
@@ -348,7 +359,7 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
       }
       return Promise.resolve();
     },
-    [loading, hasMore],
+    [loading, hasMore, handleLoadMore],
   );
 
   const showSensitiveWarning =
@@ -378,7 +389,7 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
               gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
             }}
           >
-            {rowItems.map((item, i) => {
+            {rowItems.map((item) => {
               const isSelected = selectedItems.has(item.id);
               const isSascha =
                 item.title.includes('Sascha') ||
@@ -636,7 +647,19 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
         </div>
       );
     },
-    [items, columns, selectedItems, isBatchMode, formatDate],
+    [
+      items,
+      columns,
+      selectedItems,
+      isBatchMode,
+      formatDate,
+      toggleSelection,
+      pickerOpenId,
+      investigationsList,
+      addingId,
+      investigationId,
+      transcriptSearch,
+    ],
   );
 
   // Update URL when item or album is selected

@@ -55,7 +55,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const audioRef = useRef<HTMLAudioElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate();
+  const _navigate = useNavigate();
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -158,7 +158,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     }
   };
 
-  // Initialize
+  // Initialize / update audio element with current volume & rate
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.volume = volume;
@@ -210,7 +210,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         }
       }
     }
-  }, [autoPlay, isSensitive]);
+  }, [autoPlay, isSensitive, volume, playbackRate]);
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
@@ -250,7 +250,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     }
   };
 
-  const scrollToSegment = (index: number) => {
+  const scrollToSegment = useCallback((index: number) => {
     if (transcriptRef.current && transcriptRef.current.parentElement) {
       const container = transcriptRef.current.parentElement;
       const element = transcriptRef.current.children[index] as HTMLElement;
@@ -264,9 +264,9 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         });
       }
     }
-  };
+  }, []);
 
-  const scrollOverlayToSegment = (index: number) => {
+  const scrollOverlayToSegment = useCallback((index: number) => {
     if (!overlayRef.current) return;
     const element = overlayRef.current.children[index] as HTMLElement;
     if (element) {
@@ -275,22 +275,31 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         behavior: 'smooth',
       });
     }
-  };
+  }, []);
 
-  const jumpToTranscriptMatch = (nextIndex: number) => {
-    if (!transcriptMatches.length) return;
-    const wrapped = (nextIndex + transcriptMatches.length) % transcriptMatches.length;
-    const segIndex = transcriptMatches[wrapped];
-    const seg = transcript[segIndex];
-    if (!seg) return;
-    setCurrentMatchIndex(wrapped);
-    seek(seg.start);
-    scrollToSegment(segIndex);
-    scrollOverlayToSegment(segIndex);
-  };
+  const jumpToTranscriptMatch = useCallback(
+    (nextIndex: number) => {
+      if (!transcriptMatches.length) return;
+      const wrapped = (nextIndex + transcriptMatches.length) % transcriptMatches.length;
+      const segIndex = transcriptMatches[wrapped];
+      const seg = transcript[segIndex];
+      if (!seg) return;
+      setCurrentMatchIndex(wrapped);
+      seek(seg.start);
+      scrollToSegment(segIndex);
+      scrollOverlayToSegment(segIndex);
+    },
+    [transcriptMatches, transcript, seek, scrollToSegment, scrollOverlayToSegment],
+  );
 
-  const goToNextTranscriptMatch = () => jumpToTranscriptMatch(currentMatchIndex + 1);
-  const goToPrevTranscriptMatch = () => jumpToTranscriptMatch(currentMatchIndex - 1);
+  const goToNextTranscriptMatch = useCallback(
+    () => jumpToTranscriptMatch(currentMatchIndex + 1),
+    [currentMatchIndex, jumpToTranscriptMatch],
+  );
+  const goToPrevTranscriptMatch = useCallback(
+    () => jumpToTranscriptMatch(currentMatchIndex - 1),
+    [currentMatchIndex, jumpToTranscriptMatch],
+  );
 
   // Keyboard shortcuts for transcript navigation
   useEffect(() => {
@@ -365,13 +374,16 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     }
   };
 
-  const seek = (time: number) => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = Math.max(0, Math.min(time, duration));
-      setCurrentTime(audioRef.current.currentTime);
-      lastInteractionRef.current = Date.now();
-    }
-  };
+  const seek = useCallback(
+    (time: number) => {
+      if (audioRef.current) {
+        audioRef.current.currentTime = Math.max(0, Math.min(time, duration));
+        setCurrentTime(audioRef.current.currentTime);
+        lastInteractionRef.current = Date.now();
+      }
+    },
+    [duration],
+  );
 
   const computedChapters: Chapter[] = useMemo(() => {
     if (Array.isArray(chapters) && chapters.length > 0) return chapters;

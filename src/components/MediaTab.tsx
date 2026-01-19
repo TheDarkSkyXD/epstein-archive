@@ -1,9 +1,7 @@
 import React from 'react';
 import PhotoBrowser from './PhotoBrowser';
 
-interface MediaTabProps {
-  // Props can be added as needed
-}
+type MediaTabProps = Record<string, never>;
 
 export const MediaTab: React.FC<MediaTabProps> = () => {
   return (

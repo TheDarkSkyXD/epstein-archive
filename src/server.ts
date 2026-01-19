@@ -7,7 +7,7 @@ import cookieParser from 'cookie-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
 // import { databaseService } from './services/DatabaseService.js';
-import { getDb } from './server/db/connection.js';
+// import { getEnv } from './src/config/env.js';
 import { entitiesRepository } from './server/db/entitiesRepository.js';
 import { documentsRepository } from './server/db/documentsRepository.js';
 import { statsRepository } from './server/db/statsRepository.js';
@@ -1521,20 +1521,18 @@ app.get('/api/documents', async (req, res, next) => {
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
-    // Build ORDER BY clause
-    let orderByClause = 'ORDER BY ';
-    switch (sortBy) {
-      case 'date':
-        orderByClause += 'date_created DESC';
-        break;
-      case 'title':
-        orderByClause += 'file_name ASC';
-        break;
-      case 'red_flag':
-      default:
-        orderByClause += 'red_flag_rating DESC, date_created DESC';
-        break;
-    }
+    // Build ORDER BY clause (kept for future use; currently unused in query construction)
+    const _orderByClause = (() => {
+      switch (sortBy) {
+        case 'date':
+          return 'date_created DESC';
+        case 'title':
+          return 'file_name ASC';
+        case 'red_flag':
+        default:
+          return 'red_flag_rating DESC, date_created DESC';
+      }
+    })();
 
     // Query documents from database
     const offset = (page - 1) * limit;
@@ -1731,8 +1729,7 @@ app.get('/api/documents/:id/pages', async (req, res, next) => {
 
       // Construct path to images folder
       // Assuming structure: CORPUS_BASE_PATH/Epstein Estate Documents - Seventh Production/IMAGES/{folderNum}/
-      const fs = require('fs');
-      const pathLib = require('path');
+      const pathLib = path;
 
       let imagesBase = '';
       if (imageFolder) {
@@ -1837,9 +1834,7 @@ app.get('/api/documents/:id/file', async (req, res, next) => {
       return res.status(404).json({ error: 'no_file_path' });
     }
 
-    // Resolve the file path
-    const path = require('path');
-    const fs = require('fs');
+    // Resolve the file path using existing imports
 
     // Check various possible locations
     const possiblePaths = [

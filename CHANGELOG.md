@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file. The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## 10.10.0 — 2026-01-18
+
+- Unredacted corpus quality pass
+  - Ran the full unified ingestion pipeline (including `unredact.py`) across DOJ Discovery VOL00001–VOL00008, Court Case Evidence, Maxwell Proffer, and DOJ Phase 1, reprocessing 14,718 source files into a stable set of 51,380 documents.
+  - Confirmed end-to-end success (0 skipped, 0 errors) with 3,233,072 relationships recomputed in the intelligence pipeline.
+- Redaction/unredaction transparency
+  - Extended About page copy to explain which collections are effectively unredacted (e.g. Vol 1 FBI raid evidence, Black Book, Flight Logs) vs. partially or heavily redacted DOJ volumes.
+  - Highlighted that unredaction is now applied automatically during ingest where safe, with fallbacks that preserve original PDFs and annotate failures.
+- Dataset quality framing
+  - Updated About copy to emphasize the step-change in data quality compared to the “chaotic archive” baseline—structured entities, 51k+ documents, and a 3.2M-edge relationship graph backed by the latest pipeline.
+
+## 10.9.1 — 2026-01-17
+
+- Transcript search UX polish
+  - Audio Player now highlights the searched text inline in both the sidebar transcript and the full transcript overlay.
+  - While a transcript search is active, automatic scroll-follow is temporarily paused so investigators can stay anchored on their search context; it resumes once the search is cleared.
+- Audio browser alignment
+  - Audio Browser cards now use a 3-column layout by default on desktop (mirroring the Video Browser density) with taller cards that comfortably fit multiple transcript snippets.
+  - Transcript match previews under each audio item now inline-highlight the query text and reserve space for at least two to three lines of context.
+- Entity evidence substrate
+  - Added `entityEvidenceRepository` and `/api/entities/:id/evidence` + `/api/entities/:id/relations` endpoints to expose mention-based entity evidence and relation evidence to the UI.
+
 ## 10.9.0 — 2026-01-17
 
 - Unredacted document ingestion

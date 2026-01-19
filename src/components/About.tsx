@@ -19,7 +19,7 @@ export const About: React.FC = () => {
           Epstein Archive Investigation Platform
         </h1>
         <p className="text-xl text-slate-400">
-          Version 10.0.0 - Comprehensive Evidence Analysis System
+          Version 10.10.0 - Unredacted Corpus & Intelligence Refresh
         </p>
       </div>
 
@@ -574,7 +574,7 @@ export const About: React.FC = () => {
       {/* Footer */}
       <div className="text-center mt-12 pt-8 border-t border-slate-700">
         <p className="text-slate-400">Built with transparency and accountability in mind</p>
-        <p className="text-slate-500 text-sm mt-2">Last Updated: January 2026</p>
+        <p className="text-slate-500 text-sm mt-2">Last Updated: January 18, 2026</p>
       </div>
     </div>
   );

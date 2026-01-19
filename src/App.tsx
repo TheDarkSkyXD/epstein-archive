@@ -2025,7 +2025,9 @@ function App() {
                       navigate('/media/audio?albumId=25&quickstart=1');
                       try {
                         localStorage.setItem('cta_audio_dismissed', '1');
-                      } catch {}
+                      } catch (e) {
+                        console.warn('Failed to persist audio CTA dismissal flag', e);
+                      }
                       setShowAudioCTA(false);
                     }}
                     className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-full text-xs"
@@ -2043,8 +2045,8 @@ function App() {
                           const inv = await resp.json();
                           navigate(`/investigations/${inv.id}`);
                         }
-                      } catch {
-                        /* ignore */
+                      } catch (e) {
+                        console.warn('Failed to open Sascha investigation from CTA', e);
                       }
                     }}
                     className="px-3 py-1.5 bg-amber-700 hover:bg-amber-600 text-white rounded-full text-xs border border-amber-500"
@@ -2055,7 +2057,9 @@ function App() {
                     onClick={() => {
                       try {
                         localStorage.setItem('cta_audio_dismissed', '1');
-                      } catch {}
+                      } catch (e) {
+                        console.warn('Failed to persist audio CTA dismissal flag', e);
+                      }
                       setShowAudioCTA(false);
                     }}
                     className="text-slate-400 hover:text-white"

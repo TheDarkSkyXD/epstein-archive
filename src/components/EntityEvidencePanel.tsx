@@ -36,6 +36,21 @@ interface EntityEvidencePanelProps {
   entityName: string;
 }
 
+interface RelationEvidenceEdge {
+  id: string;
+  subject_entity_id: number;
+  object_entity_id: number;
+  predicate: string;
+  weight: number;
+  evidence: {
+    id: string;
+    document_id: number | null;
+    document_title?: string | null;
+    quote_text?: string | null;
+    confidence?: number | null;
+  }[];
+}
+
 export const EntityEvidencePanel: React.FC<EntityEvidencePanelProps> = ({
   entityId,
   entityName,
@@ -45,6 +60,7 @@ export const EntityEvidencePanel: React.FC<EntityEvidencePanelProps> = ({
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<string>('all');
   const [filterRole, setFilterRole] = useState<string>('all');
+  const [relationEdges, setRelationEdges] = useState<RelationEvidenceEdge[]>([]);
 
   useEffect(() => {
     loadEntityEvidence();
@@ -53,10 +69,16 @@ export const EntityEvidencePanel: React.FC<EntityEvidencePanelProps> = ({
   const loadEntityEvidence = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/investigation/evidence/${entityId}`);
-      const data = await response.json();
-      setEvidence(data.evidence || []);
-      setStats(data.stats || null);
+      // Prefer the new entity-centric evidence endpoint backed by mentions/relations.
+      const [evidenceRes, relationsRes] = await Promise.all([
+        fetch(`/api/entities/${entityId}/evidence`),
+        fetch(`/api/entities/${entityId}/relations`),
+      ]);
+      const evidenceData = await evidenceRes.json();
+      const relationsData = await relationsRes.json();
+      setEvidence(evidenceData.evidence || []);
+      setStats(evidenceData.stats || null);
+      setRelationEdges(Array.isArray(relationsData.relations) ? relationsData.relations : []);
     } catch (error) {
       console.error('Error loading entity evidence:', error);
     } finally {
@@ -198,6 +220,48 @@ export const EntityEvidencePanel: React.FC<EntityEvidencePanelProps> = ({
                   {entity.shared_evidence_count} shared
                 </span>
               </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Relation Evidence (graph edges with quotes) */}
+      {relationEdges.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-lg p-5">
+          <div className="flex items-center space-x-2 mb-4">
+            <Network className="w-5 h-5 text-gray-600" />
+            <h3 className="text-lg font-semibold">Relation Evidence</h3>
+          </div>
+          <div className="space-y-3 max-h-72 overflow-y-auto">
+            {relationEdges.slice(0, 25).map((rel) => (
+              <div key={rel.id} className="border border-gray-200 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-semibold text-gray-800">
+                    {rel.predicate || 'related_to'}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    weight {rel.weight ?? 1}
+                  </span>
+                </div>
+                {rel.evidence && rel.evidence.length > 0 && (
+                  <ul className="mt-1 space-y-1">
+                    {rel.evidence.slice(0, 3).map((ev) => (
+                      <li key={ev.id} className="text-xs text-gray-600">
+                        {ev.document_title && (
+                          <span className="font-medium text-gray-800">
+                            {ev.document_title}
+                          </span>
+                        )}
+                        {ev.quote_text && (
+                          <span className="block text-gray-500 italic truncate">
+                            “{ev.quote_text}”
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             ))}
           </div>
         </div>

@@ -145,6 +145,12 @@ export const documentsRepository = {
         d.content,
         d.evidence_type as evidenceType,
         d.original_file_id as originalFileId,
+        d.unredaction_attempted as unredactionAttempted,
+        d.unredaction_succeeded as unredactionSucceeded,
+        d.redaction_coverage_before as redactionCoverageBefore,
+        d.redaction_coverage_after as redactionCoverageAfter,
+        d.unredacted_text_gain as unredactedTextGain,
+        d.unredaction_baseline_vocab as unredactionBaselineVocab,
         COALESCE(orig.file_path, d.original_file_path) as original_file_path
       FROM documents d
       LEFT JOIN documents orig ON d.original_file_id = orig.id
@@ -194,6 +200,14 @@ export const documentsRepository = {
       source_collection: 'Epstein Files',
       // Ensure top-level access to the URL
       original_file_path: document.source_original_url || document.original_file_path,
+      unredaction_metrics: {
+        attempted: Boolean(document.unredactionAttempted),
+        succeeded: Boolean(document.unredactionSucceeded),
+        redactionCoverageBefore: document.redactionCoverageBefore,
+        redactionCoverageAfter: document.redactionCoverageAfter,
+        unredactedTextGain: document.unredactedTextGain,
+        baselineVocab: document.unredactionBaselineVocab || null,
+      },
     };
   },
 

@@ -326,13 +326,17 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
   // Calculate columns dynamically based on available width
   const columns = useMemo(() => {
     if (containerWidth === 0) return 1;
-    // Target card width roughly 320px-350px
+    // Aim for a 3-column layout by default on typical desktop widths,
+    // similar to the video browser grid. Use a smaller min card width
+    // to keep cards reasonably compact while still accommodating
+    // multi-line transcript previews.
     const gap = 24; // gap-6
     const padding = 48; // px-6 * 2
-    const minCardWidth = 320;
+    const minCardWidth = 260;
     const available = containerWidth - padding;
-    const cols = Math.floor((available + gap) / (minCardWidth + gap));
-    return Math.max(1, cols);
+    const rawCols = Math.floor((available + gap) / (minCardWidth + gap));
+    const cols = Math.max(1, rawCols);
+    return cols;
   }, [containerWidth]);
 
   const rowCount = Math.ceil(items.length / columns);
@@ -389,7 +393,7 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
               return (
                 <div
                   key={item.id}
-                  className={`bg-slate-900/50 border rounded-lg overflow-hidden transition-all group cursor-pointer flex flex-col ${isSelected ? 'border-cyan-500 ring-1 ring-cyan-500' : 'border-slate-800 hover:border-cyan-500/30'}`}
+                  className={`bg-slate-900/50 border rounded-lg overflow-hidden transition-all group cursor-pointer flex flex-col min-h-[260px] ${isSelected ? 'border-cyan-500 ring-1 ring-cyan-500' : 'border-slate-800 hover:border-cyan-500/30'}`}
                   onClick={(_e) => {
                     if (isBatchMode) {
                       toggleSelection(item.id);
@@ -560,7 +564,7 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
                       {transcriptSearch.trim() &&
                         Array.isArray(item.metadata?.transcript) &&
                         item.metadata.transcript.length > 0 && (
-                          <div className="mt-3 border-t border-slate-800 pt-2 space-y-1">
+                          <div className="mt-3 border-t border-slate-800 pt-2 space-y-1 min-h-[60px]">
                             <p className="text-[10px] uppercase tracking-wide text-slate-500">
                               Transcript matches
                             </p>
@@ -572,8 +576,29 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
                                   .includes(transcriptSearch.trim().toLowerCase()),
                               )
                               .slice(0, 3)
-                              .map(({ seg }, matchIdx) => (
-                                <button
+                              .map(({ seg }, matchIdx) => {
+                                const query = transcriptSearch.trim();
+                                const lower = (seg.text || '').toLowerCase();
+                                const q = query.toLowerCase();
+                                let preview: React.ReactNode = seg.text;
+                                if (q && lower.includes(q)) {
+                                  const startIdx = lower.indexOf(q);
+                                  const endIdx = startIdx + q.length;
+                                  const before = seg.text.slice(0, startIdx);
+                                  const matchText = seg.text.slice(startIdx, endIdx);
+                                  const after = seg.text.slice(endIdx);
+                                  preview = (
+                                    <>
+                                      {before}
+                                      <mark className="bg-amber-500/40 text-inherit px-0.5 rounded-sm">
+                                        {matchText}
+                                      </mark>
+                                      {after}
+                                    </>
+                                  );
+                                }
+                                return (
+                                  <button
                                   key={matchIdx}
                                   type="button"
                                   className="w-full text-left text-[11px] text-slate-300 hover:text-cyan-300 hover:bg-slate-800/60 rounded px-2 py-1 flex items-start gap-2"
@@ -596,9 +621,10 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
                                       .toString()
                                       .padStart(2, '0')}
                                   </span>
-                                  <span className="flex-1 line-clamp-2">{seg.text}</span>
+                                  <span className="flex-1 line-clamp-2">{preview}</span>
                                 </button>
-                              ))}
+                              );
+                            })}
                           </div>
                         )}
                     </div>

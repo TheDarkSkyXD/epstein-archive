@@ -236,7 +236,10 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         const index = transcript.findIndex((seg) => time >= seg.start && time < seg.end);
         if (index !== -1 && index !== activeSegmentIndex) {
           setActiveSegmentIndex(index);
-          if (Date.now() - lastInteractionRef.current > 5000) {
+          // When a transcript search is active, pause automatic scrolling so
+          // investigators can stay anchored on their search context. Auto-scroll
+          // resumes only once the search is cleared.
+          if (!normalizedTranscriptQuery && Date.now() - lastInteractionRef.current > 5000) {
             scrollToSegment(index);
           }
           const start = Math.max(0, index - 50);
@@ -326,6 +329,35 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     const mins = Math.floor(time / 60);
     const secs = Math.floor(time % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const renderHighlightedText = (text: string, query: string) => {
+    if (!query) return text;
+    const lower = text.toLowerCase();
+    const q = query.toLowerCase();
+    const parts: React.ReactNode[] = [];
+    let index = 0;
+    while (index < text.length) {
+      const matchIndex = lower.indexOf(q, index);
+      if (matchIndex === -1) {
+        parts.push(text.slice(index));
+        break;
+      }
+      if (matchIndex > index) {
+        parts.push(text.slice(index, matchIndex));
+      }
+      const matchText = text.slice(matchIndex, matchIndex + q.length);
+      parts.push(
+        <mark
+          key={parts.length}
+          className="bg-amber-500/40 text-inherit px-0.5 rounded-sm"
+        >
+          {matchText}
+        </mark>,
+      );
+      index = matchIndex + q.length;
+    }
+    return parts;
   };
 
   const togglePlay = () => {
@@ -841,7 +873,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                                 activeSegmentIndex === idx ? 'text-white' : 'text-slate-400'
                               }`}
                             >
-                              {seg.text}
+                              {renderHighlightedText(seg.text || '', normalizedTranscriptQuery)}
                             </p>
                           </button>
                         );
@@ -978,7 +1010,9 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                           <span className="text-xs font-bold text-slate-300">{seg.speaker}</span>
                         )}
                       </div>
-                      <p className="text-sm text-slate-300">{seg.text}</p>
+                      <p className="text-sm text-slate-300">
+                        {renderHighlightedText(seg.text || '', normalizedTranscriptQuery)}
+                      </p>
                     </button>
                   );
                 })}

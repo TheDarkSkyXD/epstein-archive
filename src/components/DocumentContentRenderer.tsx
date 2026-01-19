@@ -21,6 +21,7 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
   // TODO: Use entities for related entities sidebar - see UNUSED_VARIABLES_RECOMMENDATIONS.md
   const [_entities, setEntities] = useState<any[]>([]);
   const [entityRegex, setEntityRegex] = useState<RegExp | null>(null);
+  const [showUnredactedHighlights, setShowUnredactedHighlights] = useState(true);
 
   // Fetch all entities for linking - optimized
   useEffect(() => {
@@ -141,12 +142,62 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
   // Memoize processed content to avoid re-computation on every render
   const processedContent = useMemo(() => {
     // Apply prettifyOCRText unless showRaw is true
-    const content = showRaw ? doc.content : prettifyOCRText(doc.content);
-    // Apply entity linking (now optimized single-pass)
+    const baseContent = showRaw ? doc.content : prettifyOCRText(doc.content);
+
+    // Step 1: Apply unredaction token highlighting (baseline diff)
+    let content = baseContent as string;
+    try {
+      const baselineVocab: string | null | undefined = doc.unredaction_metrics?.baselineVocab;
+      if (
+        showUnredactedHighlights &&
+        baselineVocab &&
+        typeof content === 'string' &&
+        content.length > 0
+      ) {
+        const baselineTokens = new Set<string>();
+        for (const t of baselineVocab.split(/\s+/)) {
+          const token = t.trim().toLowerCase();
+          if (!token) continue;
+          baselineTokens.add(token);
+        }
+
+        // Tokenize content and wrap tokens not present in baseline
+        const parts: string[] = [];
+        const tokenRegex = /([A-Za-z0-9']+|[^A-Za-z0-9']+)/g;
+        let match: RegExpExecArray | null;
+        while ((match = tokenRegex.exec(content)) !== null) {
+          const fragment = match[0];
+          if (/^[A-Za-z0-9']+$/.test(fragment)) {
+            const key = fragment.toLowerCase();
+            if (!baselineTokens.has(key)) {
+              // Newly-unredacted token; wrap in subtle highlight
+              const escaped = fragment
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+              parts.push(
+                `<mark class="bg-emerald-800/40 border border-emerald-500/40 rounded px-0.5 py-0 text-emerald-100" title="Newly unredacted text">${escaped}</mark>`,
+              );
+            } else {
+              parts.push(fragment);
+            }
+          } else {
+            parts.push(fragment);
+          }
+        }
+        content = parts.join('');
+      }
+    } catch (e) {
+      console.warn('Error applying unredaction baseline highlighting:', e);
+    }
+
+    // Step 2: Apply entity linking (now optimized single-pass)
     // Only run linking if we have the regex ready
     const contentWithEntities = entityRegex ? linkEntitiesInText(content) : content;
+
+    // Step 3: Apply search term highlighting on top
     return searchTerm ? highlightText(contentWithEntities, searchTerm) : contentWithEntities;
-  }, [doc.content, showRaw, entityRegex, searchTerm]);
+  }, [doc.content, showRaw, entityRegex, searchTerm, doc.unredaction_metrics, showUnredactedHighlights]);
 
   return (
     <div className="prose prose-invert max-w-none">
@@ -167,16 +218,35 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
                       : 'Select text to add annotations and evidence'}
         </div>
         {!doc.fileType?.match(/jpe?g|png|gif|bmp|webp|csv|xls/i) && (
-          <button
-            onClick={() => setShowAnnotations(!showAnnotations)}
-            className={`px-3 py-1 text-xs rounded transition-colors ${
-              showAnnotations
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-            }`}
-          >
-            {showAnnotations ? 'Hide Annotations' : 'Show Annotations'}
-          </button>
+          <div className="flex items-center gap-3">
+            {typeof doc.unredaction_metrics?.unredactedTextGain === 'number' && (
+              <div className="text-xs text-emerald-400 flex items-center gap-2">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-900/40 border border-emerald-500/40">
+                  Unredacted gain:{' '}
+                  {Math.round((doc.unredaction_metrics.unredactedTextGain || 0) * 100)}%
+                </span>
+                <label className="inline-flex items-center gap-1 text-emerald-200/80 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    className="h-3 w-3 rounded border-emerald-500/60 bg-slate-900/60 text-emerald-400 focus:ring-emerald-500/60"
+                    checked={showUnredactedHighlights}
+                    onChange={(e) => setShowUnredactedHighlights(e.target.checked)}
+                  />
+                  <span className="text-[11px]">Highlight newly unredacted text</span>
+                </label>
+              </div>
+            )}
+            <button
+              onClick={() => setShowAnnotations(!showAnnotations)}
+              className={`px-3 py-1 text-xs rounded transition-colors ${
+                showAnnotations
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              {showAnnotations ? 'Hide Annotations' : 'Show Annotations'}
+            </button>
+          </div>
         )}
       </div>
 

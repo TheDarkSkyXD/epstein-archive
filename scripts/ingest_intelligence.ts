@@ -84,6 +84,15 @@ function makeId(): string {
   return crypto.randomBytes(16).toString('hex');
 }
 
+function makeDeterministicId(parts: Array<string | number>): string {
+  const hash = crypto.createHash('sha1');
+  for (const part of parts) {
+    hash.update(String(part));
+    hash.update('|');
+  }
+  return hash.digest('hex');
+}
+
 function rebuildEntityPipeline() {
   console.log('🚀 Starting ULTIMATE Entity Ingestion Pipeline...');
 
@@ -145,7 +154,7 @@ function rebuildEntityPipeline() {
 
   const insertResolutionCandidate = hasResolutionCandidates
     ? db.prepare(
-        "INSERT INTO resolution_candidates (id, left_entity_id, right_entity_id, mention_id, candidate_type, score, feature_vector_json, decision, decided_at, decided_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)",
+        "INSERT OR IGNORE INTO resolution_candidates (id, left_entity_id, right_entity_id, mention_id, candidate_type, score, feature_vector_json, decision, decided_at, decided_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)",
       )
     : null;
 
@@ -185,6 +194,8 @@ function rebuildEntityPipeline() {
   const entityRows = db
     .prepare('SELECT id, full_name, aliases, entity_type FROM entities')
     .all() as any[];
+
+  // Cache of normalized name -> entity id
   entityRows.forEach((row) => {
     entityCache.set(normalizeName(row.full_name).toLowerCase(), row.id);
     if (row.aliases) {
@@ -193,7 +204,36 @@ function rebuildEntityPipeline() {
       });
     }
   });
-  console.log(`🧠 Loaded ${entityCache.size} existing entities into memory.`);
+
+  // Simple blocking index by last token of name/alias for resolution_candidates
+  const lastNameIndex = new Map<
+    string,
+    { id: number; full_name: string; entity_type: string }[]
+  >();
+
+  function addToLastNameIndex(id: number, name: string, entityType: string) {
+    const norm = normalizeName(name);
+    const parts = norm.split(' ');
+    if (!parts.length) return;
+    const last = parts[parts.length - 1].toLowerCase();
+    if (last.length < 2) return;
+    const bucket = lastNameIndex.get(last) || [];
+    bucket.push({ id, full_name: norm, entity_type: entityType });
+    lastNameIndex.set(last, bucket);
+  }
+
+  entityRows.forEach((row) => {
+    addToLastNameIndex(row.id, row.full_name, row.entity_type || 'Unknown');
+    if (row.aliases) {
+      row.aliases.split(',').forEach((alias: string) => {
+        addToLastNameIndex(row.id, alias, row.entity_type || 'Unknown');
+      });
+    }
+  });
+
+  console.log(
+    `🧠 Loaded ${entityCache.size} existing entities into memory (blocking keys: ${lastNameIndex.size}).`,
+  );
 
   // 2. Fetch Unanalyzed Documents
   // Process in batches
@@ -358,24 +398,91 @@ function rebuildEntityPipeline() {
 
           newMentions++;
 
-          // Also record a resolution_candidate row for auditability when table exists.
+          // Also record resolution_candidate rows for auditability when table exists.
           if (hasResolutionCandidates && insertResolutionCandidate && mentionId) {
-            const candidateId = makeId();
-            const featureVector = {
-              F_name_exact: exactMatch ? 1 : 0,
-              F_name_soft: 1,
-            };
-            insertResolutionCandidate.run(
-              candidateId,
-              null,
-              entityId,
-              mentionId,
-              'mention_to_entity',
-              score,
-              JSON.stringify(featureVector),
-              'merged',
-              'auto',
-            );
+            const mentionTokens = cleanName
+              .toLowerCase()
+              .split(' ')
+              .filter((t) => t.length > 0);
+            const mentionLast = mentionTokens[mentionTokens.length - 1];
+
+            const candidates = lastNameIndex.get(mentionLast) || [];
+
+            // Helper to compute a simple feature-based score between mention and candidate entity
+            function computeCandidateScore(candidateName: string, candidateType: string): {
+              score: number;
+              features: Record<string, number>;
+            } {
+              const candTokens = candidateName
+                .toLowerCase()
+                .split(' ')
+                .filter((t) => t.length > 0);
+              const setMention = new Set(mentionTokens);
+              const setCand = new Set(candTokens);
+              let inter = 0;
+              for (const t of setMention) {
+                if (setCand.has(t)) inter++;
+              }
+              const union = new Set([...mentionTokens, ...candTokens]).size || 1;
+              const jaccard = inter / union;
+
+              const fNameExact =
+                normalizeName(candidateName).toLowerCase() === lowerName ? 1 : 0;
+              const fLastNameMatch = 1; // by construction of the blocking key
+              const fTypeMatch = detectType(cleanName) === candidateType ? 1 : 0;
+
+              const scoreVal =
+                0.5 * fNameExact + 0.25 * jaccard + 0.25 * fTypeMatch;
+
+              return {
+                score: Math.max(scoreVal, 0.01),
+                features: {
+                  F_name_exact: fNameExact,
+                  F_last_name_match: fLastNameMatch,
+                  F_token_jaccard: jaccard,
+                  F_type_match: fTypeMatch,
+                },
+              };
+            }
+
+            // Build candidate list and limit to top K
+            const scoredCandidates = candidates
+              .map((c) => {
+                const { score: candScore, features } = computeCandidateScore(
+                  c.full_name,
+                  c.entity_type || 'Unknown',
+                );
+                return { ...c, candScore, features };
+              })
+              .sort((a, b) => b.candScore - a.candScore)
+              .slice(0, 5);
+
+            for (const cand of scoredCandidates) {
+              const features = {
+                ...cand.features,
+                F_name_soft: 1,
+              };
+              const candidateScore = cand.candScore;
+              const decision = cand.id === entityId ? 'merged' : null;
+
+              const candidateIdDet = makeDeterministicId([
+                'resCandidate',
+                mentionId,
+                cand.id,
+              ]);
+
+              insertResolutionCandidate.run(
+                candidateIdDet,
+                cand.id,
+                entityId,
+                mentionId,
+                'mention_to_entity',
+                candidateScore,
+                JSON.stringify(features),
+                decision,
+                'auto',
+              );
+            }
           }
 
           // Add a low_evidence quality flag for lower-confidence mentions
@@ -404,6 +511,10 @@ function rebuildEntityPipeline() {
   // 3. Post-Process: Map Relationships (Co-occurrence)
   console.log('🔗 Mapping Relationships (Co-occurrence)...');
   mapCoOccurrences();
+
+  // 4. Post-Process: Populate relation_evidence when schema is available
+  console.log('📎 Populating relation evidence from mentions...');
+  populateRelationEvidence();
 
   console.log(`\n============== REPORT ==============`);
   console.log(`Total New Entities: ${totalEntities}`);
@@ -504,6 +615,135 @@ function mapCoOccurrences() {
   }
 
   console.log(`   ✅ Created/Updated ${pairsCount} relationship links.`);
+}
+
+function populateRelationEvidence() {
+  const hasRelationEvidence = !!db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'relation_evidence'")
+    .get();
+  const hasRelations = !!db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'relations'")
+    .get();
+  const hasMentions = !!db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'mentions'")
+    .get();
+
+  if (!hasRelationEvidence || !hasRelations || !hasMentions) {
+    console.log('   Skipping relation_evidence population (schema not present).');
+    return;
+  }
+
+  const insertRelationEvidence = db.prepare(
+    'INSERT OR IGNORE INTO relation_evidence (id, relation_id, document_id, span_id, quote_text, confidence, mention_ids) VALUES (?, ?, ?, ?, ?, ?, ?)',
+  );
+
+  const rows = db
+    .prepare(
+      `
+        SELECT 
+          em.document_id as document_id,
+          em.entity_id as entity_id,
+          em.mention_id as mention_id,
+          em.score as mention_score,
+          m.span_id as span_id,
+          m.surface_text as surface_text,
+          m.context_window_before as before,
+          m.context_window_after as after
+        FROM entity_mentions em
+        JOIN mentions m ON m.id = em.mention_id
+        WHERE em.mention_id IS NOT NULL
+        ORDER BY em.document_id
+      `,
+    )
+    .all() as any[];
+
+  if (!rows.length) {
+    console.log('   No mention-backed entity_mentions found for relation evidence.');
+    return;
+  }
+
+  const byDoc = new Map<
+    number,
+    Map<
+      number,
+      { mention_id: string; span_id: string | null; quote: string; score: number }
+    >
+  >();
+
+  for (const row of rows) {
+    const docId = row.document_id as number;
+    const entityId = row.entity_id as number;
+    const key = `${docId}`;
+    let perDoc = byDoc.get(docId);
+    if (!perDoc) {
+      perDoc = new Map();
+      byDoc.set(docId, perDoc);
+    }
+
+    const existing = perDoc.get(entityId);
+    const quote = `${row.before || ''}${row.surface_text || ''}${row.after || ''}`
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 400);
+    const score = typeof row.mention_score === 'number' ? row.mention_score : 1.0;
+
+    // Keep the highest-scoring mention per (doc, entity) pair
+    if (!existing || score > existing.score) {
+      perDoc.set(entityId, {
+        mention_id: row.mention_id,
+        span_id: row.span_id || null,
+        quote,
+        score,
+      });
+    }
+  }
+
+  let inserted = 0;
+
+  const tx = db.transaction(() => {
+    for (const [docId, entityMap] of byDoc.entries()) {
+      const entityIds = Array.from(entityMap.keys()).sort((a, b) => a - b);
+      if (entityIds.length < 2) continue;
+
+      for (let i = 0; i < entityIds.length; i++) {
+        for (let j = i + 1; j < entityIds.length; j++) {
+          const a = entityIds[i];
+          const b = entityIds[j];
+          const relId = `${Math.min(a, b)}-${Math.max(a, b)}-mentioned_with`;
+
+          const aData = entityMap.get(a)!;
+          const bData = entityMap.get(b)!;
+          const quote = (aData.quote || bData.quote || '').slice(0, 400);
+          const conf = Math.min(aData.score, bData.score);
+          const mentionIds = JSON.stringify([aData.mention_id, bData.mention_id]);
+          const spanId = aData.span_id || bData.span_id || null;
+
+          const evId = makeDeterministicId([
+            'relEvidence',
+            relId,
+            docId,
+            aData.mention_id,
+            bData.mention_id,
+          ]);
+
+          insertRelationEvidence.run(
+            evId,
+            relId,
+            docId,
+            spanId,
+            quote,
+            conf,
+            mentionIds,
+          );
+          inserted++;
+        }
+      }
+    }
+  });
+
+  tx();
+
+  console.log(`   ✅ Populated ${inserted} relation_evidence rows.`);
 }
 
 rebuildEntityPipeline();

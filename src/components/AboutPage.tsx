@@ -349,6 +349,12 @@ export const AboutPage: React.FC = () => {
               Verified Sources
             </span>
           </div>
+          <p className="text-slate-400 text-sm">
+            Redaction percentages below combine what the government released with what our pipeline
+            can safely recover via automated unredaction and OCR. Collections like the Black Book,
+            Flight Logs, and DOJ VOL00001 FBI raid evidence are effectively fully readable, while
+            later DOJ discovery volumes remain heavily censored despite technical improvements.
+          </p>
 
           {/* Mobile Card View (< md) */}
           <div className="space-y-4 md:hidden">
@@ -826,9 +832,10 @@ export const AboutPage: React.FC = () => {
         </p>
         <div className="bg-blue-900/30 border border-blue-500/30 rounded-lg p-4 mt-4">
           <p className="text-blue-200 text-sm">
-            <strong>Latest Addition:</strong> January 12, 2026 - V9.2.0 Major Release: "Operation
-            Spring Cleaning" complete. Unified entity data, optimized data quality, and introduced
-            advanced Admin Dashboard with Audit Logs. System now features hardened production
+            <strong>Latest Addition:</strong> January 18, 2026 - V10.10.0 Unredacted Corpus Quality
+            Pass. Re-ran the unified ingest + intelligence pipeline across DOJ discovery volumes and
+            core evidence collections, applying automated unredaction where safe, refreshing
+            relationships, and validating a 51k+ document corpus with 3.2M+ edges. System now
             security and a{' '}
             <a
               href="https://github.com/ErikVeland/epstein-archive/tree/main/docs/data-governance-standards.md"
@@ -883,7 +890,7 @@ export const AboutPage: React.FC = () => {
 
       {/* Footer */}
       <div className="text-center text-slate-500 text-sm pt-8 border-t border-slate-700">
-        <p>Last updated: January 12, 2026</p>
+        <p>Last updated: January 18, 2026</p>
         <p className="mt-2">Built with transparency and accountability in mind</p>
       </div>
     </div>

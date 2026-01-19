@@ -1,5 +1,20 @@
 # Release Notes
 
+## v10.10.0 (2026-01-18) - Unredacted Corpus Quality Pass
+
+- **Unified pipeline rerun**: Re-ran the full unified ingestion + intelligence pipeline against all DOJ Discovery volumes (VOL00001–VOL00008), Court Case Evidence, Maxwell Proffer, and DOJ Phase 1, confirming 14,718 source files ingested into a stable corpus of 51,380 documents with zero errors.
+- **Unredact-first ingest**: Validated that PDFs in these collections are now pre-processed through `scripts/unredact.py` before OCR where possible, falling back to the original files if Python tooling fails so nothing is lost.
+- **Relationship graph refresh**: Regenerated 3,233,072 co-occurrence relationships in the intelligence layer, ensuring the entity graph and analytics reflect the latest, unredacted text where available.
+- **About page clarity**: Updated About/analysis copy to clearly describe which sources are effectively unredacted, which remain partially/heavily redacted, and how automated unredaction plus OCR have improved readability and searchability across DOJ discovery.
+
+## v10.9.1 (2026-01-17) - Transcript Search & Audio Browser Alignment
+
+- **Live transcript highlighting**: Audio Player now highlights the active search term inline in both the sidebar transcript and the full-page transcript overlay, making it obvious exactly which words matched.
+- **Search-aware auto-scroll**: While a transcript search term is active, the player temporarily pauses automatic scroll-follow so you can read and navigate matches without the view jumping; auto-scroll resumes after the search is cleared.
+- **Aligned audio browser grid**: The Audio Browser now uses a 3-column grid by default on desktop (similar to Video), with taller cards that can show multiple transcript snippets, tags, and metadata without truncation.
+- **Transcript match previews**: Transcript snippets under each audio card highlight the query text inline and reserve space for at least 2–3 lines of context, aligning the browsing and in-player transcript experiences.
+- **Entity evidence endpoints**: Backend now exposes `/api/entities/:id/evidence` and `/api/entities/:id/relations` backed by mention-level evidence and relation evidence, ready to power richer entity Evidence/Graph views.
+
 ## v10.9.0 (2026-01-17) - Unredact Integration & Timecoded Links
 
 - **Unredacted PDFs in ingest**: The core ingestion pipeline now calls `scripts/unredact.py` for PDFs before text extraction, stripping vector/image redaction overlays where possible while preserving originals and failing safely to the old behavior if Python dependencies are missing.

@@ -212,6 +212,42 @@ interface ProcessedDocument {
   error?: string;
 }
 
+async function estimateTextCoverage(text: string, pageCount: number): number {
+  if (!text || pageCount <= 0) return 0;
+  // Very rough heuristic: words per page, capped to avoid extreme outliers
+  const words = (text.match(/\b[\w']+\b/g) || []).length;
+  const wordsPerPage = words / pageCount;
+  const normalized = Math.min(wordsPerPage / 350, 1); // assume ~350 words/page is "full"
+  return normalized;
+}
+
+/**
+ * Build a baseline vocabulary from the original (pre-unredaction) OCR text.
+ *
+ * We normalise tokens to lowercase and keep only reasonably-sized tokens to
+ * reduce noise and payload size. Stored as a space-separated list of tokens.
+ */
+function buildBaselineVocab(text: string): string {
+  if (!text) return '';
+  const tokens = text.match(/\b[\w']+\b/g) || [];
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const rawToken of tokens) {
+    const token = rawToken.toLowerCase();
+    // Skip very short/long tokens and obvious noise
+    if (token.length < 4 || token.length > 40) continue;
+    if (/^[0-9]+$/.test(token)) continue;
+    if (seen.has(token)) continue;
+    seen.add(token);
+    result.push(token);
+    // Hard cap to avoid pathological documents blowing up the row size
+    if (result.length >= 5000) break;
+  }
+
+  return result.join(' ');
+}
+
 async function processDocument(
   filePath: string,
   collection: CollectionConfig,
@@ -231,16 +267,41 @@ async function processDocument(
 
     let content = '';
     let pageCount = 0;
+    let unredactionAttempted = 0;
+    let unredactionSucceeded = 0;
+    let redactionCoverageBefore: number | null = null;
+    let redactionCoverageAfter: number | null = null;
+    let unredactedTextGain: number | null = null;
+    let unredactionBaselineVocab: string | null = null;
 
     // Extract text based on file type
     if (ext === '.pdf') {
+      // First, extract from the original PDF so we can estimate baseline coverage.
+      const originalBuffer = readFileSync(filePath);
+      const originalResult = await extractTextFromPdf(originalBuffer);
+      const originalText = (originalResult.text || '').trim();
+      const originalPages = originalResult.pageCount || 0;
+      const baselineCoverage = await estimateTextCoverage(originalText, originalPages || 1);
+      unredactionBaselineVocab = buildBaselineVocab(originalText);
+
       // Try to unredact the PDF before extracting any text so we capture
       // redacted-under graphics/text where possible.
+      unredactionAttempted = 1;
       const pdfPathForOcr = await maybeUnredactPdf(filePath);
       const pdfBuffer = readFileSync(pdfPathForOcr);
       const result = await extractTextFromPdf(pdfBuffer);
-      content = result.text.trim();
+      const unredactedText = (result.text || '').trim();
+      content = unredactedText;
       pageCount = result.pageCount;
+
+      const afterCoverage = await estimateTextCoverage(unredactedText, pageCount || 1);
+      redactionCoverageBefore = 1 - baselineCoverage;
+      redactionCoverageAfter = 1 - afterCoverage;
+      unredactedTextGain = afterCoverage - baselineCoverage;
+
+      if (pdfPathForOcr !== filePath && unredactedText && unredactedText.length > originalText.length) {
+        unredactionSucceeded = 1;
+      }
     } else if (['.txt', '.rtf'].includes(ext)) {
       content = readFileSync(filePath, 'utf-8');
       pageCount = 1;
@@ -263,8 +324,14 @@ async function processDocument(
                 file_name, content, file_path, source_collection,
                 content_hash, page_count, metadata_json, red_flag_rating,
                 content_preview, file_type, file_size, word_count,
-                created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                created_at,
+                unredaction_attempted,
+                unredaction_succeeded,
+                redaction_coverage_before,
+                redaction_coverage_after,
+                unredacted_text_gain,
+                unredaction_baseline_vocab
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, ?, ?, ?)
         `,
       )
       .run(
@@ -285,6 +352,12 @@ async function processDocument(
         fileType,
         stats.size,
         wordCount,
+        unredactionAttempted,
+        unredactionSucceeded,
+        redactionCoverageBefore,
+        redactionCoverageAfter,
+        unredactedTextGain,
+        unredactionBaselineVocab,
       );
 
     return { success: true, documentId: Number(result.lastInsertRowid) };

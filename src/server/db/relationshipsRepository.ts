@@ -67,22 +67,43 @@ export const relationshipsRepository = {
     _filters: { from?: string; to?: string } = {},
   ) => {
     const db = getDb();
-    // BFS traversal
+
+    // Prefer the newer relations table when present; fall back to
+    // legacy entity_relationships for older databases.
+    const hasRelations = !!db
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='relations'")
+      .get();
+
     const visited = new Set<number>();
     const queue: { id: number; d: number }[] = [{ id: Number(entityId), d: 0 }];
     const nodes: any[] = [];
     const edges: any[] = [];
 
-    // Prepare statements outside loop
     const getEntity = db.prepare('SELECT id, full_name FROM entities WHERE id = ?');
-    const getRels = db.prepare(`
-        SELECT source_id, target_id, relationship_type, COALESCE(proximity_score, weight) as proximity_score,
-               risk_score, confidence, metadata_json
-        FROM entity_relationships
-        WHERE source_id = ?
-        ORDER BY proximity_score DESC
-        LIMIT 200
-    `);
+
+    const getRels = hasRelations
+      ? db.prepare(`
+          SELECT
+            subject_entity_id as source_id,
+            object_entity_id as target_id,
+            predicate as relationship_type,
+            weight as proximity_score,
+            0 as risk_score,
+            1 as confidence,
+            NULL as metadata_json
+          FROM relations
+          WHERE (subject_entity_id = ? OR object_entity_id = ?)
+          ORDER BY weight DESC
+          LIMIT 200
+        `)
+      : db.prepare(`
+          SELECT source_id, target_id, relationship_type, COALESCE(proximity_score, weight) as proximity_score,
+                 risk_score, confidence, metadata_json
+          FROM entity_relationships
+          WHERE source_id = ?
+          ORDER BY proximity_score DESC
+          LIMIT 200
+        `);
 
     // Only process if queue is not empty
     let iterations = 0;
@@ -104,19 +125,25 @@ export const relationshipsRepository = {
         });
       }
 
-      const rels = getRels.all(id) as any[];
+      const rels = hasRelations
+        ? (getRels.all(id, id) as any[])
+        : (getRels.all(id) as any[]);
+
       for (const r of rels) {
+        const sourceId = r.source_id;
+        const targetId = r.target_id;
         edges.push({
-          source_id: r.source_id,
-          target_id: r.target_id,
+          source_id: sourceId,
+          target_id: targetId,
           relationship_type: r.relationship_type,
           proximity_score: r.proximity_score,
           risk_score: r.risk_score,
           confidence: r.confidence,
         });
 
-        if (!visited.has(r.target_id) && d + 1 <= depth) {
-          queue.push({ id: r.target_id, d: d + 1 });
+        const nextId = sourceId === id ? targetId : sourceId;
+        if (!visited.has(nextId) && d + 1 <= depth) {
+          queue.push({ id: nextId, d: d + 1 });
         }
       }
     }

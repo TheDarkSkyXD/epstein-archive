@@ -26,6 +26,7 @@ import investigationEvidenceRoutes from './routes/investigationEvidenceRoutes.js
 import investigationsRouter from './server/routes/investigations.js';
 import evidenceRoutes from './routes/evidenceRoutes.js';
 import advancedAnalyticsRoutes from './server/routes/advancedAnalytics.js';
+import entityEvidenceRoutes from './routes/entityEvidenceRoutes.js';
 import investigativeTasksRoutes from './server/routes/investigativeTasks.js';
 import crypto from 'crypto';
 import multer from 'multer';
@@ -165,6 +166,7 @@ app.use('/api/downloads', downloadRoutes);
 app.use('/api/investigations', investigationsRouter);
 app.use('/api/investigation', investigationEvidenceRoutes);
 app.use('/api/evidence', evidenceRoutes);
+app.use('/api/entities', entityEvidenceRoutes);
 import emailRoutes from './server/routes/emailRoutes.js';
 // Authentication middleware will be applied below
 
@@ -2262,7 +2264,7 @@ app.get('/api/media/video/:id/thumbnail', async (req, res, next) => {
     }
 
     // Resolve path robustly
-    let filePath = thumbnailPath;
+    const filePath = thumbnailPath;
 
     // Check various possible locations
     const candidates: string[] = [];

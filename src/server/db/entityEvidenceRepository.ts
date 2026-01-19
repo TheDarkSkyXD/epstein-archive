@@ -20,17 +20,17 @@ export const entityEvidenceRepository = {
     }
 
     // Detect optional tables/columns so we can operate against older DBs.
-    const tables = db
-      .prepare("SELECT name FROM sqlite_master WHERE type='table'")
-      .all() as { name: string }[];
+    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as {
+      name: string;
+    }[];
     const tableNames = new Set(tables.map((t) => t.name));
 
     const hasMentions = tableNames.has('mentions');
     const hasQualityFlags = tableNames.has('quality_flags');
     const hasRelations = tableNames.has('relations');
-    const hasEntityMentionsScore = (db
-      .prepare("PRAGMA table_info(entity_mentions)")
-      .all() as { name: string }[]).some((c) => c.name === 'score');
+    const hasEntityMentionsScore = (
+      db.prepare('PRAGMA table_info(entity_mentions)').all() as { name: string }[]
+    ).some((c) => c.name === 'score');
 
     // Core mention-derived evidence items
     let evidenceRows: any[] = [];
@@ -150,15 +150,13 @@ export const entityEvidenceRepository = {
         ORDER BY shared_evidence_count DESC
         LIMIT 20
       `;
-      relatedEntities = db
-        .prepare(relSql)
-        .all({ entityId: Number(entityId) }) as any[];
+      relatedEntities = db.prepare(relSql).all({ entityId: Number(entityId) }) as any[];
     }
 
     const highRiskCount = evidence.filter((e: any) => (e.red_flag_rating || 0) >= 4).length;
     const averageConfidence =
       evidence.reduce((sum: number, e: any) => sum + (e.confidence || 0), 0) /
-        (evidence.length || 1);
+      (evidence.length || 1);
 
     return {
       entity,
@@ -177,9 +175,9 @@ export const entityEvidenceRepository = {
   async getRelationEvidenceForEntity(entityId: string) {
     const db = getDb();
 
-    const tables = db
-      .prepare("SELECT name FROM sqlite_master WHERE type='table'")
-      .all() as { name: string }[];
+    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as {
+      name: string;
+    }[];
     const names = new Set(tables.map((t) => t.name));
     if (!names.has('relations') || !names.has('relation_evidence')) {
       return { relations: [], evidence: [] };

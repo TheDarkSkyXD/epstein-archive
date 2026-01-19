@@ -1,8 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import EntityRelationshipMapper, {
-  Entity,
-  Relationship,
-} from './EntityRelationshipMapper';
+import EntityRelationshipMapper, { Entity, Relationship } from './EntityRelationshipMapper';
 
 interface EntityGraphPanelProps {
   entityId: string | number;
@@ -105,10 +102,7 @@ export const EntityGraphPanel: React.FC<EntityGraphPanelProps> = ({ entityId }) 
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
-      <EntityRelationshipMapper
-        entities={mapperEntities}
-        relationships={mapperRelationships}
-      />
+      <EntityRelationshipMapper entities={mapperEntities} relationships={mapperRelationships} />
     </div>
   );
 };

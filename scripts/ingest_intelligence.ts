@@ -206,10 +206,7 @@ function rebuildEntityPipeline() {
   });
 
   // Simple blocking index by last token of name/alias for resolution_candidates
-  const lastNameIndex = new Map<
-    string,
-    { id: number; full_name: string; entity_type: string }[]
-  >();
+  const lastNameIndex = new Map<string, { id: number; full_name: string; entity_type: string }[]>();
 
   function addToLastNameIndex(id: number, name: string, entityType: string) {
     const norm = normalizeName(name);
@@ -409,7 +406,10 @@ function rebuildEntityPipeline() {
             const candidates = lastNameIndex.get(mentionLast) || [];
 
             // Helper to compute a simple feature-based score between mention and candidate entity
-            function computeCandidateScore(candidateName: string, candidateType: string): {
+            function computeCandidateScore(
+              candidateName: string,
+              candidateType: string,
+            ): {
               score: number;
               features: Record<string, number>;
             } {
@@ -426,13 +426,11 @@ function rebuildEntityPipeline() {
               const union = new Set([...mentionTokens, ...candTokens]).size || 1;
               const jaccard = inter / union;
 
-              const fNameExact =
-                normalizeName(candidateName).toLowerCase() === lowerName ? 1 : 0;
+              const fNameExact = normalizeName(candidateName).toLowerCase() === lowerName ? 1 : 0;
               const fLastNameMatch = 1; // by construction of the blocking key
               const fTypeMatch = detectType(cleanName) === candidateType ? 1 : 0;
 
-              const scoreVal =
-                0.5 * fNameExact + 0.25 * jaccard + 0.25 * fTypeMatch;
+              const scoreVal = 0.5 * fNameExact + 0.25 * jaccard + 0.25 * fTypeMatch;
 
               return {
                 score: Math.max(scoreVal, 0.01),
@@ -465,11 +463,7 @@ function rebuildEntityPipeline() {
               const candidateScore = cand.candScore;
               const decision = cand.id === entityId ? 'merged' : null;
 
-              const candidateIdDet = makeDeterministicId([
-                'resCandidate',
-                mentionId,
-                cand.id,
-              ]);
+              const candidateIdDet = makeDeterministicId(['resCandidate', mentionId, cand.id]);
 
               insertResolutionCandidate.run(
                 candidateIdDet,
@@ -664,10 +658,7 @@ function populateRelationEvidence() {
 
   const byDoc = new Map<
     number,
-    Map<
-      number,
-      { mention_id: string; span_id: string | null; quote: string; score: number }
-    >
+    Map<number, { mention_id: string; span_id: string | null; quote: string; score: number }>
   >();
 
   for (const row of rows) {
@@ -726,15 +717,7 @@ function populateRelationEvidence() {
             bData.mention_id,
           ]);
 
-          insertRelationEvidence.run(
-            evId,
-            relId,
-            docId,
-            spanId,
-            quote,
-            conf,
-            mentionIds,
-          );
+          insertRelationEvidence.run(evId, relId, docId, spanId, quote, conf, mentionIds);
           inserted++;
         }
       }

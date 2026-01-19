@@ -239,18 +239,14 @@ export const EntityEvidencePanel: React.FC<EntityEvidencePanelProps> = ({
                   <span className="text-sm font-semibold text-gray-800">
                     {rel.predicate || 'related_to'}
                   </span>
-                  <span className="text-xs text-gray-500">
-                    weight {rel.weight ?? 1}
-                  </span>
+                  <span className="text-xs text-gray-500">weight {rel.weight ?? 1}</span>
                 </div>
                 {rel.evidence && rel.evidence.length > 0 && (
                   <ul className="mt-1 space-y-1">
                     {rel.evidence.slice(0, 3).map((ev) => (
                       <li key={ev.id} className="text-xs text-gray-600">
                         {ev.document_title && (
-                          <span className="font-medium text-gray-800">
-                            {ev.document_title}
-                          </span>
+                          <span className="font-medium text-gray-800">{ev.document_title}</span>
                         )}
                         {ev.quote_text && (
                           <span className="block text-gray-500 italic truncate">

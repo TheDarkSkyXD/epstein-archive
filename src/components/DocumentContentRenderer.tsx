@@ -197,7 +197,14 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
 
     // Step 3: Apply search term highlighting on top
     return searchTerm ? highlightText(contentWithEntities, searchTerm) : contentWithEntities;
-  }, [doc.content, showRaw, entityRegex, searchTerm, doc.unredaction_metrics, showUnredactedHighlights]);
+  }, [
+    doc.content,
+    showRaw,
+    entityRegex,
+    searchTerm,
+    doc.unredaction_metrics,
+    showUnredactedHighlights,
+  ]);
 
   return (
     <div className="prose prose-invert max-w-none">

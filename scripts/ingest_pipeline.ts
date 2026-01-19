@@ -299,7 +299,11 @@ async function processDocument(
       redactionCoverageAfter = 1 - afterCoverage;
       unredactedTextGain = afterCoverage - baselineCoverage;
 
-      if (pdfPathForOcr !== filePath && unredactedText && unredactedText.length > originalText.length) {
+      if (
+        pdfPathForOcr !== filePath &&
+        unredactedText &&
+        unredactedText.length > originalText.length
+      ) {
         unredactionSucceeded = 1;
       }
     } else if (['.txt', '.rtf'].includes(ext)) {

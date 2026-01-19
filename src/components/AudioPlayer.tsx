@@ -348,10 +348,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       }
       const matchText = text.slice(matchIndex, matchIndex + q.length);
       parts.push(
-        <mark
-          key={parts.length}
-          className="bg-amber-500/40 text-inherit px-0.5 rounded-sm"
-        >
+        <mark key={parts.length} className="bg-amber-500/40 text-inherit px-0.5 rounded-sm">
           {matchText}
         </mark>,
       );

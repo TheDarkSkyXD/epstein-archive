@@ -599,32 +599,32 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
                                 }
                                 return (
                                   <button
-                                  key={matchIdx}
-                                  type="button"
-                                  className="w-full text-left text-[11px] text-slate-300 hover:text-cyan-300 hover:bg-slate-800/60 rounded px-2 py-1 flex items-start gap-2"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    // Open this item at the segment start time.
-                                    setSelectedItem(item);
-                                    const url = new URL(window.location.href);
-                                    url.searchParams.set('id', item.id.toString());
-                                    url.searchParams.set(
-                                      't',
-                                      Math.floor(seg.start || 0).toString(),
-                                    );
-                                    window.history.pushState({}, '', url.toString());
-                                  }}
-                                >
-                                  <span className="font-mono text-[10px] text-slate-500 min-w-[40px]">
-                                    {Math.floor((seg.start || 0) / 60)}:
-                                    {Math.floor((seg.start || 0) % 60)
-                                      .toString()
-                                      .padStart(2, '0')}
-                                  </span>
-                                  <span className="flex-1 line-clamp-2">{preview}</span>
-                                </button>
-                              );
-                            })}
+                                    key={matchIdx}
+                                    type="button"
+                                    className="w-full text-left text-[11px] text-slate-300 hover:text-cyan-300 hover:bg-slate-800/60 rounded px-2 py-1 flex items-start gap-2"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      // Open this item at the segment start time.
+                                      setSelectedItem(item);
+                                      const url = new URL(window.location.href);
+                                      url.searchParams.set('id', item.id.toString());
+                                      url.searchParams.set(
+                                        't',
+                                        Math.floor(seg.start || 0).toString(),
+                                      );
+                                      window.history.pushState({}, '', url.toString());
+                                    }}
+                                  >
+                                    <span className="font-mono text-[10px] text-slate-500 min-w-[40px]">
+                                      {Math.floor((seg.start || 0) / 60)}:
+                                      {Math.floor((seg.start || 0) % 60)
+                                        .toString()
+                                        .padStart(2, '0')}
+                                    </span>
+                                    <span className="flex-1 line-clamp-2">{preview}</span>
+                                  </button>
+                                );
+                              })}
                           </div>
                         )}
                     </div>

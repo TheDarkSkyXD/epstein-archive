@@ -125,9 +125,7 @@ export const relationshipsRepository = {
         });
       }
 
-      const rels = hasRelations
-        ? (getRels.all(id, id) as any[])
-        : (getRels.all(id) as any[]);
+      const rels = hasRelations ? (getRels.all(id, id) as any[]) : (getRels.all(id) as any[]);
 
       for (const r of rels) {
         const sourceId = r.source_id;

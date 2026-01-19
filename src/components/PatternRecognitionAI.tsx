@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { BarChart3, Target, Clock, DollarSign, Users, MapPin, Activity, X } from 'lucide-react';
+import { apiClient } from '../services/apiClient';
 
 interface PatternRecognitionAIProps {
   onPatternDetected?: (patterns: DetectedPattern[]) => void;
@@ -37,144 +38,204 @@ export const PatternRecognitionAI: React.FC<PatternRecognitionAIProps> = ({
 
   const analyzePatterns = async () => {
     setIsAnalyzing(true);
-    setAnalysisProgress(0);
+    setAnalysisProgress(5);
 
-    // Simulate progressive analysis
-    const progressSteps = [
-      { progress: 20, message: 'Analyzing temporal patterns...' },
-      { progress: 40, message: 'Detecting financial anomalies...' },
-      { progress: 60, message: 'Mapping communication networks...' },
-      { progress: 80, message: 'Identifying behavioral patterns...' },
-      { progress: 100, message: 'Pattern analysis complete!' },
-    ];
+    try {
+      // 1) Fetch core stats and financial transactions
+      const [statsRes, transactionsRes] = await Promise.all([
+        fetch('/api/stats')
+          .then((r) => r.json())
+          .catch(() => ({})),
+        fetch('/api/financial/transactions')
+          .then((r) => r.json())
+          .catch(() => []),
+      ]);
 
-    for (const step of progressSteps) {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      setAnalysisProgress(step.progress);
-    }
+      const stats = statsRes || {};
+      const transactions = Array.isArray(transactionsRes) ? transactionsRes : [];
 
-    // Generate mock patterns based on Epstein investigation
-    const mockPatterns: DetectedPattern[] = [
-      {
-        id: 'pattern-001',
-        type: 'temporal',
-        title: 'Suspicious Flight Pattern Clustering',
-        description:
-          'Multiple flights to private island concentrated during specific time periods, suggesting coordinated activities.',
-        confidence: 92,
-        severity: 'critical',
-        evidenceIds: ['evidence-1', 'evidence-2'],
-        timelineEventIds: ['event-1', 'event-2'],
-        entities: ['Jeffrey Epstein', 'Little St. James Island', 'Private Jet'],
-        metadata: {
-          frequency: 47,
-          timeRange: { start: '2002-01-01', end: '2005-12-31' },
-          locations: ['St. Thomas', 'Palm Beach', 'New York'],
-          anomalyScore: 8.7,
-        },
-        recommendations: [
-          'Cross-reference flight logs with known victim testimonies',
-          'Analyze passenger manifests for patterns',
-          'Investigate ground transportation arrangements',
-        ],
-      },
-      {
-        id: 'pattern-002',
-        type: 'financial',
-        title: 'Unusual Financial Transaction Timing',
-        description:
-          'Large financial transfers occurring immediately before or after significant events, suggesting potential influence operations.',
-        confidence: 88,
-        severity: 'high',
-        evidenceIds: ['evidence-2'],
-        timelineEventIds: ['event-2'],
-        entities: ['Jeffrey Epstein', 'Les Wexner', 'Financial Accounts'],
-        metadata: {
-          financialAmounts: [5000000, 10000000, 2500000],
-          timeRange: { start: '2007-03-01', end: '2007-04-30' },
-          anomalyScore: 7.9,
-        },
-        recommendations: [
-          'Subpoena complete financial records',
-          'Analyze transaction beneficiaries',
-          'Trace fund origins and destinations',
-        ],
-      },
-      {
-        id: 'pattern-003',
-        type: 'network',
-        title: 'High-Profile Connection Density',
-        description:
-          'Disproportionate number of connections to politically powerful individuals compared to typical social networks.',
-        confidence: 85,
-        severity: 'high',
-        evidenceIds: ['evidence-3'],
-        timelineEventIds: ['event-1'],
-        entities: ['Jeffrey Epstein', 'Prince Andrew', 'Bill Clinton', 'Donald Trump'],
-        metadata: {
-          networkDensity: 0.73,
-          communicationFrequency: 234,
-          anomalyScore: 8.2,
-        },
-        recommendations: [
-          'Map complete social network topology',
-          'Analyze introduction patterns',
-          'Investigate mutual benefit relationships',
-        ],
-      },
-      {
-        id: 'pattern-004',
-        type: 'behavioral',
-        title: 'Victim Recruitment Pattern',
-        description:
-          'Systematic recruitment of victims through trusted intermediaries, often targeting vulnerable populations.',
-        confidence: 94,
-        severity: 'critical',
-        evidenceIds: ['evidence-1', 'evidence-3'],
-        timelineEventIds: ['event-1'],
-        entities: ['Ghislaine Maxwell', 'Recruitment Network', 'Victims'],
-        metadata: {
-          frequency: 67,
-          timeRange: { start: '1995-01-01', end: '2010-12-31' },
-          locations: ['Palm Beach', 'New York', 'Paris', 'London'],
-          anomalyScore: 9.1,
-        },
-        recommendations: [
-          'Interview all identified recruitment intermediaries',
-          'Analyze victim demographic patterns',
-          'Map recruitment location geography',
-        ],
-      },
-      {
-        id: 'pattern-005',
-        type: 'geographic',
-        title: 'Cross-Border Activity Concentration',
-        description:
-          'Frequent international travel and activities across multiple jurisdictions, potentially to exploit legal gaps.',
-        confidence: 79,
-        severity: 'medium',
-        evidenceIds: ['evidence-1'],
-        timelineEventIds: ['event-1', 'event-2'],
-        entities: ['Jeffrey Epstein', 'International Properties', 'Multiple Countries'],
-        metadata: {
-          locations: ['United States', 'US Virgin Islands', 'France', 'United Kingdom'],
-          frequency: 89,
-          timeRange: { start: '2000-01-01', end: '2019-12-31' },
-          anomalyScore: 6.8,
-        },
-        recommendations: [
-          'Coordinate with international law enforcement',
-          'Analyze extradition treaty implications',
-          'Map property ownership patterns',
-        ],
-      },
-    ];
+      // 2) Fetch top entities and relationships via apiClient
+      const entitiesRes = await apiClient.getEntities({
+        page: 1,
+        limit: 10,
+        sortBy: 'red_flag_rating',
+        sortOrder: 'desc',
+      });
+      const topEntities = Array.isArray(entitiesRes.data) ? entitiesRes.data : [];
 
-    setDetectedPatterns(mockPatterns);
-    setIsAnalyzing(false);
+      setAnalysisProgress(40);
 
-    if (onPatternDetected) {
-      onPatternDetected(mockPatterns);
+      let relationshipPatterns: DetectedPattern[] = [];
+      if (topEntities.length > 0) {
+        const primary = topEntities[0];
+        try {
+          const relRes = await fetch(
+            `/api/relationships?entityId=${primary.id}&includeBreakdown=true&minConfidence=0.3`,
+          );
+          const relJson = await relRes.json().catch(() => ({}));
+          const rels: any[] = Array.isArray(relJson?.relationships) ? relJson.relationships : [];
+
+          if (rels.length > 0) {
+            const highProximity = rels.filter((r) => (r.proximity_score || 0) >= 0.6);
+            const avgDensity =
+              rels.reduce((sum, r) => sum + (r.proximity_score || 0), 0) / (rels.length || 1);
+
+            relationshipPatterns = [
+              {
+                id: 'network-density',
+                type: 'network',
+                title: 'Concentrated high-risk relationship cluster',
+                description:
+                  'Entity relationship graph shows a dense cluster of medium-to-high confidence links around top-risk entities.',
+                confidence: Math.min(100, Math.round(avgDensity * 100) || 75),
+                severity: avgDensity > 0.75 ? 'critical' : avgDensity > 0.5 ? 'high' : 'medium',
+                evidenceIds: [],
+                timelineEventIds: [],
+                entities: [
+                  String(primary.fullName || primary.name || primary.id),
+                  ...highProximity
+                    .slice(0, 5)
+                    .map((r) => String(r.target_name || r.target_id || 'unknown')),
+                ],
+                metadata: {
+                  networkDensity: avgDensity,
+                  anomalyScore: avgDensity * 10,
+                  communicationFrequency: 0,
+                },
+                recommendations: [
+                  'Review all evidence supporting high-proximity relationships.',
+                  'Cross-reference these entities with financial and communication patterns.',
+                ],
+              },
+            ];
+          }
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.warn('Failed to load relationship patterns', err);
+        }
+      }
+
+      setAnalysisProgress(65);
+
+      // 3) Temporal and financial patterns from real transactions
+      const totalAmount = transactions.reduce(
+        (sum: number, t: any) => sum + (Number(t.amount) || 0),
+        0,
+      );
+      const highRiskTx = transactions.filter((t: any) =>
+        ['high', 'critical'].includes(String(t.risk_level || '').toLowerCase()),
+      );
+
+      const byMonth = new Map<string, number>();
+      for (const tx of transactions) {
+        const d = tx.date ? new Date(tx.date) : null;
+        if (!d || Number.isNaN(d.getTime())) continue;
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        byMonth.set(key, (byMonth.get(key) || 0) + (Number(tx.amount) || 0));
+      }
+      const spikes = Array.from(byMonth.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3);
+
+      const financialPatterns: DetectedPattern[] = [];
+
+      if (transactions.length > 0) {
+        financialPatterns.push({
+          id: 'financial-high-risk',
+          type: 'financial',
+          title: 'High-risk financial transaction cluster',
+          description: `Identified ${highRiskTx.length} high-risk transactions out of ${transactions.length} total, with aggregate volume ${totalAmount.toLocaleString(
+            'en-US',
+            {
+              style: 'currency',
+              currency: 'USD',
+              maximumFractionDigits: 0,
+            },
+          )}.`,
+          confidence:
+            transactions.length > 0
+              ? Math.min(100, 60 + Math.round((highRiskTx.length / transactions.length) * 40))
+              : 60,
+          severity:
+            highRiskTx.length > 50
+              ? 'critical'
+              : highRiskTx.length > 10
+                ? 'high'
+                : highRiskTx.length > 0
+                  ? 'medium'
+                  : 'low',
+          evidenceIds: highRiskTx.slice(0, 50).map((t: any) => String(t.id || t.tx_id || '')),
+          timelineEventIds: [],
+          entities: Array.from(
+            new Set(
+              highRiskTx
+                .map((t: any) => [t.from_entity, t.to_entity])
+                .flat()
+                .filter(Boolean)
+                .map(String),
+            ),
+          ).slice(0, 10),
+          metadata: {
+            financialAmounts: spikes.map(([, v]) => v),
+            timeRange: {
+              start: spikes[spikes.length - 1]?.[0] || '',
+              end: spikes[0]?.[0] || '',
+            },
+            anomalyScore: spikes.length > 0 ? 6 + Math.min(4, spikes.length) : 5,
+          },
+          recommendations: [
+            'Prioritize forensic review of all high-risk transactions.',
+            'Cross-link these transfers with entity risk scores and communication events.',
+          ],
+        });
+      }
+
+      // 4) Temporal pattern from document & entity counts
+      const totalEntities = stats?.totalEntities || 0;
+      const totalDocuments = stats?.totalDocuments || 0;
+
+      const temporalPattern: DetectedPattern | null =
+        totalDocuments && totalEntities
+          ? {
+              id: 'temporal-intensity',
+              type: 'temporal',
+              title: 'Intense investigative activity period',
+              description:
+                'Overall document and entity volumes indicate periods of intense activity that likely correspond to key investigative windows.',
+              confidence: 80,
+              severity: totalDocuments > 10000 ? 'high' : 'medium',
+              evidenceIds: [],
+              timelineEventIds: [],
+              entities: [],
+              metadata: {
+                frequency: totalDocuments,
+                anomalyScore: totalDocuments > 15000 ? 8 : 6,
+              },
+              recommendations: [
+                'Overlay document creation dates with known timeline events to pinpoint surges.',
+              ],
+            }
+          : null;
+
+      const patterns: DetectedPattern[] = [
+        ...relationshipPatterns,
+        ...financialPatterns,
+        ...(temporalPattern ? [temporalPattern] : []),
+      ];
+
+      setDetectedPatterns(patterns);
+      setAnalysisProgress(100);
+      setIsAnalyzing(false);
+
+      if (onPatternDetected) {
+        onPatternDetected(patterns);
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Pattern analysis failed', err);
+      setDetectedPatterns([]);
+      setIsAnalyzing(false);
+      setAnalysisProgress(0);
     }
   };
 

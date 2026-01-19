@@ -43,8 +43,8 @@ function generateTranscripts() {
       let metadata;
       try {
         metadata = JSON.parse(item.metadata_json);
-      } catch (e) {
-        console.error(`Failed to parse metadata for item ${item.id}`);
+      } catch (err) {
+        console.error(`Failed to parse metadata for item ${item.id}`, err);
         continue;
       }
 

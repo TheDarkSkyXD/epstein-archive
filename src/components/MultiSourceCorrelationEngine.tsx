@@ -63,55 +63,59 @@ export default function MultiSourceCorrelationEngine() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState(0);
 
-  // Load real data
-  useEffect(() => {
-    const load = async () => {
-      try {
-        // Get a representative entity (top by mentions)
-        const entsResp = await fetch('/api/entities?limit=1&sortBy=mentions');
-        const entsJson = await entsResp.json();
-        const topEntity = Array.isArray(entsJson?.entities) ? entsJson.entities[0] : undefined;
+  const recomputeCorrelations = async () => {
+    try {
+      setIsAnalyzing(true);
+      setAnalysisProgress(5);
 
-        // Build data sources summary from DB stats
-        const statsResp = await fetch('/api/stats');
-        const stats = await statsResp.json().catch(() => ({}));
-        const ds: DataSource[] = [
-          {
-            id: 'documents',
-            type: 'document',
-            name: 'Documents',
-            description: 'Indexed evidence documents',
-            lastUpdated: new Date().toISOString().slice(0, 10),
-            reliability: 'verified',
-            recordCount: stats?.totalDocuments || 0,
-            coverage: 100,
-          },
-          {
-            id: 'entities',
-            type: 'legal',
-            name: 'Entities',
-            description: 'People and organisations with mentions',
-            lastUpdated: new Date().toISOString().slice(0, 10),
-            reliability: 'high',
-            recordCount: stats?.totalEntities || 0,
-            coverage: 100,
-          },
-        ];
-        setDataSources(ds);
+      // Get a representative entity (top by mentions)
+      const entsResp = await fetch('/api/entities?limit=1&sortBy=mentions');
+      const entsJson = await entsResp.json();
+      const topEntity = Array.isArray(entsJson?.entities) ? entsJson.entities[0] : undefined;
 
-        // Relationships for correlations
-        if (topEntity?.id) {
-          const relResp = await fetch(
-            `/api/relationships?entityId=${topEntity.id}&includeBreakdown=true&minConfidence=0`,
-          );
-          const relJson = await relResp.json();
-          const rels = Array.isArray(relJson?.relationships) ? relJson.relationships : [];
-          const corr: CorrelationResult[] = rels.map((r: any, idx: number) => ({
+      // Build data sources summary from DB stats
+      const statsResp = await fetch('/api/stats');
+      const stats = await statsResp.json().catch(() => ({}));
+      const ds: DataSource[] = [
+        {
+          id: 'documents',
+          type: 'document',
+          name: 'Documents',
+          description: 'Indexed evidence documents',
+          lastUpdated: new Date().toISOString().slice(0, 10),
+          reliability: 'verified',
+          recordCount: stats?.totalDocuments || 0,
+          coverage: 100,
+        },
+        {
+          id: 'entities',
+          type: 'legal',
+          name: 'Entities',
+          description: 'People and organisations with mentions',
+          lastUpdated: new Date().toISOString().slice(0, 10),
+          reliability: 'high',
+          recordCount: stats?.totalEntities || 0,
+          coverage: 100,
+        },
+      ];
+      setDataSources(ds);
+
+      const nextCorrelations: CorrelationResult[] = [];
+
+      if (topEntity?.id) {
+        // Relationship-based correlations
+        const relResp = await fetch(
+          `/api/relationships?entityId=${topEntity.id}&includeBreakdown=true&minConfidence=0`,
+        );
+        const relJson = await relResp.json();
+        const rels = Array.isArray(relJson?.relationships) ? relJson.relationships : [];
+        rels.forEach((r: any, idx: number) => {
+          nextCorrelations.push({
             id: `rel-${idx}`,
             type: 'entity',
             confidence: Math.round((r.confidence || 0) * 100) || 75,
             description: `Relationship ${r.relationship_type} with entity ${r.target_id}`,
-            sources: [],
+            sources: ['entities', 'documents'],
             entities: [
               String(topEntity.fullName || topEntity.name || topEntity.id),
               String(r.target_id),
@@ -125,44 +129,117 @@ export default function MultiSourceCorrelationEngine() {
                   : 'low',
             evidence: [],
             anomalies: [],
-          }));
-          setCorrelations(corr);
-        } else {
-          setCorrelations([]);
+          });
+        });
+
+        setAnalysisProgress(40);
+
+        // Financial correlations (if API available)
+        try {
+          const txResp = await fetch('/api/financial/transactions');
+          const txJson = await txResp.json().catch(() => []);
+          const txs: any[] = Array.isArray(txJson) ? txJson : [];
+
+          if (txs.length > 0) {
+            const highRisk = txs.filter((t) =>
+              ['high', 'critical'].includes(String(t.risk_level || '').toLowerCase()),
+            );
+
+            if (highRisk.length > 0) {
+              const totalAmount = highRisk.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+              // totalAmount currently unused but kept for future detailed reporting
+              const counterparties = Array.from(
+                new Set(
+                  highRisk
+                    .flatMap((t) => [t.from_entity, t.to_entity])
+                    .filter(Boolean)
+                    .map(String),
+                ),
+              );
+
+              nextCorrelations.push({
+                id: 'financial-high-risk',
+                type: 'financial',
+                confidence: 80,
+                description: `High-risk financial transfers involving ${counterparties.length} counterparties and ${highRisk.length} flagged transactions for ${
+                  topEntity.fullName || topEntity.name || topEntity.id
+                }`,
+                sources: ['financial'],
+                entities: [
+                  String(topEntity.fullName || topEntity.name || topEntity.id),
+                  ...counterparties,
+                ],
+                timeRange: { start: 'Unknown', end: 'Unknown' },
+                significance:
+                  highRisk.length > 50 ? 'critical' : highRisk.length > 10 ? 'high' : 'medium',
+                evidence: [],
+                anomalies: [],
+              });
+            }
+          }
+        } catch {
+          // ignore financial correlation errors
         }
 
-        // Basic rule list without mocks
-        setCorrelationRules([]);
-      } catch {
-        setDataSources([]);
-        setCorrelationRules([]);
-        setCorrelations([]);
+        setAnalysisProgress(70);
+
+        // Communication correlations (if API available)
+        try {
+          const commResp = await fetch(
+            `/api/entities/${topEntity.id}/communications?limit=200&topic=flight_logistics`,
+          );
+          const commJson = await commResp.json().catch(() => ({ data: [] }));
+          const events: any[] = Array.isArray(commJson?.data) ? commJson.data : [];
+
+          if (events.length > 0) {
+            const peers = Array.from(
+              new Set(
+                events
+                  .flatMap((e) => [e.from, ...(Array.isArray(e.to) ? e.to : [])])
+                  .filter(Boolean)
+                  .map(String),
+              ),
+            );
+
+            nextCorrelations.push({
+              id: 'communication-flight',
+              type: 'communication',
+              confidence: 75,
+              description:
+                'Cluster of communications referencing flight or logistics activity around a key entity.',
+              sources: ['communication'],
+              entities: [String(topEntity.fullName || topEntity.name || topEntity.id), ...peers],
+              timeRange: { start: 'Unknown', end: 'Unknown' },
+              significance: events.length > 30 ? 'high' : 'medium',
+              evidence: [],
+              anomalies: [],
+            });
+          }
+        } catch {
+          // ignore communication correlation errors
+        }
       }
-    };
-    load();
+
+      setCorrelations(nextCorrelations);
+      setCorrelationRules([]);
+      setAnalysisProgress(100);
+    } catch {
+      setDataSources([]);
+      setCorrelationRules([]);
+      setCorrelations([]);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  // Load real data initially
+  useEffect(() => {
+    recomputeCorrelations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const runCorrelationAnalysis = async () => {
-    setIsAnalyzing(true);
-    setAnalysisProgress(0);
-
-    // Simulate analysis progress
-    const progressInterval = setInterval(() => {
-      setAnalysisProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(progressInterval);
-          return 100;
-        }
-        return prev + 10;
-      });
-    }, 300);
-
-    // Simulate analysis completion
-    setTimeout(() => {
-      setIsAnalyzing(false);
-      setAnalysisProgress(0);
-      // No mock refresh; re-run load would happen via separate controls if needed
-    }, 3500);
+    await recomputeCorrelations();
   };
 
   const getSourceIcon = (type: string) => {

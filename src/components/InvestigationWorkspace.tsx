@@ -22,6 +22,7 @@ import {
   Microscope,
   Network,
   DollarSign,
+  MessageSquare,
 } from 'lucide-react';
 import FinancialTransactionMapper from './FinancialTransactionMapper';
 // Removed unused ChainOfCustodyModal import
@@ -41,6 +42,7 @@ import { InvestigationTeamManagement } from './InvestigationTeamManagement';
 import { AddToInvestigationButton } from './AddToInvestigationButton';
 import { useToasts } from './ToastProvider';
 import { CreateRelationshipModal } from './CreateRelationshipModal';
+import { CommunicationAnalysis } from './CommunicationAnalysis';
 
 interface InvestigationWorkspaceProps {
   investigationId?: string;
@@ -95,6 +97,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
     | 'hypotheses'
     | 'financial'
     | 'timeline'
+    | 'communications'
     | 'team'
     | 'analytics'
     | 'forensic'
@@ -959,6 +962,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                     { id: 'notebook', label: 'Notebook' },
                     { id: 'financial', label: 'Financial' },
                     { id: 'timeline', label: 'Timeline' },
+                    { id: 'communications', label: 'Communications' },
                     { id: 'forensic', label: 'Forensic' },
                     { id: 'team', label: 'Team' },
                     { id: 'analytics', label: 'Analytics' },
@@ -991,6 +995,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                   { id: 'notebook', label: 'Notebook', icon: FileText },
                   { id: 'financial', label: 'Financial', icon: DollarSign },
                   { id: 'timeline', label: 'Timeline', icon: Calendar },
+                  { id: 'communications', label: 'Communications', icon: MessageSquare },
                   { id: 'forensic', label: 'Forensic', icon: Microscope },
                   { id: 'team', label: 'Team', icon: Users },
                   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
@@ -1120,15 +1125,22 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                 onHypothesesUpdate={setHypotheses}
               />
             )}
-            {activeTab === 'notebook' && selectedInvestigation && (
+            {activeTab === ('notebook' as any) && selectedInvestigation && (
               <div>
-                <EvidenceNotebook investigationId={selectedInvestigation.id} />
+                <EvidenceNotebook investigationId={Number(selectedInvestigation.id)} />
               </div>
             )}
 
             {activeTab === 'financial' && (
               <FinancialTransactionMapper
                 investigationId={useGlobalContext ? undefined : selectedInvestigation?.id}
+              />
+            )}
+
+            {activeTab === 'communications' && selectedInvestigation && (
+              <CommunicationAnalysis
+                investigation={selectedInvestigation}
+                evidence={evidenceItems}
               />
             )}
 

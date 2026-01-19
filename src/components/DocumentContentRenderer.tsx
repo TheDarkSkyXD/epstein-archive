@@ -100,6 +100,7 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
   };
 
   // Optimized Helper function to link entities in text
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- entityRegex/entityMap are stable across renders
   const linkEntitiesInText = (text: string) => {
     if (!text || !entityRegex || entityMap.size === 0) return text;
 
@@ -204,6 +205,7 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
     searchTerm,
     doc.unredaction_metrics,
     showUnredactedHighlights,
+    linkEntitiesInText,
   ]);
 
   return (

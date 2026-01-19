@@ -133,9 +133,6 @@ function rebuildEntityPipeline() {
   const hasRelationsTable = !!db
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'relations'")
     .get();
-  const hasRelationEvidence = !!db
-    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'relation_evidence'")
-    .get();
   const hasQualityFlags = !!db
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'quality_flags'")
     .get();
@@ -158,15 +155,9 @@ function rebuildEntityPipeline() {
       )
     : null;
 
-  const insertRelation = hasRelationsTable
+  const _insertRelation = hasRelationsTable
     ? db.prepare(
         "INSERT INTO relations (id, subject_entity_id, object_entity_id, predicate, direction, weight, first_seen_at, last_seen_at, status) VALUES (?, ?, ?, 'mentioned_with', 'undirected', ?, datetime('now'), datetime('now'), 'active') ON CONFLICT(id) DO UPDATE SET weight = weight + excluded.weight, last_seen_at = excluded.last_seen_at",
-      )
-    : null;
-
-  const insertRelationEvidence = hasRelationEvidence
-    ? db.prepare(
-        'INSERT INTO relation_evidence (id, relation_id, document_id, span_id, quote_text, confidence, mention_ids) VALUES (?, ?, ?, ?, ?, ?, ?)',
       )
     : null;
 
@@ -664,7 +655,6 @@ function populateRelationEvidence() {
   for (const row of rows) {
     const docId = row.document_id as number;
     const entityId = row.entity_id as number;
-    const key = `${docId}`;
     let perDoc = byDoc.get(docId);
     if (!perDoc) {
       perDoc = new Map();

@@ -8,7 +8,11 @@ import {
   User,
   BarChart3,
   Network,
+  Mail,
+  MessageCircle,
+  Clock3,
 } from 'lucide-react';
+import { apiClient } from '../services/apiClient';
 
 interface Evidence {
   id: number;
@@ -61,24 +65,40 @@ export const EntityEvidencePanel: React.FC<EntityEvidencePanelProps> = ({
   const [filterType, setFilterType] = useState<string>('all');
   const [filterRole, setFilterRole] = useState<string>('all');
   const [relationEdges, setRelationEdges] = useState<RelationEvidenceEdge[]>([]);
+  const [communications, setCommunications] = useState<
+    {
+      documentId: string;
+      threadId: string;
+      subject: string;
+      date: string | null;
+      from: string;
+      to: string[];
+      cc: string[];
+      topic: string;
+      snippet: string;
+    }[]
+  >([]);
 
   useEffect(() => {
     loadEntityEvidence();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadEntityEvidence is stable and only depends on entityId
   }, [entityId]);
 
   const loadEntityEvidence = async () => {
     setLoading(true);
     try {
       // Prefer the new entity-centric evidence endpoint backed by mentions/relations.
-      const [evidenceRes, relationsRes] = await Promise.all([
+      const [evidenceRes, relationsRes, commsRes] = await Promise.all([
         fetch(`/api/entities/${entityId}/evidence`),
         fetch(`/api/entities/${entityId}/relations`),
+        apiClient.getEntityCommunications(entityId, { limit: 50 }),
       ]);
       const evidenceData = await evidenceRes.json();
       const relationsData = await relationsRes.json();
       setEvidence(evidenceData.evidence || []);
       setStats(evidenceData.stats || null);
       setRelationEdges(Array.isArray(relationsData.relations) ? relationsData.relations : []);
+      setCommunications(commsRes.data || []);
     } catch (error) {
       console.error('Error loading entity evidence:', error);
     } finally {
@@ -220,6 +240,61 @@ export const EntityEvidencePanel: React.FC<EntityEvidencePanelProps> = ({
                   {entity.shared_evidence_count} shared
                 </span>
               </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Email / Communications Activity */}
+      {communications.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-lg p-5">
+          <div className="flex items-center space-x-2 mb-4">
+            <Mail className="w-5 h-5 text-gray-600" />
+            <h3 className="text-lg font-semibold">Email Communications</h3>
+          </div>
+          <p className="text-sm text-gray-600 mb-3">
+            Recent email threads where <span className="font-semibold">{entityName}</span> appears.
+            Topics are heuristic but stable labels to help you scan conspiracies at a glance.
+          </p>
+          <div className="space-y-3 max-h-72 overflow-y-auto">
+            {communications.slice(0, 25).map((c) => (
+              <div
+                key={`${c.threadId}-${c.documentId}`}
+                className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50 transition"
+              >
+                <div className="flex items-start justify-between gap-3 mb-1">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <MessageCircle className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm font-semibold text-gray-900 truncate max-w-xs">
+                        {c.subject || 'No subject'}
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-600 flex flex-wrap gap-1">
+                      <span className="font-medium">{c.from}</span>
+                      <span>→</span>
+                      <span className="truncate max-w-[10rem]">
+                        {c.to && c.to.length > 0 ? c.to.join(', ') : 'Unknown recipients'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1 text-xs">
+                    {c.date && (
+                      <div className="flex items-center gap-1 text-gray-500">
+                        <Clock3 className="w-3 h-3" />
+                        <span>{c.date}</span>
+                      </div>
+                    )}
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 capitalize text-[11px]">
+                      <Tag className="w-3 h-3 mr-1" />
+                      {c.topic.replace('_', ' ')}
+                    </span>
+                  </div>
+                </div>
+                {c.snippet && (
+                  <p className="mt-1 text-xs text-gray-600 line-clamp-2">{c.snippet}</p>
+                )}
+              </div>
             ))}
           </div>
         </div>

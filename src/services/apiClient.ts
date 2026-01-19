@@ -166,6 +166,40 @@ class ApiClient {
       blackBookEntry: e.blackBookEntry || null,
     } as Person;
   }
+
+  async getEntityCommunications(
+    id: string,
+    options?: {
+      topic?: string;
+      from?: string;
+      to?: string;
+      start?: string;
+      end?: string;
+      limit?: number;
+    },
+  ): Promise<{ data: any[]; total: number }> {
+    const params = new URLSearchParams();
+    if (options?.topic) params.append('topic', options.topic);
+    if (options?.from) params.append('from', options.from);
+    if (options?.to) params.append('to', options.to);
+    if (options?.start) params.append('start', options.start);
+    if (options?.end) params.append('end', options.end);
+    if (options?.limit != null) params.append('limit', String(options.limit));
+
+    const query = params.toString();
+    const url = `${API_BASE_URL}/entities/${id}/communications${query ? `?${query}` : ''}`;
+    return this.fetchWithErrorHandling<{ data: any[]; total: number }>(url, { useCache: true });
+  }
+
+  async getDocumentThread(
+    id: string,
+  ): Promise<{ threadId: string; messages: any[] }> {
+    const url = `${API_BASE_URL}/documents/${id}/thread`;
+    return this.fetchWithErrorHandling<{ threadId: string; messages: any[] }>(url, {
+      useCache: true,
+    });
+  }
+
   async search(
     query: string,
     limit: number = 20,

@@ -44,6 +44,7 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
   const [doc, setDoc] = useState<any | null>(initialDoc || null);
   const [showRaw, setShowRaw] = useState(false);
   const [selectedEntity, setSelectedEntity] = useState<any | null>(null);
+  const [thread, setThread] = useState<{ threadId: string; messages: any[] } | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const { modalRef } = useModalFocusTrap(true);
 
@@ -57,6 +58,16 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
       .catch(() => {
         /* leave initialDoc if present */
       });
+
+    apiClient
+      .getDocumentThread(id)
+      .then((t) => {
+        if (mounted) setThread(t);
+      })
+      .catch(() => {
+        /* optional */
+      });
+
     return () => {
       mounted = false;
     };
@@ -152,12 +163,37 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-4 border-b border-slate-700 bg-slate-800">
-          <div className="flex items-center gap-2">
-            <FileText className="w-5 h-5 text-cyan-400" />
-            <h2 id="document-modal-title" className="text-lg font-semibold text-white">
-              {doc.title || doc.fileName}
-            </h2>
-            <span className="text-lg">{'🚩'.repeat(doc.redFlagRating || 0)}</span>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-cyan-400" />
+              <h2 id="document-modal-title" className="text-lg font-semibold text-white">
+                {doc.title || doc.fileName}
+              </h2>
+              <span className="text-lg">{'🚩'.repeat(doc.redFlagRating || 0)}</span>
+            </div>
+            {thread && thread.messages && thread.messages.length > 0 && (
+              <div className="flex items-center gap-2 text-xs text-slate-300 mt-1">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-700/70 border border-slate-600/60">
+                  <span className="font-mono text-[11px] uppercase tracking-wide text-slate-200">
+                    Thread
+                  </span>
+                  <span className="mx-2 text-slate-400">•</span>
+                  <span className="text-slate-200">{thread.messages.length} messages</span>
+                </span>
+                <span className="truncate max-w-xs text-slate-400">
+                  {Array.from(
+                    new Set(
+                      thread.messages
+                        .flatMap((m: any) => [m.from, ...(m.to || [])])
+                        .filter((v) => typeof v === 'string' && v.trim().length > 0),
+                    ),
+                  )
+                    .slice(0, 4)
+                    .join(', ')}
+                  {thread.messages.length > 4 ? '…' : ''}
+                </span>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -211,20 +247,89 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
           ref={contentRef}
         >
           {activeTab === 'content' && (
-            <>
-              {doc.content && doc.content.length > 0 ? (
-                <DocumentContentRenderer document={doc} searchTerm={searchTerm} showRaw={showRaw} />
-              ) : (
-                <div className="text-slate-300">
-                  <div className="mb-2">Full text not available. Showing preview:</div>
+            <div
+              className={
+                thread && thread.messages && thread.messages.length > 0
+                  ? 'grid gap-4 lg:grid-cols-[2fr,1fr]'
+                  : ''
+              }
+            >
+              <div>
+                {doc.content && doc.content.length > 0 ? (
                   <DocumentContentRenderer
-                    document={{ ...doc, content: doc.contentPreview }}
+                    document={doc}
                     searchTerm={searchTerm}
                     showRaw={showRaw}
                   />
-                </div>
+                ) : (
+                  <div className="text-slate-300">
+                    <div className="mb-2">Full text not available. Showing preview:</div>
+                    <DocumentContentRenderer
+                      document={{ ...doc, content: doc.contentPreview }}
+                      searchTerm={searchTerm}
+                      showRaw={showRaw}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {thread && thread.messages && thread.messages.length > 0 && (
+                <aside className="hidden lg:flex flex-col bg-slate-900/60 border border-slate-700/70 rounded-lg p-3 gap-2 max-h-[80vh] overflow-y-auto">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-semibold text-slate-200 uppercase tracking-wide">
+                      Thread Messages
+                    </span>
+                    <span className="text-[11px] text-slate-500">
+                      {thread.messages.length.toLocaleString()} messages
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    {thread.messages.map((m: any) => (
+                      <button
+                        key={m.documentId}
+                        type="button"
+                        onClick={() => {
+                          if (m.documentId && m.documentId !== id) {
+                            // re-open modal for this message id
+                            navigate(
+                              `${location.pathname.replace(/\\d+$/, String(m.documentId))}${location.search}`,
+                            );
+                          }
+                        }}
+                        className={`w-full text-left px-2 py-1.5 rounded-md border border-slate-700/60 bg-slate-800/60 hover:bg-slate-700/80 transition-colors text-xs ${
+                          String(m.documentId) === String(id)
+                            ? 'ring-1 ring-cyan-500/80 border-cyan-500/60 bg-slate-800'
+                            : ''
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-0.5">
+                          <span className="font-medium text-slate-100 truncate max-w-[9rem]">
+                            {m.subject || 'No subject'}
+                          </span>
+                          {m.date && (
+                            <span className="text-[10px] text-slate-400 whitespace-nowrap">
+                              {m.date}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-slate-400 truncate">
+                          <span className="font-semibold">{m.from}</span>
+                          <span className="mx-1">→</span>
+                          <span>
+                            {m.to && m.to.length > 0 ? m.to.join(', ') : 'Unknown recipients'}
+                          </span>
+                        </div>
+                        {m.topic && (
+                          <div className="mt-0.5 text-[10px] text-blue-300 capitalize">
+                            {m.topic.replace('_', ' ')}
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </aside>
               )}
-            </>
+            </div>
           )}
           {activeTab === 'original' && (
             <div className="h-full flex flex-col">

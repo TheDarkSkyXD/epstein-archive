@@ -3,18 +3,21 @@ import { useMemory } from '../contexts/MemoryContext';
 import type { MemoryEntry, MemorySearchFilters } from '../types/memory';
 
 const MemoryDashboard: React.FC = () => {
-  // TODO: Implement memory entry editing - see UNUSED_VARIABLES_RECOMMENDATIONS.md
   const {
     state,
     loadMemoryEntries,
     createMemoryEntry,
-    updateMemoryEntry: _updateMemoryEntry,
+    updateMemoryEntry,
     deleteMemoryEntry,
     selectMemoryEntry,
     searchMemoryEntries,
   } = useMemory();
 
   const [selectedMemory, setSelectedMemory] = useState<MemoryEntry | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState('');
+  const [editStatus, setEditStatus] = useState<'active' | 'archived' | 'deprecated'>('active');
+  const [editTags, setEditTags] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [searchFilters, setSearchFilters] = useState<MemorySearchFilters>({});
   const [newMemoryContent, setNewMemoryContent] = useState('');
@@ -359,22 +362,38 @@ const MemoryDashboard: React.FC = () => {
         <div className="mt-8 bg-white rounded-lg shadow-md p-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-gray-900">Memory Details</h2>
-            <button
-              onClick={() => {
-                setSelectedMemory(null);
-                selectMemoryEntry(null);
-              }}
-              className="text-gray-500 hover:text-gray-700"
-            >
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
+            <div className="flex items-center gap-3">
+              {!isEditing && (
+                <button
+                  onClick={() => {
+                    setIsEditing(true);
+                    setEditContent(selectedMemory.content);
+                    setEditStatus(selectedMemory.status);
+                    setEditTags((selectedMemory.contextTags || []).join(', '));
+                  }}
+                  className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                >
+                  Edit
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  setSelectedMemory(null);
+                  selectMemoryEntry(null);
+                  setIsEditing(false);
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -396,15 +415,49 @@ const MemoryDashboard: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">Status</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedMemory.status}</p>
+                {isEditing ? (
+                  <select
+                    value={editStatus}
+                    onChange={(e) =>
+                      setEditStatus(e.target.value as 'active' | 'archived' | 'deprecated')
+                    }
+                    className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  >
+                    <option value="active">Active</option>
+                    <option value="archived">Archived</option>
+                    <option value="deprecated">Deprecated</option>
+                  </select>
+                ) : (
+                  <p className="mt-1 text-sm text-gray-900">{selectedMemory.status}</p>
+                )}
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Content</label>
-              <div className="mt-1 text-sm text-gray-900 bg-gray-50 p-4 rounded-md max-h-60 overflow-y-auto">
-                {selectedMemory.content}
-              </div>
+              <label className="block text-sm font-medium text-gray-700">Tags</label>
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={editTags}
+                  onChange={(e) => setEditTags(e.target.value)}
+                  className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  placeholder="tag1, tag2, tag3"
+                />
+              ) : (
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {selectedMemory.contextTags?.map((tag, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                  {!selectedMemory.contextTags || selectedMemory.contextTags.length === 0 ? (
+                    <span className="text-sm text-gray-500">No tags</span>
+                  ) : null}
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -423,19 +476,42 @@ const MemoryDashboard: React.FC = () => {
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Context Tags</label>
-              <div className="mt-1 flex flex-wrap gap-2">
-                {selectedMemory.contextTags?.map((tag, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800"
-                  >
-                    {tag}
-                  </span>
-                )) || 'No tags'}
+            {isEditing && selectedMemory && (
+              <div className="pt-4 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditing(false);
+                    setEditContent(selectedMemory.content);
+                    setEditStatus(selectedMemory.status);
+                    setEditTags((selectedMemory.contextTags || []).join(', '));
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const tags = editTags
+                      .split(',')
+                      .map((t) => t.trim())
+                      .filter((t) => t);
+                    await updateMemoryEntry(selectedMemory.id, {
+                      content: editContent,
+                      status: editStatus,
+                      contextTags: tags,
+                    });
+                    await loadMemoryEntries(searchFilters);
+                    setIsEditing(false);
+                  }}
+                  disabled={!editContent.trim()}
+                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Save Changes
+                </button>
               </div>
-            </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>

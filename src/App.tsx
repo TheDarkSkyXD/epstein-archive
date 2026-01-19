@@ -538,7 +538,8 @@ function App() {
     // Initialize optimized data service
     const initializeDataService = async () => {
       try {
-        if (people.length === 0) {
+        const hadCachedPeople = !!localStorage.getItem('epstein_archive_people_page1_v5_3_4');
+        if (!hadCachedPeople) {
           setLoading(true);
         }
         setIsInitializing(true);
@@ -642,7 +643,7 @@ function App() {
     };
 
     fetchGlobalStats();
-  }, []);
+  }, [addToast]);
 
   useEffect(() => {
     try {
@@ -796,7 +797,7 @@ function App() {
     };
 
     loadRealDocuments();
-  }, []);
+  }, [addToast]);
 
   const handleSearchAndFilter = useCallback(async () => {
     if (!dataService) return;
@@ -848,7 +849,7 @@ function App() {
     setSortBy('spice');
     setSortOrder('desc');
     setCurrentPage(1);
-  }, []);
+  }, [setSelectedRiskLevel, setEntityType, setSearchTerm, setSortBy, setSortOrder, setCurrentPage]);
 
   useEffect(() => {
     handleSearchAndFilter();
@@ -932,29 +933,32 @@ function App() {
     selectedRiskLevel,
   ]);
 
-  const handlePersonClick = useCallback((person: Person, searchTerm?: string) => {
-    console.log('Person clicked:', person.name, 'Search term:', searchTerm);
+  const handlePersonClick = useCallback(
+    (person: Person, searchTerm?: string) => {
+      console.log('Person clicked:', person.name, 'Search term:', searchTerm);
 
-    // Save current path before opening modal so we can restore it on close
-    setPreviousPath(location.pathname + location.search);
+      // Save current path before opening modal so we can restore it on close
+      setPreviousPath(location.pathname + location.search);
 
-    setSelectedPerson(person);
-    setSearchTermForModal(searchTerm || '');
+      setSelectedPerson(person);
+      setSearchTermForModal(searchTerm || '');
 
-    // Update URL for shareable link
-    if (person.id) {
-      window.history.pushState({}, '', `/entity/${person.id}`);
-    }
+      // Update URL for shareable link
+      if (person.id) {
+        window.history.pushState({}, '', `/entity/${person.id}`);
+      }
 
-    // Announce navigation for screen readers
-    const announcement = document.createElement('div');
-    announcement.setAttribute('aria-live', 'polite');
-    announcement.setAttribute('aria-atomic', 'true');
-    announcement.className = 'sr-only';
-    announcement.textContent = `Opening details for ${person.name}`;
-    document.body.appendChild(announcement);
-    setTimeout(() => document.body.removeChild(announcement), 1000);
-  }, []);
+      // Announce navigation for screen readers
+      const announcement = document.createElement('div');
+      announcement.setAttribute('aria-live', 'polite');
+      announcement.setAttribute('aria-atomic', 'true');
+      announcement.className = 'sr-only';
+      announcement.textContent = `Opening details for ${person.name}`;
+      document.body.appendChild(announcement);
+      setTimeout(() => document.body.removeChild(announcement), 1000);
+    },
+    [location.pathname, location.search],
+  );
 
   const handleDocumentClick = useCallback((document: any, searchTerm?: string) => {
     console.log('=== handleDocumentClick START ===');

@@ -38,6 +38,7 @@ export const ArticleFeed: React.FC<ArticleFeedProps> = ({
 
   useEffect(() => {
     fetchArticles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchArticles depends only on props and internal state
   }, [feedUrl, tagFilter, maxArticles]);
 
   const formatDate = (dateString: string): string => {

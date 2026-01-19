@@ -180,18 +180,32 @@ export class OptimizedDataService {
           if (result.data) {
             const term = (filters.searchTerm || '').toLowerCase();
             result.data = result.data
-              .map((person: any) => ({
-                ...person,
-                name: person.fullName || person.name,
-                files: person.documentCount || person.files || 0,
-                likelihood_score: person.likelihoodLevel || person.likelihood_score,
-                role: person.primaryRole || person.role,
-                title: person.title,
-                title_variants: person.titleVariants || person.title_variants,
-                red_flag_rating:
-                  person.red_flag_rating ?? person.redFlagRating ?? person.spiceRating ?? 0,
-                evidence_types: person.evidenceTypes || person.evidence_types || [],
-              }))
+              .map((person: any) => {
+                const baseRating =
+                  person.red_flag_rating ?? person.redFlagRating ?? person.spiceRating ?? 0;
+                const mentions = person.mentions || 0;
+
+                // Heuristic risk calibration from mentions, using Trump/Maxwell scale as baseline
+                let mentionRisk = 0;
+                if (mentions >= 2000) mentionRisk = 5; // e.g. Epstein, Trump tier
+                else if (mentions >= 250) mentionRisk = 4; // e.g. Maxwell tier
+                else if (mentions >= 50) mentionRisk = 3;
+                else if (mentions >= 10) mentionRisk = 2;
+
+                const calibratedRating = Math.max(baseRating, mentionRisk);
+
+                return {
+                  ...person,
+                  name: person.fullName || person.name,
+                  files: person.documentCount || person.files || 0,
+                  likelihood_score: person.likelihoodLevel || person.likelihood_score,
+                  role: person.primaryRole || person.role,
+                  title: person.title,
+                  title_variants: person.titleVariants || person.title_variants,
+                  red_flag_rating: calibratedRating,
+                  evidence_types: person.evidenceTypes || person.evidence_types || [],
+                };
+              })
               .filter((p) => (term ? (p.name || '').toLowerCase().includes(term) : true));
 
             // QUALITY FILTER: The backend now handles aggressive junk filtering for the default view.
@@ -251,18 +265,31 @@ export class OptimizedDataService {
             if (result.data) {
               const term = (filters.searchTerm || '').toLowerCase();
               result.data = result.data
-                .map((person: any) => ({
-                  ...person,
-                  name: person.fullName || person.name,
-                  files: person.documentCount || person.files || 0,
-                  likelihood_score: person.likelihoodLevel || person.likelihood_score,
-                  role: person.primaryRole || person.role,
-                  title: person.title,
-                  title_variants: person.titleVariants || person.title_variants,
-                  red_flag_rating:
-                    person.red_flag_rating ?? person.redFlagRating ?? person.spiceRating ?? 0,
-                  evidence_types: person.evidenceTypes || person.evidence_types || [],
-                }))
+                .map((person: any) => {
+                  const baseRating =
+                    person.red_flag_rating ?? person.redFlagRating ?? person.spiceRating ?? 0;
+                  const mentions = person.mentions || 0;
+
+                  let mentionRisk = 0;
+                  if (mentions >= 2000) mentionRisk = 5;
+                  else if (mentions >= 250) mentionRisk = 4;
+                  else if (mentions >= 50) mentionRisk = 3;
+                  else if (mentions >= 10) mentionRisk = 2;
+
+                  const calibratedRating = Math.max(baseRating, mentionRisk);
+
+                  return {
+                    ...person,
+                    name: person.fullName || person.name,
+                    files: person.documentCount || person.files || 0,
+                    likelihood_score: person.likelihoodLevel || person.likelihood_score,
+                    role: person.primaryRole || person.role,
+                    title: person.title,
+                    title_variants: person.titleVariants || person.title_variants,
+                    red_flag_rating: calibratedRating,
+                    evidence_types: person.evidenceTypes || person.evidence_types || [],
+                  };
+                })
                 .filter((p) => (term ? (p.name || '').toLowerCase().includes(term) : true));
               if (filters.likelihoodScore && filters.likelihoodScore.length > 0) {
                 const filterLevels = filters.likelihoodScore.map((l) => l.toUpperCase());

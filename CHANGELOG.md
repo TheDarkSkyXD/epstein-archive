@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file. The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## 10.12.1 — 2026-01-20
+
+- Communications surfacing in UI
+  - Embedded `EntityEvidencePanel` (including communications data) into the main person profile `EvidenceModal`, so each entity now shows relationship evidence and recent email communications directly alongside documents and spicy passages.
+  - Extended `DocumentModal` with email thread context: a header bar summarizing thread size and participants, plus a right-hand sidebar listing all messages in the thread with subjects, dates, participants, and topics; clicking a message opens its email in the same viewer.
+  - Added a dedicated **Communications** tab to `InvestigationWorkspace`, mounting `CommunicationAnalysis` to provide investigation-level communication pattern analysis next to the existing Evidence, Timeline, and Network views.
+- CI and deployment
+  - Ensured `npm run lint` (0 errors), `npm run type-check`, and `npm run build:prod` all succeed after the new UI wiring.
+  - Deployed version 10.12.1 to production using the existing `npm run deploy:prod` workflow.
+
+## 10.12.0 — 2026-01-19
+
+- Email communications intelligence layer
+  - Added `communicationsRepository` to derive per-entity communication events from `entity_mentions` and `documents` with `evidence_type = 'email'`, normalizing `from`, `to`, `cc`, subject, date, and thread id.
+  - Introduced `/api/entities/:id/communications` for topic- and time-filtered views of who an entity is emailing, and `/api/documents/:id/thread` for full thread context around any email document.
+  - Implemented a rule-based topic classifier over email subjects and bodies (e.g. `flight_logistics`, `financial_transfers`, `legal_strategy`, `victims_handling`, `public_relations`, `scheduling`, `misc`) to power future analytics and UI overlays.
+- CI & tooling hardening
+  - Fixed TypeScript type errors in `AudioPlayer`, `DocumentBrowser`, and `InvestigationWorkspace` so `npm run type-check` is clean.
+  - Ensured `npm run lint` passes with 0 errors (warnings only) including new communications code, and `npm run build:prod` succeeds.
+  - Pointed API smoke tests at the real API port (`http://localhost:3012`) so `npm run test:smoke` now exercises the production server rather than a dead port.
+
 ## 10.10.0 — 2026-01-18
 
 - Unredacted corpus quality pass

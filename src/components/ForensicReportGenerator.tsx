@@ -193,9 +193,13 @@ export default function ForensicReportGenerator({
     setReportTitle('Epstein Network Forensic Analysis - Prosecution Report');
   }, []);
 
-  const generateReportContent = (template: ReportTemplate): ReportSection[] => {
+  const generateReportContent = (
+    template: ReportTemplate,
+    options: { includeEvidence: boolean; includeCharts: boolean },
+  ): ReportSection[] => {
     const sections: ReportSection[] = [];
-    const { stats, entities, transactions, timeline } = realData;
+    const { stats, entities } = realData;
+    const transactions = realData.transactions;
 
     // Dynamic Metrics
     const totalTransactionAmount = transactions.reduce(
@@ -233,20 +237,17 @@ Key findings include:
 • Detection of ${suspiciousTransactions.length} high-risk financial transfers
 • Network analysis revealing complex interconnections across the dataset
 
-The evidence collected supports further investigation into the identified high-risk entities and suspicious financial patterns.`,
-        evidence: [
-          'Financial transaction records',
-          'Entity relationship maps',
-          'Document metadata',
-        ],
+The evidence collected supports further investigation into the identified high-risk entities and suspicious patterns.`,
+        evidence: options.includeEvidence
+          ? ['Financial transaction records', 'Entity relationship maps', 'Document metadata']
+          : [],
         confidence: 90,
-        sources: ['Financial Analysis', 'Entity Database', 'Document Repository'],
+        sources: ['Financial Analysis', 'Document Database', 'Entity Files'],
       });
     }
 
     if (template.sections.includes('methodology')) {
       sections.push({
-        id: 'methodology',
         title: 'Methodology and Approach',
         type: 'methodology',
         content: `This forensic investigation employed a data-driven approach leveraging the Epstein Archive system.
@@ -259,7 +260,9 @@ Entities were assigned a "Red Flag Rating" based on keyword analysis, proximity 
 
 Financial Analysis:
 Transaction data was normalised and analysed for patterns indicative of layering or structuring. ${suspiciousTransactions.length} transactions were flagged as high-risk based on amount, frequency, or counterparties.`,
-        evidence: ['System logs', 'Processing metrics', 'Risk scoring algorithms'],
+        evidence: options.includeEvidence
+          ? ['System logs', 'Processing metrics', 'Risk scoring mechanisms']
+          : [],
         confidence: 95,
         sources: ['System Architecture', 'Data Processing Pipeline'],
       });
@@ -288,7 +291,9 @@ ${
 
 Documentary Evidence:
 Analysis of ${documentCount} documents has provided the foundational evidence for these findings, linking entities through mentions, co-occurrences, and direct correspondence.`,
-        evidence: ['Network graph', 'Transaction ledger', 'Document content'],
+        evidence: options.includeEvidence
+          ? ['Network map', 'Transaction ledger', 'Document content']
+          : [],
         confidence: 88,
         sources: ['Entity Database', 'Financial Records', 'Document Content'],
       });
@@ -306,7 +311,9 @@ The volume of transactions (${formattedAmount}) and the presence of high-risk tr
 
 Network Resilience:
 The entity graph demonstrates significant redundancy, suggesting that the network could persist even if key nodes are removed.`,
-        evidence: ['Network centrality metrics', 'Financial flow analysis'],
+        evidence: options.includeEvidence
+          ? ['Network centrality metrics', 'Financial flow analysis']
+          : [],
         confidence: 85,
         sources: ['Network Analysis', 'Financial Forensics'],
       });
@@ -324,7 +331,7 @@ The entity graph demonstrates significant redundancy, suggesting that the networ
 3. High-risk entities are central to both the social and financial networks.
 
 It is concluded that the identified patterns are consistent with complex organisational structures often seen in high-profile investigations.`,
-        evidence: ['Comprehensive dataset analysis'],
+        evidence: options.includeEvidence ? ['Comprehensive dataset analysis'] : [],
         confidence: 90,
         sources: ['Integrated Analysis'],
       });
@@ -339,7 +346,7 @@ It is concluded that the identified patterns are consistent with complex organis
 2. Conduct a targeted audit of the ${suspiciousTransactions.length} flagged financial transactions.
 3. Expand data collection to include more external financial records if available.
 4. Interview associates linked to the top 5 identified key figures.`,
-        evidence: ['Risk assessment matrix'],
+        evidence: options.includeEvidence ? ['Risk assessment matrix'] : [],
         confidence: 92,
         sources: ['Strategic Assessment'],
       });
@@ -368,7 +375,10 @@ It is concluded that the identified patterns are consistent with complex organis
     // Simulate report generation
     setTimeout(() => {
       const template = templates.find((t) => t.id === selectedTemplate)!;
-      const sections = generateReportContent(template);
+      const sections = generateReportContent(template, {
+        includeEvidence,
+        includeCharts,
+      });
 
       const report: GeneratedReport = {
         id: `report-${Date.now()}`,
@@ -480,20 +490,7 @@ It is concluded that the identified patterns are consistent with complex organis
     }
   };
 
-  const getTargetAudienceColor = (audience: string) => {
-    switch (audience) {
-      case 'legal':
-        return 'text-blue-400';
-      case 'journalism':
-        return 'text-purple-400';
-      case 'internal':
-        return 'text-yellow-400';
-      case 'public':
-        return 'text-green-400';
-      default:
-        return 'text-gray-400';
-    }
-  };
+  // getTargetAudienceColor reserved for future use; removed to avoid unused-variable warnings.
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-6">
@@ -769,7 +766,7 @@ It is concluded that the identified patterns are consistent with complex organis
           <div className="bg-gray-800 rounded-lg p-6">
             <h3 className="text-lg font-semibold text-gray-100 mb-4">Report Sections</h3>
             <div className="space-y-4">
-              {generatedReport.sections.map((section, index) => (
+              {generatedReport.sections.map((section) => (
                 <div key={section.id} className="border border-gray-700 rounded-lg p-4">
                   <div className="flex justify-between items-start mb-3">
                     <div>
@@ -798,8 +795,8 @@ It is concluded that the identified patterns are consistent with complex organis
                   </p>
 
                   <div className="flex items-center gap-4 text-xs text-gray-400">
-                    <span>{section.evidence.length} evidence items</span>
-                    <span>{section.sources.length} sources</span>
+                    {includeEvidence && <span>{section.evidence.length} evidence items</span>}
+                    {includeCharts && <span>{section.sources.length} sources</span>}
                   </div>
                 </div>
               ))}

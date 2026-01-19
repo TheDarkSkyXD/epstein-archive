@@ -7,7 +7,7 @@ import cookieParser from 'cookie-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
 // import { databaseService } from './services/DatabaseService.js';
-import { getDb } from './server/db/connection.js';
+// import { getEnv } from './src/config/env.js';
 import { entitiesRepository } from './server/db/entitiesRepository.js';
 import { documentsRepository } from './server/db/documentsRepository.js';
 import { statsRepository } from './server/db/statsRepository.js';
@@ -28,6 +28,7 @@ import evidenceRoutes from './routes/evidenceRoutes.js';
 import advancedAnalyticsRoutes from './server/routes/advancedAnalytics.js';
 import entityEvidenceRoutes from './routes/entityEvidenceRoutes.js';
 import investigativeTasksRoutes from './server/routes/investigativeTasks.js';
+import { communicationsRepository } from './server/db/communicationsRepository.js';
 import crypto from 'crypto';
 import multer from 'multer';
 import fs from 'fs';
@@ -38,6 +39,7 @@ import { blackBookRepository } from './server/db/blackBookRepository.js';
 import { globalErrorHandler } from './server/utils/errorHandler.js';
 import { memoryRepository } from './server/db/memoryRepository.js';
 import NodeCache from 'node-cache';
+import { getDb } from './server/db/connection.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1033,6 +1035,37 @@ app.get('/api/entities/:id', async (req, res, next) => {
   }
 });
 
+// Communications for an entity (email-based)
+app.get('/api/entities/:id/communications', async (req, res, next) => {
+  try {
+    const entityId = req.params.id;
+    if (!/^\d+$/.test(entityId)) {
+      return res.status(400).json({ error: 'Invalid entity ID format' });
+    }
+
+    const topic = (req.query.topic as string | undefined) || undefined;
+    const from = (req.query.from as string | undefined) || undefined;
+    const to = (req.query.to as string | undefined) || undefined;
+    const start = (req.query.start as string | undefined) || undefined;
+    const end = (req.query.end as string | undefined) || undefined;
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+
+    const events = communicationsRepository.getCommunicationsForEntity(entityId, {
+      topic,
+      from,
+      to,
+      start,
+      end,
+      limit,
+    });
+
+    res.json({ data: events, total: events.length });
+  } catch (error) {
+    console.error('Error fetching entity communications:', error);
+    next(error);
+  }
+});
+
 // Get all articles
 app.get('/api/articles', async (_req, res, next) => {
   try {
@@ -1521,20 +1554,18 @@ app.get('/api/documents', async (req, res, next) => {
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
-    // Build ORDER BY clause
-    let orderByClause = 'ORDER BY ';
-    switch (sortBy) {
-      case 'date':
-        orderByClause += 'date_created DESC';
-        break;
-      case 'title':
-        orderByClause += 'file_name ASC';
-        break;
-      case 'red_flag':
-      default:
-        orderByClause += 'red_flag_rating DESC, date_created DESC';
-        break;
-    }
+    // Build ORDER BY clause (kept for future use; currently unused in query construction)
+    const _orderByClause = (() => {
+      switch (sortBy) {
+        case 'date':
+          return 'date_created DESC';
+        case 'title':
+          return 'file_name ASC';
+        case 'red_flag':
+        default:
+          return 'red_flag_rating DESC, date_created DESC';
+      }
+    })();
 
     // Query documents from database
     const offset = (page - 1) * limit;
@@ -1625,6 +1656,21 @@ app.get('/api/documents/:id', async (req, res, next) => {
     res.json(doc);
   } catch (error) {
     console.error('Error fetching document by id:', error);
+    next(error);
+  }
+});
+
+// Email thread context for a document
+app.get('/api/documents/:id/thread', async (req, res, next) => {
+  try {
+    const id = req.params.id as string;
+    const thread = communicationsRepository.getThreadForDocument(id);
+    if (!thread) {
+      return res.status(404).json({ error: 'thread_not_found' });
+    }
+    res.json(thread);
+  } catch (error) {
+    console.error('Error fetching email thread for document:', error);
     next(error);
   }
 });
@@ -1731,8 +1777,7 @@ app.get('/api/documents/:id/pages', async (req, res, next) => {
 
       // Construct path to images folder
       // Assuming structure: CORPUS_BASE_PATH/Epstein Estate Documents - Seventh Production/IMAGES/{folderNum}/
-      const fs = require('fs');
-      const pathLib = require('path');
+      const pathLib = path;
 
       let imagesBase = '';
       if (imageFolder) {
@@ -1837,9 +1882,7 @@ app.get('/api/documents/:id/file', async (req, res, next) => {
       return res.status(404).json({ error: 'no_file_path' });
     }
 
-    // Resolve the file path
-    const path = require('path');
-    const fs = require('fs');
+    // Resolve the file path using existing imports
 
     // Check various possible locations
     const possiblePaths = [

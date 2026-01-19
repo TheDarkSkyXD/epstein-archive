@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Investigation, EvidenceItem } from '../types/investigation';
+import { apiClient } from '../services/apiClient';
 import {
   Activity,
   Clock,
@@ -55,145 +56,211 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
 
   const analyzeCommunications = async () => {
     setIsAnalyzing(true);
-    setAnalysisProgress(0);
+    setAnalysisProgress(5);
 
-    // Simulate progressive analysis
-    const progressSteps = [
-      { progress: 15, message: 'Scanning communication metadata...' },
-      { progress: 30, message: 'Analyzing frequency patterns...' },
-      { progress: 45, message: 'Detecting timing anomalies...' },
-      { progress: 60, message: 'Mapping communication networks...' },
-      { progress: 75, message: 'Identifying suspicious content patterns...' },
-      { progress: 90, message: 'Cross-referencing with known associates...' },
-      { progress: 100, message: 'Communication analysis complete!' },
-    ];
+    // 1. Collect unique entity IDs from investigation evidence
+    const entityIds = Array.from(
+      new Set(
+        evidence
+          .filter((item) =>
+            ['entity', 'person', 'organization'].includes(
+              (item.type || '').toString().toLowerCase(),
+            ),
+          )
+          .map((item) => String(item.sourceId || item.id))
+          .filter(Boolean),
+      ),
+    );
 
-    for (const step of progressSteps) {
-      await new Promise((resolve) => setTimeout(resolve, 700));
-      setAnalysisProgress(step.progress);
+    if (entityIds.length === 0) {
+      setCommunicationPatterns([]);
+      setAnalysisProgress(100);
+      setIsAnalyzing(false);
+      if (onCommunicationPatternDetected) onCommunicationPatternDetected([]);
+      return;
     }
 
-    // Generate mock communication patterns based on Epstein investigation
-    const mockPatterns: CommunicationPattern[] = [
-      {
-        id: 'comm-001',
-        type: 'frequency',
-        title: 'Unusual Communication Frequency Spikes',
-        description:
-          'Significant increases in communication frequency during key investigation periods, suggesting coordination efforts.',
-        confidence: 91,
-        severity: 'high',
-        participants: ['Jeffrey Epstein', 'Legal Team', 'Ghislaine Maxwell'],
-        evidenceIds: ['evidence-1', 'evidence-2'],
-        metadata: {
-          frequency: 347,
-          timeRange: { start: '2006-07-01', end: '2006-08-31' },
-          communicationChannels: ['Email', 'Phone', 'Encrypted Messaging'],
-          messageCount: 1247,
-          anomalyScore: 8.3,
-        },
-        recommendations: [
-          'Subpoena complete communication records for identified period',
-          'Analyze message content for coordination language',
-          'Cross-reference with investigation milestones',
-        ],
-      },
-      {
-        id: 'comm-002',
-        type: 'timing',
-        title: 'Late-Night Communication Clusters',
-        description:
-          'Concentrated communication activity during late-night hours, potentially indicating covert coordination.',
-        confidence: 87,
-        severity: 'medium',
-        participants: ['Jeffrey Epstein', 'International Contacts'],
-        evidenceIds: ['evidence-3'],
-        metadata: {
-          frequency: 89,
-          timeRange: { start: '2005-01-01', end: '2007-12-31' },
-          communicationChannels: ['Phone', 'Encrypted Email'],
-          responseTime: 2.3,
-          anomalyScore: 7.1,
-        },
-        recommendations: [
-          'Analyze time zone differences for international contacts',
-          'Map communication timing to significant events',
-          'Investigate encryption methods used',
-        ],
-      },
-      {
-        id: 'comm-003',
-        type: 'network',
-        title: 'Hub-and-Spoke Communication Pattern',
-        description:
-          'Epstein acts as central hub with direct communication to key nodes, minimizing direct contact between associates.',
-        confidence: 93,
-        severity: 'critical',
-        participants: ['Jeffrey Epstein', 'Ghislaine Maxwell', 'Les Wexner', 'Prince Andrew'],
-        evidenceIds: ['evidence-1', 'evidence-2', 'evidence-3'],
-        metadata: {
-          networkDensity: 0.15,
-          communicationChannels: ['Phone', 'Email', 'In-Person'],
-          messageCount: 2341,
-          anomalyScore: 8.9,
-        },
-        recommendations: [
-          'Map complete communication network topology',
-          'Identify intermediary communication channels',
-          'Analyze message routing patterns',
-        ],
-      },
-      {
-        id: 'comm-004',
-        type: 'content',
-        title: 'Evasive Language Patterns',
-        description:
-          'Use of coded language, euphemisms, and deliberately vague terminology in communications.',
-        confidence: 82,
-        severity: 'high',
-        participants: ['Jeffrey Epstein', 'Ghislaine Maxwell', 'Recruitment Network'],
-        evidenceIds: ['evidence-2'],
-        metadata: {
-          frequency: 156,
-          communicationChannels: ['Text', 'Email'],
-          messageCount: 892,
-          anomalyScore: 7.6,
-        },
-        recommendations: [
-          'Conduct linguistic analysis of message content',
-          'Cross-reference coded terms with known activities',
-          'Interview participants about terminology meaning',
-        ],
-      },
-      {
-        id: 'comm-005',
-        type: 'anomaly',
-        title: 'Communication Blackout Periods',
-        description:
-          'Unusual periods of complete communication silence followed by intense activity, suggesting deliberate avoidance.',
-        confidence: 89,
-        severity: 'high',
-        participants: ['Jeffrey Epstein', 'Key Associates'],
-        evidenceIds: ['evidence-1', 'evidence-3'],
-        metadata: {
-          timeRange: { start: '2008-06-01', end: '2008-07-15' },
-          communicationChannels: ['All Channels'],
-          frequency: 0,
-          anomalyScore: 8.7,
-        },
-        recommendations: [
-          'Investigate reasons for communication gaps',
-          'Cross-reference with external investigation timing',
-          'Analyze alternative communication methods',
-        ],
-      },
-    ];
+    // 2. Fetch communications per entity using the real API
+    const allEvents: Array<{
+      entityId: string;
+      documentId: string;
+      threadId: string;
+      subject: string;
+      date: string | null;
+      from: string;
+      to: string[];
+      cc: string[];
+      topic: string;
+    }> = [];
 
-    setCommunicationPatterns(mockPatterns);
+    for (let i = 0; i < entityIds.length; i++) {
+      const entityId = entityIds[i];
+      try {
+        const res = await apiClient.getEntityCommunications(entityId, {
+          limit: 500,
+        });
+        const events = (res.data || []).map((e: any) => ({
+          entityId,
+          documentId: String(e.documentId || e.document_id || ''),
+          threadId: String(e.threadId || e.thread_id || ''),
+          subject: String(e.subject || ''),
+          date: e.date || null,
+          from: String(e.from || ''),
+          to: Array.isArray(e.to) ? e.to : [],
+          cc: Array.isArray(e.cc) ? e.cc : [],
+          topic: String(e.topic || 'misc'),
+        }));
+        allEvents.push(...events);
+      } catch (err) {
+        // If one entity fails, continue with others
+        // eslint-disable-next-line no-console
+        console.warn('Failed to load communications for entity', entityId, err);
+      }
+      setAnalysisProgress(5 + Math.round(((i + 1) / entityIds.length) * 45));
+    }
+
+    if (allEvents.length === 0) {
+      setCommunicationPatterns([]);
+      setAnalysisProgress(100);
+      setIsAnalyzing(false);
+      if (onCommunicationPatternDetected) onCommunicationPatternDetected([]);
+      return;
+    }
+
+    // 3. Aggregate patterns from real events
+    const byTopic = new Map<string, number>();
+    const byPair = new Map<string, number>();
+    const byHour: number[] = Array.from({ length: 24 }, () => 0);
+
+    for (const ev of allEvents) {
+      const topic = ev.topic || 'misc';
+      byTopic.set(topic, (byTopic.get(topic) || 0) + 1);
+
+      const participants = Array.from(
+        new Set([ev.from, ...ev.to].filter((v) => typeof v === 'string' && v.trim().length > 0)),
+      );
+      if (participants.length >= 2) {
+        const [a, b] = participants.slice(0, 2).sort();
+        const key = `${a} ↔ ${b}`;
+        byPair.set(key, (byPair.get(key) || 0) + 1);
+      }
+
+      if (ev.date) {
+        const d = new Date(ev.date);
+        if (!isNaN(d.getTime())) {
+          const h = d.getHours();
+          if (h >= 0 && h < 24) {
+            byHour[h] += 1;
+          }
+        }
+      }
+    }
+
+    setAnalysisProgress(70);
+
+    const totalMessages = allEvents.length;
+
+    // Top topic frequency pattern
+    const sortedTopics = Array.from(byTopic.entries()).sort((a, b) => b[1] - a[1]);
+    const topTopic = sortedTopics[0];
+
+    // Late-night spike: 0-5h
+    const lateNightCount = byHour.slice(0, 6).reduce((a, b) => a + b, 0);
+
+    // Top communication pair
+    const sortedPairs = Array.from(byPair.entries()).sort((a, b) => b[1] - a[1]);
+    const topPair = sortedPairs[0];
+
+    const patterns: CommunicationPattern[] = [];
+
+    if (topTopic) {
+      patterns.push({
+        id: 'frequency-topic',
+        type: 'frequency',
+        title: `Dominant Topic: ${topTopic[0].replace('_', ' ')}`,
+        description: `Most common email topic in this investigation is “${topTopic[0].replace(
+          '_',
+          ' ',
+        )}” with ${topTopic[1]} messages.`,
+        confidence: Math.min(100, Math.round((topTopic[1] / totalMessages) * 100) || 50),
+        severity:
+          topTopic[1] / totalMessages > 0.4
+            ? 'high'
+            : topTopic[1] / totalMessages > 0.2
+              ? 'medium'
+              : 'low',
+        participants: [],
+        evidenceIds: allEvents
+          .filter((e) => e.topic === topTopic[0])
+          .map((e) => e.documentId)
+          .slice(0, 50),
+        metadata: {
+          frequency: topTopic[1],
+          messageCount: totalMessages,
+          communicationChannels: ['email'],
+        },
+        recommendations: [
+          'Review all high-volume threads for this topic.',
+          'Cross-reference with investigation timeline and key entities.',
+        ],
+      });
+    }
+
+    if (lateNightCount > 0) {
+      patterns.push({
+        id: 'timing-late-night',
+        type: 'timing',
+        title: 'Late-night communication clusters',
+        description: `Detected ${lateNightCount} messages sent between 00:00 and 05:59, which may indicate covert or off-hours coordination.`,
+        confidence: Math.min(100, 60 + lateNightCount),
+        severity: lateNightCount > 50 ? 'high' : lateNightCount > 10 ? 'medium' : 'low',
+        participants: [],
+        evidenceIds: allEvents
+          .filter((e) => {
+            if (!e.date) return false;
+            const d = new Date(e.date);
+            return !isNaN(d.getTime()) && d.getHours() < 6;
+          })
+          .map((e) => e.documentId)
+          .slice(0, 50),
+        metadata: {
+          timeRange: {
+            start: '',
+            end: '',
+          },
+          communicationChannels: ['email'],
+        },
+        recommendations: ['Inspect these threads for sensitive coordination or escalation.'],
+      });
+    }
+
+    if (topPair) {
+      patterns.push({
+        id: 'network-top-pair',
+        type: 'network',
+        title: `Central communication pair: ${topPair[0]}`,
+        description: `The pair ${topPair[0]} appears in ${topPair[1]} messages, suggesting a central communication link within this investigation.`,
+        confidence: Math.min(100, 70 + topPair[1]),
+        severity: topPair[1] > 40 ? 'critical' : topPair[1] > 15 ? 'high' : 'medium',
+        participants: topPair[0].split(' ↔ ').filter(Boolean),
+        evidenceIds: [],
+        metadata: {
+          communicationChannels: ['email'],
+          messageCount: topPair[1],
+        },
+        recommendations: [
+          'Map all threads involving this pair of participants.',
+          'Cross-reference with relationship graph and entity risk levels.',
+        ],
+      });
+    }
+
+    setCommunicationPatterns(patterns);
+    setAnalysisProgress(100);
     setIsAnalyzing(false);
 
     if (onCommunicationPatternDetected) {
-      onCommunicationPatternDetected(mockPatterns);
+      onCommunicationPatternDetected(patterns);
     }
   };
 

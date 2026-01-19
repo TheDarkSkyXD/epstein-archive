@@ -241,35 +241,37 @@ export const DocumentAnnotationSystem: React.FC<DocumentAnnotationSystemProps> =
     return result;
   };
 
-  const handleAnnotationClick = (annotationId: string) => {
-    const annotation = annotations.find((a) => a.id === annotationId);
-    if (annotation) {
-      setActiveAnnotation(annotation);
-      setShowAnnotationPanel(true);
-    }
-  };
+  const handleAnnotationClick = React.useCallback(
+    (annotationId: string) => {
+      const annotation = annotations.find((a) => a.id === annotationId);
+      if (annotation) {
+        setActiveAnnotation(annotation);
+        setShowAnnotationPanel(true);
+      }
+    },
+    [annotations],
+  );
 
   useEffect(() => {
-    if (contentRef.current) {
-      // Add click handlers to annotation spans
-      const annotationSpans = contentRef.current.querySelectorAll('[data-annotation-id]');
-      annotationSpans.forEach((span) => {
-        span.addEventListener('click', () => {
-          const annotationId = span.getAttribute('data-annotation-id');
-          if (annotationId) handleAnnotationClick(annotationId);
-        });
+    const element = contentRef.current;
+    if (!element) return;
+
+    // Add click handlers to annotation spans
+    const annotationSpans = element.querySelectorAll('[data-annotation-id]');
+    annotationSpans.forEach((span) => {
+      span.addEventListener('click', () => {
+        const annotationId = span.getAttribute('data-annotation-id');
+        if (annotationId) handleAnnotationClick(annotationId);
       });
-    }
+    });
 
     return () => {
-      if (contentRef.current) {
-        const annotationSpans = contentRef.current.querySelectorAll('[data-annotation-id]');
-        annotationSpans.forEach((span) => {
-          span.replaceWith(span.textContent || '');
-        });
-      }
+      const spans = element.querySelectorAll('[data-annotation-id]');
+      spans.forEach((span) => {
+        span.replaceWith(span.textContent || '');
+      });
     };
-  }, [content, annotations]);
+  }, [content, annotations, handleAnnotationClick]);
 
   return (
     <div className={`relative ${mode === 'full' ? 'h-full flex' : ''}`}>

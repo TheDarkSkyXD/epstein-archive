@@ -14,6 +14,7 @@ import Tooltip from './Tooltip';
 import Icon from './Icon';
 import { useModalFocusTrap } from '../hooks/useModalFocusTrap';
 import { CreateRelationshipModal } from './CreateRelationshipModal';
+import { EntityEvidencePanel } from './EntityEvidencePanel';
 
 interface EvidenceModalProps {
   person: Person;
@@ -735,6 +736,26 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Relationship & Communications Intelligence */}
+            {person?.id && (
+              <div className="mt-8">
+                <h2 className="text-lg font-semibold text-slate-100 mb-3 flex items-center gap-2">
+                  <Icon name="Network" size="sm" />
+                  Relationship & Communications Intelligence
+                </h2>
+                <p className="text-xs text-slate-400 mb-3 max-w-2xl">
+                  Aggregated evidence, relationship graph signals, and email communications for this
+                  entity across the archive.
+                </p>
+                <div className="bg-slate-900/60 border border-slate-700 rounded-xl p-3 md:p-4">
+                  <EntityEvidencePanel
+                    entityId={String(person.id)}
+                    entityName={person.name || 'Unknown'}
+                  />
                 </div>
               </div>
             )}

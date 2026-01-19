@@ -61,8 +61,7 @@ export const AdminDashboard: React.FC = () => {
 
   const [loading, setLoading] = useState(true);
   const [auditLoading, setAuditLoading] = useState(false);
-  // TODO: Display error messages in UI - see UNUSED_VARIABLES_RECOMMENDATIONS.md
-  const [_error, setError] = useState('');
+  const [error, setError] = useState('');
 
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -245,6 +244,22 @@ export const AdminDashboard: React.FC = () => {
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <div className="w-full max-w-7xl mx-auto px-4 py-8 space-y-8">
         {/* Header */}
+        {error && (
+          <div className="mb-4 flex items-start gap-2 rounded-lg border border-red-800 bg-red-950 px-4 py-3 text-sm text-red-200">
+            <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="font-medium">An error occurred while loading admin data.</p>
+              <p className="mt-1 text-red-200/80 break-all">{error}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setError('')}
+              className="ml-2 rounded-full p-1 text-red-200 hover:bg-red-900/60 hover:text-white"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-slate-100 flex items-center gap-3">

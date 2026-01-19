@@ -178,7 +178,13 @@ export const entitiesRepository = {
     // Data Query
     const offset = (page - 1) * limit;
     const sql = `
-            SELECT *
+            SELECT 
+              entities.*,
+              (
+                SELECT COUNT(DISTINCT em.document_id)
+                FROM entity_mentions em
+                WHERE em.entity_id = entities.id
+              ) AS documentCount
             FROM ${sourceTable}
             ${whereClause}
             ${orderByClause}

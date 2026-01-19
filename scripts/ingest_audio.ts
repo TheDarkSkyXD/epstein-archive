@@ -135,8 +135,8 @@ async function ingestAudio() {
     await execAsync('which whisper');
     hasWhisper = true;
     console.log('✅ Whisper AI detected. Classification and transcription enabled.');
-  } catch (e) {
-    console.warn('⚠️ Whisper AI not found. Skipping transcription.');
+  } catch (err) {
+    console.warn('⚠️ Whisper AI not found. Skipping transcription.', err);
   }
 
   // Find all audio files

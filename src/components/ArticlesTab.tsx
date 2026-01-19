@@ -23,6 +23,7 @@ export const ArticlesTab: React.FC = () => {
 
   useEffect(() => {
     filterArticles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- filterArticles already derives from searchTerm/selectedPublication/articles
   }, [searchTerm, selectedPublication, articles]);
 
   const fetchArticles = async () => {

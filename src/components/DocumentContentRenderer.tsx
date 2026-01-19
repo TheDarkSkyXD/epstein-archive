@@ -208,7 +208,7 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
 
   return (
     <div className="prose prose-invert max-w-none">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-1 flex items-center justify-between">
         <div className="text-sm text-gray-400">
           {doc.evidenceType === 'email'
             ? '📧 Email Message'
@@ -256,6 +256,19 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
           </div>
         )}
       </div>
+
+      {/* Legend for unredacted highlighting */}
+      {doc.unredaction_metrics?.baselineVocab && (
+        <div className="mb-3 text-[11px] text-emerald-200/80 flex items-center gap-2">
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-emerald-900/60 border border-emerald-500/50 text-emerald-100">
+            Newly unredacted
+          </span>
+          <span className="text-emerald-100/70">
+            Words highlighted in emerald were recovered during automated unredaction compared with
+            the original OCR text.
+          </span>
+        </div>
+      )}
 
       {/* Email Headers Display */}
       {doc.evidenceType === 'email' &&

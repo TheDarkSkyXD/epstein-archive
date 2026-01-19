@@ -406,13 +406,13 @@ function rebuildEntityPipeline() {
             const candidates = lastNameIndex.get(mentionLast) || [];
 
             // Helper to compute a simple feature-based score between mention and candidate entity
-            function computeCandidateScore(
+            const computeCandidateScore = (
               candidateName: string,
               candidateType: string,
             ): {
               score: number;
               features: Record<string, number>;
-            } {
+            } => {
               const candTokens = candidateName
                 .toLowerCase()
                 .split(' ')
@@ -441,7 +441,7 @@ function rebuildEntityPipeline() {
                   F_type_match: fTypeMatch,
                 },
               };
-            }
+            };
 
             // Build candidate list and limit to top K
             const scoredCandidates = candidates

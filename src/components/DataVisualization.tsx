@@ -134,37 +134,88 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
     );
   }
 
+  // Junk entity filter patterns
+  const JUNK_PATTERNS = [
+    /^The\s/i,
+    /\sLike$/i,
+    /\sLike\s/i,
+    /^They\s/i,
+    /\sPrinted/i,
+    /\sTowers$/i,
+    /^Multiple\s/i,
+    /\sMac\s/i,
+    /Desktop/i,
+    /^Estate\s/i,
+    /\sEstate$/i,
+    /^Closed\s/i,
+    /Contai/i,
+    /sensit/i,
+    /\sStreet$/i,
+    /\sBeach$/i,
+    /\sCliffs$/i,
+    /\sJames$/i,
+    /\sIsland$/i,
+    /^New\s/i,
+    /Mexico$/i,
+    /York/i,
+    /\sTimes$/i,
+    /^Palm/i,
+    /^Wall\s/i,
+    /^Little\s/i,
+    /^Englewood/i,
+    /\d/,
+    /^Judge\s.*\s/i,
+  ];
+
+  const isJunkEntity = (name: string): boolean => {
+    if (!name || name.length <= 3) return true;
+    return JUNK_PATTERNS.some((pattern) => pattern.test(name));
+  };
+
+  // Filter people to only Person types, excluding junk
+  const filteredPersons = people.filter((p) => {
+    if (!p.name || isJunkEntity(p.name)) return false;
+    const entityType = (p as any).type;
+    if (entityType && entityType !== 'Person' && entityType !== 'Unknown') return false;
+    return true;
+  });
+
   // Prepare Data
   const riskDistribution = [
     {
       name: 'High Risk (4-5)',
-      value: people.filter((p) => (p.red_flag_rating ?? 0) >= 4).length,
+      value: filteredPersons.filter((p) => (p.red_flag_rating ?? 0) >= 4).length,
       color: COLORS.HIGH,
     },
     {
       name: 'Medium Risk (2-3)',
-      value: people.filter((p) => (p.red_flag_rating ?? 0) >= 2 && (p.red_flag_rating ?? 0) < 4)
-        .length,
+      value: filteredPersons.filter(
+        (p) => (p.red_flag_rating ?? 0) >= 2 && (p.red_flag_rating ?? 0) < 4,
+      ).length,
       color: COLORS.MEDIUM,
     },
     {
       name: 'Low Risk (0-1)',
-      value: people.filter((p) => (p.red_flag_rating ?? 0) < 2).length,
+      value: filteredPersons.filter((p) => (p.red_flag_rating ?? 0) < 2).length,
       color: COLORS.LOW,
     },
   ];
 
-  const topEntities =
+  // Filter topEntities from analytics data as well
+  const rawTopEntities =
     analyticsData?.topEntities ||
-    people
+    filteredPersons
       .sort((a, b) => (b.mentions || 0) - (a.mentions || 0))
-      .slice(0, 10)
+      .slice(0, 15)
       .map((p) => ({
         name: p.name,
         mentions: p.mentions,
         redFlagRating: p.red_flag_rating ?? 0,
         person: p,
       }));
+
+  // Apply junk filter to topEntities (even from API)
+  const topEntities = rawTopEntities.filter((e: any) => !isJunkEntity(e.name));
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">

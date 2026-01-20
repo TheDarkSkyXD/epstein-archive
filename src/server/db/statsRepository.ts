@@ -65,16 +65,41 @@ export const statsRepository = {
       },
     ];
 
-    // Get top entities by mentions
+    // Get top entities by mentions - ONLY Person type, excluding junk patterns
     const topEntities = db
       .prepare(
         `
       SELECT full_name as name, mentions, red_flag_rating as redFlagRating
       FROM entities
       WHERE mentions > 0 
+      AND (type = 'Person' OR type IS NULL)
       AND full_name NOT LIKE 'The %'
+      AND full_name NOT LIKE '% Like'
+      AND full_name NOT LIKE '% Like %'
+      AND full_name NOT LIKE 'They %'
+      AND full_name NOT LIKE '% Printed%'
+      AND full_name NOT LIKE '% Towers'
+      AND full_name NOT LIKE 'Multiple %'
+      AND full_name NOT LIKE '% Mac %'
+      AND full_name NOT LIKE '%Desktop%'
+      AND full_name NOT LIKE 'Estate %'
+      AND full_name NOT LIKE '% Estate'
+      AND full_name NOT LIKE 'Closed %'
+      AND full_name NOT LIKE '%Contai%'
+      AND full_name NOT LIKE '%sensit%'
+      AND full_name NOT LIKE '% Street'
+      AND full_name NOT LIKE '% Beach'
+      AND full_name NOT LIKE '% Cliffs'
+      AND full_name NOT LIKE '% James'
+      AND full_name NOT LIKE '% Island'
+      AND full_name NOT LIKE 'New %'
+      AND full_name NOT LIKE '%Mexico'
+      AND full_name NOT LIKE '%York%'
+      AND full_name NOT LIKE '% Times'
+      AND length(full_name) > 3
+      AND full_name NOT GLOB '*[0-9]*'
       ORDER BY mentions DESC
-      LIMIT 20
+      LIMIT 30
     `,
       )
       .all() as { name: string; mentions: number; redFlagRating: number }[];

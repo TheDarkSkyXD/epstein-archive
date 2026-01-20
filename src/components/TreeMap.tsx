@@ -14,6 +14,44 @@ interface TreeMapNode {
   person: Person;
 }
 
+// Patterns that indicate junk entities (not real people)
+const JUNK_PATTERNS = [
+  /^The\s/i,
+  /\sLike$/i,
+  /\sLike\s/i,
+  /^They\s/i,
+  /\sPrinted/i,
+  /\sTowers$/i,
+  /^Multiple\s/i,
+  /\sMac\s/i,
+  /Desktop/i,
+  /^Estate\s/i,
+  /\sEstate$/i,
+  /^Closed\s/i,
+  /Contai/i,
+  /sensit/i,
+  /\sStreet$/i,
+  /\sBeach$/i,
+  /\sCliffs$/i,
+  /\sJames$/i,
+  /\sIsland$/i,
+  /^New\s/i,
+  /Mexico$/i,
+  /York/i,
+  /\sTimes$/i,
+  /^Palm/i,
+  /^Wall\s/i,
+  /^Little\s/i,
+  /^Englewood/i,
+  /\d/,
+  /^Judge\s.*\s/i,
+];
+
+const isJunkEntity = (name: string): boolean => {
+  if (!name || name.length <= 3) return true;
+  return JUNK_PATTERNS.some((pattern) => pattern.test(name));
+};
+
 export const TreeMap: React.FC<TreeMapProps> = ({ people, onPersonClick }) => {
   const [hoveredNode, setHoveredNode] = useState<TreeMapNode | null>(null);
   const [transform, setTransform] = useState({ k: 1, x: 0, y: 0 });
@@ -21,10 +59,18 @@ export const TreeMap: React.FC<TreeMapProps> = ({ people, onPersonClick }) => {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Prepare data - top 50 entities by mentions
-  // Filter out invalid mentions to prevent skewed visualization
+  // Prepare data - top 50 PERSON entities by mentions
+  // Filter out junk entities and non-person types
   const nodes: TreeMapNode[] = people
-    .filter((p) => (p.mentions || 0) > 0)
+    .filter((p) => {
+      if ((p.mentions || 0) <= 0) return false;
+      // Only include Person type (or null/undefined type as legacy)
+      const entityType = (p as any).type;
+      if (entityType && entityType !== 'Person' && entityType !== 'Unknown') return false;
+      // Filter out junk patterns
+      if (isJunkEntity(p.name)) return false;
+      return true;
+    })
     .sort((a, b) => (b.mentions || 0) - (a.mentions || 0))
     .slice(0, 50)
     .map((p) => ({

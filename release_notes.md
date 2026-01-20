@@ -1,5 +1,19 @@
 # Release Notes
 
+## v10.12.1 (2026-01-20) - Communications Surfacing in UI
+
+- **Entity Communications Panel**: Embedded `EntityEvidencePanel` (including communications data) into the main person profile `EvidenceModal`, so each entity now shows relationship evidence and recent email communications directly alongside documents and spicy passages.
+- **Email Thread Context**: Extended `DocumentModal` with email thread context: a header bar summarizing thread size and participants, plus a right-hand sidebar listing all messages in the thread with subjects, dates, participants, and topics; clicking a message opens its email in the same viewer.
+- **Investigation Communications Tab**: Added a dedicated **Communications** tab to `InvestigationWorkspace`, mounting `CommunicationAnalysis` to provide investigation-level communication pattern analysis next to the existing Evidence, Timeline, and Network views.
+- **CI/Deployment**: Ensured `npm run lint` (0 errors), `npm run type-check`, and `npm run build:prod` all succeed after the new UI wiring.
+
+## v10.12.0 (2026-01-19) - Email Communications Intelligence Layer
+
+- **Communications Repository**: Added `communicationsRepository` to derive per-entity communication events from `entity_mentions` and `documents` with `evidence_type = 'email'`, normalizing `from`, `to`, `cc`, subject, date, and thread id.
+- **New API Endpoints**: Introduced `/api/entities/:id/communications` for topic- and time-filtered views of who an entity is emailing, and `/api/documents/:id/thread` for full thread context around any email document.
+- **Topic Classification**: Implemented a rule-based topic classifier over email subjects and bodies (e.g. `flight_logistics`, `financial_transfers`, `legal_strategy`, `victims_handling`, `public_relations`, `scheduling`, `misc`) to power future analytics and UI overlays.
+- **CI Hardening**: Fixed TypeScript type errors in `AudioPlayer`, `DocumentBrowser`, and `InvestigationWorkspace` so `npm run type-check` is clean. Pointed API smoke tests at the real API port (`http://localhost:3012`).
+
 ## v10.10.0 (2026-01-18) - Unredacted Corpus Quality Pass
 
 - **Unified pipeline rerun**: Re-ran the full unified ingestion + intelligence pipeline against all DOJ Discovery volumes (VOL00001–VOL00008), Court Case Evidence, Maxwell Proffer, and DOJ Phase 1, confirming 14,718 source files ingested into a stable corpus of 51,380 documents with zero errors.

@@ -445,6 +445,29 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
     setFilteredDocuments(results);
   }, [documents, hideLowCredibility]);
 
+  const handleDocumentSelect = useCallback(
+    async (document: Document) => {
+      // Set initial document data immediately
+      setSelectedDocument(document);
+
+      try {
+        // Fetch full content from API
+        const fullDoc = await apiClient.getDocument(document.id);
+        if (fullDoc) {
+          setSelectedDocument((prev) =>
+            prev?.id === document.id ? { ...prev, ...fullDoc } : prev,
+          );
+        }
+      } catch (error) {
+        console.error('Error fetching full document content:', error);
+      }
+
+      const related = processor.findRelatedDocuments(document.id, 5);
+      setRelatedDocuments(related);
+    },
+    [processor],
+  );
+
   // Auto-select document when selectedDocumentId changes
   useEffect(() => {
     if (selectedDocumentId) {
@@ -454,10 +477,10 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
       console.log('DocumentBrowser: selectedDocumentId changed to', selectedDocumentId);
 
       if (documents.length > 0) {
-        const document = documents.find((doc) => doc.id === selectedDocumentId);
-        if (document) {
+        const doc = documents.find((d) => d.id === selectedDocumentId);
+        if (doc) {
           console.log('DocumentBrowser: Found document in current list, selecting');
-          handleDocumentSelect(document);
+          handleDocumentSelect(doc);
           return;
         }
       }
@@ -537,29 +560,6 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
   const handleRedFlagLevelChange = (min: number, max: number) => {
     handleFilterChange('redFlagLevel', { min, max });
   };
-
-  const handleDocumentSelect = useCallback(
-    async (document: Document) => {
-      // Set initial document data immediately
-      setSelectedDocument(document);
-
-      try {
-        // Fetch full content from API
-        const fullDoc = await apiClient.getDocument(document.id);
-        if (fullDoc) {
-          setSelectedDocument((prev) =>
-            prev?.id === document.id ? { ...prev, ...fullDoc } : prev,
-          );
-        }
-      } catch (error) {
-        console.error('Error fetching full document content:', error);
-      }
-
-      const related = processor.findRelatedDocuments(document.id, 5);
-      setRelatedDocuments(related);
-    },
-    [processor],
-  );
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
@@ -710,8 +710,8 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
         const text = sel.toString();
         setSnippetText(text.length > 0 ? text : '');
       };
-      document.addEventListener('mouseup', handler);
-      return () => document.removeEventListener('mouseup', handler);
+      window.document.addEventListener('mouseup', handler);
+      return () => window.document.removeEventListener('mouseup', handler);
       // We intentionally only depend on setSnippetText, which is stable from React state
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [setSnippetText]);

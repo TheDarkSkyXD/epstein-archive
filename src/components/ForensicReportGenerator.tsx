@@ -248,6 +248,7 @@ The evidence collected supports further investigation into the identified high-r
 
     if (template.sections.includes('methodology')) {
       sections.push({
+        id: 'methodology',
         title: 'Methodology and Approach',
         type: 'methodology',
         content: `This forensic investigation employed a data-driven approach leveraging the Epstein Archive system.

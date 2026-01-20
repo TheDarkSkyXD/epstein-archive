@@ -49,6 +49,12 @@ The Vite dev server (see `vite.config.ts`) proxies `/api` to `http://localhost:3
 - Build and run the full stack (API + Redis + Nginx) via Docker:
   - `docker-compose up --build`
 
+### Deployment & Version History
+
+- **Version history MUST be updated on every production deploy.**
+  - When bumping the app version (e.g. `package.json` → 10.12.1) and deploying to https://epstein.academy, you MUST also update the canonical version history (`CHANGELOG.md`, `release_notes.md`, and any user-facing "Version History" UI) in the same change.
+  - This rule is non-negotiable and applies to every deploy, no exceptions.
+
 The `app` service runs `node dist/server.production.js` on port 3012 and uses environment variables from `.env`/shell (see `docker-compose.yml`). The SQLite database is expected under `./data/epstein-archive.db`, mounted into the container.
 
 ### End‑to‑end tests (Playwright)

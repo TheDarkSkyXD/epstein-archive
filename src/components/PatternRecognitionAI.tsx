@@ -55,11 +55,7 @@ export const PatternRecognitionAI: React.FC<PatternRecognitionAIProps> = ({
       const transactions = Array.isArray(transactionsRes) ? transactionsRes : [];
 
       // 2) Fetch top entities and relationships via apiClient
-      const entitiesRes = await apiClient.getEntities(
-        { sortBy: 'risk', sortOrder: 'desc' },
-        1,
-        10,
-      );
+      const entitiesRes = await apiClient.getEntities({ sortBy: 'risk', sortOrder: 'desc' }, 1, 10);
       const topEntities = Array.isArray(entitiesRes.data) ? entitiesRes.data : [];
 
       setAnalysisProgress(40);

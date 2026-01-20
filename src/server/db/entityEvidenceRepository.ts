@@ -38,6 +38,12 @@ export const entityEvidenceRepository = {
       db.prepare('PRAGMA table_info(entity_mentions)').all() as { name: string }[]
     ).some((c) => c.name === 'score');
 
+    // Check for documents columns
+    const docCols = db.prepare('PRAGMA table_info(documents)').all() as { name: string }[];
+    const docColNames = new Set(docCols.map((c) => c.name));
+    const hasDocTitle = docColNames.has('title');
+    const titleColumn = hasDocTitle ? 'd.title' : 'd.file_name as title';
+
     // Core mention-derived evidence items
     let evidenceRows: any[] = [];
     if (hasMentions) {
@@ -48,7 +54,7 @@ export const entityEvidenceRepository = {
           em.mention_context,
           ${hasEntityMentionsScore ? 'em.score' : 'NULL'} as score,
           em.mention_id,
-          d.title,
+          ${titleColumn},
           d.file_path,
           d.evidence_type,
           d.red_flag_rating,
@@ -72,7 +78,7 @@ export const entityEvidenceRepository = {
           em.mention_context,
           NULL as score,
           NULL as mention_id,
-          d.title,
+          ${titleColumn},
           d.file_path,
           d.evidence_type,
           d.red_flag_rating,

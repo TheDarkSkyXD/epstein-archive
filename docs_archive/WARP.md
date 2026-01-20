@@ -12,6 +12,28 @@ This repository is a full-stack investigative dashboard for the Epstein document
 
 The system assumes a local or mounted SQLite database file (highly curated) and a large corpus of source documents in `data/` and external paths.
 
+## CRITICAL: CI Requirements Before Committing
+
+**YOU MUST verify the following commands pass BEFORE every commit and push:**
+
+```bash
+# 1. Type checking - MUST pass
+npm run type-check
+
+# 2. Linting - MUST pass (0 errors, warnings OK)
+npm run lint
+
+# 3. Build - MUST succeed
+npm run build
+```
+
+**NEVER commit and push without running these checks first.** CI failures waste time and block the pipeline.
+
+If any of these fail:
+1. Fix the errors locally
+2. Re-run all three checks
+3. Only then commit and push
+
 ## Core development commands
 
 All commands below are run from the repository root unless noted.

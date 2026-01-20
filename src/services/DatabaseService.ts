@@ -169,8 +169,6 @@ export class DatabaseService {
         );
 
         CREATE INDEX IF NOT EXISTS idx_documents_date ON documents(date_created);
-        CREATE INDEX IF NOT EXISTS idx_timeline_events_date ON timeline_events(event_date DESC);
-        CREATE INDEX IF NOT EXISTS idx_timeline_events_type ON timeline_events(event_type);
       `);
     }
 

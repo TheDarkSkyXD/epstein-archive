@@ -499,7 +499,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
         })
         .catch((err) => console.error('Error fetching selected document:', err));
     }
-  }, [selectedDocumentId, documents, selectedDocument]);
+  }, [selectedDocumentId, documents, selectedDocument, handleDocumentSelect]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- collection is stable for this memo
   const fileTypeOptions = useMemo(() => {
@@ -710,8 +710,8 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
         const text = sel.toString();
         setSnippetText(text.length > 0 ? text : '');
       };
-      (window.document as any).addEventListener('mouseup', handler);
-      return () => (window.document as any).removeEventListener('mouseup', handler);
+      document.addEventListener('mouseup', handler);
+      return () => document.removeEventListener('mouseup', handler);
       // We intentionally only depend on setSnippetText, which is stable from React state
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [setSnippetText]);

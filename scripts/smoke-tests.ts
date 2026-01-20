@@ -3,7 +3,7 @@ import assert from 'node:assert';
 // BASE_URL reserved for future UI smoke tests
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const BASE_URL = process.env.SMOKE_BASE_URL || 'http://localhost:5173';
-const API_BASE = process.env.SMOKE_API_BASE_URL || 'http://localhost:3012';
+const API_BASE = process.env.SMOKE_API_BASE_URL || 'http://localhost:3000';
 
 async function checkJson(path: string) {
   const url = `${API_BASE}${path}`;

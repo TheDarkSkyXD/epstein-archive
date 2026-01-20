@@ -841,8 +841,8 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                 Investigation Dashboard
               </h1>
               <p className="text-slate-400 max-w-2xl mx-auto text-lg">
-                Manage your investigations, organize evidence, and collaborate with your team. Select
-                an active investigation below or start a new one.
+                Manage your investigations, organize evidence, and collaborate with your team.
+                Select an active investigation below or start a new one.
               </p>
             </div>
 
@@ -1089,7 +1089,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
           {/* Main Content */}
           <div className="flex-1 p-6 overflow-y-auto bg-slate-900">
             {activeTab === 'board' && selectedInvestigation && (
-               <InvestigationBoard investigationId={selectedInvestigation.id} />
+              <InvestigationBoard investigationId={selectedInvestigation.id} />
             )}
             {activeTab === 'overview' && (
               <div className="max-w-4xl">

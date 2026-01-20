@@ -4,6 +4,11 @@ export const statsRepository = {
   getStatistics: () => {
     const db = getDb();
 
+    // Check which columns exist in entities table
+    const entityCols = db.prepare('PRAGMA table_info(entities)').all() as { name: string }[];
+    const entityColNames = new Set(entityCols.map((c) => c.name));
+    const hasTypeColumn = entityColNames.has('type');
+
     // Aggregate stats query
     const stats = db
       .prepare(
@@ -65,14 +70,14 @@ export const statsRepository = {
       },
     ];
 
-    // Get top entities by mentions - ONLY Person type, excluding junk patterns
+    // Get top entities by mentions - ONLY Person type (if column exists), excluding junk patterns
     const topEntities = db
       .prepare(
         `
       SELECT full_name as name, mentions, red_flag_rating as redFlagRating
       FROM entities
       WHERE mentions > 0 
-      AND (type = 'Person' OR type IS NULL)
+      ${hasTypeColumn ? "AND (type = 'Person' OR type IS NULL)" : ''}
       AND full_name NOT LIKE 'The %'
       AND full_name NOT LIKE '% Like'
       AND full_name NOT LIKE '% Like %'

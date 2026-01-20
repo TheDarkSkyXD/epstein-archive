@@ -4,11 +4,17 @@ export const entityEvidenceRepository = {
   async getEntityMentionEvidence(entityId: string) {
     const db = getDb();
 
-    // Basic entity lookup
+    // Check which columns exist in entities table
+    const entityCols = db.prepare('PRAGMA table_info(entities)').all() as { name: string }[];
+    const entityColNames = new Set(entityCols.map((c) => c.name));
+    const hasEntityCategory = entityColNames.has('entity_category');
+    const hasRiskLevel = entityColNames.has('risk_level');
+
+    // Basic entity lookup - only select columns that exist
     const entity = db
       .prepare(
         `
-        SELECT id, full_name, primary_role, entity_category, risk_level
+        SELECT id, full_name, primary_role${hasEntityCategory ? ', entity_category' : ''}${hasRiskLevel ? ', risk_level' : ''}
         FROM entities
         WHERE id = ?
       `,
@@ -137,7 +143,7 @@ export const entityEvidenceRepository = {
         SELECT
           other.id,
           other.full_name,
-          other.entity_category,
+          ${hasEntityCategory ? 'other.entity_category,' : ''}
           SUM(r.weight) as shared_evidence_count
         FROM relations r
         JOIN entities other ON
@@ -146,7 +152,7 @@ export const entityEvidenceRepository = {
             ELSE r.subject_entity_id
           END
         WHERE r.subject_entity_id = :entityId OR r.object_entity_id = :entityId
-        GROUP BY other.id, other.full_name, other.entity_category
+        GROUP BY other.id, other.full_name${hasEntityCategory ? ', other.entity_category' : ''}
         ORDER BY shared_evidence_count DESC
         LIMIT 20
       `;

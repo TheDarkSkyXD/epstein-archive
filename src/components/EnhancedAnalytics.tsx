@@ -202,7 +202,7 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
             Entity Connection Network
           </span>
           <span className="ml-auto text-xs font-medium px-3 py-1 bg-emerald-500/10 text-emerald-300 rounded-full border border-emerald-500/20">
-            Top 500 by Connections
+            Top 200 • Clustered by Type
           </span>
         </h3>
 
@@ -220,7 +220,7 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
             entities={topConnectedEntities}
             relationships={topRelationships}
             onEntityClick={(entity) => onEntitySelect?.(entity.id)}
-            maxNodes={500}
+            maxNodes={200}
           />
         </div>
 

@@ -50,8 +50,8 @@ const getRiskColor = (riskLevel: number): string => {
 };
 
 const getNodeSize = (connectionCount: number, maxConnections: number): number => {
-  const minSize = 3;
-  const maxSize = 12;
+  const minSize = 4;
+  const maxSize = 14;
   const ratio = connectionCount / Math.max(maxConnections, 1);
   return minSize + (maxSize - minSize) * Math.sqrt(ratio);
 };
@@ -89,7 +89,7 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
   entities,
   relationships,
   onEntityClick,
-  maxNodes = 600,
+  maxNodes = 200,
   onFilterUpdate,
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -138,33 +138,62 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
     [entities],
   );
 
-  // Initialize nodes with Spiral Layout
+  // Initialize nodes with Clustered Spiral Layout
+  // Groups entities by type/role for better visual organization
   useEffect(() => {
     const topEntities = entities.slice(0, maxNodes);
 
+    // Group entities by type for clustering
+    const typeGroups = new Map<string, typeof topEntities>();
+    topEntities.forEach((entity) => {
+      const type = entity.type || entity.role || 'unknown';
+      if (!typeGroups.has(type)) typeGroups.set(type, []);
+      typeGroups.get(type)!.push(entity);
+    });
+
     const goldenAngle = Math.PI * (3 - Math.sqrt(5));
     const count = topEntities.length;
-    const rStep = count > 100 ? 4 : 6;
+    // Increased spacing: larger rStep values spread nodes further apart
+    const rStep = count > 150 ? 8 : count > 80 ? 10 : 12;
 
-    const initialNodes = topEntities.map((entity, index) => {
-      const r = rStep * Math.sqrt(index + 2);
-      const theta = index * goldenAngle;
-
-      const x = 50 + r * Math.cos(theta);
-      const y = 50 + r * Math.sin(theta);
-
-      const maxConn = Math.max(1, ...topEntities.map((n) => n.connectionCount));
-      const size = getNodeSize(entity.connectionCount, maxConn);
-
-      return {
-        ...entity,
-        x,
-        y,
-        vx: 0,
-        vy: 0,
-        radius: size,
-      };
+    // Assign cluster centers for each type (spread around the center)
+    const clusterCenters = new Map<string, { x: number; y: number }>();
+    const types = Array.from(typeGroups.keys());
+    types.forEach((type, i) => {
+      const angle = (i / types.length) * 2 * Math.PI;
+      const clusterRadius = count > 100 ? 25 : 20; // Distance from center for cluster centers
+      clusterCenters.set(type, {
+        x: 50 + Math.cos(angle) * clusterRadius,
+        y: 50 + Math.sin(angle) * clusterRadius,
+      });
     });
+
+    const initialNodes: GraphNode[] = [];
+    const maxConn = Math.max(1, ...topEntities.map((n) => n.connectionCount));
+
+    // Place nodes in clusters using spiral within each cluster
+    typeGroups.forEach((groupEntities, type) => {
+      const center = clusterCenters.get(type) || { x: 50, y: 50 };
+      groupEntities.forEach((entity, localIndex) => {
+        const r = rStep * Math.sqrt(localIndex + 1);
+        const theta = localIndex * goldenAngle;
+
+        const x = center.x + r * Math.cos(theta) * 0.6; // Scale down within cluster
+        const y = center.y + r * Math.sin(theta) * 0.6;
+
+        const size = getNodeSize(entity.connectionCount, maxConn);
+
+        initialNodes.push({
+          ...entity,
+          x,
+          y,
+          vx: 0,
+          vy: 0,
+          radius: size,
+        });
+      });
+    });
+
     setNodes(initialNodes);
     useWorkerRef.current = initialNodes.length > 40;
   }, [entities, maxNodes]);
@@ -208,7 +237,7 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
         weight: r.weight || 1,
         normalizedWeight: (r.weight || 1) / maxWeight,
       }))
-      .slice(0, 500);
+      .slice(0, 100); // Limit to 100 connections to prevent overcrowding
   }, [filteredNodes, relationships]);
 
   // Physics simulation

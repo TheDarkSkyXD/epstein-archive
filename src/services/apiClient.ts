@@ -191,9 +191,7 @@ class ApiClient {
     return this.fetchWithErrorHandling<{ data: any[]; total: number }>(url, { useCache: true });
   }
 
-  async getDocumentThread(
-    id: string,
-  ): Promise<{ threadId: string; messages: any[] }> {
+  async getDocumentThread(id: string): Promise<{ threadId: string; messages: any[] }> {
     const url = `${API_BASE_URL}/documents/${id}/thread`;
     return this.fetchWithErrorHandling<{ threadId: string; messages: any[] }>(url, {
       useCache: true,

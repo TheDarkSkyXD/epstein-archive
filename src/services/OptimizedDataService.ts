@@ -187,8 +187,10 @@ export class OptimizedDataService {
 
                 // Heuristic risk calibration from mentions, using Trump/Maxwell scale as baseline
                 let mentionRisk = 0;
-                if (mentions >= 2000) mentionRisk = 5; // e.g. Epstein, Trump tier
-                else if (mentions >= 250) mentionRisk = 4; // e.g. Maxwell tier
+                if (mentions >= 2000)
+                  mentionRisk = 5; // e.g. Epstein, Trump tier
+                else if (mentions >= 250)
+                  mentionRisk = 4; // e.g. Maxwell tier
                 else if (mentions >= 50) mentionRisk = 3;
                 else if (mentions >= 10) mentionRisk = 2;
 

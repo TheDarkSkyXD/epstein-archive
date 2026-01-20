@@ -229,6 +229,36 @@ export const entitiesRepository = {
       } catch (e) {
         console.error('Error fetching photos for entity list:', e);
       }
+
+      // Batch fetch evidence types for these entities
+      try {
+        const evidenceTypesSql = `
+          SELECT eet.entity_id, et.type_name
+          FROM entity_evidence_types eet
+          JOIN evidence_types et ON eet.evidence_type_id = et.id
+          WHERE eet.entity_id IN (${entityIds.join(',')})
+        `;
+        const evidenceTypes = db.prepare(evidenceTypesSql).all() as {
+          entity_id: number;
+          type_name: string;
+        }[];
+
+        // Map evidence types to entities
+        const evidenceTypesByEntity: Record<number, string[]> = {};
+        for (const et of evidenceTypes) {
+          if (!evidenceTypesByEntity[et.entity_id]) evidenceTypesByEntity[et.entity_id] = [];
+          if (!evidenceTypesByEntity[et.entity_id].includes(et.type_name)) {
+            evidenceTypesByEntity[et.entity_id].push(et.type_name);
+          }
+        }
+
+        // Attach to entities
+        for (const entity of entities) {
+          entity.evidence_types = evidenceTypesByEntity[entity.id] || [];
+        }
+      } catch (e) {
+        console.error('Error fetching evidence types for entity list:', e);
+      }
     }
 
     return {
@@ -303,6 +333,19 @@ export const entitiesRepository = {
         `,
       )
       .get(entity.id) as any;
+
+    // Get evidence types for this entity
+    const evidenceTypes = db
+      .prepare(
+        `
+            SELECT et.type_name
+            FROM entity_evidence_types eet
+            JOIN evidence_types et ON eet.evidence_type_id = et.id
+            WHERE eet.entity_id = ?
+        `,
+      )
+      .all(entity.id) as { type_name: string }[];
+
     return {
       ...entity,
       // Map DB fields to frontend expected camelCase
@@ -313,6 +356,9 @@ export const entitiesRepository = {
       redFlagRating: entity.red_flag_rating,
       redFlagDescription: entity.red_flag_description,
       fileReferences,
+      // Add evidence types
+      evidence_types: evidenceTypes.map((et) => et.type_name),
+      evidenceTypes: evidenceTypes.map((et) => et.type_name),
       // Add Black Book information if available
       blackBookEntry: blackBookEntry
         ? {

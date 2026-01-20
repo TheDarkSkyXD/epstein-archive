@@ -15,6 +15,7 @@ export interface Article {
   imageUrl?: string | null;
   authorAvatar?: string;
   readingTime?: string;
+  reading_time?: string; // From API
   premium?: boolean;
 }
 

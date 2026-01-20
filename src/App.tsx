@@ -1172,20 +1172,38 @@ function App() {
                     </div>
 
                     {/* Search Bar */}
-                    <div className="relative flex-1 md:flex-none">
-                      <Icon
-                        name="Search"
-                        size="sm"
-                        color="gray"
-                        className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Search evidence..."
-                        className="w-full md:w-64 pl-9 pr-4 py-2 bg-slate-800/80 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 text-sm transition-all focus:w-full md:focus:w-80"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                      />
+                    <div className="relative flex-1 md:flex-none flex gap-2">
+                      <div className="relative flex-1">
+                        <Icon
+                          name="Search"
+                          size="sm"
+                          color="gray"
+                          className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Search evidence..."
+                          className="w-full md:w-64 pl-9 pr-4 py-2 bg-slate-800/80 border border-slate-600/50 rounded-l-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 text-sm transition-all focus:w-full md:focus:w-80"
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && searchTerm.trim()) {
+                              navigate(`/search?q=${encodeURIComponent(searchTerm)}`);
+                            }
+                          }}
+                        />
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (searchTerm.trim()) {
+                            navigate(`/search?q=${encodeURIComponent(searchTerm)}`);
+                          }
+                        }}
+                        className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-r-lg transition-colors text-sm font-medium flex items-center gap-1"
+                      >
+                        <Icon name="Search" size="sm" />
+                        <span className="hidden md:inline">Search</span>
+                      </button>
                       {searchTerm.trim().length >= 2 && (
                         <div className="absolute right-0 mt-1 w-full md:w-96 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
                           <div className="p-2 text-xs text-slate-400 border-b border-slate-700">
@@ -1467,6 +1485,18 @@ function App() {
                 >
                   <Icon name="Clock" size="sm" />
                   <span className="truncate">Timeline</span>
+                </button>
+                <button
+                  onClick={() => navigate('/flights')}
+                  onMouseEnter={() => preloader.prefetchJson('/api/flights')}
+                  className={`flex-auto flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
+                    activeTab === 'flights'
+                      ? 'bg-gradient-to-r from-cyan-600 to-cyan-500 text-white border border-cyan-400/50 shadow-cyan-500/20'
+                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
+                  }`}
+                >
+                  <Icon name="Navigation" size="sm" />
+                  <span className="truncate">Flights</span>
                 </button>
                 <button
                   onClick={() => navigate('/media')}

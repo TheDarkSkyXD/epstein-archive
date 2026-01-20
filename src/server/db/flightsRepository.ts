@@ -257,4 +257,213 @@ export const flightsRepository = {
   getAirportCoords: () => {
     return AIRPORT_COORDS;
   },
+
+  /**
+   * Get passenger co-occurrence matrix - who flew together and how often
+   */
+  getPassengerCoOccurrences: (
+    minFlights = 2,
+  ): {
+    passenger1: string;
+    passenger2: string;
+    flightsTogether: number;
+    firstFlight: string;
+    lastFlight: string;
+  }[] => {
+    const db = getDb();
+    return db
+      .prepare(
+        `
+      SELECT 
+        fp1.passenger_name as passenger1,
+        fp2.passenger_name as passenger2,
+        COUNT(DISTINCT fp1.flight_id) as flightsTogether,
+        MIN(f.date) as firstFlight,
+        MAX(f.date) as lastFlight
+      FROM flight_passengers fp1
+      JOIN flight_passengers fp2 ON fp1.flight_id = fp2.flight_id AND fp1.passenger_name < fp2.passenger_name
+      JOIN flights f ON fp1.flight_id = f.id
+      WHERE fp1.passenger_name != 'Jeffrey Epstein' AND fp2.passenger_name != 'Jeffrey Epstein'
+      GROUP BY fp1.passenger_name, fp2.passenger_name
+      HAVING COUNT(DISTINCT fp1.flight_id) >= ?
+      ORDER BY flightsTogether DESC
+      LIMIT 50
+    `,
+      )
+      .all(minFlights) as {
+      passenger1: string;
+      passenger2: string;
+      flightsTogether: number;
+      firstFlight: string;
+      lastFlight: string;
+    }[];
+  },
+
+  /**
+   * Get co-passengers for a specific person
+   */
+  getCoPassengers: (
+    passengerName: string,
+  ): { name: string; flightsTogether: number; flights: string[] }[] => {
+    const db = getDb();
+    const results = db
+      .prepare(
+        `
+      SELECT 
+        fp2.passenger_name as name,
+        COUNT(DISTINCT fp1.flight_id) as flightsTogether,
+        GROUP_CONCAT(DISTINCT f.date) as flightDates
+      FROM flight_passengers fp1
+      JOIN flight_passengers fp2 ON fp1.flight_id = fp2.flight_id AND fp1.passenger_name != fp2.passenger_name
+      JOIN flights f ON fp1.flight_id = f.id
+      WHERE fp1.passenger_name LIKE ?
+      GROUP BY fp2.passenger_name
+      ORDER BY flightsTogether DESC
+    `,
+      )
+      .all(`%${passengerName}%`) as {
+      name: string;
+      flightsTogether: number;
+      flightDates: string;
+    }[];
+
+    return results.map((r) => ({
+      name: r.name,
+      flightsTogether: r.flightsTogether,
+      flights: r.flightDates ? r.flightDates.split(',') : [],
+    }));
+  },
+
+  /**
+   * Get most frequent routes
+   */
+  getFrequentRoutes: (
+    limit = 20,
+  ): {
+    departure: string;
+    arrival: string;
+    departureCity: string;
+    arrivalCity: string;
+    count: number;
+    passengers: string[];
+  }[] => {
+    const db = getDb();
+    const routes = db
+      .prepare(
+        `
+      SELECT 
+        f.departure_airport as departure,
+        f.arrival_airport as arrival,
+        f.departure_city as departureCity,
+        f.arrival_city as arrivalCity,
+        COUNT(*) as count,
+        GROUP_CONCAT(DISTINCT fp.passenger_name) as passengerList
+      FROM flights f
+      LEFT JOIN flight_passengers fp ON f.id = fp.flight_id
+      GROUP BY f.departure_airport, f.arrival_airport
+      ORDER BY count DESC
+      LIMIT ?
+    `,
+      )
+      .all(limit) as {
+      departure: string;
+      arrival: string;
+      departureCity: string;
+      arrivalCity: string;
+      count: number;
+      passengerList: string;
+    }[];
+
+    return routes.map((r) => ({
+      departure: r.departure,
+      arrival: r.arrival,
+      departureCity: r.departureCity,
+      arrivalCity: r.arrivalCity,
+      count: r.count,
+      passengers: r.passengerList ? r.passengerList.split(',') : [],
+    }));
+  },
+
+  /**
+   * Get first and last flight dates for each passenger
+   */
+  getPassengerDateRanges: (): {
+    name: string;
+    firstFlight: string;
+    lastFlight: string;
+    totalFlights: number;
+  }[] => {
+    const db = getDb();
+    return db
+      .prepare(
+        `
+      SELECT 
+        fp.passenger_name as name,
+        MIN(f.date) as firstFlight,
+        MAX(f.date) as lastFlight,
+        COUNT(DISTINCT f.id) as totalFlights
+      FROM flight_passengers fp
+      JOIN flights f ON fp.flight_id = f.id
+      GROUP BY fp.passenger_name
+      ORDER BY totalFlights DESC
+    `,
+      )
+      .all() as { name: string; firstFlight: string; lastFlight: string; totalFlights: number }[];
+  },
+
+  /**
+   * Get flights by aircraft
+   */
+  getFlightsByAircraft: (): {
+    aircraft: string;
+    aircraftType: string;
+    flightCount: number;
+    passengerCount: number;
+  }[] => {
+    const db = getDb();
+    return db
+      .prepare(
+        `
+      SELECT 
+        f.aircraft_tail as aircraft,
+        f.aircraft_type as aircraftType,
+        COUNT(DISTINCT f.id) as flightCount,
+        COUNT(DISTINCT fp.passenger_name) as passengerCount
+      FROM flights f
+      LEFT JOIN flight_passengers fp ON f.id = fp.flight_id
+      GROUP BY f.aircraft_tail
+      ORDER BY flightCount DESC
+    `,
+      )
+      .all() as {
+      aircraft: string;
+      aircraftType: string;
+      flightCount: number;
+      passengerCount: number;
+    }[];
+  },
+
+  /**
+   * Get destination frequency by passenger
+   */
+  getPassengerDestinations: (
+    passengerName: string,
+  ): { airport: string; city: string; visitCount: number }[] => {
+    const db = getDb();
+    return db
+      .prepare(
+        `
+      SELECT 
+        f.arrival_airport as airport,
+        f.arrival_city as city,
+        COUNT(*) as visitCount
+      FROM flights f
+      JOIN flight_passengers fp ON f.id = fp.flight_id
+      WHERE fp.passenger_name LIKE ?
+      GROUP BY f.arrival_airport
+      ORDER BY visitCount DESC
+    `,
+      )
+      .all(`%${passengerName}%`) as { airport: string; city: string; visitCount: number }[];
+  },
 };

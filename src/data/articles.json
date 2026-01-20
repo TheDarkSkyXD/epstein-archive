@@ -375,5 +375,44 @@
     "redFlagRating": 5,
     "imageUrl": null,
     "readingTime": "15 min read"
+  },
+  {
+    "id": 31,
+    "title": "Trump's Only Friend: Jeffrey Epstein",
+    "url": "https://generik.substack.com/p/trumps-only-friend-jeffrey-epstein",
+    "author": "Erik Veland",
+    "publication": "The End Times",
+    "published_date": "2025-12-22",
+    "summary": "Deep dive into the decades-long relationship between Donald Trump and Jeffrey Epstein, from their Mar-a-Lago parties to court depositions.",
+    "tags": "Trump, Epstein, Investigation, Original Research",
+    "redFlagRating": 5,
+    "imageUrl": "https://substackcdn.com/image/fetch/f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F83911d4c-b770-45e8-9edd-5fb7c24c59f8_2932x1838.heic",
+    "readingTime": "20 min read"
+  },
+  {
+    "id": 32,
+    "title": "The Epstein Files Archive",
+    "url": "https://generik.substack.com/p/the-epstein-files-archive",
+    "author": "Erik Veland",
+    "publication": "The End Times",
+    "published_date": "2025-12-18",
+    "summary": "Introduction to the comprehensive Epstein Files Archive project, cataloging thousands of documents and connections.",
+    "tags": "Archive, Investigation, Documents, Original Research",
+    "redFlagRating": 5,
+    "imageUrl": "https://substackcdn.com/image/fetch/f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F207fa337-ed25-4d4d-9a00-4c8d353ba5fa_1280x1280.png",
+    "readingTime": "10 min read"
+  },
+  {
+    "id": 33,
+    "title": "Blood In the Water",
+    "url": "https://generik.substack.com/p/blood-in-the-water",
+    "author": "Erik Veland",
+    "publication": "The End Times",
+    "published_date": "2025-12-05",
+    "summary": "Analysis of the political fallout and media coverage surrounding the Epstein revelations.",
+    "tags": "Media, Politics, Analysis, Original Research",
+    "redFlagRating": 4,
+    "imageUrl": "https://substackcdn.com/image/fetch/f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fblood-water-hero.heic",
+    "readingTime": "15 min read"
   }
 ]

@@ -42,17 +42,6 @@ export const MediaAndArticlesTab: React.FC = () => {
       {/* Sub-tab Navigation */}
       <div className="flex-none flex gap-2 border-b border-slate-800 bg-slate-900 px-4 pt-2 z-20 overflow-x-auto scrollbar-thin scrollbar-thumb-slate-700/60 scrollbar-track-transparent -mx-4 sm:mx-0">
         <button
-          onClick={() => navigateToTab('articles')}
-          className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-all ${
-            activeSubTab === 'articles'
-              ? 'border-blue-500 text-blue-500 bg-blue-500/5'
-              : 'border-transparent text-slate-500 hover:text-slate-300 hover:bg-slate-800/50'
-          }`}
-        >
-          <Newspaper className="h-4 w-4" />
-          <span className="font-medium text-sm">Articles</span>
-        </button>
-        <button
           onClick={() => navigateToTab('photos')}
           className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-all ${
             activeSubTab === 'photos'
@@ -84,6 +73,17 @@ export const MediaAndArticlesTab: React.FC = () => {
         >
           <Film className="h-4 w-4" />
           <span className="font-medium text-sm">Video</span>
+        </button>
+        <button
+          onClick={() => navigateToTab('articles')}
+          className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-all ${
+            activeSubTab === 'articles'
+              ? 'border-blue-500 text-blue-500 bg-blue-500/5'
+              : 'border-transparent text-slate-500 hover:text-slate-300 hover:bg-slate-800/50'
+          }`}
+        >
+          <Newspaper className="h-4 w-4" />
+          <span className="font-medium text-sm">Articles</span>
         </button>
       </div>
 

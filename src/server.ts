@@ -3341,6 +3341,104 @@ app.delete(
   },
 );
 
+// ============ PALM BEACH PROPERTIES API ============
+import { propertiesRepository } from './server/db/propertiesRepository.js';
+
+// Get properties with filtering and pagination
+app.get('/api/properties', async (req, res, next) => {
+  try {
+    const filters = {
+      page: parseInt(req.query.page as string) || 1,
+      limit: Math.min(100, parseInt(req.query.limit as string) || 50),
+      ownerSearch: req.query.owner as string,
+      minValue: req.query.minValue ? parseFloat(req.query.minValue as string) : undefined,
+      maxValue: req.query.maxValue ? parseFloat(req.query.maxValue as string) : undefined,
+      propertyUse: req.query.propertyUse as string,
+      knownAssociatesOnly: req.query.knownAssociatesOnly === 'true',
+      sortBy: (req.query.sortBy as 'value' | 'owner' | 'year') || 'value',
+      sortOrder: (req.query.sortOrder as 'asc' | 'desc') || 'desc',
+    };
+
+    const result = propertiesRepository.getProperties(filters);
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching properties:', error);
+    next(error);
+  }
+});
+
+// Get property statistics
+app.get('/api/properties/stats', async (req, res, next) => {
+  try {
+    const stats = propertiesRepository.getPropertyStats();
+    res.json(stats);
+  } catch (error) {
+    console.error('Error fetching property stats:', error);
+    next(error);
+  }
+});
+
+// Get known associate properties
+app.get('/api/properties/known-associates', async (req, res, next) => {
+  try {
+    const properties = propertiesRepository.getKnownAssociateProperties();
+    res.json(properties);
+  } catch (error) {
+    console.error('Error fetching known associate properties:', error);
+    next(error);
+  }
+});
+
+// Get Epstein properties
+app.get('/api/properties/epstein', async (req, res, next) => {
+  try {
+    const properties = propertiesRepository.getEpsteinProperties();
+    res.json(properties);
+  } catch (error) {
+    console.error('Error fetching Epstein properties:', error);
+    next(error);
+  }
+});
+
+// Get property value distribution
+app.get('/api/properties/value-distribution', async (req, res, next) => {
+  try {
+    const distribution = propertiesRepository.getValueDistribution();
+    res.json(distribution);
+  } catch (error) {
+    console.error('Error fetching value distribution:', error);
+    next(error);
+  }
+});
+
+// Get top property owners
+app.get('/api/properties/top-owners', async (req, res, next) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 20;
+    const owners = propertiesRepository.getTopOwners(limit);
+    res.json(owners);
+  } catch (error) {
+    console.error('Error fetching top owners:', error);
+    next(error);
+  }
+});
+
+// Get single property by ID
+app.get('/api/properties/:id', async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid property ID' });
+
+    const property = propertiesRepository.getPropertyById(id);
+    if (!property) return res.status(404).json({ error: 'Property not found' });
+
+    res.json(property);
+  } catch (error) {
+    console.error('Error fetching property:', error);
+    next(error);
+  }
+});
+
 // ============ FLIGHT TRACKER API ============
 import { flightsRepository } from './server/db/flightsRepository.js';
 
@@ -3417,6 +3515,76 @@ app.get('/api/flights/passenger/:name', async (req, res, next) => {
     const flights = flightsRepository.getPassengerFlights(name);
     res.json(flights);
   } catch (error) {
+    next(error);
+  }
+});
+
+// Get passenger co-occurrences (who flew together)
+app.get('/api/flights/co-occurrences', async (req, res, next) => {
+  try {
+    const minFlights = parseInt(req.query.minFlights as string) || 2;
+    const coOccurrences = flightsRepository.getPassengerCoOccurrences(minFlights);
+    res.json(coOccurrences);
+  } catch (error) {
+    console.error('Error fetching co-occurrences:', error);
+    next(error);
+  }
+});
+
+// Get co-passengers for a specific person
+app.get('/api/flights/co-passengers/:name', async (req, res, next) => {
+  try {
+    const name = decodeURIComponent(req.params.name);
+    const coPassengers = flightsRepository.getCoPassengers(name);
+    res.json(coPassengers);
+  } catch (error) {
+    console.error('Error fetching co-passengers:', error);
+    next(error);
+  }
+});
+
+// Get frequent routes
+app.get('/api/flights/routes', async (req, res, next) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 20;
+    const routes = flightsRepository.getFrequentRoutes(limit);
+    res.json(routes);
+  } catch (error) {
+    console.error('Error fetching routes:', error);
+    next(error);
+  }
+});
+
+// Get passenger date ranges (first/last flight)
+app.get('/api/flights/passenger-ranges', async (req, res, next) => {
+  try {
+    const ranges = flightsRepository.getPassengerDateRanges();
+    res.json(ranges);
+  } catch (error) {
+    console.error('Error fetching passenger ranges:', error);
+    next(error);
+  }
+});
+
+// Get flights by aircraft
+app.get('/api/flights/aircraft', async (req, res, next) => {
+  try {
+    const aircraft = flightsRepository.getFlightsByAircraft();
+    res.json(aircraft);
+  } catch (error) {
+    console.error('Error fetching aircraft stats:', error);
+    next(error);
+  }
+});
+
+// Get destinations for a passenger
+app.get('/api/flights/destinations/:name', async (req, res, next) => {
+  try {
+    const name = decodeURIComponent(req.params.name);
+    const destinations = flightsRepository.getPassengerDestinations(name);
+    res.json(destinations);
+  } catch (error) {
+    console.error('Error fetching destinations:', error);
     next(error);
   }
 });
@@ -3629,60 +3797,346 @@ app.post('/api/memory/:id/quality', async (req, res, next) => {
 // Error handling middleware (must be last)
 app.use(globalErrorHandler);
 
+// Helper to inject Open Graph tags into HTML
+function injectOgTags(
+  html: string,
+  ogData: { title: string; description: string; imageUrl: string; url: string },
+) {
+  const safeTitle = ogData.title
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const safeDesc = ogData.description
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  const ogTags = `
+    <!-- Dynamic Open Graph Tags -->
+    <meta property="og:title" content="${safeTitle}" />
+    <meta property="og:description" content="${safeDesc}" />
+    <meta property="og:image" content="${ogData.imageUrl}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="${ogData.url}" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${safeTitle}" />
+    <meta name="twitter:description" content="${safeDesc}" />
+    <meta name="twitter:image" content="${ogData.imageUrl}" />
+  `;
+
+  const defaultTagsRegex =
+    /<!-- Default Open Graph Tags -->[\s\S]*?<meta name="twitter:image" content=".*?" \/>/;
+  if (defaultTagsRegex.test(html)) {
+    return html.replace(defaultTagsRegex, ogTags);
+  } else {
+    return html.replace('</head>', `${ogTags}</head>`);
+  }
+}
+
 // SPA fallback to index.html for non-API routes
 app.get('*', async (req, res, next) => {
   if (req.path.startsWith('/api/')) return next();
 
   const indexFile = path.join(distPath, 'index.html');
   if (fs.existsSync(indexFile)) {
-    // Check if we need to inject Open Graph tags for deep links
-    const photoId = req.query.photoId;
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const defaultOgImage = `${baseUrl}/og-image.png`;
+    let html = fs.readFileSync(indexFile, 'utf8');
 
-    if (photoId) {
-      try {
+    try {
+      // Check for photo deep links
+      const photoId = req.query.photoId;
+      if (photoId) {
         const id = parseInt(photoId as string);
         if (!isNaN(id)) {
           const image = mediaService.getImageById(id);
           if (image) {
-            let html = fs.readFileSync(indexFile, 'utf8');
-            const baseUrl = `${req.protocol}://${req.get('host')}`;
             const imageUrl = `${baseUrl}/api/media/images/${id}/raw?v=${new Date(image.dateModified || image.dateAdded || 0).getTime()}`;
-            const title = image.title || image.filename;
-            const description =
-              image.description || `Photo from Epstein Archive - ${image.filename}`;
-
-            // Generate OG Tags
-            const ogTags = `
-              <!-- Dynamic Open Graph Tags -->
-              <meta property="og:title" content="${title.replace(/"/g, '&quot;')}" />
-              <meta property="og:description" content="${description.replace(/"/g, '&quot;')}" />
-              <meta property="og:image" content="${imageUrl}" />
-              <meta property="og:type" content="website" />
-              <meta property="og:url" content="${baseUrl}${req.originalUrl}" />
-              <meta name="twitter:card" content="summary_large_image" />
-              <meta name="twitter:title" content="${title.replace(/"/g, '&quot;')}" />
-              <meta name="twitter:description" content="${description.replace(/"/g, '&quot;')}" />
-              <meta name="twitter:image" content="${imageUrl}" />
-            `;
-
-            // Replace default tags
-            // We look for the block starting with our comment and ending with the last twitter tag
-            const defaultTagsRegex =
-              /<!-- Default Open Graph Tags -->[\s\S]*?<meta name="twitter:image" content=".*?" \/>/;
-            if (defaultTagsRegex.test(html)) {
-              html = html.replace(defaultTagsRegex, ogTags);
-            } else {
-              // Fallback: append to head if regex fails (shouldn't happen if index.html is synced)
-              html = html.replace('</head>', `${ogTags}</head>`);
-            }
-
+            html = injectOgTags(html, {
+              title: image.title || image.filename || 'Photo - Epstein Files Archive',
+              description:
+                image.description || `Photo from Epstein Files Archive - ${image.filename}`,
+              imageUrl,
+              url: `${baseUrl}${req.originalUrl}`,
+            });
             return res.send(html);
           }
         }
-      } catch (err) {
-        console.error('Error injecting OG tags:', err);
-        // Fallback to sending file normally
       }
+
+      // Check for entity deep links (e.g., /subjects?entity=123 or /entity/123)
+      const entityId = req.query.entity || req.query.entityId;
+      if (entityId) {
+        const entity = entitiesRepository.getEntityById(String(entityId));
+        if (entity) {
+          const entityName = entity.fullName || entity.full_name || 'Unknown Entity';
+          const role = entity.primaryRole || entity.primary_role || '';
+          html = injectOgTags(html, {
+            title: `${entityName} - Epstein Files Archive`,
+            description: role
+              ? `${entityName} (${role}) - View connections, documents and evidence in the Epstein Files Archive`
+              : `${entityName} - View connections, documents and evidence in the Epstein Files Archive`,
+            imageUrl: defaultOgImage,
+            url: `${baseUrl}${req.originalUrl}`,
+          });
+          return res.send(html);
+        }
+      }
+
+      // Check for document deep links (e.g., /documents?doc=123)
+      const docId = req.query.doc || req.query.documentId;
+      if (docId) {
+        const doc = documentsRepository.getDocumentById(String(docId));
+        if (doc) {
+          const docTitle = doc.file_name || doc.title || 'Document';
+          html = injectOgTags(html, {
+            title: `${docTitle} - Epstein Files Archive`,
+            description:
+              doc.summary ||
+              doc.content?.slice(0, 200) ||
+              `View document: ${docTitle} in the Epstein Files Archive`,
+            imageUrl: defaultOgImage,
+            url: `${baseUrl}${req.originalUrl}`,
+          });
+          return res.send(html);
+        }
+      }
+
+      // Check for entity path deep links (e.g., /entity/123)
+      const entityPathMatch = req.path.match(/^\/entity\/(\d+)/);
+      if (entityPathMatch) {
+        const entity = entitiesRepository.getEntityById(entityPathMatch[1]);
+        if (entity) {
+          const entityName = entity.fullName || entity.full_name || 'Unknown';
+          const role = entity.primaryRole || entity.primary_role || '';
+          const rating = entity.redFlagRating || entity.red_flag_rating || 0;
+          const ratingText =
+            rating >= 4 ? '🔴 High Risk' : rating >= 2 ? '🟡 Medium Risk' : '🟢 Low Risk';
+          html = injectOgTags(html, {
+            title: `${entityName} - Epstein Files Archive`,
+            description: role
+              ? `${entityName} (${role}) ${ratingText} - Explore connections, documents, and evidence in the Epstein Files Archive.`
+              : `${entityName} ${ratingText} - Explore connections, documents, and evidence in the Epstein Files Archive.`,
+            imageUrl: defaultOgImage,
+            url: `${baseUrl}${req.originalUrl}`,
+          });
+          return res.send(html);
+        }
+      }
+
+      // Route-based OG tags for specific pages
+      const routePath = req.path;
+
+      // Timeline
+      if (routePath === '/timeline' || routePath.startsWith('/timeline')) {
+        html = injectOgTags(html, {
+          title: 'Timeline - Epstein Files Archive',
+          description:
+            "Interactive chronological timeline spanning decades of events: from Epstein's rise in the 1980s through trials, investigations, and ongoing revelations.",
+          imageUrl: defaultOgImage,
+          url: `${baseUrl}${req.originalUrl}`,
+        });
+        return res.send(html);
+      }
+
+      // Flights
+      if (routePath === '/flights' || routePath.startsWith('/flights')) {
+        html = injectOgTags(html, {
+          title: 'Flight Logs - Epstein Files Archive',
+          description:
+            'Track the "Lolita Express" and other aircraft. Interactive map visualization of flight routes, passenger manifests, and destinations including Little St. James Island.',
+          imageUrl: defaultOgImage,
+          url: `${baseUrl}${req.originalUrl}`,
+        });
+        return res.send(html);
+      }
+
+      // Media sub-routes
+      if (routePath === '/media/articles' || routePath.startsWith('/media/articles')) {
+        html = injectOgTags(html, {
+          title: 'Articles - Epstein Files Archive',
+          description:
+            'Curated investigative journalism from Miami Herald, Vanity Fair, The Guardian, and original research. Deep dives into the Epstein network and cover-ups.',
+          imageUrl: defaultOgImage,
+          url: `${baseUrl}${req.originalUrl}`,
+        });
+        return res.send(html);
+      }
+
+      if (routePath === '/media/photos' || routePath.startsWith('/media/photos')) {
+        html = injectOgTags(html, {
+          title: 'Photos - Epstein Files Archive',
+          description:
+            'Evidence photos, historical images, and documentation from the Epstein investigation. Browse by album, date, or location.',
+          imageUrl: defaultOgImage,
+          url: `${baseUrl}${req.originalUrl}`,
+        });
+        return res.send(html);
+      }
+
+      if (routePath === '/media/audio' || routePath.startsWith('/media/audio')) {
+        html = injectOgTags(html, {
+          title: 'Audio - Epstein Files Archive',
+          description: 'Audio recordings, depositions, and testimony related to the Epstein case.',
+          imageUrl: defaultOgImage,
+          url: `${baseUrl}${req.originalUrl}`,
+        });
+        return res.send(html);
+      }
+
+      if (routePath === '/media/video' || routePath.startsWith('/media/video')) {
+        html = injectOgTags(html, {
+          title: 'Video - Epstein Files Archive',
+          description:
+            'Video evidence, interviews, and documentary footage related to the Epstein investigation.',
+          imageUrl: defaultOgImage,
+          url: `${baseUrl}${req.originalUrl}`,
+        });
+        return res.send(html);
+      }
+
+      // Generic /media route
+      if (routePath === '/media') {
+        html = injectOgTags(html, {
+          title: 'Media - Epstein Files Archive',
+          description:
+            'Browse photos, videos, audio recordings, and curated articles about the Epstein investigation.',
+          imageUrl: defaultOgImage,
+          url: `${baseUrl}${req.originalUrl}`,
+        });
+        return res.send(html);
+      }
+
+      // Subjects / People
+      if (routePath === '/' || routePath === '/people' || routePath.startsWith('/people')) {
+        html = injectOgTags(html, {
+          title: 'Subjects - Epstein Files Archive',
+          description:
+            'Explore individuals connected to Jeffrey Epstein. Evidence-based risk ratings, document connections, and relationship mapping for 1,000+ subjects.',
+          imageUrl: defaultOgImage,
+          url: `${baseUrl}${req.originalUrl}`,
+        });
+        return res.send(html);
+      }
+
+      // Documents
+      if (routePath === '/documents' || routePath.startsWith('/documents')) {
+        html = injectOgTags(html, {
+          title: 'Documents - Epstein Files Archive',
+          description:
+            'Search thousands of court filings, emails, financial records, and depositions. Full-text search with OCR-processed scanned documents.',
+          imageUrl: defaultOgImage,
+          url: `${baseUrl}${req.originalUrl}`,
+        });
+        return res.send(html);
+      }
+
+      // Black Book
+      if (
+        routePath === '/blackbook' ||
+        routePath.startsWith('/blackbook') ||
+        routePath === '/black-book' ||
+        routePath.startsWith('/black-book')
+      ) {
+        html = injectOgTags(html, {
+          title: 'Black Book - Epstein Files Archive',
+          description:
+            "Explore Jeffrey Epstein's infamous address book containing 1,700+ contacts. Search names, view connections, and cross-reference with flight logs.",
+          imageUrl: defaultOgImage,
+          url: `${baseUrl}${req.originalUrl}`,
+        });
+        return res.send(html);
+      }
+
+      // Search
+      if (routePath === '/search' || routePath.startsWith('/search')) {
+        const searchQuery = req.query.q as string;
+        html = injectOgTags(html, {
+          title: searchQuery
+            ? `"${searchQuery}" - Search Results - Epstein Files Archive`
+            : 'Search - Epstein Files Archive',
+          description: searchQuery
+            ? `Search results for "${searchQuery}" in the Epstein Files Archive. Find entities, documents, and evidence.`
+            : 'Search across entities, documents, flight logs, and evidence in the comprehensive Epstein Files Archive.',
+          imageUrl: defaultOgImage,
+          url: `${baseUrl}${req.originalUrl}`,
+        });
+        return res.send(html);
+      }
+
+      // Investigations
+      if (routePath === '/investigations' || routePath.startsWith('/investigations')) {
+        html = injectOgTags(html, {
+          title: 'Investigations - Epstein Files Archive',
+          description:
+            'Research workspace for building investigation threads. Create hypotheses, link evidence, and export findings.',
+          imageUrl: defaultOgImage,
+          url: `${baseUrl}${req.originalUrl}`,
+        });
+        return res.send(html);
+      }
+
+      // Analytics
+      if (routePath === '/analytics' || routePath.startsWith('/analytics')) {
+        html = injectOgTags(html, {
+          title: 'Analytics - Epstein Files Archive',
+          description:
+            'Data visualizations and network analysis. Explore connection graphs, document timelines, and statistical breakdowns of the evidence.',
+          imageUrl: defaultOgImage,
+          url: `${baseUrl}${req.originalUrl}`,
+        });
+        return res.send(html);
+      }
+
+      // Emails
+      if (routePath === '/emails' || routePath.startsWith('/emails')) {
+        html = injectOgTags(html, {
+          title: 'Email Browser - Epstein Files Archive',
+          description:
+            'Browse email communications with threaded conversations, sender analysis, and attachment tracking.',
+          imageUrl: defaultOgImage,
+          url: `${baseUrl}${req.originalUrl}`,
+        });
+        return res.send(html);
+      }
+
+      // About
+      if (routePath === '/about' || routePath.startsWith('/about')) {
+        html = injectOgTags(html, {
+          title: 'About - Epstein Files Archive',
+          description:
+            'About the Epstein Files Archive project: methodology, sources, data integrity, and how to contribute to this open-source investigation tool.',
+          imageUrl: defaultOgImage,
+          url: `${baseUrl}${req.originalUrl}`,
+        });
+        return res.send(html);
+      }
+
+      // Admin
+      if (routePath === '/admin' || routePath.startsWith('/admin')) {
+        html = injectOgTags(html, {
+          title: 'Admin - Epstein Files Archive',
+          description: 'Administration dashboard for the Epstein Files Archive.',
+          imageUrl: defaultOgImage,
+          url: `${baseUrl}${req.originalUrl}`,
+        });
+        return res.send(html);
+      }
+
+      // Login
+      if (routePath === '/login') {
+        html = injectOgTags(html, {
+          title: 'Login - Epstein Files Archive',
+          description:
+            'Sign in to access investigation features and contribute to the Epstein Files Archive.',
+          imageUrl: defaultOgImage,
+          url: `${baseUrl}${req.originalUrl}`,
+        });
+        return res.send(html);
+      }
+    } catch (err) {
+      console.error('Error injecting OG tags:', err);
+      // Fallback to sending file normally
     }
 
     res.sendFile(indexFile);

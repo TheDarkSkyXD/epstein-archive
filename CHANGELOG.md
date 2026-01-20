@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file. The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## 11.0.0 — 2026-01-20
+
+- Flight log expansion
+  - Expanded from 29 to 110 documented flights (1995-2005) with 305 passenger records.
+  - Added multi-aircraft support: N212JE Gulfstream II alongside N908JE Boeing 727.
+  - New analytics endpoints: passenger co-occurrences, frequent routes, date ranges, aircraft stats.
+  - Co-passenger API: `/api/flights/co-occurrences` and `/api/flights/co-passengers/:name` for network analysis.
+- Palm Beach property browser
+  - Ingested 9,535 House Oversight Committee property records from CSV.
+  - Auto-flagged 27 known associate properties (Epstein, Trump, Wexner, Dubin families).
+  - Full property API with filtering, stats, value distributions via `/api/properties/*`.
+  - Cross-reference capability with entity database.
+- Open Graph metadata
+  - Comprehensive OG tags for all routes enabling rich social media previews.
+  - Dynamic previews for entity profiles showing name, role, and risk rating.
+  - Search-aware link previews include query context.
+- Articles tab enhancements
+  - Added original Substack investigative articles.
+  - Reordered Media sub-navigation (Articles tab moved to end).
+
 ## 10.12.1 — 2026-01-20
 
 - Communications surfacing in UI

@@ -15,12 +15,19 @@ CREATE TABLE IF NOT EXISTS entities (
   date_taken DATETIME,
   date_added DATETIME DEFAULT CURRENT_TIMESTAMP,
   date_modified DATETIME,
-  
-  -- EXIF Data
   title_variants TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  risk_factor INTEGER DEFAULT 0
+  risk_factor INTEGER DEFAULT 0,
+  -- Entity classification
+  entity_type TEXT DEFAULT 'Person',
+  type TEXT DEFAULT 'Person',
+  entity_category TEXT,
+  risk_level TEXT,
+  red_flag_rating INTEGER,
+  red_flag_score INTEGER DEFAULT 0,
+  red_flag_description TEXT,
+  aliases TEXT DEFAULT NULL
 );
 
 -- Evidence types lookup
@@ -58,7 +65,25 @@ CREATE TABLE IF NOT EXISTS documents (
   content_hash TEXT,
   original_file_id INTEGER,
   original_file_path TEXT,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  -- Additional columns
+  title TEXT,
+  source_collection TEXT,
+  red_flag_rating INTEGER,
+  type TEXT,
+  -- Redaction tracking
+  redaction_count INTEGER DEFAULT 0,
+  has_redactions BOOLEAN DEFAULT 0,
+  page_count INTEGER DEFAULT 0,
+  is_sensitive BOOLEAN DEFAULT 0,
+  analyzed_at DATETIME,
+  -- Unredaction tracking
+  unredaction_attempted INTEGER DEFAULT 0,
+  unredaction_succeeded INTEGER DEFAULT 0,
+  redaction_coverage_before REAL,
+  redaction_coverage_after REAL,
+  unredacted_text_gain REAL,
+  unredaction_baseline_vocab TEXT
 );
 
 -- Entity mentions in documents (many-to-many relationship)

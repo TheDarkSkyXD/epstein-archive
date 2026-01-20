@@ -24,6 +24,7 @@ import {
   Network,
   DollarSign,
   MessageSquare,
+  LayoutDashboard,
 } from 'lucide-react';
 import FinancialTransactionMapper from './FinancialTransactionMapper';
 // Removed unused ChainOfCustodyModal import
@@ -41,6 +42,7 @@ import { EvidenceNotebook } from './EvidenceNotebook';
 import { HypothesisTestingFramework } from './HypothesisTestingFramework';
 import { InvestigationTeamManagement } from './InvestigationTeamManagement';
 import { AddToInvestigationButton } from './AddToInvestigationButton';
+import { InvestigationBoard } from './InvestigationBoard';
 import { useToasts } from './ToastProvider';
 import { CreateRelationshipModal } from './CreateRelationshipModal';
 import { CommunicationAnalysis } from './CommunicationAnalysis';
@@ -93,6 +95,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
 
   // Determine active tab from URL
   type ActiveTab =
+    | 'board'
     | 'overview'
     | 'evidence'
     | 'hypotheses'
@@ -113,6 +116,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
     if (
       tab &&
       [
+        'board',
         'overview',
         'evidence',
         'hypotheses',
@@ -200,10 +204,10 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
           .catch((err) => console.error('Error fetching focused entity:', err));
       }
 
-      // Auto-select first investigation if needed
-      if (!selectedInvestigation && investigations.length > 0) {
-        setSelectedInvestigation(investigations[0]);
-      }
+      // Auto-select first investigation if needed - DISABLED to show dashboard
+      // if (!selectedInvestigation && investigations.length > 0) {
+      //   setSelectedInvestigation(investigations[0]);
+      // }
     } catch (error) {
       console.error('Error parsing URL parameters:', error);
     }
@@ -827,79 +831,124 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
         </div>
       </div>
 
-      {/* Investigation List */}
+      {/* Investigation Dashboard */}
       {!selectedInvestigation && (
-        <div className="p-6 overflow-y-auto flex-1">
-          {investigations.length === 0 ? (
-            <div className="text-center py-12 border border-slate-700 rounded-xl bg-slate-800/30">
-              <h3 className="text-lg font-medium text-white">No investigations yet</h3>
-              <p className="text-slate-400 mt-2">
-                Create your first investigation to start building evidence.
+        <div className="flex-1 overflow-y-auto p-8 relative">
+          <div className="max-w-6xl mx-auto">
+            {/* Welcome / Hero Section */}
+            <div className="mb-12 text-center">
+              <h1 className="text-4xl font-light text-white mb-4 tracking-tight">
+                Investigation Dashboard
+              </h1>
+              <p className="text-slate-400 max-w-2xl mx-auto text-lg">
+                Manage your investigations, organize evidence, and collaborate with your team. Select
+                an active investigation below or start a new one.
               </p>
+            </div>
+
+            {/* Actions Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
               <button
                 onClick={() => setShowNewInvestigationModal(true)}
-                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                className="group relative flex flex-col items-start p-6 bg-gradient-to-br from-blue-600/20 to-blue-900/20 border border-blue-500/30 rounded-xl hover:border-blue-500/60 hover:from-blue-600/30 hover:to-blue-900/30 transition-all duration-300 text-left"
               >
-                New Investigation
+                <div className="bg-blue-600 rounded-lg p-3 mb-4 shadow-lg shadow-blue-900/30 group-hover:scale-110 transition-transform duration-300">
+                  <Plus className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-xl font-semibold text-white mb-2">New Investigation</h3>
+                <p className="text-sm text-blue-200/70">
+                  Start a fresh investigation. Define your hypothesis, set a scope, and begin
+                  gathering evidence.
+                </p>
               </button>
+
+              <div className="md:col-span-1 lg:col-span-2 bg-slate-800/20 border border-slate-700/50 rounded-xl p-6 flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-medium text-white mb-1">
+                    {investigations.length} Active Investigations
+                  </h3>
+                  <p className="text-sm text-slate-400">
+                    {investigations.filter((i) => i.status === 'active').length} active,{' '}
+                    {investigations.filter((i) => i.status === 'review').length} in review
+                  </p>
+                </div>
+              </div>
             </div>
-          ) : (
-            <div className="grid gap-4">
-              {investigations.map((investigation) => (
-                <div
-                  key={investigation.id}
-                  className="liquid-glass-card rounded-xl p-4 cursor-pointer group"
-                  onClick={() => loadInvestigation(investigation.id)}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-medium text-white group-hover:text-blue-400 transition-colors">
-                        {investigation.title}
-                      </h3>
-                      <p className="text-sm text-slate-400 mt-1">{investigation.description}</p>
-                      <div className="flex items-center gap-2 mt-3">
-                        <span
-                          className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(investigation.status)}`}
-                        >
-                          {investigation.status}
-                        </span>
-                        <span
-                          className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(investigation.priority)}`}
-                        >
-                          {investigation.priority} priority
-                        </span>
+
+            {/* Recent Investigations List */}
+            <div>
+              <h2 className="text-2xl font-light text-white mb-6 flex items-center gap-3">
+                <Target className="w-6 h-6 text-slate-400" />
+                Recent Investigations
+              </h2>
+
+              {investigations.length === 0 ? (
+                <div className="text-center py-20 border border-slate-800 rounded-xl bg-slate-900/50 border-dashed">
+                  <Microscope className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-slate-300">No investigations yet</h3>
+                  <p className="text-slate-500 mt-2 max-w-sm mx-auto">
+                    Your workspace is empty. Create your first investigation to start building your
+                    case.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {investigations.map((investigation) => (
+                    <div
+                      key={investigation.id}
+                      className="group bg-slate-800/40 backdrop-blur-sm border border-slate-700 rounded-xl p-5 cursor-pointer hover:border-blue-500/50 hover:bg-slate-800/60 transition-all duration-300 hover:shadow-xl hover:shadow-blue-900/10 flex flex-col h-full"
+                      onClick={() => loadInvestigation(investigation.id)}
+                    >
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start mb-3">
+                          <span
+                            className={`px-2.5 py-1 text-xs font-semibold rounded-full uppercase tracking-wide ${getStatusColor(investigation.status)}`}
+                          >
+                            {investigation.status}
+                          </span>
+                          {currentUser.permissions?.includes('admin') && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (
+                                  confirm('Are you sure you want to delete this investigation?')
+                                ) {
+                                  fetch(`/api/investigations/${investigation.id}`, {
+                                    method: 'DELETE',
+                                  }).then(() => loadInvestigations());
+                                }
+                              }}
+                              className="text-slate-500 hover:text-red-400 transition-colors p-1"
+                              title="Delete investigation"
+                            >
+                              <span className="sr-only">Delete</span>×
+                            </button>
+                          )}
+                        </div>
+                        <h3 className="text-xl font-medium text-white group-hover:text-blue-400 transition-colors mb-2 line-clamp-2">
+                          {investigation.title}
+                        </h3>
+                        <p className="text-sm text-slate-400 line-clamp-3 mb-4">
+                          {investigation.description}
+                        </p>
+                      </div>
+
+                      <div className="mt-4 pt-4 border-t border-slate-700/50 flex items-center justify-between text-xs text-slate-500">
+                        <div className="flex items-center gap-2">
+                          <User className="w-3.5 h-3.5" />
+                          <span>{investigation.leadInvestigator}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-3.5 h-3.5" />
+                          <span>{investigation.createdAt.toLocaleDateString()}</span>
+                        </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-xs text-slate-500">
-                        Created {investigation.createdAt.toLocaleDateString()}
-                      </p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Lead: {investigation.leadInvestigator}
-                      </p>
-                      {/* Only show delete button for admin/moderator users */}
-                      {currentUser.permissions?.includes('admin') && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (confirm('Are you sure you want to delete this investigation?')) {
-                              // Call API to delete
-                              fetch(`/api/investigations/${investigation.id}`, {
-                                method: 'DELETE',
-                              }).then(() => loadInvestigations());
-                            }
-                          }}
-                          className="mt-2 text-xs text-red-400 hover:text-red-300 hover:underline"
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          )}
+          </div>
         </div>
       )}
 
@@ -920,10 +969,12 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
               <div className="hidden md:flex items-center justify-between mb-6">
                 <button
                   onClick={() => setSelectedInvestigation(null)}
-                  className={`text-sm text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors h-10 px-2 ${sidebarCollapsed ? 'hidden' : ''}`}
+                  className={`text-sm text-slate-400 hover:text-white flex items-center gap-2 transition-colors h-10 px-3 bg-slate-800/50 hover:bg-slate-700 rounded-lg border border-slate-700/50 ${
+                    sidebarCollapsed ? 'hidden' : ''
+                  }`}
                 >
-                  <ArrowRight className="w-5 h-5 rotate-180" />
-                  Back
+                  <ArrowRight className="w-4 h-4 rotate-180" />
+                  <span className="font-medium">Back to Dashboard</span>
                 </button>
                 <button
                   onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -997,6 +1048,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
               {/* Desktop Navigation Sidebar */}
               <nav className="hidden md:block space-y-1 min-w-max p-1">
                 {[
+                  { id: 'board', label: 'Investigation Board', icon: LayoutDashboard },
                   { id: 'overview', label: 'Overview', icon: Search },
                   { id: 'evidence', label: 'Evidence', icon: FileText },
                   { id: 'hypotheses', label: 'Hypotheses', icon: Target },
@@ -1036,6 +1088,9 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
 
           {/* Main Content */}
           <div className="flex-1 p-6 overflow-y-auto bg-slate-900">
+            {activeTab === 'board' && selectedInvestigation && (
+               <InvestigationBoard investigationId={selectedInvestigation.id} />
+            )}
             {activeTab === 'overview' && (
               <div className="max-w-4xl">
                 <h3 className="text-xl font-bold text-white mb-6">Investigation Overview</h3>

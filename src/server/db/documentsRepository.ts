@@ -130,18 +130,6 @@ export const documentsRepository = {
   getDocumentById: (id: string): any | null => {
     const db = getDb();
 
-    // Check which columns exist in documents table
-    const docCols = db.prepare('PRAGMA table_info(documents)').all() as { name: string }[];
-    const docColNames = new Set(docCols.map((c) => c.name));
-    const hasUnredactionBaselineVocab = docColNames.has('unredaction_baseline_vocab');
-    const hasUnredactionAttempted = docColNames.has('unredaction_attempted');
-    const hasUnredactionSucceeded = docColNames.has('unredaction_succeeded');
-    const hasRedactionCoverageBefore = docColNames.has('redaction_coverage_before');
-    const hasRedactionCoverageAfter = docColNames.has('redaction_coverage_after');
-    const hasUnredactedTextGain = docColNames.has('unredacted_text_gain');
-    const hasOriginalFileId = docColNames.has('original_file_id');
-    const hasOriginalFilePath = docColNames.has('original_file_path');
-
     const query = `
       SELECT 
         d.id,
@@ -155,17 +143,18 @@ export const documentsRepository = {
         d.red_flag_rating as redFlagRating,
         d.metadata_json as metadataJson,
         d.content,
-        d.evidence_type as evidenceType
-        ${hasOriginalFileId ? ', d.original_file_id as originalFileId' : ''}
-        ${hasUnredactionAttempted ? ', d.unredaction_attempted as unredactionAttempted' : ''}
-        ${hasUnredactionSucceeded ? ', d.unredaction_succeeded as unredactionSucceeded' : ''}
-        ${hasRedactionCoverageBefore ? ', d.redaction_coverage_before as redactionCoverageBefore' : ''}
-        ${hasRedactionCoverageAfter ? ', d.redaction_coverage_after as redactionCoverageAfter' : ''}
-        ${hasUnredactedTextGain ? ', d.unredacted_text_gain as unredactedTextGain' : ''}
-        ${hasUnredactionBaselineVocab ? ', d.unredaction_baseline_vocab as unredactionBaselineVocab' : ''}
-        ${hasOriginalFilePath || hasOriginalFileId ? `, COALESCE(${hasOriginalFileId ? 'orig.file_path' : 'NULL'}, ${hasOriginalFilePath ? 'd.original_file_path' : 'NULL'}) as original_file_path` : ''}
+        d.title,
+        d.evidence_type as evidenceType,
+        d.original_file_id as originalFileId,
+        d.unredaction_attempted as unredactionAttempted,
+        d.unredaction_succeeded as unredactionSucceeded,
+        d.redaction_coverage_before as redactionCoverageBefore,
+        d.redaction_coverage_after as redactionCoverageAfter,
+        d.unredacted_text_gain as unredactedTextGain,
+        d.unredaction_baseline_vocab as unredactionBaselineVocab,
+        COALESCE(orig.file_path, d.original_file_path) as original_file_path
       FROM documents d
-      ${hasOriginalFileId ? 'LEFT JOIN documents orig ON d.original_file_id = orig.id' : ''}
+      LEFT JOIN documents orig ON d.original_file_id = orig.id
       WHERE d.id = ?
     `;
 

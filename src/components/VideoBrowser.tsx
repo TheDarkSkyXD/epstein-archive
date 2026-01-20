@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { FixedSizeGrid as Grid, GridChildComponentProps, areEqual } from 'react-window';
+import { createPortal } from 'react-dom';
 import AutoSizer from './AutoSizer';
 import { VideoPlayer } from './VideoPlayer';
 import { Play, Calendar, CheckSquare, AlertTriangle, Clock } from 'lucide-react';
@@ -568,23 +569,25 @@ export const VideoBrowser: React.FC = () => {
       )}
 
       {/* Video Player Modal */}
-      {selectedItem && (
-        <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 md:p-8">
-          <div className="w-full max-w-6xl h-[85vh]">
-            <VideoPlayer
-              src={`/api/media/video/${selectedItem.id}/stream`}
-              title={selectedItem.title}
-              transcript={selectedItem.metadata.transcript}
-              chapters={selectedItem.metadata.chapters}
-              onClose={() => setSelectedItem(null)}
-              autoPlay
-              isSensitive={selectedItem.isSensitive}
-              warningText={selectedItem.description}
-              documentId={selectedItem.metadata.documentId || (selectedItem as any).documentId}
-            />
-          </div>
-        </div>
-      )}
+      {selectedItem &&
+        createPortal(
+          <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 md:p-8">
+            <div className="w-full max-w-6xl h-[85vh]">
+              <VideoPlayer
+                src={`/api/media/video/${selectedItem.id}/stream`}
+                title={selectedItem.title}
+                transcript={selectedItem.metadata.transcript}
+                chapters={selectedItem.metadata.chapters}
+                onClose={() => setSelectedItem(null)}
+                autoPlay
+                isSensitive={selectedItem.isSensitive}
+                warningText={selectedItem.description}
+                documentId={selectedItem.metadata.documentId || (selectedItem as any).documentId}
+              />
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 };

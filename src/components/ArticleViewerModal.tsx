@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom';
 import { X, ExternalLink } from 'lucide-react';
+import { AddToInvestigationButton } from './AddToInvestigationButton';
 
 interface ArticleContent {
   id: number;
@@ -96,11 +97,26 @@ export const ArticleViewerModal: React.FC<Props> = ({ article, highlight, onClos
                   <div className="text-white font-bold text-lg">{article.author}</div>
                   <div className="text-cyan-400 text-sm">Investigative Journalist</div>
                 </div>
+                </div>
               </div>
 
-              {article.url && (
-                <a
-                  href={article.url}
+               <div className="flex gap-2">
+                 {/* Add to Investigation Button */}
+                  <AddToInvestigationButton 
+                      item={{
+                          id: String(article.id),
+                          title: article.title,
+                          description: article.summary || article.content.substring(0, 100),
+                          type: 'document', // Assuming article fits document type
+                          sourceId: String(article.id)
+                      }}
+                      variant="button"
+                      className="bg-purple-600 hover:bg-purple-700"
+                  />
+
+                  {article.url && (
+                    <a
+                      href={article.url}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-2 px-5 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg transition-all shadow-lg shadow-cyan-900/20 font-medium group"

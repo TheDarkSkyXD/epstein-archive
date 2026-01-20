@@ -4,17 +4,11 @@ export const entityEvidenceRepository = {
   async getEntityMentionEvidence(entityId: string) {
     const db = getDb();
 
-    // Check which columns exist in entities table
-    const entityCols = db.prepare('PRAGMA table_info(entities)').all() as { name: string }[];
-    const entityColNames = new Set(entityCols.map((c) => c.name));
-    const hasEntityCategory = entityColNames.has('entity_category');
-    const hasRiskLevel = entityColNames.has('risk_level');
-
-    // Basic entity lookup - only select columns that exist
+    // Basic entity lookup
     const entity = db
       .prepare(
         `
-        SELECT id, full_name, primary_role${hasEntityCategory ? ', entity_category' : ''}${hasRiskLevel ? ', risk_level' : ''}
+        SELECT id, full_name, primary_role, entity_category, risk_level
         FROM entities
         WHERE id = ?
       `,
@@ -34,15 +28,6 @@ export const entityEvidenceRepository = {
     const hasMentions = tableNames.has('mentions');
     const hasQualityFlags = tableNames.has('quality_flags');
     const hasRelations = tableNames.has('relations');
-    const hasEntityMentionsScore = (
-      db.prepare('PRAGMA table_info(entity_mentions)').all() as { name: string }[]
-    ).some((c) => c.name === 'score');
-
-    // Check for documents columns
-    const docCols = db.prepare('PRAGMA table_info(documents)').all() as { name: string }[];
-    const docColNames = new Set(docCols.map((c) => c.name));
-    const hasDocTitle = docColNames.has('title');
-    const titleColumn = hasDocTitle ? 'd.title' : 'd.file_name as title';
 
     // Core mention-derived evidence items
     let evidenceRows: any[] = [];
@@ -52,9 +37,9 @@ export const entityEvidenceRepository = {
           em.rowid as id,
           em.document_id,
           em.mention_context,
-          ${hasEntityMentionsScore ? 'em.score' : 'NULL'} as score,
-          em.mention_id,
-          ${titleColumn},
+          em.confidence_score as score,
+          em.id as mention_id,
+          d.title,
           d.file_path,
           d.evidence_type,
           d.red_flag_rating,
@@ -64,7 +49,7 @@ export const entityEvidenceRepository = {
         FROM entity_mentions em
         JOIN documents d ON d.id = em.document_id
         LEFT JOIN quality_flags q
-          ON ${hasQualityFlags ? "q.target_type = 'mention' AND q.target_id = em.mention_id" : '1=0'}
+          ON ${hasQualityFlags ? "q.target_type = 'mention' AND q.target_id = em.id" : '1=0'}
         WHERE em.entity_id = ?
         ORDER BY d.date_created DESC, em.rowid DESC
         LIMIT 200
@@ -76,9 +61,9 @@ export const entityEvidenceRepository = {
           em.rowid as id,
           em.document_id,
           em.mention_context,
-          NULL as score,
-          NULL as mention_id,
-          ${titleColumn},
+          em.confidence_score as score,
+          em.id as mention_id,
+          d.title,
           d.file_path,
           d.evidence_type,
           d.red_flag_rating,
@@ -149,7 +134,7 @@ export const entityEvidenceRepository = {
         SELECT
           other.id,
           other.full_name,
-          ${hasEntityCategory ? 'other.entity_category,' : ''}
+          other.entity_category,
           SUM(r.weight) as shared_evidence_count
         FROM relations r
         JOIN entities other ON
@@ -158,7 +143,7 @@ export const entityEvidenceRepository = {
             ELSE r.subject_entity_id
           END
         WHERE r.subject_entity_id = :entityId OR r.object_entity_id = :entityId
-        GROUP BY other.id, other.full_name${hasEntityCategory ? ', other.entity_category' : ''}
+        GROUP BY other.id, other.full_name, other.entity_category
         ORDER BY shared_evidence_count DESC
         LIMIT 20
       `;

@@ -5,17 +5,11 @@ export const evidenceRepository = {
   getEntityEvidence: async (entityId: string) => {
     const db = getDb();
 
-    // Check which columns exist in entities table
-    const entityCols = db.prepare('PRAGMA table_info(entities)').all() as { name: string }[];
-    const entityColNames = new Set(entityCols.map((c) => c.name));
-    const hasEntityCategory = entityColNames.has('entity_category');
-    const hasRiskLevel = entityColNames.has('risk_level');
-
-    // Get entity details - only select columns that exist
+    // Get entity details
     const entity = db
       .prepare(
         `
-      SELECT id, full_name, primary_role${hasEntityCategory ? ', entity_category' : ''}${hasRiskLevel ? ', risk_level' : ''}
+      SELECT id, full_name, primary_role, entity_category, risk_level
       FROM entities
       WHERE id = ?
     `,
@@ -105,13 +99,13 @@ export const evidenceRepository = {
       SELECT 
         ent.id,
         ent.full_name,
-        ${hasEntityCategory ? 'ent.entity_category,' : ''}
+        ent.entity_category,
         COUNT(DISTINCT ee1.evidence_id) as shared_evidence_count
       FROM evidence_entity ee1
       INNER JOIN evidence_entity ee2 ON ee1.evidence_id = ee2.evidence_id
       INNER JOIN entities ent ON ent.id = ee2.entity_id
       WHERE ee1.entity_id = ? AND ee2.entity_id != ?
-      GROUP BY ent.id, ent.full_name${hasEntityCategory ? ', ent.entity_category' : ''}
+      GROUP BY ent.id, ent.full_name, ent.entity_category
       ORDER BY shared_evidence_count DESC
       LIMIT 20
     `,

@@ -36,11 +36,18 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
   const {
     investigations: contextInvestigations,
     addToInvestigation,
+    createInvestigation,
     selectedInvestigation,
   } = useInvestigations();
   const [showModal, setShowModal] = useState(false);
   const [selectedInvestigationId, setSelectedInvestigationId] = useState<string>('');
   const [relevance, setRelevance] = useState<'high' | 'medium' | 'low'>('medium');
+  
+  // Create New Mode State
+  const [isCreatingNew, setIsCreatingNew] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+
   const [isLoading, setIsLoading] = useState(false);
 
   // Use investigations from context if not provided via props
@@ -58,19 +65,43 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
   }, [defaultInvestigationId, selectedInvestigation, investigations]);
 
   const handleAddToInvestigation = async () => {
-    if (!selectedInvestigationId) return;
+    if (!selectedInvestigationId && !isCreatingNew) return;
+    if (isCreatingNew && !newTitle.trim()) return;
 
     setIsLoading(true);
 
     try {
+      let targetInvestigationId = selectedInvestigationId;
+
+      // Create new investigation if needed
+      if (isCreatingNew && createInvestigation) {
+        const newInv = await createInvestigation({
+            title: newTitle,
+            description: newDescription,
+            hypothesis: '', // Optional initial hypothesis
+            status: 'active',
+            leadInvestigator: '1',
+            priority: 'medium',
+        });
+        if (newInv) {
+            targetInvestigationId = newInv.id;
+        } else {
+            throw new Error("Failed to create new investigation");
+        }
+      }
+
       // Use context method if available, otherwise use prop method
       if (addToInvestigation) {
-        await addToInvestigation(selectedInvestigationId, item, relevance);
+        await addToInvestigation(targetInvestigationId, item, relevance);
       } else if (onAddToInvestigation) {
-        onAddToInvestigation(selectedInvestigationId, item, relevance);
+        onAddToInvestigation(targetInvestigationId, item, relevance);
       }
 
       setShowModal(false);
+      // Reset state
+      setIsCreatingNew(false);
+      setNewTitle('');
+      setNewDescription('');
     } catch (error) {
       console.error('Error adding to investigation:', error);
     } finally {
@@ -246,23 +277,51 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
                 </div>
               </div>
 
-              {/* Investigation Selection */}
+              {/* Investigation Selection or Creation */}
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Select Investigation
-                </label>
-                <select
-                  value={selectedInvestigationId}
-                  onChange={(e) => setSelectedInvestigationId(e.target.value)}
-                  className="w-full px-4 h-10 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Choose an investigation...</option>
-                  {investigations.map((inv) => (
-                    <option key={inv.id} value={inv.id}>
-                      {inv.title}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-slate-300">
+                    {isCreatingNew ? 'New Investigation Details' : 'Select Investigation'}
+                    </label>
+                    <button 
+                        onClick={() => setIsCreatingNew(!isCreatingNew)}
+                        className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                    >
+                        {isCreatingNew ? 'Select existing...' : '+ Create new'}
+                    </button>
+                </div>
+                
+                {isCreatingNew ? (
+                    <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <input
+                            type="text"
+                            placeholder="Investigation Title"
+                            value={newTitle}
+                            onChange={(e) => setNewTitle(e.target.value)}
+                            className="w-full px-4 h-10 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-500"
+                            autoFocus
+                        />
+                         <textarea
+                            placeholder="Description (optional)"
+                            value={newDescription}
+                            onChange={(e) => setNewDescription(e.target.value)}
+                            className="w-full px-4 py-2 h-20 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-500 resize-none text-sm"
+                        />
+                    </div>
+                ) : (
+                    <select
+                    value={selectedInvestigationId}
+                    onChange={(e) => setSelectedInvestigationId(e.target.value)}
+                    className="w-full px-4 h-10 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                    <option value="">Choose an investigation...</option>
+                    {investigations.map((inv) => (
+                        <option key={inv.id} value={inv.id}>
+                        {inv.title}
+                        </option>
+                    ))}
+                    </select>
+                )}
               </div>
 
               {/* Relevance Selection */}
@@ -297,13 +356,13 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
               </button>
               <button
                 onClick={handleAddToInvestigation}
-                disabled={!selectedInvestigationId || isLoading}
+                disabled={(!selectedInvestigationId && !isCreatingNew) || (isCreatingNew && !newTitle.trim()) || isLoading}
                 className="px-4 h-10 flex items-center justify-center bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center gap-2"
               >
                 {isLoading && (
                   <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                 )}
-                {isLoading ? 'Adding...' : 'Add to Investigation'}
+                {isLoading ? 'Adding...' : isCreatingNew ? 'Create & Add' : 'Add to Investigation'}
               </button>
             </div>
           </div>

@@ -3,23 +3,27 @@
 ## v11.0.0 (2026-01-20) - Data Expansion & Analytics Upgrade
 
 ### Flight Log Expansion
+
 - **110 Documented Flights**: Expanded from 29 to 110 flights spanning 1995-2005, with 305 passenger records (up from 85)
 - **Multi-Aircraft Support**: Added N212JE Gulfstream II alongside the N908JE Boeing 727 "Lolita Express"
 - **New Analytics Endpoints**: Added passenger co-occurrence analysis, frequent routes, passenger date ranges, and per-aircraft statistics
 - **Co-Passenger API**: Query who flew with whom and how often via `/api/flights/co-occurrences` and `/api/flights/co-passengers/:name`
 
 ### Palm Beach Property Browser
+
 - **9,535 Properties Ingested**: House Oversight Committee Palm Beach property records now searchable
 - **Known Associate Detection**: Automatically flags properties owned by Epstein network members (27 found including Trump, Wexner, Dubin)
 - **Property Stats API**: Value distributions, top owners, and property type breakdowns via `/api/properties/*`
 - **Cross-Reference Ready**: Owner names can be matched against entity database
 
 ### Open Graph Metadata
+
 - **Comprehensive Link Previews**: Every route now has informative OG tags for beautiful social media sharing
 - **Dynamic Entity Previews**: Links to entity profiles show name, role, and risk rating
 - **Search Query Context**: Shared search result links include the search term in the preview
 
 ### Articles Tab
+
 - **Substack Integration**: Added original investigative articles from generik.substack.com
 - **Tab Reordering**: Articles tab moved to end of Media sub-navigation
 

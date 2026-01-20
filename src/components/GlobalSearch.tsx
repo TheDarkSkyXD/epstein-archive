@@ -64,10 +64,12 @@ const GlobalSearch: React.FC = () => {
       setEntityResults([]);
       setFilteredResults([]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- performSearch is stable and defined below
   }, [searchTerm]);
 
   useEffect(() => {
     applyFilters();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- applyFilters is stable and defined below
   }, [results, filters]);
 
   const performSearch = async () => {

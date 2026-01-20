@@ -31,7 +31,7 @@ export const MediaAndArticlesTab: React.FC = () => {
       const hasAudioHints = params.has('albumId') || params.has('id');
       navigate(hasAudioHints ? '/media/audio' : '/media/photos', { replace: true });
     }
-  }, [location.pathname, navigate]);
+  }, [location.pathname, location.search, navigate]);
 
   const navigateToTab = (tab: string) => {
     navigate(`/media/${tab}`);

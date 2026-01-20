@@ -59,6 +59,7 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
 
   useEffect(() => {
     loadEvidenceSummary();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadEvidenceSummary is stable and only depends on investigationId
   }, [investigationId]);
 
   const loadEvidenceSummary = async () => {

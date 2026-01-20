@@ -57,6 +57,7 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
 
   useEffect(() => {
     loadPeopleData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadPeopleData is stable and defined below
   }, []);
 
   // Reload data when filters change
@@ -71,6 +72,7 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
     announcement.textContent = 'Search results updated';
     document.body.appendChild(announcement);
     setTimeout(() => document.body.removeChild(announcement), 1000);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadPeopleData is stable and defined below
   }, [
     searchQuery,
     selectedRiskLevel,

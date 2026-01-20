@@ -23,7 +23,7 @@ class ScopedErrorBoundary extends Component<ScopedErrorBoundaryProps, State> {
       if (this.props.onError) {
         this.props.onError(error);
       }
-    } catch (e) {
+    } catch (_e) {
       // Silently ignore logging errors to prevent infinite loops
     }
   }

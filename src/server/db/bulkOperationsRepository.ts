@@ -59,14 +59,14 @@ export const bulkOperationsRepository = {
             // We use a simple check here. For high performance with millions of rows,
             // we might want to cache recent document IDs or use INSERT OR IGNORE with a returning clause if supported.
             // Since we added a UNIQUE index on file_path, we can use that.
-            let documentId: number | bigint;
+            let _documentId: number | bigint;
 
             const existingDoc = db
               .prepare('SELECT id FROM documents WHERE file_path = ?')
               .get(fileRef.filePath) as { id: number } | undefined;
 
             if (existingDoc) {
-              documentId = existingDoc.id;
+              _documentId = existingDoc.id;
             } else {
               const docResult = insertDocument.run({
                 file_name: fileRef.fileName,
@@ -80,11 +80,8 @@ export const bulkOperationsRepository = {
                 red_flag_rating: fileRef.redFlagRating || 0,
                 content_hash: fileRef.md5Hash || '',
               });
-              documentId = docResult.lastInsertRowid as number;
+              _documentId = docResult.lastInsertRowid as number;
             }
-
-            // Use documentId to prevent unused variable warning
-            void documentId;
 
             // Insert mention
           }

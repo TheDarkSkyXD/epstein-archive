@@ -109,7 +109,7 @@ export const searchRepository = {
 
         documentQuery += ` ORDER BY documents_fts.rank LIMIT @limit`;
         documents = db.prepare(documentQuery).all(params) as any[];
-      } catch (ftsError) {
+      } catch (_ftsError) {
         // Fallback
         const searchPattern = `%${searchTerm}%`;
         let documentQuery = `

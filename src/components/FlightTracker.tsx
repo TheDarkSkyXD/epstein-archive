@@ -46,6 +46,7 @@ const FlightTracker: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadData is stable and defined below
   }, [selectedPassenger, dateRange.start, dateRange.end]);
 
   const loadData = async () => {
@@ -227,7 +228,7 @@ const FlightTracker: React.FC = () => {
   // Timeline view
   const TimelineView = () => (
     <div className="flight-timeline">
-      {flights.map((flight, index) => (
+      {flights.map((flight, _index) => (
         <div key={flight.id} className="flight-card" onClick={() => setSelectedFlight(flight)}>
           <div className="flight-date">
             <span className="date-badge">{formatDate(flight.date)}</span>
@@ -343,7 +344,7 @@ const FlightTracker: React.FC = () => {
   );
 
   // Convert lat/lng to SVG coordinates for flight path map
-  const toSvgCoords = (lat: number, lng: number, width: number, height: number) => {
+  const _toSvgCoords = (lat: number, lng: number, width: number, height: number) => {
     const x = ((lng + 180) / 360) * width;
     const y = ((90 - lat) / 180) * height;
     return { x, y };

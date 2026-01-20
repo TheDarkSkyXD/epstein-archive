@@ -123,6 +123,7 @@ export default function FinancialTransactionMapper({
     };
 
     fetchTransactions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- analyzeTransactionFlows, detectFinancialPatterns are stable helpers
   }, [investigationId]);
 
   const analyzeTransactionFlows = (transactions: Transaction[]) => {

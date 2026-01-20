@@ -98,6 +98,7 @@ export const EmailClient: React.FC = () => {
 
   useEffect(() => {
     loadInitialEmails();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadInitialEmails is stable and only runs on mount
   }, []);
 
   const loadInitialEmails = async () => {

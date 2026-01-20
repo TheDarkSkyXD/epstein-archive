@@ -32,10 +32,12 @@ export const BlackBookViewer: React.FC = () => {
 
   useEffect(() => {
     fetchBlackBookEntries();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchBlackBookEntries is stable and defined below
   }, []);
 
   useEffect(() => {
     fetchBlackBookEntries();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchBlackBookEntries is stable and defined below
   }, [searchTerm, selectedLetter, hasPhone, hasEmail, hasAddress]);
 
   const fetchBlackBookEntries = async () => {
@@ -62,7 +64,7 @@ export const BlackBookViewer: React.FC = () => {
 
         try {
           phone_numbers = entry.phone_numbers ? JSON.parse(entry.phone_numbers) : [];
-        } catch (e) {
+        } catch (_e) {
           console.warn('Failed to parse phone_numbers for entry', entry.id, entry.phone_numbers);
           // Fallback: if it looks like a string, wrap it
           if (typeof entry.phone_numbers === 'string' && !entry.phone_numbers.startsWith('[')) {
@@ -72,13 +74,13 @@ export const BlackBookViewer: React.FC = () => {
 
         try {
           addresses = entry.addresses ? JSON.parse(entry.addresses) : [];
-        } catch (e) {
+        } catch (_e) {
           console.warn('Failed to parse addresses for entry', entry.id);
         }
 
         try {
           email_addresses = entry.email_addresses ? JSON.parse(entry.email_addresses) : [];
-        } catch (e) {
+        } catch (_e) {
           console.warn('Failed to parse email_addresses for entry', entry.id);
         }
 

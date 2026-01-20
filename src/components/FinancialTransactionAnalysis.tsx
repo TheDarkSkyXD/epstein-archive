@@ -225,7 +225,7 @@ export const FinancialTransactionAnalysis: React.FC<FinancialTransactionAnalysis
     return icons[type];
   };
 
-  const getFlowIcon = (direction: string) => {
+  const _getFlowIcon = (direction: string) => {
     if (direction === 'inflow') return TrendingUp;
     if (direction === 'outflow') return TrendingDown;
     return ArrowRight;

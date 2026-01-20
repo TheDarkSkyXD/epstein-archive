@@ -91,15 +91,29 @@ export const UndoProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [state.notification]);
 
-  const addUndoAction = useCallback((action: Omit<UndoAction, 'id' | 'timestamp'>) => {
-    const undoAction: UndoAction = {
-      ...action,
-      id: Math.random().toString(36).substr(2, 9),
-      timestamp: Date.now(),
-    };
-    dispatch({ type: 'ADD_ACTION', payload: undoAction });
-    showNotification(`${action.description} completed.`, undoAction);
+  const showNotification = useCallback((message: string, action?: UndoAction) => {
+    dispatch({
+      type: 'SHOW_NOTIFICATION',
+      payload: { message, action },
+    });
   }, []);
+
+  const hideNotification = useCallback(() => {
+    dispatch({ type: 'HIDE_NOTIFICATION' });
+  }, []);
+
+  const addUndoAction = useCallback(
+    (action: Omit<UndoAction, 'id' | 'timestamp'>) => {
+      const undoAction: UndoAction = {
+        ...action,
+        id: Math.random().toString(36).substr(2, 9),
+        timestamp: Date.now(),
+      };
+      dispatch({ type: 'ADD_ACTION', payload: undoAction });
+      showNotification(`${action.description} completed.`, undoAction);
+    },
+    [showNotification],
+  );
 
   const performUndo = useCallback(
     async (actionId: string) => {
@@ -115,19 +129,8 @@ export const UndoProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
     },
-    [state.actions],
+    [state.actions, showNotification],
   );
-
-  const showNotification = useCallback((message: string, action?: UndoAction) => {
-    dispatch({
-      type: 'SHOW_NOTIFICATION',
-      payload: { message, action },
-    });
-  }, []);
-
-  const hideNotification = useCallback(() => {
-    dispatch({ type: 'HIDE_NOTIFICATION' });
-  }, []);
 
   const value = {
     state,

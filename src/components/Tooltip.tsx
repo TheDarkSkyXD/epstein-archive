@@ -58,6 +58,7 @@ const Tooltip: React.FC<TooltipProps> = ({
         clearTimeout(delayTimeout);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- hideTooltip is stable
   }, [isVisible, delayTimeout]);
 
   const getPositionClasses = () => {

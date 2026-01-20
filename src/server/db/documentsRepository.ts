@@ -27,7 +27,7 @@ export const documentsRepository = {
         whereConditions.push('(file_name LIKE ? OR content LIKE ?)');
         const searchPattern = `%${filters.search.trim()}%`;
         params.push(searchPattern, searchPattern);
-      } catch (e) {
+      } catch (_e) {
         // Fallback
       }
     }
@@ -114,7 +114,7 @@ export const documentsRepository = {
           } else if (typeof doc.metadata === 'object') {
             metadata = doc.metadata;
           }
-        } catch (e) {
+        } catch (_e) {
           /* ignore */
         }
         return { ...doc, metadata };

@@ -56,6 +56,7 @@ export function useSharedIntersectionObserver(
       observer.unobserve(element);
       observerCallbacks.delete(element);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- options object is destructured into stable primitives
   }, [elementRef, callback, options.threshold, options.rootMargin]);
 
   return isIntersecting;

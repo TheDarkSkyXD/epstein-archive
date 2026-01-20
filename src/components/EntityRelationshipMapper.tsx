@@ -111,7 +111,7 @@ export const EntityRelationshipMapper: React.FC<EntityRelationshipMapperProps> =
         .addAll(nodes);
 
       nodes.forEach((_node) => {
-        tree.visit((quad, x1, y1, x2, _y2) => {
+        tree.visit((quad, _x1, _y1, _x2, _y2) => {
           if (!quad.length) {
             // Internal node
             // d3-quadtree doesn't calculate center of mass by default without accumulation.
@@ -310,6 +310,7 @@ export const EntityRelationshipMapper: React.FC<EntityRelationshipMapperProps> =
       .attr('fill', '#cbd5e1')
       .attr('font-size', '10px')
       .style('pointer-events', 'none');
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- helper functions are stable, transform is handled in separate effect
   }, [nodes, links]); // Re-render when data changes (positions handled by tick)
 
   // Update transform

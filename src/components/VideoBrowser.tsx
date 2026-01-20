@@ -1,22 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import {
-  FixedSizeGrid as Grid,
-  FixedSizeList as List,
-  GridChildComponentProps,
-  areEqual,
-} from 'react-window';
+import { FixedSizeGrid as Grid, GridChildComponentProps, areEqual } from 'react-window';
 import AutoSizer from './AutoSizer';
 import { VideoPlayer } from './VideoPlayer';
-import {
-  Play,
-  Film,
-  Calendar,
-  CheckSquare,
-  Square,
-  AlertTriangle,
-  User,
-  Clock,
-} from 'lucide-react';
+import { Play, Calendar, CheckSquare, AlertTriangle, Clock } from 'lucide-react';
 import { SensitiveContent } from './SensitiveContent';
 import BatchToolbar from './BatchToolbar';
 import Icon from './Icon';
@@ -58,7 +44,7 @@ const VideoCell = React.memo(({ columnIndex, rowIndex, style, data }: GridChildC
     selectedItems,
     isBatchMode,
     onVideoClick,
-    toggleSelection,
+    toggleSelection: _toggleSelection,
     columnCount,
     formatDate,
   } = data as any;
@@ -150,9 +136,9 @@ export const VideoBrowser: React.FC = () => {
   const [hasMore, setHasMore] = useState(true);
   const [showAlbumDropdown, setShowAlbumDropdown] = useState(false);
   const [libraryTotalCount, setLibraryTotalCount] = useState(0);
-  const [pickerOpenId, setPickerOpenId] = useState<number | null>(null);
-  const [investigationsList, setInvestigationsList] = useState<any[]>([]);
-  const [addingId, setAddingId] = useState<number | null>(null);
+  const [_pickerOpenId, _setPickerOpenId] = useState<number | null>(null);
+  const [_investigationsList, _setInvestigationsList] = useState<any[]>([]);
+  const [_addingId, _setAddingId] = useState<number | null>(null);
 
   // Transcript search (within album or across all videos)
   const [transcriptSearch, setTranscriptSearch] = useState('');
@@ -191,6 +177,7 @@ export const VideoBrowser: React.FC = () => {
   // Load items when album selection or transcript search changes
   useEffect(() => {
     fetchVideos(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchVideos is stable and defined below
   }, [selectedAlbum, transcriptSearch]);
 
   const loadAlbums = async () => {
@@ -205,12 +192,14 @@ export const VideoBrowser: React.FC = () => {
   };
 
   // Batch Handlers
-  const toggleSelection = (id: number) => {
-    const newSet = new Set(selectedItems);
-    if (newSet.has(id)) newSet.delete(id);
-    else newSet.add(id);
-    setSelectedItems(newSet);
-  };
+  const toggleSelection = useCallback((id: number) => {
+    setSelectedItems((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) newSet.delete(id);
+      else newSet.add(id);
+      return newSet;
+    });
+  }, []);
 
   const handleBatchTag = async (tagIds: number[], action: 'add' | 'remove') => {
     try {
@@ -298,7 +287,8 @@ export const VideoBrowser: React.FC = () => {
     if (!loading && hasMore) {
       fetchVideos(page + 1);
     }
-  }, [loading, hasMore, page]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, hasMore, fetchVideos, page]);
 
   const showSensitiveWarning =
     currentAlbum &&
@@ -307,7 +297,7 @@ export const VideoBrowser: React.FC = () => {
 
   // Handle video click
   const handleVideoClick = useCallback(
-    (video: VideoItem, index: number) => {
+    (video: VideoItem, _index: number) => {
       if (isBatchMode) {
         toggleSelection(video.id);
       } else {

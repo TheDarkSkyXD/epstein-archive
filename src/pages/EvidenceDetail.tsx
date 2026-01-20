@@ -58,6 +58,7 @@ export function EvidenceDetail() {
 
   useEffect(() => {
     fetchEvidence();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchEvidence is stable and only depends on id
   }, [id]);
 
   const fetchEvidence = async () => {

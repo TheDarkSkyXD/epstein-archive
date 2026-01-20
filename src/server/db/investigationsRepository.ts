@@ -378,12 +378,12 @@ export const investigationsRepository = {
     let annotations = [];
     try {
       order = row.orderJson ? JSON.parse(row.orderJson) : [];
-    } catch (e) {
+    } catch (_e) {
       order = [];
     }
     try {
       annotations = row.annotationsJson ? JSON.parse(row.annotationsJson) : [];
-    } catch (e) {
+    } catch (_e) {
       annotations = [];
     }
     return { investigationId, order, annotations, updatedAt: row.updatedAt };

@@ -146,8 +146,8 @@ export default function MultiSourceCorrelationEngine() {
             );
 
             if (highRisk.length > 0) {
-              const totalAmount = highRisk.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-              // totalAmount currently unused but kept for future detailed reporting
+              const _totalAmount = highRisk.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+              // _totalAmount currently unused but kept for future detailed reporting
               const counterparties = Array.from(
                 new Set(
                   highRisk

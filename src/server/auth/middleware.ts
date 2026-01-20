@@ -35,7 +35,7 @@ const verifyToken = (req: Request): any | null => {
       .prepare('SELECT id, username, role, email FROM users WHERE id = ?')
       .get(decoded.id) as any;
     return user || null;
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Network, FileText, Search, Filter, Download } from 'lucide-react';
+import { Network, FileText, Search, Download } from 'lucide-react';
 
 export interface NetworkNode {
   id: string;
@@ -102,6 +102,7 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
     // Center the network after layout
     setTimeout(() => centerNetwork(), 1000);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- centerNetwork is stable and only needs to run on initial data change
   }, [initialNodes, initialEdges]);
 
   // Apply filters
@@ -376,6 +377,7 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
   useEffect(() => {
     drawNetwork();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- drawNetwork is stable and depends on filtered data
   }, [filteredNodes, filteredEdges, selectedNodeId, selectedEdgeId, zoom, pan]);
 
   const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {

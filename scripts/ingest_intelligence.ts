@@ -307,7 +307,7 @@ function rebuildEntityPipeline() {
               entityId = Number(res.lastInsertRowid);
               entityCache.set(lowerName, entityId);
               newEntities++;
-            } catch (e) {
+            } catch (_e) {
               continue;
             }
           }

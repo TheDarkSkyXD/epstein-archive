@@ -112,6 +112,7 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
   // Auto-generate milestones when evidence or hypotheses change
   useEffect(() => {
     generateAutoMilestones();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- generateAutoMilestones is stable and defined elsewhere
   }, [evidence.length, hypotheses.length]);
 
   // Auto-add milestones when evidence items are added
@@ -147,7 +148,7 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
         onEventsUpdate([...events, evidenceMilestone]);
       }
     }
-  }, [evidence.length]);
+  }, [events, evidence, evidence.length, onEventsUpdate]);
 
   // Auto-add milestones when hypotheses are created or updated
   useEffect(() => {
@@ -181,7 +182,7 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
         onEventsUpdate([...events, hypothesisMilestone]);
       }
     }
-  }, [hypotheses.length]);
+  }, [events, hypotheses, hypotheses.length, onEventsUpdate]);
 
   const handleAddEvent = async () => {
     if (!newEvent.title || !newEvent.startDateString) return;
@@ -530,7 +531,7 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
 
         {/* Timeline */}
         <div className="space-y-6" ref={timelineRef}>
-          {timelineGroups.map((group, groupIndex) => (
+          {timelineGroups.map((group, _groupIndex) => (
             <div key={group.startDate} className="relative">
               {/* Date Header */}
               <div className="flex items-center mb-4">
@@ -542,7 +543,7 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
 
               {/* Events */}
               <div className="ml-8 space-y-4">
-                {group.events.map((event, eventIndex) => (
+                {group.events.map((event, _eventIndex) => (
                   <div
                     key={event.id}
                     draggable

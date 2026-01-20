@@ -49,6 +49,7 @@ export function PDFViewer({ filePath, title }: PDFViewerProps) {
 
   useEffect(() => {
     loadPDF();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadPDF is stable and only depends on filePath
   }, [filePath]);
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {

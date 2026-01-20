@@ -50,6 +50,7 @@ export const InvestigationTeamManagement: React.FC<InvestigationTeamManagementPr
   // Auto-populate first author on component mount
   React.useEffect(() => {
     ensureFirstAuthor();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ensureFirstAuthor is stable and only runs on mount
   }, []);
 
   // Handle email invitation

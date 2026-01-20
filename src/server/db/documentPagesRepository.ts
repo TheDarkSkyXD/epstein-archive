@@ -49,7 +49,7 @@ export const documentPagesRepository = {
         // File exists
         pages.push(`/files/${baseDir}/${currentFilename}`);
         currentPage++;
-      } catch (e) {
+      } catch (_e) {
         pageFound = false;
       }
     }

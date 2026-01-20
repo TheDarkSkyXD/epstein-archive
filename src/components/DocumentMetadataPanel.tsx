@@ -24,7 +24,7 @@ export const DocumentMetadataPanel: React.FC<DocumentMetadataPanelProps> = ({
     if (!dateString) return 'Unknown';
     try {
       return format(new Date(dateString), 'PP pp');
-    } catch (e) {
+    } catch (_e) {
       return dateString;
     }
   };

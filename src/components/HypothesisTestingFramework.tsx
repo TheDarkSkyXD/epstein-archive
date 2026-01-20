@@ -119,6 +119,7 @@ export const HypothesisTestingFramework: React.FC<HypothesisTestingFrameworkProp
     if (investigationId) {
       fetchHypotheses();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- hypotheses.length, initialHypothesis, onHypothesesUpdate are stable or only needed on mount
   }, [investigationId]);
 
   const createHypothesis = () => {

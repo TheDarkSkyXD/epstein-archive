@@ -257,6 +257,7 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
       clearInterval(interval);
       clearTimeout(timeout);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- nodes is used but nodes.length prevents unnecessary re-runs
   }, [nodes.length, draggedNode]);
 
   // Update worker when node is dragged

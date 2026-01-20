@@ -305,7 +305,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
         month: 'short',
         day: 'numeric',
       }).format(date);
-    } catch (e) {
+    } catch (_e) {
       return dateString;
     }
   };

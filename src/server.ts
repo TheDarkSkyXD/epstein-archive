@@ -20,7 +20,7 @@ import { validateStartup } from './server/utils/startupValidation.js';
 import { authenticateRequest, requireRole } from './server/auth/middleware.js';
 import authRoutes from './server/auth/routes.js';
 import { logAudit } from './server/utils/auditLogger.js';
-import { getEnv } from './server/utils/envValidator.js';
+// getEnv removed - not currently used, but available in ./server/utils/envValidator.js if needed
 import { MediaService } from './services/MediaService.js';
 import investigationEvidenceRoutes from './routes/investigationEvidenceRoutes.js';
 import investigationsRouter from './server/routes/investigations.js';
@@ -652,7 +652,7 @@ app.get(
           let payload = null;
           try {
             payload = log.payload_json ? JSON.parse(log.payload_json) : null;
-          } catch (e) {
+          } catch (_e) {
             payload = { error: 'Invalid JSON', raw: log.payload_json };
           }
           return { ...log, payload };

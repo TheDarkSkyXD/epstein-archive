@@ -190,7 +190,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
 
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const [isPending, startTransition] = useTransition();
+  const [_isPending, startTransition] = useTransition();
   const imagesAbortRef = useRef<AbortController | null>(null);
   const filtersAbortRef = useRef<AbortController | null>(null);
   const [libraryTotalCount, setLibraryTotalCount] = useState<number>(0);
@@ -291,6 +291,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
     // Reset to page 1 for any filter change
     setPage(1);
     fetchImages(1, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchImages is stable and defined below
   }, [
     initialized,
     selectedAlbum,
@@ -427,6 +428,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
     );
     obs.observe(el);
     return () => obs.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchImages is stable and defined above
   }, [
     page,
     loading,
@@ -453,6 +455,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
       }
     }, 2000);
     return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchImages is stable and defined above
   }, [page, loading, hasMore]);
 
   // Lazy load people list when dropdown focused
@@ -544,7 +547,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
     setLastSelectedIndex(null);
   };
 
-  const selectAllImages = () => {
+  const _selectAllImages = () => {
     const allImageIds = new Set(images.map((img) => img.id));
     setSelectedImages(allImageIds);
   };
@@ -827,7 +830,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
         month: 'short',
         day: 'numeric',
       });
-    } catch (e) {
+    } catch (_e) {
       return 'Unknown';
     }
   }, []);

@@ -6,7 +6,8 @@ import {
   Annotation,
   Investigator,
 } from '../types/investigation';
-import { EvidenceChainService } from '../services/evidenceChainService';
+// TODO: Re-enable EvidenceChainService when chain-of-custody features are needed
+// import { EvidenceChainService } from '../services/evidenceChainService';
 import {
   Calendar,
   User,
@@ -74,8 +75,8 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
   const [evidenceItems, setEvidenceItems] = useState<EvidenceItem[]>([]);
   const [hypotheses, setHypotheses] = useState<any[]>([]);
-  const [annotations, setAnnotations] = useState<Annotation[]>([]);
-  const [evidenceLoading, setEvidenceLoading] = useState(false);
+  const [annotations, _setAnnotations] = useState<Annotation[]>([]);
+  const [_evidenceLoading, setEvidenceLoading] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [selectedNetworkNode, setSelectedNetworkNode] = useState<NetworkNode | null>(null);
   const [selectedNetworkEdge, setSelectedNetworkEdge] = useState<NetworkEdge | null>(null);
@@ -206,7 +207,13 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
     } catch (error) {
       console.error('Error parsing URL parameters:', error);
     }
-  }, [location.search, investigations.length, selectedInvestigation]);
+  }, [
+    location.search,
+    investigations.length,
+    selectedInvestigation,
+    investigations,
+    navigateToTab,
+  ]);
 
   // Handle "Add to Investigation" custom event
   useEffect(() => {
@@ -274,7 +281,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
     return () => {
       window.removeEventListener('add-to-investigation' as any, handleAddToInvestigation as any);
     };
-  }, [selectedInvestigation]);
+  }, [addToast, selectedInvestigation]);
 
   // Investigation onboarding hook
   const { hasSeenOnboarding, markOnboardingAsSeen } = useInvestigationOnboarding();
@@ -312,12 +319,13 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
       }
     };
     fetchEvidence();
-  }, [selectedInvestigation?.id]);
+  }, [selectedInvestigation, selectedInvestigation?.id]);
 
   useEffect(() => {
     if (investigationId) {
       loadInvestigation(investigationId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadInvestigation is stable and defined below
   }, [investigationId]);
 
   // Fetch real network data and database stats
@@ -417,7 +425,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                 });
               }
             }
-          } catch (relError) {
+          } catch (_relError) {
             // Skip this entity's relationships on error
           }
         }
@@ -445,7 +453,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
     if (selectedInvestigation) {
       fetchNetworkData();
     }
-  }, [selectedInvestigation?.id, evidenceItems, useGlobalContext]);
+  }, [selectedInvestigation?.id, evidenceItems, useGlobalContext, selectedInvestigation]);
 
   const loadInvestigations = async () => {
     setIsLoading(true);

@@ -42,7 +42,7 @@ export interface CommunicationPattern {
 }
 
 export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
-  investigation,
+  investigation: _investigation,
   evidence,
   onCommunicationPatternDetected,
 }) => {

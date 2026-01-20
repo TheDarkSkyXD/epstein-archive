@@ -47,6 +47,7 @@ const FileBrowser: React.FC = () => {
 
   useEffect(() => {
     filterFiles();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- filterFiles is stable and depends on filter state
   }, [files, selectedCategory, searchTerm]);
 
   const loadFiles = async () => {

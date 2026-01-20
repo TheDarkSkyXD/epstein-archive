@@ -27,7 +27,7 @@ export const EvidenceNotebook: React.FC<NotebookProps> = ({ investigationId }) =
   const parseMeta = (s?: string) => {
     try {
       return s ? JSON.parse(s) : {};
-    } catch (e) {
+    } catch (_e) {
       return {};
     }
   };
@@ -38,7 +38,7 @@ export const EvidenceNotebook: React.FC<NotebookProps> = ({ investigationId }) =
       let arr: any = [];
       try {
         arr = JSON.parse(existing);
-      } catch (e) {
+      } catch (_e) {
         arr = [];
       }
       if (Array.isArray(arr)) setOrder(arr);
@@ -70,7 +70,8 @@ export const EvidenceNotebook: React.FC<NotebookProps> = ({ investigationId }) =
       }
     };
     fetchSummary();
-  }, [investigationId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [investigationId, order]);
 
   const grouped = useMemo(() => {
     const result: Record<string, EvidenceRecord[]> = { snippet: [], audio: [], video: [], doc: [] };
@@ -105,6 +106,7 @@ export const EvidenceNotebook: React.FC<NotebookProps> = ({ investigationId }) =
     }
     audioIds.forEach((id) => fetchMediaDetails(id, 'audio'));
     videoIds.forEach((id) => fetchMediaDetails(id, 'video'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchMediaDetails is stable and defined below
   }, [grouped]);
 
   const saveOrder = (next: number[]) => {
@@ -137,7 +139,7 @@ export const EvidenceNotebook: React.FC<NotebookProps> = ({ investigationId }) =
         const json = await res.json();
         setMediaCache((c) => ({ ...c, [mediaItemId]: json }));
       }
-    } catch (e) {
+    } catch (_e) {
       return;
     }
   };

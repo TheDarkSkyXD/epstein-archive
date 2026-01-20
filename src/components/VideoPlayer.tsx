@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Play,
@@ -40,7 +40,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate();
+  const _navigate = useNavigate();
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -145,7 +145,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         videoRef.current.play().catch((e) => console.warn('Autoplay failed:', e));
       }
     }
-  }, [autoPlay, isSensitive]);
+  }, [autoPlay, isSensitive, playbackRate, volume]);
 
   // Handle fullscreen change
   useEffect(() => {
@@ -199,20 +199,29 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
-  const jumpToTranscriptMatch = (nextIndex: number) => {
-    if (!transcriptMatches.length) return;
-    const wrapped = (nextIndex + transcriptMatches.length) % transcriptMatches.length;
-    const segIndex = transcriptMatches[wrapped];
-    const seg = transcript[segIndex];
-    if (!seg) return;
-    setCurrentMatchIndex(wrapped);
-    seek(seg.start);
-    scrollToSegment(segIndex);
-    scrollOverlayToSegment(segIndex);
-  };
+  const jumpToTranscriptMatch = useCallback(
+    (nextIndex: number) => {
+      if (!transcriptMatches.length) return;
+      const wrapped = (nextIndex + transcriptMatches.length) % transcriptMatches.length;
+      const segIndex = transcriptMatches[wrapped];
+      const seg = transcript[segIndex];
+      if (!seg) return;
+      setCurrentMatchIndex(wrapped);
+      seek(seg.start);
+      scrollToSegment(segIndex);
+      scrollOverlayToSegment(segIndex);
+    },
+    [transcriptMatches, transcript],
+  );
 
-  const goToNextTranscriptMatch = () => jumpToTranscriptMatch(currentMatchIndex + 1);
-  const goToPrevTranscriptMatch = () => jumpToTranscriptMatch(currentMatchIndex - 1);
+  const goToNextTranscriptMatch = useCallback(
+    () => jumpToTranscriptMatch(currentMatchIndex + 1),
+    [currentMatchIndex, jumpToTranscriptMatch],
+  );
+  const goToPrevTranscriptMatch = useCallback(
+    () => jumpToTranscriptMatch(currentMatchIndex - 1),
+    [currentMatchIndex, jumpToTranscriptMatch],
+  );
 
   // Keyboard shortcuts for transcript navigation
   useEffect(() => {

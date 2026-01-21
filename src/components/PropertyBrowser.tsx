@@ -5,32 +5,34 @@ import { AddToInvestigationButton } from './AddToInvestigationButton';
 
 interface Property {
   id: number;
-  parcel_id: string;
-  owner_name: string;
-  owner_address: string;
-  property_address: string;
-  city: string;
-  zip_code: string;
-  property_type: string;
-  land_value: number;
-  building_value: number;
-  total_value: number;
-  year_built: number;
-  bedrooms: number;
-  bathrooms: number;
-  living_area: number;
-  lot_size: number;
-  is_known_associate: boolean;
-  associate_entity_id?: number;
-  associate_name?: string;
+  pcn: string;
+  owner_name_1: string | null;
+  owner_name_2: string | null;
+  street_name: string | null;
+  site_address: string | null;
+  total_tax_value: number | null;
+  acres: number | null;
+  property_use: string | null;
+  year_built: number | null;
+  bedrooms: number | null;
+  full_bathrooms: number | null;
+  half_bathrooms: number | null;
+  stories: number | null;
+  building_value: number | null;
+  building_area: number | null;
+  living_area: number | null;
+  is_epstein_property: number;
+  is_known_associate: number;
+  linked_entity_id: number | null;
 }
 
 interface PropertyStats {
-  total_properties: number;
-  total_value: number;
-  avg_value: number;
-  known_associate_count: number;
-  property_types: { type: string; count: number }[];
+  totalProperties: number;
+  epsteinProperties: number;
+  knownAssociateProperties: number;
+  avgTaxValue: number;
+  maxTaxValue: number;
+  propertyTypes: { type: string; count: number }[];
 }
 
 interface ValueDistribution {
@@ -180,7 +182,7 @@ const PropertyBrowser: React.FC = () => {
   };
 
   const propertyTypes = useMemo(() => {
-    return stats?.property_types || [];
+    return stats?.propertyTypes || [];
   }, [stats]);
 
   const BrowseView = () => (
@@ -259,64 +261,67 @@ const PropertyBrowser: React.FC = () => {
                 key={property.id}
                 className={`property-card ${property.is_known_associate ? 'flagged' : ''}`}
               >
-                {property.is_known_associate && (
+                {property.is_known_associate === 1 && (
                   <div className="associate-badge">
                     <Icon name="AlertTriangle" size="sm" />
                     Known Associate
                   </div>
                 )}
+                {property.is_epstein_property === 1 && (
+                  <div className="associate-badge epstein">
+                    <Icon name="AlertTriangle" size="sm" />
+                    Epstein Property
+                  </div>
+                )}
                 <div className="property-header">
-                  <h4>{property.owner_name}</h4>
-                  <span className="property-value">{formatCurrency(property.total_value)}</span>
+                  <h4>{property.owner_name_1 || 'Unknown Owner'}</h4>
+                  <span className="property-value">{formatCurrency(property.total_tax_value)}</span>
                 </div>
                 <div className="property-address">
                   <Icon name="MapPin" size="sm" />
-                  {property.property_address}, {property.city} {property.zip_code}
+                  {property.site_address || property.street_name || 'Address N/A'}
                 </div>
                 <div className="property-details">
-                  <span><strong>Type:</strong> {property.property_type || 'N/A'}</span>
+                  <span><strong>Type:</strong> {property.property_use || 'N/A'}</span>
                   <span><strong>Built:</strong> {property.year_built || 'N/A'}</span>
-                  {property.bedrooms > 0 && <span><strong>Beds:</strong> {property.bedrooms}</span>}
-                  {property.bathrooms > 0 && <span><strong>Baths:</strong> {property.bathrooms}</span>}
-                  {property.living_area > 0 && (
+                  {property.bedrooms && property.bedrooms > 0 && <span><strong>Beds:</strong> {property.bedrooms}</span>}
+                  {property.full_bathrooms && property.full_bathrooms > 0 && <span><strong>Baths:</strong> {property.full_bathrooms}</span>}
+                  {property.living_area && property.living_area > 0 && (
                     <span><strong>Living:</strong> {formatNumber(property.living_area)} sqft</span>
+                  )}
+                  {property.acres && property.acres > 0 && (
+                    <span><strong>Acres:</strong> {property.acres.toFixed(2)}</span>
                   )}
                 </div>
                 <div className="property-values">
-                  <div>
-                    <span className="label">Land</span>
-                    <span className="value">{formatCurrency(property.land_value)}</span>
-                  </div>
                   <div>
                     <span className="label">Building</span>
                     <span className="value">{formatCurrency(property.building_value)}</span>
                   </div>
                 </div>
-                {property.is_known_associate && property.associate_entity_id && (
+                {property.is_known_associate === 1 && property.linked_entity_id && (
                   <Link
-                    to={`/entity/${property.associate_entity_id}`}
+                    to={`/entity/${property.linked_entity_id}`}
                     className="associate-link"
                   >
                     <Icon name="User" size="sm" />
-                    View {property.associate_name}'s Profile
+                    View Entity Profile
                   </Link>
                 )}
                 <div className="property-actions" style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
                   <AddToInvestigationButton
                     item={{
                       id: String(property.id),
-                      title: `${property.owner_name} - ${property.property_address}`,
-                      description: `${property.property_type || 'Property'} valued at ${formatCurrency(property.total_value)} in ${property.city}${property.is_known_associate ? ` (Known Associate: ${property.associate_name})` : ''}`,
+                      title: `${property.owner_name_1 || 'Unknown'} - ${property.site_address || property.street_name || 'Unknown Address'}`,
+                      description: `${property.property_use || 'Property'} valued at ${formatCurrency(property.total_tax_value)}${property.is_known_associate ? ' (Known Associate)' : ''}`,
                       type: 'property',
                       sourceId: String(property.id),
                       metadata: {
-                        owner: property.owner_name,
-                        address: property.property_address,
-                        city: property.city,
-                        value: property.total_value,
-                        isKnownAssociate: property.is_known_associate,
-                        associateName: property.associate_name,
-                        associateEntityId: property.associate_entity_id,
+                        owner: property.owner_name_1,
+                        address: property.site_address || property.street_name,
+                        value: property.total_tax_value,
+                        isKnownAssociate: property.is_known_associate === 1,
+                        linkedEntityId: property.linked_entity_id,
                       },
                     }}
                     variant="quick"
@@ -371,11 +376,11 @@ const PropertyBrowser: React.FC = () => {
             <div className="associate-info">
               <div className="associate-name">
                 <Icon name="User" size="sm" />
-                {property.associate_name}
+                {property.owner_name_1 || 'Unknown'}
               </div>
-              {property.associate_entity_id && (
+              {property.linked_entity_id && (
                 <Link
-                  to={`/entity/${property.associate_entity_id}`}
+                  to={`/entity/${property.linked_entity_id}`}
                   className="view-profile-btn"
                 >
                   View Profile <Icon name="ExternalLink" size="sm" />
@@ -383,13 +388,13 @@ const PropertyBrowser: React.FC = () => {
               )}
             </div>
             <div className="property-info">
-              <h4>{property.owner_name}</h4>
+              <h4>{property.owner_name_1 || 'Unknown Owner'}</h4>
               <p className="address">
-                {property.property_address}, {property.city}
+                {property.site_address || property.street_name || 'Address N/A'}
               </p>
               <div className="value-row">
-                <span className="total-value">{formatCurrency(property.total_value)}</span>
-                <span className="property-type">{property.property_type}</span>
+                <span className="total-value">{formatCurrency(property.total_tax_value)}</span>
+                <span className="property-type">{property.property_use || 'N/A'}</span>
               </div>
             </div>
           </div>
@@ -448,7 +453,7 @@ const PropertyBrowser: React.FC = () => {
                 <div
                   className="type-fill"
                   style={{
-                    width: `${(pt.count / (stats?.total_properties || 1)) * 100}%`,
+                    width: `${(pt.count / (stats?.totalProperties || 1)) * 100}%`,
                   }}
                 />
               </div>
@@ -470,7 +475,7 @@ const PropertyBrowser: React.FC = () => {
             Palm Beach Property Records
           </h1>
           <p className="subtitle">
-            Explore {stats ? formatNumber(stats.total_properties) : '...'} properties from
+            Explore {stats ? formatNumber(stats.totalProperties) : '...'} properties from
             Palm Beach County public records
           </p>
         </div>
@@ -480,22 +485,22 @@ const PropertyBrowser: React.FC = () => {
           <div className="stats-summary">
             <div className="stat-card">
               <Icon name="Home" size="md" />
-              <div className="stat-value">{formatNumber(stats.total_properties)}</div>
+              <div className="stat-value">{formatNumber(stats.totalProperties)}</div>
               <div className="stat-label">Total Properties</div>
             </div>
             <div className="stat-card">
               <Icon name="DollarSign" size="md" />
-              <div className="stat-value">{formatCurrency(stats.total_value)}</div>
-              <div className="stat-label">Total Value</div>
+              <div className="stat-value">{formatCurrency(stats.maxTaxValue)}</div>
+              <div className="stat-label">Max Value</div>
             </div>
             <div className="stat-card">
               <Icon name="TrendingUp" size="md" />
-              <div className="stat-value">{formatCurrency(stats.avg_value)}</div>
+              <div className="stat-value">{formatCurrency(stats.avgTaxValue)}</div>
               <div className="stat-label">Average Value</div>
             </div>
             <div className="stat-card flagged">
               <Icon name="AlertTriangle" size="md" />
-              <div className="stat-value">{stats.known_associate_count}</div>
+              <div className="stat-value">{stats.knownAssociateProperties}</div>
               <div className="stat-label">Known Associates</div>
             </div>
           </div>

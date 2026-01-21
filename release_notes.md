@@ -1,5 +1,31 @@
 # Release Notes
 
+## v11.3.0 (2026-01-21) - Properties Browser & Analytics Fixes
+
+### Properties Browser Fix
+
+- **Fixed Field Name Mismatch**: PropertyBrowser now correctly maps API response fields (totalProperties, total_tax_value, owner_name_1, site_address, property_use) to display 9,535 Palm Beach properties
+- **Proper Stats Display**: Total Properties, Max Value, Average Value, and Known Associates now show correctly instead of NaN
+- **Epstein Property Badge**: Properties flagged as Epstein-owned now display a distinct badge
+
+### Entity Consolidation Improvements
+
+- **Exact Name Matching**: Changed from fuzzy `%trump%` patterns to explicit exact matches for VIP consolidation (Donald Trump, President Trump, Mr Trump, etc.)
+- **Phrase-Based Junk Filtering**: Filters out non-person entities like "Trump And", "Trump Is", "With Trump", "Team Trump", "Trump Administration", "Trump Campaign", "Trump Tower"
+- **Extended VIP List**: Added Ivanka Trump and Melania Trump as separate consolidated entities
+
+### Navigation & UI
+
+- **Compact Nav Bar**: All 11 tabs now fit 100% width without scrolling - reduced spacing, shortened labels (Docs, Investigate, Book, Stats, Property), icons-only on md screens
+- **Junk Entity Filtering**: Added comprehensive filters for banking terms, auto companies, organizations, and truncated names in analytics charts
+- **NetworkGraph Readability**: Reduced node sizes (2-8px), increased spacing for better default zoom visibility
+
+### About Page Updates
+
+- **Fixed Redaction Colors**: USVI Property Evidence now correctly shows green for 0% redaction
+- **New Testimonies Added**: Sascha Riley Testimony (audio, CRITICAL) and Katie Johnson Video Testimony (HIGH impact)
+- **DOJ Discovery Expanded**: Added VOL00009+ (Jan 2026 release) to document sources
+
 ## v11.2.0 (2026-01-21) - Deployment Safety & Intelligent Email Filtering
 
 ### Production Deployment Hardening

@@ -7,7 +7,7 @@ interface AddToInvestigationItem {
   id: string;
   title: string;
   description: string;
-  type: 'document' | 'entity' | 'evidence';
+  type: 'document' | 'entity' | 'evidence' | 'flight' | 'property';
   sourceId: string;
   metadata?: any;
 }

@@ -236,7 +236,7 @@ export const investigationsRepository = {
     return result.lastInsertRowid;
   },
 
-  getTimelineEvents:
+  getTimelineEvents: (investigationId: number) => {
     const db = getDb();
     return db
       .prepare(

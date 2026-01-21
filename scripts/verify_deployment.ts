@@ -201,6 +201,118 @@ function verifyDataIntegrity(db: Database.Database): VerificationResult {
   return result;
 }
 
+/**
+ * Runtime Database Tests - Actually execute queries that the app uses
+ */
+function verifyRuntimeQueries(db: Database.Database): VerificationResult {
+  const result: VerificationResult = { passed: true, errors: [], warnings: [] };
+
+  const criticalQueries = [
+    {
+      name: 'Entity listing query',
+      sql: 'SELECT id, full_name, mentions FROM entities WHERE mentions > 0 LIMIT 5',
+    },
+    {
+      name: 'Document listing query',
+      sql: 'SELECT id, file_name, evidence_type FROM documents LIMIT 5',
+    },
+    {
+      name: 'Entity relationships query',
+      sql: 'SELECT source_entity_id, target_entity_id, relationship_type FROM entity_relationships LIMIT 5',
+    },
+    {
+      name: 'Black book query',
+      sql: 'SELECT id, entry_text FROM black_book_entries LIMIT 5',
+    },
+    {
+      name: 'Stats aggregation query',
+      sql: `SELECT 
+              (SELECT COUNT(*) FROM entities) as entities,
+              (SELECT COUNT(*) FROM documents) as documents`,
+    },
+    {
+      name: 'Join query (entity-document)',
+      sql: `SELECT e.full_name, COUNT(em.document_id) as doc_count
+            FROM entities e
+            LEFT JOIN entity_mentions em ON e.id = em.entity_id
+            GROUP BY e.id
+            LIMIT 3`,
+    },
+  ];
+
+  console.log('\n🔍 Running critical query tests...');
+
+  for (const query of criticalQueries) {
+    try {
+      const startTime = Date.now();
+      const rows = db.prepare(query.sql).all();
+      const duration = Date.now() - startTime;
+
+      if (duration > 5000) {
+        result.warnings.push(`⚠️  ${query.name} took ${duration}ms (slow)`);
+      } else {
+        console.log(`   ✓ ${query.name}: ${rows.length} rows (${duration}ms)`);
+      }
+    } catch (e: any) {
+      result.errors.push(`❌ ${query.name} FAILED: ${e.message}`);
+      result.passed = false;
+    }
+  }
+
+  if (result.passed) {
+    console.log(`✅ All critical queries executed successfully`);
+  }
+
+  return result;
+}
+
+/**
+ * SQLite Database Integrity Check
+ */
+function verifySqliteIntegrity(db: Database.Database): VerificationResult {
+  const result: VerificationResult = { passed: true, errors: [], warnings: [] };
+
+  console.log('\n🗄️  Checking SQLite database integrity...');
+
+  try {
+    // PRAGMA integrity_check
+    const integrityResult = db.pragma('integrity_check') as Array<{ integrity_check: string }>;
+    if (integrityResult[0]?.integrity_check === 'ok') {
+      console.log('   ✓ PRAGMA integrity_check: ok');
+    } else {
+      result.errors.push(`❌ Database integrity check failed: ${integrityResult[0]?.integrity_check}`);
+      result.passed = false;
+    }
+
+    // Check WAL mode
+    const journalMode = db.pragma('journal_mode') as Array<{ journal_mode: string }>;
+    const mode = journalMode[0]?.journal_mode;
+    if (mode === 'wal') {
+      console.log('   ✓ Journal mode: WAL (recommended)');
+    } else {
+      result.warnings.push(`⚠️  Journal mode is ${mode}, not WAL (consider switching for better concurrency)`);
+    }
+
+    // Check for foreign key violations
+    try {
+      const fkViolations = db.pragma('foreign_key_check') as any[];
+      if (fkViolations.length === 0) {
+        console.log('   ✓ No foreign key violations');
+      } else {
+        result.warnings.push(`⚠️  ${fkViolations.length} foreign key violations found`);
+      }
+    } catch {
+      // Foreign key check might not be available
+    }
+
+  } catch (e: any) {
+    result.errors.push(`❌ Database integrity check crashed: ${e.message}`);
+    result.passed = false;
+  }
+
+  return result;
+}
+
 // Service port assignments - MUST match Nginx config
 const PRODUCTION_SERVICES = {
   'epstein-archive': { port: 3012, healthEndpoint: '/api/health' },
@@ -246,6 +358,8 @@ async function main() {
   results.push(verifyEnvironment());
   results.push(await verifyEcosystemConfig());
   results.push(verifyDataIntegrity(db));
+  results.push(verifySqliteIntegrity(db));
+  results.push(verifyRuntimeQueries(db));
 
   db.close();
 

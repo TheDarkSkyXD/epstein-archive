@@ -1,7 +1,7 @@
 {
   "name": "epstein-archive",
   "private": true,
-  "version": "11.1.0",
+  "version": "11.2.0",
   "description": "Epstein Archive Analyzer",
   "type": "module",
   "scripts": {
@@ -15,6 +15,8 @@
     "migrate": "DB_PATH=./epstein-archive.db tsx scripts/migrate.ts",
     "seed:structure": "DB_PATH=./epstein-archive.db tsx scripts/ensure_structure.ts",
     "verify": "DB_PATH=./epstein-archive.db tsx scripts/verify_deployment.ts",
+    "verify:post-deploy": "./scripts/post_deploy_verify.sh",
+    "rollback": "./scripts/emergency_rollback.sh",
     "seed:sascha-investigation": "DB_PATH=./epstein-archive.db tsx scripts/create_sascha_investigation.ts",
     "seed:katie-videos": "DB_PATH=./epstein-archive.db KJ_VIDEO_ROOT=./data/media/videos/KatieJohnson tsx scripts/ingest_katie_videos.ts",
     "lint": "eslint . --ext .ts,.tsx",

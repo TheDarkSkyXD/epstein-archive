@@ -151,32 +151,96 @@ create_remote_backup() {
     log_info "✅ Remote backup created with timestamp: $BACKUP_TIMESTAMP"
 }
 
-# Rollback to previous version on failure
+# Rollback to previous version on failure - ENHANCED with verification
 rollback_deployment() {
-    log_error "🔄 ROLLING BACK deployment..."
+    log_error ""
+    log_error "============================================"
+    log_error "🔄 AUTOMATIC ROLLBACK INITIATED"
+    log_error "============================================"
+    log_error ""
     
     if [ -z "$BACKUP_TIMESTAMP" ]; then
-        log_error "No backup timestamp found - manual recovery required"
-        return 1
+        log_error "No backup timestamp found!"
+        log_error "Attempting to find most recent backup..."
+        
+        # Try to find latest backup on server
+        BACKUP_TIMESTAMP=$(ssh -i "$SSH_KEY_PATH" "$PRODUCTION_USER@$PRODUCTION_SERVER" "
+            cd $PRODUCTION_PATH && ls -t dist.backup-* 2>/dev/null | head -1 | sed 's/dist.backup-//'
+        " || echo "")
+        
+        if [ -z "$BACKUP_TIMESTAMP" ]; then
+            log_error "No backups found on server - MANUAL RECOVERY REQUIRED"
+            return 1
+        fi
+        log_warn "Using most recent backup: $BACKUP_TIMESTAMP"
     fi
+    
+    log_info "Rolling back to backup: $BACKUP_TIMESTAMP"
     
     ssh -i "$SSH_KEY_PATH" "$PRODUCTION_USER@$PRODUCTION_SERVER" "
         cd $PRODUCTION_PATH &&
-        echo '🔄 Restoring previous dist...' &&
+        
+        echo '🛑 Stopping application...' &&
+        pm2 stop epstein-archive || true &&
+        sleep 2 &&
+        
+        echo '🔪 Killing any remaining processes on port 3012...' &&
+        fuser -k 3012/tcp 2>/dev/null || true &&
+        
+        echo '🔄 Restoring previous dist folder...' &&
         if [ -d dist.backup-$BACKUP_TIMESTAMP ]; then
             rm -rf dist
             mv dist.backup-$BACKUP_TIMESTAMP dist
+            echo '   ✓ dist folder restored'
+        else
+            echo '   ⚠ No dist backup found'
         fi &&
+        
         echo '🔄 Restoring previous database...' &&
         if [ -f epstein-archive.db.backup-$BACKUP_TIMESTAMP ]; then
+            # Clean up any stale journal files first
+            rm -f epstein-archive.db-wal epstein-archive.db-shm epstein-archive.db-journal
             mv epstein-archive.db.backup-$BACKUP_TIMESTAMP epstein-archive.db
+            echo '   ✓ Database restored'
+        else
+            echo '   ⚠ No database backup found - current DB preserved'
         fi &&
-        echo '🔄 Restarting with previous version...' &&
-        pm2 restart epstein-archive &&
-        echo '✅ Rollback complete'
+        
+        echo '🚀 Restarting with previous version...' &&
+        pm2 start ecosystem.config.cjs --env production --update-env &&
+        
+        echo '⏳ Waiting for startup (30s)...' &&
+        sleep 30 &&
+        
+        echo '🔍 Verifying rollback...' &&
+        HTTP_CODE=\$(curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:3012/api/health' --max-time 10 || echo '000') &&
+        
+        if [ \"\$HTTP_CODE\" = '200' ]; then
+            echo '✅ Rollback SUCCESSFUL - application is responding'
+        else
+            echo '❌ Rollback FAILED - health check returned HTTP '\$HTTP_CODE
+            echo 'Manual intervention required!'
+        fi
     "
     
-    log_info "Rollback attempted. Please verify production manually."
+    ROLLBACK_RESULT=$?
+    
+    if [ $ROLLBACK_RESULT -eq 0 ]; then
+        log_info ""
+        log_info "============================================"
+        log_info "✅ ROLLBACK COMPLETED"
+        log_info "============================================"
+        log_info "Previous version has been restored."
+        log_info "Please investigate the failed deployment before retrying."
+    else
+        log_error ""
+        log_error "============================================"
+        log_error "❌ ROLLBACK MAY HAVE FAILED"
+        log_error "============================================"
+        log_error "Manual verification and intervention required!"
+    fi
+    
+    return $ROLLBACK_RESULT
 }
 
 # Smoke test frontend
@@ -296,43 +360,173 @@ deploy_to_production() {
     log_info "Deployment to production server completed."
 }
 
-# Run health checks - CRITICAL DEPLOYMENT GATE
+# Run health checks - CRITICAL DEPLOYMENT GATE (Enhanced with Deep Verification)
 run_health_checks() {
-    log_step "Running comprehensive health checks..."
+    log_step "Running comprehensive health checks with deep verification..."
 
     # Wait for server to fully initialize
-    sleep 40
+    log_info "Waiting 45 seconds for server to fully initialize..."
+    sleep 45
 
-    # Define critical endpoints that MUST work (only public ones)
-    ENDPOINTS=("/api/health")
     HEALTH_CHECK_HOST="127.0.0.1:3012"
     ALL_PASSED=true
+    RETRY_COUNT=3
+    RETRY_DELAY=15
 
-    for endpoint in "${ENDPOINTS[@]}"; do
-        log_info "Checking $endpoint..."
-        # Run curl via SSH on the server
-        HTTP_CODE=$(ssh -i "$SSH_KEY_PATH" "$PRODUCTION_USER@$PRODUCTION_SERVER" "curl -s -o /dev/null -w '%{http_code}' 'http://$HEALTH_CHECK_HOST$endpoint' --max-time 10")
+    # ===============================================
+    # Phase 1: Basic Health Check with Retries
+    # ===============================================
+    log_step "Phase 1: Basic health check (with retries)..."
+    
+    BASIC_HEALTH_OK=false
+    for attempt in $(seq 1 $RETRY_COUNT); do
+        log_info "Attempt $attempt of $RETRY_COUNT..."
+        
+        HEALTH_RESPONSE=$(ssh -i "$SSH_KEY_PATH" "$PRODUCTION_USER@$PRODUCTION_SERVER" "
+            curl -s 'http://$HEALTH_CHECK_HOST/api/health' --max-time 10 2>/dev/null
+        " || echo '{}')
+        
+        HTTP_CODE=$(ssh -i "$SSH_KEY_PATH" "$PRODUCTION_USER@$PRODUCTION_SERVER" "
+            curl -s -o /dev/null -w '%{http_code}' 'http://$HEALTH_CHECK_HOST/api/health' --max-time 10
+        ")
         
         if [ "$HTTP_CODE" = "200" ]; then
-            log_info "✅ $endpoint returned $HTTP_CODE"
+            # Check if status is healthy
+            STATUS=$(echo "$HEALTH_RESPONSE" | grep -o '"status":"[^"]*"' | cut -d'"' -f4 || echo "unknown")
+            if [ "$STATUS" = "healthy" ]; then
+                log_info "✅ Basic health check PASSED (status: $STATUS)"
+                BASIC_HEALTH_OK=true
+                break
+            else
+                log_warn "Health check returned status: $STATUS"
+            fi
         else
-            log_error "❌ $endpoint returned $HTTP_CODE (expected 200)"
-            ALL_PASSED=false
+            log_warn "Health check returned HTTP $HTTP_CODE"
+        fi
+        
+        if [ $attempt -lt $RETRY_COUNT ]; then
+            log_info "Retrying in ${RETRY_DELAY}s..."
+            sleep $RETRY_DELAY
         fi
     done
+    
+    if [ "$BASIC_HEALTH_OK" != "true" ]; then
+        log_error "❌ Basic health check FAILED after $RETRY_COUNT attempts"
+        ALL_PASSED=false
+    fi
 
+    # ===============================================
+    # Phase 2: Deep Health Check (Database Integrity)
+    # ===============================================
     if [ "$ALL_PASSED" = true ]; then
-        log_info "✅ All health checks passed - Deployment successful!"
+        log_step "Phase 2: Deep health check (database integrity)..."
+        
+        DEEP_RESPONSE=$(ssh -i "$SSH_KEY_PATH" "$PRODUCTION_USER@$PRODUCTION_SERVER" "
+            curl -s 'http://$HEALTH_CHECK_HOST/api/health/deep' --max-time 60 2>/dev/null
+        " || echo '{}')
+        
+        HTTP_CODE=$(ssh -i "$SSH_KEY_PATH" "$PRODUCTION_USER@$PRODUCTION_SERVER" "
+            curl -s -o /dev/null -w '%{http_code}' 'http://$HEALTH_CHECK_HOST/api/health/deep' --max-time 60
+        ")
+        
+        if [ "$HTTP_CODE" = "200" ]; then
+            STATUS=$(echo "$DEEP_RESPONSE" | grep -o '"status":"[^"]*"' | head -1 | cut -d'"' -f4 || echo "unknown")
+            
+            if [ "$STATUS" = "healthy" ] || [ "$STATUS" = "degraded" ]; then
+                log_info "✅ Deep health check PASSED (status: $STATUS)"
+                
+                # Log individual check results
+                echo "$DEEP_RESPONSE" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    for check, result in data.get('checks', {}).items():
+        emoji = '✓' if result['status'] == 'pass' else ('⚠' if result['status'] == 'warn' else '✗')
+        print(f'    {emoji} {check}: {result["message"]}')
+except: pass
+" 2>/dev/null || true
+            else
+                log_error "❌ Deep health check returned CRITICAL status"
+                log_error "Response: $DEEP_RESPONSE"
+                ALL_PASSED=false
+            fi
+        else
+            log_error "❌ Deep health check returned HTTP $HTTP_CODE"
+            ALL_PASSED=false
+        fi
+    fi
+
+    # ===============================================
+    # Phase 3: API Endpoint Smoke Tests
+    # ===============================================
+    if [ "$ALL_PASSED" = true ]; then
+        log_step "Phase 3: API endpoint smoke tests..."
+        
+        SMOKE_ENDPOINTS=(
+            "/api/entities?limit=1"
+            "/api/documents?limit=1"
+            "/api/stats"
+        )
+        
+        for endpoint in "${SMOKE_ENDPOINTS[@]}"; do
+            HTTP_CODE=$(ssh -i "$SSH_KEY_PATH" "$PRODUCTION_USER@$PRODUCTION_SERVER" "
+                curl -s -o /dev/null -w '%{http_code}' 'http://$HEALTH_CHECK_HOST$endpoint' --max-time 15
+            ")
+            
+            if [ "$HTTP_CODE" = "200" ]; then
+                log_info "✅ $endpoint → HTTP $HTTP_CODE"
+            else
+                log_error "❌ $endpoint → HTTP $HTTP_CODE (FAILED)"
+                ALL_PASSED=false
+            fi
+        done
+    fi
+
+    # ===============================================
+    # Phase 4: Database Query Verification
+    # ===============================================
+    if [ "$ALL_PASSED" = true ]; then
+        log_step "Phase 4: Database query verification..."
+        
+        ENTITY_RESPONSE=$(ssh -i "$SSH_KEY_PATH" "$PRODUCTION_USER@$PRODUCTION_SERVER" "
+            curl -s 'http://$HEALTH_CHECK_HOST/api/entities?limit=1' --max-time 15
+        " || echo '{}')
+        
+        TOTAL_ENTITIES=$(echo "$ENTITY_RESPONSE" | grep -o '"total":[0-9]*' | cut -d':' -f2 || echo "0")
+        
+        if [ -n "$TOTAL_ENTITIES" ] && [ "$TOTAL_ENTITIES" -gt 0 ]; then
+            log_info "✅ Database query successful ($TOTAL_ENTITIES entities found)"
+        else
+            log_error "❌ Database appears empty or queries failing"
+            log_error "Response: $ENTITY_RESPONSE"
+            ALL_PASSED=false
+        fi
+    fi
+
+    # ===============================================
+    # Final Result
+    # ===============================================
+    if [ "$ALL_PASSED" = true ]; then
+        log_info ""
+        log_info "============================================"
+        log_info "✅ ALL HEALTH CHECKS PASSED"
+        log_info "============================================"
+        log_info "Deployment verified successfully!"
     else
+        log_error ""
+        log_error "============================================"
         log_error "🛑 DEPLOYMENT HEALTH CHECK FAILED"
-        log_error "One or more critical endpoints are not responding correctly."
+        log_error "============================================"
+        log_error "One or more critical checks did not pass."
         log_error ""
         log_error "🔄 Attempting automatic rollback..."
         rollback_deployment
+        
         log_error ""
         log_error "Debug commands:"
-        log_error "  ssh $PRODUCTION_SERVER 'pm2 logs epstein-archive --lines 50'"
-        log_error "  ssh $PRODUCTION_SERVER 'curl -v http://localhost:3012/api/health'"
+        log_error "  ssh $PRODUCTION_SERVER 'pm2 logs epstein-archive --lines 100'"
+        log_error "  ssh $PRODUCTION_SERVER 'curl -v http://localhost:3012/api/health/deep'"
+        log_error "  ssh $PRODUCTION_SERVER 'sqlite3 epstein-archive.db \"PRAGMA integrity_check;\"'"
         exit 1
     fi
 }

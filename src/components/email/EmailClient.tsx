@@ -13,6 +13,12 @@ import {
   Reply,
   Forward,
   Trash2,
+  Users,
+  Bell,
+  Tag,
+  Star,
+  Link2,
+  ExternalLink,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiClient } from '../../services/apiClient';
@@ -28,7 +34,12 @@ interface Email extends Document {
   isRead?: boolean;
   date: string;
   summary?: string;
+  category?: 'primary' | 'updates' | 'promotions' | 'social';
+  isFromKnownEntity?: boolean;
+  knownEntityName?: string;
 }
+
+type EmailCategory = 'all' | 'primary' | 'updates' | 'promotions';
 
 interface Thread {
   id: string;
@@ -72,6 +83,8 @@ export const EmailClient: React.FC = () => {
   const [loadedEmails, setLoadedEmails] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [allDocs, setAllDocs] = useState<any[]>([]);
+  const [activeCategory, setActiveCategory] = useState<EmailCategory>('primary'); // Default to primary (real people)
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
 
   const listRef = useRef<HTMLDivElement>(null);
   const isMobileDetail = !!selectedThreadId;
@@ -98,13 +111,36 @@ export const EmailClient: React.FC = () => {
 
   useEffect(() => {
     loadInitialEmails();
+    loadCategoryCounts();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- loadInitialEmails is stable and only runs on mount
   }, []);
+
+  // Reload when category changes
+  useEffect(() => {
+    loadInitialEmails();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCategory]);
+
+  const loadCategoryCounts = async () => {
+    try {
+      const res = await fetch('/api/emails/categories');
+      if (res.ok) {
+        const counts = await res.json();
+        setCategoryCounts(counts);
+      }
+    } catch (e) {
+      console.error('Failed to load category counts', e);
+    }
+  };
 
   const loadInitialEmails = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.getDocuments({ evidenceType: 'email' }, 1, PAGE_SIZE);
+      // Use the new category-filtered endpoint
+      const categoryParam = activeCategory !== 'all' ? `&category=${activeCategory}` : '';
+      const res = await fetch(`/api/emails?page=1&limit=${PAGE_SIZE}${categoryParam}`);
+      if (!res.ok) throw new Error('Failed to fetch');
+      const response = await res.json();
       setAllDocs(response.data);
       setTotalEmails(response.total);
       setLoadedEmails(response.data.length);
@@ -123,7 +159,10 @@ export const EmailClient: React.FC = () => {
     setLoadingMore(true);
     try {
       const nextPage = currentPage + 1;
-      const response = await apiClient.getDocuments({ evidenceType: 'email' }, nextPage, PAGE_SIZE);
+      const categoryParam = activeCategory !== 'all' ? `&category=${activeCategory}` : '';
+      const res = await fetch(`/api/emails?page=${nextPage}&limit=${PAGE_SIZE}${categoryParam}`);
+      if (!res.ok) throw new Error('Failed to fetch');
+      const response = await res.json();
       if (response.data.length === 0) {
         setHasMore(false);
         return;
@@ -139,7 +178,7 @@ export const EmailClient: React.FC = () => {
     } finally {
       setLoadingMore(false);
     }
-  }, [loadingMore, hasMore, currentPage, allDocs]);
+  }, [loadingMore, hasMore, currentPage, allDocs, activeCategory]);
 
   const processDocsToThreads = (docs: any[]) => {
     const threadsMap = new Map<string, Thread>();
@@ -373,6 +412,46 @@ export const EmailClient: React.FC = () => {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
+            </div>
+
+            {/* Gmail-Style Category Tabs */}
+            <div className="flex border-b border-slate-800 md:border-black/5 md:dark:border-white/5 bg-slate-900/50 md:bg-transparent overflow-x-auto">
+              <CategoryTab
+                icon={Users}
+                label="Primary"
+                count={categoryCounts.primary}
+                active={activeCategory === 'primary'}
+                onClick={() => setActiveCategory('primary')}
+                color="blue"
+                description="Real people & known entities"
+              />
+              <CategoryTab
+                icon={Bell}
+                label="Updates"
+                count={categoryCounts.updates}
+                active={activeCategory === 'updates'}
+                onClick={() => setActiveCategory('updates')}
+                color="yellow"
+                description="Orders & notifications"
+              />
+              <CategoryTab
+                icon={Tag}
+                label="Promotions"
+                count={categoryCounts.promotions}
+                active={activeCategory === 'promotions'}
+                onClick={() => setActiveCategory('promotions')}
+                color="green"
+                description="Newsletters & marketing"
+              />
+              <CategoryTab
+                icon={Inbox}
+                label="All"
+                count={categoryCounts.all}
+                active={activeCategory === 'all'}
+                onClick={() => setActiveCategory('all')}
+                color="slate"
+                description="Everything"
+              />
             </div>
 
             {/* Sort Header - Hidden on Mobile */}
@@ -684,19 +763,52 @@ const IOSMessageRow = React.memo(
   },
 );
 
+interface LinkedEntity {
+  id: number;
+  name: string;
+  type: string;
+  confidence: number;
+}
+
 const IOSMessageBubble = ({
   email,
   expanded,
   getInitials,
   getAvatarColor,
+  onEntityClick,
 }: {
   email: Email;
   expanded: boolean;
   getInitials: (name: string) => string;
   getAvatarColor: (name: string) => string;
+  onEntityClick?: (entityId: number, entityName: string) => void;
 }) => {
   const [isExpanded, setExpanded] = useState(expanded);
+  const [linkedEntities, setLinkedEntities] = useState<LinkedEntity[]>([]);
+  const [loadingEntities, setLoadingEntities] = useState(false);
   const sender = email.sender || 'Unknown';
+
+  // Load entities when expanded
+  useEffect(() => {
+    if (isExpanded && linkedEntities.length === 0 && !loadingEntities) {
+      loadEmailEntities();
+    }
+  }, [isExpanded]);
+
+  const loadEmailEntities = async () => {
+    setLoadingEntities(true);
+    try {
+      const res = await fetch(`/api/emails/${email.id}/entities`);
+      if (res.ok) {
+        const data = await res.json();
+        setLinkedEntities(data.entities || []);
+      }
+    } catch (e) {
+      console.error('Failed to load email entities:', e);
+    } finally {
+      setLoadingEntities(false);
+    }
+  };
 
   return (
     <div className="border-b border-slate-800 md:border-black/5 md:dark:border-white/5">
@@ -714,9 +826,17 @@ const IOSMessageBubble = ({
         {/* Header */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
-            <span className="font-semibold text-white md:text-slate-800 md:dark:text-white truncate">
-              {sender}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-white md:text-slate-800 md:dark:text-white truncate">
+                {sender}
+              </span>
+              {/* Known Entity Badge */}
+              {email.isFromKnownEntity && (
+                <span className="px-1.5 py-0.5 bg-blue-500/20 text-blue-400 text-[10px] font-semibold rounded-full">
+                  {email.knownEntityName || 'Known'}
+                </span>
+              )}
+            </div>
             <span className="text-xs text-slate-500 md:text-slate-400 md:dark:text-white/40 ml-2 shrink-0">
               {new Date(email.date).toLocaleDateString([], {
                 month: 'short',
@@ -746,6 +866,41 @@ const IOSMessageBubble = ({
             className="overflow-hidden"
           >
             <div className="px-4 pb-4 md:pl-[68px]">
+              {/* Linked Entities Section */}
+              {(linkedEntities.length > 0 || loadingEntities) && (
+                <div className="mb-3 p-3 bg-slate-800/50 md:bg-slate-100 md:dark:bg-slate-800/50 rounded-lg">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 md:text-slate-500 md:dark:text-white/50 mb-2">
+                    <Link2 className="w-3.5 h-3.5" />
+                    Mentioned Entities
+                  </div>
+                  {loadingEntities ? (
+                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Loading entities...
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {linkedEntities.map((entity, idx) => (
+                        <button
+                          key={`${entity.id}-${idx}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEntityClick?.(entity.id, entity.name);
+                          }}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-xs font-medium rounded-full transition-colors"
+                          title={`View ${entity.name} (${entity.type})`}
+                        >
+                          <User className="w-3 h-3" />
+                          {entity.name}
+                          <ExternalLink className="w-2.5 h-2.5 opacity-50" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* Email Content */}
               <div className="text-sm text-slate-300 md:text-slate-600 md:dark:text-white/70 whitespace-pre-wrap leading-relaxed">
                 {email.content || email.summary || 'No content available'}
               </div>
@@ -754,6 +909,56 @@ const IOSMessageBubble = ({
         )}
       </AnimatePresence>
     </div>
+  );
+};
+
+// Gmail-style Category Tab Component
+const CategoryTab = ({
+  icon: Icon,
+  label,
+  count,
+  active,
+  onClick,
+  color,
+  description,
+}: {
+  icon: React.ElementType;
+  label: string;
+  count?: number;
+  active: boolean;
+  onClick: () => void;
+  color: 'blue' | 'yellow' | 'green' | 'slate';
+  description?: string;
+}) => {
+  const colorClasses = {
+    blue: 'text-blue-500 border-blue-500',
+    yellow: 'text-yellow-500 border-yellow-500',
+    green: 'text-green-500 border-green-500',
+    slate: 'text-slate-400 border-slate-400',
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className={`flex-1 min-w-[80px] px-3 py-3 flex flex-col items-center gap-1 border-b-2 transition-all ${
+        active
+          ? `${colorClasses[color]} bg-slate-800/50 md:bg-black/5 md:dark:bg-white/5`
+          : 'border-transparent text-slate-500 md:text-slate-400 md:dark:text-white/40 hover:text-slate-300 md:hover:text-slate-600 md:dark:hover:text-white/60 hover:bg-slate-800/30 md:hover:bg-black/[0.02] md:dark:hover:bg-white/[0.02]'
+      }`}
+      title={description}
+    >
+      <div className="flex items-center gap-1.5">
+        <Icon className="w-4 h-4" />
+        <span className="text-xs font-semibold">{label}</span>
+      </div>
+      {count !== undefined && (
+        <span className={`text-[10px] font-medium ${
+          active ? '' : 'text-slate-600 md:text-slate-400 md:dark:text-white/30'
+        }`}>
+          {count.toLocaleString()}
+        </span>
+      )}
+    </button>
   );
 };
 

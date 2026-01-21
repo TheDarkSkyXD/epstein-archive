@@ -43,7 +43,21 @@ export const ArticlesTab: React.FC = () => {
 
       const data = await response.json();
       if (Array.isArray(data)) {
-        setArticles(data);
+        // Normalize API response to match expected Article interface
+        const normalized = data.map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          url: item.link || item.url,
+          author: item.author || 'Unknown',
+          publication: item.source || item.publication || 'Unknown',
+          published_date: item.pub_date || item.published_date || '',
+          summary: item.description || item.summary || '',
+          tags: item.tags || '',
+          redFlagRating: item.red_flag_rating ?? item.redFlagRating ?? 0,
+          imageUrl: item.image_url || item.imageUrl || null,
+          reading_time: item.reading_time || item.readingTime || null,
+        }));
+        setArticles(normalized);
       } else {
         console.warn('Articles API returned non-array data:', data);
         setArticles([]);
@@ -256,68 +270,83 @@ export const ArticlesTab: React.FC = () => {
                 <p>No articles found</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {filteredArticles.map((article) => (
-                  <button
+                  <a
                     key={article.id}
-                    onClick={() => setViewerArticle(article)}
-                    className="group bg-slate-900 border border-slate-800 rounded-lg overflow-hidden hover:border-cyan-500/50 transition-all text-left"
+                    href={article.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group block bg-slate-900 border border-slate-800 rounded-xl overflow-hidden hover:border-cyan-500/50 hover:shadow-xl hover:shadow-cyan-500/10 transition-all duration-300"
                   >
-                    {/* Card Header */}
-                    <div className="p-4 border-b border-slate-800">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="text-xs font-medium text-cyan-400 truncate">
-                              {article.publication}
-                            </span>
-                            <span
-                              className={`text-xs px-2 py-0.5 rounded-full ${getRedFlagColor(article.redFlagRating)}`}
-                            >
-                              {'🚩'.repeat(article.redFlagRating || 0) || '—'}
-                            </span>
-                          </div>
-                          <h3 className="text-white font-semibold text-sm leading-tight group-hover:text-cyan-400 transition-colors line-clamp-2">
-                            {article.title}
-                          </h3>
+                    {/* Hero Image */}
+                    <div className="aspect-[16/9] relative overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900">
+                      {article.imageUrl ? (
+                        <img
+                          src={article.imageUrl}
+                          alt={article.title}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Newspaper className="w-16 h-16 text-slate-700" />
                         </div>
-                        <ExternalLink className="w-4 h-4 text-slate-600 group-hover:text-cyan-400 shrink-0" />
+                      )}
+                      {/* Gradient overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent opacity-60" />
+                      {/* Red flag badge */}
+                      {article.redFlagRating > 0 && (
+                        <div className="absolute top-3 right-3 bg-red-500/90 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-bold text-white flex items-center gap-1">
+                          {'🚩'.repeat(Math.min(article.redFlagRating, 5))}
+                        </div>
+                      )}
+                      {/* Publication badge */}
+                      <div className="absolute bottom-3 left-3">
+                        <span className="px-2.5 py-1 bg-slate-900/80 backdrop-blur-sm text-cyan-400 text-xs font-semibold rounded-full border border-cyan-500/30">
+                          {article.publication}
+                        </span>
                       </div>
                     </div>
 
-                    {/* Card Body */}
-                    <div className="p-4">
-                      <p className="text-slate-400 text-xs line-clamp-3 mb-3">
+                    {/* Card Content */}
+                    <div className="p-5">
+                      <h3 className="text-white font-bold text-lg leading-tight group-hover:text-cyan-400 transition-colors mb-2 line-clamp-2">
+                        {article.title}
+                      </h3>
+                      <p className="text-slate-400 text-sm line-clamp-2 mb-4">
                         {article.summary || 'No summary available.'}
                       </p>
 
-                      <div className="flex items-center justify-between text-xs text-slate-500">
+                      {/* Author and meta */}
+                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            {formatDate(article.published_date)}
-                          </span>
-                          {article.author && (
-                            <span className="truncate max-w-[100px]">{article.author}</span>
-                          )}
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white text-xs font-bold">
+                            {article.author?.split(' ').map(n => n[0]).join('').slice(0, 2) || '?'}
+                          </div>
+                          <div>
+                            <div className="text-sm text-white font-medium">{article.author || 'Unknown'}</div>
+                            <div className="text-xs text-slate-500">{formatDate(article.published_date)}</div>
+                          </div>
                         </div>
-                        {(article.reading_time || article.readingTime) && (
-                          <span className="flex items-center gap-1">
+                        {article.reading_time && (
+                          <div className="flex items-center gap-1 text-xs text-slate-500">
                             <Clock className="w-3 h-3" />
-                            {article.reading_time || article.readingTime}
-                          </span>
+                            {article.reading_time}
+                          </div>
                         )}
                       </div>
 
+                      {/* Tags */}
                       {article.tags && (
-                        <div className="flex flex-wrap gap-1 mt-3">
+                        <div className="flex flex-wrap gap-1.5 mt-4 pt-4 border-t border-slate-800">
                           {article.tags
                             .split(',')
-                            .slice(0, 3)
+                            .slice(0, 4)
                             .map((tag, i) => (
                               <span
                                 key={i}
-                                className="text-[10px] px-2 py-0.5 bg-slate-800 text-slate-400 rounded-full"
+                                className="text-xs px-2 py-0.5 bg-slate-800 text-slate-400 rounded-full hover:bg-slate-700 transition-colors"
                               >
                                 {tag.trim()}
                               </span>
@@ -325,7 +354,7 @@ export const ArticlesTab: React.FC = () => {
                         </div>
                       )}
                     </div>
-                  </button>
+                  </a>
                 ))}
               </div>
             )}

@@ -1531,7 +1531,7 @@ function App() {
                   }`}
                 >
                   <Icon name="BookOpen" size="sm" />
-                  <span className="hidden lg:inline">Book</span>
+                  <span className="hidden lg:inline">Black Book</span>
                 </button>
                 <button
                   onClick={() => navigate('/analytics')}

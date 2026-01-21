@@ -67,36 +67,42 @@ export const statsRepository = {
 
     // Get top entities by mentions - ONLY Person type, with VIP name consolidation
     // Uses CASE to consolidate known variants into canonical names
+    // AGGRESSIVE consolidation - only allow exact person references, not phrases
     const topEntities = db
       .prepare(
         `
       SELECT 
         CASE 
-          -- Trump variants -> Donald Trump
-          WHEN lower(full_name) LIKE '%trump%' AND lower(full_name) NOT LIKE '%ivanka%' 
-               AND lower(full_name) NOT LIKE '%melania%' AND lower(full_name) NOT LIKE '%eric trump%'
-               AND lower(full_name) NOT LIKE '%tower%' AND lower(full_name) NOT LIKE '%organization%'
-               AND lower(full_name) NOT LIKE '%campaign%' AND lower(full_name) NOT LIKE '%administration%'
-               AND lower(full_name) NOT LIKE '%national%' AND lower(full_name) NOT LIKE '%presidency%'
-               AND lower(full_name) NOT LIKE '%revocable%' AND lower(full_name) NOT LIKE '%white%'
+          -- Trump variants -> Donald Trump (ONLY actual person references)
+          WHEN (full_name = 'Donald Trump' OR full_name = 'President Trump' OR full_name = 'Mr Trump'
+                OR full_name = 'Trump' OR full_name = 'Donald J Trump' OR full_name = 'Donald J. Trump')
           THEN 'Donald Trump'
           -- Epstein variants -> Jeffrey Epstein  
-          WHEN (lower(full_name) LIKE '%epstein%' OR full_name = 'Jeffrey')
-               AND lower(full_name) NOT LIKE '%bar%' AND lower(full_name) NOT LIKE '%brian%'
+          WHEN (full_name = 'Jeffrey Epstein' OR full_name = 'Epstein' OR full_name = 'Jeffrey'
+                OR full_name = 'Jeff Epstein' OR full_name = 'Mr Epstein')
           THEN 'Jeffrey Epstein'
           -- Maxwell variants -> Ghislaine Maxwell
-          WHEN lower(full_name) LIKE '%maxwell%' OR lower(full_name) = 'ghislaine'
+          WHEN (full_name = 'Ghislaine Maxwell' OR full_name = 'Maxwell' OR full_name = 'Ghislaine'
+                OR full_name = 'Ms Maxwell' OR full_name = 'Miss Maxwell')
           THEN 'Ghislaine Maxwell'
           -- Clinton variants -> Bill Clinton (excluding Hillary)
-          WHEN (lower(full_name) LIKE '%clinton%' OR full_name = 'Bill')
+          WHEN (full_name = 'Bill Clinton' OR full_name = 'President Clinton' OR full_name = 'Mr Clinton'
+                OR full_name = 'Clinton' OR full_name = 'William Clinton')
                AND lower(full_name) NOT LIKE '%hillary%' AND lower(full_name) NOT LIKE '%chelsea%'
           THEN 'Bill Clinton'
           -- Prince Andrew
-          WHEN lower(full_name) LIKE '%prince andrew%' OR full_name = 'Duke of York'
+          WHEN (full_name = 'Prince Andrew' OR full_name = 'Duke of York' OR full_name = 'Andrew'
+                OR lower(full_name) LIKE '%prince andrew%')
           THEN 'Prince Andrew'
           -- Dershowitz
-          WHEN lower(full_name) LIKE '%dershowitz%'
+          WHEN (full_name = 'Alan Dershowitz' OR full_name = 'Dershowitz' OR full_name = 'Mr Dershowitz')
           THEN 'Alan Dershowitz'
+          -- Ivanka Trump (separate person)
+          WHEN full_name = 'Ivanka Trump' OR full_name = 'Ivanka'
+          THEN 'Ivanka Trump'
+          -- Melania Trump (separate person)
+          WHEN full_name = 'Melania Trump' OR full_name = 'Melania'
+          THEN 'Melania Trump'
           ELSE full_name
         END as name,
         SUM(mentions) as mentions,
@@ -153,6 +159,24 @@ export const statsRepository = {
       AND full_name NOT LIKE '% Ltd'
       AND full_name NOT LIKE 'St Thomas'
       AND full_name NOT LIKE 'St %'
+      -- Exclude phrase-based junk ("X And", "X Is", "X To", "With X", etc.)
+      AND full_name NOT LIKE '% And'
+      AND full_name NOT LIKE '% And %'
+      AND full_name NOT LIKE '% Is'
+      AND full_name NOT LIKE '% Is %'
+      AND full_name NOT LIKE '% To'
+      AND full_name NOT LIKE '% To %'
+      AND full_name NOT LIKE 'With %'
+      AND full_name NOT LIKE 'As %'
+      AND full_name NOT LIKE 'After %'
+      AND full_name NOT LIKE '% The'
+      AND full_name NOT LIKE '% But'
+      AND full_name NOT LIKE '% But %'
+      AND full_name NOT LIKE 'Team %'
+      AND full_name NOT LIKE '% Importance'
+      AND full_name NOT LIKE '% Administration'
+      AND full_name NOT LIKE '% Campaign'
+      AND full_name NOT LIKE '% Tower'
       -- Exclude names starting with lowercase (truncated/partial)
       AND full_name NOT GLOB '[a-z]*'
       GROUP BY name

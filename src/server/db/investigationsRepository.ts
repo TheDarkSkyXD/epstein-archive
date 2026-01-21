@@ -442,12 +442,16 @@ export const investigationsRepository = {
 
     // Include evidence for each hypothesis
     for (const hyp of hypotheses) {
-      hyp.evidenceLinks = db.prepare(`
+      hyp.evidenceLinks = db
+        .prepare(
+          `
         SELECT he.*, e.title as evidence_title, e.evidence_type 
         FROM hypothesis_evidence he
         JOIN evidence e ON he.evidence_id = e.id
         WHERE he.hypothesis_id = ?
-      `).all(hyp.id);
+      `,
+        )
+        .all(hyp.id);
     }
     return hypotheses;
   },
@@ -456,7 +460,7 @@ export const investigationsRepository = {
     const db = getDb();
     const result = db
       .prepare(
-        `INSERT INTO hypotheses (investigation_id, title, description) VALUES (@invId, @title, @desc)`
+        `INSERT INTO hypotheses (investigation_id, title, description) VALUES (@invId, @title, @desc)`,
       )
       .run({
         invId: investigationId,
@@ -466,21 +470,38 @@ export const investigationsRepository = {
     return result.lastInsertRowid;
   },
 
-  updateHypothesis: async (id: number, data: { title?: string; description?: string; status?: string; confidence?: number }) => {
+  updateHypothesis: async (
+    id: number,
+    data: { title?: string; description?: string; status?: string; confidence?: number },
+  ) => {
     const db = getDb();
     const sets: string[] = [];
     const params: any = { id };
-    
-    if (data.title !== undefined) { sets.push('title = @title'); params.title = data.title; }
-    if (data.description !== undefined) { sets.push('description = @description'); params.description = data.description; }
-    if (data.status !== undefined) { sets.push('status = @status'); params.status = data.status; }
-    if (data.confidence !== undefined) { sets.push('confidence = @confidence'); params.confidence = data.confidence; }
-    
+
+    if (data.title !== undefined) {
+      sets.push('title = @title');
+      params.title = data.title;
+    }
+    if (data.description !== undefined) {
+      sets.push('description = @description');
+      params.description = data.description;
+    }
+    if (data.status !== undefined) {
+      sets.push('status = @status');
+      params.status = data.status;
+    }
+    if (data.confidence !== undefined) {
+      sets.push('confidence = @confidence');
+      params.confidence = data.confidence;
+    }
+
     sets.push("updated_at = datetime('now')");
 
     if (sets.length === 1) return true; // only updated_at
 
-    const result = db.prepare(`UPDATE hypotheses SET ${sets.join(', ')} WHERE id = @id`).run(params);
+    const result = db
+      .prepare(`UPDATE hypotheses SET ${sets.join(', ')} WHERE id = @id`)
+      .run(params);
     return result.changes > 0;
   },
 
@@ -490,26 +511,36 @@ export const investigationsRepository = {
     return result.changes > 0;
   },
 
-  addEvidenceToHypothesis: async (hypothesisId: number, evidenceId: number, relevance = 'supporting') => {
+  addEvidenceToHypothesis: async (
+    hypothesisId: number,
+    evidenceId: number,
+    relevance = 'supporting',
+  ) => {
     const db = getDb();
     // Check if exists
     const exists = db
       .prepare('SELECT id FROM hypothesis_evidence WHERE hypothesis_id = ? AND evidence_id = ?')
       .get(hypothesisId, evidenceId);
-      
+
     if (exists) return (exists as any).id;
 
-    const result = db.prepare(`
+    const result = db
+      .prepare(
+        `
       INSERT INTO hypothesis_evidence (hypothesis_id, evidence_id, relevance)
       VALUES (?, ?, ?)
-    `).run(hypothesisId, evidenceId, relevance);
-    
+    `,
+      )
+      .run(hypothesisId, evidenceId, relevance);
+
     return result.lastInsertRowid;
   },
 
   removeEvidenceFromHypothesis: async (hypothesisId: number, evidenceId: number) => {
     const db = getDb();
-    const result = db.prepare('DELETE FROM hypothesis_evidence WHERE hypothesis_id = ? AND evidence_id = ?').run(hypothesisId, evidenceId);
+    const result = db
+      .prepare('DELETE FROM hypothesis_evidence WHERE hypothesis_id = ? AND evidence_id = ?')
+      .run(hypothesisId, evidenceId);
     return result.changes > 0;
   },
 

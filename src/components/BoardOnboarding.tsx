@@ -7,10 +7,7 @@ interface BoardOnboardingProps {
   onSkip: () => void;
 }
 
-export const BoardOnboarding: React.FC<BoardOnboardingProps> = ({
-  onComplete,
-  onSkip,
-}) => {
+export const BoardOnboarding: React.FC<BoardOnboardingProps> = ({ onComplete, onSkip }) => {
   const [step, setStep] = useState(1);
   const totalSteps = 3;
 
@@ -76,24 +73,24 @@ export const BoardOnboarding: React.FC<BoardOnboardingProps> = ({
       >
         {/* Progress Bar */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-slate-800">
-           <motion.div 
-             className="h-full bg-indigo-500"
-             initial={{ width: '0%' }}
-             animate={{ width: `${(step / totalSteps) * 100}%` }}
-             transition={{ duration: 0.3 }}
-           />
+          <motion.div
+            className="h-full bg-indigo-500"
+            initial={{ width: '0%' }}
+            animate={{ width: `${(step / totalSteps) * 100}%` }}
+            transition={{ duration: 0.3 }}
+          />
         </div>
 
         {/* Content Area */}
         <div className="p-8 pb-6 flex flex-col items-center text-center">
-            <div className="absolute top-4 right-4">
-                <button
-                    onClick={onSkip}
-                    className="p-1 rounded-full hover:bg-slate-800 text-slate-500 hover:text-white transition-colors"
-                >
-                    <X className="h-5 w-5" />
-                </button>
-            </div>
+          <div className="absolute top-4 right-4">
+            <button
+              onClick={onSkip}
+              className="p-1 rounded-full hover:bg-slate-800 text-slate-500 hover:text-white transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
 
           <AnimatePresence mode="wait">
             <motion.div
@@ -111,9 +108,7 @@ export const BoardOnboarding: React.FC<BoardOnboardingProps> = ({
               </div>
 
               <h2 className="text-xl font-bold text-white mb-3">{currentStep.title}</h2>
-              <p className="text-slate-400 text-sm leading-relaxed">
-                {currentStep.description}
-              </p>
+              <p className="text-slate-400 text-sm leading-relaxed">{currentStep.description}</p>
             </motion.div>
           </AnimatePresence>
         </div>
@@ -131,9 +126,11 @@ export const BoardOnboarding: React.FC<BoardOnboardingProps> = ({
               <ArrowRight className="w-4 h-4" />
             )}
           </button>
-          
+
           <div className="text-center">
-             <span className="text-xs text-slate-600">Step {step} of {totalSteps}</span>
+            <span className="text-xs text-slate-600">
+              Step {step} of {totalSteps}
+            </span>
           </div>
         </div>
       </motion.div>

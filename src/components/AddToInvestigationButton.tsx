@@ -42,7 +42,7 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
   const [showModal, setShowModal] = useState(false);
   const [selectedInvestigationId, setSelectedInvestigationId] = useState<string>('');
   const [relevance, setRelevance] = useState<'high' | 'medium' | 'low'>('medium');
-  
+
   // Create New Mode State
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -76,17 +76,17 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
       // Create new investigation if needed
       if (isCreatingNew && createInvestigation) {
         const newInv = await createInvestigation({
-            title: newTitle,
-            description: newDescription,
-            hypothesis: '', // Optional initial hypothesis
-            status: 'active',
-            leadInvestigator: '1',
-            priority: 'medium',
+          title: newTitle,
+          description: newDescription,
+          hypothesis: '', // Optional initial hypothesis
+          status: 'active',
+          leadInvestigator: '1',
+          priority: 'medium',
         });
         if (newInv) {
-            targetInvestigationId = newInv.id;
+          targetInvestigationId = newInv.id;
         } else {
-            throw new Error("Failed to create new investigation");
+          throw new Error('Failed to create new investigation');
         }
       }
 
@@ -280,47 +280,47 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
               {/* Investigation Selection or Creation */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-slate-300">
+                  <label className="block text-sm font-medium text-slate-300">
                     {isCreatingNew ? 'New Investigation Details' : 'Select Investigation'}
-                    </label>
-                    <button 
-                        onClick={() => setIsCreatingNew(!isCreatingNew)}
-                        className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
-                    >
-                        {isCreatingNew ? 'Select existing...' : '+ Create new'}
-                    </button>
+                  </label>
+                  <button
+                    onClick={() => setIsCreatingNew(!isCreatingNew)}
+                    className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                  >
+                    {isCreatingNew ? 'Select existing...' : '+ Create new'}
+                  </button>
                 </div>
-                
+
                 {isCreatingNew ? (
-                    <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                        <input
-                            type="text"
-                            placeholder="Investigation Title"
-                            value={newTitle}
-                            onChange={(e) => setNewTitle(e.target.value)}
-                            className="w-full px-4 h-10 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-500"
-                            autoFocus
-                        />
-                         <textarea
-                            placeholder="Description (optional)"
-                            value={newDescription}
-                            onChange={(e) => setNewDescription(e.target.value)}
-                            className="w-full px-4 py-2 h-20 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-500 resize-none text-sm"
-                        />
-                    </div>
+                  <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <input
+                      type="text"
+                      placeholder="Investigation Title"
+                      value={newTitle}
+                      onChange={(e) => setNewTitle(e.target.value)}
+                      className="w-full px-4 h-10 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-500"
+                      autoFocus
+                    />
+                    <textarea
+                      placeholder="Description (optional)"
+                      value={newDescription}
+                      onChange={(e) => setNewDescription(e.target.value)}
+                      className="w-full px-4 py-2 h-20 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-500 resize-none text-sm"
+                    />
+                  </div>
                 ) : (
-                    <select
+                  <select
                     value={selectedInvestigationId}
                     onChange={(e) => setSelectedInvestigationId(e.target.value)}
                     className="w-full px-4 h-10 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
+                  >
                     <option value="">Choose an investigation...</option>
                     {investigations.map((inv) => (
-                        <option key={inv.id} value={inv.id}>
+                      <option key={inv.id} value={inv.id}>
                         {inv.title}
-                        </option>
+                      </option>
                     ))}
-                    </select>
+                  </select>
                 )}
               </div>
 
@@ -356,7 +356,11 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
               </button>
               <button
                 onClick={handleAddToInvestigation}
-                disabled={(!selectedInvestigationId && !isCreatingNew) || (isCreatingNew && !newTitle.trim()) || isLoading}
+                disabled={
+                  (!selectedInvestigationId && !isCreatingNew) ||
+                  (isCreatingNew && !newTitle.trim()) ||
+                  isLoading
+                }
                 className="px-4 h-10 flex items-center justify-center bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center gap-2"
               >
                 {isLoading && (

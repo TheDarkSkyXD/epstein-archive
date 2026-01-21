@@ -187,14 +187,14 @@ router.post('/:id/evidence', authenticateRequest, async (req, res, next) => {
 });
 
 router.get('/:id/evidence-summary', async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const repoModule = await import('../db/evidenceRepository.js');
-        const summary = await repoModule.evidenceRepository.getInvestigationEvidenceSummary(id);
-        res.json(summary);
-    } catch (error) {
-        next(error);
-    }
+  try {
+    const { id } = req.params;
+    const repoModule = await import('../db/evidenceRepository.js');
+    const summary = await repoModule.evidenceRepository.getInvestigationEvidenceSummary(id);
+    res.json(summary);
+  } catch (error) {
+    next(error);
+  }
 });
 
 // --- Hypotheses ---
@@ -213,7 +213,10 @@ router.post('/:id/hypotheses', authenticateRequest, async (req, res, next) => {
   try {
     const { id } = req.params;
     const { title, description } = req.body;
-    const newId = await investigationsRepository.addHypothesis(parseInt(id), { title, description });
+    const newId = await investigationsRepository.addHypothesis(parseInt(id), {
+      title,
+      description,
+    });
     res.status(201).json({ id: newId, title, description, investigationId: id, status: 'draft' });
   } catch (error) {
     next(error);
@@ -244,25 +247,36 @@ router.delete('/:id/hypotheses/:hypId', authenticateRequest, async (req, res, ne
 });
 
 router.post('/:id/hypotheses/:hypId/evidence', authenticateRequest, async (req, res, next) => {
-    try {
-        const { hypId } = req.params;
-        const { evidenceId, relevance } = req.body;
-        await investigationsRepository.addEvidenceToHypothesis(parseInt(hypId), parseInt(evidenceId), relevance);
-        res.json({ success: true });
-    } catch (error) {
-        next(error);
-    }
+  try {
+    const { hypId } = req.params;
+    const { evidenceId, relevance } = req.body;
+    await investigationsRepository.addEvidenceToHypothesis(
+      parseInt(hypId),
+      parseInt(evidenceId),
+      relevance,
+    );
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
 });
 
-router.delete('/:id/hypotheses/:hypId/evidence/:evidenceId', authenticateRequest, async (req, res, next) => {
+router.delete(
+  '/:id/hypotheses/:hypId/evidence/:evidenceId',
+  authenticateRequest,
+  async (req, res, next) => {
     try {
-        const { hypId, evidenceId } = req.params;
-        await investigationsRepository.removeEvidenceFromHypothesis(parseInt(hypId), parseInt(evidenceId));
-        res.json({ success: true });
+      const { hypId, evidenceId } = req.params;
+      await investigationsRepository.removeEvidenceFromHypothesis(
+        parseInt(hypId),
+        parseInt(evidenceId),
+      );
+      res.json({ success: true });
     } catch (error) {
-        next(error);
+      next(error);
     }
-});
+  },
+);
 
 // Activity Feed
 router.get('/:id/activity', async (req, res, next) => {

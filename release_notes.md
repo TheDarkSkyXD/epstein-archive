@@ -1,5 +1,30 @@
 # Release Notes
 
+## v11.2.0 (2026-01-21) - Deployment Safety & Intelligent Email Filtering
+
+### Production Deployment Hardening
+
+- **Deep Health Check Endpoint (`/api/health/deep`)**: Comprehensive deployment verification including database integrity check (PRAGMA integrity_check), critical table validation, query execution tests, WAL mode verification, and memory monitoring
+- **4-Phase Post-Deploy Verification**: Basic health (with retries), deep health, API smoke tests, and database query verification - all must pass or automatic rollback triggers
+- **Enhanced Automatic Rollback**: Now includes automatic backup discovery, stale WAL/SHM journal cleanup, and post-rollback health verification
+- **Pre-Deploy Runtime Tests**: `npm run verify` now executes 6 critical queries against the database and performs SQLite integrity checks before deployment
+- **PM2 Crash Loop Prevention**: 30s min_uptime, max 5 restarts with exponential backoff, 10s graceful shutdown for clean database closure
+- **Emergency Rollback Script**: `npm run rollback <timestamp>` for fast manual recovery
+- **Deployment Safety Documentation**: New `docs/DEPLOYMENT_SAFETY.md` with comprehensive recovery procedures
+
+### Gmail-Style Intelligent Email Filtering
+
+- **Email Classification Service**: Automatic categorization of 13,752 emails into Primary (real people), Updates (transactions), Promotions (newsletters), and Social categories
+- **Known Entity Detection**: Emails from Ehud Barak, Jeffrey Epstein, and other known entities are automatically tagged and prioritized
+- **Category Filter Tabs**: Gmail-style tabs showing email counts per category with badge indicators
+- **Entity Cross-Linking**: When viewing an email, linked entities mentioned in the content are displayed with clickable links to entity profiles
+- **Newsletter Detection**: Pattern matching for "unsubscribe", marketing domains (houzz.com, CNBC, etc.), and promotional subject lines
+
+### New npm Scripts
+
+- `npm run verify:post-deploy` - Post-deployment verification with auto-rollback
+- `npm run rollback <timestamp>` - Emergency rollback to specific backup
+
 ## v11.1.0 (2026-01-21) - True Collaborative Investigations & UX Refinements
 
 ### Collaborative Investigation Platform

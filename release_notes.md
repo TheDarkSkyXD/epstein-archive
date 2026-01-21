@@ -1,5 +1,42 @@
 # Release Notes
 
+## v11.1.0 (2026-01-21) - True Collaborative Investigations & UX Refinements
+
+### Collaborative Investigation Platform
+
+- **Activity Feed Tab**: Real-time team activity tracking showing who added what evidence and when, with auto-refresh and time-ago formatting
+- **Case Folder Tab**: Unified evidence aggregation by type (entities, documents, flights, properties, emails) with search and relevance filtering
+- **Working Evidence Persistence**: Fixed `addToInvestigation` context to properly call the API and persist evidence with entity/document type mapping
+- **Activity Logging**: New `investigation_activity` table tracks all team actions with user attribution
+
+### Flight & Property Integration
+
+- **FlightTracker**: Added "Add to Investigation" button in flight details modal with flight metadata
+- **PropertyBrowser**: Added "Add to Investigation" button on property cards with owner/value metadata
+
+### Analytics Enhancements
+
+- **Entity Count Slider**: Network graph now has 100-500 entity slider (default 100) for performance tuning
+- **Improved Clustering**: Better node spacing and cluster separation based on entity count
+- **VIP Entity Consolidation**: Top Mentioned Individuals now aggregates Trump/Epstein/Clinton/Maxwell variants via SQL CASE statements
+- **Person-Only Filter**: Top Mentioned now correctly filters to `entity_type = 'Person'`
+
+### Navigation & UX
+
+- **Black Book Repositioned**: Moved between Emails and Analytics in main navigation
+- **Search Button Fix**: Header search button now navigates to search page even when empty
+
+### Black Book OCR Corrections
+
+- **Trump Entry Fixed**: Corrected "Trump, Donaic" → "Trump, Donald" and "he Trump Organization" → "The Trump Organization"
+- **Runtime OCR Layer**: Added `blackBookRepository` correction system for common OCR errors (Milania→Melania, AcDonald→McDonald, etc.)
+- **Source Files Updated**: Fixed OCR errors in both source text files for database rebuilds
+
+### Entity Normalization Pipeline
+
+- **Expanded NAME_VARIANTS**: 50+ aggressive alias mappings for VIP individuals including all Trump variants, Epstein associates, politicians, royalty, and financiers
+- **Consolidation at Query Time**: Stats queries now aggregate mentions for canonical names
+
 ## v11.0.0 (2026-01-20) - Data Expansion & Analytics Upgrade
 
 ### Flight Log Expansion

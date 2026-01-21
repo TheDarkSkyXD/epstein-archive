@@ -25,6 +25,8 @@ import {
   DollarSign,
   MessageSquare,
   LayoutDashboard,
+  Activity,
+  FolderOpen,
 } from 'lucide-react';
 import FinancialTransactionMapper from './FinancialTransactionMapper';
 // Removed unused ChainOfCustodyModal import
@@ -46,6 +48,8 @@ import { InvestigationBoard } from './InvestigationBoard';
 import { useToasts } from './ToastProvider';
 import { CreateRelationshipModal } from './CreateRelationshipModal';
 import { CommunicationAnalysis } from './CommunicationAnalysis';
+import { InvestigationActivityFeed } from './InvestigationActivityFeed';
+import { InvestigationCaseFolder } from './InvestigationCaseFolder';
 
 interface InvestigationWorkspaceProps {
   investigationId?: string;
@@ -105,7 +109,9 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
     | 'team'
     | 'analytics'
     | 'forensic'
-    | 'export';
+    | 'export'
+    | 'activity'
+    | 'casefolder';
 
   const getActiveTab = (): ActiveTab => {
     const params = new URLSearchParams(location.search);
@@ -126,6 +132,8 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
         'analytics',
         'forensic',
         'export',
+        'activity',
+        'casefolder',
       ].includes(tab)
     ) {
       return tab;
@@ -1016,6 +1024,8 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                 <div className="flex px-4 py-3 gap-2 min-w-max">
                   {[
                     { id: 'overview', label: 'Overview' },
+                    { id: 'activity', label: 'Activity' },
+                    { id: 'casefolder', label: 'Case Folder' },
                     { id: 'evidence', label: 'Evidence' },
                     { id: 'hypotheses', label: 'Hypotheses' },
                     { id: 'notebook', label: 'Notebook' },
@@ -1050,6 +1060,8 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                 {[
                   { id: 'board', label: 'Investigation Board', icon: LayoutDashboard },
                   { id: 'overview', label: 'Overview', icon: Search },
+                  { id: 'activity', label: 'Activity Feed', icon: Activity },
+                  { id: 'casefolder', label: 'Case Folder', icon: FolderOpen },
                   { id: 'evidence', label: 'Evidence', icon: FileText },
                   { id: 'hypotheses', label: 'Hypotheses', icon: Target },
                   { id: 'notebook', label: 'Notebook', icon: FileText },
@@ -1172,6 +1184,14 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                   </div>
                 </div>
               </div>
+            )}
+
+            {activeTab === 'activity' && selectedInvestigation && (
+              <InvestigationActivityFeed investigationId={selectedInvestigation.id} />
+            )}
+
+            {activeTab === 'casefolder' && selectedInvestigation && (
+              <InvestigationCaseFolder investigationId={selectedInvestigation.id} />
             )}
 
             {activeTab === 'evidence' && selectedInvestigation && (

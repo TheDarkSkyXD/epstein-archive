@@ -219,10 +219,24 @@ export const investigationsRepository = {
       added_by: 'user',
     });
 
+    // Log the activity
+    try {
+      investigationsRepository.logActivity({
+        investigationId,
+        actionType: 'evidence_added',
+        targetType: type,
+        targetId: String(evidenceId),
+        targetTitle: title,
+        metadata: { relevance, sourcePath }
+      });
+    } catch (e) {
+      console.warn('Failed to log activity:', e);
+    }
+
     return result.lastInsertRowid;
   },
 
-  getTimelineEvents: async (investigationId: number) => {
+  getTimelineEvents:
     const db = getDb();
     return db
       .prepare(
@@ -497,6 +511,89 @@ export const investigationsRepository = {
     const db = getDb();
     const result = db.prepare('DELETE FROM hypothesis_evidence WHERE hypothesis_id = ? AND evidence_id = ?').run(hypothesisId, evidenceId);
     return result.changes > 0;
+  },
+
+  // --- Activity Logging ---
+
+  logActivity: async (data: {
+    investigationId: number;
+    userId?: string;
+    userName?: string;
+    actionType: string;
+    targetType?: string;
+    targetId?: string;
+    targetTitle?: string;
+    metadata?: any;
+  }) => {
+    const db = getDb();
+    const stmt = db.prepare(`
+      INSERT INTO investigation_activity (
+        investigation_id, user_id, user_name, action_type, 
+        target_type, target_id, target_title, metadata_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const result = stmt.run(
+      data.investigationId,
+      data.userId || 'anonymous',
+      data.userName || 'Anonymous User',
+      data.actionType,
+      data.targetType || null,
+      data.targetId || null,
+      data.targetTitle || null,
+      data.metadata ? JSON.stringify(data.metadata) : null
+    );
+    return result.lastInsertRowid;
+  },
+
+  getActivity: async (investigationId: number, limit = 50) => {
+    const db = getDb();
+    return db.prepare(`
+      SELECT id, investigation_id, user_id, user_name, action_type,
+             target_type, target_id, target_title, metadata_json, created_at
+      FROM investigation_activity
+      WHERE investigation_id = ?
+      ORDER BY created_at DESC
+      LIMIT ?
+    `).all(investigationId, limit) as any[];
+  },
+
+  // Enhanced evidence retrieval with type breakdown
+  getEvidenceByType: async (investigationId: number) => {
+    const db = getDb();
+    const evidence = db.prepare(`
+      SELECT 
+        e.id, 
+        e.evidence_type as type, 
+        e.title, 
+        e.description, 
+        e.source_path,
+        e.red_flag_rating,
+        ie.relevance, 
+        ie.added_at, 
+        ie.added_by,
+        ie.notes
+      FROM investigation_evidence ie
+      JOIN evidence e ON ie.evidence_id = e.id
+      WHERE ie.investigation_id = ? 
+      ORDER BY ie.added_at DESC
+    `).all(investigationId) as any[];
+
+    // Group by type
+    const byType: Record<string, any[]> = {};
+    for (const e of evidence) {
+      const type = e.type || 'other';
+      if (!byType[type]) byType[type] = [];
+      byType[type].push(e);
+    }
+
+    return {
+      all: evidence,
+      byType,
+      counts: Object.fromEntries(
+        Object.entries(byType).map(([type, items]) => [type, items.length])
+      ),
+      total: evidence.length
+    };
   },
 };
 

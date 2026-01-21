@@ -86,6 +86,9 @@ const TimelineWithFlights = lazy(() =>
 const FlightTracker = lazy(() =>
   import('./components/FlightTracker').then((module) => ({ default: module.default })),
 );
+const PropertyBrowser = lazy(() =>
+  import('./components/PropertyBrowser').then((module) => ({ default: module.default })),
+);
 
 import releaseNotesRaw from '../release_notes.md?raw';
 
@@ -193,6 +196,7 @@ function App() {
     if (pathname === '/login') return 'login';
     if (pathname.startsWith('/admin')) return 'admin';
     if (pathname.startsWith('/flights')) return 'flights';
+    if (pathname.startsWith('/properties')) return 'properties';
     return 'people'; // default
   };
 
@@ -203,6 +207,7 @@ function App() {
     | 'media'
     | 'timeline'
     | 'flights'
+    | 'properties'
     | 'investigations'
     | 'analytics'
     | 'blackbook'
@@ -1197,6 +1202,8 @@ function App() {
                         onClick={() => {
                           if (searchTerm.trim()) {
                             navigate(`/search?q=${encodeURIComponent(searchTerm)}`);
+                          } else {
+                            navigate('/search');
                           }
                         }}
                         className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-r-lg transition-colors text-sm font-medium flex items-center gap-1"
@@ -1356,17 +1363,6 @@ function App() {
                   </div>
                 </div>
                 <button
-                  onClick={() => navigate('/search')}
-                  className={`flex-auto flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
-                    activeTab === 'search'
-                      ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white border border-emerald-400/50 shadow-emerald-500/20'
-                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-                  }`}
-                >
-                  <Icon name="Search" size="sm" />
-                  <span className="truncate">Search</span>
-                </button>
-                <button
                   onClick={() => navigate('/documents')}
                   className={`flex-auto flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
                     activeTab === 'documents'
@@ -1463,18 +1459,6 @@ function App() {
                     )}
                 </div>
                 <button
-                  onClick={() => navigate('/blackbook')}
-                  onMouseEnter={() => preloader.prefetchJson('/api/media/albums')}
-                  className={`flex-auto flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
-                    activeTab === 'blackbook'
-                      ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-white border border-amber-400/50 shadow-amber-500/20'
-                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-                  }`}
-                >
-                  <Icon name="BookOpen" size="sm" />
-                  <span className="truncate">Black Book</span>
-                </button>
-                <button
                   onClick={() => navigate('/timeline')}
                   onMouseEnter={() => preloader.prefetchJson('/api/timeline')}
                   className={`flex-auto flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
@@ -1497,6 +1481,18 @@ function App() {
                 >
                   <Icon name="Navigation" size="sm" />
                   <span className="truncate">Flights</span>
+                </button>
+                <button
+                  onClick={() => navigate('/properties')}
+                  onMouseEnter={() => preloader.prefetchJson('/api/properties/stats')}
+                  className={`flex-auto flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
+                    activeTab === 'properties'
+                      ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white border border-emerald-400/50 shadow-emerald-500/20'
+                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
+                  }`}
+                >
+                  <Icon name="Building" size="sm" />
+                  <span className="truncate">Properties</span>
                 </button>
                 <button
                   onClick={() => navigate('/media')}
@@ -1525,6 +1521,19 @@ function App() {
                 >
                   <Icon name="Mail" size="sm" />
                   <span className="truncate">Emails</span>
+                </button>
+
+                <button
+                  onClick={() => navigate('/blackbook')}
+                  onMouseEnter={() => preloader.prefetchJson('/api/media/albums')}
+                  className={`flex-auto flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
+                    activeTab === 'blackbook'
+                      ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-white border border-amber-400/50 shadow-amber-500/20'
+                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
+                  }`}
+                >
+                  <Icon name="BookOpen" size="sm" />
+                  <span className="truncate">Black Book</span>
                 </button>
 
                 <button
@@ -1895,6 +1904,12 @@ function App() {
                     {activeTab === 'flights' && (
                       <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-700/50">
                         <FlightTracker />
+                      </div>
+                    )}
+
+                    {activeTab === 'properties' && (
+                      <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-700/50">
+                        <PropertyBrowser />
                       </div>
                     )}
 

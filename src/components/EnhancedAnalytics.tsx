@@ -45,6 +45,7 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [entityCount, setEntityCount] = useState(100); // Default to 100 entities
 
   useEffect(() => {
     fetchAnalytics();
@@ -196,21 +197,37 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
 
       {/* Entity Network - Full Width */}
       <div className="glass-card p-6 rounded-xl relative overflow-hidden">
-        <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-          <Users className="h-5 w-5 text-emerald-400" />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
-            Entity Connection Network
-          </span>
-          <span className="ml-auto text-xs font-medium px-3 py-1 bg-emerald-500/10 text-emerald-300 rounded-full border border-emerald-500/20">
-            Top 200 • Clustered by Type
-          </span>
-        </h3>
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+          <h3 className="text-xl font-bold text-white flex items-center gap-2">
+            <Users className="h-5 w-5 text-emerald-400" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
+              Entity Connection Network
+            </span>
+          </h3>
+          
+          {/* Entity Count Slider */}
+          <div className="flex items-center gap-4 bg-slate-800/50 px-4 py-2 rounded-lg border border-slate-700/50">
+            <label className="text-xs text-slate-400 whitespace-nowrap">Entities:</label>
+            <input
+              type="range"
+              min="100"
+              max="500"
+              step="50"
+              value={entityCount}
+              onChange={(e) => setEntityCount(Number(e.target.value))}
+              className="w-32 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+            />
+            <span className="text-sm font-medium text-emerald-400 min-w-[3rem] text-right">
+              {entityCount}
+            </span>
+          </div>
+        </div>
 
         <div className="text-xs text-slate-400 mb-4 flex items-start gap-2 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
           <Info className="h-4 w-4 mt-0.5 flex-shrink-0 text-emerald-400" />
           <span>
             Interactive network showing entity relationships. Node size = connections. Colors
-            indicate risk level. Click to view entity details.
+            indicate risk level. Click to view entity details. Grouped by entity type.
           </span>
         </div>
 
@@ -220,7 +237,7 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
             entities={topConnectedEntities}
             relationships={topRelationships}
             onEntityClick={(entity) => onEntitySelect?.(entity.id)}
-            maxNodes={200}
+            maxNodes={entityCount}
           />
         </div>
 

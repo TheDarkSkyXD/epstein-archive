@@ -65,14 +65,45 @@ export const statsRepository = {
       },
     ];
 
-    // Get top entities by mentions - ONLY Person type, excluding junk patterns
+    // Get top entities by mentions - ONLY Person type, with VIP name consolidation
+    // Uses CASE to consolidate known variants into canonical names
     const topEntities = db
       .prepare(
         `
-      SELECT full_name as name, mentions, red_flag_rating as redFlagRating
+      SELECT 
+        CASE 
+          -- Trump variants -> Donald Trump
+          WHEN lower(full_name) LIKE '%trump%' AND lower(full_name) NOT LIKE '%ivanka%' 
+               AND lower(full_name) NOT LIKE '%melania%' AND lower(full_name) NOT LIKE '%eric trump%'
+               AND lower(full_name) NOT LIKE '%tower%' AND lower(full_name) NOT LIKE '%organization%'
+               AND lower(full_name) NOT LIKE '%campaign%' AND lower(full_name) NOT LIKE '%administration%'
+               AND lower(full_name) NOT LIKE '%national%' AND lower(full_name) NOT LIKE '%presidency%'
+               AND lower(full_name) NOT LIKE '%revocable%' AND lower(full_name) NOT LIKE '%white%'
+          THEN 'Donald Trump'
+          -- Epstein variants -> Jeffrey Epstein  
+          WHEN (lower(full_name) LIKE '%epstein%' OR full_name = 'Jeffrey')
+               AND lower(full_name) NOT LIKE '%bar%' AND lower(full_name) NOT LIKE '%brian%'
+          THEN 'Jeffrey Epstein'
+          -- Maxwell variants -> Ghislaine Maxwell
+          WHEN lower(full_name) LIKE '%maxwell%' OR lower(full_name) = 'ghislaine'
+          THEN 'Ghislaine Maxwell'
+          -- Clinton variants -> Bill Clinton (excluding Hillary)
+          WHEN (lower(full_name) LIKE '%clinton%' OR full_name = 'Bill')
+               AND lower(full_name) NOT LIKE '%hillary%' AND lower(full_name) NOT LIKE '%chelsea%'
+          THEN 'Bill Clinton'
+          -- Prince Andrew
+          WHEN lower(full_name) LIKE '%prince andrew%' OR full_name = 'Duke of York'
+          THEN 'Prince Andrew'
+          -- Dershowitz
+          WHEN lower(full_name) LIKE '%dershowitz%'
+          THEN 'Alan Dershowitz'
+          ELSE full_name
+        END as name,
+        SUM(mentions) as mentions,
+        MAX(red_flag_rating) as redFlagRating
       FROM entities
       WHERE mentions > 0 
-      AND (type = 'Person' OR type IS NULL)
+      AND (entity_type = 'Person' OR entity_type IS NULL)
       AND full_name NOT LIKE 'The %'
       AND full_name NOT LIKE '% Like'
       AND full_name NOT LIKE '% Like %'
@@ -98,6 +129,7 @@ export const statsRepository = {
       AND full_name NOT LIKE '% Times'
       AND length(full_name) > 3
       AND full_name NOT GLOB '*[0-9]*'
+      GROUP BY name
       ORDER BY mentions DESC
       LIMIT 30
     `,

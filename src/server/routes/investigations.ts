@@ -264,6 +264,36 @@ router.delete('/:id/hypotheses/:hypId/evidence/:evidenceId', authenticateRequest
     }
 });
 
+// Activity Feed
+router.get('/:id/activity', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const limit = parseInt(req.query.limit as string) || 50;
+    const activity = await investigationsRepository.getActivity(parseInt(id), limit);
+    
+    // Parse metadata JSON for each activity
+    const parsed = activity.map((a: any) => ({
+      ...a,
+      metadata: a.metadata_json ? JSON.parse(a.metadata_json) : null,
+    }));
+    
+    res.json(parsed);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Evidence grouped by type (for Case Folder)
+router.get('/:id/evidence-by-type', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const evidence = await investigationsRepository.getEvidenceByType(parseInt(id));
+    res.json(evidence);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Notebook persistence
 router.get('/:id/notebook', async (req, res, next) => {
   try {

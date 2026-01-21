@@ -160,13 +160,70 @@ export const InvestigationsProvider: React.FC<InvestigationsProviderProps> = ({ 
     setIsLoading(true);
     setError(null);
     try {
-      // In a real implementation, this would call the API to add the item to the investigation
-      // For now, we'll just simulate the action
-      console.log('Adding item to investigation:', { investigationId, item, relevance });
+      // Map the item to evidence format based on type
+      const evidencePayload: any = {
+        relevance,
+        notes: item.description || '',
+      };
+
+      // Handle different item types
+      if (item.type === 'entity') {
+        evidencePayload.type = 'entity';
+        evidencePayload.title = item.title || 'Entity';
+        evidencePayload.description = item.description || '';
+        evidencePayload.source_path = `entity:${item.sourceId || item.id}`;
+        evidencePayload.entity_id = item.sourceId || item.id;
+      } else if (item.type === 'document') {
+        evidencePayload.type = 'document';
+        evidencePayload.title = item.title || 'Document';
+        evidencePayload.description = item.description || '';
+        evidencePayload.source_path = `document:${item.sourceId || item.id}`;
+        evidencePayload.document_id = item.sourceId || item.id;
+      } else if (item.type === 'flight') {
+        evidencePayload.type = 'flight_log';
+        evidencePayload.title = item.title || 'Flight Record';
+        evidencePayload.description = item.description || '';
+        evidencePayload.source_path = `flight:${item.sourceId || item.id}`;
+      } else if (item.type === 'property') {
+        evidencePayload.type = 'property_record';
+        evidencePayload.title = item.title || 'Property Record';
+        evidencePayload.description = item.description || '';
+        evidencePayload.source_path = `property:${item.sourceId || item.id}`;
+      } else if (item.type === 'email') {
+        evidencePayload.type = 'email';
+        evidencePayload.title = item.title || 'Email';
+        evidencePayload.description = item.description || '';
+        evidencePayload.source_path = `email:${item.sourceId || item.id}`;
+      } else {
+        // Generic evidence
+        evidencePayload.type = item.type || 'evidence';
+        evidencePayload.title = item.title || 'Evidence';
+        evidencePayload.description = item.description || '';
+        evidencePayload.source_path = item.source || `evidence:${item.id || Date.now()}`;
+      }
+
+      // Include any additional metadata
+      if (item.metadata) {
+        evidencePayload.metadata = item.metadata;
+      }
+
+      // Call the API to persist
+      const response = await fetch(`/api/investigations/${investigationId}/evidence`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ evidence: evidencePayload, relevance }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to add evidence: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('Evidence added successfully:', result);
 
       // Dispatch a custom event for other components to listen to
       const event = new CustomEvent('investigation-item-added', {
-        detail: { investigationId, item, relevance },
+        detail: { investigationId, item, relevance, evidenceId: result.id },
       });
       window.dispatchEvent(event);
     } catch (err) {
@@ -174,6 +231,7 @@ export const InvestigationsProvider: React.FC<InvestigationsProviderProps> = ({ 
         err instanceof Error ? err.message : 'Failed to add item to investigation';
       setError(errorMessage);
       console.error('Error adding to investigation:', err);
+      throw err; // Re-throw so UI can handle
     } finally {
       setIsLoading(false);
     }

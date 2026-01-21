@@ -1,5 +1,50 @@
 import { getDb } from './connection.js';
 
+// Common OCR errors in the Black Book and their corrections
+// Format: [error, correction]
+const OCR_CORRECTIONS: [string, string][] = [
+  // Trump entries
+  ['Trump, Donaic', 'Trump, Donald'],
+  ['he Trump Organization', 'The Trump Organization'],
+  ['Milania', 'Melania'],
+  ['Truit Mas ne.', 'Trump Mansion'],
+  ['Tomores Pa biasor Assoc.', 'Trump Plaza Business Assoc.'],
+  // Common OCR pattern errors
+  ['(и', '(h)'],
+  ['(w)', '(w)'],
+  ['(hf)', '(hf)'],
+  ['฿', '(f)'], // Thai Baht symbol often misread
+  // Name corrections
+  ['AcDonald', 'McDonald'],
+  ['Thoistrup', 'Tholstrup'],
+];
+
+/**
+ * Apply OCR corrections to entry text
+ */
+function applyOcrCorrections(text: string): string {
+  let corrected = text;
+  for (const [error, correction] of OCR_CORRECTIONS) {
+    corrected = corrected.replace(new RegExp(escapeRegExp(error), 'g'), correction);
+  }
+  return corrected;
+}
+
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Apply corrections to all entries in a result set
+ */
+function correctEntries<T extends { entry_text?: string; display_name?: string }>(entries: T[]): T[] {
+  return entries.map(entry => ({
+    ...entry,
+    entry_text: entry.entry_text ? applyOcrCorrections(entry.entry_text) : entry.entry_text,
+    display_name: entry.display_name ? applyOcrCorrections(entry.display_name) : entry.display_name,
+  }));
+}
+
 export const blackBookRepository = {
   getBlackBookEntries: (filters?: {
     letter?: string;
@@ -66,7 +111,8 @@ export const blackBookRepository = {
       ${limitClause}
     `;
 
-    return db.prepare(query).all(params);
+    const entries = db.prepare(query).all(params) as any[];
+    return correctEntries(entries);
   },
 
   getBlackBookReviewEntries: () => {

@@ -1317,8 +1317,8 @@ function App() {
                       : undefined
                 }
               />
-              {/* Navigation Tabs - Flexbox Layout for Edge-to-Edge with Content-Proportional Widths */}
-              <div className="hidden md:flex flex-nowrap gap-1 mb-6 text-sm font-medium w-full">
+              {/* Navigation Tabs - Flexbox Layout with overflow handling */}
+              <div className="hidden md:flex flex-nowrap gap-1 mb-6 text-sm font-medium w-full overflow-x-auto scrollbar-hide">
                 <div className="relative group flex-auto">
                   <button
                     onClick={() => navigate('/people')}
@@ -1485,11 +1485,12 @@ function App() {
                 <button
                   onClick={() => navigate('/properties')}
                   onMouseEnter={() => preloader.prefetchJson('/api/properties/stats')}
-                  className={`flex-auto flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
+                  className={`flex-none flex items-center justify-center gap-2 px-3 py-3 rounded-lg transition-all duration-300 whitespace-nowrap shadow-lg ${
                     activeTab === 'properties'
                       ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white border border-emerald-400/50 shadow-emerald-500/20'
                       : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
                   }`}
+                  title="Coming Soon - Palm Beach Properties"
                 >
                   <Icon name="Building" size="sm" />
                   <span className="truncate">Properties</span>

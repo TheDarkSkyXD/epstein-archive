@@ -47,6 +47,7 @@ const PropertyBrowser: React.FC = () => {
   const [topOwners, setTopOwners] = useState<{ owner_name: string; property_count: number; total_value: number }[]>([]);
   const [knownAssociates, setKnownAssociates] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dataUnavailable, setDataUnavailable] = useState(false);
   const [viewMode, setViewMode] = useState<'browse' | 'associates' | 'analytics'>('browse');
   
   // Filters
@@ -68,26 +69,44 @@ const PropertyBrowser: React.FC = () => {
 
   const loadInitialData = async () => {
     try {
-      const [statsRes, distRes, ownersRes, associatesRes] = await Promise.all([
-        fetch('/api/properties/stats'),
+      const statsRes = await fetch('/api/properties/stats');
+      
+      // Check if we got a valid JSON response (not 404 HTML page)
+      const contentType = statsRes.headers.get('content-type');
+      if (!statsRes.ok || !contentType?.includes('application/json')) {
+        setDataUnavailable(true);
+        setLoading(false);
+        return;
+      }
+
+      const [distRes, ownersRes, associatesRes] = await Promise.all([
         fetch('/api/properties/value-distribution'),
         fetch('/api/properties/top-owners'),
         fetch('/api/properties/known-associates'),
       ]);
 
-      const [statsData, distData, ownersData, associatesData] = await Promise.all([
-        statsRes.json(),
-        distRes.json(),
-        ownersRes.json(),
-        associatesRes.json(),
+      const statsData = await statsRes.json();
+      
+      // Check if stats indicate no data
+      if (!statsData || statsData.totalProperties === 0 || statsData.totalProperties === undefined) {
+        setDataUnavailable(true);
+        setLoading(false);
+        return;
+      }
+
+      const [distData, ownersData, associatesData] = await Promise.all([
+        distRes.ok ? distRes.json() : [],
+        ownersRes.ok ? ownersRes.json() : [],
+        associatesRes.ok ? associatesRes.json() : [],
       ]);
 
       setStats(statsData);
-      setValueDistribution(distData);
-      setTopOwners(ownersData);
-      setKnownAssociates(associatesData);
+      setValueDistribution(distData || []);
+      setTopOwners(ownersData || []);
+      setKnownAssociates(associatesData || []);
     } catch (error) {
       console.error('Failed to load property stats:', error);
+      setDataUnavailable(true);
     }
   };
 
@@ -115,7 +134,8 @@ const PropertyBrowser: React.FC = () => {
     }
   };
 
-  const formatCurrency = (value: number) => {
+  const formatCurrency = (value: number | null | undefined) => {
+    if (value === null || value === undefined || isNaN(value)) return '$0';
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
@@ -123,8 +143,40 @@ const PropertyBrowser: React.FC = () => {
     }).format(value);
   };
 
-  const formatNumber = (value: number) => {
+  const formatNumber = (value: number | null | undefined) => {
+    if (value === null || value === undefined || isNaN(value)) return '0';
     return new Intl.NumberFormat('en-US').format(value);
+  };
+
+  // Show coming soon state if data is unavailable
+  if (dataUnavailable) {
+    return (
+      <div className="property-browser">
+        <div className="property-header">
+          <h1>
+            <Icon name="Building" size="lg" />
+            Palm Beach Property Records
+          </h1>
+          <p className="subtitle">Explore properties from Palm Beach County public records</p>
+        </div>
+        
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="w-24 h-24 bg-emerald-500/10 rounded-full flex items-center justify-center mb-6">
+            <Icon name="Building" size="xl" className="text-emerald-400" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-3">Property Data Coming Soon</h2>
+          <p className="text-slate-400 max-w-md mb-6">
+            The Palm Beach County property records integration is currently in development. 
+            This feature will allow you to explore property ownership records and identify 
+            connections to known associates.
+          </p>
+          <div className="flex items-center gap-2 text-sm text-emerald-400 bg-emerald-500/10 px-4 py-2 rounded-lg">
+            <Icon name="Clock" size="sm" />
+            <span>Expected in a future update</span>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const propertyTypes = useMemo(() => {

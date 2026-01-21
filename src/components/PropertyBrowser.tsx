@@ -46,12 +46,14 @@ const PropertyBrowser: React.FC = () => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [stats, setStats] = useState<PropertyStats | null>(null);
   const [valueDistribution, setValueDistribution] = useState<ValueDistribution[]>([]);
-  const [topOwners, setTopOwners] = useState<{ owner_name: string; property_count: number; total_value: number }[]>([]);
+  const [topOwners, setTopOwners] = useState<
+    { owner_name: string; property_count: number; total_value: number }[]
+  >([]);
   const [knownAssociates, setKnownAssociates] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [dataUnavailable, setDataUnavailable] = useState(false);
   const [viewMode, setViewMode] = useState<'browse' | 'associates' | 'analytics'>('browse');
-  
+
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [propertyType, setPropertyType] = useState('');
@@ -72,7 +74,7 @@ const PropertyBrowser: React.FC = () => {
   const loadInitialData = async () => {
     try {
       const statsRes = await fetch('/api/properties/stats');
-      
+
       // Check if we got a valid JSON response (not 404 HTML page)
       const contentType = statsRes.headers.get('content-type');
       if (!statsRes.ok || !contentType?.includes('application/json')) {
@@ -88,9 +90,13 @@ const PropertyBrowser: React.FC = () => {
       ]);
 
       const statsData = await statsRes.json();
-      
+
       // Check if stats indicate no data
-      if (!statsData || statsData.totalProperties === 0 || statsData.totalProperties === undefined) {
+      if (
+        !statsData ||
+        statsData.totalProperties === 0 ||
+        statsData.totalProperties === undefined
+      ) {
         setDataUnavailable(true);
         setLoading(false);
         return;
@@ -161,16 +167,16 @@ const PropertyBrowser: React.FC = () => {
           </h1>
           <p className="subtitle">Explore properties from Palm Beach County public records</p>
         </div>
-        
+
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <div className="w-24 h-24 bg-emerald-500/10 rounded-full flex items-center justify-center mb-6">
             <Icon name="Building" size="xl" className="text-emerald-400" />
           </div>
           <h2 className="text-2xl font-bold text-white mb-3">Property Data Coming Soon</h2>
           <p className="text-slate-400 max-w-md mb-6">
-            The Palm Beach County property records integration is currently in development. 
-            This feature will allow you to explore property ownership records and identify 
-            connections to known associates.
+            The Palm Beach County property records integration is currently in development. This
+            feature will allow you to explore property ownership records and identify connections to
+            known associates.
           </p>
           <div className="flex items-center gap-2 text-sm text-emerald-400 bg-emerald-500/10 px-4 py-2 rounded-lg">
             <Icon name="Clock" size="sm" />
@@ -179,7 +185,7 @@ const PropertyBrowser: React.FC = () => {
         </div>
       </div>
     );
-  };
+  }
 
   const propertyTypes = useMemo(() => {
     return stats?.propertyTypes || [];
@@ -195,7 +201,10 @@ const PropertyBrowser: React.FC = () => {
             <input
               type="text"
               value={searchTerm}
-              onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPage(1);
+              }}
               placeholder="Search by name or address..."
               className="filter-input"
             />
@@ -204,7 +213,10 @@ const PropertyBrowser: React.FC = () => {
             <label>Property Type</label>
             <select
               value={propertyType}
-              onChange={(e) => { setPropertyType(e.target.value); setPage(1); }}
+              onChange={(e) => {
+                setPropertyType(e.target.value);
+                setPage(1);
+              }}
               className="filter-select"
             >
               <option value="">All Types</option>
@@ -220,7 +232,10 @@ const PropertyBrowser: React.FC = () => {
             <input
               type="number"
               value={minValue}
-              onChange={(e) => { setMinValue(e.target.value); setPage(1); }}
+              onChange={(e) => {
+                setMinValue(e.target.value);
+                setPage(1);
+              }}
               placeholder="Min $"
               className="filter-input small"
             />
@@ -230,7 +245,10 @@ const PropertyBrowser: React.FC = () => {
             <input
               type="number"
               value={maxValue}
-              onChange={(e) => { setMaxValue(e.target.value); setPage(1); }}
+              onChange={(e) => {
+                setMaxValue(e.target.value);
+                setPage(1);
+              }}
               placeholder="Max $"
               className="filter-input small"
             />
@@ -240,7 +258,10 @@ const PropertyBrowser: React.FC = () => {
               <input
                 type="checkbox"
                 checked={showAssociatesOnly}
-                onChange={(e) => { setShowAssociatesOnly(e.target.checked); setPage(1); }}
+                onChange={(e) => {
+                  setShowAssociatesOnly(e.target.checked);
+                  setPage(1);
+                }}
               />
               Known Associates Only
             </label>
@@ -282,15 +303,31 @@ const PropertyBrowser: React.FC = () => {
                   {property.site_address || property.street_name || 'Address N/A'}
                 </div>
                 <div className="property-details">
-                  <span><strong>Type:</strong> {property.property_use || 'N/A'}</span>
-                  <span><strong>Built:</strong> {property.year_built || 'N/A'}</span>
-                  {property.bedrooms && property.bedrooms > 0 && <span><strong>Beds:</strong> {property.bedrooms}</span>}
-                  {property.full_bathrooms && property.full_bathrooms > 0 && <span><strong>Baths:</strong> {property.full_bathrooms}</span>}
+                  <span>
+                    <strong>Type:</strong> {property.property_use || 'N/A'}
+                  </span>
+                  <span>
+                    <strong>Built:</strong> {property.year_built || 'N/A'}
+                  </span>
+                  {property.bedrooms && property.bedrooms > 0 && (
+                    <span>
+                      <strong>Beds:</strong> {property.bedrooms}
+                    </span>
+                  )}
+                  {property.full_bathrooms && property.full_bathrooms > 0 && (
+                    <span>
+                      <strong>Baths:</strong> {property.full_bathrooms}
+                    </span>
+                  )}
                   {property.living_area && property.living_area > 0 && (
-                    <span><strong>Living:</strong> {formatNumber(property.living_area)} sqft</span>
+                    <span>
+                      <strong>Living:</strong> {formatNumber(property.living_area)} sqft
+                    </span>
                   )}
                   {property.acres && property.acres > 0 && (
-                    <span><strong>Acres:</strong> {property.acres.toFixed(2)}</span>
+                    <span>
+                      <strong>Acres:</strong> {property.acres.toFixed(2)}
+                    </span>
                   )}
                 </div>
                 <div className="property-values">
@@ -300,15 +337,19 @@ const PropertyBrowser: React.FC = () => {
                   </div>
                 </div>
                 {property.is_known_associate === 1 && property.linked_entity_id && (
-                  <Link
-                    to={`/entity/${property.linked_entity_id}`}
-                    className="associate-link"
-                  >
+                  <Link to={`/entity/${property.linked_entity_id}`} className="associate-link">
                     <Icon name="User" size="sm" />
                     View Entity Profile
                   </Link>
                 )}
-                <div className="property-actions" style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                <div
+                  className="property-actions"
+                  style={{
+                    marginTop: '12px',
+                    paddingTop: '12px',
+                    borderTop: '1px solid rgba(255,255,255,0.1)',
+                  }}
+                >
                   <AddToInvestigationButton
                     item={{
                       id: String(property.id),
@@ -379,10 +420,7 @@ const PropertyBrowser: React.FC = () => {
                 {property.owner_name_1 || 'Unknown'}
               </div>
               {property.linked_entity_id && (
-                <Link
-                  to={`/entity/${property.linked_entity_id}`}
-                  className="view-profile-btn"
-                >
+                <Link to={`/entity/${property.linked_entity_id}`} className="view-profile-btn">
                   View Profile <Icon name="ExternalLink" size="sm" />
                 </Link>
               )}
@@ -475,8 +513,8 @@ const PropertyBrowser: React.FC = () => {
             Palm Beach Property Records
           </h1>
           <p className="subtitle">
-            Explore {stats ? formatNumber(stats.totalProperties) : '...'} properties from
-            Palm Beach County public records
+            Explore {stats ? formatNumber(stats.totalProperties) : '...'} properties from Palm Beach
+            County public records
           </p>
         </div>
 

@@ -23,6 +23,7 @@ npm run verify
 ```
 
 This checks:
+
 - All required tables exist
 - Required columns are present
 - Database integrity (PRAGMA integrity_check)
@@ -39,10 +40,12 @@ The `build:prod` script compiles both frontend and server TypeScript, catching a
 After deployment, the deploy script runs 4 phases of verification:
 
 **Phase 1: Basic Health Check**
+
 - Retries up to 3 times with 15s delay
 - Verifies `/api/health` returns status "healthy"
 
 **Phase 2: Deep Health Check**
+
 - Calls `/api/health/deep` which runs:
   - Database connection test
   - PRAGMA integrity_check
@@ -52,25 +55,31 @@ After deployment, the deploy script runs 4 phases of verification:
   - Journal mode verification
 
 **Phase 3: API Smoke Tests**
+
 - Tests `/api/entities?limit=1`
 - Tests `/api/documents?limit=1`
 - Tests `/api/stats`
 
 **Phase 4: Database Query Verification**
+
 - Confirms actual data is returned from queries
 - Validates entity count > 0
 
 ## Health Check Endpoints
 
 ### Basic Health (`/api/health`)
+
 Fast endpoint for load balancers. Returns:
+
 - `status`: "healthy" | "degraded"
 - `database`: connection status
 - `data`: entity/document counts
 - `uptime`: server uptime
 
 ### Deep Health (`/api/health/deep`)
+
 Comprehensive endpoint for deployment verification. Returns:
+
 - `status`: "healthy" | "degraded" | "critical"
 - `checks`: Individual check results with pass/fail/warn status
   - database_connection
@@ -113,16 +122,16 @@ The `ecosystem.config.cjs` includes safeguards:
 {
   // Must run 30s before considered "started"
   min_uptime: '30s',
-  
+
   // Max 5 restarts before giving up
   max_restarts: 5,
-  
+
   // 10s between restart attempts
   restart_delay: 10000,
-  
+
   // Exponential backoff
   exp_backoff_restart_delay: 100,
-  
+
   // 10s graceful shutdown (DB close)
   kill_timeout: 10000,
 }
@@ -131,16 +140,21 @@ The `ecosystem.config.cjs` includes safeguards:
 ## Database Safety
 
 ### WAL Mode
+
 SQLite is configured to use Write-Ahead Logging (WAL) mode for better:
+
 - Concurrent read/write performance
 - Crash recovery
 - Reduced corruption risk
 
 ### Busy Timeout
+
 `SQLITE_BUSY_TIMEOUT: 30000` prevents "database is locked" errors.
 
 ### Journal Cleanup
+
 During deployment, stale journal files are explicitly removed:
+
 ```bash
 rm -f epstein-archive.db-wal epstein-archive.db-shm epstein-archive.db-journal
 ```
@@ -194,6 +208,7 @@ ssh glasscode 'cd /home/deploy/epstein-archive && ls -la *.backup-*'
 ## Recovery Procedures
 
 ### Database Corruption
+
 ```bash
 # On server
 sqlite3 epstein-archive.db "PRAGMA integrity_check;"
@@ -207,6 +222,7 @@ mv recovered.db epstein-archive.db
 ```
 
 ### Application Won't Start
+
 ```bash
 # Check for port conflicts
 fuser -k 3012/tcp

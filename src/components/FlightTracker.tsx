@@ -315,10 +315,18 @@ const FlightTracker: React.FC = () => {
       const nodeMap = new Map<string, { name: string; connections: number; entityId?: number }>();
       coOccurrences.forEach((co) => {
         if (!nodeMap.has(co.passenger1)) {
-          nodeMap.set(co.passenger1, { name: co.passenger1, connections: 0, entityId: co.entity_id1 });
+          nodeMap.set(co.passenger1, {
+            name: co.passenger1,
+            connections: 0,
+            entityId: co.entity_id1,
+          });
         }
         if (!nodeMap.has(co.passenger2)) {
-          nodeMap.set(co.passenger2, { name: co.passenger2, connections: 0, entityId: co.entity_id2 });
+          nodeMap.set(co.passenger2, {
+            name: co.passenger2,
+            connections: 0,
+            entityId: co.entity_id2,
+          });
         }
         nodeMap.get(co.passenger1)!.connections += co.flights_together;
         nodeMap.get(co.passenger2)!.connections += co.flights_together;
@@ -345,9 +353,12 @@ const FlightTracker: React.FC = () => {
     return (
       <div className="network-view">
         <div className="network-header">
-          <h3><Icon name="Users" size="sm" /> Passenger Co-Occurrence Network</h3>
+          <h3>
+            <Icon name="Users" size="sm" /> Passenger Co-Occurrence Network
+          </h3>
           <p className="network-description">
-            Shows which passengers frequently flew together. Stronger connections indicate more shared flights.
+            Shows which passengers frequently flew together. Stronger connections indicate more
+            shared flights.
           </p>
         </div>
 
@@ -361,7 +372,9 @@ const FlightTracker: React.FC = () => {
                   <span className="passenger-name">
                     {co.entity_id1 ? (
                       <Link to={`/entity/${co.entity_id1}`}>{co.passenger1}</Link>
-                    ) : co.passenger1}
+                    ) : (
+                      co.passenger1
+                    )}
                   </span>
                   <span className="connection-indicator">
                     <Icon name="Link" size="sm" />
@@ -370,13 +383,17 @@ const FlightTracker: React.FC = () => {
                   <span className="passenger-name">
                     {co.entity_id2 ? (
                       <Link to={`/entity/${co.entity_id2}`}>{co.passenger2}</Link>
-                    ) : co.passenger2}
+                    ) : (
+                      co.passenger2
+                    )}
                   </span>
                 </div>
                 <div className="connection-bar">
-                  <div 
+                  <div
                     className="connection-fill"
-                    style={{ width: `${Math.min((co.flights_together / (topConnections[0]?.flights_together || 1)) * 100, 100)}%` }}
+                    style={{
+                      width: `${Math.min((co.flights_together / (topConnections[0]?.flights_together || 1)) * 100, 100)}%`,
+                    }}
                   />
                 </div>
               </div>
@@ -394,11 +411,11 @@ const FlightTracker: React.FC = () => {
                 <span className="name">
                   {node.entityId ? (
                     <Link to={`/entity/${node.entityId}`}>{node.name}</Link>
-                  ) : node.name}
+                  ) : (
+                    node.name
+                  )}
                 </span>
-                <span className="connection-count">
-                  {node.connections} shared flights
-                </span>
+                <span className="connection-count">{node.connections} shared flights</span>
               </div>
             ))}
           </div>
@@ -766,12 +783,20 @@ const FlightTracker: React.FC = () => {
           </div>
 
           {/* Add to Investigation */}
-          <div className="modal-section" style={{ borderTop: '1px solid #2a2a4a', paddingTop: '16px' }}>
+          <div
+            className="modal-section"
+            style={{ borderTop: '1px solid #2a2a4a', paddingTop: '16px' }}
+          >
             <AddToInvestigationButton
               item={{
                 id: String(selectedFlight.id),
                 title: `Flight ${selectedFlight.aircraft_tail}: ${selectedFlight.departure_airport} → ${selectedFlight.arrival_airport}`,
-                description: `${formatDate(selectedFlight.date)} - ${selectedFlight.passengers?.length || 0} passengers including ${selectedFlight.passengers?.slice(0, 3).map(p => p.passenger_name).join(', ')}${selectedFlight.passengers && selectedFlight.passengers.length > 3 ? '...' : ''}`,
+                description: `${formatDate(selectedFlight.date)} - ${selectedFlight.passengers?.length || 0} passengers including ${selectedFlight.passengers
+                  ?.slice(0, 3)
+                  .map((p) => p.passenger_name)
+                  .join(
+                    ', ',
+                  )}${selectedFlight.passengers && selectedFlight.passengers.length > 3 ? '...' : ''}`,
                 type: 'flight',
                 sourceId: String(selectedFlight.id),
                 metadata: {

@@ -188,7 +188,7 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
     /\sLLC$/i,
     /\sCorp$/i,
     /\sLtd$/i,
-    /^St\s[A-Z][a-z]+$/,  // "St Thomas" etc - places not people
+    /^St\s[A-Z][a-z]+$/, // "St Thomas" etc - places not people
     // Truncated/partial names (starts lowercase or looks like partial word)
     /^[a-z]/,
   ];

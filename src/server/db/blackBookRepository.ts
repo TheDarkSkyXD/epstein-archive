@@ -37,8 +37,10 @@ function escapeRegExp(str: string): string {
 /**
  * Apply corrections to all entries in a result set
  */
-function correctEntries<T extends { entry_text?: string; display_name?: string }>(entries: T[]): T[] {
-  return entries.map(entry => ({
+function correctEntries<T extends { entry_text?: string; display_name?: string }>(
+  entries: T[],
+): T[] {
+  return entries.map((entry) => ({
     ...entry,
     entry_text: entry.entry_text ? applyOcrCorrections(entry.entry_text) : entry.entry_text,
     display_name: entry.display_name ? applyOcrCorrections(entry.display_name) : entry.display_name,

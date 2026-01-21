@@ -899,7 +899,7 @@ const IOSMessageBubble = ({
                   )}
                 </div>
               )}
-              
+
               {/* Email Content */}
               <div className="text-sm text-slate-300 md:text-slate-600 md:dark:text-white/70 whitespace-pre-wrap leading-relaxed">
                 {email.content || email.summary || 'No content available'}
@@ -952,9 +952,11 @@ const CategoryTab = ({
         <span className="text-xs font-semibold">{label}</span>
       </div>
       {count !== undefined && (
-        <span className={`text-[10px] font-medium ${
-          active ? '' : 'text-slate-600 md:text-slate-400 md:dark:text-white/30'
-        }`}>
+        <span
+          className={`text-[10px] font-medium ${
+            active ? '' : 'text-slate-600 md:text-slate-400 md:dark:text-white/30'
+          }`}
+        >
           {count.toLocaleString()}
         </span>
       )}

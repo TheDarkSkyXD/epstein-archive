@@ -160,15 +160,16 @@ export const InvestigationActivityFeed: React.FC<InvestigationActivityFeedProps>
           className={`flex items-start gap-3 ${compact ? 'py-1' : 'py-2 px-3 bg-slate-800/30 rounded-lg'}`}
         >
           {/* Action icon */}
-          <div className={`flex-shrink-0 w-8 h-8 rounded-full bg-slate-700/50 flex items-center justify-center ${getActionColor(activity.action_type)}`}>
+          <div
+            className={`flex-shrink-0 w-8 h-8 rounded-full bg-slate-700/50 flex items-center justify-center ${getActionColor(activity.action_type)}`}
+          >
             <Icon name={getActionIcon(activity.action_type) as any} size="sm" />
           </div>
 
           {/* Content */}
           <div className="flex-1 min-w-0">
             <div className={`${compact ? 'text-xs' : 'text-sm'} text-slate-200`}>
-              <span className="font-medium text-cyan-400">{activity.user_name}</span>
-              {' '}
+              <span className="font-medium text-cyan-400">{activity.user_name}</span>{' '}
               <span className="text-slate-400">
                 {actionLabels[activity.action_type] || activity.action_type.replace(/_/g, ' ')}
               </span>
@@ -177,10 +178,10 @@ export const InvestigationActivityFeed: React.FC<InvestigationActivityFeedProps>
                   {' '}
                   <span className="text-white font-medium">
                     {activity.target_type && (
-                      <Icon 
-                        name={(targetTypeIcons[activity.target_type] || 'File') as any} 
-                        size="xs" 
-                        className="inline mr-1 opacity-60" 
+                      <Icon
+                        name={(targetTypeIcons[activity.target_type] || 'File') as any}
+                        size="xs"
+                        className="inline mr-1 opacity-60"
                       />
                     )}
                     {activity.target_title}
@@ -193,11 +194,15 @@ export const InvestigationActivityFeed: React.FC<InvestigationActivityFeedProps>
             {!compact && activity.metadata && (
               <div className="mt-1 text-xs text-slate-500">
                 {activity.metadata.relevance && (
-                  <span className={`inline-block px-1.5 py-0.5 rounded mr-2 ${
-                    activity.metadata.relevance === 'high' ? 'bg-red-900/30 text-red-300' :
-                    activity.metadata.relevance === 'medium' ? 'bg-yellow-900/30 text-yellow-300' :
-                    'bg-green-900/30 text-green-300'
-                  }`}>
+                  <span
+                    className={`inline-block px-1.5 py-0.5 rounded mr-2 ${
+                      activity.metadata.relevance === 'high'
+                        ? 'bg-red-900/30 text-red-300'
+                        : activity.metadata.relevance === 'medium'
+                          ? 'bg-yellow-900/30 text-yellow-300'
+                          : 'bg-green-900/30 text-green-300'
+                    }`}
+                  >
                     {activity.metadata.relevance} relevance
                   </span>
                 )}

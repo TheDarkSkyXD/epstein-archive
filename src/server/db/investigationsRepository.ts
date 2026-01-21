@@ -227,7 +227,7 @@ export const investigationsRepository = {
         targetType: type,
         targetId: String(evidenceId),
         targetTitle: title,
-        metadata: { relevance, sourcePath }
+        metadata: { relevance, sourcePath },
       });
     } catch (e) {
       console.warn('Failed to log activity:', e);
@@ -571,27 +571,33 @@ export const investigationsRepository = {
       data.targetType || null,
       data.targetId || null,
       data.targetTitle || null,
-      data.metadata ? JSON.stringify(data.metadata) : null
+      data.metadata ? JSON.stringify(data.metadata) : null,
     );
     return result.lastInsertRowid;
   },
 
   getActivity: async (investigationId: number, limit = 50) => {
     const db = getDb();
-    return db.prepare(`
+    return db
+      .prepare(
+        `
       SELECT id, investigation_id, user_id, user_name, action_type,
              target_type, target_id, target_title, metadata_json, created_at
       FROM investigation_activity
       WHERE investigation_id = ?
       ORDER BY created_at DESC
       LIMIT ?
-    `).all(investigationId, limit) as any[];
+    `,
+      )
+      .all(investigationId, limit) as any[];
   },
 
   // Enhanced evidence retrieval with type breakdown
   getEvidenceByType: async (investigationId: number) => {
     const db = getDb();
-    const evidence = db.prepare(`
+    const evidence = db
+      .prepare(
+        `
       SELECT 
         e.id, 
         e.evidence_type as type, 
@@ -607,7 +613,9 @@ export const investigationsRepository = {
       JOIN evidence e ON ie.evidence_id = e.id
       WHERE ie.investigation_id = ? 
       ORDER BY ie.added_at DESC
-    `).all(investigationId) as any[];
+    `,
+      )
+      .all(investigationId) as any[];
 
     // Group by type
     const byType: Record<string, any[]> = {};
@@ -621,9 +629,9 @@ export const investigationsRepository = {
       all: evidence,
       byType,
       counts: Object.fromEntries(
-        Object.entries(byType).map(([type, items]) => [type, items.length])
+        Object.entries(byType).map(([type, items]) => [type, items.length]),
       ),
-      total: evidence.length
+      total: evidence.length,
     };
   },
 };

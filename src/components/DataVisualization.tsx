@@ -134,7 +134,7 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
     );
   }
 
-  // Junk entity filter patterns
+  // Junk entity filter patterns - excludes non-person entities
   const JUNK_PATTERNS = [
     /^The\s/i,
     /\sLike$/i,
@@ -165,6 +165,32 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
     /^Englewood/i,
     /\d/,
     /^Judge\s.*\s/i,
+    // Banking / financial junk
+    /Pricing$/i,
+    /Checking$/i,
+    /Subtractions$/i,
+    /Additions$/i,
+    /Interest\s/i,
+    /^Your\s/i,
+    /^Other\s/i,
+    /Advantage/i,
+    /^sted\s/i,
+    /^iered\s/i,
+    // Organizations / companies
+    /Automobiles$/i,
+    /^Zorro\s/i,
+    /^Zeero\s/i,
+    /Management\sGroup$/i,
+    /^estigative\s/i,
+    /^Contact\sUs$/i,
+    /\sGroup$/i,
+    /\sInc$/i,
+    /\sLLC$/i,
+    /\sCorp$/i,
+    /\sLtd$/i,
+    /^St\s[A-Z][a-z]+$/,  // "St Thomas" etc - places not people
+    // Truncated/partial names (starts lowercase or looks like partial word)
+    /^[a-z]/,
   ];
 
   const isJunkEntity = (name: string): boolean => {

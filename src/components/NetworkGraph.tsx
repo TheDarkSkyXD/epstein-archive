@@ -50,8 +50,8 @@ const getRiskColor = (riskLevel: number): string => {
 };
 
 const getNodeSize = (connectionCount: number, maxConnections: number): number => {
-  const minSize = 4;
-  const maxSize = 14;
+  const minSize = 2;
+  const maxSize = 8;
   const ratio = connectionCount / Math.max(maxConnections, 1);
   return minSize + (maxSize - minSize) * Math.sqrt(ratio);
 };
@@ -154,14 +154,14 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
     const goldenAngle = Math.PI * (3 - Math.sqrt(5));
     const count = topEntities.length;
     // Increased spacing: larger rStep values spread nodes further apart
-    // More aggressive spacing for larger node counts
-    const rStep = count > 300 ? 5 : count > 200 ? 6 : count > 150 ? 8 : count > 80 ? 10 : 12;
+    // More aggressive spacing for larger node counts - increased values for better spread
+    const rStep = count > 300 ? 8 : count > 200 ? 10 : count > 150 ? 12 : count > 80 ? 14 : 16;
 
     // Assign cluster centers for each type (spread around the center)
-    // Increased cluster radius for better separation
+    // Increased cluster radius for better separation - larger values spread clusters further
     const clusterCenters = new Map<string, { x: number; y: number }>();
     const types = Array.from(typeGroups.keys());
-    const clusterRadius = count > 300 ? 35 : count > 200 ? 32 : count > 100 ? 28 : 22;
+    const clusterRadius = count > 300 ? 50 : count > 200 ? 45 : count > 100 ? 40 : 35;
     types.forEach((type, i) => {
       const angle = (i / types.length) * 2 * Math.PI;
       clusterCenters.set(type, {
@@ -174,8 +174,8 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
     const maxConn = Math.max(1, ...topEntities.map((n) => n.connectionCount));
 
     // Place nodes in clusters using spiral within each cluster
-    // Increased scale factor for better intra-cluster spacing
-    const intraClusterScale = count > 300 ? 0.75 : count > 200 ? 0.7 : 0.65;
+    // Increased scale factor for better intra-cluster spacing - larger values spread nodes more
+    const intraClusterScale = count > 300 ? 1.0 : count > 200 ? 0.95 : 0.9;
     typeGroups.forEach((groupEntities, type) => {
       const center = clusterCenters.get(type) || { x: 50, y: 50 };
       groupEntities.forEach((entity, localIndex) => {

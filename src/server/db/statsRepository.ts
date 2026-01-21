@@ -129,6 +129,32 @@ export const statsRepository = {
       AND full_name NOT LIKE '% Times'
       AND length(full_name) > 3
       AND full_name NOT GLOB '*[0-9]*'
+      -- Additional junk filters for banking terms, companies, truncated names
+      AND full_name NOT LIKE '%Pricing'
+      AND full_name NOT LIKE '%Checking'
+      AND full_name NOT LIKE '%Subtractions'
+      AND full_name NOT LIKE '%Additions'
+      AND full_name NOT LIKE '%Interest %'
+      AND full_name NOT LIKE 'Your %'
+      AND full_name NOT LIKE 'Other %'
+      AND full_name NOT LIKE '%Advantage%'
+      AND full_name NOT LIKE 'sted %'
+      AND full_name NOT LIKE 'iered %'
+      AND full_name NOT LIKE '%Automobiles'
+      AND full_name NOT LIKE 'Zorro %'
+      AND full_name NOT LIKE 'Zeero %'
+      AND full_name NOT LIKE '%Management Group'
+      AND full_name NOT LIKE 'estigative %'
+      AND full_name NOT LIKE 'Contact Us'
+      AND full_name NOT LIKE '% Group'
+      AND full_name NOT LIKE '% Inc'
+      AND full_name NOT LIKE '% LLC'
+      AND full_name NOT LIKE '% Corp'
+      AND full_name NOT LIKE '% Ltd'
+      AND full_name NOT LIKE 'St Thomas'
+      AND full_name NOT LIKE 'St %'
+      -- Exclude names starting with lowercase (truncated/partial)
+      AND full_name NOT GLOB '[a-z]*'
       GROUP BY name
       ORDER BY mentions DESC
       LIMIT 30

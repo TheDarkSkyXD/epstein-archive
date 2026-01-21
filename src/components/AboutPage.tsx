@@ -9,6 +9,8 @@ import {
   AlertTriangle,
   Eye,
   Download,
+  ExternalLink,
+  Newspaper,
 } from 'lucide-react';
 
 const DOCUMENT_SOURCES = [
@@ -153,7 +155,7 @@ const DOCUMENT_SOURCES = [
     search: 'EFTA',
   },
   {
-    title: 'DOJ Discovery VOL00002-6',
+    title: 'DOJ Discovery VOL00002-8',
     description: 'Additional discovery volumes containing heavily redacted documents.',
     redactionStatus: 'Heavy Redaction (~95%)',
     redactionColor: 'red',
@@ -221,7 +223,12 @@ const timelineEvents = [
     content: 'VOL00001: 3,158 FBI evidence items from 2019 NY search.',
   },
   {
-    date: 'Dec 24, 2025',
+    date: 'Dec 25, 2025',
+    source: 'DOJ Discovery',
+    content: 'VOL00002-6: Heavily redacted discovery documents.',
+  },
+  {
+    date: 'Dec 26, 2025',
     source: 'DOJ Discovery',
     content: 'VOL00007-8: Financial records, JPM correspondence, and new witness statements.',
   },
@@ -536,7 +543,7 @@ export const AboutPage: React.FC = () => {
           <div>
             <h2 className="text-3xl font-bold text-white">The Epstein Files: Analysis</h2>
             <p className="text-slate-400 mt-1">
-              What Documents Exist and What They Prove | Updated Jan 12, 2026
+              What Documents Exist and What They Prove | Updated Jan 21, 2026
             </p>
           </div>
         </div>
@@ -594,7 +601,7 @@ export const AboutPage: React.FC = () => {
             images, metadata, and financial records that were previously held under seal.
           </p>
 
-          <h4 className="text-xl font-semibold text-white mt-4">DOJ Discovery (VOL00002-6)</h4>
+          <h4 className="text-xl font-semibold text-white mt-4">DOJ Discovery (VOL00002-8)</h4>
           <p>
             Subsequent volumes contain heavily redacted document productions. Unlike Vol 1's raw
             digital evidence, these volumes consist primarily of procedural documents and
@@ -888,6 +895,103 @@ export const AboutPage: React.FC = () => {
         </div>
       </section>
 
+      {/* Media Coverage */}
+      <section className="bg-slate-800/50 rounded-lg p-8 space-y-6 border border-slate-700/50">
+        <div className="flex items-center gap-3 mb-4">
+          <Newspaper className="h-8 w-8 text-cyan-400" />
+          <h2 className="text-3xl font-bold text-white">Media Coverage</h2>
+        </div>
+        <p className="text-slate-300">
+          External reporting and analysis of the Epstein document releases from major publications.
+        </p>
+        <div className="grid gap-3">
+          <a
+            href="https://www.wired.com/story/a-complete-guide-to-the-jeffrey-epstein-document-dumps/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg border border-slate-600/50 hover:bg-slate-700/50 hover:border-cyan-500/30 transition-colors group"
+          >
+            <div>
+              <div className="text-white font-medium group-hover:text-cyan-300 transition-colors">
+                A Complete Guide to the Jeffrey Epstein Document Dumps
+              </div>
+              <div className="text-slate-400 text-sm">WIRED</div>
+            </div>
+            <ExternalLink className="h-4 w-4 text-slate-500 group-hover:text-cyan-400 transition-colors" />
+          </a>
+          <a
+            href="https://people.com/what-are-the-epstein-files-11781622"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg border border-slate-600/50 hover:bg-slate-700/50 hover:border-cyan-500/30 transition-colors group"
+          >
+            <div>
+              <div className="text-white font-medium group-hover:text-cyan-300 transition-colors">
+                What Are the Epstein Files? Everything to Know
+              </div>
+              <div className="text-slate-400 text-sm">People</div>
+            </div>
+            <ExternalLink className="h-4 w-4 text-slate-500 group-hover:text-cyan-400 transition-colors" />
+          </a>
+          <a
+            href="https://sfstandard.com/2025/11/21/epstein-emails-san-francisco-jmail/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg border border-slate-600/50 hover:bg-slate-700/50 hover:border-cyan-500/30 transition-colors group"
+          >
+            <div>
+              <div className="text-white font-medium group-hover:text-cyan-300 transition-colors">
+                Welcome to JMail: The easiest way to read all the Jeffrey Epstein emails
+              </div>
+              <div className="text-slate-400 text-sm">San Francisco Standard</div>
+            </div>
+            <ExternalLink className="h-4 w-4 text-slate-500 group-hover:text-cyan-400 transition-colors" />
+          </a>
+          <a
+            href="https://www.404media.co/podcast-the-epstein-email-dump-is-a-mess/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg border border-slate-600/50 hover:bg-slate-700/50 hover:border-cyan-500/30 transition-colors group"
+          >
+            <div>
+              <div className="text-white font-medium group-hover:text-cyan-300 transition-colors">
+                Podcast: The Epstein Email Dump Is a Mess
+              </div>
+              <div className="text-slate-400 text-sm">404 Media</div>
+            </div>
+            <ExternalLink className="h-4 w-4 text-slate-500 group-hover:text-cyan-400 transition-colors" />
+          </a>
+          <a
+            href="https://www.axios.com/2025/11/12/new-epstein-files-emails-released-doj-trump"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg border border-slate-600/50 hover:bg-slate-700/50 hover:border-cyan-500/30 transition-colors group"
+          >
+            <div>
+              <div className="text-white font-medium group-hover:text-cyan-300 transition-colors">
+                Here are all the new Epstein files and emails that have been released so far
+              </div>
+              <div className="text-slate-400 text-sm">Axios</div>
+            </div>
+            <ExternalLink className="h-4 w-4 text-slate-500 group-hover:text-cyan-400 transition-colors" />
+          </a>
+          <a
+            href="https://www.axios.com/2025/12/19/epstein-files-doj-library-images-photos-trump"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between p-4 bg-slate-700/30 rounded-lg border border-slate-600/50 hover:bg-slate-700/50 hover:border-cyan-500/30 transition-colors group"
+          >
+            <div>
+              <div className="text-white font-medium group-hover:text-cyan-300 transition-colors">
+                Epstein files are out. Here's what's in the DOJ's library and what's missing
+              </div>
+              <div className="text-slate-400 text-sm">Axios</div>
+            </div>
+            <ExternalLink className="h-4 w-4 text-slate-500 group-hover:text-cyan-400 transition-colors" />
+          </a>
+        </div>
+      </section>
+
       {/* Legal Disclaimer */}
       <section className="bg-yellow-900/20 border border-yellow-500/30 rounded-lg p-6 space-y-3">
         <div className="flex items-center gap-3">
@@ -920,7 +1024,7 @@ export const AboutPage: React.FC = () => {
 
       {/* Footer */}
       <div className="text-center text-slate-500 text-sm pt-8 border-t border-slate-700">
-        <p>Last updated: January 18, 2026</p>
+        <p>Last updated: Jan 21, 2026</p>
         <p className="mt-2">Built with transparency and accountability in mind</p>
       </div>
     </div>

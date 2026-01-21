@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 
 interface RedactedLogoProps {
   text: string;
@@ -14,6 +14,8 @@ export const RedactedLogo: React.FC<RedactedLogoProps> = ({ text, className = ''
   const [isAnimating, setIsAnimating] = useState(false);
   const [glitchingIndex, setGlitchingIndex] = useState<number | null>(null);
   const [globalGlitch, setGlobalGlitch] = useState(false);
+  const [showAltText, setShowAltText] = useState(false);
+  const animationCount = useRef(0);
 
   // Pre-calculate letter count (excluding spaces)
   const letterCount = useMemo(() => text.replace(/\s/g, '').length, [text]);
@@ -26,9 +28,14 @@ export const RedactedLogo: React.FC<RedactedLogoProps> = ({ text, className = ''
 
     const runAnimation = () => {
       const letterDelay = 55; // ms per letter
+      animationCount.current += 1;
+      
+      // Every 10th animation, show the alt text when unredacting
+      const isAltAnimation = animationCount.current % 10 === 0;
 
       // Phase 1: Redact letters one by one with glitch
       setIsAnimating(true);
+      setShowAltText(false);
 
       for (let i = 1; i <= letterCount; i++) {
         setTimeout(() => {
@@ -49,6 +56,11 @@ export const RedactedLogo: React.FC<RedactedLogoProps> = ({ text, className = ''
 
       // Phase 3: Reveal letters one by one
       setTimeout(() => {
+        // Set alt text at start of reveal phase if this is the 10th animation
+        if (isAltAnimation) {
+          setShowAltText(true);
+        }
+        
         for (let i = letterCount - 1; i >= 0; i--) {
           setTimeout(
             () => {
@@ -72,6 +84,7 @@ export const RedactedLogo: React.FC<RedactedLogoProps> = ({ text, className = ''
           setRedactedCount(0);
           setGlitchingIndex(null);
           setGlobalGlitch(false);
+          setShowAltText(false);
         },
         fullRedactTime + holdTime + letterCount * letterDelay + 100,
       );
@@ -93,8 +106,11 @@ export const RedactedLogo: React.FC<RedactedLogoProps> = ({ text, className = ''
   // Render text - always render individual spans during animation for consistency
   const renderText = () => {
     let letterIndex = 0;
+    
+    // Easter egg: swap "EPSTEIN" for "TRUMP" on every 10th animation
+    const displayText = showAltText ? text.replace(/EPSTEIN/gi, 'TRUMP  ') : text;
 
-    return text.split('').map((char, i) => {
+    return displayText.split('').map((char, i) => {
       if (char === ' ') {
         return (
           <span key={i} style={{ display: 'inline-block', width: '4px' }}>

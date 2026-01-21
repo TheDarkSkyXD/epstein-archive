@@ -1,5 +1,8 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useSharedIntersectionObserver } from '../hooks/useSharedIntersectionObserver';
+
+// Global cache to track which images have been loaded this session
+const loadedImageCache = new Set<string>();
 
 interface LazyImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   placeholderSrc?: string;
@@ -14,8 +17,10 @@ export const LazyImage: React.FC<LazyImageProps> = ({
   className,
   ...props
 }) => {
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [isInView, setIsInView] = useState(false);
+  // Check if this image was already loaded (prevents flicker on re-render)
+  const wasAlreadyLoaded = src ? loadedImageCache.has(src) : false;
+  const [isLoaded, setIsLoaded] = useState(wasAlreadyLoaded);
+  const [isInView, setIsInView] = useState(wasAlreadyLoaded);
   const imgRef = useRef<HTMLImageElement>(null);
 
   // Use shared IntersectionObserver instead of creating one per image
@@ -31,11 +36,23 @@ export const LazyImage: React.FC<LazyImageProps> = ({
   });
 
   const handleLoad = useCallback(() => {
+    // Cache the loaded state and update
+    if (src) {
+      loadedImageCache.add(src);
+    }
     // Use requestAnimationFrame to defer state update and prevent blocking
     requestAnimationFrame(() => {
       setIsLoaded(true);
     });
-  }, []);
+  }, [src]);
+
+  // If src changes and it's already cached, immediately show it
+  useEffect(() => {
+    if (src && loadedImageCache.has(src)) {
+      setIsLoaded(true);
+      setIsInView(true);
+    }
+  }, [src]);
 
   return (
     <img
@@ -49,7 +66,7 @@ export const LazyImage: React.FC<LazyImageProps> = ({
         isLoaded ? 'opacity-100' : 'opacity-0'
       }`}
       style={{
-        transition: 'opacity 0.3s ease-in-out',
+        transition: isLoaded ? 'none' : 'opacity 0.3s ease-in-out',
         backgroundColor: '#1e293b', // slate-800
       }}
       {...props}

@@ -245,7 +245,8 @@ const timelineEvents = [
   {
     date: 'Jan 23, 2026',
     source: 'Epstein Archive',
-    content: 'V11.5.0: "The Trump Rule" & "The Riley Rule". Implemented context-aware entity resolution and VIP auto-consolidation.',
+    content:
+      'V11.5.0: "The Trump Rule" & "The Riley Rule". Implemented context-aware entity resolution and VIP auto-consolidation.',
   },
 ];
 

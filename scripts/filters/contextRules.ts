@@ -1,4 +1,3 @@
-
 export interface ContextRule {
   ambiguousNames: string[];
   candidates: {
@@ -83,7 +82,7 @@ export const CONTEXT_RULES: ContextRule[] = [
 
 export function resolveAmbiguity(
   name: string,
-  context: string
+  context: string,
 ): { resolvedName: string; entityType: string; confidence: number } | null {
   const lowerName = name.toLowerCase().trim();
   const lowerContext = context.toLowerCase();
@@ -96,7 +95,7 @@ export function resolveAmbiguity(
 
       for (const candidate of rule.candidates) {
         let score = 0;
-        
+
         // Positive keywords
         for (const kw of candidate.keywords) {
           if (lowerContext.includes(kw.toLowerCase())) {
@@ -120,22 +119,22 @@ export function resolveAmbiguity(
       }
 
       if (bestCandidate && maxScore > 0) {
-         return {
-             resolvedName: bestCandidate.name,
-             entityType: bestCandidate.type,
-             confidence: Math.min(0.8 + (maxScore * 0.05), 1.0) // Base 0.8, boosts up
-         };
+        return {
+          resolvedName: bestCandidate.name,
+          entityType: bestCandidate.type,
+          confidence: Math.min(0.8 + maxScore * 0.05, 1.0), // Base 0.8, boosts up
+        };
       }
-      
+
       if (rule.defaultCandidate) {
-          const cand = rule.candidates.find(c => c.name === rule.defaultCandidate);
-          if (cand) {
-               return {
-                   resolvedName: cand.name,
-                   entityType: cand.type,
-                   confidence: 0.5 // Low confidence default
-               };
-          }
+        const cand = rule.candidates.find((c) => c.name === rule.defaultCandidate);
+        if (cand) {
+          return {
+            resolvedName: cand.name,
+            entityType: cand.type,
+            confidence: 0.5, // Low confidence default
+          };
+        }
       }
     }
   }

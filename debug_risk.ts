@@ -1,4 +1,3 @@
-
 import { statsRepository } from './src/server/db/statsRepository';
 import { getDb } from './src/server/db/connection';
 import Database from 'better-sqlite3';
@@ -64,14 +63,15 @@ try {
   console.log('Top Entities Debug Output:');
   const epstein = rows.find((r: any) => r.name === 'Jeffrey Epstein');
   console.log('Jeffrey Epstein entry:', epstein);
-  
-  if (!epstein) {
-      console.log('Jeffrey Epstein NOT FOUND in top 30');
-      // Search specifically for him
-      const specific = db.prepare("SELECT * FROM entities WHERE full_name LIKE '%Epstein%' LIMIT 5").all();
-      console.log('Specific DB lookup:', specific);
-  }
 
+  if (!epstein) {
+    console.log('Jeffrey Epstein NOT FOUND in top 30');
+    // Search specifically for him
+    const specific = db
+      .prepare("SELECT * FROM entities WHERE full_name LIKE '%Epstein%' LIMIT 5")
+      .all();
+    console.log('Specific DB lookup:', specific);
+  }
 } catch (err) {
   console.error(err);
 }

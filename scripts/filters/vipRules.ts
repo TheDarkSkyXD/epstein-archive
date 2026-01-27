@@ -1,4 +1,3 @@
-
 // Rules for consolidating Top 100 VIP entities into canonical profiles
 // This prevents fragmentation (e.g. "Jeffry Epstein" vs "Jeffrey Epstein")
 
@@ -65,7 +64,7 @@ export const VIP_RULES: VipRule[] = [
     aliases: ['Sarah Kellen Vidal', 'Sarah Vickers', 'Sarah Vidal'],
     patterns: [/Sarah\s+Kellen/i],
   },
-   {
+  {
     canonicalName: 'Nadia Marcinkova',
     type: 'Person',
     aliases: ['Nadia Marcinko', 'Global Girl'],
@@ -99,7 +98,7 @@ export const VIP_RULES: VipRule[] = [
     aliases: ['Governor Richardson', 'William Richardson', 'Gov. Richardson'],
     patterns: [/Bill\s+Richardson/i],
   },
-   {
+  {
     canonicalName: 'Ehud Barak',
     type: 'Person',
     aliases: ['Prime Minister Barak', 'Mr. Barak'],
@@ -123,34 +122,34 @@ export const VIP_RULES: VipRule[] = [
     aliases: ['Michael D. Cohen', 'Mr. Cohen', 'Attorney Cohen'],
     patterns: [/Michael\s+Cohen/i],
   },
-  
+
   // --- ORGANIZATIONS ---
   {
-      canonicalName: 'The Trump Organization',
-      type: 'Organization',
-      aliases: ['Trump Org', 'Trump Organization'],
-      patterns: [/Trump\s+Org/i, /Trump\s+Organization/i]
+    canonicalName: 'The Trump Organization',
+    type: 'Organization',
+    aliases: ['Trump Org', 'Trump Organization'],
+    patterns: [/Trump\s+Org/i, /Trump\s+Organization/i],
   },
   {
-      canonicalName: 'Victoria\'s Secret',
-      type: 'Organization',
-      aliases: ['Victorias Secret', 'Victoria Secret'],
-      patterns: [/Victoria'?s\s+Secret/i]
-  }
+    canonicalName: "Victoria's Secret",
+    type: 'Organization',
+    aliases: ['Victorias Secret', 'Victoria Secret'],
+    patterns: [/Victoria'?s\s+Secret/i],
+  },
 ];
 
 export function resolveVip(name: string): string | null {
   const normalized = name.trim();
-  
+
   for (const rule of VIP_RULES) {
     // 1. Exact alias match
     if (rule.aliases.includes(normalized)) return rule.canonicalName;
-    
+
     // 2. Pattern match
     for (const pattern of rule.patterns) {
       if (pattern.test(normalized)) return rule.canonicalName;
     }
   }
-  
+
   return null;
 }

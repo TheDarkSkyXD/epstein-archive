@@ -444,12 +444,12 @@ function App() {
           if (activeTab === 'documents') {
             navigate('/documents');
           } else {
-             // If we're on another tab (e.g. search), just clear the query param or keep URL context
-             // But usually document modal is /documents/:id. 
-             // If accessed via /documents/:id, we should go back to /documents
-             if (location.pathname.startsWith('/documents/')) {
-               navigate('/documents');
-             }
+            // If we're on another tab (e.g. search), just clear the query param or keep URL context
+            // But usually document modal is /documents/:id.
+            // If accessed via /documents/:id, we should go back to /documents
+            if (location.pathname.startsWith('/documents/')) {
+              navigate('/documents');
+            }
           }
           // Announce modal close for screen readers
           const announcement = document.createElement('div');

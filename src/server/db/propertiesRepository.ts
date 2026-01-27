@@ -298,7 +298,9 @@ export const propertiesRepository = {
   /**
    * Get top property owners by total value
    */
-  getTopOwners: (limit = 20): { owner_name: string; property_count: number; total_value: number }[] => {
+  getTopOwners: (
+    limit = 20,
+  ): { owner_name: string; property_count: number; total_value: number }[] => {
     const db = getDb();
     return db
       .prepare(
@@ -318,4 +320,3 @@ export const propertiesRepository = {
       .all(limit) as { owner_name: string; property_count: number; total_value: number }[];
   },
 };
-

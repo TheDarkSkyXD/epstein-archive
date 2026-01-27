@@ -14,17 +14,19 @@ const BATCH_SIZE = 100;
 
 // TYPE HEURISTICS
 // UPDATED TYPE HEURISTICS (from fix_categorization.ts)
-const LOCATION_PATTERN = /\b(House|Street|Road|Avenue|Park|Beach|Islands|Drive|Place|Apartment|Mansion)\b/i;
+const LOCATION_PATTERN =
+  /\b(House|Street|Road|Avenue|Park|Beach|Islands|Drive|Place|Apartment|Mansion)\b/i;
 const HOUSEKEEPER_PATTERN = /Housekeeper/i;
-const ORG_PATTERN = /\b(Inc\.?|LLC|Corp\.?|Ltd\.?|Group|Trust|Foundation|University|College|School|Academy|Department|Bureau|Agency|Police|Sheriff|FBI|CIA|Secret Service|Bank|Association|Club|Holdings|Limited|Fund)\b/i;
+const ORG_PATTERN =
+  /\b(Inc\.?|LLC|Corp\.?|Ltd\.?|Group|Trust|Foundation|University|College|School|Academy|Department|Bureau|Agency|Police|Sheriff|FBI|CIA|Secret Service|Bank|Association|Club|Holdings|Limited|Fund)\b/i;
 const MEDIA_PATTERN = /\b(New York Times|Post|News|Press|Journal|Magazine)\b/i;
 
 function detectType(name: string): 'Person' | 'Organization' | 'Location' | 'Media' | 'Other' {
   const parts = name.split(/[\s,.]+/);
-  
+
   // 1. Organization Check
   if (ORG_PATTERN.test(name)) return 'Organization';
-  
+
   // 2. Media Check
   if (MEDIA_PATTERN.test(name)) return 'Media';
 
@@ -32,8 +34,8 @@ function detectType(name: string): 'Person' | 'Organization' | 'Location' | 'Med
   if (LOCATION_PATTERN.test(name) && !HOUSEKEEPER_PATTERN.test(name)) return 'Location';
 
   // 4. Person Heuristic (Default for 2-4 words capitalized)
-  if (parts.length >= 2 && parts.length <= 4) return 'Person'; 
-  
+  if (parts.length >= 2 && parts.length <= 4) return 'Person';
+
   return 'Other';
 }
 
@@ -264,7 +266,7 @@ function rebuildEntityPipeline() {
           // Enhanced Junk Filter (using central logic)
           if (cleanName.length < 4) continue;
           if (isJunkEntity(cleanName)) continue; // Uses entityFilters.ts logic
-          
+
           if (cleanName.includes('Epstein') && !cleanName.includes('Island')) continue; // Skip generic Epstein, allow Island
 
           // Check partial blocklist (e.g. "Received Received")
@@ -277,7 +279,7 @@ function rebuildEntityPipeline() {
           }
 
           // B. Resolve
-          
+
           // 0. VIP Consolidation (Top Priority)
           // "The Trump Rule": Force known variants to canonical names immediately
           const vipResolution = resolveVip(cleanName);
@@ -287,17 +289,17 @@ function rebuildEntityPipeline() {
           // 1. Context-Aware Resolution ("The Riley Rule")
           // Only if not already resolved by VIP rule
           if (!vipResolution) {
-              const idx = match.index || 0;
-              const start = Math.max(0, idx - 100); 
-              const end = Math.min(content.length, idx + rawName.length + 100);
-              const resolutionContext = content.substring(start, end);
+            const idx = match.index || 0;
+            const start = Math.max(0, idx - 100);
+            const end = Math.min(content.length, idx + rawName.length + 100);
+            const resolutionContext = content.substring(start, end);
 
-              const contextResolution = resolveAmbiguity(cleanName, resolutionContext);
-              
-              if (contextResolution) {
-                resolvedName = contextResolution.resolvedName;
-                resolutionMethod = 'context_rule';
-              }
+            const contextResolution = resolveAmbiguity(cleanName, resolutionContext);
+
+            if (contextResolution) {
+              resolvedName = contextResolution.resolvedName;
+              resolutionMethod = 'context_rule';
+            }
           }
 
           const lowerName = resolvedName.toLowerCase();
@@ -305,26 +307,28 @@ function rebuildEntityPipeline() {
           let entityType = 'Person'; // Default
 
           // Fetch type from context rule if available, otherwise detect
-           if (vipResolution) {
-              const rule = require('./filters/vipRules').VIP_RULES.find((r:any) => r.canonicalName === vipResolution);
-              if (rule) entityType = rule.type;
-           } else if (resolutionMethod === 'context_rule') {
-              // We need to re-fetch the context resolution object if we want the type
-              // Optimization: just re-run or store it above. 
-              const idx = match.index || 0;
-              const start = Math.max(0, idx - 100); 
-              const end = Math.min(content.length, idx + rawName.length + 100);
-              const resolutionContext = content.substring(start, end);
-              const res = resolveAmbiguity(cleanName, resolutionContext);
-              if (res) entityType = res.entityType;
-           }
+          if (vipResolution) {
+            const rule = require('./filters/vipRules').VIP_RULES.find(
+              (r: any) => r.canonicalName === vipResolution,
+            );
+            if (rule) entityType = rule.type;
+          } else if (resolutionMethod === 'context_rule') {
+            // We need to re-fetch the context resolution object if we want the type
+            // Optimization: just re-run or store it above.
+            const idx = match.index || 0;
+            const start = Math.max(0, idx - 100);
+            const end = Math.min(content.length, idx + rawName.length + 100);
+            const resolutionContext = content.substring(start, end);
+            const res = resolveAmbiguity(cleanName, resolutionContext);
+            if (res) entityType = res.entityType;
+          }
 
           if (!entityId) {
             // Heuristic Type Detection (only if not already resolved by rule)
             if (resolutionMethod === 'exact') {
-                entityType = detectType(resolvedName);
+              entityType = detectType(resolvedName);
             }
-            
+
             if (entityType === 'Other') continue;
 
             try {
@@ -334,13 +338,15 @@ function rebuildEntityPipeline() {
               newEntities++;
             } catch (_e) {
               // Handle race condition or unique constraint
-               const existing = db.prepare('SELECT id FROM entities WHERE full_name = ?').get(resolvedName) as {id: number};
-               if (existing) {
-                   entityId = existing.id;
-                   entityCache.set(lowerName, entityId);
-               } else {
-                   continue;
-               }
+              const existing = db
+                .prepare('SELECT id FROM entities WHERE full_name = ?')
+                .get(resolvedName) as { id: number };
+              if (existing) {
+                entityId = existing.id;
+                entityCache.set(lowerName, entityId);
+              } else {
+                continue;
+              }
             }
           }
 
@@ -362,9 +368,9 @@ function rebuildEntityPipeline() {
             context,
             rawName,
             cleanName,
-            resolvedName: (resolvedName !== cleanName) ? resolvedName : undefined,
+            resolvedName: resolvedName !== cleanName ? resolvedName : undefined,
             entityType,
-            resolutionMethod
+            resolutionMethod,
           };
 
           let mentionId: string | null = null;

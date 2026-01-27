@@ -75,7 +75,7 @@ const GridCell = React.memo(
             </div>
           )}
           <SensitiveContent isSensitive={img.isSensitive} className="w-full h-full relative">
-          <LazyImage
+            <LazyImage
               src={`/api/media/images/${img.id}/thumbnail`}
               alt={img.title}
               className="w-full h-full object-contain bg-slate-900/50"

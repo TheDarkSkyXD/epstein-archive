@@ -1,4 +1,3 @@
-
 import { statsRepository } from './src/server/db/statsRepository';
 import { getDb } from './src/server/db/connection';
 

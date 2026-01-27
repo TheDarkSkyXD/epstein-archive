@@ -271,8 +271,9 @@ export const EntityEvidencePanel: React.FC<EntityEvidencePanelProps> = ({
             <h3 className="text-lg font-semibold text-slate-200">Email Communications</h3>
           </div>
           <p className="text-sm text-slate-400 mb-3">
-            Recent email threads where <span className="font-semibold text-slate-200">{entityName}</span> appears.
-            Topics are heuristic but stable labels to help you scan conspiracies at a glance.
+            Recent email threads where{' '}
+            <span className="font-semibold text-slate-200">{entityName}</span> appears. Topics are
+            heuristic but stable labels to help you scan conspiracies at a glance.
           </p>
           <div className="space-y-3 max-h-72 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700">
             {communications.slice(0, 25).map((c) => (

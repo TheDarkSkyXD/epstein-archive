@@ -10,7 +10,6 @@ import {
   Target,
 } from 'lucide-react';
 
-
 import { optimizedDataService } from '../services/OptimizedDataService';
 
 export const About: React.FC = () => {
@@ -23,8 +22,8 @@ export const About: React.FC = () => {
         if (data) {
           // Assuming 5.2m is the hardcoded total for now as requested
           setStats({
-            total: 5200000, 
-            released: data.documents
+            total: 5200000,
+            released: data.documents,
           });
         }
       } catch (e) {
@@ -46,22 +45,30 @@ export const About: React.FC = () => {
         <p className="text-xl text-slate-400 mb-6">
           Version 11.5.0 - Ingestion Intelligence & VIP Consolidation
         </p>
-        
+
         {stats && (
           <div className="inline-flex items-center gap-4 bg-slate-800/80 px-6 py-3 rounded-full border border-emerald-500/30 shadow-lg shadow-emerald-900/10 backdrop-blur-sm">
             <div className="flex flex-col items-center">
-               <span className="text-xs text-slate-400 uppercase tracking-widest font-semibold">Files Secured</span>
-               <span className="text-2xl font-mono text-emerald-400 font-bold">{stats.released.toLocaleString()}</span>
-            </div>
-            <div className="h-8 w-px bg-slate-700"></div>
-             <div className="flex flex-col items-center">
-               <span className="text-xs text-slate-400 uppercase tracking-widest font-semibold">Total Archive</span>
-               <span className="text-2xl font-mono text-slate-500 font-bold">5.2M</span>
+              <span className="text-xs text-slate-400 uppercase tracking-widest font-semibold">
+                Files Secured
+              </span>
+              <span className="text-2xl font-mono text-emerald-400 font-bold">
+                {stats.released.toLocaleString()}
+              </span>
             </div>
             <div className="h-8 w-px bg-slate-700"></div>
             <div className="flex flex-col items-center">
-               <span className="text-xs text-emerald-500 uppercase tracking-widest font-semibold animate-pulse">Progress</span>
-               <span className="text-2xl font-mono text-white font-bold">{percentage}%</span>
+              <span className="text-xs text-slate-400 uppercase tracking-widest font-semibold">
+                Total Archive
+              </span>
+              <span className="text-2xl font-mono text-slate-500 font-bold">5.2M</span>
+            </div>
+            <div className="h-8 w-px bg-slate-700"></div>
+            <div className="flex flex-col items-center">
+              <span className="text-xs text-emerald-500 uppercase tracking-widest font-semibold animate-pulse">
+                Progress
+              </span>
+              <span className="text-2xl font-mono text-white font-bold">{percentage}%</span>
             </div>
           </div>
         )}

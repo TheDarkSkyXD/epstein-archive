@@ -1,4 +1,3 @@
-
 import React, { useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -66,7 +65,9 @@ export const RouteMap: React.FC<RouteMapProps> = ({ departure, arrival, classNam
     arrival.lat === 0
   ) {
     return (
-      <div className={`flex items-center justify-center bg-slate-900 border border-slate-700 rounded-xl h-64 ${className}`}>
+      <div
+        className={`flex items-center justify-center bg-slate-900 border border-slate-700 rounded-xl h-64 ${className}`}
+      >
         <p className="text-slate-400">Map data unavailable for this route</p>
       </div>
     );
@@ -79,7 +80,9 @@ export const RouteMap: React.FC<RouteMapProps> = ({ departure, arrival, classNam
   ];
 
   return (
-    <div className={`h-[400px] w-full rounded-xl overflow-hidden border border-slate-700/50 shadow-lg ${className}`}>
+    <div
+      className={`h-[400px] w-full rounded-xl overflow-hidden border border-slate-700/50 shadow-lg ${className}`}
+    >
       <MapContainer
         center={center}
         zoom={4}
@@ -91,11 +94,12 @@ export const RouteMap: React.FC<RouteMapProps> = ({ departure, arrival, classNam
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        
+
         {/* Departure Marker */}
         <Marker position={[departure.lat, departure.lng]}>
           <Popup>
-            <strong>Departure:</strong><br />
+            <strong>Departure:</strong>
+            <br />
             {departure.name} {departure.code && `(${departure.code})`}
           </Popup>
         </Marker>
@@ -103,7 +107,8 @@ export const RouteMap: React.FC<RouteMapProps> = ({ departure, arrival, classNam
         {/* Arrival Marker */}
         <Marker position={[arrival.lat, arrival.lng]}>
           <Popup>
-            <strong>Arrival:</strong><br />
+            <strong>Arrival:</strong>
+            <br />
             {arrival.name} {arrival.code && `(${arrival.code})`}
           </Popup>
         </Marker>

@@ -192,8 +192,6 @@ const PropertyBrowser: React.FC = () => {
     );
   }
 
-
-
   const BrowseView = () => (
     <div className="property-browse">
       {/* Filters Bar */}
@@ -217,7 +215,7 @@ const PropertyBrowser: React.FC = () => {
             />
           </div>
           <div className="flex flex-wrap gap-4">
-             <Select
+            <Select
               containerClassName="min-w-[180px]"
               value={propertyType}
               onChange={(e) => {
@@ -229,25 +227,25 @@ const PropertyBrowser: React.FC = () => {
                 ...propertyTypes.map((t) => ({ value: t.type, label: t.type })),
               ]}
             />
-            
+
             <Select
-               containerClassName="min-w-[160px]"
-               value={minValue}
-               onChange={(e) => {
+              containerClassName="min-w-[160px]"
+              value={minValue}
+              onChange={(e) => {
                 setMinValue(e.target.value);
                 setPage(1);
               }}
-               options={[
-                  { value: '', label: 'Min Value: Any' },
-                  { value: '1000000', label: '$1M+' },
-                  { value: '5000000', label: '$5M+' },
-                  { value: '10000000', label: '$10M+' },
-                  { value: '50000000', label: '$50M+' },
-               ]}
+              options={[
+                { value: '', label: 'Min Value: Any' },
+                { value: '1000000', label: '$1M+' },
+                { value: '5000000', label: '$5M+' },
+                { value: '10000000', label: '$10M+' },
+                { value: '50000000', label: '$50M+' },
+              ]}
             />
 
             <div className="flex items-center gap-2 bg-slate-900/50 border border-slate-700 rounded-lg px-4">
-               <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-slate-300 select-none">
+              <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-slate-300 select-none">
                 <input
                   type="checkbox"
                   checked={showAssociatesOnly}
@@ -260,8 +258,8 @@ const PropertyBrowser: React.FC = () => {
                 Known Associates Only
               </label>
             </div>
-             
-             {/* View Toggle */}
+
+            {/* View Toggle */}
             <div className="flex bg-slate-900/50 rounded-lg p-1 border border-slate-700">
               <button
                 onClick={() => setViewMode('browse')}
@@ -272,12 +270,12 @@ const PropertyBrowser: React.FC = () => {
               </button>
               <button
                 onClick={() => setViewMode('associates')}
-                  className={`p-2 rounded-md transition-all ${viewMode === 'associates' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                className={`p-2 rounded-md transition-all ${viewMode === 'associates' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
                 title="Known Associates"
               >
                 <Icon name="Users" size="sm" />
               </button>
-               <button
+              <button
                 onClick={() => setViewMode('analytics')}
                 className={`p-2 rounded-md transition-all ${viewMode === 'analytics' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
                 title="Analytics"

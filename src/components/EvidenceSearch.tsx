@@ -340,7 +340,7 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
           </div>
         )}
 
-      {/* Search Input */}
+        {/* Search Input */}
         <FormField
           label={
             <div className="flex items-center gap-2">
@@ -795,8 +795,6 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
                     </div>
                   </div>
                 )}
-
-
               </div>
             ))}
 
@@ -807,7 +805,9 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
                   <h3 className="text-lg font-bold text-white flex items-center gap-2">
                     <Icon name="FileText" size="sm" />
                     Matched Documents
-                    <span className="text-sm font-normal text-gray-400 ml-2">({docSnippets.length})</span>
+                    <span className="text-sm font-normal text-gray-400 ml-2">
+                      ({docSnippets.length})
+                    </span>
                   </h3>
                 </div>
                 <div className="p-4 space-y-3">
@@ -816,14 +816,21 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
                     <span>Documents containing "{searchTerm}"</span>
                   </div>
                   {docSnippets.map((d) => (
-                    <div key={d.id} className="bg-gray-900 p-4 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors">
+                    <div
+                      key={d.id}
+                      className="bg-gray-900 p-4 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors"
+                    >
                       <div className="flex justify-between items-start mb-2">
                         <div className="font-medium text-blue-400 truncate pr-4">{d.title}</div>
-                        <div className={`text-xs px-2 py-0.5 rounded ${
-                          d.redFlagRating >= 4 ? 'bg-red-900/50 text-red-200' : 
-                          d.redFlagRating >= 2 ? 'bg-yellow-900/50 text-yellow-200' : 
-                          'bg-gray-700 text-gray-300'
-                        }`}>
+                        <div
+                          className={`text-xs px-2 py-0.5 rounded ${
+                            d.redFlagRating >= 4
+                              ? 'bg-red-900/50 text-red-200'
+                              : d.redFlagRating >= 2
+                                ? 'bg-yellow-900/50 text-yellow-200'
+                                : 'bg-gray-700 text-gray-300'
+                          }`}
+                        >
                           Risk: {d.redFlagRating}
                         </div>
                       </div>
@@ -835,8 +842,8 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
                       )}
                       <div className="flex items-center gap-4 text-xs text-gray-500">
                         <span className="flex items-center gap-1">
-                           <Icon name="File" size="xs" />
-                           {(d.title || '').split('.').pop()?.toUpperCase() || 'FILE'}
+                          <Icon name="File" size="xs" />
+                          {(d.title || '').split('.').pop()?.toUpperCase() || 'FILE'}
                         </span>
                         {/* <span>{d.dateCreated ? new Date(d.dateCreated).toLocaleDateString() : 'Unknown Date'}</span> */}
                       </div>

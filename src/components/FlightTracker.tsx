@@ -611,8 +611,6 @@ const FlightTracker: React.FC = () => {
     return { x, y };
   };
 
-
-
   // Flight detail modal
   const FlightModal = () => {
     if (!selectedFlight) return null;
@@ -631,11 +629,11 @@ const FlightTracker: React.FC = () => {
 
           {/* Flight Route Map & Info */}
           {(() => {
-             const departureCoords = airports[selectedFlight.departure_airport];
-             const arrivalCoords = airports[selectedFlight.arrival_airport];
-             return (
-               <>
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            const departureCoords = airports[selectedFlight.departure_airport];
+            const arrivalCoords = airports[selectedFlight.arrival_airport];
+            return (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                   <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700/50">
                     <div className="flex items-center gap-2 mb-2">
                       <Icon name="ArrowUpRight" className="text-blue-400" size="sm" />
@@ -687,14 +685,16 @@ const FlightTracker: React.FC = () => {
                       />
                     ) : (
                       <div className="bg-slate-800/50 p-8 rounded-lg border border-slate-700/50 text-center">
-                         <Icon name="MapPin" size="lg" className="text-slate-600 mb-2 mx-auto" />
-                         <p className="text-slate-400">Complete route data unavailable for map visualization</p>
+                        <Icon name="MapPin" size="lg" className="text-slate-600 mb-2 mx-auto" />
+                        <p className="text-slate-400">
+                          Complete route data unavailable for map visualization
+                        </p>
                       </div>
                     )}
                   </div>
                 )}
-               </>
-             );
+              </>
+            );
           })()}
 
           <div className="modal-route">
@@ -839,27 +839,30 @@ const FlightTracker: React.FC = () => {
               onChange={(e) => setSelectedPassenger(e.target.value)}
               options={[
                 { value: '', label: 'All Passengers' },
-                ...passengers.map((p) => ({ value: p.name, label: `${p.name} (${p.flight_count})` })),
+                ...passengers.map((p) => ({
+                  value: p.name,
+                  label: `${p.name} (${p.flight_count})`,
+                })),
               ]}
             />
-            
+
             <div className="flex items-center gap-2 bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2">
-               <Icon name="Calendar" size="sm" className="text-slate-400" />
-               <input 
-                  type="date"
-                  value={dateRange.start}
-                  onChange={(e) => setDateRange({...dateRange, start: e.target.value})}
-                  className="bg-transparent border-none text-white text-sm focus:outline-none"
-                  placeholder="Start Date"
-               />
-               <span className="text-slate-500">-</span>
-               <input 
-                  type="date"
-                  value={dateRange.end}
-                  onChange={(e) => setDateRange({...dateRange, end: e.target.value})}
-                  className="bg-transparent border-none text-white text-sm focus:outline-none"
-                  placeholder="End Date"
-               />
+              <Icon name="Calendar" size="sm" className="text-slate-400" />
+              <input
+                type="date"
+                value={dateRange.start}
+                onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+                className="bg-transparent border-none text-white text-sm focus:outline-none"
+                placeholder="Start Date"
+              />
+              <span className="text-slate-500">-</span>
+              <input
+                type="date"
+                value={dateRange.end}
+                onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+                className="bg-transparent border-none text-white text-sm focus:outline-none"
+                placeholder="End Date"
+              />
             </div>
           </div>
         </div>

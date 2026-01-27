@@ -1206,13 +1206,7 @@ export class EntityNameService {
 
     // === MEDIA / ENTERTAINMENT ===
     'Oprah Winfrey': ['Oprah', 'Winfrey', 'Ms Winfrey', 'Oprah And'],
-    'Harvey Weinstein': [
-      'Weinstein',
-      'Harvey',
-      'Mr Weinstein',
-      'Weinstein And',
-      'Harvey W',
-    ],
+    'Harvey Weinstein': ['Weinstein', 'Harvey', 'Mr Weinstein', 'Weinstein And', 'Harvey W'],
     'Kevin Spacey': ['Spacey', 'Kevin Spacey And'],
     'Woody Allen': ['Woody', 'Allen', 'Woody Allen And'],
 
@@ -1225,14 +1219,15 @@ export class EntityNameService {
       'Obama And',
       'Former President Obama',
     ],
-    'George Bush': [
-      'Bush',
-      'President Bush',
-      'George W Bush',
-      'George HW Bush',
-      'Bush And',
+    'George Bush': ['Bush', 'President Bush', 'George W Bush', 'George HW Bush', 'Bush And'],
+    'Joe Biden': [
+      'Biden',
+      'President Biden',
+      'Joe',
+      'Mr Biden',
+      'Biden And',
+      'Vice President Biden',
     ],
-    'Joe Biden': ['Biden', 'President Biden', 'Joe', 'Mr Biden', 'Biden And', 'Vice President Biden'],
     'Nancy Pelosi': ['Pelosi', 'Speaker Pelosi', 'Nancy', 'Pelosi And'],
     'Mitch McConnell': ['McConnell', 'Senator McConnell', 'Mitch', 'McConnell And'],
 

@@ -242,6 +242,11 @@ const timelineEvents = [
     source: 'Epstein Archive',
     content: 'V9.2.0: Operation Spring Cleaning. Complete data unification and Admin Dashboard.',
   },
+  {
+    date: 'Jan 23, 2026',
+    source: 'Epstein Archive',
+    content: 'V11.5.0: "The Trump Rule" & "The Riley Rule". Implemented context-aware entity resolution and VIP auto-consolidation.',
+  },
 ];
 
 // Helper to get color classes

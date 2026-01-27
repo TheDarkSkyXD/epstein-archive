@@ -204,7 +204,7 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
               Entity Connection Network
             </span>
           </h3>
-          
+
           {/* Entity Count Slider */}
           <div className="flex items-center gap-4 bg-slate-800/50 px-4 py-2 rounded-lg border border-slate-700/50">
             <label className="text-xs text-slate-400 whitespace-nowrap">Entities:</label>

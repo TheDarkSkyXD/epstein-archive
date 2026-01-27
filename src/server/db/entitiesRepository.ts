@@ -71,6 +71,12 @@ export const entitiesRepository = {
       params.role = filters.role;
     }
 
+    // 4b. Entity Type filter (New)
+    if (filters?.entityType && filters.entityType !== 'all') {
+      whereConditions.push('entity_type = @entityType');
+      params.entityType = filters.entityType;
+    }
+
     // 5. Sorting
     let orderByClause = '';
     const dateLimit = new Date();
@@ -442,7 +448,9 @@ export const entitiesRepository = {
   getEntitySummarySource: (entityId: number | string, topN: number = 10): any => {
     const db = getDb();
     const entity = db
-      .prepare('SELECT id, full_name, primary_role as role FROM entities WHERE id=?')
+      .prepare(
+        'SELECT id, full_name, primary_role as role, red_flag_rating, risk_level FROM entities WHERE id=?',
+      )
       .get(entityId) as any;
 
     if (!entity) return null;

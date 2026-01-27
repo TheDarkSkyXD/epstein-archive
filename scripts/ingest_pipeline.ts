@@ -26,6 +26,8 @@ const pdfParse = require('pdf-parse');
 import * as crypto from 'crypto';
 import { execFile } from 'child_process';
 
+import { createWorker } from 'tesseract.js';
+
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
@@ -40,6 +42,12 @@ interface CollectionConfig {
 }
 
 const COLLECTIONS: CollectionConfig[] = [
+  {
+    name: 'Epstein Estate Documents - Seventh Production',
+    rootPath: 'data/originals/Epstein Estate Documents - Seventh Production',
+    description: 'Seventh Production of Estate Documents',
+    enabled: true,
+  },
   {
     name: 'DOJ Discovery VOL00001',
     rootPath: 'data/originals/DOJ VOL00001',
@@ -106,6 +114,12 @@ const COLLECTIONS: CollectionConfig[] = [
     description: 'DOJ Phase 1 Documents',
     enabled: true,
   },
+  {
+    name: 'Evidence Images',
+    rootPath: 'data/media/images/Evidence',
+    description: 'Miscellaneous evidence images',
+    enabled: true,
+  },
 ];
 
 // ============================================================================
@@ -127,7 +141,7 @@ function verifyDatabase() {
 }
 
 // ============================================================================
-// PDF TEXT EXTRACTION & UNREDACTION
+// PDF & IMAGE TEXT EXTRACTION
 // ============================================================================
 
 async function extractTextFromPdf(buffer: Buffer): Promise<{ text: string; pageCount: number }> {
@@ -140,6 +154,25 @@ async function extractTextFromPdf(buffer: Buffer): Promise<{ text: string; pageC
   } catch (e) {
     console.warn('  ⚠️  PDF extraction failed:', (e as Error).message);
     return { text: '', pageCount: 0 };
+  }
+}
+
+async function extractTextFromImage(
+  filePath: string,
+): Promise<{ text: string; pageCount: number }> {
+  try {
+    const worker = await createWorker('eng');
+    const {
+      data: { text },
+    } = await worker.recognize(filePath);
+    await worker.terminate();
+    return {
+      text: text || '',
+      pageCount: 1,
+    };
+  } catch (e) {
+    console.warn('  ⚠️  Image OCR failed:', (e as Error).message);
+    return { text: '', pageCount: 1 };
   }
 }
 
@@ -309,8 +342,12 @@ async function processDocument(
     } else if (['.txt', '.rtf'].includes(ext)) {
       content = readFileSync(filePath, 'utf-8');
       pageCount = 1;
+    } else if (['.jpg', '.jpeg', '.png'].includes(ext)) {
+      const result = await extractTextFromImage(filePath);
+      content = result.text;
+      pageCount = result.pageCount;
     } else {
-      // For images and other file types, mark as unprocessed
+      // For other file types, mark as unprocessed
       content = `[${ext.toUpperCase()} FILE - OCR NOT YET PROCESSED]`;
       pageCount = 1;
     }
@@ -384,7 +421,7 @@ async function processCollection(collection: CollectionConfig) {
   }
 
   // Find all files
-  const pattern = join(collection.rootPath, '**/*.{pdf,txt,rtf}');
+  const pattern = join(collection.rootPath, '**/*.{pdf,txt,rtf,jpg,jpeg,png}');
   const files = globSync(pattern, {
     ignore: ['**/thumbs/**', '**/.DS_Store'],
   });

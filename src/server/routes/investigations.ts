@@ -284,13 +284,13 @@ router.get('/:id/activity', async (req, res, next) => {
     const { id } = req.params;
     const limit = parseInt(req.query.limit as string) || 50;
     const activity = await investigationsRepository.getActivity(parseInt(id), limit);
-    
+
     // Parse metadata JSON for each activity
     const parsed = activity.map((a: any) => ({
       ...a,
       metadata: a.metadata_json ? JSON.parse(a.metadata_json) : null,
     }));
-    
+
     res.json(parsed);
   } catch (error) {
     next(error);

@@ -86,6 +86,7 @@ export const searchRepository = {
               d.date_created as dateCreated,
               d.word_count as wordCount,
               d.red_flag_rating as redFlagRating,
+              snippet(documents_fts, -1, '<span class="bg-yellow-600/30 text-yellow-200 font-semibold px-0.5 rounded">', '</span>', '...', 64) as snippet,
               documents_fts.rank
             FROM documents_fts
             JOIN documents d ON d.id = documents_fts.rowid
@@ -173,6 +174,7 @@ export const searchRepository = {
           wordCount: row.wordCount,
           redFlagRating: row.redFlagRating,
           createdAt: row.dateCreated,
+          snippet: row.snippet,
         })),
       };
     } catch (error) {

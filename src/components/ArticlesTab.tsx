@@ -322,11 +322,19 @@ export const ArticlesTab: React.FC = () => {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white text-xs font-bold">
-                            {article.author?.split(' ').map(n => n[0]).join('').slice(0, 2) || '?'}
+                            {article.author
+                              ?.split(' ')
+                              .map((n) => n[0])
+                              .join('')
+                              .slice(0, 2) || '?'}
                           </div>
                           <div>
-                            <div className="text-sm text-white font-medium">{article.author || 'Unknown'}</div>
-                            <div className="text-xs text-slate-500">{formatDate(article.published_date)}</div>
+                            <div className="text-sm text-white font-medium">
+                              {article.author || 'Unknown'}
+                            </div>
+                            <div className="text-xs text-slate-500">
+                              {formatDate(article.published_date)}
+                            </div>
                           </div>
                         </div>
                         {article.reading_time && (

@@ -388,7 +388,7 @@ run_health_checks() {
         
         HTTP_CODE=$(ssh -i "$SSH_KEY_PATH" "$PRODUCTION_USER@$PRODUCTION_SERVER" "
             curl -s -o /dev/null -w '%{http_code}' 'http://$HEALTH_CHECK_HOST/api/health' --max-time 10
-        ")
+        " || echo "000")
         
         if [ "$HTTP_CODE" = "200" ]; then
             # Check if status is healthy
@@ -427,7 +427,7 @@ run_health_checks() {
         
         HTTP_CODE=$(ssh -i "$SSH_KEY_PATH" "$PRODUCTION_USER@$PRODUCTION_SERVER" "
             curl -s -o /dev/null -w '%{http_code}' 'http://$HEALTH_CHECK_HOST/api/health/deep' --max-time 60
-        ")
+        " || echo "000")
         
         if [ "$HTTP_CODE" = "200" ]; then
             STATUS=$(echo "$DEEP_RESPONSE" | grep -o '"status":"[^"]*"' | head -1 | cut -d'"' -f4 || echo "unknown")
@@ -471,7 +471,7 @@ except: pass
         for endpoint in "${SMOKE_ENDPOINTS[@]}"; do
             HTTP_CODE=$(ssh -i "$SSH_KEY_PATH" "$PRODUCTION_USER@$PRODUCTION_SERVER" "
                 curl -s -o /dev/null -w '%{http_code}' 'http://$HEALTH_CHECK_HOST$endpoint' --max-time 15
-            ")
+            " || echo "000")
             
             if [ "$HTTP_CODE" = "200" ]; then
                 log_info "✅ $endpoint → HTTP $HTTP_CODE"
@@ -649,8 +649,18 @@ case "${1:-deploy}" in
         run_health_checks
         cleanup
         ;;
+    verify)
+        # Just run health checks
+        log_info "Running post-deployment verification only..."
+        check_prerequisites
+        run_health_checks
+        smoke_test_frontend
+        ;;
+    cleanup)
+        cleanup
+        ;;
     *)
-        echo "Usage: $0 {deploy|deploy-code|cleanup}"
+        echo "Usage: $0 {deploy|deploy-code|verify|cleanup}"
         exit 1
         ;;
 esac

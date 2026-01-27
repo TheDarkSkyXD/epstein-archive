@@ -4,20 +4,21 @@ This directory contains scripts for data processing, ingestion, and analysis for
 
 ## Main Ingestion Pipeline
 
-### unified_data_pipeline.ts
+### ingest_pipeline.ts
 
 **The primary data ingestion pipeline** - Use this for all document ingestion tasks.
 
 ```bash
 # Run full ingestion
-DB_PATH=epstein-archive-production.db npx tsx scripts/unified_data_pipeline.ts
+DB_PATH=epstein-archive-production.db npx tsx scripts/ingest_pipeline.ts
 ```
 
 **Features:**
 
 - ✅ PDF text extraction with pdf-parse
-- ✅ Support for TXT, RTF, and PDF files
-- ✅ Multi-collection support (DOJ Discovery VOL001-008, Court Evidence, Maxwell Proffer, DOJ Phase 1)
+- ✅ OCR support for Images (JPG, PNG) using Tesseract
+- ✅ Support for TXT and RTF files
+- ✅ Multi-collection support (DOJ Discovery, Court Evidence, Estate Documents, etc.)
 - ✅ Automatic duplicate detection
 - ✅ Content hashing and metadata extraction
 - ✅ Progress tracking and error reporting

@@ -43,17 +43,13 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
   // Extract query parameter from URL
   const urlParams = new URLSearchParams(location.search);
   const queryParam = urlParams.get('q') || '';
-  const [searchQuery, setSearchQuery] = useState(queryParam || searchTerm || '');
 
-  // Sync search term with navigation context
+  // Sync URL query to search term on mount or URL change
   useEffect(() => {
-    setSearchQuery(queryParam || searchTerm || '');
-  }, [searchTerm, queryParam]);
-
-  // Update navigation context when search query changes
-  useEffect(() => {
-    setSearchTerm(searchQuery);
-  }, [searchQuery, setSearchTerm]);
+    if (queryParam && queryParam !== searchTerm) {
+      setSearchTerm(queryParam);
+    }
+  }, [queryParam, setSearchTerm]);
 
   useEffect(() => {
     loadPeopleData();
@@ -62,19 +58,21 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
 
   // Reload data when filters change
   useEffect(() => {
-    loadPeopleData();
+    const timer = setTimeout(() => {
+      loadPeopleData(); // Announce filter change for screen readers
+      const announcement = document.createElement('div');
+      announcement.setAttribute('aria-live', 'polite');
+      announcement.setAttribute('aria-atomic', 'true');
+      announcement.className = 'sr-only';
+      announcement.textContent = 'Search results updated';
+      document.body.appendChild(announcement);
+      setTimeout(() => document.body.removeChild(announcement), 1000);
+    }, 500); // 500ms debounce
 
-    // Announce filter change for screen readers
-    const announcement = document.createElement('div');
-    announcement.setAttribute('aria-live', 'polite');
-    announcement.setAttribute('aria-atomic', 'true');
-    announcement.className = 'sr-only';
-    announcement.textContent = 'Search results updated';
-    document.body.appendChild(announcement);
-    setTimeout(() => document.body.removeChild(announcement), 1000);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- loadPeopleData is stable and defined below
   }, [
-    searchQuery,
+    searchTerm,
     selectedRiskLevel,
     selectedEvidenceType,
     minRedFlagRating,
@@ -92,10 +90,9 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
 
       setLoadingProgress('Preparing search filters...');
       setLoadingProgressValue(30);
-
       // Build filters object
       const filters: any = {
-        searchTerm: searchQuery || undefined,
+        searchTerm: searchTerm || undefined,
         minRedFlagIndex: minRedFlagRating,
         maxRedFlagIndex: maxRedFlagRating,
       };
@@ -155,7 +152,7 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
 
   const handlePersonClick = (person: Person) => {
     if (onPersonClick) {
-      onPersonClick(person, searchQuery);
+      onPersonClick(person, searchTerm);
     } else {
       console.log('No onPersonClick handler provided, person clicked:', person.name);
     }
@@ -234,7 +231,7 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
 
   useEffect(() => {
     const run = async () => {
-      const q = (searchQuery || '').trim();
+      const q = (searchTerm || '').trim();
       if (!q) {
         setDocSnippets([]);
         return;
@@ -256,7 +253,7 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
       }
     };
     run();
-  }, [searchQuery]);
+  }, [searchTerm]);
 
   // Memoize document snippets to avoid recomputing on every render
   const docSnippets = useMemo(() => {
@@ -343,7 +340,7 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
           </div>
         )}
 
-        {/* Search Input */}
+      {/* Search Input */}
         <FormField
           label={
             <div className="flex items-center gap-2">
@@ -360,9 +357,8 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
               type="text"
               id="search-query"
               placeholder="Search names, contexts, or evidence..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              disabled={loading}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 h-10 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 form-input"
               aria-label="Search for evidence by names, contexts, or keywords"
             />
@@ -625,10 +621,10 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
           </div>
         ) : (
           <>
-            {searchResults.length === 0 && searchQuery.trim() && (
+            {searchResults.length === 0 && docSnippets.length === 0 && searchTerm.trim() && (
               <div className="text-center py-12">
                 <Icon name="Search" size="xl" color="gray" className="mx-auto mb-4" />
-                <p className="text-gray-400 text-lg">No results found for "{searchQuery}"</p>
+                <p className="text-gray-400 text-lg">No results found for "{searchTerm}"</p>
                 <p className="text-gray-500 text-sm mt-2">
                   Try adjusting your search terms or filters
                 </p>
@@ -636,7 +632,7 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
             )}
 
             {searchResults.length === 0 &&
-              !searchQuery.trim() &&
+              !searchTerm.trim() &&
               selectedRiskLevel === 'ALL' &&
               selectedEvidenceType === 'ALL' &&
               !showRedFlagOnly && (
@@ -800,39 +796,55 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
                   </div>
                 )}
 
-                {/* Matching Documents */}
-                {docSnippets.length > 0 && (
-                  <div className="p-4 border-t border-gray-700">
-                    <h4
-                      className="text-sm font-medium text-gray-300 mb-3 flex items-center gap-2"
-                      aria-level={3}
-                    >
-                      <Icon name="FileText" size="sm" />
-                      Matched Documents ({docSnippets.length})
-                    </h4>
-                    {/* Microcopy for Matched Documents */}
-                    <div className="text-xs text-gray-400 mb-3 flex items-start gap-1">
-                      <Icon name="Info" size="xs" className="mt-0.5 flex-shrink-0" />
-                      <span>Documents that match your search query with highlighted excerpts</span>
-                    </div>
-                    <div className="space-y-3">
-                      {docSnippets.map((d) => (
-                        <div key={d.id} className="bg-gray-900 p-3 rounded-lg">
-                          <div className="text-sm text-gray-200 mb-1 truncate">{d.title}</div>
-                          {d.snippet && (
-                            <div
-                              className="text-xs text-gray-400"
-                              dangerouslySetInnerHTML={{ __html: d.snippet }}
-                            />
-                          )}
-                          <div className="text-xs text-gray-500 mt-1">Risk: {d.redFlagRating}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+
               </div>
             ))}
+
+            {/* Matching Documents Section - Displayed independently of person results */}
+            {docSnippets.length > 0 && (
+              <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+                <div className="bg-gradient-to-r from-gray-900 to-gray-800 px-4 py-3 border-b border-gray-700">
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Icon name="FileText" size="sm" />
+                    Matched Documents
+                    <span className="text-sm font-normal text-gray-400 ml-2">({docSnippets.length})</span>
+                  </h3>
+                </div>
+                <div className="p-4 space-y-3">
+                  <div className="text-xs text-gray-400 mb-2 flex items-start gap-1">
+                    <Icon name="Info" size="xs" className="mt-0.5 flex-shrink-0" />
+                    <span>Documents containing "{searchTerm}"</span>
+                  </div>
+                  {docSnippets.map((d) => (
+                    <div key={d.id} className="bg-gray-900 p-4 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="font-medium text-blue-400 truncate pr-4">{d.title}</div>
+                        <div className={`text-xs px-2 py-0.5 rounded ${
+                          d.redFlagRating >= 4 ? 'bg-red-900/50 text-red-200' : 
+                          d.redFlagRating >= 2 ? 'bg-yellow-900/50 text-yellow-200' : 
+                          'bg-gray-700 text-gray-300'
+                        }`}>
+                          Risk: {d.redFlagRating}
+                        </div>
+                      </div>
+                      {d.snippet && (
+                        <div
+                          className="text-sm text-gray-300 font-mono bg-black/30 p-2 rounded mb-2 border-l-2 border-blue-500/30"
+                          dangerouslySetInnerHTML={{ __html: d.snippet }}
+                        />
+                      )}
+                      <div className="flex items-center gap-4 text-xs text-gray-500">
+                        <span className="flex items-center gap-1">
+                           <Icon name="File" size="xs" />
+                           {(d.title || '').split('.').pop()?.toUpperCase() || 'FILE'}
+                        </span>
+                        {/* <span>{d.dateCreated ? new Date(d.dateCreated).toLocaleDateString() : 'Unknown Date'}</span> */}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>

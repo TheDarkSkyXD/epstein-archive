@@ -428,6 +428,7 @@ function App() {
       if (e.key === 'Escape') {
         if (selectedPerson) {
           setSelectedPerson(null);
+          navigate(previousPath || '/people');
           // Announce modal close for screen readers
           const announcement = document.createElement('div');
           announcement.setAttribute('aria-live', 'polite');
@@ -440,6 +441,16 @@ function App() {
         if (documentModalId) {
           setDocumentModalId('');
           setDocumentModalInitial(null);
+          if (activeTab === 'documents') {
+            navigate('/documents');
+          } else {
+             // If we're on another tab (e.g. search), just clear the query param or keep URL context
+             // But usually document modal is /documents/:id. 
+             // If accessed via /documents/:id, we should go back to /documents
+             if (location.pathname.startsWith('/documents/')) {
+               navigate('/documents');
+             }
+          }
           // Announce modal close for screen readers
           const announcement = document.createElement('div');
           announcement.setAttribute('aria-live', 'polite');
@@ -574,6 +585,15 @@ function App() {
           red_flag_rating: p.red_flag_rating ?? p.redFlagRating ?? p.spiceRating ?? 0,
           name: p.name ?? p.fullName ?? p.full_name,
           files: p.files ?? p.documentCount ?? 0,
+          likelihood_score:
+            p.likelihood_score ??
+            p.likelihoodLevel ??
+            p.likelihood_level ??
+            ((p.red_flag_rating ?? p.redFlagRating ?? 0) >= 4
+              ? 'HIGH'
+              : (p.red_flag_rating ?? p.redFlagRating ?? 0) >= 2
+                ? 'MEDIUM'
+                : 'LOW'),
         }));
         setPeople(normalized);
         setFilteredPeople(normalized);
@@ -1212,7 +1232,7 @@ function App() {
                         <span className="hidden md:inline">Search</span>
                       </button>
                       {searchTerm.trim().length >= 2 && (
-                        <div className="absolute right-0 mt-1 w-full md:w-96 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
+                        <div className="absolute top-full right-0 mt-1 w-full md:w-96 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
                           <div className="p-2 text-xs text-slate-400 border-b border-slate-700">
                             Search results for "{searchTerm}"
                           </div>
@@ -1531,7 +1551,7 @@ function App() {
                   }`}
                 >
                   <Icon name="BookOpen" size="sm" />
-                  <span className="hidden lg:inline">Black Book</span>
+                  <span>Black Book</span>
                 </button>
                 <button
                   onClick={() => navigate('/analytics')}
@@ -1996,8 +2016,7 @@ function App() {
                     person={selectedPerson}
                     onClose={() => {
                       setSelectedPerson(null);
-                      // Restore the original path the user was on before opening the modal
-                      window.history.pushState({}, '', previousPath);
+                      navigate(previousPath || '/people');
                     }}
                     searchTerm={searchTermForModal}
                     onDocumentClick={handleDocumentClick}
@@ -2015,6 +2034,11 @@ function App() {
                   onClose={() => {
                     setDocumentModalId('');
                     setDocumentModalInitial(null);
+                    if (activeTab === 'documents') {
+                      navigate('/documents');
+                    } else if (location.pathname.startsWith('/documents/')) {
+                      navigate('/documents');
+                    }
                   }}
                 />
               )}

@@ -188,7 +188,19 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
     /\sLLC$/i,
     /\sCorp$/i,
     /\sLtd$/i,
-    /^St\s[A-Z][a-z]+$/,  // "St Thomas" etc - places not people
+    /^St\s[A-Z][a-z]+$/, // "St Thomas" etc - places not people
+    // Specific exclusions from user feedback
+    /All\sRights\sReserved/i,
+    /We\sDeliver\sFor/i,
+    /Warner\sCable/i,
+    /Valuable\sArticles/i,
+    /Uh\sFloor/i,
+    /Trusted\sDy\sProfessional/i,
+    /Taxes\sCellular/i,
+    /Sundar\sMonday/i,
+    /Tittery\sEpstein/i,
+    /Had\sEpstein/i,
+    /Timo$/i,
     // Truncated/partial names (starts lowercase or looks like partial word)
     /^[a-z]/,
   ];

@@ -1,6 +1,100 @@
+## v11.5.0 (2025-01-23) - Ingestion Intelligence & VIP Consolidation
+
+### Ingestion Pipeline Hardening
+- **Context-Aware Resolution ("The Riley Rule")**: Implemented a smart disambiguation engine that uses surrounding text context (e.g., "pilot", "investigator") to distinguish between entities with identical names like "Bill Riley".
+- **VIP Auto-Consolidation ("The Trump Rule")**: Added a strict, regex-backed consolidation layer for the Top 100 VIPs. Variations like "Jeffry Epstein", "Mr. Clinton", and "Prince Andrew" are now forced to their Canonical Entity IDs immediately during ingestion.
+- **One-Off Script Cleanup**: Fully migrated logic from independent cleanup scripts into the core `ingest_intelligence.ts` pipeline, ensuring a unified, maintainable codebase.
+- **Aggressive Junk Filtering**: Expanded the blocklist to catch 50+ new junk terms ("White House", "They Like", "Judge Printed") identified in recent reports.
+
+## v11.4.5 (2025-06-21) - Modal Navigation Fixes
+
+### Bug Fixes
+- **Modal Reopening Loop**: Fixed an issue where closing an entity or document modal would immediately re-open it. This was caused by the URL not updating to reflect the "closed" state.
+- **Navigation Sync**: Pressing ESC or clicking "Close" now correctly updates the browser URL, ensuring consistent navigation history.
+## v11.4.4 (2025-06-21) - Risk Assessment Corrections
+
+### Bug Fixes
+- **Risk Label Fixed**: Corrected an issue where the "Risk Level" badge (e.g., High Risk) was defaulting to Medium because the backend query omitted the `red_flag_rating` field.
+- **Evidence Count**: Verified that evidence counts now correctly reflect the available data, though high-risk document counts depend on the underlying document ratings.
+## v11.4.3 (2025-06-21) - Entity Evidence Optimization
+
+### Improvements
+- **Entity Evidence List**: Added pagination and search filtering to the Entity Card evidence panel to handle large lists more gracefully and prevent "endless scroll".
+- **Performance**: Optimized rendering by limiting the initial evidence items shown (default 10), with a "Show More" option.
+## v11.4.2 (2025-06-21) - Search Robustness Fix
+
+### Bug Fixes
+- **Search Snippets**: Fixed an issue where text snippets were not being returned in search results. Contextual highlighting should now work as expected.
+## v11.4.1 (2025-06-21) - Search & Performance Hotfix
+
+### Bug Fixes
+- **Search Fix**: Resolved a crash when searching for documents with undefined titles.
+- **Media Performance**: Fixed severe image flickering in the Media Browser by optimizing thumbnail loading and caching logic.
+## v11.4.0 (2025-06-21) - Minor Update
+
+### New Features
+- **Media Ingestion**:
+    - Added "Dan Ferree" video ingestion with automated transcript generation.
+    - Added "Evidence Images" collection support.
+- **Search**:
+    - Restored **Full Text Search** functionality with term highlighting (`<mark>`) in document results.
+    - Document results now appear even if no entity matches are found.
+
+### Bug Fixes
+- **Search UI**:
+    - Fixed input focus loss while typing.
+    - Resolves conflict between header search and page search.
+    - Dropdown now correctly positioned below input.
+## v11.3.9 (2025-06-21) - Search UI & Risk Fixes
+
+### User Interface
+- **Search Fixes**:
+    - Fixed an issue where the search dropdown covered the input field.
+    - Fixed a bug where typing in the main search bar caused focus loss (removed `disabled` state interaction).
+    - Added debouncing to search queries for better performance.
+- **Components**: Standardized dropdowns with new `Select` component.
+
+### Bug Fixes
+- **Risk Assessment**: Fixed regression where high-risk entities (e.g. Jeffrey Epstein) were incorrectly labeled "Low Risk".
+- **Media Browser**: Reduced image flickering during loading.
+- **Data Quality**: Filtered junk terms (e.g. "All Rights Reserved") from top entities chart.
 # Release Notes
 
-## v11.3.0 (2026-01-21) - Properties Browser & Analytics Fixes
+## v11.3.7
+- **UI Refinements:**
+    - Standardized dropdown menus across Property Browser and Flight Tracker for a consistent, premium look.
+    - Fixed image flickering issues in the Media Browser with smoother loading transitions.
+- **Data Quality:**
+    - Enhanced "Top Mentioned Individuals" filtering to exclude non-person entities and junk data.
+- **Flight Map:**
+    - Finalized the interactive flight route visualization.
+
+## v11.3.6 (2026-01-22) - Property Linking & Flight Maps
+
+### Property Ecosystem
+- **Owner Linking**: Successfully linked **82 property owners** to known entities (e.g., Ivana Trump, Everglades Club) using fuzzy name matching.
+- **Data Fix**: Resolved a bug where the "Top Property Owners" list was empty due to data quality issues (empty/unknown names).
+
+### Maps & Visualizations
+- **Flight Detail Maps**: Replaced static SVG schematics with interactive **OpenStreetMap** (LocationMap) views for both departure and arrival airports in the flight details modal.
+
+### UI Improvements
+- **Archive Progress**: Added a real-time progress bar to the About page header, visualizing "Files Secured" (database count) vs. "Total Archive" (5.2M).
+
+## v11.3.5 (2026-01-22) - Entity Categorization & Consolidation Fix
+ 
+ ### Entity Data Integrity
+ 
+ - **Consolidated Duplicate President**: "President Trump" (ID 10243) has been fully consolidated into "Donald Trump" (ID 3), merging all mentions, candidates, and media tags.
+ - **Strict Categorization Logic**: Implemented new regex-based categorization with strict word boundaries to prevent false positives (e.g., "Prince Inc" no longer tagged as Organization).
+ - **Mass Correction**: Reverted ~7,000 false positive categorizations and correctly re-categorized 500+ entities into Person, Location, Organization, or Media types.
+ - **Backend Filtering Support**: Updated `entitiesRepository` to support the `entityType` filter param, enabling correct filtering in the UI.
+ 
+ ### UI Improvements
+ 
+ - **Tablet Navigation Visibility**: The "Black Book" navigation label is now visible on tablet-sized screens (MD breakpoint), utilizing available navbar space.
+ 
+ ## v11.3.0 (2026-01-21) - Properties Browser & Analytics Fixes
 
 ### Properties Browser Fix
 

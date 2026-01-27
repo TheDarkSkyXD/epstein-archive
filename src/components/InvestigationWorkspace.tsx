@@ -103,6 +103,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
     | 'overview'
     | 'evidence'
     | 'hypotheses'
+    | 'notebook'
     | 'financial'
     | 'timeline'
     | 'communications'
@@ -126,8 +127,10 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
         'overview',
         'evidence',
         'hypotheses',
+        'notebook',
         'financial',
         'timeline',
+        'communications',
         'team',
         'analytics',
         'forensic',
@@ -794,15 +797,15 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
 
       {/* Header */}
       <div className="border-b border-slate-700 px-6 py-4 shrink-0">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
             <h2 className="text-xl font-semibold text-white">Investigation Workspace</h2>
             <p className="text-sm text-slate-400 mt-1">
               Collaborative investigation platform for journalists and researchers
             </p>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 shrink-0">
             {selectedInvestigation && (
               <div className="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700">
                 <button
@@ -828,13 +831,15 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
               </div>
             )}
 
-            <button
-              onClick={() => setShowNewInvestigationModal(true)}
-              className="flex items-center justify-center sm:justify-start px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors shadow-lg shadow-blue-900/20 h-10 whitespace-nowrap"
-            >
-              <Plus className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-2 shrink-0" />
-              <span className="hidden sm:inline">New Investigation</span>
-            </button>
+            {!selectedInvestigation && (
+              <button
+                onClick={() => setShowNewInvestigationModal(true)}
+                className="flex items-center justify-center sm:justify-start px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors shadow-lg shadow-blue-900/20 h-10 whitespace-nowrap"
+              >
+                <Plus className="w-5 h-5 sm:w-4 sm:h-4 sm:mr-2 shrink-0" />
+                <span className="hidden sm:inline">New Investigation</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -1208,7 +1213,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                 onHypothesesUpdate={setHypotheses}
               />
             )}
-            {activeTab === ('notebook' as any) && selectedInvestigation && (
+            {activeTab === 'notebook' && selectedInvestigation && (
               <div>
                 <EvidenceNotebook investigationId={Number(selectedInvestigation.id)} />
               </div>

@@ -1,7 +1,7 @@
 /**
  * Email Classification Service
  * Implements Gmail-style intelligent email filtering
- * 
+ *
  * Categories:
  * - primary: Personal emails from real people, especially known entities
  * - updates: Notifications, confirmations, receipts
@@ -139,7 +139,7 @@ export interface EmailClassificationResult {
 export function classifyEmail(
   sender: string,
   subject: string,
-  content: string | null
+  content: string | null,
 ): EmailClassificationResult {
   const reasons: string[] = [];
   let category: EmailCategory = 'primary';
@@ -167,8 +167,8 @@ export function classifyEmail(
   }
 
   // 2. Check for newsletter domains
-  const isNewsletterDomain = NEWSLETTER_DOMAINS.some(domain => 
-    senderDomain.includes(domain) || senderEmail.includes(domain)
+  const isNewsletterDomain = NEWSLETTER_DOMAINS.some(
+    (domain) => senderDomain.includes(domain) || senderEmail.includes(domain),
   );
   if (isNewsletterDomain) {
     category = 'promotions';
@@ -177,8 +177,8 @@ export function classifyEmail(
   }
 
   // 3. Check for transaction patterns
-  const isTransaction = TRANSACTION_PATTERNS.some(pattern => 
-    senderEmail.includes(pattern) || senderDomain.includes(pattern)
+  const isTransaction = TRANSACTION_PATTERNS.some(
+    (pattern) => senderEmail.includes(pattern) || senderDomain.includes(pattern),
   );
   if (isTransaction) {
     category = 'updates';
@@ -187,8 +187,8 @@ export function classifyEmail(
   }
 
   // 4. Check for social patterns
-  const isSocial = SOCIAL_PATTERNS.some(pattern => 
-    senderEmail.includes(pattern) || senderDomain.includes(pattern)
+  const isSocial = SOCIAL_PATTERNS.some(
+    (pattern) => senderEmail.includes(pattern) || senderDomain.includes(pattern),
   );
   if (isSocial) {
     category = 'social';
@@ -197,8 +197,8 @@ export function classifyEmail(
   }
 
   // 5. Check subject patterns for newsletters
-  const subjectIsNewsletter = NEWSLETTER_SUBJECT_PATTERNS.some(pattern => 
-    pattern.test(subjectLower)
+  const subjectIsNewsletter = NEWSLETTER_SUBJECT_PATTERNS.some((pattern) =>
+    pattern.test(subjectLower),
   );
   if (subjectIsNewsletter) {
     if (category === 'primary') {
@@ -209,9 +209,7 @@ export function classifyEmail(
   }
 
   // 6. Check body patterns for newsletters
-  const bodyIsNewsletter = NEWSLETTER_BODY_PATTERNS.some(pattern => 
-    pattern.test(contentLower)
-  );
+  const bodyIsNewsletter = NEWSLETTER_BODY_PATTERNS.some((pattern) => pattern.test(contentLower));
   if (bodyIsNewsletter) {
     if (category === 'primary') {
       category = 'promotions';
@@ -261,9 +259,11 @@ export interface LinkedEntity {
  */
 export async function getEntitiesInEmail(content: string): Promise<LinkedEntity[]> {
   const db = getDb();
-  
+
   // Get top entities with high mentions
-  const entities = db.prepare(`
+  const entities = db
+    .prepare(
+      `
     SELECT id, full_name as name, mentions, entity_type as type
     FROM entities
     WHERE mentions > 10
@@ -271,7 +271,9 @@ export async function getEntitiesInEmail(content: string): Promise<LinkedEntity[
     AND length(full_name) > 3
     ORDER BY mentions DESC
     LIMIT 500
-  `).all() as Array<{id: number; name: string; mentions: number; type: string}>;
+  `,
+    )
+    .all() as Array<{ id: number; name: string; mentions: number; type: string }>;
 
   const contentLower = content.toLowerCase();
   const found: LinkedEntity[] = [];
@@ -318,7 +320,9 @@ export function buildCategoryWhereClause(category: string): { clause: string; is
         clause: `
           AND (
             -- Known entity senders
-            json_extract(metadata_json, '$.from') IN (${Object.keys(KNOWN_ENTITY_SENDERS).map(e => `'${e}'`).join(',')})
+            json_extract(metadata_json, '$.from') IN (${Object.keys(KNOWN_ENTITY_SENDERS)
+              .map((e) => `'${e}'`)
+              .join(',')})
             OR json_extract(metadata_json, '$.from') LIKE '%ehbarak1@gmail.com%'
             OR json_extract(metadata_json, '$.from') LIKE '%jeevacation@gmail.com%'
             -- Exclude obvious newsletters

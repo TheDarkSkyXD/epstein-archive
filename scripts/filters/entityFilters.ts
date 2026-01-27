@@ -247,6 +247,17 @@ const JUNK_PHRASES = new Set([
   'social security',
   'date of birth',
   'drivers license',
+  'white house',
+  'they like',
+  'judge printed',
+  'multiple mac desktops',
+  'closed contaisensitems contained',
+  'other additions',
+  'other structures',
+  'tiered interest',
+  'your advantage',
+  'multiple he towers',
+  'little st james', // Often better as Location, but if appearing as Person name, block matches
 ]);
 
 const JUNK_REGEX = [
@@ -259,6 +270,17 @@ const JUNK_REGEX = [
   /http|www|\.com|\.net|\.org/, // URLs/Emails
   /page \d+/i, // Page numbers
   /exhibit \w+/i, // Exhibit labels
+  /all rights\s+reserved/i,
+  /copyright/i,
+  /^they like/i,
+  /^judge printed/i,
+  /^multiple (mac|he|she|it)/i, 
+  /^closed contain/i,
+  /^estate (of|thomas|jeffrey)/i, 
+  /new mexico/i, 
+  /new york times/i,
+  /other additions/i,
+  /desktop/i,
 ];
 
 export function isJunkEntity(name: string): boolean {

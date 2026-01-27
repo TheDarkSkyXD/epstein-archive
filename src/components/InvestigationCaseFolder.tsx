@@ -84,9 +84,7 @@ export const InvestigationCaseFolder: React.FC<InvestigationCaseFolderProps> = (
   const filteredEvidence = useMemo(() => {
     if (!evidence) return [];
 
-    let items = selectedType 
-      ? (evidence.byType[selectedType] || [])
-      : evidence.all;
+    let items = selectedType ? evidence.byType[selectedType] || [] : evidence.all;
 
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
@@ -94,7 +92,7 @@ export const InvestigationCaseFolder: React.FC<InvestigationCaseFolderProps> = (
         (e) =>
           e.title?.toLowerCase().includes(term) ||
           e.description?.toLowerCase().includes(term) ||
-          e.notes?.toLowerCase().includes(term)
+          e.notes?.toLowerCase().includes(term),
       );
     }
 
@@ -180,7 +178,11 @@ export const InvestigationCaseFolder: React.FC<InvestigationCaseFolderProps> = (
                   : 'bg-slate-800/50 border-slate-700 hover:border-slate-600'
               }`}
             >
-              <Icon name={config.icon as any} size="md" className={`mx-auto mb-2 text-${config.color}-400`} />
+              <Icon
+                name={config.icon as any}
+                size="md"
+                className={`mx-auto mb-2 text-${config.color}-400`}
+              />
               <div className="text-2xl font-bold text-white">{count}</div>
               <div className="text-xs text-slate-400">{config.label}</div>
             </button>
@@ -192,7 +194,11 @@ export const InvestigationCaseFolder: React.FC<InvestigationCaseFolderProps> = (
       <div className="flex flex-wrap items-center gap-3 p-4 bg-slate-800/30 rounded-lg">
         {/* Search */}
         <div className="relative flex-1 min-w-[200px]">
-          <Icon name="Search" size="sm" className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+          <Icon
+            name="Search"
+            size="sm"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+          />
           <input
             type="text"
             placeholder="Search evidence..."
@@ -239,9 +245,7 @@ export const InvestigationCaseFolder: React.FC<InvestigationCaseFolderProps> = (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-white">
-            {selectedType 
-              ? typeConfig[selectedType]?.label || selectedType 
-              : 'All Evidence'}
+            {selectedType ? typeConfig[selectedType]?.label || selectedType : 'All Evidence'}
             <span className="ml-2 text-sm font-normal text-slate-400">
               ({filteredEvidence.length} items)
             </span>
@@ -257,7 +261,7 @@ export const InvestigationCaseFolder: React.FC<InvestigationCaseFolderProps> = (
             {filteredEvidence.map((item) => {
               const config = typeConfig[item.type] || typeConfig.other;
               const link = getSourceLink(item);
-              
+
               return (
                 <div
                   key={item.id}
@@ -265,15 +269,23 @@ export const InvestigationCaseFolder: React.FC<InvestigationCaseFolderProps> = (
                 >
                   <div className="flex items-start gap-4">
                     {/* Type Icon */}
-                    <div className={`flex-shrink-0 w-10 h-10 rounded-lg bg-${config.color}-900/30 flex items-center justify-center`}>
-                      <Icon name={config.icon as any} size="md" className={`text-${config.color}-400`} />
+                    <div
+                      className={`flex-shrink-0 w-10 h-10 rounded-lg bg-${config.color}-900/30 flex items-center justify-center`}
+                    >
+                      <Icon
+                        name={config.icon as any}
+                        size="md"
+                        className={`text-${config.color}-400`}
+                      />
                     </div>
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h4 className="font-medium text-white truncate">{item.title}</h4>
-                        <span className={`px-2 py-0.5 text-xs rounded border ${relevanceColors[item.relevance] || 'bg-slate-700 text-slate-300'}`}>
+                        <span
+                          className={`px-2 py-0.5 text-xs rounded border ${relevanceColors[item.relevance] || 'bg-slate-700 text-slate-300'}`}
+                        >
                           {item.relevance}
                         </span>
                         {item.red_flag_rating > 0 && (
@@ -291,9 +303,7 @@ export const InvestigationCaseFolder: React.FC<InvestigationCaseFolderProps> = (
                       )}
 
                       {item.notes && (
-                        <p className="text-xs text-slate-500 italic mb-2">
-                          Note: {item.notes}
-                        </p>
+                        <p className="text-xs text-slate-500 italic mb-2">Note: {item.notes}</p>
                       )}
 
                       <div className="flex items-center gap-4 text-xs text-slate-500">

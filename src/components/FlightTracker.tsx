@@ -3,6 +3,10 @@ import { createPortal } from 'react-dom';
 import Icon from './Icon';
 import { Link } from 'react-router-dom';
 import { AddToInvestigationButton } from './AddToInvestigationButton';
+import { LocationMap } from './LocationMap';
+import { RouteMap } from './RouteMap';
+import { Select } from './Select';
+
 import './FlightTracker.css';
 
 interface Flight {
@@ -315,10 +319,18 @@ const FlightTracker: React.FC = () => {
       const nodeMap = new Map<string, { name: string; connections: number; entityId?: number }>();
       coOccurrences.forEach((co) => {
         if (!nodeMap.has(co.passenger1)) {
-          nodeMap.set(co.passenger1, { name: co.passenger1, connections: 0, entityId: co.entity_id1 });
+          nodeMap.set(co.passenger1, {
+            name: co.passenger1,
+            connections: 0,
+            entityId: co.entity_id1,
+          });
         }
         if (!nodeMap.has(co.passenger2)) {
-          nodeMap.set(co.passenger2, { name: co.passenger2, connections: 0, entityId: co.entity_id2 });
+          nodeMap.set(co.passenger2, {
+            name: co.passenger2,
+            connections: 0,
+            entityId: co.entity_id2,
+          });
         }
         nodeMap.get(co.passenger1)!.connections += co.flights_together;
         nodeMap.get(co.passenger2)!.connections += co.flights_together;
@@ -345,9 +357,12 @@ const FlightTracker: React.FC = () => {
     return (
       <div className="network-view">
         <div className="network-header">
-          <h3><Icon name="Users" size="sm" /> Passenger Co-Occurrence Network</h3>
+          <h3>
+            <Icon name="Users" size="sm" /> Passenger Co-Occurrence Network
+          </h3>
           <p className="network-description">
-            Shows which passengers frequently flew together. Stronger connections indicate more shared flights.
+            Shows which passengers frequently flew together. Stronger connections indicate more
+            shared flights.
           </p>
         </div>
 
@@ -361,7 +376,9 @@ const FlightTracker: React.FC = () => {
                   <span className="passenger-name">
                     {co.entity_id1 ? (
                       <Link to={`/entity/${co.entity_id1}`}>{co.passenger1}</Link>
-                    ) : co.passenger1}
+                    ) : (
+                      co.passenger1
+                    )}
                   </span>
                   <span className="connection-indicator">
                     <Icon name="Link" size="sm" />
@@ -370,13 +387,17 @@ const FlightTracker: React.FC = () => {
                   <span className="passenger-name">
                     {co.entity_id2 ? (
                       <Link to={`/entity/${co.entity_id2}`}>{co.passenger2}</Link>
-                    ) : co.passenger2}
+                    ) : (
+                      co.passenger2
+                    )}
                   </span>
                 </div>
                 <div className="connection-bar">
-                  <div 
+                  <div
                     className="connection-fill"
-                    style={{ width: `${Math.min((co.flights_together / (topConnections[0]?.flights_together || 1)) * 100, 100)}%` }}
+                    style={{
+                      width: `${Math.min((co.flights_together / (topConnections[0]?.flights_together || 1)) * 100, 100)}%`,
+                    }}
                   />
                 </div>
               </div>
@@ -394,11 +415,11 @@ const FlightTracker: React.FC = () => {
                 <span className="name">
                   {node.entityId ? (
                     <Link to={`/entity/${node.entityId}`}>{node.name}</Link>
-                  ) : node.name}
+                  ) : (
+                    node.name
+                  )}
                 </span>
-                <span className="connection-count">
-                  {node.connections} shared flights
-                </span>
+                <span className="connection-count">{node.connections} shared flights</span>
               </div>
             ))}
           </div>
@@ -590,124 +611,7 @@ const FlightTracker: React.FC = () => {
     return { x, y };
   };
 
-  // Flight path mini-map for modal using SVG (better control than iframe)
-  const FlightPathMap = ({ flight }: { flight: Flight }) => {
-    const fromCoords = airports[flight.departure_airport];
-    const toCoords = airports[flight.arrival_airport];
 
-    if (!fromCoords || !toCoords) {
-      return (
-        <div className="flight-path-map-placeholder">
-          <Icon name="Globe" size="lg" />
-          <span>Map coordinates unavailable for this route</span>
-        </div>
-      );
-    }
-
-    // Determine bounds
-    const lats = [fromCoords.lat, toCoords.lat];
-    const lngs = [fromCoords.lng, toCoords.lng];
-    const minLat = Math.min(...lats);
-    const maxLat = Math.max(...lats);
-    const minLng = Math.min(...lngs);
-    const maxLng = Math.max(...lngs);
-
-    // Add 20% padding
-    const latPad = Math.max((maxLat - minLat) * 0.4, 2);
-    const lngPad = Math.max((maxLng - minLng) * 0.4, 2);
-
-    const viewBoxMinLng = minLng - lngPad;
-    const viewBoxMaxLng = maxLng + lngPad;
-    const viewBoxMinLat = minLat - latPad;
-    const viewBoxMaxLat = maxLat + latPad;
-
-    // Helper to project lat/lng to 0-100 coordinate space
-    const project = (lat: number, lng: number) => {
-      const x = ((lng - viewBoxMinLng) / (viewBoxMaxLng - viewBoxMinLng)) * 100;
-      // Invert Y because SVG Y grows downwards, but Latitude grows upwards
-      const y = 100 - ((lat - viewBoxMinLat) / (viewBoxMaxLat - viewBoxMinLat)) * 100;
-      return { x, y };
-    };
-
-    const start = project(fromCoords.lat, fromCoords.lng);
-    const end = project(toCoords.lat, toCoords.lng);
-
-    // Calculate curve control point (offset perpendicular to line)
-    // Simple approach: midpoint with Y offset?
-    // Better: offset based on direction. For simplicity, just arch "up" (lower Y)
-    const midX = (start.x + end.x) / 2;
-    const midY = Math.min(start.y, end.y) - 20;
-
-    const googleMapsUrl = `https://www.google.com/maps/dir/${fromCoords.lat},${fromCoords.lng}/${toCoords.lat},${toCoords.lng}`;
-
-    return (
-      <div className="flight-path-map">
-        <div className="relative h-48 bg-slate-900 rounded-t-lg overflow-hidden border-b border-slate-800">
-          {/* SVG Map */}
-          <svg
-            viewBox="0 0 100 100"
-            className="w-full h-full"
-            preserveAspectRatio="xMidYMid meeting"
-          >
-            {/* Background gradient or solid color is handled by container */}
-
-            {/* Grid/Context cues - simplified */}
-            <rect x="0" y="0" width="100" height="100" fill="#0f172a" />
-
-            {/* Route Line */}
-            <path
-              d={`M ${start.x} ${start.y} Q ${midX} ${midY} ${end.x} ${end.y}`}
-              fill="none"
-              stroke="#06b6d4" // cyan-500
-              strokeWidth="1.5"
-              strokeDasharray="4 2"
-              className="animate-[dash_20s_linear_infinite]"
-            >
-              <animate
-                attributeName="stroke-dashoffset"
-                from="100"
-                to="0"
-                dur="2s"
-                repeatCount="indefinite"
-              />
-            </path>
-
-            {/* Start Point */}
-            <circle cx={start.x} cy={start.y} r="2" fill="#3b82f6" />
-            <text x={start.x} y={start.y + 5} fill="#94a3b8" fontSize="3" textAnchor="middle">
-              {flight.departure_airport}
-            </text>
-
-            {/* End Point */}
-            <circle cx={end.x} cy={end.y} r="2" fill="#ef4444" />
-            <text x={end.x} y={end.y + 5} fill="#94a3b8" fontSize="3" textAnchor="middle">
-              {flight.arrival_airport}
-            </text>
-          </svg>
-
-          {/* Route overlay info */}
-          <div className="absolute bottom-2 left-2 right-2 flex justify-between items-center px-2 py-1 bg-black/60 backdrop-blur-sm rounded text-xs pointer-events-none">
-            <span className="text-cyan-300 font-bold">{flight.departure_airport}</span>
-            <span className="text-slate-400 text-[10px] uppercase tracking-wider">Flight Path</span>
-            <span className="text-red-300 font-bold">{flight.arrival_airport}</span>
-          </div>
-        </div>
-        <a
-          href={googleMapsUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 py-2 bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-medium transition-colors rounded-b-lg group"
-        >
-          <Icon
-            name="ExternalLink"
-            size="sm"
-            className="group-hover:scale-110 transition-transform"
-          />
-          View Detailed Ground Map
-        </a>
-      </div>
-    );
-  };
 
   // Flight detail modal
   const FlightModal = () => {
@@ -725,8 +629,73 @@ const FlightTracker: React.FC = () => {
             <span className="flight-date">{formatDate(selectedFlight.date)}</span>
           </div>
 
-          {/* Flight Path Map */}
-          <FlightPathMap flight={selectedFlight} />
+          {/* Flight Route Map & Info */}
+          {(() => {
+             const departureCoords = airports[selectedFlight.departure_airport];
+             const arrivalCoords = airports[selectedFlight.arrival_airport];
+             return (
+               <>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700/50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Icon name="ArrowUpRight" className="text-blue-400" size="sm" />
+                      <span className="text-sm font-medium text-slate-400">Departure</span>
+                    </div>
+                    <div className="text-lg font-bold text-white mb-1">
+                      {selectedFlight.departure_airport}
+                    </div>
+                    <div className="text-sm text-slate-500">
+                      {new Date(selectedFlight.date).toLocaleString()}
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700/50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Icon name="ArrowDown" className="text-emerald-400" size="sm" />
+                      <span className="text-sm font-medium text-slate-400">Arrival</span>
+                    </div>
+                    <div className="text-lg font-bold text-white mb-1">
+                      {selectedFlight.arrival_airport}
+                    </div>
+                    <div className="text-sm text-slate-500">
+                      {new Date(selectedFlight.date).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Flight Route Map */}
+                {(departureCoords || arrivalCoords) && (
+                  <div className="mb-6">
+                    <h4 className="text-sm font-medium text-slate-400 mb-3 flex items-center gap-2">
+                      <Icon name="Globe" size="sm" />
+                      Flight Path Visualization
+                    </h4>
+                    {departureCoords && arrivalCoords ? (
+                      <RouteMap
+                        departure={{
+                          lat: departureCoords.lat,
+                          lng: departureCoords.lng,
+                          name: selectedFlight.departure_city || selectedFlight.departure_airport,
+                          code: selectedFlight.departure_airport,
+                        }}
+                        arrival={{
+                          lat: arrivalCoords.lat,
+                          lng: arrivalCoords.lng,
+                          name: selectedFlight.arrival_city || selectedFlight.arrival_airport,
+                          code: selectedFlight.arrival_airport,
+                        }}
+                      />
+                    ) : (
+                      <div className="bg-slate-800/50 p-8 rounded-lg border border-slate-700/50 text-center">
+                         <Icon name="MapPin" size="lg" className="text-slate-600 mb-2 mx-auto" />
+                         <p className="text-slate-400">Complete route data unavailable for map visualization</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+               </>
+             );
+          })()}
 
           <div className="modal-route">
             <div className="route-endpoint">
@@ -766,12 +735,20 @@ const FlightTracker: React.FC = () => {
           </div>
 
           {/* Add to Investigation */}
-          <div className="modal-section" style={{ borderTop: '1px solid #2a2a4a', paddingTop: '16px' }}>
+          <div
+            className="modal-section"
+            style={{ borderTop: '1px solid #2a2a4a', paddingTop: '16px' }}
+          >
             <AddToInvestigationButton
               item={{
                 id: String(selectedFlight.id),
                 title: `Flight ${selectedFlight.aircraft_tail}: ${selectedFlight.departure_airport} → ${selectedFlight.arrival_airport}`,
-                description: `${formatDate(selectedFlight.date)} - ${selectedFlight.passengers?.length || 0} passengers including ${selectedFlight.passengers?.slice(0, 3).map(p => p.passenger_name).join(', ')}${selectedFlight.passengers && selectedFlight.passengers.length > 3 ? '...' : ''}`,
+                description: `${formatDate(selectedFlight.date)} - ${selectedFlight.passengers?.length || 0} passengers including ${selectedFlight.passengers
+                  ?.slice(0, 3)
+                  .map((p) => p.passenger_name)
+                  .join(
+                    ', ',
+                  )}${selectedFlight.passengers && selectedFlight.passengers.length > 3 ? '...' : ''}`,
                 type: 'flight',
                 sourceId: String(selectedFlight.id),
                 metadata: {
@@ -855,33 +832,36 @@ const FlightTracker: React.FC = () => {
         </div>
 
         <div className="filters">
-          <select
-            value={selectedPassenger}
-            onChange={(e) => setSelectedPassenger(e.target.value)}
-            className="passenger-filter"
-          >
-            <option value="">All Passengers</option>
-            {(passengers || []).map((p) => (
-              <option key={p.name} value={p.name}>
-                {p.name} ({p.flight_count})
-              </option>
-            ))}
-          </select>
-
-          <input
-            type="date"
-            value={dateRange.start}
-            onChange={(e) => setDateRange((r) => ({ ...r, start: e.target.value }))}
-            placeholder="From"
-            className="date-filter"
-          />
-          <input
-            type="date"
-            value={dateRange.end}
-            onChange={(e) => setDateRange((r) => ({ ...r, end: e.target.value }))}
-            placeholder="To"
-            className="date-filter"
-          />
+          <div className="flex flex-wrap gap-4">
+            <Select
+              containerClassName="min-w-[200px]"
+              value={selectedPassenger}
+              onChange={(e) => setSelectedPassenger(e.target.value)}
+              options={[
+                { value: '', label: 'All Passengers' },
+                ...passengers.map((p) => ({ value: p.name, label: `${p.name} (${p.flight_count})` })),
+              ]}
+            />
+            
+            <div className="flex items-center gap-2 bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2">
+               <Icon name="Calendar" size="sm" className="text-slate-400" />
+               <input 
+                  type="date"
+                  value={dateRange.start}
+                  onChange={(e) => setDateRange({...dateRange, start: e.target.value})}
+                  className="bg-transparent border-none text-white text-sm focus:outline-none"
+                  placeholder="Start Date"
+               />
+               <span className="text-slate-500">-</span>
+               <input 
+                  type="date"
+                  value={dateRange.end}
+                  onChange={(e) => setDateRange({...dateRange, end: e.target.value})}
+                  className="bg-transparent border-none text-white text-sm focus:outline-none"
+                  placeholder="End Date"
+               />
+            </div>
+          </div>
         </div>
       </div>
 

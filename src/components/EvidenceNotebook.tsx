@@ -168,20 +168,25 @@ export const EvidenceNotebook: React.FC<NotebookProps> = ({ investigationId }) =
 
   return (
     <div className="p-6 space-y-8">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl text-white">Evidence Notebook</h2>
-        <div className="flex items-center gap-2">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-semibold text-white">Evidence Notebook</h2>
+          <p className="text-sm text-slate-400 mt-1">
+            Organize and outline your evidence for publication
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
           <a
             href={`/api/investigations/${investigationId}/briefing`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs px-3 py-1.5 rounded bg-blue-700 text-white"
+            className="text-xs px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white transition-colors"
           >
             Publish Briefing
           </a>
-          <div className="text-xs text-slate-400">Drag to reorder outline</div>
         </div>
       </div>
+      <p className="text-xs text-slate-500">Drag items to reorder your outline</p>
 
       <div className="space-y-6">
         <section>

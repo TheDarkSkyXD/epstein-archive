@@ -35,6 +35,7 @@ const REQUIRED_TABLES = [
 ];
 
 const REQUIRED_COLUMNS: Record<string, string[]> = {
+  users: ['id', 'username', 'email', 'role', 'password_hash'],
   entities: [
     'id',
     'full_name',
@@ -280,7 +281,9 @@ function verifySqliteIntegrity(db: Database.Database): VerificationResult {
     if (integrityResult[0]?.integrity_check === 'ok') {
       console.log('   ✓ PRAGMA integrity_check: ok');
     } else {
-      result.errors.push(`❌ Database integrity check failed: ${integrityResult[0]?.integrity_check}`);
+      result.errors.push(
+        `❌ Database integrity check failed: ${integrityResult[0]?.integrity_check}`,
+      );
       result.passed = false;
     }
 
@@ -290,7 +293,9 @@ function verifySqliteIntegrity(db: Database.Database): VerificationResult {
     if (mode === 'wal') {
       console.log('   ✓ Journal mode: WAL (recommended)');
     } else {
-      result.warnings.push(`⚠️  Journal mode is ${mode}, not WAL (consider switching for better concurrency)`);
+      result.warnings.push(
+        `⚠️  Journal mode is ${mode}, not WAL (consider switching for better concurrency)`,
+      );
     }
 
     // Check for foreign key violations
@@ -304,7 +309,6 @@ function verifySqliteIntegrity(db: Database.Database): VerificationResult {
     } catch {
       // Foreign key check might not be available
     }
-
   } catch (e: any) {
     result.errors.push(`❌ Database integrity check crashed: ${e.message}`);
     result.passed = false;

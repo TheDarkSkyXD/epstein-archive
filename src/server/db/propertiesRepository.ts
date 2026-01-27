@@ -145,7 +145,7 @@ export const propertiesRepository = {
   },
 
   /**
-   * Get all properties owned by known associates
+   * Get all properties owned by known associates or linked to entities
    */
   getKnownAssociateProperties: (): Property[] => {
     const db = getDb();
@@ -153,7 +153,7 @@ export const propertiesRepository = {
       .prepare(
         `
       SELECT * FROM palm_beach_properties
-      WHERE is_known_associate = 1
+      WHERE is_known_associate = 1 OR linked_entity_id IS NOT NULL
       ORDER BY total_tax_value DESC
     `,
       )
@@ -188,7 +188,7 @@ export const propertiesRepository = {
       SELECT 
         COUNT(*) as totalProperties,
         SUM(is_epstein_property) as epsteinProperties,
-        SUM(is_known_associate) as knownAssociateProperties,
+        SUM(CASE WHEN is_known_associate = 1 OR linked_entity_id IS NOT NULL THEN 1 ELSE 0 END) as knownAssociateProperties,
         ROUND(AVG(total_tax_value), 0) as avgTaxValue,
         MAX(total_tax_value) as maxTaxValue
       FROM palm_beach_properties
@@ -262,7 +262,7 @@ export const propertiesRepository = {
     db.prepare(
       `
       UPDATE palm_beach_properties
-      SET linked_entity_id = ?
+      SET linked_entity_id = ?, is_known_associate = 1
       WHERE id = ?
     `,
     ).run(entityId, propertyId);
@@ -298,22 +298,24 @@ export const propertiesRepository = {
   /**
    * Get top property owners by total value
    */
-  getTopOwners: (limit = 20): { owner: string; propertyCount: number; totalValue: number }[] => {
+  getTopOwners: (limit = 20): { owner_name: string; property_count: number; total_value: number }[] => {
     const db = getDb();
     return db
       .prepare(
         `
       SELECT 
-        COALESCE(owner_name_1, 'Unknown') as owner,
-        COUNT(*) as propertyCount,
-        SUM(total_tax_value) as totalValue
+        COALESCE(owner_name_1, 'Unknown') as owner_name,
+        COUNT(*) as property_count,
+        SUM(total_tax_value) as total_value
       FROM palm_beach_properties
-      WHERE owner_name_1 IS NOT NULL
+      WHERE owner_name_1 IS NOT NULL AND owner_name_1 != '' AND owner_name_1 != 'Unknown'
       GROUP BY owner_name_1
-      ORDER BY totalValue DESC
+      HAVING total_value > 0
+      ORDER BY total_value DESC
       LIMIT ?
     `,
       )
-      .all(limit) as { owner: string; propertyCount: number; totalValue: number }[];
+      .all(limit) as { owner_name: string; property_count: number; total_value: number }[];
   },
 };
+

@@ -13,8 +13,10 @@ import {
   ExternalLink,
   Filter,
   BarChart3,
+  MessageSquare,
 } from 'lucide-react';
 import { ENTITY_CATEGORY_ICONS } from '../config/entityIcons';
+import { EvidenceAnnotationPanel, EvidenceAnnotation } from './EvidenceAnnotation';
 
 interface Evidence {
   id: number;
@@ -27,6 +29,7 @@ interface Evidence {
   notes?: string;
   relevance?: 'high' | 'medium' | 'low';
   added_at?: string;
+  annotationCount?: number;
 }
 
 interface Entity {
@@ -56,6 +59,10 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [, setSelectedEvidence] = useState<Evidence | null>(null);
+  const [annotatingEvidence, setAnnotatingEvidence] = useState<Evidence | null>(null);
+  const [evidenceAnnotations, setEvidenceAnnotations] = useState<
+    Record<number, EvidenceAnnotation[]>
+  >({});
 
   useEffect(() => {
     loadEvidenceSummary();
@@ -165,15 +172,20 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
     <div className="bg-slate-800 rounded-lg shadow-lg border border-slate-700">
       {/* Header */}
       <div className="border-b border-slate-700 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-3">
-            <FileSearch className="w-6 h-6 text-blue-400" />
-            <h2 className="text-2xl font-bold text-white">Evidence Collection</h2>
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <div className="flex items-center space-x-3">
+              <FileSearch className="w-6 h-6 text-blue-400" />
+              <h2 className="text-xl font-semibold text-white">Evidence Collection</h2>
+            </div>
+            <p className="text-sm text-slate-400 mt-1 ml-9">
+              Manage evidence linked to this investigation
+            </p>
           </div>
           {onClose && (
             <button
               onClick={onClose}
-              className="p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+              className="p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors shrink-0"
             >
               <X className="w-6 h-6" />
             </button>
@@ -361,16 +373,34 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
                     <span>{new Date(item.created_at).toLocaleDateString()}</span>
                   </span>
                 </div>
-                <a
-                  href={`/evidence/${item.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center space-x-1 text-blue-400 hover:text-blue-300"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <span>View</span>
-                  <ExternalLink className="w-3 h-3" />
-                </a>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setAnnotatingEvidence(item);
+                    }}
+                    className="flex items-center space-x-1 text-purple-400 hover:text-purple-300"
+                    title="Annotate evidence"
+                  >
+                    <MessageSquare className="w-3 h-3" />
+                    <span>Annotate</span>
+                    {(evidenceAnnotations[item.id]?.length || 0) > 0 && (
+                      <span className="ml-1 px-1.5 py-0.5 text-xs bg-purple-900/50 rounded-full">
+                        {evidenceAnnotations[item.id]?.length}
+                      </span>
+                    )}
+                  </button>
+                  <a
+                    href={`/evidence/${item.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center space-x-1 text-blue-400 hover:text-blue-300"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <span>View</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
               </div>
             </div>
           ))}
@@ -476,6 +506,23 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
             </div>
           </div>
         </div>
+      )}
+
+      {/* Evidence Annotation Modal */}
+      {annotatingEvidence && (
+        <EvidenceAnnotationPanel
+          evidenceId={annotatingEvidence.id}
+          evidenceTitle={annotatingEvidence.title || 'Evidence'}
+          evidenceDescription={annotatingEvidence.description}
+          investigationId={investigationId}
+          onClose={() => setAnnotatingEvidence(null)}
+          onAnnotationsChange={(annotations) => {
+            setEvidenceAnnotations((prev) => ({
+              ...prev,
+              [annotatingEvidence.id]: annotations,
+            }));
+          }}
+        />
       )}
     </div>
   );

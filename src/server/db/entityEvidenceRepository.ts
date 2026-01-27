@@ -8,7 +8,7 @@ export const entityEvidenceRepository = {
     const entity = db
       .prepare(
         `
-        SELECT id, full_name, primary_role, entity_category, risk_level
+        SELECT id, full_name, primary_role, entity_category, risk_level, red_flag_rating
         FROM entities
         WHERE id = ?
       `,

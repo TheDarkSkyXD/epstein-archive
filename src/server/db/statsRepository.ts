@@ -177,6 +177,20 @@ export const statsRepository = {
       AND full_name NOT LIKE '% Administration'
       AND full_name NOT LIKE '% Campaign'
       AND full_name NOT LIKE '% Tower'
+      AND full_name NOT LIKE '% Towers'
+      -- Explicit User Reported Junk
+      AND full_name NOT LIKE 'They Like'
+      AND full_name NOT LIKE 'Judge Prior'
+      AND full_name NOT LIKE 'Judge Printed'
+      AND full_name NOT LIKE 'New York Times' -- Should be Media
+      AND full_name NOT LIKE 'New Mexico' -- Should be Location
+      AND full_name NOT LIKE 'Estate %'
+      AND full_name NOT LIKE '% Estate'
+      AND full_name NOT LIKE 'Multiple %'
+      AND full_name NOT LIKE 'Closed %'
+      AND full_name NOT LIKE 'Other Additions%'
+      AND full_name NOT LIKE '% Desktops'
+      AND full_name NOT LIKE '% Mac %'
       -- Exclude names starting with lowercase (truncated/partial)
       AND full_name NOT GLOB '[a-z]*'
       GROUP BY name

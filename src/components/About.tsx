@@ -10,7 +10,32 @@ import {
   Target,
 } from 'lucide-react';
 
+
+import { optimizedDataService } from '../services/OptimizedDataService';
+
 export const About: React.FC = () => {
+  const [stats, setStats] = React.useState<{ total: number; released: number } | null>(null);
+
+  React.useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const data = await optimizedDataService.getStatistics();
+        if (data) {
+          // Assuming 5.2m is the hardcoded total for now as requested
+          setStats({
+            total: 5200000, 
+            released: data.documents
+          });
+        }
+      } catch (e) {
+        console.error('Failed to fetch stats', e);
+      }
+    };
+    fetchStats();
+  }, []);
+
+  const percentage = stats ? ((stats.released / stats.total) * 100).toFixed(4) : '0';
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       {/* Header */}
@@ -18,9 +43,28 @@ export const About: React.FC = () => {
         <h1 className="text-4xl font-bold text-white mb-4">
           Epstein Archive Investigation Platform
         </h1>
-        <p className="text-xl text-slate-400">
-          Version 10.10.0 - Unredacted Corpus & Intelligence Refresh
+        <p className="text-xl text-slate-400 mb-6">
+          Version 11.5.0 - Ingestion Intelligence & VIP Consolidation
         </p>
+        
+        {stats && (
+          <div className="inline-flex items-center gap-4 bg-slate-800/80 px-6 py-3 rounded-full border border-emerald-500/30 shadow-lg shadow-emerald-900/10 backdrop-blur-sm">
+            <div className="flex flex-col items-center">
+               <span className="text-xs text-slate-400 uppercase tracking-widest font-semibold">Files Secured</span>
+               <span className="text-2xl font-mono text-emerald-400 font-bold">{stats.released.toLocaleString()}</span>
+            </div>
+            <div className="h-8 w-px bg-slate-700"></div>
+             <div className="flex flex-col items-center">
+               <span className="text-xs text-slate-400 uppercase tracking-widest font-semibold">Total Archive</span>
+               <span className="text-2xl font-mono text-slate-500 font-bold">5.2M</span>
+            </div>
+            <div className="h-8 w-px bg-slate-700"></div>
+            <div className="flex flex-col items-center">
+               <span className="text-xs text-emerald-500 uppercase tracking-widest font-semibold animate-pulse">Progress</span>
+               <span className="text-2xl font-mono text-white font-bold">{percentage}%</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Mission Statement */}

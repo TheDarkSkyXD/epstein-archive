@@ -29,7 +29,7 @@ export const RedactedLogo: React.FC<RedactedLogoProps> = ({ text, className = ''
     const runAnimation = () => {
       const letterDelay = 55; // ms per letter
       animationCount.current += 1;
-      
+
       // Every 10th animation, show the alt text when unredacting
       const isAltAnimation = animationCount.current % 10 === 0;
 
@@ -60,7 +60,7 @@ export const RedactedLogo: React.FC<RedactedLogoProps> = ({ text, className = ''
         if (isAltAnimation) {
           setShowAltText(true);
         }
-        
+
         for (let i = letterCount - 1; i >= 0; i--) {
           setTimeout(
             () => {
@@ -106,7 +106,7 @@ export const RedactedLogo: React.FC<RedactedLogoProps> = ({ text, className = ''
   // Render text - always render individual spans during animation for consistency
   const renderText = () => {
     let letterIndex = 0;
-    
+
     // Easter egg: swap "EPSTEIN" for "TRUMP" on every 10th animation
     const displayText = showAltText ? text.replace(/EPSTEIN/gi, 'TRUMP  ') : text;
 

@@ -1,11 +1,11 @@
 import express from 'express';
 import { getDb } from '../db/connection.js';
-import { 
-  classifyEmail, 
-  buildCategoryWhereClause, 
+import {
+  classifyEmail,
+  buildCategoryWhereClause,
   getEntitiesInEmail,
   getKnownEntitySenders,
-  type EmailCategory 
+  type EmailCategory,
 } from '../services/emailClassificationService.js';
 
 const router = express.Router();
@@ -14,22 +14,32 @@ const router = express.Router();
 router.get('/categories', async (_req, res, next) => {
   try {
     const db = getDb();
-    
-    // Get counts for each category using optimized queries
-    const totalResult = db.prepare(`
-      SELECT COUNT(*) as count FROM documents WHERE evidence_type = 'email'
-    `).get() as { count: number };
 
-    const primaryResult = db.prepare(`
+    // Get counts for each category using optimized queries
+    const totalResult = db
+      .prepare(
+        `
+      SELECT COUNT(*) as count FROM documents WHERE evidence_type = 'email'
+    `,
+      )
+      .get() as { count: number };
+
+    const primaryResult = db
+      .prepare(
+        `
       SELECT COUNT(*) as count FROM documents 
       WHERE evidence_type = 'email'
       AND (
         json_extract(metadata_json, '$.from') LIKE '%ehbarak1@gmail.com%'
         OR json_extract(metadata_json, '$.from') LIKE '%jeevacation@gmail.com%'
       )
-    `).get() as { count: number };
+    `,
+      )
+      .get() as { count: number };
 
-    const updatesResult = db.prepare(`
+    const updatesResult = db
+      .prepare(
+        `
       SELECT COUNT(*) as count FROM documents 
       WHERE evidence_type = 'email'
       AND (
@@ -39,9 +49,13 @@ router.get('/categories', async (_req, res, next) => {
         OR file_name LIKE '%order%'
         OR file_name LIKE '%shipping%'
       )
-    `).get() as { count: number };
+    `,
+      )
+      .get() as { count: number };
 
-    const promotionsResult = db.prepare(`
+    const promotionsResult = db
+      .prepare(
+        `
       SELECT COUNT(*) as count FROM documents 
       WHERE evidence_type = 'email'
       AND (
@@ -52,7 +66,9 @@ router.get('/categories', async (_req, res, next) => {
         OR json_extract(metadata_json, '$.from') LIKE '%fab.com%'
         OR content LIKE '%unsubscribe%'
       )
-    `).get() as { count: number };
+    `,
+      )
+      .get() as { count: number };
 
     res.json({
       all: totalResult.count,
@@ -71,9 +87,13 @@ router.get('/categories', async (_req, res, next) => {
 router.get('/:id/entities', async (req, res, next) => {
   try {
     const db = getDb();
-    const email = db.prepare(`
+    const email = db
+      .prepare(
+        `
       SELECT content FROM documents WHERE id = ? AND evidence_type = 'email'
-    `).get(req.params.id) as { content: string } | undefined;
+    `,
+      )
+      .get(req.params.id) as { content: string } | undefined;
 
     if (!email) {
       return res.status(404).json({ error: 'Email not found' });
@@ -103,8 +123,9 @@ router.get('/', async (req, res, next) => {
     const db = getDb();
 
     // Build category filter
-    const categoryFilter = category !== 'all' ? buildCategoryWhereClause(category) : { clause: '', isComplex: false };
-    
+    const categoryFilter =
+      category !== 'all' ? buildCategoryWhereClause(category) : { clause: '', isComplex: false };
+
     // Build search filter
     let searchClause = '';
     if (search) {

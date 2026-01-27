@@ -12,7 +12,7 @@ interface LazyImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
 export const LazyImage: React.FC<LazyImageProps> = ({
   src,
   alt,
-  placeholderSrc = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB2aWV3Qm94PSIwIDAgMSAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNlNWU3ZWIiIC8+PC9zdmc+', // Light gray placeholder
+  placeholderSrc = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB2aWV3Qm94PSIwIDAgMSAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiMwMjA2MTciIC8+PC9zdmc+', // Slate-950 placeholder
   threshold = 0.1,
   className,
   ...props
@@ -47,6 +47,8 @@ export const LazyImage: React.FC<LazyImageProps> = ({
   }, [src]);
 
   // If src changes and it's already cached, immediately show it
+  const [shouldAnimate] = useState(!wasAlreadyLoaded);
+
   useEffect(() => {
     if (src && loadedImageCache.has(src)) {
       setIsLoaded(true);
@@ -66,8 +68,8 @@ export const LazyImage: React.FC<LazyImageProps> = ({
         isLoaded ? 'opacity-100' : 'opacity-0'
       }`}
       style={{
-        transition: isLoaded ? 'none' : 'opacity 0.3s ease-in-out',
-        backgroundColor: '#1e293b', // slate-800
+        transition: shouldAnimate ? 'opacity 0.4s ease-out' : 'none',
+        backgroundColor: '#020617', // slate-950, darker background for less visual gap
       }}
       {...props}
     />

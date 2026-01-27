@@ -50,7 +50,7 @@ import {
 // New Filters & Rules (2026-01-23)
 import { isJunkEntity } from './filters/entityFilters';
 import { resolveAmbiguity } from './filters/contextRules';
-import { resolveVip } from './filters/vipRules';
+import { resolveVip, VIP_RULES } from './filters/vipRules';
 
 const JUNK_REGEX = ENTITY_BLACKLIST_REGEX;
 
@@ -308,9 +308,7 @@ function rebuildEntityPipeline() {
 
           // Fetch type from context rule if available, otherwise detect
           if (vipResolution) {
-            const rule = require('./filters/vipRules').VIP_RULES.find(
-              (r: any) => r.canonicalName === vipResolution,
-            );
+            const rule = VIP_RULES.find((r) => r.canonicalName === vipResolution);
             if (rule) entityType = rule.type;
           } else if (resolutionMethod === 'context_rule') {
             // We need to re-fetch the context resolution object if we want the type

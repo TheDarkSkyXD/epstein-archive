@@ -28,6 +28,9 @@ import evidenceRoutes from './routes/evidenceRoutes.js';
 import advancedAnalyticsRoutes from './server/routes/advancedAnalytics.js';
 import entityEvidenceRoutes from './routes/entityEvidenceRoutes.js';
 import investigativeTasksRoutes from './server/routes/investigativeTasks.js';
+import articlesRoutes from './server/routes/articlesRoutes.js';
+import emailRoutes from './server/routes/emailRoutes.js';
+import { articlesRepository } from './server/db/articlesRepository.js';
 import { communicationsRepository } from './server/db/communicationsRepository.js';
 import crypto from 'crypto';
 import multer from 'multer';
@@ -169,7 +172,8 @@ app.use('/api/investigations', investigationsRouter);
 app.use('/api/investigation', investigationEvidenceRoutes);
 app.use('/api/evidence', evidenceRoutes);
 app.use('/api/entities', entityEvidenceRoutes);
-import emailRoutes from './server/routes/emailRoutes.js';
+app.use('/api/email', emailRoutes);
+app.use('/api/articles', articlesRoutes);
 // Authentication middleware will be applied below
 
 // Serve static frontend from dist
@@ -1239,19 +1243,8 @@ app.get('/api/entities/:id/communications', async (req, res, next) => {
   }
 });
 
-// Get all articles
-app.get('/api/articles', async (_req, res, next) => {
-  try {
-    // statsRepository doesn't have getArticles, need to migrate or keep using DB
-    const articles = getDb()
-      .prepare('SELECT * FROM articles ORDER BY red_flag_rating DESC, pub_date DESC')
-      .all();
-    res.json(articles);
-  } catch (error) {
-    console.error('Error fetching articles:', error);
-    next(error);
-  }
-});
+// Mount Articles Routes
+app.use('/api/articles', articlesRoutes);
 
 // Get documents for a specific entity
 app.get('/api/entities/:id/documents', async (req, res, next) => {
@@ -4006,6 +3999,17 @@ function injectOgTags(
   }
 }
 
+// Ensure articles repository-like access (quick inline helper since no repo file exists yet)
+// Ensure articles repository-like access (quick inline helper since no repo file exists yet)
+function getArticleById(id: number | string) {
+  try {
+    return articlesRepository.getArticleById(id);
+  } catch (e) {
+    console.error('Error fetching article for OG tags:', e);
+    return null;
+  }
+}
+
 // SPA fallback to index.html for non-API routes
 app.get('*', async (req, res, next) => {
   if (req.path.startsWith('/api/')) return next();
@@ -4050,6 +4054,28 @@ app.get('*', async (req, res, next) => {
               ? `${entityName} (${role}) - View connections, documents and evidence in the Epstein Files Archive`
               : `${entityName} - View connections, documents and evidence in the Epstein Files Archive`,
             imageUrl: defaultOgImage,
+            url: `${baseUrl}${req.originalUrl}`,
+          });
+          return res.send(html);
+        }
+      }
+
+      // Check for article deep links (e.g., /media/articles?articleId=123)
+      const articleId = req.query.article || req.query.articleId;
+      if (articleId) {
+        const article = getArticleById(articleId as string);
+        if (article) {
+          const articleTitle = article.title || 'Article';
+          const pub = article.source || article.publication || 'Unknown Publication';
+          const summary =
+            article.description ||
+            article.summary ||
+            `Read "${articleTitle}" in the Epstein Files Archive.`;
+
+          html = injectOgTags(html, {
+            title: `${articleTitle} - Epstein Files Archive`,
+            description: summary.length > 200 ? summary.substring(0, 197) + '...' : summary,
+            imageUrl: article.image_url || defaultOgImage,
             url: `${baseUrl}${req.originalUrl}`,
           });
           return res.send(html);

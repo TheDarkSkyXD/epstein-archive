@@ -275,3 +275,7 @@ CREATE VIRTUAL TABLE IF NOT EXISTS media_images_fts USING fts5(
   content_rowid='id'
 );
 
+
+-- Performance Indices V2 (Migration 018)
+CREATE INDEX IF NOT EXISTS idx_entities_mentions_ranking ON entities(mentions DESC, red_flag_rating DESC);
+CREATE INDEX IF NOT EXISTS idx_entities_primary_role ON entities(primary_role);

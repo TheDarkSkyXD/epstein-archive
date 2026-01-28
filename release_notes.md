@@ -1,3 +1,23 @@
+## v11.6.0 (2026-01-28) - Infrastructure Modernization & Performance
+
+### 🏗 Infrastructure Modernization
+
+- **pnpm Migration**: Migrated from npm to **pnpm** for faster, space-efficient dependency management.
+- **Git Hooks**: Implemented **Husky** with `lint-staged` to enforce code quality (Linting, Formatting) on commit.
+- **CI Pipeline**: Added **GitHub Actions** workflow for automated generic testing (Lint, Type-Check, Build) on every push/PR.
+- **Deployment**: Updated `deploy-to-production.sh` to leverage pnpm and optimizing the build/deploy process.
+
+### ⚡ Performance Optimization
+
+- **Database Indices**: Added critical indices (`red_flag_rating`, `mentions`, `primary_role`) to optimize filtering and default sorting algorithms.
+- **Frontend Analysis**: Verified effective code splitting and lazy loading of heavy components (`InvestigationWorkspace`, `DataVisualization`).
+
+### 📱 Mobile Experience
+
+- **Enhanced Menu**: Added full-featured **Search** bar to mobile menu.
+- **Navigation Parity**: Added all missing desktop navigation links (Flights, Properties, Media, Analytics, Black Book, Emails) to mobile menu.
+- **Admin Access**: Securely conditionally rendered Admin link based on user role.
+
 ## v11.5.0 (2025-01-23) - Ingestion Intelligence & VIP Consolidation
 
 ### Ingestion Pipeline Hardening

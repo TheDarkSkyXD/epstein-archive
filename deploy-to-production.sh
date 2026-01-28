@@ -265,7 +265,7 @@ build_application() {
     rm -rf dist/
 
     # Build the application
-    if npm run build:prod; then
+    if pnpm run build:prod; then
         log_info "Application built successfully."
     else
         log_error "Failed to build application."
@@ -284,7 +284,7 @@ prepare_deployment_package() {
     cp -r dist "$TEMP_DIR/"
     cp -r src "$TEMP_DIR/"
     cp package.json "$TEMP_DIR/"
-    cp package-lock.json "$TEMP_DIR/"
+    cp pnpm-lock.yaml "$TEMP_DIR/"
     cp Dockerfile "$TEMP_DIR/"
     cp docker-compose.yml "$TEMP_DIR/"
     cp .env.production "$TEMP_DIR/"
@@ -330,12 +330,19 @@ deploy_to_production() {
         rm -f epstein-archive-deployment-*.tar.gz &&
         rm -f epstein-archive.sql &&
         echo '🏗️ Installing dependencies...' &&
-        npm install --omit=dev &&
+        
+        # Ensure pnpm is installed
+        if ! command -v pnpm &> /dev/null; then
+             echo '📦 Installing pnpm...'
+             npm install -g pnpm
+        fi &&
+
+        pnpm install --prod --frozen-lockfile &&
         
         # Verify critical dependencies
         if [ ! -d node_modules/express ]; then
             echo '❌ Error: express not found in node_modules! Attempting fallback install...'
-            npm install express --omit=dev
+            pnpm add express --save-prod
         fi
         
         fuser -k 8080/tcp || true &&

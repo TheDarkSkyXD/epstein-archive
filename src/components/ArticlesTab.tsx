@@ -26,24 +26,41 @@ export const ArticlesTab: React.FC = () => {
   const [showPublicationDropdown, setShowPublicationDropdown] = useState(false);
   const [sortOrder, setSortOrder] = useState<'date' | 'redFlag'>('redFlag');
 
-  useEffect(() => {
-    fetchArticles();
-  }, []);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [total, setTotal] = useState(0);
 
-  const fetchArticles = async () => {
+  useEffect(() => {
+    // Reset and fetch when filters change
+    setArticles([]);
+    setPage(1);
+    fetchArticles(1, true);
+  }, [searchTerm, selectedPublication, sortOrder]);
+
+  const fetchArticles = async (pageNum: number, isReset: boolean = false) => {
     try {
       setLoading(true);
-      const response = await fetch('/api/articles');
+      const params = new URLSearchParams({
+        page: pageNum.toString(),
+        limit: '12',
+        sort: sortOrder,
+      });
+
+      if (searchTerm) params.append('search', searchTerm);
+      if (selectedPublication) params.append('publication', selectedPublication);
+
+      const response = await fetch(`/api/articles?${params.toString()}`);
 
       if (!response.ok) {
         console.warn('Articles API not available, using empty array');
-        setArticles([]);
+        if (isReset) setArticles([]);
         return;
       }
 
-      const data = await response.json();
+      const { data, pagination } = await response.json();
+
       if (Array.isArray(data)) {
-        // Normalize API response to match expected Article interface
+        // Normalize API response
         const normalized = data.map((item: any) => ({
           id: item.id,
           title: item.title,
@@ -57,17 +74,25 @@ export const ArticlesTab: React.FC = () => {
           imageUrl: item.image_url || item.imageUrl || null,
           reading_time: item.reading_time || item.readingTime || null,
         }));
-        setArticles(normalized);
+
+        setArticles((prev) => (isReset ? normalized : [...prev, ...normalized]));
+        setHasMore(Math.ceil(pagination.total / pagination.limit) > pageNum);
+        setTotal(pagination.total);
       } else {
-        console.warn('Articles API returned non-array data:', data);
-        setArticles([]);
+        if (isReset) setArticles([]);
       }
     } catch (error) {
       console.error('Error fetching articles:', error);
-      setArticles([]);
+      if (isReset) setArticles([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLoadMore = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchArticles(nextPage);
   };
 
   // Calculate publication stats (like albums)
@@ -90,36 +115,12 @@ export const ArticlesTab: React.FC = () => {
       .sort((a, b) => b.count - a.count);
   }, [articles]);
 
-  // Filter and sort articles
-  const filteredArticles = useMemo(() => {
-    let filtered = articles;
-
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        (article) =>
-          article.title.toLowerCase().includes(search) ||
-          (article.summary || '').toLowerCase().includes(search) ||
-          (article.tags || '').toLowerCase().includes(search),
-      );
-    }
-
-    if (selectedPublication) {
-      filtered = filtered.filter((article) => article.publication === selectedPublication);
-    }
-
-    // Sort
-    filtered = [...filtered].sort((a, b) => {
-      if (sortOrder === 'redFlag') {
-        if (b.redFlagRating !== a.redFlagRating) {
-          return b.redFlagRating - a.redFlagRating;
-        }
-      }
-      return new Date(b.published_date).getTime() - new Date(a.published_date).getTime();
-    });
-
-    return filtered;
-  }, [articles, searchTerm, selectedPublication, sortOrder]);
+  // Client-side filtering is no longer needed as it's done server-side
+  // But we keep the sorting logic if we want to re-sort fetched items,
+  // though typically server-side sort is preferred.
+  // We'll trust the server order for now or just return 'articles' directly
+  // since we reset on sort change.
+  const filteredArticles = articles;
 
   const formatDate = (dateStr: string) => {
     try {
@@ -369,6 +370,25 @@ export const ArticlesTab: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {hasMore && (
+        <div className="p-4 flex justify-center border-t border-slate-800 bg-slate-900/50">
+          <button
+            onClick={handleLoadMore}
+            disabled={loading}
+            className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors border border-slate-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {loading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                Loading...
+              </>
+            ) : (
+              'Load More Articles'
+            )}
+          </button>
+        </div>
+      )}
 
       <ArticleViewerModal
         article={viewerArticle}

@@ -8,14 +8,14 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies (including dev for building)
-RUN npm ci
+RUN npm install -g pnpm && pnpm install --frozen-lockfile
 
 # Copy source code
 COPY . .
 
 # Build the application
 # This runs vite build (frontend) and tsc (backend)
-RUN npm run build:prod
+RUN pnpm run build:prod
 
 # --- Production Stage ---
 FROM node:20-alpine
@@ -23,8 +23,8 @@ FROM node:20-alpine
 WORKDIR /app
 
 # Install production dependencies only
-COPY package*.json ./
-RUN npm ci --omit=dev
+COPY package.json pnpm-lock.yaml ./
+RUN npm install -g pnpm && pnpm install --prod --frozen-lockfile
 
 # Copy built assets from builder
 COPY --from=builder /app/dist ./dist
@@ -39,7 +39,7 @@ COPY --from=builder /app/scripts ./scripts
 # Let's verify if we need tsx in prod. 'npm run migrate' uses tsx.
 # So we either need tsx in prod deps or compile scripts.
 # For now, let's install tsx globally or locally in prod.
-RUN npm install -g tsx
+RUN pnpm add -g tsx
 
 # Environment variables (defaults, can be overridden)
 ENV NODE_ENV=production

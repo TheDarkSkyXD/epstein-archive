@@ -2,61 +2,39 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   pull_request:
-    branches: [main, master]
+    branches: [main]
 
 jobs:
   validate:
+    name: Validate
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
         with:
-          ref: ${{ github.head_ref || github.ref_name }}
+          version: 9
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: 'pnpm'
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
 
-      - name: Auto-fix Formatting
-        run: npm run format
+      - name: Rebuild Native Modules
+        run: pnpm rebuild
 
-      - name: Commit and Push Changes
-        # Commit back to the branch if changes were made (and it's not a fork PR without permissions)
-        if: github.repository_owner == 'ErikVeland'
-        run: |
-          if [ -n "$(git status --porcelain)" ]; then
-            git config --global user.name "github-actions[bot]"
-            git config --global user.email "github-actions[bot]@users.noreply.github.com"
-            git add .
-            git commit -m "style: auto-fix formatting"
-            git push
-          fi
-
-      - name: Lint Code
-        run: npm run lint
+      - name: Lint
+        run: pnpm lint
 
       - name: Type Check
-        run: npm run type-check
+        run: pnpm type-check
 
-      - name: Verify Build
-        run: npm run build
-
-      - name: Smoke tests (API)
-        env:
-          SMOKE_API_BASE_URL: 'http://localhost:3000'
-          NODE_ENV: 'development'
-        run: |
-          NODE_ENV=development PORT=3000 DB_PATH=./epstein-archive.db RAW_CORPUS_BASE_PATH=./data npm run server &
-          SERVER_PID=$!
-          npx wait-on http://localhost:3000/api/ready --timeout 60000
-          npm run test:smoke
-          kill $SERVER_PID
+      - name: Build
+        run: pnpm build

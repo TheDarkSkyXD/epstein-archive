@@ -76,6 +76,7 @@ const GridCell = React.memo(
           )}
           <SensitiveContent isSensitive={img.isSensitive} className="w-full h-full relative">
             <LazyImage
+              key={img.id}
               src={`/api/media/images/${img.id}/thumbnail`}
               alt={img.title}
               className="w-full h-full object-contain bg-slate-900/50"
@@ -132,6 +133,7 @@ const ListRow = React.memo(({ index, style, data }: ListChildComponentProps<Item
         <div className="w-12 h-12 bg-black border border-slate-800 rounded flex items-center justify-center shrink-0">
           <SensitiveContent isSensitive={img.isSensitive} className="w-full h-full">
             <LazyImage
+              key={img.id}
               src={`/api/media/images/${img.id}/thumbnail`}
               alt={img.title}
               className="w-full h-full object-contain"

@@ -70,6 +70,7 @@ const VideoCell = React.memo(({ columnIndex, rowIndex, style, data }: GridChildC
         <div className="aspect-video relative overflow-hidden bg-black">
           <SensitiveContent isSensitive={video.isSensitive} className="w-full h-full">
             <img
+              key={video.id}
               src={`/api/media/video/${video.id}/thumbnail?v=${new Date(video.createdAt).getTime()}`}
               alt={video.title}
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"

@@ -1,7 +1,7 @@
 {
   "name": "epstein-archive",
   "private": true,
-  "version": "11.6.0",
+  "version": "11.6.2",
   "description": "Epstein Archive Analyzer",
   "type": "module",
   "scripts": {
@@ -120,6 +120,15 @@
     ],
     "*.{json,md,yml,yaml}": [
       "prettier --write"
+    ]
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "canvas",
+      "esbuild",
+      "sharp",
+      "tesseract.js"
     ]
   }
 }

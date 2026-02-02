@@ -1,129 +1,103 @@
 # Epstein Archive Scripts
 
-This directory contains scripts for data processing, ingestion, and analysis for the Epstein Archive project.
+> **SINGLE SOURCE OF TRUTH** - All operations are consolidated into canonical scripts.
 
-## Main Ingestion Pipeline
+## Deployment & Sync
 
-### ingest_pipeline.ts
-
-**The primary data ingestion pipeline** - Use this for all document ingestion tasks.
+### `deploy.sh` - **THE ONLY DEPLOY COMMAND**
 
 ```bash
-# Run full ingestion
-DB_PATH=epstein-archive-production.db npx tsx scripts/ingest_pipeline.ts
+./scripts/deploy.sh              # Full deploy (sync + code + restart)
+./scripts/deploy.sh --sync-only  # Database sync only
+./scripts/deploy.sh --dry-run    # Preview without changes
 ```
 
-**Features:**
+**Pipeline:**
 
-- ✅ PDF text extraction with pdf-parse
-- ✅ OCR support for Images (JPG, PNG) using Tesseract
-- ✅ Support for TXT and RTF files
-- ✅ Multi-collection support (DOJ Discovery, Court Evidence, Estate Documents, etc.)
-- ✅ Automatic duplicate detection
-- ✅ Content hashing and metadata extraction
-- ✅ Progress tracking and error reporting
-- ✅ Production database schema compatibility
+1. Pre-flight checks (SSH, DB)
+2. Local backup with timestamp
+3. Pull production DB snapshot
+4. Bidirectional merge (prod → local)
+5. Push merged DB to production (atomic swap)
+6. Code deploy (build + git + pm2)
+7. Health check with auto-rollback
 
-**Collections Processed:**
-
-- DOJ Discovery VOL00001-VOL00008
-- Court Case Evidence
-- Maxwell Proffer (Ghislaine Maxwell Interview Transcripts)
-- DOJ Phase 1
-
-## Entity and Relationship Processing
-
-### extractEntities_v2.ts
-
-Extract person names and entities from document content.
+### `sync-db.ts` - Schema & Data Synchronization
 
 ```bash
-npx tsx scripts/extractEntities_v2.ts [limit] [offset]
+npx tsx scripts/sync-db.ts --source=prod.db --target=local.db [--dry-run]
 ```
 
-## Database Migrations
+- Automatically syncs schema (adds missing columns)
+- Merges documents, entities, relationships, mentions
+- Used internally by `deploy.sh`
 
-SQL migration scripts are in the `migrations/` directory and should be run in order:
+---
+
+## Ingestion Pipeline
+
+### `ingest_pipeline.ts` - **PRIMARY INGESTION**
 
 ```bash
-sqlite3 epstein-archive-production.db < scripts/migrations/001_add_entity_core_columns.sql
+npx tsx scripts/ingest_pipeline.ts
 ```
 
-## Deployment Scripts
+Processes all documents: OCR, metadata extraction, entity detection.
 
-### verify_deployment.ts
-
-Verify production deployment health and status.
+### `ingest_intelligence.ts` - **ENTITY INTELLIGENCE**
 
 ```bash
-npx tsx scripts/verify_deployment.ts
+npx tsx scripts/ingest_intelligence.ts
 ```
 
-## Removed/Deprecated Scripts
+Entity resolution, VIP consolidation, junk filtering, relationship mapping.
 
-The following scripts have been consolidated into `unified_data_pipeline.ts`:
-
-- ❌ `ingest_unified.ts` (old ingestion script with schema issues)
-- ❌ `comprehensive_ocr_ingestion.py` (Python version with dependency issues)
-
-## Usage Examples
-
-### Ingest all data from /data/originals
+### `reprocess_emails.ts` - Email Reprocessing
 
 ```bash
-cd epstein-archive
-DB_PATH=epstein-archive-production.db npx tsx scripts/unified_data_pipeline.ts
+npx tsx scripts/reprocess_emails.ts
 ```
 
-### Check current database stats
+---
 
-```bash
-sqlite3 epstein-archive-production.db "SELECT source_collection, COUNT(*) FROM documents GROUP BY source_collection ORDER BY COUNT(*) DESC;"
-```
+## Utilities
 
-### Extract entities from documents
+| Script                       | Purpose                   |
+| ---------------------------- | ------------------------- |
+| `migrate.ts`                 | Database migrations       |
+| `maintenance.ts`             | Routine maintenance tasks |
+| `verify_deployment.ts`       | Post-deploy verification  |
+| `watermark_fakes.ts`         | Mark fake/AI images       |
+| `generate_transcripts.ts`    | Audio transcription       |
+| `populate-evidence-types.ts` | Evidence classification   |
+| `ensure_structure.ts`        | Directory structure setup |
 
-```bash
-npx tsx scripts/extractEntities_v2.ts 1000 0
-```
+---
 
-## Architecture
+## Python Utilities (DOJ Scraping)
 
-```mermaid
-graph TD
-    A[Data Sources] --> B[unified_data_pipeline.ts]
-    B --> C[PDF Text Extraction]
-    B --> D[File Metadata Collection]
-    C --> E[Database Ingestion]
-    D --> E
-    E --> F[Production Database]
-    F --> G[extractEntities_v2.ts]
-    G --> H[Entity Extraction]
-    H --> F
-```
+| Script                 | Purpose               |
+| ---------------------- | --------------------- |
+| `download_doj_pdfs.py` | Download DOJ PDFs     |
+| `scrape_doj_links.py`  | Extract DOJ links     |
+| `fetch_links.py`       | General link fetching |
 
-## Requirements
+---
 
-- Node.js 20+
-- TypeScript/TSX
-- better-sqlite3
-- pdf-parse
-- glob
+## Migrations
 
-## Database Schema
+All database schema changes live in `scripts/migrations/`.
 
-The pipeline works with the production database schema which includes:
+---
 
-- `documents` table with FTS5 full-text search
-- `entities` table for person/organization tracking
-- `entity_mentions` for document-entity relationships
-- `entity_relationships` for entity-entity connections
+## ⚠️ Deprecated Scripts
 
-## Contributing
+The following have been **permanently removed** to prevent confusion:
 
-When modifying the ingestion pipeline:
+- `deploy_safe.sh`, `deploy-to-production.sh`
+- `sync_down_safe.sh`, `sync_prod_to_local.sh`
+- `emergency_rollback.sh`, `post_deploy_verify.sh`
+- `backup_db.sh`, `clean_server.sh`
+- All one-off debug/test scripts
 
-1. Test with a small dataset first
-2. Verify database integrity after changes
-3. Update this README with new features
-4. Document any schema changes in migrations/
+**Use `deploy.sh` for ALL deployment operations.**

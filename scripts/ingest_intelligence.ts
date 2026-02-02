@@ -22,7 +22,9 @@ const ORG_PATTERN =
 const MEDIA_PATTERN = /\b(New York Times|Post|News|Press|Journal|Magazine)\b/i;
 const FINANCIAL_PATTERN = /\b(Bank|Financial|Transfer|Payment|Account|Trust|LLC|Inc|Corp)\b/i;
 
-function detectType(name: string): 'Person' | 'Organization' | 'Location' | 'Media' | 'Financial' | 'Other' {
+function detectType(
+  name: string,
+): 'Person' | 'Organization' | 'Location' | 'Media' | 'Financial' | 'Other' {
   const parts = name.split(/[\s,.]+/);
 
   // 1. Organization Check
@@ -101,11 +103,11 @@ function rebuildEntityPipeline() {
   const insertEntityMention =
     hasAssignedBy && hasScoreCol && hasDecisionVersion && hasEvidenceJson && hasMentionIdCol
       ? db.prepare(
-        'INSERT INTO entity_mentions (entity_id, document_id, mention_context, keyword, assigned_by, score, decision_version, evidence_json, mention_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      )
+          'INSERT INTO entity_mentions (entity_id, document_id, mention_context, keyword, assigned_by, score, decision_version, evidence_json, mention_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        )
       : db.prepare(
-        'INSERT INTO entity_mentions (entity_id, document_id, mention_context, keyword) VALUES (?, ?, ?, ?)',
-      );
+          'INSERT INTO entity_mentions (entity_id, document_id, mention_context, keyword) VALUES (?, ?, ?, ?)',
+        );
 
   // Optional new-schema integration (document_spans, mentions, resolution_candidates, relations)
   const hasDocumentSpans = !!db
@@ -128,32 +130,32 @@ function rebuildEntityPipeline() {
 
   const insertSpan = hasDocumentSpans
     ? db.prepare(
-      'INSERT INTO document_spans (id, document_id, page_num, span_start_char, span_end_char, raw_text, cleaned_text, ocr_confidence, layout_json) VALUES (?, ?, NULL, ?, ?, ?, ?, NULL, NULL)',
-    )
+        'INSERT INTO document_spans (id, document_id, page_num, span_start_char, span_end_char, raw_text, cleaned_text, ocr_confidence, layout_json) VALUES (?, ?, NULL, ?, ?, ?, ?, NULL, NULL)',
+      )
     : null;
 
   const insertMentionRow = hasMentionsTable
     ? db.prepare(
-      'INSERT INTO mentions (id, document_id, span_id, mention_start_char, mention_end_char, surface_text, normalised_text, entity_type, ner_model, ner_confidence, context_window_before, context_window_after, sentence_id, paragraph_id, extracted_features_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?)',
-    )
+        'INSERT INTO mentions (id, document_id, span_id, mention_start_char, mention_end_char, surface_text, normalised_text, entity_type, ner_model, ner_confidence, context_window_before, context_window_after, sentence_id, paragraph_id, extracted_features_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?)',
+      )
     : null;
 
   const insertResolutionCandidate = hasResolutionCandidates
     ? db.prepare(
-      "INSERT OR IGNORE INTO resolution_candidates (id, left_entity_id, right_entity_id, mention_id, candidate_type, score, feature_vector_json, decision, decided_at, decided_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)",
-    )
+        "INSERT OR IGNORE INTO resolution_candidates (id, left_entity_id, right_entity_id, mention_id, candidate_type, score, feature_vector_json, decision, decided_at, decided_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)",
+      )
     : null;
 
   const _insertRelation = hasRelationsTable
     ? db.prepare(
-      "INSERT INTO relations (id, subject_entity_id, object_entity_id, predicate, direction, weight, first_seen_at, last_seen_at, status) VALUES (?, ?, ?, 'mentioned_with', 'undirected', ?, datetime('now'), datetime('now'), 'active') ON CONFLICT(id) DO UPDATE SET weight = weight + excluded.weight, last_seen_at = excluded.last_seen_at",
-    )
+        "INSERT INTO relations (id, subject_entity_id, object_entity_id, predicate, direction, weight, first_seen_at, last_seen_at, status) VALUES (?, ?, ?, 'mentioned_with', 'undirected', ?, datetime('now'), datetime('now'), 'active') ON CONFLICT(id) DO UPDATE SET weight = weight + excluded.weight, last_seen_at = excluded.last_seen_at",
+      )
     : null;
 
   const insertQualityFlag = hasQualityFlags
     ? db.prepare(
-      "INSERT INTO quality_flags (id, target_type, target_id, flag_type, severity, details_json, created_at, resolved_at) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), NULL)",
-    )
+        "INSERT INTO quality_flags (id, target_type, target_id, flag_type, severity, details_json, created_at, resolved_at) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), NULL)",
+      )
     : null;
 
   // Stats
@@ -345,10 +347,15 @@ function rebuildEntityPipeline() {
 
           // A. Junk Filter
           // Enhanced Junk Filter (using central logic)
-          if (cleanName.length < 4) continue;
+          if (cleanName.length < 3) continue; // Allow 3 letter names (e.g. "Roy", "Jen") but filter 1-2 chars
           if (isJunkEntity(cleanName)) continue; // Uses entityFilters.ts logic
 
           if (cleanName.includes('Epstein') && !cleanName.includes('Island')) continue; // Skip generic Epstein, allow Island
+
+          // Check centralized blacklist (Exact Match & Regex)
+          if (_ENTITY_BLACKLIST.includes(cleanName) || ENTITY_BLACKLIST_REGEX.test(cleanName)) {
+            continue;
+          }
 
           // Check partial blocklist (e.g. "Received Received")
           if (
@@ -465,7 +472,11 @@ function rebuildEntityPipeline() {
 
           // C. Mention
           // Use evidence extractor for richer context
-          const evidence = extractEvidence(content, match.index || 0, (match.index || 0) + rawName.length);
+          const evidence = extractEvidence(
+            content,
+            match.index || 0,
+            (match.index || 0) + rawName.length,
+          );
           const score = evidence.score;
           const context = evidence.context;
 
@@ -686,8 +697,8 @@ function mapCoOccurrences() {
 
   const insertNewRel = hasRelationsTable
     ? db.prepare(
-      "INSERT INTO relations (id, subject_entity_id, object_entity_id, predicate, direction, weight, first_seen_at, last_seen_at, status) VALUES (?, ?, ?, 'mentioned_with', 'undirected', ?, datetime('now'), datetime('now'), 'active') ON CONFLICT(id) DO UPDATE SET weight = weight + excluded.weight, last_seen_at = excluded.last_seen_at",
-    )
+        "INSERT INTO relations (id, subject_entity_id, object_entity_id, predicate, direction, weight, first_seen_at, last_seen_at, status) VALUES (?, ?, ?, 'mentioned_with', 'undirected', ?, datetime('now'), datetime('now'), 'active') ON CONFLICT(id) DO UPDATE SET weight = weight + excluded.weight, last_seen_at = excluded.last_seen_at",
+      )
     : null;
 
   let pairsCount = 0;
@@ -852,7 +863,9 @@ function populateRelationEvidence() {
 
           // Ensure relation exists to satisfy foreign key
           if (hasRelations) {
-            db.prepare("INSERT OR IGNORE INTO relations (id, subject_entity_id, object_entity_id, predicate, direction, weight, status) VALUES (?, ?, ?, 'mentioned_with', 'undirected', 0, 'active')").run(relId, Math.min(a, b), Math.max(a, b));
+            db.prepare(
+              "INSERT OR IGNORE INTO relations (id, subject_entity_id, object_entity_id, predicate, direction, weight, status) VALUES (?, ?, ?, 'mentioned_with', 'undirected', 0, 'active')",
+            ).run(relId, Math.min(a, b), Math.max(a, b));
           }
 
           insertRelationEvidence.run(evId, relId, docId, spanId, quote, conf, mentionIds);
@@ -884,8 +897,16 @@ function consolidateEntities() {
 
       // Simple logic: if one contains the other and they are > 10 chars, or exact match
       if (n1 === n2 || (n1.length > 10 && n2.length > 10 && (n1.includes(n2) || n2.includes(n1)))) {
-        db.prepare('INSERT OR IGNORE INTO resolution_candidates (id, left_entity_id, right_entity_id, candidate_type, score, decision) VALUES (?, ?, ?, ?, ?, ?)')
-          .run(makeDeterministicId(['consolidation', e1.id, e2.id]), e1.id, e2.id, 'name_similarity', 0.9, 'pending');
+        db.prepare(
+          'INSERT OR IGNORE INTO resolution_candidates (id, left_entity_id, right_entity_id, candidate_type, score, decision) VALUES (?, ?, ?, ?, ?, ?)',
+        ).run(
+          makeDeterministicId(['consolidation', e1.id, e2.id]),
+          e1.id,
+          e2.id,
+          'name_similarity',
+          0.9,
+          'pending',
+        );
       }
     }
   }

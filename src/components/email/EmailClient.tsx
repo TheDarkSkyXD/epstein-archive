@@ -19,10 +19,14 @@ import {
   Star,
   Link2,
   ExternalLink,
+  Book, // Added Book icon for Black Book
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { apiClient } from '../../services/apiClient';
 import { Document } from '../../types/documents';
+import { AddToInvestigationButton } from '../AddToInvestigationButton';
+import { EvidenceModal } from '../EvidenceModal';
 
 // --- Types ---
 
@@ -89,6 +93,22 @@ export const EmailClient: React.FC = () => {
   const listRef = useRef<HTMLDivElement>(null);
   const isMobileDetail = !!selectedThreadId;
 
+  // Entity Support
+  const [selectedEntity, setSelectedEntity] = useState<any | null>(null);
+  const [loadingEntityId, setLoadingEntityId] = useState<number | null>(null);
+
+  const handleEntityClick = async (entityId: number, entityName: string) => {
+    try {
+      setLoadingEntityId(entityId);
+      const entity = await apiClient.getEntity(String(entityId));
+      setSelectedEntity(entity);
+    } catch (error) {
+      console.error('Error fetching entity:', error);
+    } finally {
+      setLoadingEntityId(null);
+    }
+  };
+
   // Mailbox definitions
   const mailboxes: Mailbox[] = useMemo(
     () => [
@@ -108,6 +128,13 @@ export const EmailClient: React.FC = () => {
     const timer = setTimeout(() => setDebouncedSearchTerm(searchTerm), 300);
     return () => clearTimeout(timer);
   }, [searchTerm]);
+
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const q = searchParams.get('search');
+    if (q) setSearchTerm(q);
+  }, [searchParams]);
 
   useEffect(() => {
     loadInitialEmails();
@@ -549,6 +576,22 @@ export const EmailClient: React.FC = () => {
                     <button className="text-blue-400 md:text-slate-500 md:dark:text-white/50">
                       <Reply className="w-5 h-5" />
                     </button>
+                    {/* Add to Investigation */}
+                    <AddToInvestigationButton
+                      item={{
+                        id: selectedThread.id,
+                        title: selectedThread.subject,
+                        description: `Email thread: ${selectedThread.subject}`,
+                        type: 'evidence',
+                        sourceId: selectedThread.id,
+                        metadata: {
+                          threadId: selectedThread.id,
+                          participants: selectedThread.participantNames,
+                        },
+                      }}
+                      variant="icon"
+                      className="text-blue-400 md:text-slate-500 md:dark:text-white/50"
+                    />
                   </div>
                 </div>
 
@@ -574,6 +617,7 @@ export const EmailClient: React.FC = () => {
                       expanded={idx === selectedThread.messages.length - 1}
                       getInitials={getInitials}
                       getAvatarColor={getAvatarColor}
+                      onEntityClick={handleEntityClick}
                     />
                   ))}
                 </div>
@@ -663,6 +707,10 @@ export const EmailClient: React.FC = () => {
           </>
         )}
       </AnimatePresence>
+
+      {selectedEntity && (
+        <EvidenceModal person={selectedEntity} onClose={() => setSelectedEntity(null)} />
+      )}
     </div>
   );
 };
@@ -832,7 +880,11 @@ const IOSMessageBubble = ({
               </span>
               {/* Known Entity Badge */}
               {email.isFromKnownEntity && (
-                <span className="px-1.5 py-0.5 bg-blue-500/20 text-blue-400 text-[10px] font-semibold rounded-full">
+                <span
+                  className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-500/20 text-blue-400 text-[10px] font-semibold rounded-full"
+                  title="Known Entity / Black Book Contact"
+                >
+                  <Book className="w-3 h-3" />
                   {email.knownEntityName || 'Known'}
                 </span>
               )}

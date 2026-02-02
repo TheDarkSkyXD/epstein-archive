@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Phone, Mail, MapPin, User, Book, Eye, FileText, ExternalLink } from 'lucide-react';
 import { extractCleanName, formatPhoneNumber } from '../utils/prettifyOCR';
+import { Link } from 'react-router-dom';
+import { AddToInvestigationButton } from './AddToInvestigationButton';
 import { EvidenceModal } from './EvidenceModal';
 import { apiClient } from '../services/apiClient';
 
@@ -265,6 +267,24 @@ export const BlackBookViewer: React.FC = () => {
                 ) : (
                   <h3 className="text-lg font-semibold text-white">{displayName}</h3>
                 )}
+                <div className="ml-auto">
+                  <AddToInvestigationButton
+                    item={{
+                      id: `blackbook-${entry.id}`,
+                      title: `Black Book: ${displayName}`,
+                      description: `Contact entry for ${displayName}`,
+                      type: 'entity',
+                      sourceId: String(entry.id),
+                      metadata: {
+                        entryText: entry.entry_text,
+                        phones: entry.phone_numbers,
+                        emails: entry.email_addresses,
+                      },
+                    }}
+                    variant="icon"
+                    className="text-slate-500 hover:text-white"
+                  />
+                </div>
               </div>
 
               {/* Contact Info */}
@@ -289,8 +309,22 @@ export const BlackBookViewer: React.FC = () => {
                     <Mail className="w-4 h-4 text-slate-400 mt-1 flex-shrink-0" />
                     <div className="flex-1">
                       {entry.email_addresses.map((email, idx) => (
-                        <div key={idx} className="text-sm text-slate-300 break-all">
-                          {email}
+                        <div
+                          key={idx}
+                          className="text-sm text-slate-300 break-all flex items-center justify-between gap-2 group/email"
+                        >
+                          <Link
+                            to={`/emails?search=${encodeURIComponent(email)}`}
+                            className="hover:text-cyan-400 hover:underline"
+                          >
+                            {email}
+                          </Link>
+                          <Link
+                            to={`/emails?search=${encodeURIComponent(email)}`}
+                            className="opacity-0 group-hover/email:opacity-100 text-slate-500 hover:text-cyan-400"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                          </Link>
                         </div>
                       ))}
                     </div>

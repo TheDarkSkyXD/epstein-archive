@@ -202,6 +202,66 @@ function verifyDataIntegrity(db: Database.Database): VerificationResult {
   return result;
 }
 
+function verifyDiskSpace(): VerificationResult {
+  const result: VerificationResult = { passed: true, errors: [], warnings: [] };
+
+  try {
+    // Check disk space of current directory
+    const stats = fs.statfsSync(process.cwd());
+    const freeBytes = stats.bavail * stats.bsize;
+    const freeGB = freeBytes / (1024 * 1024 * 1024);
+
+    // REQUIRE 2GB free for safe DB operations (Vacuum/Copy)
+    const MIN_FREE_GB = 2.0;
+
+    if (freeGB < MIN_FREE_GB) {
+      result.errors.push(
+        `❌ CRITICAL LOW DISK SPACE: ${freeGB.toFixed(2)}GB free. Min required: ${MIN_FREE_GB}GB`,
+      );
+      result.passed = false;
+    } else if (freeGB < 5.0) {
+      result.warnings.push(`⚠️  Low disk space: ${freeGB.toFixed(2)}GB free (Recommend > 5GB)`);
+    } else {
+      console.log(`✅ Disk Space: ${freeGB.toFixed(2)}GB free`);
+    }
+  } catch (e: any) {
+    result.warnings.push(`⚠️  Could not verify disk space: ${e.message}`);
+  }
+  return result;
+}
+
+function verifyIndexes(db: Database.Database): VerificationResult {
+  const result: VerificationResult = { passed: true, errors: [], warnings: [] };
+  const requiredIndexes = [
+    'idx_documents_evidence_type',
+    'idx_documents_file_type',
+    'idx_entities_full_name',
+    'idx_entities_primary_role',
+  ];
+
+  try {
+    const indexes = db
+      .prepare("SELECT name FROM sqlite_master WHERE type='index'")
+      .all()
+      .map((r: any) => r.name);
+
+    for (const idx of requiredIndexes) {
+      if (!indexes.includes(idx)) {
+        result.errors.push(`❌ Missing critical index: ${idx} (Performance risk)`);
+        result.passed = false;
+      }
+    }
+
+    if (result.passed) {
+      console.log(`✅ Critical indexes verified`);
+    }
+  } catch (e: any) {
+    result.errors.push(`❌ Failed to verify indexes: ${e.message}`);
+    result.passed = false;
+  }
+  return result;
+}
+
 /**
  * Runtime Database Tests - Actually execute queries that the app uses
  */
@@ -360,6 +420,8 @@ async function main() {
   results.push(verifyTables(db));
   results.push(verifyColumns(db));
   results.push(verifyEnvironment());
+  results.push(verifyDiskSpace());
+  results.push(verifyIndexes(db));
   results.push(await verifyEcosystemConfig());
   results.push(verifyDataIntegrity(db));
   results.push(verifySqliteIntegrity(db));

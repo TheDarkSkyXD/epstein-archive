@@ -788,6 +788,61 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
           )}
         </div>
       )}
+
+      {/* Related Entities Section (Surfaced Feature) */}
+      {_entities.length > 0 && (
+        <div className="mt-8 pt-6 border-t border-slate-700">
+          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-widest mb-4">
+            Mentions & Related Entities
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {(() => {
+              // Optimization: Only regex match if we have entities
+              if (!_entities.length || !entityRegex)
+                return <span className="text-gray-500 text-xs">No entities detected yet.</span>;
+
+              // Find unique entities present in content
+              // We use the same regex used for highlighting/linking
+              const text = doc.content || '';
+              const matches = new Set<string>();
+              let match;
+              // Reset regex lastIndex just in case
+              entityRegex.lastIndex = 0;
+              // We limit to first 50 unique matches to avoid perf kill on huge docs
+              while ((match = entityRegex.exec(text)) !== null) {
+                matches.add(match[0].toLowerCase());
+                if (matches.size > 50) break;
+              }
+
+              const found = _entities.filter((e) => matches.has(e.full_name.toLowerCase()));
+
+              if (found.length === 0)
+                return (
+                  <span className="text-gray-500 text-xs">No entities detected in this text.</span>
+                );
+
+              return found.map((e) => (
+                <span
+                  key={e.id}
+                  className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-900/30 text-blue-200 border border-blue-500/30 cursor-pointer hover:bg-blue-800 transition-colors"
+                  onClick={(evt) => {
+                    evt.preventDefault();
+                    const event = new CustomEvent('entityClick', {
+                      detail: { id: e.id, name: e.full_name },
+                    });
+                    window.dispatchEvent(event);
+                  }}
+                >
+                  {e.full_name}
+                  {e.entity_type && (
+                    <span className="ml-1.5 opacity-50 text-[10px] uppercase">{e.entity_type}</span>
+                  )}
+                </span>
+              ));
+            })()}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

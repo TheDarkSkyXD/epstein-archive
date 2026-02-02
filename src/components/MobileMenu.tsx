@@ -103,7 +103,12 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
               onChange={(e) => onSearchTermChange(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
-                  handleNavigation('/search');
+                  const query = searchTerm.trim();
+                  if (query) {
+                    handleNavigation(`/search?q=${encodeURIComponent(query)}`);
+                  } else {
+                    handleNavigation('/search');
+                  }
                 }
               }}
             />

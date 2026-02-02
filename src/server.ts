@@ -2806,8 +2806,8 @@ app.put(
           // Regenerate thumbnail
           const thumbnailDir = path.dirname(
             (image as any).thumbnail_path ||
-            image.thumbnailPath ||
-            path.join(path.dirname(image.path), 'thumbnails'),
+              image.thumbnailPath ||
+              path.join(path.dirname(image.path), 'thumbnails'),
           );
           await mediaService.generateThumbnail(image.path, thumbnailDir, {
             force: true,
@@ -3215,8 +3215,8 @@ app.put(
       // Regenerate thumbnail with new orientation
       const thumbnailDir = path.dirname(
         (image as any).thumbnail_path ||
-        image.thumbnailPath ||
-        path.join(path.dirname(image.path), 'thumbnails'),
+          image.thumbnailPath ||
+          path.join(path.dirname(image.path), 'thumbnails'),
       );
       // Ensure we have a valid thumbnail directory. If image.thumbnail_path exists, use its dir.
       // If not, assume 'thumbnails' subdir of image path (standard structure)

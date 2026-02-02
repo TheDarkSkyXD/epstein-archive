@@ -12,7 +12,11 @@ import {
   MessageCircle,
   Clock3,
 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { apiClient } from '../services/apiClient';
+
+import { NetworkVisualization } from './NetworkVisualization';
+import { AddToInvestigationButton } from './AddToInvestigationButton';
 
 interface Evidence {
   id: number;
@@ -59,12 +63,14 @@ export const EntityEvidencePanel: React.FC<EntityEvidencePanelProps> = ({
   entityId,
   entityName,
 }) => {
+  const accessToNavigate = useNavigate();
   /* State for filtering and pagination */
   const [evidence, setEvidence] = useState<Evidence[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<string>('all');
   const [filterRole, setFilterRole] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'list' | 'graph'>('list');
   const [relationEdges, setRelationEdges] = useState<RelationEvidenceEdge[]>([]);
   const [communications, setCommunications] = useState<
     {
@@ -242,24 +248,98 @@ export const EntityEvidencePanel: React.FC<EntityEvidencePanelProps> = ({
       {/* Related Entities */}
       {stats.relatedEntities.length > 0 && (
         <div className="bg-slate-800 border border-slate-700 rounded-lg p-5">
-          <div className="flex items-center space-x-2 mb-4">
-            <Network className="w-5 h-5 text-slate-400" />
-            <h3 className="text-lg font-semibold text-slate-200">Frequently Co-appears With</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {stats.relatedEntities.slice(0, 10).map((entity: RelatedEntity) => (
-              <a
-                key={entity.id}
-                href={`/entity/${entity.id}`}
-                className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg hover:bg-slate-700 transition border border-slate-700/50"
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-2">
+              <Network className="w-5 h-5 text-slate-400" />
+              <h3 className="text-lg font-semibold text-slate-200">Frequently Co-appears With</h3>
+            </div>
+            <div className="flex bg-slate-900/50 rounded-lg p-0.5 border border-slate-700">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  viewMode === 'list'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-300'
+                }`}
               >
-                <span className="text-sm font-medium text-slate-200">{entity.full_name}</span>
-                <span className="text-xs font-semibold text-blue-400">
-                  {entity.shared_evidence_count} shared
-                </span>
-              </a>
-            ))}
+                List
+              </button>
+              <button
+                onClick={() => setViewMode('graph')}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  viewMode === 'graph'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-300'
+                }`}
+              >
+                Graph
+              </button>
+            </div>
           </div>
+
+          {viewMode === 'list' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {stats.relatedEntities.slice(0, 10).map((entity: RelatedEntity) => (
+                <Link
+                  key={entity.id}
+                  to={`/entity/${entity.id}`}
+                  className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg hover:bg-slate-700 transition border border-slate-700/50"
+                >
+                  <span className="text-sm font-medium text-slate-200">{entity.full_name}</span>
+                  <span className="text-xs font-semibold text-blue-400">
+                    {entity.shared_evidence_count} shared
+                  </span>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="h-[400px] bg-slate-900/50 rounded-lg border border-slate-700/50 overflow-hidden">
+              <NetworkVisualization
+                nodes={[
+                  {
+                    id: entityId,
+                    label: entityName,
+                    type: 'person',
+                    importance: 5,
+                    metadata: { category: 'target' },
+                  },
+                  ...stats.relatedEntities.slice(0, 15).map((e: RelatedEntity) => ({
+                    id: String(e.id),
+                    label: e.full_name,
+                    type: 'person',
+                    importance: Math.min(
+                      5,
+                      Math.max(1, Math.ceil(Math.log(e.shared_evidence_count) * 1.5)),
+                    ),
+                    metadata: {
+                      connections: [entityId],
+                      category: e.entity_category,
+                    },
+                  })),
+                ]}
+                edges={stats.relatedEntities.slice(0, 15).map((e: RelatedEntity) => ({
+                  id: `${entityId}-${e.id}`,
+                  source: entityId,
+                  target: String(e.id),
+                  type: 'connection',
+                  strength: Math.min(
+                    10,
+                    Math.max(1, Math.ceil(Math.log(e.shared_evidence_count) * 2)),
+                  ),
+                  metadata: {
+                    frequency: e.shared_evidence_count,
+                  },
+                }))}
+                height={400}
+                interactive={true}
+                onNodeClick={(node) => {
+                  if (node.id !== entityId && accessToNavigate) {
+                    accessToNavigate(`/entity/${node.id}`);
+                  }
+                }}
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -308,6 +388,31 @@ export const EntityEvidencePanel: React.FC<EntityEvidencePanelProps> = ({
                       <Tag className="w-3 h-3 mr-1" />
                       {c.topic.replace('_', ' ')}
                     </span>
+                    <div className="flex items-center gap-1">
+                      <Link
+                        to={`/emails?search=${encodeURIComponent(c.subject)}`}
+                        className="text-slate-500 hover:text-white transition-colors"
+                        title="View Thread"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </Link>
+                      <AddToInvestigationButton
+                        item={{
+                          id: `email-${c.documentId}`,
+                          title: `Email: ${c.subject}`,
+                          description: `Communication from ${c.from}`,
+                          type: 'evidence',
+                          sourceId: c.documentId,
+                          metadata: {
+                            threadId: c.threadId,
+                            from: c.from,
+                            to: c.to,
+                          },
+                        }}
+                        variant="icon"
+                        className="text-slate-500 hover:text-white"
+                      />
+                    </div>
                   </div>
                 </div>
                 {c.snippet && (
@@ -458,15 +563,13 @@ export const EntityEvidencePanel: React.FC<EntityEvidencePanelProps> = ({
                     <span>{new Date(item.created_at).toLocaleDateString()}</span>
                   </span>
                 </div>
-                <a
-                  href={`/evidence/${item.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Link
+                  to={`/evidence/${item.id}`}
                   className="flex items-center space-x-1 text-blue-400 hover:text-blue-300"
                 >
                   <span>View</span>
                   <ExternalLink className="w-3 h-3" />
-                </a>
+                </Link>
               </div>
             </div>
           ))}

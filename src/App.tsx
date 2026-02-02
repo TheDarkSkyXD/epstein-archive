@@ -75,6 +75,9 @@ const AboutPage = lazy(() =>
 const AdminDashboard = lazy(() =>
   import('./pages/AdminDashboard').then((module) => ({ default: module.AdminDashboard })),
 );
+const EvidenceDetail = lazy(() =>
+  import('./pages/EvidenceDetail').then((module) => ({ default: module.EvidenceDetail })),
+);
 const EnhancedAnalytics = lazy(() =>
   import('./components/EnhancedAnalytics').then((module) => ({
     default: module.EnhancedAnalytics,
@@ -195,6 +198,7 @@ function App() {
     if (pathname.startsWith('/emails')) return 'emails';
     if (pathname === '/login') return 'login';
     if (pathname.startsWith('/admin')) return 'admin';
+    if (pathname.startsWith('/evidence/')) return 'evidence';
     if (pathname.startsWith('/flights')) return 'flights';
     if (pathname.startsWith('/properties')) return 'properties';
     return 'people'; // default
@@ -214,6 +218,7 @@ function App() {
     | 'about'
     | 'emails'
     | 'login'
+    | 'evidence'
     | 'admin';
   const activeTab = getTabFromPath(location.pathname);
 
@@ -1947,6 +1952,8 @@ function App() {
                     {activeTab === 'login' && <LoginPage />}
 
                     {activeTab === 'admin' && <AdminDashboard />}
+
+                    {activeTab === 'evidence' && <EvidenceDetail />}
 
                     {activeTab === 'investigations' &&
                       (() => {

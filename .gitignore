@@ -176,3 +176,4 @@ temp/
 backups/
 uploads/
 data/ingest
+*.local-backup-*

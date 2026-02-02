@@ -6,7 +6,17 @@ const db = new Database(DB_PATH);
 const filename = '20160203-You need everything in this email.-3152.eml';
 console.log(`Searching for: ${filename}`);
 
-const doc = db.prepare('SELECT * FROM documents WHERE file_path LIKE ?').get(`%${filename}%`);
+interface DocumentRow {
+  id: number;
+  evidence_type: string;
+  file_type: string;
+  metadata_json: string;
+  content: string | null;
+}
+
+const doc = db.prepare('SELECT * FROM documents WHERE file_path LIKE ?').get(`%${filename}%`) as
+  | DocumentRow
+  | undefined;
 
 if (doc) {
   console.log('Found document:');

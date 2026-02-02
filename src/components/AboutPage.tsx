@@ -269,6 +269,12 @@ const timelineEvents = [
     content:
       'V11.7.0: "Codeword Discovery" & Bio Integration. Added term recognition for circle codewords and rich biographical data.',
   },
+  {
+    date: 'Feb 02, 2026',
+    source: 'Epstein Archive',
+    content:
+      'V11.8.0: Entity Interconnectivity. Unified Email, Black Book, and Investigation workflows with bi-directional deep linking and integrated evidence capture.',
+  },
 ];
 
 // Helper to get color classes

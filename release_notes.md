@@ -1,3 +1,16 @@
+## v11.8.0 (2026-02-02) - Entity Interconnectivity & Investigation UX
+
+### New Features
+
+- **Email Client Transformation**: Integrated "Add to Investigation" into the thread toolbar and added "Mentioned Entities" lookup directly within message bubbles. Senders from the Black Book now feature a dedicated "Book" icon.
+- **Actionable Black Book**: Contact email addresses are now hyperlinked, opening the Email Client with a pre-filled search. Each entry now supports one-click "Add to Investigation".
+- **Bi-directional Navigation**: The Entity Evidence Panel now includes "View Thread" deep links for all communication records, bridging the gap between entity profiles and raw email evidence.
+- **Deep Linking Support**: The Email Client now respects `?search=` and `?threadId=` parameters, enabling seamless navigation from other archive components.
+
+### Improvements
+
+- **Investigation Flow**: Minimized context switching by bringing evidence capture buttons to the primary data views (Email, Black Book, Entity Profiles).
+
 ## v11.7.0 (2026-02-02) - Bios, Codewords & Consolidation
 
 ### New Features

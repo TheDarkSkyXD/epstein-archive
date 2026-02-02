@@ -5,10 +5,12 @@ All notable changes to this project will be documented in this file. The format 
 ## 12.0.0 — 2026-02-02
 
 ### Massive Department of Justice (DOJ) Archive Consolidation
+
 - **Archive Expansion**: Successfully integrated and consolidated DOJ datasets 10, 11, and 12, adding tens of thousands of pages of previously fragmented evidence into the centralized corpus.
 - **Unified Discovery Structure**: Standardized the organizational structure for DOJ materials, ensuring seamless cross-referencing and data integrity across all discovery volumes.
 
 ### Advanced Forensic Analysis Workspace
+
 - **Forensic Investigation Suite**: Launched a full-spectrum analytical dashboard designed for complex investigative workflows:
   - **Financial Transaction Mapper**: Visualizes financial flows between entities, highlighting offshore transfers, potential layering, and high-risk transactions.
   - **Multi-Source Correlation Engine**: Cross-references entity mentions across the entire archive to verify facts and surface hidden connections.
@@ -16,6 +18,7 @@ All notable changes to this project will be documented in this file. The format 
 - **Evidence Integrity & Chain of Custody**: Introduced a verifiable provenance tracking system. Documents now maintain cryptographic SHA-256 integrity hashes and chronological logs of every analytical action or validation step.
 
 ### Backend Investigative Intelligence
+
 - **Advanced Analytics Engine**: New intelligence layer providing automated investigative insights:
   - **Pattern Recognition**: Detects recurring entity co-occurrences and behavioral patterns across documents.
   - **Anomaly Detection**: Highlights high-risk materials based on unusual network connectivity or metadata inconsistencies.
@@ -23,10 +26,29 @@ All notable changes to this project will be documented in this file. The format 
 - **Content-Aware Forensic Analysis**: Upgraded the analysis engine to perform deep-text scanning for sensitive keywords and investigative signals, replacing randomized scoring with verifiable analytical metrics.
 
 ### Unified Intelligent Pipeline
+
 - **Evidence-First Architecture**: Refined the ingestion pipeline to prioritize the connection between extracted people, places, and events and their specific supporting evidence within the archive.
 - **Deep Semantic Extraction**: Enhanced the ability to identify the precise nature and strength of relationships between entities, providing a more navigable social graph.
 
 ---
+
+## 11.8.0 — 2026-02-02
+
+- **Entity Interconnectivity & Investigation UX**
+  - Integrated "Add to Investigation" button across Email Client, Black Book, and Entity Panel.
+  - Added "Mentioned Entities" lookup in Email Client message bubbles.
+  - Added Black Book indicator (Book icon) for email senders.
+  - Converted Black Book email addresses to deep links into Email Client.
+  - Added "View Thread" deep links to Entity Evidence Panel.
+  - Added `search` and `threadId` URL parameter support to Email Client.
+
+## 11.7.0 — 2026-02-02
+
+- **Bios, Codewords & Consolidation**
+  - Integrated `bio`, `birthDate`, and `deathDate` into Entity cards.
+  - Identified 11 circle codewords (e.g., "Hotdog", "Pizza") as `Term` entities.
+  - Added "Benjamin Netanyahu" VIP consolidation rules.
+  - Fixed alias persistence in `ingest_intelligence.ts`.
 
 ## 11.1.0 — 2026-02-01
 

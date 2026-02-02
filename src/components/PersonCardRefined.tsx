@@ -112,9 +112,32 @@ export const PersonCardRefined: React.FC<PersonCardProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
         {/* Left: Icon & Name */}
         <div className="flex items-start space-x-3">
-          <div className="bg-slate-800 rounded-lg p-3 group-hover:bg-blue-500/10 group-hover:text-blue-400 transition-all duration-300 shrink-0 border border-slate-700">
-            {getEntityIcon()}
-          </div>
+          {person.photos && person.photos.length > 0 && person.photos[0].id ? (
+            <div className="w-12 h-12 rounded-lg overflow-hidden border border-slate-700 group-hover:border-blue-500/50 transition-all duration-300 shrink-0">
+              <img
+                src={`/api/media/images/${person.photos[0].id}/thumbnail`}
+                alt={person.name}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                  (e.target as HTMLImageElement).parentElement!.className =
+                    'bg-slate-800 rounded-lg p-3 group-hover:bg-blue-500/10 group-hover:text-blue-400 transition-all duration-300 shrink-0 border border-slate-700 flex items-center justify-center w-12 h-12';
+                }}
+              />
+              <div className="hidden">
+                {/* Fallback Icon rendered via error handler class switch, but we need the icon element available to JS or rendered conditionally. 
+                     Actually simpler: Conditional rendering based on state or just keep it simple. 
+                     Let's use a conditional render that falls back if image fails? 
+                     React onError is good, but conditional rendering is cleaner if we trust the data.
+                     Let's stick to the conditional render structure below.
+                 */}
+              </div>
+            </div>
+          ) : (
+            <div className="bg-slate-800 rounded-lg p-3 group-hover:bg-blue-500/10 group-hover:text-blue-400 transition-all duration-300 shrink-0 border border-slate-700 w-12 h-12 flex items-center justify-center">
+              {getEntityIcon()}
+            </div>
+          )}
           <div className="min-w-0">
             <h3 className="text-lg font-semibold text-white group-hover:text-blue-400 transition-colors truncate pr-2">
               {searchTerm ? renderHighlightedText(person.name, searchTerm) : person.name}

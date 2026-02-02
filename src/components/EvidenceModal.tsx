@@ -263,7 +263,17 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
 
             {/* Person info row */}
             <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
-              <Icon name="User" size="md" color="info" className="shrink-0" />
+              {person.photos && person.photos.length > 0 && person.photos[0].id ? (
+                <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-600 shrink-0 mr-1">
+                  <img
+                    src={`/api/media/images/${person.photos[0].id}/thumbnail`}
+                    alt={person.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ) : (
+                <Icon name="User" size="md" color="info" className="shrink-0" />
+              )}
               <h1
                 id="modal-title"
                 className="text-base sm:text-lg md:text-2xl font-bold text-white truncate flex-1 min-w-0"

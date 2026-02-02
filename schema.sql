@@ -27,7 +27,16 @@ CREATE TABLE IF NOT EXISTS entities (
   red_flag_rating INTEGER,
   red_flag_score INTEGER DEFAULT 0,
   red_flag_description TEXT,
-  aliases TEXT DEFAULT NULL
+  aliases TEXT DEFAULT NULL,
+  entity_category TEXT,
+  death_date TEXT,
+  notes TEXT,
+  bio TEXT,
+  birth_date TEXT,
+  aliases_json TEXT DEFAULT '[]',
+  handles_json TEXT DEFAULT '[]',
+  status_last_updated TEXT,
+  evidence_type_distribution TEXT DEFAULT '{}'
 );
 
 -- Evidence types lookup
@@ -102,6 +111,12 @@ CREATE TABLE IF NOT EXISTS entity_mentions (
   position_start INTEGER,
   position_end INTEGER,
   significance_score INTEGER DEFAULT 1,
+  mention_context TEXT,
+  assigned_by TEXT,
+  score REAL,
+  decision_version INTEGER,
+  evidence_json TEXT,
+  mention_id TEXT,
   FOREIGN KEY (entity_id) REFERENCES entities(id) ON DELETE CASCADE,
   FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
 );
@@ -138,6 +153,118 @@ CREATE VIRTUAL TABLE IF NOT EXISTS entities_fts USING fts5(
   connections_summary,
   content='entities',
   content_rowid='id'
+);
+
+-- Entity Relationships Table
+CREATE TABLE IF NOT EXISTS entity_relationships (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source_entity_id INTEGER,
+  target_entity_id INTEGER,
+  relationship_type TEXT,
+  strength REAL DEFAULT 1.0,
+  confidence REAL DEFAULT 1.0,
+  description TEXT,
+  proximity_score REAL DEFAULT 0.0,
+  risk_score REAL DEFAULT 0.0,
+  first_seen_at DATETIME,
+  last_seen_at DATETIME,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (source_entity_id) REFERENCES entities(id),
+  FOREIGN KEY (target_entity_id) REFERENCES entities(id),
+  UNIQUE(source_entity_id, target_entity_id, relationship_type)
+);
+
+-- Detailed Relations Table (Standard Shape)
+CREATE TABLE IF NOT EXISTS relations (
+  id TEXT PRIMARY KEY,
+  subject_entity_id INTEGER,
+  object_entity_id INTEGER,
+  predicate TEXT,
+  direction TEXT,
+  weight REAL DEFAULT 1.0,
+  first_seen_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  last_seen_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  status TEXT DEFAULT 'active',
+  FOREIGN KEY (subject_entity_id) REFERENCES entities(id),
+  FOREIGN KEY (object_entity_id) REFERENCES entities(id)
+);
+
+-- Document Spans Table
+CREATE TABLE IF NOT EXISTS document_spans (
+  id TEXT PRIMARY KEY,
+  document_id INTEGER,
+  page_num INTEGER,
+  span_start_char INTEGER,
+  span_end_char INTEGER,
+  raw_text TEXT,
+  cleaned_text TEXT,
+  ocr_confidence REAL,
+  layout_json TEXT,
+  FOREIGN KEY (document_id) REFERENCES documents(id)
+);
+
+-- Mentions Table (Rich Schema)
+CREATE TABLE IF NOT EXISTS mentions (
+  id TEXT PRIMARY KEY,
+  document_id INTEGER,
+  span_id TEXT,
+  mention_start_char INTEGER,
+  mention_end_char INTEGER,
+  surface_text TEXT,
+  normalised_text TEXT,
+  entity_type TEXT,
+  ner_model TEXT,
+  ner_confidence REAL,
+  context_window_before TEXT,
+  context_window_after TEXT,
+  sentence_id TEXT,
+  paragraph_id TEXT,
+  extracted_features_json TEXT,
+  FOREIGN KEY (document_id) REFERENCES documents(id),
+  FOREIGN KEY (span_id) REFERENCES document_spans(id)
+);
+
+-- Resolution Candidates Table
+CREATE TABLE IF NOT EXISTS resolution_candidates (
+  id TEXT PRIMARY KEY,
+  left_entity_id INTEGER,
+  right_entity_id INTEGER,
+  mention_id TEXT,
+  candidate_type TEXT,
+  score REAL,
+  feature_vector_json TEXT,
+  decision TEXT,
+  decided_at DATETIME,
+  decided_by TEXT,
+  FOREIGN KEY (left_entity_id) REFERENCES entities(id),
+  FOREIGN KEY (right_entity_id) REFERENCES entities(id),
+  FOREIGN KEY (mention_id) REFERENCES mentions(id)
+);
+
+-- Quality Flags Table
+CREATE TABLE IF NOT EXISTS quality_flags (
+  id TEXT PRIMARY KEY,
+  target_type TEXT,
+  target_id TEXT,
+  flag_type TEXT,
+  severity TEXT,
+  details_json TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  resolved_at DATETIME
+);
+
+-- Relation Evidence Table
+CREATE TABLE IF NOT EXISTS relation_evidence (
+  id TEXT PRIMARY KEY,
+  relation_id TEXT,
+  document_id INTEGER,
+  span_id TEXT,
+  quote_text TEXT,
+  confidence REAL,
+  mention_ids TEXT,
+  FOREIGN KEY (relation_id) REFERENCES relations(id),
+  FOREIGN KEY (document_id) REFERENCES documents(id),
+  FOREIGN KEY (span_id) REFERENCES document_spans(id)
 );
 
 -- Full-text search virtual table for documents

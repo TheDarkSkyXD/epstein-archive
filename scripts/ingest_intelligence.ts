@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
-// fs imports reserved for future file operations
 import * as crypto from 'crypto';
+import { extractEvidence, scoreCategoryMatch } from './utils/evidence_extractor';
 
 // Simplistic NLP / Term Extraction
 // In a real "Ultimate" pipeline, we might call an LLM here,
@@ -20,8 +20,9 @@ const HOUSEKEEPER_PATTERN = /Housekeeper/i;
 const ORG_PATTERN =
   /\b(Inc\.?|LLC|Corp\.?|Ltd\.?|Group|Trust|Foundation|University|College|School|Academy|Department|Bureau|Agency|Police|Sheriff|FBI|CIA|Secret Service|Bank|Association|Club|Holdings|Limited|Fund)\b/i;
 const MEDIA_PATTERN = /\b(New York Times|Post|News|Press|Journal|Magazine)\b/i;
+const FINANCIAL_PATTERN = /\b(Bank|Financial|Transfer|Payment|Account|Trust|LLC|Inc|Corp)\b/i;
 
-function detectType(name: string): 'Person' | 'Organization' | 'Location' | 'Media' | 'Other' {
+function detectType(name: string): 'Person' | 'Organization' | 'Location' | 'Media' | 'Financial' | 'Other' {
   const parts = name.split(/[\s,.]+/);
 
   // 1. Organization Check
@@ -30,10 +31,13 @@ function detectType(name: string): 'Person' | 'Organization' | 'Location' | 'Med
   // 2. Media Check
   if (MEDIA_PATTERN.test(name)) return 'Media';
 
-  // 3. Location Check (with exclusions)
+  // 3. Financial Check
+  if (FINANCIAL_PATTERN.test(name)) return 'Financial';
+
+  // 4. Location Check (with exclusions)
   if (LOCATION_PATTERN.test(name) && !HOUSEKEEPER_PATTERN.test(name)) return 'Location';
 
-  // 4. Person Heuristic (Default for 2-4 words capitalized)
+  // 5. Person Heuristic (Default for 2-4 words capitalized)
   if (parts.length >= 2 && parts.length <= 4) return 'Person';
 
   return 'Other';
@@ -97,11 +101,11 @@ function rebuildEntityPipeline() {
   const insertEntityMention =
     hasAssignedBy && hasScoreCol && hasDecisionVersion && hasEvidenceJson && hasMentionIdCol
       ? db.prepare(
-          'INSERT INTO entity_mentions (entity_id, document_id, mention_context, keyword, assigned_by, score, decision_version, evidence_json, mention_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        )
+        'INSERT INTO entity_mentions (entity_id, document_id, mention_context, keyword, assigned_by, score, decision_version, evidence_json, mention_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      )
       : db.prepare(
-          'INSERT INTO entity_mentions (entity_id, document_id, mention_context, keyword) VALUES (?, ?, ?, ?)',
-        );
+        'INSERT INTO entity_mentions (entity_id, document_id, mention_context, keyword) VALUES (?, ?, ?, ?)',
+      );
 
   // Optional new-schema integration (document_spans, mentions, resolution_candidates, relations)
   const hasDocumentSpans = !!db
@@ -124,32 +128,32 @@ function rebuildEntityPipeline() {
 
   const insertSpan = hasDocumentSpans
     ? db.prepare(
-        'INSERT INTO document_spans (id, document_id, page_num, span_start_char, span_end_char, raw_text, cleaned_text, ocr_confidence, layout_json) VALUES (?, ?, NULL, ?, ?, ?, ?, NULL, NULL)',
-      )
+      'INSERT INTO document_spans (id, document_id, page_num, span_start_char, span_end_char, raw_text, cleaned_text, ocr_confidence, layout_json) VALUES (?, ?, NULL, ?, ?, ?, ?, NULL, NULL)',
+    )
     : null;
 
   const insertMentionRow = hasMentionsTable
     ? db.prepare(
-        'INSERT INTO mentions (id, document_id, span_id, mention_start_char, mention_end_char, surface_text, normalised_text, entity_type, ner_model, ner_confidence, context_window_before, context_window_after, sentence_id, paragraph_id, extracted_features_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?)',
-      )
+      'INSERT INTO mentions (id, document_id, span_id, mention_start_char, mention_end_char, surface_text, normalised_text, entity_type, ner_model, ner_confidence, context_window_before, context_window_after, sentence_id, paragraph_id, extracted_features_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?)',
+    )
     : null;
 
   const insertResolutionCandidate = hasResolutionCandidates
     ? db.prepare(
-        "INSERT OR IGNORE INTO resolution_candidates (id, left_entity_id, right_entity_id, mention_id, candidate_type, score, feature_vector_json, decision, decided_at, decided_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)",
-      )
+      "INSERT OR IGNORE INTO resolution_candidates (id, left_entity_id, right_entity_id, mention_id, candidate_type, score, feature_vector_json, decision, decided_at, decided_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)",
+    )
     : null;
 
   const _insertRelation = hasRelationsTable
     ? db.prepare(
-        "INSERT INTO relations (id, subject_entity_id, object_entity_id, predicate, direction, weight, first_seen_at, last_seen_at, status) VALUES (?, ?, ?, 'mentioned_with', 'undirected', ?, datetime('now'), datetime('now'), 'active') ON CONFLICT(id) DO UPDATE SET weight = weight + excluded.weight, last_seen_at = excluded.last_seen_at",
-      )
+      "INSERT INTO relations (id, subject_entity_id, object_entity_id, predicate, direction, weight, first_seen_at, last_seen_at, status) VALUES (?, ?, ?, 'mentioned_with', 'undirected', ?, datetime('now'), datetime('now'), 'active') ON CONFLICT(id) DO UPDATE SET weight = weight + excluded.weight, last_seen_at = excluded.last_seen_at",
+    )
     : null;
 
   const insertQualityFlag = hasQualityFlags
     ? db.prepare(
-        "INSERT INTO quality_flags (id, target_type, target_id, flag_type, severity, details_json, created_at, resolved_at) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), NULL)",
-      )
+      "INSERT INTO quality_flags (id, target_type, target_id, flag_type, severity, details_json, created_at, resolved_at) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), NULL)",
+    )
     : null;
 
   // Stats
@@ -292,7 +296,7 @@ function rebuildEntityPipeline() {
     const docs = db
       .prepare(
         `
-        SELECT id, content, file_name
+        SELECT id, content, file_name, file_path
         FROM documents
         WHERE analyzed_at IS NULL AND content IS NOT NULL
         LIMIT ?
@@ -460,27 +464,14 @@ function rebuildEntityPipeline() {
           }
 
           // C. Mention
-          // Only add one mention per entity per doc UNLESS specific context? keeps DB smaller.
-          // User requested "rich metadata", so full mentions are good.
+          // Use evidence extractor for richer context
+          const evidence = extractEvidence(content, match.index || 0, (match.index || 0) + rawName.length);
+          const score = evidence.score;
+          const context = evidence.context;
+
           const idx = match.index || 0;
           const start = Math.max(0, idx - 50);
           const end = Math.min(content.length, idx + rawName.length + 50);
-          const context = content.substring(start, end).replace(/\s+/g, ' ');
-
-          // Simple feature-style scoring for now: exact match gets 1.0,
-          // otherwise treat as slightly lower confidence.
-          const exactMatch = lowerName === normalizeName(cleanName).toLowerCase();
-          const score = exactMatch ? 1.0 : 0.85;
-
-          // Build evidence payload (very lightweight starter version)
-          const evidence = {
-            context,
-            rawName,
-            cleanName,
-            resolvedName: resolvedName !== cleanName ? resolvedName : undefined,
-            entityType,
-            resolutionMethod,
-          };
 
           let mentionId: string | null = null;
 
@@ -497,8 +488,8 @@ function rebuildEntityPipeline() {
               entityType,
               'regex-capitalized-heuristic',
               score,
-              content.substring(start, idx),
-              content.substring(idx + rawName.length, end),
+              evidence.context.substring(0, evidence.context.indexOf(rawName)),
+              evidence.context.substring(evidence.context.indexOf(rawName) + rawName.length),
               JSON.stringify({ source: 'ingest_intelligence_v1' }),
             );
 
@@ -650,6 +641,9 @@ function rebuildEntityPipeline() {
   console.log('📎 Populating relation evidence from mentions...');
   populateRelationEvidence();
 
+  console.log('🔗 Consolidating entities...');
+  consolidateEntities();
+
   console.log(`\n============== REPORT ==============`);
   console.log(`Total New Entities: ${totalEntities}`);
   console.log(`Total Mentions Added: ${totalMentions}`);
@@ -692,8 +686,8 @@ function mapCoOccurrences() {
 
   const insertNewRel = hasRelationsTable
     ? db.prepare(
-        "INSERT INTO relations (id, subject_entity_id, object_entity_id, predicate, direction, weight, first_seen_at, last_seen_at, status) VALUES (?, ?, ?, 'mentioned_with', 'undirected', ?, datetime('now'), datetime('now'), 'active') ON CONFLICT(id) DO UPDATE SET weight = weight + excluded.weight, last_seen_at = excluded.last_seen_at",
-      )
+      "INSERT INTO relations (id, subject_entity_id, object_entity_id, predicate, direction, weight, first_seen_at, last_seen_at, status) VALUES (?, ?, ?, 'mentioned_with', 'undirected', ?, datetime('now'), datetime('now'), 'active') ON CONFLICT(id) DO UPDATE SET weight = weight + excluded.weight, last_seen_at = excluded.last_seen_at",
+    )
     : null;
 
   let pairsCount = 0;
@@ -856,6 +850,11 @@ function populateRelationEvidence() {
             bData.mention_id,
           ]);
 
+          // Ensure relation exists to satisfy foreign key
+          if (hasRelations) {
+            db.prepare("INSERT OR IGNORE INTO relations (id, subject_entity_id, object_entity_id, predicate, direction, weight, status) VALUES (?, ?, ?, 'mentioned_with', 'undirected', 0, 'active')").run(relId, Math.min(a, b), Math.max(a, b));
+          }
+
           insertRelationEvidence.run(evId, relId, docId, spanId, quote, conf, mentionIds);
           inserted++;
         }
@@ -866,6 +865,30 @@ function populateRelationEvidence() {
   tx();
 
   console.log(`   ✅ Populated ${inserted} relation_evidence rows.`);
+}
+
+function consolidateEntities() {
+  console.log('   Starting entity consolidation...');
+  // Find entities with similar names that aren't already grouped
+  const entities = db.prepare('SELECT id, full_name, entity_type FROM entities').all() as any[];
+
+  for (let i = 0; i < entities.length; i++) {
+    for (let j = i + 1; j < entities.length; j++) {
+      const e1 = entities[i];
+      const e2 = entities[j];
+
+      if (e1.entity_type !== e2.entity_type) continue;
+
+      const n1 = e1.full_name.toLowerCase();
+      const n2 = e2.full_name.toLowerCase();
+
+      // Simple logic: if one contains the other and they are > 10 chars, or exact match
+      if (n1 === n2 || (n1.length > 10 && n2.length > 10 && (n1.includes(n2) || n2.includes(n1)))) {
+        db.prepare('INSERT OR IGNORE INTO resolution_candidates (id, left_entity_id, right_entity_id, candidate_type, score, decision) VALUES (?, ?, ?, ?, ?, ?)')
+          .run(makeDeterministicId(['consolidation', e1.id, e2.id]), e1.id, e2.id, 'name_similarity', 0.9, 'pending');
+      }
+    }
+  }
 }
 
 rebuildEntityPipeline();

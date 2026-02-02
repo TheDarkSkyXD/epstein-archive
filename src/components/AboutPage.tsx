@@ -144,6 +144,16 @@ const DOCUMENT_SOURCES = [
     search: 'Birthday Book',
   },
   {
+    title: 'DOJ Data Set 9',
+    description: 'Released Feb 1, 2026: 12,000+ new PDF files found via deep web scraping.',
+    redactionStatus: 'Unredacted (0%)',
+    redactionColor: 'green',
+    impact: 'CRITICAL',
+    impactColor: 'purple',
+    link: null,
+    search: 'Data Set 9',
+  },
+  {
     title: 'DOJ Discovery VOL00001',
     description: 'FBI evidence from July 2019 NY mansion search (3,158 items).',
     redactionStatus: 'Unredacted (0%)',
@@ -246,6 +256,12 @@ const timelineEvents = [
     source: 'Epstein Archive',
     content:
       'V11.5.0: "The Trump Rule" & "The Riley Rule". Implemented context-aware entity resolution and VIP auto-consolidation.',
+  },
+  {
+    date: 'Feb 1, 2026',
+    source: 'DOJ / Epstein Archive',
+    content:
+      'Data Set 9: Discovery of 12,000+ previously hidden files via advanced browser automation.',
   },
   {
     date: 'Feb 02, 2026',

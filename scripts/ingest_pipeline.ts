@@ -15,7 +15,8 @@
  * - Production database schema compatibility
  */
 
-import Database from 'better-sqlite3';
+import sqlite3 from 'sqlite3';
+import { open } from 'sqlite';
 import { join, basename, extname } from 'path';
 import * as path from 'path';
 import { statSync, readFileSync, existsSync, mkdtempSync, mkdirSync, copyFileSync } from 'fs';
@@ -24,7 +25,10 @@ import { tmpdir } from 'os';
 import { globSync } from 'glob';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
-const pdfParse = require('pdf-parse');
+// Fix for pdf-parse v2 import issues
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const pdfParseModule = require('pdf-parse');
+const PDFParse = pdfParseModule.PDFParse || pdfParseModule.default?.PDFParse || pdfParseModule;
 import * as crypto from 'crypto';
 import { execFile } from 'child_process';
 import sharp from 'sharp';
@@ -138,18 +142,56 @@ const COLLECTIONS: CollectionConfig[] = [
     description: 'Images with unverified claims',
     enabled: true,
   },
+  {
+    name: 'DOJ Data Set 9',
+    rootPath: 'data/ingest/DOJVOL00009',
+    description: '12,260 PDF files released Feb 1, 2026',
+    enabled: false,
+  },
+  {
+    name: 'DOJ Data Set 10',
+    rootPath: 'data/ingest/DOJVOL00010',
+    description: 'Data Set 10 from DOJ',
+    enabled: true,
+  },
+  {
+    name: 'DOJ Data Set 11',
+    rootPath: 'data/ingest/DOJVOL00011',
+    description: 'Data Set 11 (Videos) from DOJ',
+    enabled: true,
+  },
+  {
+    name: 'DOJ Data Set 12',
+    rootPath: 'data/ingest/DOJVOL00012',
+    description: 'Data Set 12 from DOJ',
+    enabled: true,
+  },
+  {
+    name: 'DOJ Discovery VOL00012',
+    rootPath: 'data/originals/DOJ VOL00012',
+    description: 'DOJ Discovery Materials Vol 12',
+    enabled: true,
+  },
 ];
 
 // ============================================================================
 // DATABASE SETUP
 // ============================================================================
 
-const db = new Database(DB_PATH);
+// Database instance placeholder
+let db: any;
 
-function verifyDatabase() {
+async function initDb() {
+  db = await open({
+    filename: DB_PATH,
+    driver: sqlite3.Database,
+  });
+}
+
+async function verifyDatabase() {
   console.log('✅ Verifying database connection...');
   try {
-    const count = db.prepare('SELECT COUNT(*) as count FROM documents').get() as { count: number };
+    const count = (await db.get('SELECT COUNT(*) as count FROM documents')) as { count: number };
     console.log(`   Database connected. ${count.count} documents currently in database.`);
     return true;
   } catch (e) {
@@ -164,10 +206,12 @@ function verifyDatabase() {
 
 async function extractTextFromPdf(buffer: Buffer): Promise<{ text: string; pageCount: number }> {
   try {
-    const data = await pdfParse(buffer);
+    const parser = new PDFParse(new Uint8Array(buffer));
+    const data = await parser.getText();
+    const info = await parser.getInfo();
     return {
-      text: data.text || '',
-      pageCount: data.numpages || 0,
+      text: data?.text || '',
+      pageCount: info?.numpages || 0,
     };
   } catch (e) {
     console.warn('  ⚠️  PDF extraction failed:', (e as Error).message);
@@ -208,14 +252,7 @@ async function maybeUnredactPdf(originalPath: string): Promise<string> {
   return await new Promise((resolve) => {
     try {
       const tmpDir = mkdtempSync(join(tmpdir(), 'unredact-'));
-      const scriptPath = join(
-        // scripts/ingest_pipeline.ts lives in scripts/, unredact in scripts/unredact.py/src/unredact.py
-        process.cwd(),
-        'scripts',
-        'unredact.py',
-        'src',
-        'unredact.py',
-      );
+      const scriptPath = join(process.cwd(), 'scripts', 'unredact_restored.py');
 
       const args = [scriptPath, '-i', originalPath, '-o', tmpDir, '-b', '1', '--highlight', '0'];
 
@@ -436,7 +473,7 @@ async function processDocument(
   try {
     // Check if already processed
     // We use basename match for now, or relative path if stored
-    const existing = db.prepare('SELECT id FROM documents WHERE file_path = ?').get(filePath);
+    const existing = await db.get('SELECT id FROM documents WHERE file_path = ?', filePath);
     if (existing) {
       return { success: true, documentId: (existing as any).id };
     }
@@ -537,11 +574,11 @@ async function processDocument(
     }
 
     // Insert into database
-    const result = db
-      .prepare(
-        `
+    // Insert into database
+    const result = await db.run(
+      `
             INSERT INTO documents (
-                file_name, content, file_path, source_collection,
+                filename, content, file_path, source_collection,
                 content_hash, page_count, metadata_json, red_flag_rating,
                 content_preview, file_type, file_size, word_count,
                 created_at,
@@ -554,30 +591,28 @@ async function processDocument(
                 evidence_type
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, ?, ?, ?, ?)
         `,
-      )
-      .run(
-        basename(filePath),
-        content,
-        filePath,
-        collection.name,
-        hash,
-        pageCount,
-        JSON.stringify(metadataObj),
-        0,
-        contentPreview,
-        fileType,
-        stats.size,
-        wordCount,
-        unredactionAttempted,
-        unredactionSucceeded,
-        redactionCoverageBefore,
-        redactionCoverageAfter,
-        unredactedTextGain,
-        unredactionBaselineVocab,
-        evidenceType,
-      );
+      basename(filePath),
+      content,
+      filePath,
+      collection.name,
+      hash,
+      pageCount,
+      JSON.stringify(metadataObj),
+      0,
+      contentPreview,
+      fileType,
+      stats.size,
+      wordCount,
+      unredactionAttempted,
+      unredactionSucceeded,
+      redactionCoverageBefore,
+      redactionCoverageAfter,
+      unredactedTextGain,
+      unredactionBaselineVocab,
+      evidenceType,
+    );
 
-    return { success: true, documentId: Number(result.lastInsertRowid) };
+    return { success: true, documentId: result.lastID };
   } catch (error) {
     return { success: false, error: (error as Error).message };
   }
@@ -587,7 +622,9 @@ async function processDocument(
 // COLLECTION PROCESSING
 // ============================================================================
 
-async function processCollection(collection: CollectionConfig) {
+async function processCollection(
+  collection: CollectionConfig,
+): Promise<{ processed: number; skipped: number; errors: number }> {
   console.log(`\n📦 Processing: ${collection.name}`);
   console.log(`   Path: ${collection.rootPath}`);
 
@@ -639,8 +676,11 @@ async function main() {
   console.log('='.repeat(80));
   console.log();
 
+  // Initialize DB
+  await initDb();
+
   // Verify database
-  if (!verifyDatabase()) {
+  if (!(await verifyDatabase())) {
     console.error('❌ Database verification failed. Exiting.');
     process.exit(1);
   }
@@ -672,18 +712,16 @@ async function main() {
   console.log(`Total errors:               ${stats.totalErrors}`);
 
   // Current database stats
-  const finalCount = db.prepare('SELECT COUNT(*) as count FROM documents').get() as {
+  const finalCount = (await db.get('SELECT COUNT(*) as count FROM documents')) as {
     count: number;
   };
   console.log(`\nFinal database count:       ${finalCount.count} documents`);
 
   // Collection breakdown
   console.log('\nBy Collection:');
-  const collections = db
-    .prepare(
-      'SELECT source_collection, COUNT(*) as count FROM documents GROUP BY source_collection ORDER BY count DESC',
-    )
-    .all() as any[];
+  const collections = (await db.all(
+    'SELECT source_collection, COUNT(*) as count FROM documents GROUP BY source_collection ORDER BY count DESC',
+  )) as any[];
   for (const coll of collections) {
     console.log(`  • ${coll.source_collection}: ${coll.count}`);
   }
@@ -699,7 +737,7 @@ async function main() {
     console.error('❌ Error running Intelligence Pipeline:', e);
   }
 
-  db.close();
+  await db.close();
 }
 
 // Run the pipeline

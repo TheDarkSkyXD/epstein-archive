@@ -225,7 +225,7 @@ router.post('/:id/hypotheses', authenticateRequest, async (req, res, next) => {
 
 router.put('/:id/hypotheses/:hypId', authenticateRequest, async (req, res, next) => {
   try {
-    const { hypId } = req.params;
+    const { hypId } = req.params as { hypId: string };
     const updates = req.body;
     const success = await investigationsRepository.updateHypothesis(parseInt(hypId), updates);
     if (!success) return res.status(404).json({ error: 'Hypothesis not found' });
@@ -237,7 +237,7 @@ router.put('/:id/hypotheses/:hypId', authenticateRequest, async (req, res, next)
 
 router.delete('/:id/hypotheses/:hypId', authenticateRequest, async (req, res, next) => {
   try {
-    const { hypId } = req.params;
+    const { hypId } = req.params as { hypId: string };
     const success = await investigationsRepository.deleteHypothesis(parseInt(hypId));
     if (!success) return res.status(404).json({ error: 'Hypothesis not found' });
     res.json({ success: true });
@@ -248,7 +248,7 @@ router.delete('/:id/hypotheses/:hypId', authenticateRequest, async (req, res, ne
 
 router.post('/:id/hypotheses/:hypId/evidence', authenticateRequest, async (req, res, next) => {
   try {
-    const { hypId } = req.params;
+    const { hypId } = req.params as { hypId: string };
     const { evidenceId, relevance } = req.body;
     await investigationsRepository.addEvidenceToHypothesis(
       parseInt(hypId),
@@ -321,7 +321,7 @@ router.get('/:id/notebook', async (req, res, next) => {
 
 router.put('/:id/notebook', authenticateRequest, async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const { order, annotations } = req.body || {};
     await investigationsRepository.saveNotebook(parseInt(id), { order, annotations });
     res.json({ success: true });

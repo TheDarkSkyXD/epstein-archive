@@ -225,7 +225,7 @@ router.get('/predictive/insights', authenticateRequest, async (req, res, next) =
 // Pattern Predictions for Entity
 router.get('/predictive/patterns/:entityId', authenticateRequest, async (req, res, next) => {
   try {
-    const entityId = parseInt(req.params.entityId);
+    const entityId = parseInt((req.params as { entityId: string }).entityId);
     if (isNaN(entityId)) {
       return res.status(400).json({ error: 'Valid entity ID is required' });
     }

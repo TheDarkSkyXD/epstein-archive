@@ -9,7 +9,7 @@ const router = Router();
  */
 router.get('/evidence/:entityId', async (req: Request, res: Response) => {
   try {
-    const { entityId } = req.params;
+    const { entityId } = req.params as { entityId: string };
 
     const result = await databaseService.getEntityEvidence(entityId);
 
@@ -104,7 +104,7 @@ router.post('/add-snippet', async (req: Request, res: Response) => {
  */
 router.get('/:investigationId/evidence-summary', async (req: Request, res: Response) => {
   try {
-    const { investigationId } = req.params;
+    const { investigationId } = req.params as { investigationId: string };
 
     const result = await databaseService.getInvestigationEvidenceSummary(investigationId);
 
@@ -121,7 +121,7 @@ router.get('/:investigationId/evidence-summary', async (req: Request, res: Respo
  */
 router.delete('/remove-evidence/:investigationEvidenceId', async (req: Request, res: Response) => {
   try {
-    const { investigationEvidenceId } = req.params;
+    const { investigationEvidenceId } = req.params as { investigationEvidenceId: string };
 
     const success = await databaseService.removeEvidenceFromInvestigation(investigationEvidenceId);
 

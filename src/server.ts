@@ -2806,8 +2806,8 @@ app.put(
           // Regenerate thumbnail
           const thumbnailDir = path.dirname(
             (image as any).thumbnail_path ||
-              image.thumbnailPath ||
-              path.join(path.dirname(image.path), 'thumbnails'),
+            image.thumbnailPath ||
+            path.join(path.dirname(image.path), 'thumbnails'),
           );
           await mediaService.generateThumbnail(image.path, thumbnailDir, {
             force: true,
@@ -3169,7 +3169,7 @@ app.put(
   requireRole('admin'),
   async (req, res, next) => {
     try {
-      const imageId = parseInt(req.params.id);
+      const imageId = parseInt((req.params as { id: string }).id);
       if (isNaN(imageId)) {
         return res.status(400).json({ error: 'Invalid image ID' });
       }
@@ -3195,7 +3195,7 @@ app.put(
   requireRole('admin'),
   async (req, res, next) => {
     try {
-      const imageId = parseInt(req.params.id);
+      const imageId = parseInt((req.params as { id: string }).id);
       const direction = req.body.direction === 'left' ? -90 : 90; // Default to right/clockwise
 
       if (isNaN(imageId)) {
@@ -3215,8 +3215,8 @@ app.put(
       // Regenerate thumbnail with new orientation
       const thumbnailDir = path.dirname(
         (image as any).thumbnail_path ||
-          image.thumbnailPath ||
-          path.join(path.dirname(image.path), 'thumbnails'),
+        image.thumbnailPath ||
+        path.join(path.dirname(image.path), 'thumbnails'),
       );
       // Ensure we have a valid thumbnail directory. If image.thumbnail_path exists, use its dir.
       // If not, assume 'thumbnails' subdir of image path (standard structure)
@@ -3248,7 +3248,7 @@ app.delete(
   requireRole('admin'),
   async (req, res, next) => {
     try {
-      const imageId = parseInt(req.params.id);
+      const imageId = parseInt((req.params as { id: string }).id);
       if (isNaN(imageId)) {
         return res.status(400).json({ error: 'Invalid image ID' });
       }
@@ -3344,7 +3344,7 @@ app.post('/api/tags', authenticateRequest, async (req, res, next) => {
 // Delete a tag
 app.delete('/api/tags/:id', authenticateRequest, requireRole('admin'), async (req, res, next) => {
   try {
-    const tagId = parseInt(req.params.id);
+    const tagId = parseInt((req.params as { id: string }).id);
     if (isNaN(tagId)) return res.status(400).json({ error: 'Invalid tag ID' });
 
     const db = getDb();
@@ -3365,7 +3365,7 @@ app.delete('/api/tags/:id', authenticateRequest, requireRole('admin'), async (re
 // Get tags for an image
 app.get('/api/media/images/:id/tags', async (req, res, next) => {
   try {
-    const imageId = parseInt(req.params.id);
+    const imageId = parseInt((req.params as { id: string }).id);
     if (isNaN(imageId)) return res.status(400).json({ error: 'Invalid image ID' });
 
     const db = getDb();
@@ -3390,7 +3390,7 @@ app.get('/api/media/images/:id/tags', async (req, res, next) => {
 // Add tag to image
 app.post('/api/media/images/:id/tags', authenticateRequest, async (req, res, next) => {
   try {
-    const imageId = parseInt(req.params.id);
+    const imageId = parseInt((req.params as { id: string }).id);
     const { tagId } = req.body;
 
     if (isNaN(imageId) || !tagId) return res.status(400).json({ error: 'Invalid image or tag ID' });
@@ -3411,8 +3411,8 @@ app.post('/api/media/images/:id/tags', authenticateRequest, async (req, res, nex
 // Remove tag from image
 app.delete('/api/media/images/:id/tags/:tagId', authenticateRequest, async (req, res, next) => {
   try {
-    const imageId = parseInt(req.params.id);
-    const tagId = parseInt(req.params.tagId);
+    const imageId = parseInt((req.params as { id: string }).id);
+    const tagId = parseInt((req.params as { tagId: string }).tagId);
 
     if (isNaN(imageId) || isNaN(tagId)) return res.status(400).json({ error: 'Invalid IDs' });
 
@@ -3433,7 +3433,7 @@ app.delete('/api/media/images/:id/tags/:tagId', authenticateRequest, async (req,
 // Get people in an image
 app.get('/api/media/images/:id/people', async (req, res, next) => {
   try {
-    const imageId = parseInt(req.params.id);
+    const imageId = parseInt((req.params as { id: string }).id);
     if (isNaN(imageId)) return res.status(400).json({ error: 'Invalid image ID' });
 
     const db = getDb();
@@ -3459,7 +3459,7 @@ app.get('/api/media/images/:id/people', async (req, res, next) => {
 // Add person to image
 app.post('/api/media/images/:id/people', authenticateRequest, async (req, res, next) => {
   try {
-    const imageId = parseInt(req.params.id);
+    const imageId = parseInt((req.params as { id: string }).id);
     const { entityId } = req.body;
 
     if (isNaN(imageId) || !entityId)
@@ -3484,8 +3484,8 @@ app.delete(
   authenticateRequest,
   async (req, res, next) => {
     try {
-      const imageId = parseInt(req.params.id);
-      const entityId = parseInt(req.params.entityId);
+      const imageId = parseInt((req.params as { id: string }).id);
+      const entityId = parseInt((req.params as { entityId: string }).entityId);
 
       if (isNaN(imageId) || isNaN(entityId)) return res.status(400).json({ error: 'Invalid IDs' });
 

@@ -89,7 +89,7 @@ router.post('/', authenticateRequest, async (req, res, next) => {
 // Update a task
 router.put('/:id', authenticateRequest, async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const taskId = parseInt(id);
     const updates = req.body;
 
@@ -112,7 +112,7 @@ router.put('/:id', authenticateRequest, async (req, res, next) => {
 // Delete a task
 router.delete('/:id', authenticateRequest, requireRole('admin'), async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const taskId = parseInt(id);
 
     if (isNaN(taskId)) {
@@ -170,7 +170,7 @@ router.get('/summary/:investigationId', async (req, res, next) => {
 // Update task progress
 router.patch('/:id/progress', authenticateRequest, async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const taskId = parseInt(id);
     const { progress } = req.body;
 

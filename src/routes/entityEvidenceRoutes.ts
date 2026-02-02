@@ -6,7 +6,7 @@ const router = Router();
 // GET /api/entities/:id/evidence
 router.get('/:entityId/evidence', async (req: Request, res: Response) => {
   try {
-    const { entityId } = req.params;
+    const { entityId } = req.params as { entityId: string };
     const result = await entityEvidenceRepository.getEntityMentionEvidence(entityId);
 
     if (!result) {
@@ -23,7 +23,7 @@ router.get('/:entityId/evidence', async (req: Request, res: Response) => {
 // GET /api/entities/:id/relations
 router.get('/:entityId/relations', async (req: Request, res: Response) => {
   try {
-    const { entityId } = req.params;
+    const { entityId } = req.params as { entityId: string };
     const result = await entityEvidenceRepository.getRelationEvidenceForEntity(entityId);
     res.json(result);
   } catch (error) {
@@ -35,7 +35,7 @@ router.get('/:entityId/relations', async (req: Request, res: Response) => {
 // GET /api/entities/:id/graph
 router.get('/:entityId/graph', async (req: Request, res: Response) => {
   try {
-    const { entityId } = req.params;
+    const { entityId } = req.params as { entityId: string };
     const dbEntityId = parseInt(entityId, 10);
     if (Number.isNaN(dbEntityId)) {
       return res.status(400).json({ error: 'Invalid entity id' });

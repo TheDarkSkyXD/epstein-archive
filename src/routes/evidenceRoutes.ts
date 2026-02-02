@@ -172,7 +172,7 @@ router.get('/types', async (req: Request, res: Response) => {
  */
 router.get('/:id', async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const evidence = documentsRepository.getDocumentById(id);
 
     if (!evidence) {
@@ -192,7 +192,7 @@ router.get('/:id', async (req: Request, res: Response) => {
  */
 router.get('/:id/metrics', async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const metrics = forensicRepository.getMetrics(id);
     res.json(metrics || { metrics_json: '{}', authenticity_score: 0 });
   } catch (e) {
@@ -207,7 +207,7 @@ router.get('/:id/metrics', async (req: Request, res: Response) => {
  */
 router.get('/:id/custody', async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const chain = forensicRepository.getChainOfCustody(id);
     res.json(chain || []);
   } catch (e) {
@@ -222,7 +222,7 @@ router.get('/:id/custody', async (req: Request, res: Response) => {
  */
 router.post('/:id/analyze', async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const doc = (await documentsRepository.getDocumentById(id)) as any;
     if (!doc) return res.status(404).json({ error: 'Document not found' });
 
@@ -277,9 +277,9 @@ router.post('/:id/analyze', async (req: Request, res: Response) => {
 
     const authenticityScore = Math.min(1.0, baseScore);
 
-    forensicRepository.saveMetrics(id, metrics, authenticityScore);
+    forensicRepository.saveMetrics(id as string, metrics, authenticityScore);
     forensicRepository.addCustodyEvent({
-      evidenceId: id,
+      evidenceId: id as string,
       actor: (req as any).user?.name || 'System',
       action: 'Automated Forensic Analysis',
       notes: `Content-aware analysis detected ${suspiciousMatches} suspicious keywords. Base authenticity: ${authenticityScore.toFixed(2)}`,

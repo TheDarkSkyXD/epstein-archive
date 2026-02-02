@@ -4101,8 +4101,8 @@ app.get('*', async (req, res, next) => {
         }
       }
 
-      // Check for entity path deep links (e.g., /entity/123)
-      const entityPathMatch = req.path.match(/^\/entity\/(\d+)/);
+      // Check for entity path deep links (e.g., /entity/123 or /entities/123)
+      const entityPathMatch = req.path.match(/^\/(?:entity|entities)\/(\d+)/);
       if (entityPathMatch) {
         const entity = entitiesRepository.getEntityById(entityPathMatch[1]);
         if (entity) {
@@ -4116,6 +4116,26 @@ app.get('*', async (req, res, next) => {
             description: role
               ? `${entityName} (${role}) ${ratingText} - Explore connections, documents, and evidence in the Epstein Files Archive.`
               : `${entityName} ${ratingText} - Explore connections, documents, and evidence in the Epstein Files Archive.`,
+            imageUrl: defaultOgImage,
+            url: `${baseUrl}${req.originalUrl}`,
+          });
+          return res.send(html);
+        }
+      }
+
+      // Check for document path deep links (e.g. /documents/123)
+      // Note: Frontend likely uses /documents/:id
+      const docPathMatch = req.path.match(/^\/(?:document|documents)\/(\d+)/);
+      if (docPathMatch) {
+        const doc = documentsRepository.getDocumentById(docPathMatch[1]);
+        if (doc) {
+          const docTitle = doc.title || doc.file_name || 'Document';
+          html = injectOgTags(html, {
+            title: `${docTitle} - Epstein Files Archive`,
+            description:
+              doc.summary ||
+              doc.content?.slice(0, 200) ||
+              `View document: ${docTitle} in the Epstein Files Archive`,
             imageUrl: defaultOgImage,
             url: `${baseUrl}${req.originalUrl}`,
           });

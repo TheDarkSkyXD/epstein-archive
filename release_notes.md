@@ -1,3 +1,10 @@
+## v11.6.1 (2026-02-02) - Social Previews & Path Fixes
+
+### 🔗 Social Media & Sharing
+
+- **Rich Previews**: Fixed missing Open Graph tags for Entity and Document links.
+- **Path Support**: Added server-side support for pluralized routes (`/entities/:id`, `/documents/:id`) to ensure links generate correct titles and descriptions when shared.
+
 ## v11.6.0 (2026-01-28) - Infrastructure Modernization & Performance
 
 ### 🏗 Infrastructure Modernization

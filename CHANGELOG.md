@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file. The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## 12.1.0 — 2026-02-02
+
+### Zero-Downtime Deployment Pipeline
+
+- **Unified Deploy Script**: Single command `./scripts/deploy.sh` for full deployments
+- **Bidirectional Sync**: Local ↔ Production database synchronization with automatic schema migration
+- **Automatic Rollback**: Health check validation with instant rollback on failure
+- **Script Consolidation**: Removed 19 deprecated scripts for single source of truth
+
+### CI/CD Improvements
+
+- Fixed TypeScript type-check configuration
+- Installed missing `@types/node` dependency
+- Restructured `tsconfig.json` for frontend-only compilation
+
+### Connection Analysis
+
+- **2,046,386** co-occurrence relationships mapped
+- **8,593** instruction-intent relationships extracted
+- **1,856** financial relationships identified
+- **1,104** travel relationships documented
+
+---
+
 ## 12.0.0 — 2026-02-02
 
 ### Massive Department of Justice (DOJ) Archive Consolidation

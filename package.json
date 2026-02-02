@@ -1,7 +1,7 @@
 {
   "name": "epstein-archive",
   "private": true,
-  "version": "11.6.1",
+  "version": "11.6.2",
   "description": "Epstein Archive Analyzer",
   "type": "module",
   "scripts": {

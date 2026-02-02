@@ -12,6 +12,7 @@ import { entitiesRepository } from './server/db/entitiesRepository.js';
 import { documentsRepository } from './server/db/documentsRepository.js';
 import { statsRepository } from './server/db/statsRepository.js';
 import { mediaRepository } from './server/db/mediaRepository.js';
+import { investigationsRepository } from './server/db/investigationsRepository.js';
 import { searchRepository } from './server/db/searchRepository.js';
 import { timelineRepository } from './server/db/timelineRepository.js';
 import { forensicRepository } from './server/db/forensicRepository.js';
@@ -4021,7 +4022,11 @@ app.get('*', async (req, res, next) => {
     let html = fs.readFileSync(indexFile, 'utf8');
 
     try {
-      // Check for photo deep links
+      // =================================================================
+      // SOCIAL PREVIEW: DEEP LINING LOGIC
+      // =================================================================
+
+      // 1. Photos (Query param: ?photoId=123) - Existing
       const photoId = req.query.photoId;
       if (photoId) {
         const id = parseInt(photoId as string);
@@ -4034,6 +4039,71 @@ app.get('*', async (req, res, next) => {
               description:
                 image.description || `Photo from Epstein Files Archive - ${image.filename}`,
               imageUrl,
+              url: `${baseUrl}${req.originalUrl}`,
+            });
+            return res.send(html);
+          }
+        }
+      }
+
+      // 2. Photos (Path-based: /media/photos/123)
+      const photoPathMatch = routePath.match(/^\/media\/photos\/(\d+)$/);
+      if (photoPathMatch) {
+        const id = parseInt(photoPathMatch[1]);
+        if (!isNaN(id)) {
+          const image = mediaService.getImageById(id);
+          if (image) {
+            const imageUrl = `${baseUrl}/api/media/images/${id}/raw?v=${new Date(image.dateModified || image.dateAdded || 0).getTime()}`;
+            html = injectOgTags(html, {
+              title: image.title || image.filename || 'Photo - Epstein Files Archive',
+              description:
+                image.description || `Photo from Epstein Files Archive - ${image.filename}`,
+              imageUrl,
+              url: `${baseUrl}${req.originalUrl}`,
+            });
+            return res.send(html);
+          }
+        }
+      }
+
+      // 3. Audio/Media Items (Query param: ?id=123 on /media/audio or Generic)
+      // Note: AudioBrowser uses ?id= for deep linking
+      if (routePath.startsWith('/media/audio') || routePath.startsWith('/media/items')) {
+        const audioId = req.query.id || req.query.audioId;
+        if (audioId) {
+          const id = parseInt(audioId as string);
+          if (!isNaN(id)) {
+            const item = mediaRepository.getMediaItemById(id);
+            if (item) {
+              // Use a generic audio placeholder or specific if available
+              const thumbnail =
+                item.metadata_json && JSON.parse(item.metadata_json)?.thumbnailPath
+                  ? `${baseUrl}/api/static?path=${encodeURIComponent(JSON.parse(item.metadata_json).thumbnailPath)}`
+                  : `${baseUrl}/og-image.png`; // Fallback
+
+              html = injectOgTags(html, {
+                title: item.title || 'Audio Recording - Epstein Files Archive',
+                description: item.description || `Audio recording: ${item.title}`,
+                imageUrl: thumbnail,
+                url: `${baseUrl}${req.originalUrl}`,
+              });
+              return res.send(html);
+            }
+          }
+        }
+      }
+
+      // 4. Investigations (Path-based: /investigations/123)
+      const invMatch = routePath.match(/^\/investigations\/(\d+)$/);
+      if (invMatch) {
+        const id = parseInt(invMatch[1]);
+        if (!isNaN(id)) {
+          const inv = await investigationsRepository.getInvestigationById(id);
+          if (inv) {
+            html = injectOgTags(html, {
+              title: `Investigation: ${inv.title}`,
+              description: inv.description || `Investigation into ${inv.title}`,
+              imageUrl: defaultOgImage, // Investigations don't have covers yet
               url: `${baseUrl}${req.originalUrl}`,
             });
             return res.send(html);

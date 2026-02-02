@@ -30,6 +30,18 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
     return () => clearTimeout(timer);
   }, []);
 
+  // Lock body scroll when menu is open
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [open]);
+
   // Handle navigation without closing on content click
   const handleNavigation = (path: string) => {
     onNavigate(path);

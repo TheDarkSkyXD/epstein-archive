@@ -2,7 +2,12 @@
 
 All notable changes to this project will be documented in this file. The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
-## 11.0.0 — 2026-01-20
+## 11.1.0 — 2026-02-01
+
+- Browser-Assisted Deep Web Ingestion
+  - **Data Set 9 Recovery**: Successfully bypassed advanced Akamai bot protection and age verification to scrape 12,260 PDF files from the DOJ disclosure site.
+  - **Pipeline Upgrade**: Integrated Puppeteer-based browser automation into the download pipeline to handle "invisible" pagination and session-based auth.
+  - **Ingestion**: Added `scripts/ingest_dataset_9.ts` to process the 12k new files, extracting text and metadata for the archive.
 
 - Flight log expansion
   - Expanded from 29 to 110 documented flights (1995-2005) with 305 passenger records.

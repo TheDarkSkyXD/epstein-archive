@@ -54,11 +54,14 @@ CREATE TABLE documents (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     filename TEXT NOT NULL,
     file_path TEXT NOT NULL,
+    source_collection TEXT,
     file_type TEXT,
     file_size INTEGER,
     date_created DATETIME,
     date_modified DATETIME,
     content_hash TEXT,
+    page_count INTEGER DEFAULT 1,
+    red_flag_rating INTEGER DEFAULT 0,
     word_count INTEGER DEFAULT 0,
     spice_rating INTEGER DEFAULT 0,
     title TEXT,                -- Human-readable title with filename
@@ -66,6 +69,12 @@ CREATE TABLE documents (
     content_preview TEXT,      -- First 500 chars for summary
     metadata_json TEXT, -- JSON metadata
     content TEXT,
+    unredaction_attempted INTEGER DEFAULT 0,
+    unredaction_succeeded INTEGER DEFAULT 0,
+    redaction_coverage_before REAL,
+    redaction_coverage_after REAL,
+    unredacted_text_gain REAL,
+    unredaction_baseline_vocab TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

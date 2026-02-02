@@ -406,3 +406,27 @@ CREATE VIRTUAL TABLE IF NOT EXISTS media_images_fts USING fts5(
 -- Performance Indices V2 (Migration 018)
 CREATE INDEX IF NOT EXISTS idx_entities_mentions_ranking ON entities(mentions DESC, red_flag_rating DESC);
 CREATE INDEX IF NOT EXISTS idx_entities_primary_role ON entities(primary_role);
+
+-- Financial transactions for forensic analysis
+CREATE TABLE IF NOT EXISTS financial_transactions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  from_entity TEXT NOT NULL,
+  to_entity TEXT NOT NULL,
+  amount DECIMAL(18, 2) NOT NULL,
+  currency TEXT DEFAULT 'USD',
+  transaction_date DATETIME NOT NULL,
+  transaction_type TEXT NOT NULL, -- payment, transfer, offshore, shell_company, etc.
+  method TEXT NOT NULL, -- wire, cash, crypto, etc.
+  risk_level TEXT DEFAULT 'medium', -- low, medium, high, critical
+  description TEXT,
+  investigation_id INTEGER,
+  source_document_id TEXT,
+  metadata_json TEXT, -- flexible field for extra data like shell bank info
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (investigation_id) REFERENCES investigations(id),
+  FOREIGN KEY (source_document_id) REFERENCES documents(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_financial_from ON financial_transactions(from_entity);
+CREATE INDEX IF NOT EXISTS idx_financial_to ON financial_transactions(to_entity);
+CREATE INDEX IF NOT EXISTS idx_financial_investigation ON financial_transactions(investigation_id);

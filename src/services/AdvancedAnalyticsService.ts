@@ -65,7 +65,7 @@ export class AdvancedAnalyticsService {
       JOIN entities e1 ON em1.entity_id = e1.id
       JOIN entities e2 ON em2.entity_id = e2.id
       JOIN documents d ON em1.document_id = d.id
-      LEFT JOIN entity_relationships er ON (er.source_id = e1.id AND er.target_id = e2.id)
+      LEFT JOIN entity_relationships er ON (er.source_entity_id = e1.id AND er.target_entity_id = e2.id)
       WHERE e1.full_name != e2.full_name
     `;
 
@@ -182,7 +182,7 @@ export class AdvancedAnalyticsService {
         e.red_flag_rating,
         COUNT(er.id) as relationshipCount
       FROM entities e
-      LEFT JOIN entity_relationships er ON e.id = er.source_id
+      LEFT JOIN entity_relationships er ON e.id = er.source_entity_id
       WHERE e.red_flag_rating >= 4
         AND (er.id IS NULL OR relationshipCount < 3)
       ORDER BY e.red_flag_rating DESC
@@ -221,7 +221,7 @@ export class AdvancedAnalyticsService {
         COUNT(er.id) as relationshipCount,
         AVG(er.strength) as avgRelationshipStrength
       FROM entities e
-      LEFT JOIN entity_relationships er ON e.id = er.source_id
+      LEFT JOIN entity_relationships er ON e.id = er.source_entity_id
     `;
 
     const params: any = {};
@@ -283,8 +283,8 @@ export class AdvancedAnalyticsService {
           er.strength,
           er.confidence
         FROM entity_relationships er
-        JOIN entities e1 ON er.source_id = e1.id
-        JOIN entities e2 ON er.target_id = e2.id
+        JOIN entities e1 ON er.source_entity_id = e1.id
+        JOIN entities e2 ON er.target_entity_id = e2.id
         ORDER BY er.strength DESC
         LIMIT 50
       `,
@@ -328,9 +328,9 @@ export class AdvancedAnalyticsService {
         e.red_flag_rating,
         COUNT(er2.id) as connectionsToHighRisk
       FROM entities e
-      JOIN entity_relationships er1 ON e.id = er1.source_id
-      JOIN entities e2 ON er1.target_id = e2.id
-      JOIN entity_relationships er2 ON e2.id = er2.source_id
+      JOIN entity_relationships er1 ON e.id = er1.source_entity_id
+      JOIN entities e2 ON er1.target_entity_id = e2.id
+      JOIN entity_relationships er2 ON e2.id = er2.source_entity_id
       WHERE e2.red_flag_rating >= 4
         AND e.red_flag_rating < 2
       GROUP BY e.id

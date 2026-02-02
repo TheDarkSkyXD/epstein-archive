@@ -12,7 +12,7 @@ export const relationshipsRepository = {
     } = {},
   ) => {
     const db = getDb();
-    const where: string[] = ['source_id = @entityId'];
+    const where: string[] = ['source_entity_id = @entityId'];
     const params: any = { entityId };
 
     if (filters.minWeight !== undefined) {
@@ -34,7 +34,7 @@ export const relationshipsRepository = {
     }
 
     const sql = `
-      SELECT source_id, target_id, relationship_type, strength as proximity_score,
+      SELECT source_entity_id as source_id, target_entity_id as target_id, relationship_type, strength as proximity_score,
              0 as risk_score, 1 as confidence, NULL as metadata_json
       FROM entity_relationships
       WHERE ${where.join(' AND ')}
@@ -97,10 +97,10 @@ export const relationshipsRepository = {
           LIMIT 200
         `)
       : db.prepare(`
-          SELECT source_id, target_id, relationship_type, COALESCE(proximity_score, weight) as proximity_score,
+          SELECT source_entity_id as source_id, target_entity_id as target_id, relationship_type, COALESCE(proximity_score, weight) as proximity_score,
                  risk_score, confidence, metadata_json
           FROM entity_relationships
-          WHERE source_id = ?
+          WHERE source_entity_id = ?
           ORDER BY proximity_score DESC
           LIMIT 200
         `);
@@ -167,9 +167,9 @@ export const relationshipsRepository = {
     const top = db
       .prepare(
         `
-      SELECT source_id as entity_id, COUNT(*) as count
+      SELECT source_entity_id as entity_id, COUNT(*) as count
       FROM entity_relationships
-      GROUP BY source_id
+      GROUP BY source_entity_id
       ORDER BY count DESC
       LIMIT 10
     `,
@@ -197,14 +197,14 @@ export const relationshipsRepository = {
       .prepare(
         `
       SELECT 
-        source_id, 
-        target_id, 
-        type as relationship_type,
-        weight as proximity_score,
+        source_entity_id as source_id, 
+        target_entity_id as target_id, 
+        relationship_type,
+        COALESCE(proximity_score, weight) as proximity_score,
         0 as risk_score, confidence, metadata_json
       FROM entity_relationships 
-      WHERE source_id=?
-      ORDER BY weight DESC
+      WHERE source_entity_id=?
+      ORDER BY proximity_score DESC
       LIMIT ?
     `,
       )

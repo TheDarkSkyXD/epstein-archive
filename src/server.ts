@@ -31,6 +31,8 @@ import entityEvidenceRoutes from './routes/entityEvidenceRoutes.js';
 import investigativeTasksRoutes from './server/routes/investigativeTasks.js';
 import articlesRoutes from './server/routes/articlesRoutes.js';
 import emailRoutes from './server/routes/emailRoutes.js';
+import financialRoutes from './server/routes/financialRoutes.js';
+import forensicRoutes from './server/routes/forensicRoutes.js';
 import { articlesRepository } from './server/db/articlesRepository.js';
 import { communicationsRepository } from './server/db/communicationsRepository.js';
 import crypto from 'crypto';
@@ -175,6 +177,8 @@ app.use('/api/evidence', evidenceRoutes);
 app.use('/api/entities', entityEvidenceRoutes);
 app.use('/api/email', emailRoutes);
 app.use('/api/articles', articlesRoutes);
+app.use('/api/financial', financialRoutes);
+app.use('/api/forensic', forensicRoutes);
 // Authentication middleware will be applied below
 
 // Serve static frontend from dist
@@ -1662,15 +1666,6 @@ app.get('/api/entities/:id/confidence', async (req, res, next) => {
 // Forensic Metrics Summary (Tier 3 - Advanced Analytics)
 
 // Forensic Metrics Summary (Tier 3 - Advanced Analytics)
-app.get('/api/forensic/metrics-summary', async (_req, res, next) => {
-  try {
-    const summary = forensicRepository.getMetricsSummary();
-    res.json(summary);
-  } catch (error) {
-    console.error('Error fetching forensic metrics summary:', error);
-    next(error);
-  }
-});
 
 // Documents endpoint - returns paginated documents
 app.get('/api/documents', async (req, res, next) => {
@@ -2811,8 +2806,8 @@ app.put(
           // Regenerate thumbnail
           const thumbnailDir = path.dirname(
             (image as any).thumbnail_path ||
-              image.thumbnailPath ||
-              path.join(path.dirname(image.path), 'thumbnails'),
+            image.thumbnailPath ||
+            path.join(path.dirname(image.path), 'thumbnails'),
           );
           await mediaService.generateThumbnail(image.path, thumbnailDir, {
             force: true,
@@ -3220,8 +3215,8 @@ app.put(
       // Regenerate thumbnail with new orientation
       const thumbnailDir = path.dirname(
         (image as any).thumbnail_path ||
-          image.thumbnailPath ||
-          path.join(path.dirname(image.path), 'thumbnails'),
+        image.thumbnailPath ||
+        path.join(path.dirname(image.path), 'thumbnails'),
       );
       // Ensure we have a valid thumbnail directory. If image.thumbnail_path exists, use its dir.
       // If not, assume 'thumbnails' subdir of image path (standard structure)

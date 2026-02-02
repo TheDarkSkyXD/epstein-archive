@@ -5,6 +5,8 @@
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
+    "typeRoots": ["./node_modules/@types"],
+    "types": ["node"],
 
     /* Bundler mode */
     "moduleResolution": "bundler",
@@ -20,15 +22,16 @@
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "src/scripts",
-    "src/test",
-    "tests",
-    "**/*.test.tsx",
-    "**/*.test.ts"
+  "include": [
+    "src/components",
+    "src/hooks",
+    "src/utils",
+    "src/types",
+    "src/lib",
+    "src/App.tsx",
+    "src/main.tsx",
+    "src/vite-env.d.ts"
   ],
+  "exclude": ["node_modules", "dist", "**/*.test.tsx", "**/*.test.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

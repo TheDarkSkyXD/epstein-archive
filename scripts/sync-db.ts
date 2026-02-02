@@ -30,6 +30,53 @@ console.log(`🔄 SYNC-DB: Merging [${SOURCE_DB}] -> [${TARGET_DB}]`);
 if (DRY_RUN) console.log('   (DRY RUN MODE: No changes will be written)');
 
 // ============================================
+// SCHEMA SYNC (Prevent Column Mismatch Errors)
+// ============================================
+
+async function syncSchema(
+  source: Database<sqlite3.Database, sqlite3.Statement>,
+  target: Database<sqlite3.Database, sqlite3.Statement>,
+) {
+  console.log('\\n🔧 Syncing Schema...');
+
+  // Get all tables from source
+  const tables = await source.all(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
+  );
+
+  for (const table of tables) {
+    const tableName = table.name;
+
+    // Get column info from both DBs
+    const sourceCols = await source.all(`PRAGMA table_info('${tableName}')`);
+    const targetCols = await target.all(`PRAGMA table_info('${tableName}')`);
+
+    const targetColNames = new Set(targetCols.map((c: any) => c.name));
+
+    // Add missing columns to target
+    for (const col of sourceCols) {
+      if (!targetColNames.has(col.name)) {
+        const colType = col.type || 'TEXT';
+        const defaultVal = col.dflt_value !== null ? ` DEFAULT ${col.dflt_value}` : '';
+
+        console.log(`   + Adding column [${tableName}.${col.name}] (${colType}${defaultVal})`);
+        if (!DRY_RUN) {
+          try {
+            await target.run(
+              `ALTER TABLE "${tableName}" ADD COLUMN "${col.name}" ${colType}${defaultVal}`,
+            );
+          } catch (e: any) {
+            // Column might already exist or be incompatible
+            console.warn(`     ⚠️ Could not add column: ${e.message}`);
+          }
+        }
+      }
+    }
+  }
+  console.log('   ✅ Schema sync complete');
+}
+
+// ============================================
 // SYNC LOGIC
 // ============================================
 
@@ -47,6 +94,9 @@ async function main() {
   const documentIdMap = new Map<number, number>();
 
   try {
+    // 0. Schema Sync First (Prevent Column Mismatch Errors)
+    await syncSchema(source, target);
+
     // 1. Sync Documents
     // Key: file_path (Unique)
     console.log('\n📄 Syncing Documents...');

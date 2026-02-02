@@ -9,8 +9,8 @@ const router = Router();
 router.get('/', async (req, res, next) => {
   try {
     const filters = {
-      status: req.query.status as string,
-      ownerId: req.query.ownerId as string,
+      status: (req.query.status as string) || undefined,
+      ownerId: (req.query.ownerId as string) || undefined,
       page: parseInt(req.query.page as string) || 1,
       limit: parseInt(req.query.limit as string) || 20,
     };
@@ -89,7 +89,7 @@ router.get('/:id', async (req, res, next) => {
 // Update investigation
 router.put('/:id', authenticateRequest, async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const updates = req.body;
 
     const updated = await investigationsRepository.updateInvestigation(parseInt(id), updates);
@@ -107,7 +107,7 @@ router.put('/:id', authenticateRequest, async (req, res, next) => {
 // Delete investigation
 router.delete('/:id', authenticateRequest, async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const success = await investigationsRepository.deleteInvestigation(parseInt(id));
 
     if (!success) {
@@ -124,7 +124,7 @@ router.delete('/:id', authenticateRequest, async (req, res, next) => {
 
 router.get('/:id/timeline-events', async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const events = await investigationsRepository.getTimelineEvents(parseInt(id));
     res.json(events);
   } catch (error) {
@@ -134,7 +134,7 @@ router.get('/:id/timeline-events', async (req, res, next) => {
 
 router.post('/:id/timeline-events', authenticateRequest, async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const eventId = await investigationsRepository.addTimelineEvent(parseInt(id), req.body);
     res.status(201).json({ id: eventId, ...req.body });
   } catch (error) {
@@ -144,7 +144,7 @@ router.post('/:id/timeline-events', authenticateRequest, async (req, res, next) 
 
 router.patch('/:id/timeline-events/:eventId', authenticateRequest, async (req, res, next) => {
   try {
-    const { eventId } = req.params;
+    const { eventId } = req.params as { eventId: string };
     const success = await investigationsRepository.updateTimelineEvent(parseInt(eventId), req.body);
     if (!success) return res.status(404).json({ error: 'Event not found' });
     res.json({ success: true });
@@ -155,7 +155,7 @@ router.patch('/:id/timeline-events/:eventId', authenticateRequest, async (req, r
 
 router.delete('/:id/timeline-events/:eventId', authenticateRequest, async (req, res, next) => {
   try {
-    const { eventId } = req.params;
+    const { eventId } = req.params as { eventId: string };
     const success = await investigationsRepository.deleteTimelineEvent(parseInt(eventId));
     if (!success) return res.status(404).json({ error: 'Event not found' });
     res.json({ success: true });
@@ -168,7 +168,7 @@ router.delete('/:id/timeline-events/:eventId', authenticateRequest, async (req, 
 
 router.get('/:id/evidence', async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const evidence = await investigationsRepository.getEvidence(parseInt(id));
     res.json(evidence);
   } catch (error) {
@@ -178,7 +178,7 @@ router.get('/:id/evidence', async (req, res, next) => {
 
 router.post('/:id/evidence', authenticateRequest, async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const evidenceId = await investigationsRepository.addEvidence(parseInt(id), req.body);
     res.status(201).json({ id: evidenceId, ...req.body });
   } catch (error) {
@@ -201,7 +201,7 @@ router.get('/:id/evidence-summary', async (req, res, next) => {
 
 router.get('/:id/hypotheses', async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const hypotheses = await investigationsRepository.getHypotheses(parseInt(id));
     res.json(hypotheses);
   } catch (error) {
@@ -211,7 +211,7 @@ router.get('/:id/hypotheses', async (req, res, next) => {
 
 router.post('/:id/hypotheses', authenticateRequest, async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const { title, description } = req.body;
     const newId = await investigationsRepository.addHypothesis(parseInt(id), {
       title,
@@ -266,7 +266,7 @@ router.delete(
   authenticateRequest,
   async (req, res, next) => {
     try {
-      const { hypId, evidenceId } = req.params;
+      const { hypId, evidenceId } = req.params as { hypId: string; evidenceId: string };
       await investigationsRepository.removeEvidenceFromHypothesis(
         parseInt(hypId),
         parseInt(evidenceId),

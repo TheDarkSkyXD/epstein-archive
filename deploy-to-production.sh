@@ -15,7 +15,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-PRODUCTION_SERVER="glasscode" # Use SSH alias 'glasscode'
+PRODUCTION_SERVER="194.195.248.217" # Using static IP instead of alias
 PRODUCTION_PORT="22"
 PRODUCTION_USER="deploy"
 PRODUCTION_PATH="/home/deploy/epstein-archive"

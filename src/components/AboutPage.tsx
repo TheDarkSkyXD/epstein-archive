@@ -896,10 +896,9 @@ export const AboutPage: React.FC = () => {
         </p>
         <div className="bg-blue-900/30 border border-blue-500/30 rounded-lg p-4 mt-4">
           <p className="text-blue-200 text-sm">
-            <strong>Latest Addition:</strong> January 18, 2026 - V10.10.0 Unredacted Corpus Quality
-            Pass. Re-ran the unified ingest + intelligence pipeline across DOJ discovery volumes and
-            core evidence collections, applying automated unredaction where safe, refreshing
-            relationships, and validating a 51k+ document corpus with 3.2M+ edges. System now
+            <strong>Latest Addition:</strong> February 2, 2026 - V12.0.0 Direct DOJ Dataset Integration.
+            Integrated and consolidated DOJ discovery volumes 10, 11, and 12, expanding the verified corpus
+            to over 51,000 documents with an Advanced Forensic Analysis Workspace. System now
             security and a{' '}
             <a
               href="https://github.com/ErikVeland/epstein-archive/tree/main/docs/data-governance-standards.md"
@@ -1152,7 +1151,7 @@ export const AboutPage: React.FC = () => {
 
       {/* Footer */}
       <div className="text-center text-slate-500 text-sm pt-8 border-t border-slate-700">
-        <p>Last updated: Jan 21, 2026</p>
+        <p>Last updated: Feb 2, 2026</p>
         <p className="mt-2">Built with transparency and accountability in mind</p>
       </div>
     </div>

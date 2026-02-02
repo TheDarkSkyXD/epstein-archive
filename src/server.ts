@@ -741,7 +741,7 @@ app.post('/api/users', authenticateRequest, requireRole('admin'), async (req, re
 // Update user (Admin only)
 app.put('/api/users/:id', authenticateRequest, requireRole('admin'), async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const { email, role, password } = req.body;
     const db = getDb();
 
@@ -786,7 +786,7 @@ app.put('/api/users/:id', authenticateRequest, requireRole('admin'), async (req,
 // Delete user (Admin only)
 app.delete('/api/users/:id', authenticateRequest, requireRole('admin'), async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const db = getDb();
 
     // Prevent self-deletion

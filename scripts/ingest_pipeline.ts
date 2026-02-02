@@ -146,7 +146,7 @@ const COLLECTIONS: CollectionConfig[] = [
     name: 'DOJ Data Set 9',
     rootPath: 'data/ingest/DOJVOL00009',
     description: '12,260 PDF files released Feb 1, 2026',
-    enabled: false,
+    enabled: true,
   },
   {
     name: 'DOJ Data Set 10',

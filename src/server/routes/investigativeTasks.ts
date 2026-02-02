@@ -198,7 +198,7 @@ router.patch('/:id/progress', authenticateRequest, async (req, res, next) => {
 // Get urgent tasks for the current user
 router.get('/urgent/:userId?', async (req, res, next) => {
   try {
-    const userId = req.params.userId || (req as any).user?.id;
+    const userId = (req.params as any).userId || (req as any).user?.id;
     const tasks = await taskService.getUrgentTasks(userId);
     res.json(tasks);
   } catch (error) {

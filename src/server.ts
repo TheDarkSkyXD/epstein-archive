@@ -4020,6 +4020,7 @@ app.get('*', async (req, res, next) => {
     const baseUrl = `${req.protocol}://${req.get('host')}`;
     const defaultOgImage = `${baseUrl}/og-image.png`;
     let html = fs.readFileSync(indexFile, 'utf8');
+    const routePath = req.path;
 
     try {
       // =================================================================
@@ -4214,7 +4215,7 @@ app.get('*', async (req, res, next) => {
       }
 
       // Route-based OG tags for specific pages
-      const routePath = req.path;
+      // Route-based OG tags for specific pages
 
       // Timeline
       if (routePath === '/timeline' || routePath.startsWith('/timeline')) {

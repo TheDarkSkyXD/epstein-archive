@@ -7,13 +7,13 @@ from urllib.parse import urljoin, unquote
 
 # Configuration
 BASE_URL = "https://www.justice.gov"
-OUTPUT_DIR = "doj_epstein_pdfs"
+OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "ingest")
 DELAY_BETWEEN_REQUESTS = 1.0  # Seconds
 DATA_SETS = [
-    # {"name": "data-set-9", "url": "https://www.justice.gov/epstein/doj-disclosures/data-set-9-files", "json": None},
-    {"name": "data-set-10", "url": "https://www.justice.gov/epstein/doj-disclosures/data-set-10-files", "json": "dataset_10_links.json"},
-    {"name": "data-set-11", "url": "https://www.justice.gov/epstein/doj-disclosures/data-set-11-video-files", "json": "dataset_11_links.json"},
-    # {"name": "data-set-12", "url": "https://www.justice.gov/epstein/doj-disclosures/data-set-12-files", "json": "dataset_12_links.json"},
+    # {"name": "DOJVOL00009", "url": "https://www.justice.gov/epstein/doj-disclosures/data-set-9-files", "json": None},
+    {"name": "DOJVOL00010", "url": "https://www.justice.gov/epstein/doj-disclosures/data-set-10-files", "json": os.path.join(OUTPUT_DIR, "dataset_10_links.json")},
+    {"name": "DOJVOL00011", "url": "https://www.justice.gov/epstein/doj-disclosures/data-set-11-video-files", "json": os.path.join(OUTPUT_DIR, "dataset_11_links.json")},
+    # {"name": "DOJVOL00012", "url": "https://www.justice.gov/epstein/doj-disclosures/data-set-12-files", "json": os.path.join(OUTPUT_DIR, "dataset_12_links.json")},
 ]
 
 # Captured from Browser Agent (2026-02-01)
@@ -82,15 +82,10 @@ def process_data_set(session, data_set):
         print(f"  ❌ No JSON file configured for {data_set['name']}")
         return
 
-    # Check local dir first, then Downloads
+    # Check local dir first
     json_path = json_filename
     if not os.path.exists(json_path):
-        # Fallback to checking Downloads folder
-        downloads_path = os.path.expanduser(f"~/Downloads/{json_filename}")
-        if os.path.exists(downloads_path):
-            json_path = downloads_path
-        else:
-             print(f"  ❌ {json_filename} not found in current dir or Downloads!")
+             print(f"  ❌ {json_filename} not found!")
              return
 
     with open(json_path, 'r') as f:

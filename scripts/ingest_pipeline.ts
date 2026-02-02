@@ -126,19 +126,19 @@ const COLLECTIONS: CollectionConfig[] = [
   },
   {
     name: 'DOJ Data Set 9',
-    rootPath: '/Users/veland/Downloads/doj_epstein_pdfs/data-set-9', // External path to downloaded files
+    rootPath: 'data/ingest/DOJVOL00009',
     description: '12,260 PDF files released Feb 1, 2026',
     enabled: false,
   },
   {
     name: 'DOJ Data Set 10',
-    rootPath: '/Users/veland/Downloads/doj_epstein_pdfs/data-set-10',
+    rootPath: 'data/ingest/DOJVOL00010',
     description: 'Data Set 10 from DOJ',
     enabled: true,
   },
   {
     name: 'DOJ Data Set 11',
-    rootPath: '/Users/veland/Downloads/doj_epstein_pdfs/data-set-11',
+    rootPath: 'data/ingest/DOJVOL00011',
     description: 'Data Set 11 (Videos) from DOJ',
     enabled: true,
   },

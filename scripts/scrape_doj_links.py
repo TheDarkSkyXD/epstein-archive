@@ -7,32 +7,27 @@ import random
 
 # Configuration
 BASE_URL = "https://www.justice.gov"
+OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "ingest")
+# Ensure directory exists
+if not os.path.exists(OUTPUT_DIR):
+    os.makedirs(OUTPUT_DIR)
+
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.5",
-    "Accept-Encoding": "gzip, deflate, br",
-    "DNT": "1",
-    "Connection": "keep-alive",
-    "Upgrade-Insecure-Requests": "1",
-    "Sec-Fetch-Dest": "document",
-    "Sec-Fetch-Mode": "navigate",
-    "Sec-Fetch-Site": "none",
-    "Sec-Fetch-User": "?1",
-    # "Cookie": "justiceGovAgeVerified=true" # Often better to let the session set cookies
 }
 
 DATASETS = [
     {
         "name": "dataset_10",
         "url_base": "https://www.justice.gov/epstein/doj-disclosures/data-set-10-files?page=",
-        "output_file": "dataset_10_links.json",
+        "output_file": os.path.join(OUTPUT_DIR, "dataset_10_links.json"),
         "link_pattern": "/files/DataSet%2010/"
     },
     {
         "name": "dataset_11",
         "url_base": "https://www.justice.gov/epstein/doj-disclosures/data-set-11-files?page=",
-        "output_file": "dataset_11_links.json",
+        "output_file": os.path.join(OUTPUT_DIR, "dataset_11_links.json"),
         "link_pattern": "/files/DataSet%2011/"
     }
 ]

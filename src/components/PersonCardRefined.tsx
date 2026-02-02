@@ -141,16 +141,18 @@ export const PersonCardRefined: React.FC<PersonCardProps> = ({
         </div>
 
         {/* Right: Stats (Stacked on mobile, aligned right on desktop) */}
-        <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 pl-12 sm:pl-0">
-          <RedFlagIndex
-            value={person.red_flag_rating !== undefined ? person.red_flag_rating : 0}
-            size="sm"
-            showLabel
-            variant="combined"
-            showTextLabel={true}
-          />
+        <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 sm:gap-1 pl-[3.5rem] sm:pl-0 mt-3 sm:mt-0 w-full sm:w-auto">
+          <div className="flex items-center gap-2">
+            <RedFlagIndex
+              value={person.red_flag_rating !== undefined ? person.red_flag_rating : 0}
+              size="sm"
+              showLabel
+              variant="combined"
+              showTextLabel={true}
+            />
+          </div>
 
-          <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
+          <div className="flex items-center gap-3 text-xs text-slate-500 sm:mt-1">
             <div className="flex items-center">
               <Icon name="TrendingUp" size="xs" className="h-3 w-3 mr-1" />
               <span>{person.mentions} mentions</span>
@@ -161,27 +163,42 @@ export const PersonCardRefined: React.FC<PersonCardProps> = ({
 
       {/* Evidence types badges */}
       {person.evidence_types && person.evidence_types.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-4 pl-0 sm:pl-[3.25rem]">
+        <div className="flex flex-wrap gap-2 mb-3 pl-[3.5rem]">
           {person.evidence_types.slice(0, 3).map((type, index) => (
             <span
               key={index}
-              className="px-2 py-0.5 bg-slate-800 border border-slate-700 text-slate-300 rounded-full text-xs font-medium uppercase tracking-wide"
+              className="px-2 py-0.5 bg-slate-800 border border-slate-700 text-slate-300 rounded-full text-[10px] font-medium uppercase tracking-wide"
             >
               {type.replace('_', ' ')}
             </span>
           ))}
           {person.evidence_types.length > 3 && (
-            <span className="px-2 py-0.5 bg-slate-800/50 text-slate-500 rounded-full text-xs font-medium">
+            <span className="px-2 py-0.5 bg-slate-800/50 text-slate-500 rounded-full text-[10px] font-medium">
               +{person.evidence_types.length - 3}
             </span>
           )}
         </div>
       )}
 
+      {/* Bio Section */}
+      {person.bio && (
+        <div className="bg-slate-800/30 rounded-lg p-3 mb-3 ml-[3.5rem] border border-slate-700/30">
+          <p className="text-sm text-slate-300 leading-relaxed line-clamp-4 break-words font-medium">
+            {searchTerm ? renderHighlightedText(person.bio, searchTerm) : person.bio}
+          </p>
+          {(person.birthDate || person.deathDate) && (
+            <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
+              {person.birthDate && <span>Born: {person.birthDate}</span>}
+              {person.deathDate && <span>Died: {person.deathDate}</span>}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Key Evidence Preview */}
       {person.red_flag_description && (
-        <div className="bg-slate-800/30 rounded-lg p-3 mb-4 ml-0 sm:ml-[3.25rem] border border-slate-700/30">
-          <p className="text-sm text-slate-400 leading-relaxed line-clamp-2 break-all">
+        <div className="bg-slate-800/30 rounded-lg p-3 mb-4 ml-[3.5rem] border border-slate-700/30">
+          <p className="text-sm text-slate-400 leading-relaxed line-clamp-3 break-words italic">
             {searchTerm
               ? renderHighlightedText(person.red_flag_description, searchTerm)
               : person.red_flag_description}
@@ -190,7 +207,7 @@ export const PersonCardRefined: React.FC<PersonCardProps> = ({
       )}
 
       {/* Action Footer */}
-      <div className="flex items-center justify-between pt-4 border-t border-slate-800 pl-0 sm:pl-[3.25rem]">
+      <div className="flex items-center justify-between pt-3 border-t border-slate-800 pl-[3.5rem]">
         <div className="flex items-center space-x-2 text-xs text-slate-500 font-medium">
           <Icon name="FileText" size="sm" className="h-3.5 w-3.5" />
           <span>
@@ -202,10 +219,10 @@ export const PersonCardRefined: React.FC<PersonCardProps> = ({
             documents
           </span>
         </div>
-        <button className="flex items-center gap-1 text-blue-400 text-xs font-medium hover:text-blue-300 transition-colors bg-blue-500/10 hover:bg-blue-500/20 px-3 py-1.5 rounded-full border border-blue-500/20">
+        <div className="flex items-center gap-1 text-blue-400 text-xs font-medium hover:text-blue-300 transition-colors bg-blue-500/10 hover:bg-blue-500/20 px-3 py-1.5 rounded-full border border-blue-500/20">
           View Details
           <ArrowRight className="w-3 h-3" />
-        </button>
+        </div>
       </div>
     </BaseCard>
   );

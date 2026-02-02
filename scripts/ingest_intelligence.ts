@@ -52,7 +52,7 @@ import { isJunkEntity } from './filters/entityFilters';
 import { resolveAmbiguity } from './filters/contextRules';
 import { resolveVip, VIP_RULES } from './filters/vipRules';
 
-const JUNK_REGEX = ENTITY_BLACKLIST_REGEX;
+// const JUNK_REGEX = ENTITY_BLACKLIST_REGEX;
 
 // Entity Normalizer
 function normalizeName(name: string): string {
@@ -82,7 +82,7 @@ function rebuildEntityPipeline() {
   console.log('🚀 Starting ULTIMATE Entity Ingestion Pipeline...');
 
   const insertEntity = db.prepare(
-    'INSERT INTO entities (full_name, entity_type, red_flag_rating) VALUES (?, ?, ?)',
+    'INSERT INTO entities (full_name, entity_type, red_flag_rating, risk_level, entity_category, death_date, notes, bio, birth_date, aliases) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
   );
   // Check existing entity_mentions schema to see if extended columns are present.
   const mentionsColumns = db.prepare('PRAGMA table_info(entity_mentions)').all() as {
@@ -207,8 +207,85 @@ function rebuildEntityPipeline() {
   console.log(
     `🧠 Loaded ${entityCache.size} existing entities into memory (blocking keys: ${lastNameIndex.size}).`,
   );
+  // 2. Sync VIP Entities (Force Update/Insert)
+  console.log('👑 Syncing VIP entities...');
+  const updateEntity = db.prepare(
+    'UPDATE entities SET entity_category = ?, risk_level = ?, death_date = ?, notes = ?, red_flag_rating = ?, bio = ?, birth_date = ?, aliases = ? WHERE id = ?',
+  );
 
-  // 2. Fetch Unanalyzed Documents
+  let syncedVips = 0;
+  for (const rule of VIP_RULES) {
+    const lower = normalizeName(rule.canonicalName).toLowerCase();
+    let id = entityCache.get(lower);
+
+    let riskLevel: string | null = null;
+    let category: string | null = null;
+    let deathDate: string | null = null;
+    let notes: string | null = null;
+    let bio: string | null = null;
+    let birthDate: string | null = null;
+    let redFlagRating = 1;
+
+    if (rule.metadata) {
+      riskLevel = rule.metadata.riskLevel || null;
+      category = rule.metadata.category || null;
+      deathDate = rule.metadata.deathDate || null;
+      notes = rule.metadata.notes || null;
+      bio = rule.metadata.bio || null;
+      birthDate = rule.metadata.birthDate || null;
+
+      if (riskLevel === 'high') redFlagRating = 3;
+      else if (riskLevel === 'medium') redFlagRating = 2;
+    }
+
+    const aliasesStr = rule.aliases ? rule.aliases.join(',') : null;
+
+    if (id) {
+      // Update
+      updateEntity.run(
+        category,
+        riskLevel,
+        deathDate,
+        notes,
+        redFlagRating,
+        bio,
+        birthDate,
+        aliasesStr,
+        id,
+      );
+    } else {
+      // Insert
+      try {
+        const res = insertEntity.run(
+          rule.canonicalName,
+          rule.type,
+          redFlagRating,
+          riskLevel,
+          category,
+          deathDate,
+          notes,
+          bio,
+          birthDate,
+          aliasesStr,
+        );
+        id = Number(res.lastInsertRowid);
+        entityCache.set(lower, id);
+        // Also index aliases
+        if (rule.aliases) {
+          rule.aliases.forEach((alias) => {
+            entityCache.set(normalizeName(alias).toLowerCase(), id!);
+          });
+        }
+        addToLastNameIndex(id, rule.canonicalName, rule.type);
+      } catch (e) {
+        console.error(`Failed to insert VIP ${rule.canonicalName}:`, e);
+      }
+    }
+    syncedVips++;
+  }
+  console.log(`✅ Synced ${syncedVips} VIP entities.`);
+
+  // 3. Fetch Unanalyzed Documents
   // Process in batches
   let hasMoreDocs = true;
   while (hasMoreDocs) {
@@ -329,8 +406,42 @@ function rebuildEntityPipeline() {
 
             if (entityType === 'Other') continue;
 
+            // Extract Metadata from VIP Rules if available
+            let riskLevel: string | null = null;
+            let category: string | null = null;
+            let deathDate: string | null = null;
+            let notes: string | null = null;
+            let bio: string | null = null;
+            let birthDate: string | null = null;
+            let redFlagRating = 1;
+
+            if (vipResolution) {
+              const rule = VIP_RULES.find((r) => r.canonicalName === vipResolution);
+              if (rule && rule.metadata) {
+                riskLevel = rule.metadata.riskLevel || null;
+                category = rule.metadata.category || null;
+                deathDate = rule.metadata.deathDate || null;
+                notes = rule.metadata.notes || null;
+                bio = rule.metadata.bio || null;
+                birthDate = rule.metadata.birthDate || null;
+
+                if (riskLevel === 'high') redFlagRating = 3;
+                else if (riskLevel === 'medium') redFlagRating = 2;
+              }
+            }
+
             try {
-              const res = insertEntity.run(resolvedName, entityType, 1);
+              const res = insertEntity.run(
+                resolvedName,
+                entityType,
+                redFlagRating,
+                riskLevel,
+                category,
+                deathDate,
+                notes,
+                bio,
+                birthDate,
+              );
               entityId = Number(res.lastInsertRowid);
               entityCache.set(lowerName, entityId);
               newEntities++;

@@ -53,6 +53,9 @@ export interface Person {
     content?: string;
     contentPreview?: string;
   }[];
+  bio?: string; // Short biography
+  birthDate?: string;
+  deathDate?: string;
   photos?: {
     id: string;
     filePath: string;

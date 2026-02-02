@@ -31,6 +31,7 @@ export const SensitiveSettingsProvider: React.FC<{ children: React.ReactNode }> 
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useSensitiveSettings = () => {
   const context = useContext(SensitiveSettingsContext);
   if (!context) {

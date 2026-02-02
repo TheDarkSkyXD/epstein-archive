@@ -9,7 +9,6 @@ import {
   AlertTriangle,
   Eye,
   Download,
-  ExternalLink,
   Newspaper,
 } from 'lucide-react';
 
@@ -247,6 +246,12 @@ const timelineEvents = [
     source: 'Epstein Archive',
     content:
       'V11.5.0: "The Trump Rule" & "The Riley Rule". Implemented context-aware entity resolution and VIP auto-consolidation.',
+  },
+  {
+    date: 'Feb 02, 2026',
+    source: 'Epstein Archive',
+    content:
+      'V11.7.0: "Codeword Discovery" & Bio Integration. Added term recognition for circle codewords and rich biographical data.',
   },
 ];
 

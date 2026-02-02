@@ -264,6 +264,7 @@ export const MemoryProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 };
 
 // Custom hook to use the memory context
+// eslint-disable-next-line react-refresh/only-export-components
 export const useMemory = (): MemoryContextType => {
   const context = useContext(MemoryContext);
   if (context === undefined) {

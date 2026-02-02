@@ -17,7 +17,9 @@
 
 import Database from 'better-sqlite3';
 import { join, basename, extname } from 'path';
-import { statSync, readFileSync, existsSync, mkdtempSync } from 'fs';
+import * as path from 'path';
+import { statSync, readFileSync, existsSync, mkdtempSync, mkdirSync, copyFileSync } from 'fs';
+import * as fs from 'fs';
 import { tmpdir } from 'os';
 import { globSync } from 'glob';
 import { createRequire } from 'module';
@@ -25,8 +27,12 @@ const require = createRequire(import.meta.url);
 const pdfParse = require('pdf-parse');
 import * as crypto from 'crypto';
 import { execFile } from 'child_process';
+import sharp from 'sharp';
 
 import { createWorker } from 'tesseract.js';
+import { simpleParser } from 'mailparser';
+import { convert } from 'html-to-text';
+import { RedactionResolver } from '../src/server/services/RedactionResolver.js';
 
 // ============================================================================
 // CONFIGURATION
@@ -115,9 +121,21 @@ const COLLECTIONS: CollectionConfig[] = [
     enabled: true,
   },
   {
-    name: 'Evidence Images',
+    name: 'Evidence',
     rootPath: 'data/media/images/Evidence',
     description: 'Miscellaneous evidence images',
+    enabled: true,
+  },
+  {
+    name: 'Confirmed Fake',
+    rootPath: 'data/media/images/Confirmed Fake',
+    description: 'Images confirmed to be fake/AI generated',
+    enabled: true,
+  },
+  {
+    name: 'Unconfirmed Claims',
+    rootPath: 'data/media/images/Unconfirmed Claims',
+    description: 'Images with unverified claims',
     enabled: true,
   },
 ];
@@ -236,6 +254,76 @@ async function maybeUnredactPdf(originalPath: string): Promise<string> {
 }
 
 // ============================================================================
+// WATERMARKING
+// ============================================================================
+
+async function applyWatermark(filePath: string, collectionName: string): Promise<void> {
+  // Only target specific collections
+  if (collectionName !== 'Confirmed Fake' && collectionName !== 'Unconfirmed Claims') return;
+
+  // Only verify images
+  const ext = extname(filePath).toLowerCase();
+  if (!['.jpg', '.jpeg', '.png', '.webp'].includes(ext)) return;
+
+  const dir = join(process.cwd(), path.dirname(filePath)); // ensure absolute or relative to cwd
+  const filename = basename(filePath);
+  // Backup handling to prevent double-watermarking
+  // We assume the existence of a backup means "already processed"
+  // The backup folder should be inside the collection folder
+  const backupDir = join(path.dirname(filePath), '_backup');
+  const backupPath = join(backupDir, filename);
+
+  console.log(`   🔒 Applying watermark to new image: ${filename}`);
+
+  try {
+    // Create backup
+    if (!existsSync(backupDir)) {
+      mkdirSync(backupDir, { recursive: true });
+    }
+    copyFileSync(filePath, backupPath);
+
+    // Apply watermark with sharp
+    const metadata = await sharp(filePath).metadata();
+    const width = metadata.width || 1000;
+    const height = metadata.height || 1000;
+
+    // Calculate font size relative to image width
+    const fontSize = Math.floor(width * 0.15); // 15% of width
+
+    // Create SVG overlay
+    const svgImage = `
+      <svg width="${width}" height="${height}">
+        <style>
+          .title { fill: rgba(255, 0, 0, 0.5); font-size: ${fontSize}px; font-weight: bold; font-family: sans-serif; }
+        </style>
+        <text x="50%" y="50%" text-anchor="middle" dy=".3em" class="title" transform="rotate(-45, ${width / 2}, ${height / 2})">FAKE</text>
+      </svg>
+    `;
+
+    // Composite and overwrite
+    await sharp(filePath)
+      .composite([{ input: Buffer.from(svgImage), top: 0, left: 0 }])
+      .toFile(filePath + '.tmp'); // Write to tmp first
+
+    // Move tmp to original
+    // Use fs.renameSync or copyFileSync? Node's fs.renameSync is atomic-ish.
+    const { renameSync } = require('fs');
+    renameSync(filePath + '.tmp', filePath);
+
+    console.log(`   ✅ Watermark applied successfully.`);
+  } catch (e) {
+    console.error('   ❌ Failed to apply watermark:', e);
+    // If failed, we might want to restore from backup or just leave it?
+    // Leaving it implies it might be broken or partial.
+    // If backup exists, we can restore.
+    if (existsSync(backupPath)) {
+      copyFileSync(backupPath, filePath);
+      console.log('   ↩️  Restored original file from backup.');
+    }
+  }
+}
+
+// ============================================================================
 // DOCUMENT INGESTION
 // ============================================================================
 
@@ -245,7 +333,7 @@ interface ProcessedDocument {
   error?: string;
 }
 
-async function estimateTextCoverage(text: string, pageCount: number): number {
+async function estimateTextCoverage(text: string, pageCount: number): Promise<number> {
   if (!text || pageCount <= 0) return 0;
   // Very rough heuristic: words per page, capped to avoid extreme outliers
   const words = (text.match(/\b[\w']+\b/g) || []).length;
@@ -281,6 +369,66 @@ function buildBaselineVocab(text: string): string {
   return result.join(' ');
 }
 
+async function processEmail(filePath: string): Promise<{
+  content: string;
+  metadata: any;
+  date?: string;
+}> {
+  try {
+    const rawContent = await fs.promises.readFile(filePath);
+    const parsed = await simpleParser(rawContent);
+
+    // Prefer text body, fallback to html-to-text
+    let textBody = parsed.text;
+    if (!textBody && parsed.html) {
+      textBody = convert(parsed.html, {
+        wordwrap: 130,
+      });
+    }
+
+    // Fallback to raw string if parsing failed completely but we have content
+    if (!textBody && !parsed.html) {
+      textBody = rawContent.toString('utf-8');
+    }
+
+    const cleanText = textBody || '';
+
+    // Extract metadata
+    const metadata = {
+      from: parsed.from?.text || '',
+      to: parsed.to?.text || '',
+      subject: parsed.subject || '',
+      date: parsed.date ? parsed.date.toISOString() : undefined,
+      cc: parsed.cc?.text || '',
+      messageId: parsed.messageId || '',
+      inReplyTo: parsed.inReplyTo || '',
+    };
+
+    // Apply Redaction Resolver
+    const resolution = RedactionResolver.resolve(cleanText, {
+      sender: metadata.from,
+      receiver: metadata.to,
+      subject: metadata.subject,
+      date: metadata.date,
+    });
+
+    return {
+      content: resolution.resolvedText,
+      metadata,
+      date: metadata.date,
+    };
+  } catch (error) {
+    console.warn(`  ⚠️  Email parsing failed for ${path.basename(filePath)}:`, error);
+    // Fallback to raw text read if parser crashes
+    const raw = await fs.promises.readFile(filePath, 'utf-8');
+    return {
+      content: raw,
+      metadata: { error: 'Parse failed' },
+      date: undefined,
+    };
+  }
+}
+
 async function processDocument(
   filePath: string,
   collection: CollectionConfig,
@@ -292,6 +440,9 @@ async function processDocument(
     if (existing) {
       return { success: true, documentId: (existing as any).id };
     }
+
+    // Apply watermark if needed (BEFORE reading usage stats)
+    await applyWatermark(filePath, collection.name);
 
     const stats = statSync(filePath);
     const buffer = readFileSync(filePath);
@@ -306,6 +457,8 @@ async function processDocument(
     let redactionCoverageAfter: number | null = null;
     let unredactedTextGain: number | null = null;
     let unredactionBaselineVocab: string | null = null;
+    let evidenceType: string | null = null;
+    const meta: { metadata_json?: string; date_created?: string } = {};
 
     // Extract text based on file type
     if (ext === '.pdf') {
@@ -346,6 +499,14 @@ async function processDocument(
       const result = await extractTextFromImage(filePath);
       content = result.text;
       pageCount = result.pageCount;
+    } else if (['.eml', '.msg'].includes(ext)) {
+      const result = await processEmail(filePath);
+      content = result.content;
+      meta.metadata_json = JSON.stringify(result.metadata);
+      if (result.date) {
+        meta.date_created = result.date;
+      }
+      evidenceType = 'email'; // Explicitly set type
     } else {
       // For other file types, mark as unprocessed
       content = `[${ext.toUpperCase()} FILE - OCR NOT YET PROCESSED]`;
@@ -356,6 +517,24 @@ async function processDocument(
     const contentPreview = content.substring(0, 500);
     const wordCount = content ? (content.match(/\b[\w']+\b/g) || []).length : 0;
     const fileType = ext.replace('.', '').toUpperCase();
+
+    // Initial metadata object
+    let metadataObj: any = {
+      originalFilename: basename(filePath),
+      size: stats.size,
+      mtime: stats.mtime,
+      collection: collection.name,
+    };
+
+    // Merge if we have extra metadata (e.g. from email parsing)
+    if (meta.metadata_json) {
+      try {
+        const parsed = JSON.parse(meta.metadata_json);
+        metadataObj = { ...metadataObj, ...parsed };
+      } catch (e) {
+        // ignore invalid json
+      }
+    }
 
     // Insert into database
     const result = db
@@ -371,8 +550,9 @@ async function processDocument(
                 redaction_coverage_before,
                 redaction_coverage_after,
                 unredacted_text_gain,
-                unredaction_baseline_vocab
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, ?, ?, ?)
+                unredaction_baseline_vocab,
+                evidence_type
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, ?, ?, ?, ?)
         `,
       )
       .run(
@@ -382,12 +562,7 @@ async function processDocument(
         collection.name,
         hash,
         pageCount,
-        JSON.stringify({
-          originalFilename: basename(filePath),
-          size: stats.size,
-          mtime: stats.mtime,
-          collection: collection.name,
-        }),
+        JSON.stringify(metadataObj),
         0,
         contentPreview,
         fileType,
@@ -399,6 +574,7 @@ async function processDocument(
         redactionCoverageAfter,
         unredactedTextGain,
         unredactionBaselineVocab,
+        evidenceType,
       );
 
     return { success: true, documentId: Number(result.lastInsertRowid) };

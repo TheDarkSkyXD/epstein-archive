@@ -17,7 +17,8 @@ export type EntityType =
   | 'Event'
   | 'FinancialEntity'
   | 'Law'
-  | 'Topic';
+  | 'Topic'
+  | 'Term';
 
 // Map entity types to appropriate Lucide icons
 export const ENTITY_TYPE_ICONS: Record<EntityType, string> = {
@@ -28,6 +29,7 @@ export const ENTITY_TYPE_ICONS: Record<EntityType, string> = {
   Event: 'Calendar',
   Law: 'Scale',
   Topic: 'Hash',
+  Term: 'Key',
   Date: 'Calendar',
   FinancialEntity: 'DollarSign',
 };

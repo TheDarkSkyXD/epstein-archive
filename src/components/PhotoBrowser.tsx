@@ -1057,11 +1057,18 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
 
         {/* Main Content */}
         <div className="flex-1 bg-slate-950 flex flex-col overflow-hidden relative">
-          {loading ? (
+          {loading && images.length === 0 ? (
             <div className="absolute inset-0 flex items-center justify-center z-20 bg-slate-950/50 backdrop-blur-sm pointer-events-none">
               <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
             </div>
           ) : null}
+
+          {/* Discreet loading indicator for updates */}
+          {loading && images.length > 0 && (
+            <div className="absolute top-4 right-4 z-20">
+              <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-cyan-400 drop-shadow-md"></div>
+            </div>
+          )}
 
           {/* Warning Banner for Fake/Unconfirmed Albums */}
           {selectedAlbum &&

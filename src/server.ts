@@ -4137,7 +4137,6 @@ app.get('*', async (req, res, next) => {
         const article = getArticleById(articleId as string);
         if (article) {
           const articleTitle = article.title || 'Article';
-          const pub = article.source || article.publication || 'Unknown Publication';
           const summary =
             article.description ||
             article.summary ||

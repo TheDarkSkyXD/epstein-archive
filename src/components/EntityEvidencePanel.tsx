@@ -421,7 +421,7 @@ export const EntityEvidencePanel: React.FC<EntityEvidencePanelProps> = ({
                     <p className="text-sm text-slate-400 line-clamp-2 mb-2">{item.description}</p>
                   )}
                   {item.context_snippet && (
-                    <p className="text-xs text-slate-400 italic bg-yellow-900/20 p-2 rounded border-l-2 border-yellow-600/50 text-yellow-200/90">
+                    <p className="text-xs text-slate-400 italic bg-yellow-900/20 p-2 rounded border-l-2 border-yellow-600/50 text-yellow-200/90 break-words">
                       "{item.context_snippet}"
                     </p>
                   )}

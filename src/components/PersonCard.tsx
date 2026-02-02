@@ -139,10 +139,16 @@ const PersonCard: React.FC<PersonCardProps> = ({
           </div>
         )}
       </div>
+      {/* Bio */}
+      {person.bio && (
+        <p className="text-xs text-slate-300 leading-relaxed line-clamp-3 mb-2 font-medium break-words">
+          {searchTerm ? highlightText(person.bio, searchTerm) : person.bio}
+        </p>
+      )}
       {/* Description - truncated to 2 lines */}
       {person.red_flag_description && (
         // Code to remove the prefix if present
-        <p className="text-xs text-slate-300 leading-relaxed line-clamp-2 mb-3">
+        <p className="text-xs text-slate-300 leading-relaxed line-clamp-2 mb-3 break-words">
           {searchTerm
             ? highlightText(
                 person.red_flag_description.replace(/^Red Flag Index \d+[\s:-]*/i, ''),

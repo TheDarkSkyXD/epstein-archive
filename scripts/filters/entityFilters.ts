@@ -78,7 +78,7 @@ const JUNK_PHRASES = new Set([
   'st. james',
   'little st. james',
   'great st. james',
-  'zorro',
+  // 'zorro', // Removed to allow codename detection
   'je',
   'gm',
   'monday',

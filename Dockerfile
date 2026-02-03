@@ -54,4 +54,4 @@ VOLUME /data
 EXPOSE 3012
 
 # Start the server
-CMD ["npm", "start"]
+CMD ["pnpm", "start"]

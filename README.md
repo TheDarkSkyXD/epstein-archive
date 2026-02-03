@@ -25,20 +25,20 @@
 
 ```bash
 # Install dependencies
-npm install
+pnpm install
 
 # Start development server (Frontend + API)
-npm run dev
+pnpm dev
 ```
 
 ### Production Build
 
 ```bash
 # Build for production
-npm run build:prod
+pnpm build:prod
 
 # Start production server
-npm run start
+pnpm start
 ```
 
 ## ✨ Features
@@ -61,7 +61,7 @@ npm run start
 
 ## 🛠️ Deployment
 
-The project includes a robust deployment script `deploy-to-production.sh` that handles:
+The project includes a robust deployment script `deploy.sh` that handles:
 
 1.  **Verification**: Checks schema integrity and configuration.
 2.  **Backup**: Creates remote backups of code and database.
@@ -70,7 +70,7 @@ The project includes a robust deployment script `deploy-to-production.sh` that h
 
 ```bash
 # Deploy to production
-./deploy-to-production.sh
+./deploy.sh
 ```
 
 ## 📂 Project Structure

@@ -6,6 +6,7 @@ import { VideoPlayer } from './VideoPlayer';
 import { Play, Calendar, CheckSquare, AlertTriangle, Clock } from 'lucide-react';
 import { SensitiveContent } from './SensitiveContent';
 import BatchToolbar from './BatchToolbar';
+import { SensitiveWarningBanner } from './shared/SensitiveWarningBanner';
 import Icon from './Icon';
 
 interface VideoItem {
@@ -467,20 +468,7 @@ export const VideoBrowser: React.FC = () => {
           ) : null}
 
           {/* Sensitive Content Warning Banner */}
-          {showSensitiveWarning && (
-            <div className="bg-red-900/80 border-b border-red-700 px-4 py-3 flex items-start gap-3">
-              <AlertTriangle className="text-red-400 shrink-0 mt-0.5" size={20} />
-              <div>
-                <h4 className="text-red-200 font-bold text-sm uppercase tracking-wider">
-                  Sensitive & Disturbing Content
-                </h4>
-                <p className="text-red-300/90 text-sm mt-1">
-                  This album contains video testimony from victims and survivors. Content may be
-                  graphic, traumatic, and disturbing. Viewer discretion is strongly advised.
-                </p>
-              </div>
-            </div>
-          )}
+          {showSensitiveWarning && <SensitiveWarningBanner mediaType="video" />}
 
           {error && (
             <div className="bg-red-900/20 border border-red-500/50 text-red-200 p-4 mx-6 mt-6 rounded-lg">

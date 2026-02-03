@@ -113,8 +113,8 @@ pnpm run api      # Alias for server
 ```bash
 pnpm build        # Build frontend only
 pnpm build:prod   # Build frontend AND backend (to /dist)
-./scripts/deploy.sh # **SINGLE SOURCE OF TRUTH** for Production Deployment
-./scripts/safe_db_upload.sh # **DB ONLY** Safe Atomic Swap
+./deploy.sh       # **SINGLE SOURCE OF TRUTH** for Production Deployment
+./deploy.sh --db-only # **DB ONLY** Safe Atomic Swap
 ```
 
 **Database**

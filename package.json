@@ -1,7 +1,7 @@
 {
   "name": "epstein-archive",
   "private": true,
-  "version": "12.1.5",
+  "version": "12.2.0",
   "description": "Epstein Archive Analyzer",
   "type": "module",
   "scripts": {
@@ -20,7 +20,7 @@
     "seed:sascha-investigation": "DB_PATH=./epstein-archive.db tsx scripts/create_sascha_investigation.ts",
     "seed:katie-videos": "DB_PATH=./epstein-archive.db KJ_VIDEO_ROOT=./data/media/videos/KatieJohnson tsx scripts/ingest_katie_videos.ts",
     "db:merge": "tsx scripts/sync-db.ts",
-    "db:push": "./scripts/deploy_safe.sh",
+    "db:push": "./deploy.sh --db-only",
     "db:pull": "./scripts/sync_down_safe.sh",
     "db:optimize": "tsx scripts/maintenance.ts",
     "lint": "eslint . --ext .ts,.tsx",
@@ -29,7 +29,7 @@
     "format:check": "prettier --check .",
     "type-check": "tsc --noEmit",
     "test:smoke": "tsx scripts/smoke-tests.ts",
-    "deploy:prod": "./deploy-to-production.sh",
+    "deploy:prod": "./deploy.sh",
     "prepare": "husky"
   },
   "dependencies": {
@@ -71,6 +71,7 @@
     "open": "^11.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-helmet-async": "^2.0.5",
     "react-leaflet": "^4.2.1",
     "react-pdf": "^10.2.0",
     "react-router-dom": "^6.22.3",

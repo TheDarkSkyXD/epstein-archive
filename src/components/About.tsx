@@ -14,6 +14,9 @@ import { optimizedDataService } from '../services/OptimizedDataService';
 
 export const About: React.FC = () => {
   const [stats, setStats] = React.useState<{ total: number; released: number } | null>(null);
+  const [ingestionStats, setIngestionStats] = React.useState<
+    { source_collection: string; count: number }[]
+  >([]);
 
   React.useEffect(() => {
     const fetchStats = async () => {
@@ -23,8 +26,11 @@ export const About: React.FC = () => {
           // Assuming 5.2m is the hardcoded total for now as requested
           setStats({
             total: 5200000,
-            released: data.documents,
+            released: data.totalDocuments || data.documents || 0,
           });
+          if (data.collectionCounts) {
+            setIngestionStats(data.collectionCounts);
+          }
         }
       } catch (e) {
         console.error('Failed to fetch stats', e);
@@ -35,6 +41,14 @@ export const About: React.FC = () => {
 
   const percentage = stats ? ((stats.released / stats.total) * 100).toFixed(4) : '0';
 
+  // Hardcoded expected values for progress bars
+  const DOJ_TARGETS = [
+    { name: 'DOJ Data Set 9', label: 'DOJ Vol. 9', target: 284246 },
+    { name: 'DOJ Data Set 10', label: 'DOJ Vol. 10', target: 282820 },
+    { name: 'DOJ Data Set 11', label: 'DOJ Vol. 11', target: 170478 },
+    { name: 'DOJ Data Set 12', label: 'DOJ Vol. 12', target: 152 },
+  ];
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       {/* Header */}
@@ -43,7 +57,7 @@ export const About: React.FC = () => {
           Epstein Archive Investigation Platform
         </h1>
         <p className="text-xl text-slate-400 mb-6">
-          Version 12.1.2 - DOJ Datasets 9-12 Ingested (107K Documents)
+          Version 12.2.0 - DOJ Datasets 9-12 Ingestion In Progress
         </p>
 
         {stats && (
@@ -72,6 +86,47 @@ export const About: React.FC = () => {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Ingestion Progress Section */}
+      <div className="bg-slate-800/50 rounded-xl p-8 mb-8 border border-slate-700">
+        <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+          <Database className="h-6 w-6 text-purple-500" />
+          DOJ Disclosure Ingestion Status
+        </h2>
+        <div className="space-y-6">
+          {DOJ_TARGETS.map((dataset) => {
+            const current =
+              ingestionStats.find((s) => s.source_collection === dataset.name)?.count || 0;
+            const percent = Math.min(100, (current / dataset.target) * 100);
+            const isComplete = current >= dataset.target;
+
+            return (
+              <div key={dataset.name} className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-300 font-medium">{dataset.label}</span>
+                  <span className="text-slate-400 font-mono">
+                    {current.toLocaleString()} / {dataset.target.toLocaleString()} (
+                    {percent.toFixed(1)}%)
+                  </span>
+                </div>
+                <div className="h-3 bg-slate-700 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-1000 ${isComplete ? 'bg-emerald-500' : 'bg-blue-500 relative overflow-hidden'}`}
+                    style={{ width: `${percent}%` }}
+                  >
+                    {!isComplete && (
+                      <div className="absolute inset-0 bg-white/20 animate-[shimmer_2s_infinite] skew-x-12"></div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <p className="text-xs text-slate-500 mt-4 italic">
+          * Live ingestion metrics. Totals may fluctuate as duplicates are consolidated.
+        </p>
       </div>
 
       {/* Mission Statement */}

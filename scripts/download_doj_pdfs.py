@@ -4,6 +4,7 @@ import json
 import time
 import os
 import hashlib
+import argparse
 
 # Configuration
 BASE_URL = "https://www.justice.gov"
@@ -111,8 +112,20 @@ def process_dataset(dataset):
         time.sleep(DELAY_BETWEEN_REQUESTS)
 
 def main():
+    parser = argparse.ArgumentParser(description='Download DOJ datasets.')
+    parser.add_argument('--dataset', help='Specific dataset name to process (e.g., DOJVOL00012)')
+    args = parser.parse_args()
+
     print("Starting optimized download pipeline...")
-    for dataset in DATA_SETS:
+    
+    datasets_to_process = DATA_SETS
+    if args.dataset:
+        datasets_to_process = [d for d in DATA_SETS if d['name'] == args.dataset]
+        if not datasets_to_process:
+            print(f"Error: Dataset {args.dataset} not found.")
+            return
+
+    for dataset in datasets_to_process:
         process_dataset(dataset)
     print("\nAll downloads complete.")
 

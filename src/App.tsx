@@ -35,6 +35,7 @@ import { useFirstRunOnboarding } from './hooks/useFirstRunOnboarding';
 import { InvestigationsProvider } from './contexts/InvestigationsContext';
 import { useAuth } from './contexts/AuthContext';
 import { LoginPage } from './pages/LoginPage';
+import { SEO } from './components/SEO';
 // Lazy load heavy components
 const EvidenceModal = lazy(() =>
   import('./components/EvidenceModal').then((module) => ({ default: module.EvidenceModal })),
@@ -1050,6 +1051,7 @@ function App() {
       <UndoProvider>
         <InvestigationsProvider>
           <div className="min-h-screen bg-gradient-to-br from-gray-950 via-slate-900 to-black relative overflow-x-hidden overflow-y-auto flex flex-col">
+            <SEO />
             {shouldShowOnboarding && (
               <FirstRunOnboarding onComplete={completeOnboarding} onSkip={skipOnboarding} />
             )}

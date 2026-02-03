@@ -213,6 +213,16 @@ export const statsRepository = {
       topEntities,
       likelihoodDistribution,
       redFlagDistribution,
+      collectionCounts: db
+        .prepare(
+          `
+        SELECT source_collection, COUNT(*) as count 
+        FROM documents 
+        WHERE source_collection IS NOT NULL 
+        GROUP BY source_collection
+      `,
+        )
+        .all() as { source_collection: string; count: number }[],
     };
   },
 

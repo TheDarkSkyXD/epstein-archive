@@ -24,6 +24,7 @@ import { ImageViewer } from '../components/evidence/ImageViewer';
 import { DocumentViewer } from '../components/evidence/DocumentViewer';
 import { ContactListViewer } from '../components/evidence/ContactListViewer';
 import { getEntityCategoryIcon } from '../config/entityIcons';
+import { SEO } from '../components/SEO';
 
 interface Evidence {
   id: number;
@@ -149,6 +150,13 @@ export function EvidenceDetail() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <SEO
+        title={evidence.title}
+        description={
+          evidence.description || `View ${evidence.evidenceType.replace(/_/g, ' ')} details`
+        }
+        type="article"
+      />
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">

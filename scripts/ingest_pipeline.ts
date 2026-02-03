@@ -37,6 +37,7 @@ import { createWorker } from 'tesseract.js';
 import { simpleParser } from 'mailparser';
 import { convert } from 'html-to-text';
 import { RedactionResolver } from '../src/server/services/RedactionResolver.js';
+import { TextCleaner } from './utils/text_cleaner.js';
 
 // ============================================================================
 // CONFIGURATION
@@ -245,47 +246,75 @@ async function extractTextFromImage(
  * This is intentionally conservative: failures will not break ingestion,
  * they just skip unredaction.
  */
-async function maybeUnredactPdf(originalPath: string): Promise<string> {
+interface UnredactionResult {
+  pdfPath: string;
+  unredactedSpans?: any[]; // Raw JSON from script
+}
+
+/**
+ * Run the Python unredact pipeline on a PDF and return the path to the
+ * unredacted PDF if successful, otherwise fall back to the original.
+ *
+ * Also returns unredacted span data if available.
+ */
+async function maybeUnredactPdf(originalPath: string): Promise<UnredactionResult> {
   // Only run on obvious PDF paths
-  if (!originalPath.toLowerCase().endsWith('.pdf')) return originalPath;
+  if (!originalPath.toLowerCase().endsWith('.pdf')) return { pdfPath: originalPath };
 
   return await new Promise((resolve) => {
     try {
       const tmpDir = mkdtempSync(join(tmpdir(), 'unredact-'));
-      const scriptPath = join(process.cwd(), 'scripts', 'unredact_restored.py');
+      const scriptPath = join(process.cwd(), 'scripts', 'unredact.py');
 
-      const args = [scriptPath, '-i', originalPath, '-o', tmpDir, '-b', '1', '--highlight', '0'];
+      // Use --highlight 1 to visibly mark unredacted text in the PDF
+      const args = [scriptPath, '-i', originalPath, '-o', tmpDir, '-b', '1', '--highlight', '1'];
 
       const child = execFile('python3', args, { cwd: tmpDir }, (err) => {
         if (err) {
           console.warn('  ⚠️  unredact.py failed, using original PDF:', err.message);
-          return resolve(originalPath);
+          return resolve({ pdfPath: originalPath });
         }
 
         // Infer name: original.pdf -> original_UNREDACTED.pdf
         const base = basename(originalPath, '.pdf');
-        const candidate = join(tmpDir, `${base}_UNREDACTED.pdf`);
-        if (existsSync(candidate)) {
-          console.log(`   🧰 Using unredacted PDF for OCR: ${candidate}`);
-          return resolve(candidate);
+        const candidatePdf = join(tmpDir, `${base}_UNREDACTED.pdf`);
+        const candidateJson = join(tmpDir, `${base}_UNREDACTED.json`);
+
+        if (existsSync(candidatePdf)) {
+          let unredactedSpans = [];
+          if (existsSync(candidateJson)) {
+            try {
+              const raw = readFileSync(candidateJson, 'utf-8');
+              const data = JSON.parse(raw);
+              if (data && data.spans) {
+                unredactedSpans = data.spans;
+                console.log(`   ✨ Captured ${unredactedSpans.length} unredacted text spans.`);
+              }
+            } catch (e) {
+              console.warn('   ⚠️ Failed to parse unredaction JSON:', e);
+            }
+          }
+
+          console.log(`   🧰 Using unredacted PDF for OCR: ${candidatePdf}`);
+          return resolve({ pdfPath: candidatePdf, unredactedSpans });
         }
 
         // Fallback to original if we cannot locate output
         console.warn('  ⚠️  unredact.py completed but output not found, using original PDF');
-        resolve(originalPath);
+        resolve({ pdfPath: originalPath });
       });
 
       // If the process errors before callback
       child.on('error', (err) => {
         console.warn('  ⚠️  Failed to spawn unredact.py, using original PDF:', err.message);
-        resolve(originalPath);
+        resolve({ pdfPath: originalPath });
       });
     } catch (e) {
       console.warn(
         '  ⚠️  Exception running unredact.py, using original PDF:',
         (e as Error).message,
       );
-      resolve(originalPath);
+      resolve({ pdfPath: originalPath });
     }
   });
 }
@@ -461,7 +490,7 @@ async function processEmail(filePath: string): Promise<{
       textBody = rawContent.toString('utf-8');
     }
 
-    const cleanText = textBody || '';
+    const cleanText = TextCleaner.cleanEmailText(textBody || '');
 
     // Extract metadata
     const getAddressText = (addr: any) => {
@@ -534,6 +563,7 @@ async function processDocument(
     let unredactedTextGain: number | null = null;
     let unredactionBaselineVocab: string | null = null;
     let evidenceType: string | null = null;
+    let unredactedSpanJson: string | null = null;
     const meta: { metadata_json?: string; date_created?: string } = {};
 
     // Extract text based on file type
@@ -549,11 +579,16 @@ async function processDocument(
       // Try to unredact the PDF before extracting any text so we capture
       // redacted-under graphics/text where possible.
       unredactionAttempted = 1;
-      const pdfPathForOcr = await maybeUnredactPdf(filePath);
+      const { pdfPath: pdfPathForOcr, unredactedSpans } = await maybeUnredactPdf(filePath);
+
+      if (unredactedSpans && unredactedSpans.length > 0) {
+        unredactedSpanJson = JSON.stringify(unredactedSpans);
+      }
+
       const pdfBuffer = readFileSync(pdfPathForOcr);
       const result = await extractTextFromPdf(pdfBuffer);
       const unredactedText = (result.text || '').trim();
-      content = unredactedText;
+      content = TextCleaner.cleanOcrText(unredactedText);
       pageCount = result.pageCount;
 
       const afterCoverage = await estimateTextCoverage(unredactedText, pageCount || 1);
@@ -573,7 +608,7 @@ async function processDocument(
       pageCount = 1;
     } else if (['.jpg', '.jpeg', '.png'].includes(ext)) {
       const result = await extractTextFromImage(filePath);
-      content = result.text;
+      content = TextCleaner.cleanOcrText(result.text);
       pageCount = result.pageCount;
     } else if (['.eml', '.msg', '.meta', '.html'].includes(ext)) {
       const result = await processEmail(filePath);
@@ -627,8 +662,9 @@ async function processDocument(
                 redaction_coverage_after,
                 unredacted_text_gain,
                 unredaction_baseline_vocab,
-                evidence_type
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, ?, ?, ?, ?)
+                evidence_type,
+                unredacted_span_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?)
         `,
       basename(filePath),
       content,
@@ -649,6 +685,7 @@ async function processDocument(
       unredactedTextGain,
       unredactionBaselineVocab,
       evidenceType,
+      unredactedSpanJson,
     );
 
     return { success: true, documentId: result.lastID };

@@ -80,21 +80,28 @@ else
       set -e
       cd ${PRODUCTION_PATH}
       
-      echo 'Git Pulling...'
-      git pull origin main
+      echo 'Forcing Git Sync...'
+      git fetch origin
+      git reset --hard origin/main
       
       echo 'Installing Dependencies...'
-      export PNPM_HOME="/home/deploy/.local/share/pnpm"
-      export PATH="\$PNPM_HOME:\$PATH"
+      # Ensure pnpm is available
+      export PNPM_HOME=\"/home/deploy/.local/share/pnpm\"
+      export PATH=\"\$PNPM_HOME:\$PATH\"
+      
+      if [ ! -f \"pnpm-lock.yaml\" ]; then
+        echo 'Warning: pnpm-lock.yaml not found, this might be unstable!'
+      fi
+      
       pnpm install --frozen-lockfile
       
       echo 'Building on Server...'
       pnpm build:prod
       
-      echo 'Reloading Process...'
-      pm2 reload epstein-archive
+      echo 'Restarting Process...'
+      pm2 restart epstein-archive
     "
-    log_success "Code updated and reloaded"
+    log_success "Code updated and restarted"
   fi
 fi
 

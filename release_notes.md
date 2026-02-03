@@ -7,6 +7,17 @@
   - Corrected descending version ordering in the "What's New" panel to prioritize current releases.
   - Enforced admin-only controls for batch media editing and single-item metadata updates.
 
+## v12.1.5 — 2026-02-03
+### Production Deployment Fixes & Email UI
+
+-   **Deployment Hardening**: Updated deployment script to force code synchronization (fix for v12.1.2 persistence) and full process restart.
+-   **Email Client UI**:
+    -   Removed "floating card" styling for a modern edge-to-edge layout.
+    -   Standardized internal borders for visual consistency.
+    -   Optimized pane layout for better reading experience.
+
+## v12.1.4 — 2026-02-03
+
 ## v12.1.2 — 2026-02-03
 ### Data Coverage & Quality Assurance
 - **DOJ Link Extraction Recovery**: Successfully bypassed Akamai 403 blocks on Dataset 9 and 12 via browser-level session recovery, restoring the link extraction pipeline for over 284,000 pending files.

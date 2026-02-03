@@ -88,6 +88,7 @@ else
       # Ensure pnpm is available
       export PNPM_HOME=\"/home/deploy/.local/share/pnpm\"
       export PATH=\"\$PNPM_HOME:\$PATH\"
+      export NODE_ENV=production
       
       if [ ! -f \"pnpm-lock.yaml\" ]; then
         echo 'Warning: pnpm-lock.yaml not found, this might be unstable!'
@@ -99,7 +100,7 @@ else
       pnpm build:prod
       
       echo 'Restarting Process...'
-      pm2 restart epstein-archive
+      pm2 restart epstein-archive --update-env
     "
     log_success "Code updated and restarted"
   fi

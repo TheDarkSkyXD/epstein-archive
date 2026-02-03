@@ -395,7 +395,7 @@ export const EmailClient: React.FC = () => {
       {/* Desktop Sidebar - Hidden on Mobile */}
       {/* Desktop Sidebar - Hidden on Mobile */}
       <div className="flex flex-1 overflow-hidden">
-        <aside className="hidden md:flex w-60 flex-col bg-slate-950/50 backdrop-blur-2xl border-r border-slate-800 shadow-none">
+        <aside className="hidden md:flex w-60 flex-col m-3 mr-0 rounded-2xl bg-slate-950/50 backdrop-blur-2xl border border-slate-800 shadow-xl">
           <div className="p-5 pb-3">
             <h2 className="text-[11px] font-bold text-slate-500/80 dark:text-white/40 uppercase tracking-widest">
               Mailboxes
@@ -423,10 +423,10 @@ export const EmailClient: React.FC = () => {
         </aside>
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col md:flex-row min-w-0">
+        <div className="flex-1 flex flex-col md:flex-row md:p-3 md:gap-3 min-w-0">
           {/* Message List */}
           <div
-            className={`w-full md:w-[400px] flex flex-col bg-slate-950 md:bg-white/5 md:dark:bg-white/5 md:backdrop-blur-2xl md:border-r md:border-slate-800 overflow-hidden ${isMobileDetail ? 'hidden md:flex' : 'flex'}`}
+            className={`w-full md:w-[400px] flex flex-col md:rounded-2xl bg-slate-950 md:bg-white/5 md:dark:bg-white/5 md:backdrop-blur-2xl md:border md:border-slate-800 overflow-hidden ${isMobileDetail ? 'hidden md:flex' : 'flex'}`}
           >
             {/* Search Bar - iOS Style */}
             <div className="p-3 bg-slate-900 md:bg-transparent md:p-4 md:border-b md:border-slate-800">
@@ -554,7 +554,7 @@ export const EmailClient: React.FC = () => {
 
           {/* Thread Detail View */}
           <div
-            className={`flex-1 flex flex-col bg-slate-950 md:bg-white/5 md:dark:bg-white/5 md:backdrop-blur-2xl overflow-hidden ${!selectedThreadId ? 'hidden md:flex' : 'flex'}`}
+            className={`flex-1 flex flex-col bg-slate-950 md:rounded-2xl md:bg-white/5 md:dark:bg-white/5 md:backdrop-blur-2xl md:border md:border-slate-800 overflow-hidden ${!selectedThreadId ? 'hidden md:flex' : 'flex'}`}
           >
             {selectedThread ? (
               <>
@@ -684,9 +684,8 @@ export const EmailClient: React.FC = () => {
                   <button
                     key={mb.id}
                     onClick={() => handleMailboxSelect(mb.id)}
-                    className={`w-full flex items-center justify-between px-4 py-4 border-b border-slate-800 ${
-                      selectedAccount === mb.id ? 'bg-blue-600/20' : ''
-                    }`}
+                    className={`w-full flex items-center justify-between px-4 py-4 border-b border-slate-800 ${selectedAccount === mb.id ? 'bg-blue-600/20' : ''
+                      }`}
                   >
                     <div className="flex items-center gap-3">
                       <mb.icon
@@ -721,11 +720,10 @@ export const EmailClient: React.FC = () => {
 const DesktopSidebarItem = ({ icon: Icon, label, count, active, onClick }: any) => (
   <button
     onClick={onClick}
-    className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-      active
-        ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25'
-        : 'text-slate-600 dark:text-white/70 hover:bg-black/5 dark:hover:bg-white/10'
-    }`}
+    className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${active
+      ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25'
+      : 'text-slate-600 dark:text-white/70 hover:bg-black/5 dark:hover:bg-white/10'
+      }`}
   >
     <div className="flex items-center gap-3">
       <Icon
@@ -764,11 +762,10 @@ const IOSMessageRow = React.memo(
     return (
       <div
         onClick={onClick}
-        className={`flex items-start gap-3 px-4 py-3 border-b cursor-pointer transition-colors ${
-          selected
-            ? 'bg-blue-600/20 border-blue-800/50 md:bg-gradient-to-r md:from-blue-500 md:to-blue-600 md:border-transparent'
-            : 'border-slate-800 md:border-black/5 md:dark:border-white/5 hover:bg-slate-800/50 md:hover:bg-black/[0.02] md:dark:hover:bg-white/[0.03]'
-        }`}
+        className={`flex items-start gap-3 px-4 py-3 border-b cursor-pointer transition-colors ${selected
+          ? 'bg-blue-600/20 border-blue-800/50 md:bg-gradient-to-r md:from-blue-500 md:to-blue-600 md:border-transparent'
+          : 'border-slate-800 md:border-black/5 md:dark:border-white/5 hover:bg-slate-800/50 md:hover:bg-black/[0.02] md:dark:hover:bg-white/[0.03]'
+          }`}
       >
         {/* Avatar */}
         <div
@@ -993,11 +990,10 @@ const CategoryTab = ({
   return (
     <button
       onClick={onClick}
-      className={`flex-1 min-w-[80px] px-3 py-3 flex flex-col items-center gap-1 border-b-2 transition-all ${
-        active
-          ? `${colorClasses[color]} bg-slate-800/50 md:bg-black/5 md:dark:bg-white/5`
-          : 'border-transparent text-slate-500 md:text-slate-400 md:dark:text-white/40 hover:text-slate-300 md:hover:text-slate-600 md:dark:hover:text-white/60 hover:bg-slate-800/30 md:hover:bg-black/[0.02] md:dark:hover:bg-white/[0.02]'
-      }`}
+      className={`flex-1 min-w-[80px] px-3 py-3 flex flex-col items-center gap-1 border-b-2 transition-all ${active
+        ? `${colorClasses[color]} bg-slate-800/50 md:bg-black/5 md:dark:bg-white/5`
+        : 'border-transparent text-slate-500 md:text-slate-400 md:dark:text-white/40 hover:text-slate-300 md:hover:text-slate-600 md:dark:hover:text-white/60 hover:bg-slate-800/30 md:hover:bg-black/[0.02] md:dark:hover:bg-white/[0.02]'
+        }`}
       title={description}
     >
       <div className="flex items-center gap-1.5">
@@ -1006,9 +1002,8 @@ const CategoryTab = ({
       </div>
       {count !== undefined && (
         <span
-          className={`text-[10px] font-medium ${
-            active ? '' : 'text-slate-600 md:text-slate-400 md:dark:text-white/30'
-          }`}
+          className={`text-[10px] font-medium ${active ? '' : 'text-slate-600 md:text-slate-400 md:dark:text-white/30'
+            }`}
         >
           {count.toLocaleString()}
         </span>

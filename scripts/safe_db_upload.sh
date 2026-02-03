@@ -65,7 +65,8 @@ ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "
   mv epstein-archive.db.new epstein-archive.db
   
   echo 'Restarting application...'
-  pm2 start epstein-archive
+  export NODE_ENV=production
+  pm2 restart epstein-archive --update-env
 "
 
 # 5. Health Check

@@ -103,11 +103,11 @@ function rebuildEntityPipeline() {
   const insertEntityMention =
     hasAssignedBy && hasScoreCol && hasDecisionVersion && hasEvidenceJson && hasMentionIdCol
       ? db.prepare(
-        'INSERT INTO entity_mentions (entity_id, document_id, mention_context, keyword, assigned_by, score, decision_version, evidence_json, mention_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      )
+          'INSERT INTO entity_mentions (entity_id, document_id, mention_context, keyword, assigned_by, score, decision_version, evidence_json, mention_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        )
       : db.prepare(
-        'INSERT INTO entity_mentions (entity_id, document_id, mention_context, keyword) VALUES (?, ?, ?, ?)',
-      );
+          'INSERT INTO entity_mentions (entity_id, document_id, mention_context, keyword) VALUES (?, ?, ?, ?)',
+        );
 
   // Optional new-schema integration (document_spans, mentions, resolution_candidates, relations)
   const hasDocumentSpans = !!db
@@ -130,32 +130,32 @@ function rebuildEntityPipeline() {
 
   const insertSpan = hasDocumentSpans
     ? db.prepare(
-      'INSERT INTO document_spans (id, document_id, page_num, span_start_char, span_end_char, raw_text, cleaned_text, ocr_confidence, layout_json) VALUES (?, ?, NULL, ?, ?, ?, ?, NULL, NULL)',
-    )
+        'INSERT INTO document_spans (id, document_id, page_num, span_start_char, span_end_char, raw_text, cleaned_text, ocr_confidence, layout_json) VALUES (?, ?, NULL, ?, ?, ?, ?, NULL, NULL)',
+      )
     : null;
 
   const insertMentionRow = hasMentionsTable
     ? db.prepare(
-      'INSERT INTO mentions (id, document_id, span_id, mention_start_char, mention_end_char, surface_text, normalised_text, entity_type, ner_model, ner_confidence, context_window_before, context_window_after, sentence_id, paragraph_id, extracted_features_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?)',
-    )
+        'INSERT INTO mentions (id, document_id, span_id, mention_start_char, mention_end_char, surface_text, normalised_text, entity_type, ner_model, ner_confidence, context_window_before, context_window_after, sentence_id, paragraph_id, extracted_features_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?)',
+      )
     : null;
 
   const insertResolutionCandidate = hasResolutionCandidates
     ? db.prepare(
-      "INSERT OR IGNORE INTO resolution_candidates (id, left_entity_id, right_entity_id, mention_id, candidate_type, score, feature_vector_json, decision, decided_at, decided_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)",
-    )
+        "INSERT OR IGNORE INTO resolution_candidates (id, left_entity_id, right_entity_id, mention_id, candidate_type, score, feature_vector_json, decision, decided_at, decided_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)",
+      )
     : null;
 
   const _insertRelation = hasRelationsTable
     ? db.prepare(
-      "INSERT INTO relations (id, subject_entity_id, object_entity_id, predicate, direction, weight, first_seen_at, last_seen_at, status) VALUES (?, ?, ?, 'mentioned_with', 'undirected', ?, datetime('now'), datetime('now'), 'active') ON CONFLICT(id) DO UPDATE SET weight = weight + excluded.weight, last_seen_at = excluded.last_seen_at",
-    )
+        "INSERT INTO relations (id, subject_entity_id, object_entity_id, predicate, direction, weight, first_seen_at, last_seen_at, status) VALUES (?, ?, ?, 'mentioned_with', 'undirected', ?, datetime('now'), datetime('now'), 'active') ON CONFLICT(id) DO UPDATE SET weight = weight + excluded.weight, last_seen_at = excluded.last_seen_at",
+      )
     : null;
 
   const insertQualityFlag = hasQualityFlags
     ? db.prepare(
-      "INSERT INTO quality_flags (id, target_type, target_id, flag_type, severity, details_json, created_at, resolved_at) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), NULL)",
-    )
+        "INSERT INTO quality_flags (id, target_type, target_id, flag_type, severity, details_json, created_at, resolved_at) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), NULL)",
+      )
     : null;
 
   // Stats
@@ -700,8 +700,8 @@ function mapCoOccurrences() {
 
   const insertNewRel = hasRelationsTable
     ? db.prepare(
-      "INSERT INTO relations (id, subject_entity_id, object_entity_id, predicate, direction, weight, first_seen_at, last_seen_at, status) VALUES (?, ?, ?, 'mentioned_with', 'undirected', ?, datetime('now'), datetime('now'), 'active') ON CONFLICT(id) DO UPDATE SET weight = weight + excluded.weight, last_seen_at = excluded.last_seen_at",
-    )
+        "INSERT INTO relations (id, subject_entity_id, object_entity_id, predicate, direction, weight, first_seen_at, last_seen_at, status) VALUES (?, ?, ?, 'mentioned_with', 'undirected', ?, datetime('now'), datetime('now'), 'active') ON CONFLICT(id) DO UPDATE SET weight = weight + excluded.weight, last_seen_at = excluded.last_seen_at",
+      )
     : null;
 
   let pairsCount = 0;
@@ -919,14 +919,26 @@ function performCleanup() {
   console.log('🧹 Performing automated entity cleanup...');
   // 1. Delete Junk Patterns
   const TO_DELETE_PATTERNS = [
-    'Hi Jeffrey', 'Hello Jeffrey', 'Dear Jeffrey', 'Hey Jeffrey',
-    'The Jeffrey Epstein', 'About Jeffrey Epstein', 'For Jeffrey Epstein',
-    'With Jeffrey Epstein', 'With Jeffrey',
-    'Unknown Sender', 'Unknown Doctor', 'Unknown Current Medications',
-    'No Subject', 'Unknown', 'Going On', 'Not Going', 'Epstein Jeffrey'
+    'Hi Jeffrey',
+    'Hello Jeffrey',
+    'Dear Jeffrey',
+    'Hey Jeffrey',
+    'The Jeffrey Epstein',
+    'About Jeffrey Epstein',
+    'For Jeffrey Epstein',
+    'With Jeffrey Epstein',
+    'With Jeffrey',
+    'Unknown Sender',
+    'Unknown Doctor',
+    'Unknown Current Medications',
+    'No Subject',
+    'Unknown',
+    'Going On',
+    'Not Going',
+    'Epstein Jeffrey',
   ];
 
-  const deleteList = TO_DELETE_PATTERNS.filter(p => !p.includes('Epstein Jeffrey'));
+  const deleteList = TO_DELETE_PATTERNS.filter((p) => !p.includes('Epstein Jeffrey'));
   const deleteStmt = db.prepare('DELETE FROM entities WHERE full_name = ?');
   const checkStmt = db.prepare('SELECT id FROM entities WHERE full_name = ?');
   const deleteMentions = db.prepare('DELETE FROM entity_mentions WHERE entity_id = ?');
@@ -944,11 +956,19 @@ function performCleanup() {
   const je = checkStmt.get('Jeffrey Epstein') as { id: number } | undefined;
   if (je) {
     const TO_MERGE_PATTERNS = [
-      'Epstein Jeffrey', 'Epstem Jeffrey', 'Jenrey E. Masrein Jeffrey',
-      'Chil Jeffrey', 'Jeffrey Bateman', 'Sex Offender Jeffrey',
-      'Billionaire Jeffrey Epstein', 'Jeffrey  We', 'Sam Epstein'
+      'Epstein Jeffrey',
+      'Epstem Jeffrey',
+      'Jenrey E. Masrein Jeffrey',
+      'Chil Jeffrey',
+      'Jeffrey Bateman',
+      'Sex Offender Jeffrey',
+      'Billionaire Jeffrey Epstein',
+      'Jeffrey  We',
+      'Sam Epstein',
     ];
-    const updateMentions = db.prepare('UPDATE entity_mentions SET entity_id = ? WHERE entity_id = ?');
+    const updateMentions = db.prepare(
+      'UPDATE entity_mentions SET entity_id = ? WHERE entity_id = ?',
+    );
     for (const name of TO_MERGE_PATTERNS) {
       const row = checkStmt.get(name) as { id: number } | undefined;
       if (row && row.id !== je.id) {

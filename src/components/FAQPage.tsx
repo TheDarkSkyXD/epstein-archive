@@ -3,112 +3,114 @@ import { ArrowLeft, HelpCircle, Shield, FileText, Lock, Eye, Database } from 'lu
 import { Link } from 'react-router-dom';
 
 const FAQPage = () => {
-    const faqs = [
-        {
-            question: "What is the Epstein Archive?",
-            answer: "The Epstein Archive is a centralized, searchable database of documents related to the Jeffrey Epstein investigation. It consolidates evidence from multiple sources, including unsealed court documents (Giuffre v. Maxwell), police reports, flight logs, and the newly integrated DOJ discovery datasets.",
-            icon: <Database className="w-5 h-5 text-blue-400" />
-        },
-        {
-            question: "What are the 'DOJ Datasets'?",
-            answer: "These are large volumes of evidence released by the Department of Justice, which we have processed and ingested. They include Dataset 9 (prosecutorial files), Dataset 10 (financial records), Dataset 11 (multimedia), and Dataset 12 (investigative referrals). These files provide significantly more detail on financial networks and operational logistics than previous releases.",
-            icon: <FileText className="w-5 h-5 text-purple-400" />
-        },
-        {
-            question: "Why are some documents redacted?",
-            answer: "Redactions protect the privacy of victims, innocent third parties, and ongoing investigations. Our system analyzes redaction levels (e.g., Dataset 11 is 52% redacted due to sensitive multimedia content) to give context on what is hidden versus what is visible.",
-            icon: <Lock className="w-5 h-5 text-red-400" />
-        },
-        {
-            question: "What is the 'Red Flag' rating?",
-            answer: "This is a forensic scoring system derived from legal thresholds. Mere presence in a flight log (Association) gets a low score, while sworn testimony alleging participation (Complicity) receives a higher score. It helps investigators prioritize which documents to review first.",
-            icon: <Shield className="w-5 h-5 text-orange-400" />
-        },
-        {
-            question: "Can I download the documents?",
-            answer: "Yes. Publicly available documents can be viewed and often downloaded directly from the viewer. We maintain the original file integrity, including verifying cryptographic hashes to ensure evidence has not been tampered with.",
-            icon: <DownloadIcon className="w-5 h-5 text-green-400" />
-        }
-    ];
+  const faqs = [
+    {
+      question: 'What is the Epstein Archive?',
+      answer:
+        'The Epstein Archive is a centralized, searchable database of documents related to the Jeffrey Epstein investigation. It consolidates evidence from multiple sources, including unsealed court documents (Giuffre v. Maxwell), police reports, flight logs, and the newly integrated DOJ discovery datasets.',
+      icon: <Database className="w-5 h-5 text-blue-400" />,
+    },
+    {
+      question: "What are the 'DOJ Datasets'?",
+      answer:
+        'These are large volumes of evidence released by the Department of Justice, which we have processed and ingested. They include Dataset 9 (prosecutorial files), Dataset 10 (financial records), Dataset 11 (multimedia), and Dataset 12 (investigative referrals). These files provide significantly more detail on financial networks and operational logistics than previous releases.',
+      icon: <FileText className="w-5 h-5 text-purple-400" />,
+    },
+    {
+      question: 'Why are some documents redacted?',
+      answer:
+        'Redactions protect the privacy of victims, innocent third parties, and ongoing investigations. Our system analyzes redaction levels (e.g., Dataset 11 is 52% redacted due to sensitive multimedia content) to give context on what is hidden versus what is visible.',
+      icon: <Lock className="w-5 h-5 text-red-400" />,
+    },
+    {
+      question: "What is the 'Red Flag' rating?",
+      answer:
+        'This is a forensic scoring system derived from legal thresholds. Mere presence in a flight log (Association) gets a low score, while sworn testimony alleging participation (Complicity) receives a higher score. It helps investigators prioritize which documents to review first.',
+      icon: <Shield className="w-5 h-5 text-orange-400" />,
+    },
+    {
+      question: 'Can I download the documents?',
+      answer:
+        'Yes. Publicly available documents can be viewed and often downloaded directly from the viewer. We maintain the original file integrity, including verifying cryptographic hashes to ensure evidence has not been tampered with.',
+      icon: <DownloadIcon className="w-5 h-5 text-green-400" />,
+    },
+  ];
 
-    return (
-        <div className="min-h-screen bg-[#0f172a] text-slate-200 p-6 md:p-12 font-sans selection:bg-blue-500/30">
-            <div className="max-w-4xl mx-auto space-y-12">
-                {/* Header */}
-                <header className="space-y-6">
-                    <Link
-                        to="/about"
-                        className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors group"
-                    >
-                        <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-                        Back to About
-                    </Link>
+  return (
+    <div className="min-h-screen bg-[#0f172a] text-slate-200 p-6 md:p-12 font-sans selection:bg-blue-500/30">
+      <div className="max-w-4xl mx-auto space-y-12">
+        {/* Header */}
+        <header className="space-y-6">
+          <Link
+            to="/about"
+            className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors group"
+          >
+            <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+            Back to About
+          </Link>
 
-                    <div className="space-y-4">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-medium uppercase tracking-wider">
-                            <HelpCircle className="h-4 w-4" />
-                            Frequently Asked Questions
-                        </div>
-                        <h1 className="text-4xl md:text-5xl font-bold text-white tracking-tight">
-                            Understanding the Archive
-                        </h1>
-                        <p className="text-xl text-slate-400 max-w-2xl leading-relaxed">
-                            Common questions about the data sources, forensic methods, and how to interpret the evidence.
-                        </p>
-                    </div>
-                </header>
-
-                {/* FAQs */}
-                <div className="grid gap-6">
-                    {faqs.map((faq, idx) => (
-                        <div
-                            key={idx}
-                            className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-6 md:p-8 hover:bg-slate-800/50 transition-colors"
-                        >
-                            <div className="flex gap-4">
-                                <div className="flex-none p-2 bg-slate-900/50 rounded-lg h-fit border border-slate-700/50">
-                                    {faq.icon}
-                                </div>
-                                <div className="space-y-3">
-                                    <h3 className="text-xl font-semibold text-white">
-                                        {faq.question}
-                                    </h3>
-                                    <p className="text-slate-400 leading-relaxed">
-                                        {faq.answer}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Footer */}
-                <div className="pt-12 border-t border-slate-800/50 text-center">
-                    <p className="text-slate-500 text-sm">
-                        Still have questions? The archive is continuously updated as new evidence is processed.
-                    </p>
-                </div>
+          <div className="space-y-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-medium uppercase tracking-wider">
+              <HelpCircle className="h-4 w-4" />
+              Frequently Asked Questions
             </div>
+            <h1 className="text-4xl md:text-5xl font-bold text-white tracking-tight">
+              Understanding the Archive
+            </h1>
+            <p className="text-xl text-slate-400 max-w-2xl leading-relaxed">
+              Common questions about the data sources, forensic methods, and how to interpret the
+              evidence.
+            </p>
+          </div>
+        </header>
+
+        {/* FAQs */}
+        <div className="grid gap-6">
+          {faqs.map((faq, idx) => (
+            <div
+              key={idx}
+              className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-6 md:p-8 hover:bg-slate-800/50 transition-colors"
+            >
+              <div className="flex gap-4">
+                <div className="flex-none p-2 bg-slate-900/50 rounded-lg h-fit border border-slate-700/50">
+                  {faq.icon}
+                </div>
+                <div className="space-y-3">
+                  <h3 className="text-xl font-semibold text-white">{faq.question}</h3>
+                  <p className="text-slate-400 leading-relaxed">{faq.answer}</p>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
-    );
+
+        {/* Footer */}
+        <div className="pt-12 border-t border-slate-800/50 text-center">
+          <p className="text-slate-500 text-sm">
+            Still have questions? The archive is continuously updated as new evidence is processed.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // Local component since we didn't import Download from lucide-react in the top import for the implementation plan string
 const DownloadIcon = ({ className }: { className?: string }) => (
-    <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={className}
-    >
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-        <polyline points="7 10 12 15 17 10" />
-        <line x1="12" y1="15" x2="12" y2="3" />
-    </svg>
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" y1="15" x2="12" y2="3" />
+  </svg>
 );
 
 export default FAQPage;

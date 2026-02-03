@@ -51,7 +51,6 @@ async function processEmail(filePath: string): Promise<{
           metadata,
           date: metadata.date,
         };
-
       } catch (err: any) {
         // Fall through to standard parsing if JSON parse fails
         console.warn(`  ⚠️ Failed to parse as JSON, falling back: ${err.message}`);
@@ -78,11 +77,17 @@ async function processEmail(filePath: string): Promise<{
 
     // Extract metadata
     const metadata = {
-      from: Array.isArray(parsed.from) ? parsed.from.map(a => a.text).join(', ') : (parsed.from?.text || ''),
-      to: Array.isArray(parsed.to) ? parsed.to.map(a => a.text).join(', ') : (parsed.to?.text || ''),
+      from: Array.isArray(parsed.from)
+        ? parsed.from.map((a) => a.text).join(', ')
+        : parsed.from?.text || '',
+      to: Array.isArray(parsed.to)
+        ? parsed.to.map((a) => a.text).join(', ')
+        : parsed.to?.text || '',
       subject: parsed.subject || '',
       date: parsed.date ? parsed.date.toISOString() : undefined,
-      cc: Array.isArray(parsed.cc) ? parsed.cc.map(a => a.text).join(', ') : (parsed.cc?.text || ''),
+      cc: Array.isArray(parsed.cc)
+        ? parsed.cc.map((a) => a.text).join(', ')
+        : parsed.cc?.text || '',
       messageId: parsed.messageId || '',
       inReplyTo: parsed.inReplyTo || '',
     };

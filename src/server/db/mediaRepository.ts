@@ -280,16 +280,16 @@ export const mediaRepository = {
 
         const tags = item.tags
           ? item.tags.split(',').map((t: string) => {
-            const [id, name] = t.split(':');
-            return { id: parseInt(id), name };
-          })
+              const [id, name] = t.split(':');
+              return { id: parseInt(id), name };
+            })
           : [];
 
         const people = item.people
           ? item.people.split(',').map((p: string) => {
-            const [id, name] = p.split(':');
-            return { id: parseInt(id), name };
-          })
+              const [id, name] = p.split(':');
+              return { id: parseInt(id), name };
+            })
           : [];
 
         return {

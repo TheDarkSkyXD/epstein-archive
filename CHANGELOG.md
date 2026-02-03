@@ -62,7 +62,7 @@ All notable changes to this project will be documented in this file. The format 
 
 - **Downloaded DOJ Datasets 10-12**: Prepared 13,420 PDFs for future ingestion, expanding investigative coverage
   - Vol 10: 8,497 PDFs
-  - Vol 11: 4,721 PDFs  
+  - Vol 11: 4,721 PDFs
   - Vol 12: 202 PDFs
 
 ### Connection Analysis

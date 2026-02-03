@@ -430,7 +430,7 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
                                     : [];
                                 setInvestigationsList(list);
                               })
-                              .catch(() => { });
+                              .catch(() => {});
                           }
                         }}
                         className="w-6 h-6 flex items-center justify-center rounded bg-amber-700 text-white text-[11px] font-bold border border-amber-500"
@@ -706,15 +706,34 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
               </div>
               <div className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-green-900/30 text-green-300 border border-green-500/30 text-[11px] font-bold uppercase tracking-wider">
                 <Icon name="Shield" size="xs" />
-                <span>High {(investigationSummary.evidence || []).filter((e: any) => e.relevance === 'high').length}</span>
+                <span>
+                  High{' '}
+                  {
+                    (investigationSummary.evidence || []).filter((e: any) => e.relevance === 'high')
+                      .length
+                  }
+                </span>
               </div>
               <div className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-blue-900/30 text-blue-300 border border-blue-500/30 text-[11px] font-bold uppercase tracking-wider">
                 <Icon name="Check" size="xs" />
-                <span>Medium {(investigationSummary.evidence || []).filter((e: any) => e.relevance === 'medium').length}</span>
+                <span>
+                  Medium{' '}
+                  {
+                    (investigationSummary.evidence || []).filter(
+                      (e: any) => e.relevance === 'medium',
+                    ).length
+                  }
+                </span>
               </div>
               <div className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-slate-800/60 text-slate-400 border border-slate-700/50 text-[11px] font-bold uppercase tracking-wider">
                 <Icon name="Info" size="xs" />
-                <span>Low {(investigationSummary.evidence || []).filter((e: any) => e.relevance === 'low').length}</span>
+                <span>
+                  Low{' '}
+                  {
+                    (investigationSummary.evidence || []).filter((e: any) => e.relevance === 'low')
+                      .length
+                  }
+                </span>
               </div>
             </div>
           )}
@@ -732,7 +751,9 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
               type="text"
               value={transcriptSearch}
               onChange={(e) => setTranscriptSearch(e.target.value)}
-              placeholder={selectedAlbum ? 'Search transcripts in this album…' : 'Search transcripts…'}
+              placeholder={
+                selectedAlbum ? 'Search transcripts in this album…' : 'Search transcripts…'
+              }
               className="w-full bg-slate-950 border border-slate-800 rounded-lg text-slate-200 pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50 placeholder-slate-600 transition-all border-hover:slate-700"
             />
           </div>
@@ -741,10 +762,11 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
 
           <button
             onClick={() => setIsBatchMode(!isBatchMode)}
-            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all shadow-lg ${isBatchMode
+            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all shadow-lg ${
+              isBatchMode
                 ? 'bg-cyan-600 text-white ring-2 ring-cyan-400/30'
                 : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 border border-slate-700'
-              }`}
+            }`}
           >
             {isBatchMode ? 'Exit Batch' : 'Batch Edit'}
           </button>
@@ -897,11 +919,11 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-4xl px-4">
           <BatchToolbar
             selectedCount={selectedItems.size}
-            onRotate={() => { }}
+            onRotate={() => {}}
             onAssignTags={(tags) => handleBatchTag(tags, 'add')}
             onAssignPeople={handleBatchPeople}
-            onAssignRating={() => { }}
-            onEditMetadata={() => { }}
+            onAssignRating={() => {}}
+            onEditMetadata={() => {}}
             onCancel={() => setSelectedItems(new Set())}
             onDeselect={() => setSelectedItems(new Set())}
           />
@@ -925,18 +947,18 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
                 documentId={selectedItem.id}
                 initialTime={
                   initialUrlTimestamp !== undefined &&
-                    selectedItem.id === (initialAudioId || selectedItem.id)
+                  selectedItem.id === (initialAudioId || selectedItem.id)
                     ? initialUrlTimestamp
                     : 0
                 }
                 albumImages={
                   selectedItem.title.includes('Sascha') ||
-                    (selectedItem.albumName && selectedItem.albumName.includes('Sascha')) ||
-                    (currentAlbum && currentAlbum.name.includes('Sascha'))
+                  (selectedItem.albumName && selectedItem.albumName.includes('Sascha')) ||
+                  (currentAlbum && currentAlbum.name.includes('Sascha'))
                     ? [
-                      '/data/media/audio/lvoocaudiop1/lvoocaudiop1.webp',
-                      '/data/media/audio/lvoocaudiop1/lvoocaudiop1.jpg',
-                    ]
+                        '/data/media/audio/lvoocaudiop1/lvoocaudiop1.webp',
+                        '/data/media/audio/lvoocaudiop1/lvoocaudiop1.jpg',
+                      ]
                     : []
                 }
                 onClose={() => {

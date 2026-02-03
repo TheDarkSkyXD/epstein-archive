@@ -362,10 +362,10 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
       // Backend now returns consistent camelCase in slim mode - minimal normalization needed
       const normalized: MediaImage[] = Array.isArray(data)
         ? data.map((img: any) => ({
-          ...img,
-          isSensitive: Boolean(img.isSensitive),
-          fileSize: img.fileSize || 0,
-        }))
+            ...img,
+            isSensitive: Boolean(img.isSensitive),
+            fileSize: img.fileSize || 0,
+          }))
         : [];
 
       if (append) {

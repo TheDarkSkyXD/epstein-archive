@@ -146,7 +146,8 @@ const DOCUMENT_SOURCES = [
   },
   {
     title: 'DOJ Data Set 9',
-    description: 'Released Feb 1, 2026: 35 high-value DOJ prosecutorial files (avg 4,490 words per doc, 29% redacted).',
+    description:
+      'Released Feb 1, 2026: 35 high-value DOJ prosecutorial files (avg 4,490 words per doc, 29% redacted).',
     redactionStatus: 'Redacted (~29%)',
     redactionColor: 'yellow',
     impact: 'CRITICAL',
@@ -156,7 +157,8 @@ const DOCUMENT_SOURCES = [
   },
   {
     title: 'DOJ Data Set 10',
-    description: 'Released Feb 1, 2026: 8,497 Deutsche Bank statements, invoices, and financial records mentioning Jes Staley and Lesley Groff.',
+    description:
+      'Released Feb 1, 2026: 8,497 Deutsche Bank statements, invoices, and financial records mentioning Jes Staley and Lesley Groff.',
     redactionStatus: 'Redacted (~48%)',
     redactionColor: 'red',
     impact: 'CRITICAL',
@@ -166,7 +168,8 @@ const DOCUMENT_SOURCES = [
   },
   {
     title: 'DOJ Data Set 11',
-    description: 'Released Feb 1, 2026: 4,721 video files, images, and short documents (avg 248 words, 52% redacted).',
+    description:
+      'Released Feb 1, 2026: 4,721 video files, images, and short documents (avg 248 words, 52% redacted).',
     redactionStatus: 'Redacted (~52%)',
     redactionColor: 'red',
     impact: 'HIGH',
@@ -176,7 +179,8 @@ const DOCUMENT_SOURCES = [
   },
   {
     title: 'DOJ Data Set 12',
-    description: 'Released Feb 1, 2026: 202 investigative documents including Subject Referrals and case correspondence (avg 2,793 words, 35% redacted).',
+    description:
+      'Released Feb 1, 2026: 202 investigative documents including Subject Referrals and case correspondence (avg 2,793 words, 35% redacted).',
     redactionStatus: 'Redacted (~35%)',
     redactionColor: 'yellow',
     impact: 'HIGH',
@@ -275,17 +279,20 @@ const timelineEvents = [
   {
     date: 'Feb 2, 2026',
     source: 'Epstein Archive',
-    content: 'V12.0.0: DOJ Archive Consolidation. Integrated DOJ discovery volumes with Advanced Forensic Analysis Workspace including Financial Transaction Mapper and Evidence Integrity tracking.',
+    content:
+      'V12.0.0: DOJ Archive Consolidation. Integrated DOJ discovery volumes with Advanced Forensic Analysis Workspace including Financial Transaction Mapper and Evidence Integrity tracking.',
   },
   {
     date: 'Feb 3, 2026',
     source: 'Epstein Archive',
-    content: 'V12.1.1: Production Infrastructure. Zero-downtime deployment pipeline, TypeScript build hardening, and database synchronization (93,989 documents, 145,653 entities).',
+    content:
+      'V12.1.1: Production Infrastructure. Zero-downtime deployment pipeline, TypeScript build hardening, and database synchronization (93,989 documents, 145,653 entities).',
   },
   {
     date: 'Feb 3, 2026',
     source: 'Epstein Archive',
-    content: 'V12.1.2: DOJ Datasets 9-12 Fully Ingested. Added 13,455 documents including Deutsche Bank records (Jes Staley), video evidence, and prosecutorial files. Total archive: 107,474 documents, 1.55M entity mentions.',
+    content:
+      'V12.1.2: DOJ Datasets 9-12 Fully Ingested. Added 13,455 documents including Deutsche Bank records (Jes Staley), video evidence, and prosecutorial files. Total archive: 107,474 documents, 1.55M entity mentions.',
   },
 ];
 
@@ -654,7 +661,9 @@ export const AboutPage: React.FC = () => {
             protective orders.
           </p>
 
-          <h3 className="text-2xl font-bold text-white mt-8 mb-4">Key Discoveries from DOJ Datasets</h3>
+          <h3 className="text-2xl font-bold text-white mt-8 mb-4">
+            Key Discoveries from DOJ Datasets
+          </h3>
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {/* Dataset 9 */}
@@ -790,7 +799,10 @@ export const AboutPage: React.FC = () => {
               </li>
             </ul>
             <div className="mt-4 pt-4 border-t border-blue-500/20">
-              <a href="/faq" className="text-blue-300 hover:text-white text-sm font-medium inline-flex items-center gap-1 transition-colors">
+              <a
+                href="/faq"
+                className="text-blue-300 hover:text-white text-sm font-medium inline-flex items-center gap-1 transition-colors"
+              >
                 <Info className="h-4 w-4" />
                 Read Frequently Asked Questions
               </a>
@@ -1006,10 +1018,11 @@ export const AboutPage: React.FC = () => {
         </p>
         <div className="bg-blue-900/30 border border-blue-500/30 rounded-lg p-4 mt-4">
           <p className="text-blue-200 text-sm">
-            <strong>Latest Addition:</strong> February 3, 2026 - V12.1.2 DOJ Datasets 9-12 Fully Ingested.
-            Added 13,455 new documents including Deutsche Bank financial statements, video evidence, and prosecutorial files.
-            Archive now contains over 107,000 documents with comprehensive financial transaction records,
-            communications analysis, and location data across all Epstein properties and associates.
+            <strong>Latest Addition:</strong> February 3, 2026 - V12.1.2 DOJ Datasets 9-12 Fully
+            Ingested. Added 13,455 new documents including Deutsche Bank financial statements, video
+            evidence, and prosecutorial files. Archive now contains over 107,000 documents with
+            comprehensive financial transaction records, communications analysis, and location data
+            across all Epstein properties and associates.
             <a
               href="https://github.com/ErikVeland/epstein-archive/tree/main/docs/data-governance-standards.md"
               target="_blank"

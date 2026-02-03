@@ -2,6 +2,9 @@ import sharp from 'sharp';
 import fs from 'fs';
 import path from 'path';
 import { globSync } from 'glob';
+import crypto from 'crypto';
+import { AssetService } from '../src/services/assetService.js';
+import { getDb } from '../src/server/db/connection.js';
 
 const TARGET_DIR = 'data/media/images/Confirmed Fake';
 const BACKUP_DIR = path.join(TARGET_DIR, '_backup');
@@ -27,36 +30,37 @@ async function main() {
   let processed = 0;
   let errors = 0;
 
+  const derivativeDir = 'data/derivatives/watermarked';
+  if (!fs.existsSync(derivativeDir)) {
+    fs.mkdirSync(derivativeDir, { recursive: true });
+  }
+
   for (const imagePath of images) {
     const filename = path.basename(imagePath);
-    const backupPath = path.join(BACKUP_DIR, filename);
-
-    // Skip if already in backup (implies we might have processed it, or it's a re-run)
-    // Actually, checking if backup exists is good safety. If it exists, we assume the current file *might* already be processed.
-    // But the user asked to re-process missed ones.
-    // So, if backup exists, restore from backup first? Or just rely on visual check?
-    // Let's copy to backup if not exists.
-    if (!fs.existsSync(backupPath)) {
-      fs.copyFileSync(imagePath, backupPath);
-      console.log(`   Detailed backup for: ${filename}`);
-    } else {
-      // If backup exists, use the backup as the source to avoid double-watermarking over time
-      // This is safer.
-      // console.log(`   Using backup source for clean watermark: ${filename}`);
-    }
+    const derivativePath = path.join(derivativeDir, filename);
 
     try {
-      // Use the backup (clean) as source if available, otherwise the current file
-      const sourcePath = fs.existsSync(backupPath) ? backupPath : imagePath;
+      // 1. Calculate Original SHA-256
+      const originalBuffer = fs.readFileSync(imagePath);
+      const originalSha256 = crypto.createHash('sha256').update(originalBuffer).digest('hex');
+      const stats = fs.statSync(imagePath);
 
-      const metadata = await sharp(sourcePath).metadata();
+      // 2. Register Original Asset
+      const originalAssetId = await AssetService.registerAsset({
+        storagePath: imagePath,
+        sha256: originalSha256,
+        mimeType: 'image/' + path.extname(imagePath).toLowerCase().replace('.', ''),
+        fileSize: stats.size,
+        sourceCollection: 'Confirmed Fake',
+        isOriginal: true,
+      });
+
+      // 3. Create Watermarked Derivative
+      const metadata = await sharp(imagePath).metadata();
       const width = metadata.width || 1000;
       const height = metadata.height || 1000;
+      const fontSize = Math.floor(width * 0.15);
 
-      // Calculate font size relative to image width
-      const fontSize = Math.floor(width * 0.15); // 15% of width
-
-      // Create SVG overlay
       const svgImage = `
         <svg width="${width}" height="${height}">
           <style>
@@ -66,12 +70,33 @@ async function main() {
         </svg>
       `;
 
-      // Composite
-      await sharp(sourcePath)
+      await sharp(imagePath)
         .composite([{ input: Buffer.from(svgImage), top: 0, left: 0 }])
-        .toFile(imagePath); // Overwrite original in place
+        .toFile(derivativePath);
 
-      console.log(`✅ Watermarked: ${filename}`);
+      // 4. Register Derivative Asset
+      const derivativeBuffer = fs.readFileSync(derivativePath);
+      const derivativeSha256 = crypto.createHash('sha256').update(derivativeBuffer).digest('hex');
+      const derivativeSize = fs.statSync(derivativePath).size;
+
+      const derivativeAssetId = await AssetService.registerAsset({
+        storagePath: derivativePath,
+        sha256: derivativeSha256,
+        mimeType: 'image/' + path.extname(derivativePath).toLowerCase().replace('.', ''),
+        fileSize: derivativeSize,
+        isOriginal: false,
+        originalAssetId,
+        derivativeKind: 'watermarked',
+        derivativeParamsJson: JSON.stringify({
+          text: 'FAKE',
+          placement: 'center',
+          rotation: -45,
+          opacity: 0.5,
+          applied_at: new Date().toISOString(),
+        }),
+      });
+
+      console.log(`✅ Processed: ${filename} -> Derivative ${derivativeAssetId}`);
       processed++;
     } catch (error) {
       console.error(`❌ Error processing ${filename}:`, error);

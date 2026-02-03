@@ -8,6 +8,7 @@ import { extractEvidence, scoreCategoryMatch } from './utils/evidence_extractor'
 
 const DB_PATH = process.env.DB_PATH || 'epstein-archive.db';
 let db: Database.Database;
+let currentResolverRunId: string;
 
 // CONFIGURATION
 const BATCH_SIZE = 100;
@@ -20,6 +21,21 @@ const ORG_PATTERN =
   /\b(Inc\.?|LLC|Corp\.?|Ltd\.?|Group|Trust|Foundation|University|College|School|Academy|Department|Bureau|Agency|Police|Sheriff|FBI|CIA|Secret Service|Bank|Association|Club|Holdings|Limited|Fund)\b/i;
 const MEDIA_PATTERN = /\b(New York Times|Post|News|Press|Journal|Magazine)\b/i;
 const FINANCIAL_PATTERN = /\b(Bank|Financial|Transfer|Payment|Account|Trust|LLC|Inc|Corp)\b/i;
+
+// Phase 3: Quarantine Patterns (Simulated/Heuristic)
+const QUARANTINE_PATTERNS = [
+  { regex: /explicit|child|illegal/i, reason: 'Potentially sensitive keywords' },
+  { regex: /password|secret|key/i, reason: 'Potentially leaked credentials' },
+];
+
+function checkQuarantine(text: string): { status: 'quarantined' | 'none'; reason?: string } {
+  for (const pattern of QUARANTINE_PATTERNS) {
+    if (pattern.regex.test(text)) {
+      return { status: 'quarantined', reason: pattern.reason };
+    }
+  }
+  return { status: 'none' };
+}
 
 function detectType(
   name: string,
@@ -87,8 +103,33 @@ function makeDeterministicId(parts: Array<string | number>): string {
 export async function runIntelligencePipeline() {
   console.log('🚀 Starting ULTIMATE Entity Ingestion Pipeline...');
 
+  currentResolverRunId = makeId();
+  const resolverVersion = '1.1.0';
+
   // Initialize DB locally within the function to avoid top-level side effects
   db = new Database(DB_PATH);
+
+  // Register resolver run
+  const hasResolverRuns = !!db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'resolver_runs'")
+    .get();
+  if (hasResolverRuns) {
+    db.prepare('INSERT INTO resolver_runs (id, resolver_version) VALUES (?, ?)').run(
+      currentResolverRunId,
+      resolverVersion,
+    );
+  }
+
+  const hasResolutionEvents = !!db
+    .prepare(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'entity_resolution_events'",
+    )
+    .get();
+  const insertResolutionEvent = hasResolutionEvents
+    ? db.prepare(
+        'INSERT INTO entity_resolution_events (resolver_run_id, mention_id, mention_text, resolved_entity_id, resolution_method, confidence, evidence_json) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      )
+    : null;
 
   const insertEntity = db.prepare(
     'INSERT INTO entities (full_name, entity_type, red_flag_rating, risk_level, entity_category, death_date, notes, bio, birth_date, aliases) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -161,9 +202,29 @@ export async function runIntelligencePipeline() {
       )
     : null;
 
+  const insertTriple = db.prepare(`
+    INSERT INTO claim_triples (
+      id, subject_entity_id, predicate, object_entity_id, object_literal,
+      document_id, sentence_id, confidence, modality, provenance_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  const CLAIM_PATTERNS = [
+    { regex: /\b(met with|spoke to|called|visited|emailed|messaged)\b/i, predicate: 'contacted' },
+    { regex: /\b(flew to|traveled to|arrived at|stayed at)\b/i, predicate: 'traveled_to' },
+    {
+      regex: /\b(paid|transferred|sent money to|received money from)\b/i,
+      predicate: 'financial_link',
+    },
+    { regex: /\b(works for|employed by|member of|affiliated with)\b/i, predicate: 'affiliated' },
+  ];
+
   // Stats
   let totalEntities = 0;
   let totalMentions = 0;
+  let newEntities = 0;
+  let newMentions = 0;
+
   try {
     db.prepare('ALTER TABLE documents ADD COLUMN analyzed_at DATETIME').run();
     console.log('✅ Added analyzed_at column to documents.');
@@ -202,6 +263,240 @@ export async function runIntelligencePipeline() {
     const bucket = lastNameIndex.get(last) || [];
     bucket.push({ id, full_name: norm, entity_type: entityType });
     lastNameIndex.set(last, bucket);
+  }
+
+  /**
+   * Shared extraction and storage logic for mentions (Phase 3 Provenance).
+   */
+  function extractAndStoreMention(
+    doc: any,
+    match: RegExpMatchArray,
+    fullText: string,
+    sentenceId?: number,
+    pageId?: number,
+  ) {
+    const rawName = match[0];
+    const cleanName = normalizeName(rawName);
+
+    if (cleanName.length < 3 || isJunkEntity(cleanName)) return;
+    if (_ENTITY_BLACKLIST.includes(cleanName) || ENTITY_BLACKLIST_REGEX.test(cleanName)) return;
+    if (
+      ENTITY_PARTIAL_BLOCKLIST.some((term) => cleanName.toLowerCase().includes(term.toLowerCase()))
+    )
+      return;
+
+    if (cleanName.includes('Epstein') && !cleanName.includes('Island')) return;
+
+    // A. Resolve
+    const vipResolution = resolveVip(cleanName);
+    let resolvedName = vipResolution || cleanName;
+    let resolutionMethod = vipResolution ? 'vip_rule' : 'exact';
+
+    if (!vipResolution) {
+      const idx = match.index || 0;
+      const start = Math.max(0, idx - 100);
+      const end = Math.min(fullText.length, idx + rawName.length + 100);
+      const resolutionContext = fullText.substring(start, end);
+      const res = resolveAmbiguity(cleanName, resolutionContext);
+      if (res) {
+        resolvedName = res.resolvedName;
+        resolutionMethod = 'context_rule';
+      }
+    }
+
+    const lowerName = resolvedName.toLowerCase();
+    let entityId = entityCache.get(lowerName);
+    let entityType = 'Person';
+
+    if (vipResolution) {
+      const rule = VIP_RULES.find((r) => r.canonicalName === vipResolution);
+      if (rule) entityType = rule.type;
+    } else if (resolutionMethod === 'context_rule') {
+      const idx = match.index || 0;
+      const start = Math.max(0, idx - 100);
+      const end = Math.min(fullText.length, idx + rawName.length + 100);
+      const resContext = fullText.substring(start, end);
+      const res = resolveAmbiguity(cleanName, resContext);
+      if (res) entityType = res.entityType;
+    } else {
+      entityType = detectType(resolvedName);
+    }
+
+    if (!entityId) {
+      if (entityType === 'Other') return;
+      try {
+        const res = insertEntity.run(
+          resolvedName,
+          entityType,
+          1,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+        );
+        entityId = Number(res.lastInsertRowid);
+        entityCache.set(lowerName, entityId);
+        newEntities++;
+      } catch {
+        const existing = db
+          .prepare('SELECT id FROM entities WHERE full_name = ?')
+          .get(resolvedName) as { id: number };
+        if (!existing) return;
+        entityId = existing.id;
+        entityCache.set(lowerName, entityId);
+      }
+    }
+
+    // B. Mention
+    const evidence = extractEvidence(
+      fullText,
+      match.index || 0,
+      (match.index || 0) + rawName.length,
+    );
+    const score = evidence.score;
+    const context = evidence.context;
+
+    let mentionId = '';
+    if (hasAssignedBy && hasScoreCol && hasMentionIdCol) {
+      mentionId = makeId();
+      insertEntityMention.run(
+        entityId,
+        doc.id,
+        context,
+        cleanName,
+        'auto',
+        score,
+        1,
+        JSON.stringify(evidence),
+        mentionId,
+      );
+    } else {
+      insertEntityMention.run(entityId, doc.id, context, cleanName);
+    }
+
+    // C. Resolution Event (Phase 3 Explainability)
+    if (insertResolutionEvent && mentionId) {
+      insertResolutionEvent.run(
+        currentResolverRunId || 'manual',
+        mentionId,
+        cleanName,
+        entityId,
+        resolutionMethod,
+        vipResolution ? 1.0 : 0.85,
+        JSON.stringify({
+          original_text: rawName,
+          context: context,
+          vip_rule: !!vipResolution,
+        }),
+      );
+    }
+    newMentions++;
+    return { entityId, mentionId, type: entityType };
+  }
+
+  function extractAndStoreTriples(
+    doc: any,
+    fullText: string,
+    foundEntities: any[],
+    sentenceId?: number,
+  ) {
+    if (foundEntities.length < 2) return;
+
+    // Check pairs of entities within the same context
+    for (let i = 0; i < foundEntities.length; i++) {
+      for (let j = 0; j < foundEntities.length; j++) {
+        if (i === j) continue;
+
+        const e1 = foundEntities[i];
+        const e2 = foundEntities[j];
+
+        // Text between entities
+        const start = Math.min(e1.match.index, e2.match.index);
+        const end = Math.max(
+          e1.match.index + e1.match[0].length,
+          e2.match.index + e2.match[0].length,
+        );
+        const midText = fullText.substring(start, end);
+
+        for (const pattern of CLAIM_PATTERNS) {
+          if (pattern.regex.test(midText)) {
+            const tripleId = makeDeterministicId([
+              'triple',
+              e1.entityId,
+              pattern.predicate,
+              e2.entityId,
+              doc.id,
+              sentenceId || 0,
+            ]);
+            const modality =
+              midText.toLowerCase().includes('not') || midText.toLowerCase().includes('deny')
+                ? 'denied'
+                : 'asserted';
+
+            try {
+              insertTriple.run(
+                tripleId,
+                e1.entityId,
+                pattern.predicate,
+                e2.entityId,
+                null,
+                doc.id,
+                sentenceId || null,
+                0.7,
+                modality,
+                JSON.stringify({
+                  snippet: midText,
+                  e1_text: e1.match[0],
+                  e2_text: e2.match[0],
+                }),
+              );
+            } catch (e) {
+              // ignore duplicate triples
+            }
+          }
+        }
+      }
+    }
+  }
+
+  function processGranularProvenance(doc: any, sentences: any[]) {
+    for (const s of sentences) {
+      const content = s.sentence_text;
+      const POTENTIAL_ENTITY_REGEX = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,5})\b/g;
+      const matches = [...content.matchAll(POTENTIAL_ENTITY_REGEX)];
+
+      const foundInSentence: any[] = [];
+      for (const match of matches) {
+        const info = extractAndStoreMention(doc, match, content, s.id, s.page_id);
+        if (info) {
+          foundInSentence.push({ ...info, match });
+        }
+      }
+
+      if (foundInSentence.length >= 2) {
+        extractAndStoreTriples(doc, content, foundInSentence, s.id);
+      }
+    }
+  }
+
+  function processCoarseProvenance(doc: any, content: string) {
+    const POTENTIAL_ENTITY_REGEX = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,5})\b/g;
+    const matches = [...content.matchAll(POTENTIAL_ENTITY_REGEX)];
+
+    const foundInDoc: any[] = [];
+    for (const match of matches) {
+      const info = extractAndStoreMention(doc, match, content);
+      if (info) {
+        foundInDoc.push({ ...info, match });
+      }
+    }
+
+    // For coarse provenance, we only extract triples if they are relatively close (e.g. within 200 chars)
+    // but here we'll just skip to avoid garbage links in massive files.
+    // In a better version, we'd split by paragraph even in coarse mode.
   }
 
   entityRows.forEach((row) => {
@@ -316,8 +611,8 @@ export async function runIntelligencePipeline() {
     }
 
     console.log(`📄 Processing batch of ${docs.length} documents...`);
-    let newEntities = 0;
-    let newMentions = 0;
+    newEntities = 0;
+    newMentions = 0;
 
     const markAnalyzed = db.prepare(
       "UPDATE documents SET analyzed_at = datetime('now') WHERE id = ?",
@@ -327,320 +622,45 @@ export async function runIntelligencePipeline() {
       for (const doc of docs) {
         const content = doc.content as string;
 
-        // Create a coarse span covering the whole document content when the
-        // new schema is available. This gives us a substrate for mentions
-        // without needing per-page layout yet.
-        let spanId: string | null = null;
-        if (hasDocumentSpans && insertSpan) {
-          spanId = makeId();
-          insertSpan.run(spanId, doc.id, 0, content.length, content, content);
+        // Phase 3: Content Classification & Quarantine
+        const q = checkQuarantine(content);
+        if (q.status === 'quarantined') {
+          db.prepare(
+            `
+            UPDATE documents 
+            SET quarantine_status = 'quarantined', 
+                quarantine_reason = ?, 
+                quarantine_at = CURRENT_TIMESTAMP 
+            WHERE id = ?
+          `,
+          ).run(q.reason, doc.id);
+          console.log(`   ⚠️ Document ${doc.id} quarantined: ${q.reason}`);
+          markAnalyzed.run(doc.id);
+          continue;
         }
 
-        // Heuristic: Capitalized words (2-5 words long)
-        const POTENTIAL_ENTITY_REGEX = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,5})\b/g;
+        // Fetch granular data (Pages/Sentences) for provenance
+        const sentences = db
+          .prepare(
+            `
+          SELECT s.id, s.sentence_text, p.id as page_id
+          FROM document_sentences s
+          LEFT JOIN document_pages p ON s.page_id = p.id
+          WHERE s.document_id = ?
+          ORDER BY s.id ASC
+        `,
+          )
+          .all(doc.id) as { id: number; sentence_text: string; page_id: number }[];
 
-        const matches = [...content.matchAll(POTENTIAL_ENTITY_REGEX)];
-        // TODO: Track entity mentions per document - see UNUSED_VARIABLES_RECOMMENDATIONS.md
-        const _docMentions = new Set<string>(); // avoid dups per doc if context weak
-        const docEntityFirstMention = new Map<number, string>();
-
-        for (const match of matches) {
-          const rawName = match[0];
-          const cleanName = normalizeName(rawName);
-
-          // A. Junk Filter
-          // Enhanced Junk Filter (using central logic)
-          if (cleanName.length < 3) continue; // Allow 3 letter names (e.g. "Roy", "Jen") but filter 1-2 chars
-          if (isJunkEntity(cleanName)) continue; // Uses entityFilters.ts logic
-
-          if (cleanName.includes('Epstein') && !cleanName.includes('Island')) continue; // Skip generic Epstein, allow Island
-
-          // Check centralized blacklist (Exact Match & Regex)
-          if (_ENTITY_BLACKLIST.includes(cleanName) || ENTITY_BLACKLIST_REGEX.test(cleanName)) {
-            continue;
-          }
-
-          // Check partial blocklist (e.g. "Received Received")
-          if (
-            ENTITY_PARTIAL_BLOCKLIST.some((term) =>
-              cleanName.toLowerCase().includes(term.toLowerCase()),
-            )
-          ) {
-            continue;
-          }
-
-          // B. Resolve
-
-          // 0. VIP Consolidation (Top Priority)
-          // "The Trump Rule": Force known variants to canonical names immediately
-          const vipResolution = resolveVip(cleanName);
-          let resolvedName = vipResolution || cleanName;
-          let resolutionMethod = vipResolution ? 'vip_rule' : 'exact';
-
-          // 1. Context-Aware Resolution ("The Riley Rule")
-          // Only if not already resolved by VIP rule
-          if (!vipResolution) {
-            const idx = match.index || 0;
-            const start = Math.max(0, idx - 100);
-            const end = Math.min(content.length, idx + rawName.length + 100);
-            const resolutionContext = content.substring(start, end);
-
-            const contextResolution = resolveAmbiguity(cleanName, resolutionContext);
-
-            if (contextResolution) {
-              resolvedName = contextResolution.resolvedName;
-              resolutionMethod = 'context_rule';
-            }
-          }
-
-          const lowerName = resolvedName.toLowerCase();
-          let entityId = entityCache.get(lowerName);
-          let entityType = 'Person'; // Default
-
-          // Fetch type from context rule if available, otherwise detect
-          if (vipResolution) {
-            const rule = VIP_RULES.find((r) => r.canonicalName === vipResolution);
-            if (rule) entityType = rule.type;
-          } else if (resolutionMethod === 'context_rule') {
-            // We need to re-fetch the context resolution object if we want the type
-            // Optimization: just re-run or store it above.
-            const idx = match.index || 0;
-            const start = Math.max(0, idx - 100);
-            const end = Math.min(content.length, idx + rawName.length + 100);
-            const resolutionContext = content.substring(start, end);
-            const res = resolveAmbiguity(cleanName, resolutionContext);
-            if (res) entityType = res.entityType;
-          }
-
-          if (!entityId) {
-            // Heuristic Type Detection (only if not already resolved by rule)
-            if (resolutionMethod === 'exact') {
-              entityType = detectType(resolvedName);
-            }
-
-            if (entityType === 'Other') continue;
-
-            // Extract Metadata from VIP Rules if available
-            let riskLevel: string | null = null;
-            let category: string | null = null;
-            let deathDate: string | null = null;
-            let notes: string | null = null;
-            let bio: string | null = null;
-            let birthDate: string | null = null;
-            let redFlagRating = 1;
-
-            if (vipResolution) {
-              const rule = VIP_RULES.find((r) => r.canonicalName === vipResolution);
-              if (rule && rule.metadata) {
-                riskLevel = rule.metadata.riskLevel || null;
-                category = rule.metadata.category || null;
-                deathDate = rule.metadata.deathDate || null;
-                notes = rule.metadata.notes || null;
-                bio = rule.metadata.bio || null;
-                birthDate = rule.metadata.birthDate || null;
-
-                if (riskLevel === 'high') redFlagRating = 3;
-                else if (riskLevel === 'medium') redFlagRating = 2;
-              }
-            }
-
-            try {
-              const res = insertEntity.run(
-                resolvedName,
-                entityType,
-                redFlagRating,
-                riskLevel,
-                category,
-                deathDate,
-                notes,
-                bio,
-                birthDate,
-              );
-              entityId = Number(res.lastInsertRowid);
-              entityCache.set(lowerName, entityId);
-              newEntities++;
-            } catch (_e) {
-              // Handle race condition or unique constraint
-              const existing = db
-                .prepare('SELECT id FROM entities WHERE full_name = ?')
-                .get(resolvedName) as { id: number };
-              if (existing) {
-                entityId = existing.id;
-                entityCache.set(lowerName, entityId);
-              } else {
-                continue;
-              }
-            }
-          }
-
-          // C. Mention
-          // Use evidence extractor for richer context
-          const evidence = extractEvidence(
-            content,
-            match.index || 0,
-            (match.index || 0) + rawName.length,
-          );
-          const score = evidence.score;
-          const context = evidence.context;
-
-          const idx = match.index || 0;
-          const start = Math.max(0, idx - 50);
-          const end = Math.min(content.length, idx + rawName.length + 50);
-
-          let mentionId: string | null = null;
-
-          if (hasMentionsTable && insertMentionRow && spanId) {
-            mentionId = makeId();
-            insertMentionRow.run(
-              mentionId,
-              doc.id,
-              spanId,
-              match.index || 0,
-              (match.index || 0) + rawName.length,
-              rawName,
-              cleanName.toLowerCase(),
-              entityType,
-              'regex-capitalized-heuristic',
-              score,
-              evidence.context.substring(0, evidence.context.indexOf(rawName)),
-              evidence.context.substring(evidence.context.indexOf(rawName) + rawName.length),
-              JSON.stringify({ source: 'ingest_intelligence_v1' }),
-            );
-
-            // Track the first mention id per entity in this document for
-            // relationship evidence.
-            if (!docEntityFirstMention.has(entityId)) {
-              docEntityFirstMention.set(entityId, mentionId);
-            }
-          }
-
-          // Insert into entity_mentions, either with extended columns when
-          // available, or in the legacy 4-column shape.
-          if (
-            hasAssignedBy &&
-            hasScoreCol &&
-            hasDecisionVersion &&
-            hasEvidenceJson &&
-            hasMentionIdCol
-          ) {
-            insertEntityMention.run(
-              entityId,
-              doc.id,
-              context,
-              cleanName,
-              'auto',
-              score,
-              1,
-              JSON.stringify(evidence),
-              mentionId,
-            );
-          } else {
-            insertEntityMention.run(entityId, doc.id, context, cleanName);
-          }
-
-          newMentions++;
-
-          // Also record resolution_candidate rows for auditability when table exists.
-          if (hasResolutionCandidates && insertResolutionCandidate && mentionId) {
-            const mentionTokens = cleanName
-              .toLowerCase()
-              .split(' ')
-              .filter((t) => t.length > 0);
-            const mentionLast = mentionTokens[mentionTokens.length - 1];
-
-            const candidates = lastNameIndex.get(mentionLast) || [];
-
-            // Helper to compute a simple feature-based score between mention and candidate entity
-            const computeCandidateScore = (
-              candidateName: string,
-              candidateType: string,
-            ): {
-              score: number;
-              features: Record<string, number>;
-            } => {
-              const candTokens = candidateName
-                .toLowerCase()
-                .split(' ')
-                .filter((t) => t.length > 0);
-              const setMention = new Set(mentionTokens);
-              const setCand = new Set(candTokens);
-              let inter = 0;
-              for (const t of setMention) {
-                if (setCand.has(t)) inter++;
-              }
-              const union = new Set([...mentionTokens, ...candTokens]).size || 1;
-              const jaccard = inter / union;
-
-              const fNameExact = normalizeName(candidateName).toLowerCase() === lowerName ? 1 : 0;
-              const fLastNameMatch = 1; // by construction of the blocking key
-              const fTypeMatch = detectType(cleanName) === candidateType ? 1 : 0;
-
-              const scoreVal = 0.5 * fNameExact + 0.25 * jaccard + 0.25 * fTypeMatch;
-
-              return {
-                score: Math.max(scoreVal, 0.01),
-                features: {
-                  F_name_exact: fNameExact,
-                  F_last_name_match: fLastNameMatch,
-                  F_token_jaccard: jaccard,
-                  F_type_match: fTypeMatch,
-                },
-              };
-            };
-
-            // Build candidate list and limit to top K
-            const scoredCandidates = candidates
-              .map((c) => {
-                const { score: candScore, features } = computeCandidateScore(
-                  c.full_name,
-                  c.entity_type || 'Unknown',
-                );
-                return { ...c, candScore, features };
-              })
-              .sort((a, b) => b.candScore - a.candScore)
-              .slice(0, 5);
-
-            for (const cand of scoredCandidates) {
-              const features = {
-                ...cand.features,
-                F_name_soft: 1,
-              };
-              const candidateScore = cand.candScore;
-              const decision = cand.id === entityId ? 'merged' : null;
-
-              const candidateIdDet = makeDeterministicId(['resCandidate', mentionId, cand.id]);
-
-              insertResolutionCandidate.run(
-                candidateIdDet,
-                cand.id,
-                entityId,
-                mentionId,
-                'mention_to_entity',
-                candidateScore,
-                JSON.stringify(features),
-                decision,
-                'auto',
-              );
-            }
-          }
-
-          // Add a low_evidence quality flag for lower-confidence mentions
-          // when the table is available.
-          if (insertQualityFlag && hasQualityFlags && mentionId && score < 0.9) {
-            const flagId = makeId();
-            insertQualityFlag.run(
-              flagId,
-              'mention',
-              mentionId,
-              'low_evidence',
-              'low',
-              JSON.stringify({ score, rawName, cleanName }),
-            );
-          }
+        if (sentences.length > 0) {
+          processGranularProvenance(doc, sentences);
+        } else {
+          processCoarseProvenance(doc, content);
         }
+
         markAnalyzed.run(doc.id);
       }
-    })();
+    });
 
     console.log(`   Batch complete. New Entities: ${newEntities}, Mentions: ${newMentions}`);
     totalEntities += newEntities;
@@ -673,98 +693,73 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 }
 
 function mapCoOccurrences() {
-  // 1. Find docs with > 1 entity
-  // We limit to docs processed in this run? Or all?
-  // "Ultimate" implies full regeneration, but we should be efficient.
-  // Let's process valid docs.
-  const BATCH_SIZE_REL = 500;
+  // Phase 3: Weighted Co-occurrence
+  // Weights: Sentence=1.0, Paragraph=0.6, Page=0.35, Doc=0.15
+  console.log('🔗 Mapping Relationships (Weighted Co-occurrence)...');
 
-  // Group by document, get entity list
-  // This query can be heavy. Let's do it in chunks or simpler way?
-  // Aggregation in sqlite is okay.
-  const rows = db
+  // A. Sentence-level (Strongest)
+  const sentencePairs = db
     .prepare(
       `
-        SELECT document_id, GROUP_CONCAT(entity_id) as ids 
-        FROM entity_mentions 
-        GROUP BY document_id 
-        HAVING COUNT(DISTINCT entity_id) > 1
-    `,
+    SELECT s.id as sentence_id, GROUP_CONCAT(em.entity_id) as ids
+    FROM document_sentences s
+    JOIN entity_mentions em ON em.mention_id IN (
+        SELECT id FROM mentions WHERE sentence_id = s.id
     )
-    .all() as { document_id: number; ids: string }[];
+    GROUP BY s.id
+    HAVING COUNT(DISTINCT em.entity_id) > 1
+  `,
+    )
+    .all() as { ids: string }[];
 
-  console.log(`   Found ${rows.length} documents with multiple entities for linking.`);
+  processPairs(sentencePairs, 1.0);
 
+  // B. Document-level fallback
+  const docRows = db
+    .prepare(
+      `
+    SELECT document_id, GROUP_CONCAT(entity_id) as ids 
+    FROM entity_mentions 
+    GROUP BY document_id 
+    HAVING COUNT(DISTINCT entity_id) > 1
+  `,
+    )
+    .all() as { ids: string }[];
+
+  processPairs(docRows, 0.15);
+
+  console.log(`   ✅ Created/Updated relationship links with weighted scoring.`);
+}
+
+function processPairs(rows: { ids: string }[], weight: number) {
   const insertRel = db.prepare(`
-        INSERT INTO entity_relationships (source_entity_id, target_entity_id, relationship_type, strength, confidence) 
-        VALUES (?, ?, 'co_occurrence', ?, 0.5) 
-        ON CONFLICT(source_entity_id, target_entity_id, relationship_type) 
-        DO UPDATE SET strength = strength + ?
-    `);
-
-  const hasRelationsTable = !!db
-    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'relations'")
-    .get();
-
-  const insertNewRel = hasRelationsTable
-    ? db.prepare(
-        "INSERT INTO relations (id, subject_entity_id, object_entity_id, predicate, direction, weight, first_seen_at, last_seen_at, status) VALUES (?, ?, ?, 'mentioned_with', 'undirected', ?, datetime('now'), datetime('now'), 'active') ON CONFLICT(id) DO UPDATE SET weight = weight + excluded.weight, last_seen_at = excluded.last_seen_at",
-      )
-    : null;
-
-  let pairsCount = 0;
+    INSERT INTO entity_relationships (source_entity_id, target_entity_id, relationship_type, strength, confidence) 
+    VALUES (?, ?, 'co_occurrence', ?, 0.5) 
+    ON CONFLICT(source_entity_id, target_entity_id, relationship_type) 
+    DO UPDATE SET strength = strength + ?
+  `);
 
   const tx = db.transaction((pairs: [number, number][]) => {
     for (const [a, b] of pairs) {
-      insertRel.run(a, b, 1, 1);
+      insertRel.run(a, b, weight, weight);
     }
   });
 
   let buffer: [number, number][] = [];
-
   for (const row of rows) {
-    // Unique integers, sorted
     const ids = [...new Set(row.ids.split(',').map(Number))].sort((a, b) => a - b);
-
-    // Skip massive lists (e.g. index pages)
     if (ids.length > 50) continue;
-
-    // Generate combinations
     for (let i = 0; i < ids.length; i++) {
       for (let j = i + 1; j < ids.length; j++) {
         buffer.push([ids[i], ids[j]]);
       }
     }
-
-    if (buffer.length >= BATCH_SIZE_REL) {
+    if (buffer.length >= 500) {
       tx(buffer);
-      pairsCount += buffer.length;
       buffer = [];
-      process.stdout.write(`   Linked ${pairsCount} pairs...\r`);
     }
   }
-
-  if (buffer.length > 0) {
-    tx(buffer);
-    pairsCount += buffer.length;
-  }
-
-  // Also populate the new relations table with a coarse "mentioned_with" edge
-  // when available. We use a deterministic id based on sorted entity ids and
-  // predicate so repeated passes simply increment weight.
-  if (insertNewRel) {
-    const relTx = db.transaction((pairs: [number, number][]) => {
-      for (const [a, b] of pairs) {
-        const lo = Math.min(a, b);
-        const hi = Math.max(a, b);
-        const relId = `${lo}-${hi}-mentioned_with`;
-        insertNewRel.run(relId, lo, hi, 1);
-      }
-    });
-    relTx(buffer as [number, number][]);
-  }
-
-  console.log(`   ✅ Created/Updated ${pairsCount} relationship links.`);
+  if (buffer.length > 0) tx(buffer);
 }
 
 function populateRelationEvidence() {

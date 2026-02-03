@@ -262,7 +262,7 @@ export const mediaRepository = {
       LIMIT ? OFFSET ?
     `;
 
-    const countQuery = `SELECT COUNT(*) as total FROM media_items ${whereClause}`;
+    const countQuery = `SELECT COUNT(*) as total FROM media_items m ${whereClause}`;
 
     const totalResult = db.prepare(countQuery).get(...params) as { total: number };
     const mediaItems = db.prepare(query).all(...params, limit, offset) as any[];

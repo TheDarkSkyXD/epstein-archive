@@ -7,13 +7,12 @@ import { extractEvidence, scoreCategoryMatch } from './utils/evidence_extractor'
 // but for reliability/speed let's start with robust regex & heuristics + consolidation.
 
 const DB_PATH = process.env.DB_PATH || 'epstein-archive.db';
-const db = new Database(DB_PATH);
+let db: Database.Database;
 
 // CONFIGURATION
 const BATCH_SIZE = 100;
 
-// TYPE HEURISTICS
-// UPDATED TYPE HEURISTICS (from fix_categorization.ts)
+// ... (Pattern definitions remain here) ...
 const LOCATION_PATTERN =
   /\b(House|Street|Road|Avenue|Park|Beach|Islands|Drive|Place|Apartment|Mansion)\b/i;
 const HOUSEKEEPER_PATTERN = /Housekeeper/i;
@@ -57,6 +56,7 @@ import {
 import { isJunkEntity } from './filters/entityFilters';
 import { resolveAmbiguity } from './filters/contextRules';
 import { resolveVip, VIP_RULES } from './filters/vipRules';
+import { fileURLToPath } from 'url';
 
 // const JUNK_REGEX = ENTITY_BLACKLIST_REGEX;
 
@@ -84,8 +84,11 @@ function makeDeterministicId(parts: Array<string | number>): string {
   return hash.digest('hex');
 }
 
-function rebuildEntityPipeline() {
+export async function runIntelligencePipeline() {
   console.log('🚀 Starting ULTIMATE Entity Ingestion Pipeline...');
+
+  // Initialize DB locally within the function to avoid top-level side effects
+  db = new Database(DB_PATH);
 
   const insertEntity = db.prepare(
     'INSERT INTO entities (full_name, entity_type, red_flag_rating, risk_level, entity_category, death_date, notes, bio, birth_date, aliases) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -664,6 +667,11 @@ function rebuildEntityPipeline() {
   console.log(`====================================`);
 }
 
+// Check if this script is being run directly
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  runIntelligencePipeline().catch(console.error);
+}
+
 function mapCoOccurrences() {
   // 1. Find docs with > 1 entity
   // We limit to docs processed in this run? Or all?
@@ -979,5 +987,3 @@ function performCleanup() {
     }
   }
 }
-
-rebuildEntityPipeline();

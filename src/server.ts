@@ -176,9 +176,22 @@ app.use('/api/investigation', investigationEvidenceRoutes);
 app.use('/api/evidence', evidenceRoutes);
 app.use('/api/entities', entityEvidenceRoutes);
 app.use('/api/email', emailRoutes);
+app.use('/api/entities', entityEvidenceRoutes);
+app.use('/api/email', emailRoutes);
 app.use('/api/articles', articlesRoutes);
 app.use('/api/financial', financialRoutes);
 app.use('/api/forensic', forensicRoutes);
+
+// Public Stats Endpoint (for About page)
+app.get('/api/stats', cacheMiddleware(300), async (_req, res, next) => {
+  try {
+    const stats = statsRepository.getStatistics();
+    res.json(stats);
+  } catch (e) {
+    next(e);
+  }
+});
+
 // Authentication middleware will be applied below
 
 // Serve static frontend from dist

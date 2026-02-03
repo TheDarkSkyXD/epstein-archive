@@ -464,12 +464,18 @@ async function processEmail(filePath: string): Promise<{
     const cleanText = textBody || '';
 
     // Extract metadata
+    const getAddressText = (addr: any) => {
+      if (!addr) return '';
+      if (Array.isArray(addr)) return addr.map((a) => a.text).join(', ');
+      return addr.text || '';
+    };
+
     const metadata = {
-      from: parsed.from?.text || '',
-      to: parsed.to?.text || '',
+      from: getAddressText(parsed.from),
+      to: getAddressText(parsed.to),
       subject: parsed.subject || '',
       date: parsed.date ? parsed.date.toISOString() : undefined,
-      cc: parsed.cc?.text || '',
+      cc: getAddressText(parsed.cc),
       messageId: parsed.messageId || '',
       inReplyTo: parsed.inReplyTo || '',
     };
@@ -764,8 +770,8 @@ async function main() {
 
   // Trigger Intelligence Pipeline
   try {
-    const { execSync } = require('child_process');
-    execSync('npx tsx scripts/ingest_intelligence.ts', { stdio: 'inherit' });
+    const { runIntelligencePipeline } = await import('./ingest_intelligence.js');
+    await runIntelligencePipeline();
   } catch (e) {
     console.error('❌ Error running Intelligence Pipeline:', e);
   }

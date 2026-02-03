@@ -111,6 +111,12 @@ else
   if [ "$DRY_RUN" = true ]; then
     log_warning "DRY RUN: Would push code and restart server"
   else
+    # 0. Pre-flight QA
+    log_step "Running pre-flight QA (Format & Lint)..."
+    # Make sure we don't proceed if these fail
+    pnpm format || { log_error "Formatting failed! Run 'pnpm format' locally."; exit 1; }
+    pnpm lint:fix || { log_error "Linting failed! Run 'pnpm lint:fix' locally."; exit 1; }
+
     # 1. Build Local (Verify)
     log_step "Building locally to verify integrity..."
     pnpm build:prod

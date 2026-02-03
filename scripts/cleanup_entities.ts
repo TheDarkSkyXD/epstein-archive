@@ -34,7 +34,7 @@ const TO_DELETE_PATTERNS = [
   'Minister Benjamin Netanyahu Among',
   'Existential Threats Netanyahu',
   'Ahram Weekly Netanyahu',
-  'Anthony Faiola Netanyahu'
+  'Anthony Faiola Netanyahu',
 ];
 
 const TO_MERGE_PATTERNS: { name: string; targetId: number }[] = [
@@ -54,7 +54,7 @@ const TO_MERGE_PATTERNS: { name: string; targetId: number }[] = [
   { name: 'Israeli Netanyahu', targetId: NETANYAHU_ID },
   { name: 'Prime Minister Benjamin Netanyahu', targetId: NETANYAHU_ID },
   { name: 'Prime Minister Binyamin Netanyahu', targetId: NETANYAHU_ID },
-  { name: 'Israeli Prime Minister Netanyahu', targetId: NETANYAHU_ID }
+  { name: 'Israeli Prime Minister Netanyahu', targetId: NETANYAHU_ID },
 ];
 
 function main() {
@@ -66,8 +66,8 @@ function main() {
 
   // Pre-statements for dependencies
   // We need to handle ALL tables referencing entities to avoid FK errors
-  // Tables: entity_mentions, entity_relationships, entity_evidence_types, media_items, 
-  // evidence_entity, media_people, black_book_entries, media_item_people, 
+  // Tables: entity_mentions, entity_relationships, entity_evidence_types, media_items,
+  // evidence_entity, media_people, black_book_entries, media_item_people,
   // entity_link_candidates, flight_passengers, palm_beach_properties, resolution_candidates
 
   const deleteEntity = (id: number) => {
@@ -75,7 +75,9 @@ function main() {
     db.prepare('DELETE FROM entity_mentions WHERE entity_id = ?').run(id);
 
     // 2. Relationships
-    db.prepare('DELETE FROM entity_relationships WHERE source_entity_id = ? OR target_entity_id = ?').run(id, id);
+    db.prepare(
+      'DELETE FROM entity_relationships WHERE source_entity_id = ? OR target_entity_id = ?',
+    ).run(id, id);
 
     // 3. Evidence Types
     db.prepare('DELETE FROM entity_evidence_types WHERE entity_id = ?').run(id);
@@ -102,10 +104,14 @@ function main() {
     db.prepare('UPDATE flight_passengers SET entity_id = NULL WHERE entity_id = ?').run(id);
 
     // 11. Properties
-    db.prepare('UPDATE palm_beach_properties SET linked_entity_id = NULL WHERE linked_entity_id = ?').run(id);
+    db.prepare(
+      'UPDATE palm_beach_properties SET linked_entity_id = NULL WHERE linked_entity_id = ?',
+    ).run(id);
 
     // 12. Resolution Candidates
-    db.prepare('DELETE FROM resolution_candidates WHERE left_entity_id = ? OR right_entity_id = ?').run(id, id);
+    db.prepare(
+      'DELETE FROM resolution_candidates WHERE left_entity_id = ? OR right_entity_id = ?',
+    ).run(id, id);
 
     // FINALLY delete entity
     db.prepare('DELETE FROM entities WHERE id = ?').run(id);
@@ -132,19 +138,32 @@ function main() {
 
     // Relationships are trickier (source/target)
     try {
-      db.prepare('UPDATE OR IGNORE entity_relationships SET source_entity_id = ? WHERE source_entity_id = ?').run(targetId, sourceId);
+      db.prepare(
+        'UPDATE OR IGNORE entity_relationships SET source_entity_id = ? WHERE source_entity_id = ?',
+      ).run(targetId, sourceId);
       db.prepare('DELETE FROM entity_relationships WHERE source_entity_id = ?').run(sourceId);
 
-      db.prepare('UPDATE OR IGNORE entity_relationships SET target_entity_id = ? WHERE target_entity_id = ?').run(targetId, sourceId);
+      db.prepare(
+        'UPDATE OR IGNORE entity_relationships SET target_entity_id = ? WHERE target_entity_id = ?',
+      ).run(targetId, sourceId);
       db.prepare('DELETE FROM entity_relationships WHERE target_entity_id = ?').run(sourceId);
-    } catch (e) { }
+    } catch (e) {
+      console.warn('Error during relationship update/cleanup:', e);
+    }
 
     // Others like flight passengers, properties can just be updated (no unique constraint usually)
-    db.prepare('UPDATE flight_passengers SET entity_id = ? WHERE entity_id = ?').run(targetId, sourceId);
-    db.prepare('UPDATE palm_beach_properties SET linked_entity_id = ? WHERE linked_entity_id = ?').run(targetId, sourceId);
+    db.prepare('UPDATE flight_passengers SET entity_id = ? WHERE entity_id = ?').run(
+      targetId,
+      sourceId,
+    );
+    db.prepare(
+      'UPDATE palm_beach_properties SET linked_entity_id = ? WHERE linked_entity_id = ?',
+    ).run(targetId, sourceId);
 
     // Clean up resolution candidates
-    db.prepare('DELETE FROM resolution_candidates WHERE left_entity_id = ? OR right_entity_id = ?').run(sourceId, sourceId);
+    db.prepare(
+      'DELETE FROM resolution_candidates WHERE left_entity_id = ? OR right_entity_id = ?',
+    ).run(sourceId, sourceId);
 
     // Delete source entity using the full delete logic (to catch anything missed)
     deleteEntity(sourceId);

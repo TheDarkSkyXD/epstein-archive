@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) and human developers working on the Epstein Archive platform.
 
 # SYSTEM ROLE & BEHAVIORAL PROTOCOLS
 
@@ -13,345 +13,192 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Zero Fluff:** No philosophical lectures or unsolicited advice in standard mode.
 - **Stay Focused:** Concise answers only. No wandering.
 - **Output First:** Prioritize code and visual solutions.
-- \*\*Plugins: Use specialized plugins for the task at hand
+- **Plugins:** Use specialized plugins (e.g., terminal, file ops) for the task at hand.
 
 ## 2. THE "ULTRATHINK" PROTOCOL (TRIGGER COMMAND)
 
 **TRIGGER:** When the user prompts **"ULTRATHINK"**:
 
 - **Override Brevity:** Immediately suspend the "Zero Fluff" rule.
-- **Maximum Depth:** You must engage in exhaustive, deep-level reasoning.
-- **Multi-Dimensional Analysis:** Analyze the request through every lens:
+- **Maximum Depth:** Engage in exhaustive, deep-level reasoning.
+- **Multi-Dimensional Analysis:**
   - _Psychological:_ User sentiment and cognitive load.
   - _Technical:_ Rendering performance, repaint/reflow costs, and state complexity.
   - _Accessibility:_ WCAG AAA strictness.
   - _Scalability:_ Long-term maintenance and modularity.
-- **Prohibition:** **NEVER** use surface-level logic. If the reasoning feels easy, dig deeper until the logic is irrefutable.
-- \*\*Plugins: Use specialized plugins for the task at hand
+- **Prohibition:** **NEVER** use surface-level logic. If reasoning feels easy, dig deeper.
 
 ## 3. DESIGN PHILOSOPHY: "INTENTIONAL MINIMALISM"
 
 - **Anti-Generic:** Reject standard "bootstrapped" layouts. If it looks like a template, it is wrong.
 - **Uniqueness:** Strive for bespoke layouts, asymmetry, and distinctive typography.
-- **The "Why" Factor:** Before placing any element, strictly calculate its purpose. If it has no purpose, delete it.
+- **The "Why" Factor:** Every element must have a strictly calculated purpose.
 - **Minimalism:** Reduction is the ultimate sophistication.
 
 ## 4. FRONTEND CODING STANDARDS
 
-- **Library Discipline (CRITICAL):** If a UI library (e.g., Shadcn UI, Radix, MUI) is detected or active in the project, **YOU MUST USE IT**.
-  - **Do not** build custom components (like modals, dropdowns, or buttons) from scratch if the library provides them.
-  - **Do not** pollute the codebase with redundant CSS.
-  - _Exception:_ You may wrap or style library components to achieve the "Liquid Glass" look, but the underlying primitive must come from the library to ensure stability and accessibility.
-- **Stack:** Modern (React/Vue/Svelte), Tailwind/Custom CSS, semantic HTML5.
+- **Library Discipline (CRITICAL):** If a UI library (lucide-react, recharts) is active, **USE IT**.
+- **Stack:** React 18, Tailwind CSS, TypeScript (Strict-ish).
 - **Visuals:** Focus on micro-interactions, perfect spacing, and "invisible" UX.
 
-## 5. RESPONSE FORMAT
+---
 
-**IF NORMAL:**
-
-1.  **Rationale:** (1 sentence on why the elements were placed there).
-2.  **The Code.**
-
-**IF "ULTRATHINK" IS ACTIVE:**
-
-1.  **Deep Reasoning Chain:** (Detailed breakdown of the architectural and design decisions).
-2.  **Edge Case Analysis:** (What could go wrong and how we prevented it).
-3.  **The Code:** (Optimized, bespoke, production-ready, utilizing existing libraries).
+# PROJECT DOCUMENTATION
 
 ## Project Overview
+**Epstein Archive** is a monolithic React + Express platform for investigative analysis of the Epstein corpus. It combines a high-performance document viewer, forensic entity graph, and full-text search engine into a single deployable unit.
 
-The Epstein Archive is a comprehensive investigative research platform for analyzing and cross-referencing documents, entities, and relationships from the Epstein Files corpus. It processes 86,000+ entities, 51,000+ documents, and 500+ verified media files with full-text search, network visualization, and forensic tools.
-
-**Tech Stack**: Vite + React + TypeScript frontend, Express backend, SQLite with FTS5 full-text search, better-sqlite3
-
-**Live Site**: https://epstein.academy
-
-## Development Commands
-
-### Local Development
-
-```bash
-# Start dev server (Frontend on :3002, proxies /api to backend :3012)
-npm run dev
-
-# Start backend API server separately (if needed)
-npm run server
-# or
-npm run api
-```
-
-The dev server runs Vite on port 3002 and proxies `/api` and `/files` requests to the backend on port 3012.
-
-### Building
-
-```bash
-# Frontend only (for development)
-npm run build
-
-# Full production build (frontend + backend)
-npm run build:prod
-
-# Start production server
-npm run start
-```
-
-### Code Quality
-
-```bash
-# Type checking (no emit)
-npm run type-check
-
-# Linting
-npm run lint
-npm run lint:fix
-
-# Formatting (Prettier)
-npm run format
-npm run format:check
-```
-
-### Database Operations
-
-```bash
-# Run migrations (applies unapplied migrations from src/server/db/schema/)
-npm run migrate
-
-# Backfill entity mentions
-npm run backfill
-```
-
-### Testing in Production
-
-```bash
-# Verify deployment health
-npm run verify
-```
+**Core Workflow:**
+1.  **Ingestion:** Python/TS scripts parse raw PDFs/Media -> SQL.
+2.  **Serving:** Express API serves JSON + static assets.
+3.  **Analysis:** React frontend visualizes complex relationships and data.
 
 ## Architecture
 
-### Dual TypeScript Configuration
+```mermaid
+graph TD
+    User[User / Investigator] -->|HTTPS| Nginx[Nginx Reverse Proxy]
+    Nginx -->|Static Assets :3002| Vite[Vite File Server]
+    Nginx -->|/api/* :3012| API[Express API Server]
+    
+    subgraph "Application Core"
+        API -->|Authentication| Auth[JWT Middleware]
+        API -->|Data Access| Repo[Repository Layer]
+        Repo -->|Better-SQLite3| DB[(SQLite Database)]
+        DB -->|FTS5| SearchIndex[Full Text Index]
+    end
+    
+    subgraph "Ingestion Pipeline"
+        Raw[Raw Corpus (PDFs/Media)] --> Scripts[Ingestion Scripts]
+        Scripts -->|Write| DB
+    end
+```
 
-The project uses **two separate TypeScript configurations**:
+## Tech Stack
 
-1. **Frontend (`tsconfig.json`)**: Compiles `src/` (components, hooks, pages) with Vite
-   - Bundler mode resolution
-   - React JSX
-   - DOM types
-   - `noEmit: true` (Vite handles compilation)
+| Layer | Technology |
+|-------|------------|
+| **Runtime** | Node.js (Modules), **pnpm** (Package Manager) |
+| **Frontend** | React 18, TypeScript, Tailwind CSS, Recharts, React-PDF |
+| **Backend** | Express.js, compression, helmet, cors |
+| **Database** | SQLite + FTS5 (via `better-sqlite3` and `sqlite3` CLI) |
+| **DevOps** | PM2, Nginx, Rsync, Bash Scripts |
+| **Testing** | Playwright (E2E), Vitest (Unit - pending) |
 
-2. **Backend (`tsconfig.server.json`)**: Compiles server code to `dist/`
-   - Node module resolution
-   - Includes: `src/server.ts`, `src/server/**/*`, `src/services/**/*`, `src/types/**/*`
-   - Excludes: `src/components`, `src/hooks` (frontend-only code)
-   - Outputs to `./dist`
+## Application Structure (Monolith)
 
-### Server Architecture (`src/server.ts`)
+There is **ONE** unified application repository containing both frontend and backend.
 
-The Express server is a large monolithic file (~1400 lines) that:
+- **Frontend App** (`src/`): React SPA built with Vite.
+  - Entry: `index.html` -> `src/main.tsx`
+  - Port: `3002` (Dev / Production Static)
+- **Backend API** (`src/server.ts`): Node.js Express Server.
+  - Entry: `src/server.ts` (Dev) / `dist/server.js` (Prod)
+  - Port: `3012`
 
-- Mounts middleware (helmet, cors, compression, rate limiting, cookie-parser)
-- Applies authentication middleware (`authenticateRequest`, `requireRole`)
-- Defines ~50+ REST API routes inline
-- Uses repository pattern for database operations (see below)
+## Commands (pnpm)
 
-### Repository Pattern
+**Development**
+```bash
+pnpm dev          # Start Vite frontend (localhost:3002)
+pnpm server       # Start Express backend (localhost:3012)
+pnpm run api      # Alias for server
+```
 
-Database operations are isolated in `src/server/db/*Repository.ts` files:
+**Build & Deploy** (Canonical)
+```bash
+pnpm build        # Build frontend only
+pnpm build:prod   # Build frontend AND backend (to /dist)
+./scripts/deploy.sh # **SINGLE SOURCE OF TRUTH** for Production Deployment
+./scripts/safe_db_upload.sh # **DB ONLY** Safe Atomic Swap
+```
 
-- `entitiesRepository` - Entity CRUD and search
-- `documentsRepository` - Document management, full-text search via FTS5
-- `relationshipsRepository` - Entity-entity relationships
-- `mediaRepository` - Photos, videos, audio files
-- `investigationsRepository` - User investigation workspaces
-- `searchRepository` - Cross-collection search
-- `timelineRepository` - Event timeline data
-- `forensicRepository` - Forensic analysis tools
-- `statsRepository` - Platform statistics
-- `jobsRepository` - Background job tracking
-- `blackBookRepository` - Jeffrey Epstein's "Black Book" contacts
-- `evidenceRepository` - Evidence chain of custody
-- `articleRepository` - News articles
-- `dataQualityRepository` - Data quality metrics
-- `bulkOperationsRepository` - Bulk data operations
-- `memoryRepository` - User memory/preferences
+**Database**
+```bash
+pnpm migrate      # Apply pending migrations
+pnpm db:merge     # (Deprecated) Merge logic
+pnpm seed:structure # Seed initial data
+```
 
-Each repository imports the database singleton via `getDb()` from `src/server/db/connection.ts`.
+## Database Schema (Core Tables)
 
-### Database Connection (`src/server/db/connection.ts`)
+**`entities`**
+- `id`, `full_name`, `primary_role`, `red_flag_rating` (0-5), `connections_summary`
+- *FTS Enabled*: `entities_fts`
 
-- Uses `better-sqlite3` (blocking, synchronous SQLite)
-- Singleton pattern: `getDb()` returns cached instance
-- Configured with:
-  - `journal_mode = WAL` (Write-Ahead Logging for concurrency)
-  - `foreign_keys = ON`
-  - `synchronous = NORMAL`
-  - `temp_store = MEMORY`
-- Database path controlled by `DB_PATH` environment variable
+**`documents`**
+- `id`, `file_path`, `content` (extracted text), `metadata_json`, `redaction_count`
+- *FTS Enabled*: `documents_fts`
 
-### Database Migrations (`src/server/db/migrator.ts`)
+**`media_items`**
+- `id`, `file_path`, `type` (image/video/audio), `verification_status`
 
-- Migrations stored in `src/server/db/schema/*.sql`
-- Applied sequentially by filename (e.g., `001_align_schema.sql`, `002_ensure_tables.sql`)
-- Tracks applied migrations in `schema_migrations` table
-- Run via `npm run migrate` or automatically on server startup via `runMigrations()`
+**`entity_relationships`**
+- `source_entity_id`, `target_entity_id`, `relationship_type`, `confidence`
 
-### Environment Variables
+## Key Components
 
-Critical environment variables (validated in `src/server/utils/envValidator.ts`):
+- **Render Components**:
+  - `App.tsx`: Main router and layout shell.
+  - `DocumentBrowser.tsx`: Virtualized list with infinite scroll.
+  - `NetworkVisualization.tsx`: D3/Canvas force-directed graph.
+  - `GlobalSearch.tsx`: Command-K style search interface.
 
-- `DB_PATH` - Path to SQLite database (required)
-- `RAW_CORPUS_BASE_PATH` - Path to raw document files for serving via `/files` route
-- `NODE_ENV` - `production` or `development`
+- **Contexts/Providers**:
+  - *Note: Mostly prop-drilled or local state currently. Future refactor target.*
 
-### Authentication & Authorization
+## Data Flow (Render Pipeline)
 
-- JWT-based authentication implemented in `src/server/auth/middleware.ts`
-- Roles: `admin`, `investigator`, `viewer`
-- Protected routes use `authenticateRequest` and `requireRole` middleware
-- Auth routes defined in `src/server/auth/routes.ts`
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant R as React (Vite)
+    participant A as Express API
+    participant D as SQLite DB
 
-### Frontend Structure
+    U->>R: Open Entity Profile
+    R->>A: GET /api/entities/:id
+    A->>D: SELECT * FROM entities WHERE id=?
+    D-->>A: Row Data
+    A->>D: SELECT * FROM entity_relationships...
+    D-->>A: Relations
+    A-->>R: JSON { entity, relations }
+    R->>R: Render Graph & Stats
+    R-->>U: Display Profile
+```
 
-Key component directories:
+## Infrastructure
 
-- `src/components/` - React UI components (120+ files)
-  - Entity-related: `EntityProfile.tsx`, `EntityPage.tsx`, `NetworkVisualization.tsx`
-  - Document-related: `DocumentPage.tsx`, `DocumentViewer.tsx`, `PDFViewer.tsx`
-  - Media-related: `PhotoBrowser.tsx`, `AudioPlayer.tsx`, `AudioBrowser.tsx`
-  - Investigation tools: `InvestigationWorkspace.tsx`, `EvidenceTracker.tsx`
-  - Admin: `AdminDashboard.tsx`, `UserManagement.tsx`
-- `src/pages/` - Top-level page components
-- `src/services/` - Frontend API clients and services
-- `src/hooks/` - Custom React hooks
+- **Server**: Virtual Private Server (VPS) - "glasscode"
+- **OS**: Ubuntu / Linux
+- **Process Manager**: PM2 (`epstein-archive`)
+- **Web Server**: Nginx (Reverse Proxy + SSL)
+- **Deploy Strategy**: Atomic File Swap (SQLite) + Git Pull (Code)
 
-### Data Ingestion Scripts
+## Environments
 
-Scripts located in `scripts/`:
+1.  **Local Development**:
+    - `NODE_ENV=development`
+    - DB: `./epstein-archive.db` (Local copy)
+    - Hot Reloading enabled.
 
-- **Primary ingestion pipeline**: `scripts/ingest_pipeline.ts` or similar (see `scripts/README.md`)
-- `ingest_audio.ts` - Process and ingest audio files with transcripts
-- `ingest_videos.ts` - Process video files
-- `generate_thumbnails.ts` - Generate video/image thumbnails
-- `generate_chapters.ts` - Generate chapter markers for media
-- `migrate.ts` - Standalone migration runner (wraps `src/server/db/migrator.ts`)
+2.  **Production**:
+    - `NODE_ENV=production`
+    - DB: `/home/deploy/epstein-archive/epstein-archive.db`
+    - Served via Nginx -> PM2.
 
-Run scripts with tsx: `DB_PATH=./epstein-archive.db tsx scripts/<script>.ts`
+## Conventions
 
-### Vite Configuration
+- **File Organization**: Feature-based co-location where possible, but currently grouped by type (`components/`, `pages/`, `server/db/`).
+- **Code Style**:
+  - **No `any`** (mostly).
+  - **Functional Components** with Hooks.
+  - **Async/Await** for all promises.
+- **Naming**: PascalCase for Components, camelCase for functions/vars.
 
-Code splitting strategy defined in `vite.config.ts`:
+## Active Development Areas
 
-- Vendor chunks: `vendor-tf` (TensorFlow), `vendor-pdf` (PDF.js), `vendor-charts` (Recharts/D3), `vendor-icons` (Lucide), `vendor` (React + other deps)
-- Feature chunks: `feature-investigation`, `feature-media`, `feature-email`, `feature-documents`, `feature-network`
-
-Dev server proxies `/api` and `/files` to backend on `http://localhost:3012`.
-
-## Data Model
-
-Core tables (see `src/server/db/schema/*.sql` for full schema):
-
-- `entities` - People and organizations with risk scoring
-- `documents` - Court documents, PDFs, with FTS5 full-text index
-- `entity_mentions` - Entity appearances in documents
-- `entity_relationships` - Relationships between entities
-- `media_files` - Photos, videos, audio with metadata
-- `investigations` - User investigation workspaces
-- `evidence_items` - Evidence tracking
-- `timeline_events` - Event timeline
-- `users` - Authentication
-- `audit_logs` - Security audit trail
-
-### Entity Risk Scoring
-
-Entities have a `red_flag_rating` (0-5) based on:
-
-- Frequency and context of mentions
-- Direct eyewitness testimony vs. social association
-- Evidence types (flight logs, emails, court documents)
-
-## Code Conventions
-
-- **TypeScript strict mode**: `strict: false` in tsconfig (legacy codebase)
-- **ESLint**: Configured with `@typescript-eslint`, `react-hooks`, `prettier`
-- **Prettier**: Auto-formatting on `npm run format`, enforced in CI
-- **No `any` restrictions**: `@typescript-eslint/no-explicit-any: off` (database types use `any`)
-- **Comments**: No docstring convention; code is self-documenting where possible
-
-## Release & CI/CD Rules
-
-- **Version history MUST be updated on every production deploy.**
-  - When bumping the app version (e.g. `package.json` → 10.9.0) and deploying to https://epstein.academy,
-    you MUST also update the canonical version history (CHANGELOG, release notes, and any user-facing
-    "Version History" UI) in the same change.
-
-## CI/CD
-
-GitHub Actions workflows in `.github/workflows/`:
-
-- **`ci.yml`**: Runs on push/PR to main/master
-  - Auto-fixes formatting with Prettier and commits back
-  - Lints with ESLint
-  - Type-checks with `tsc --noEmit`
-  - Verifies build succeeds
-- **`data-integrity.yml`**: Validates data integrity (details not shown)
-
-## Common Patterns
-
-### Adding a New API Endpoint
-
-1. Add route handler in `src/server.ts` (or extract to `src/server/routes/*.ts`)
-2. Use authentication middleware if needed: `app.get('/api/foo', authenticateRequest, requireRole(['admin']), (req, res) => {...})`
-3. Import and use appropriate repository for database operations
-4. Add corresponding API client method in `src/services/apiClient.ts`
-
-### Adding a New Database Table
-
-1. Create migration file: `src/server/db/schema/0XX_description.sql`
-2. Run `npm run migrate` to apply
-3. Create repository file: `src/server/db/newTableRepository.ts`
-4. Export repository from repository file
-5. Import in `src/server.ts` and use in routes
-
-### Adding a New React Component
-
-1. Create component in `src/components/<ComponentName>.tsx`
-2. Follow existing patterns (functional components, hooks)
-3. Import shared UI components from existing files (e.g., `Button`, `Card` patterns)
-4. Use `clsx` for conditional CSS classes
-5. Use `react-router-dom` for navigation
-
-## Important Notes
-
-- **Data directory excluded**: `data/` is gitignored and contains raw media/documents
-- **Database path**: Always set `DB_PATH` environment variable when running scripts or server
-- **Sensitive content**: Platform handles sensitive archival material; UI includes content warnings (`SensitiveContent.tsx`)
-- **FTS5 search**: Full-text search uses SQLite FTS5; queries use `MATCH` syntax
-- **WAL mode**: Database uses Write-Ahead Logging; may leave `-wal` and `-shm` files
-- **Port conflicts**: Dev server (3002), API server (3012), production server (default 3000 or PORT env var)
-- **Corpus path**: `RAW_CORPUS_BASE_PATH` must be set to serve original documents via `/files` route
-
-## Troubleshooting
-
-### Database locked errors
-
-- Ensure no other processes have the database open
-- Check for stale `-wal` or `-shm` files
-- WAL mode should handle most concurrency issues
-
-### Missing documents/media
-
-- Verify `RAW_CORPUS_BASE_PATH` environment variable is set correctly
-- Check that `data/` directory exists and contains media files
-- Ensure file paths in database match actual file locations
-
-### Type errors during build
-
-- Run `npm run type-check` to see full errors
-- Check that `tsconfig.json` and `tsconfig.server.json` are correctly separating frontend/backend code
-- Remember: server build excludes `src/components` and `src/hooks`
-
-### Migration errors
-
-- Migrations run sequentially; if one fails, fix it before proceeding
-- Check `schema_migrations` table to see what's been applied
-- Migrations should be idempotent where possible (use `IF NOT EXISTS`, `IF NOT EXISTS` checks)
+1.  **Forensic Gaps**: identifying missing data connections.
+2.  **FAQ & Documentation**: Helping users understand the dataset.
+3.  **DOJ Data Integration**: Ingesting Release 9-12.
+4.  **Forensic/Financial Analysis**: Tracing transaction flows.

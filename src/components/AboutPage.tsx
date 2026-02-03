@@ -10,6 +10,7 @@ import {
   Eye,
   Download,
   Newspaper,
+  Info,
 } from 'lucide-react';
 
 const DOCUMENT_SOURCES = [
@@ -145,13 +146,43 @@ const DOCUMENT_SOURCES = [
   },
   {
     title: 'DOJ Data Set 9',
-    description: 'Released Feb 1, 2026: 12,000+ new PDF files found via deep web scraping.',
-    redactionStatus: 'Unredacted (0%)',
-    redactionColor: 'green',
+    description: 'Released Feb 1, 2026: 35 high-value DOJ prosecutorial files (avg 4,490 words per doc, 29% redacted).',
+    redactionStatus: 'Redacted (~29%)',
+    redactionColor: 'yellow',
     impact: 'CRITICAL',
     impactColor: 'purple',
     link: null,
     search: 'Data Set 9',
+  },
+  {
+    title: 'DOJ Data Set 10',
+    description: 'Released Feb 1, 2026: 8,497 Deutsche Bank statements, invoices, and financial records mentioning Jes Staley and Lesley Groff.',
+    redactionStatus: 'Redacted (~48%)',
+    redactionColor: 'red',
+    impact: 'CRITICAL',
+    impactColor: 'purple',
+    link: null,
+    search: 'Data Set 10',
+  },
+  {
+    title: 'DOJ Data Set 11',
+    description: 'Released Feb 1, 2026: 4,721 video files, images, and short documents (avg 248 words, 52% redacted).',
+    redactionStatus: 'Redacted (~52%)',
+    redactionColor: 'red',
+    impact: 'HIGH',
+    impactColor: 'blue',
+    link: null,
+    search: 'Data Set 11',
+  },
+  {
+    title: 'DOJ Data Set 12',
+    description: 'Released Feb 1, 2026: 202 investigative documents including Subject Referrals and case correspondence (avg 2,793 words, 35% redacted).',
+    redactionStatus: 'Redacted (~35%)',
+    redactionColor: 'yellow',
+    impact: 'HIGH',
+    impactColor: 'blue',
+    link: null,
+    search: 'Data Set 12',
   },
   {
     title: 'DOJ Discovery VOL00001',
@@ -242,38 +273,19 @@ const timelineEvents = [
     content: 'VOL00007-8: Financial records, JPM correspondence, and new witness statements.',
   },
   {
-    date: 'Dec 30, 2025',
+    date: 'Feb 2, 2026',
     source: 'Epstein Archive',
-    content: 'V9.0.0: Integrated Side-by-Side PDF Viewer and fuzzy document source linking.',
+    content: 'V12.0.0: DOJ Archive Consolidation. Integrated DOJ discovery volumes with Advanced Forensic Analysis Workspace including Financial Transaction Mapper and Evidence Integrity tracking.',
   },
   {
-    date: 'Jan 12, 2026',
+    date: 'Feb 3, 2026',
     source: 'Epstein Archive',
-    content: 'V9.2.0: Operation Spring Cleaning. Complete data unification and Admin Dashboard.',
+    content: 'V12.1.1: Production Infrastructure. Zero-downtime deployment pipeline, TypeScript build hardening, and database synchronization (93,989 documents, 145,653 entities).',
   },
   {
-    date: 'Jan 23, 2026',
+    date: 'Feb 3, 2026',
     source: 'Epstein Archive',
-    content:
-      'V11.5.0: "The Trump Rule" & "The Riley Rule". Implemented context-aware entity resolution and VIP auto-consolidation.',
-  },
-  {
-    date: 'Feb 1, 2026',
-    source: 'DOJ / Epstein Archive',
-    content:
-      'Data Set 9: Discovery of 12,000+ previously hidden files via advanced browser automation.',
-  },
-  {
-    date: 'Feb 02, 2026',
-    source: 'Epstein Archive',
-    content:
-      'V11.7.0: "Codeword Discovery" & Bio Integration. Added term recognition for circle codewords and rich biographical data.',
-  },
-  {
-    date: 'Feb 02, 2026',
-    source: 'Epstein Archive',
-    content:
-      'V11.8.0: Entity Interconnectivity. Unified Email, Black Book, and Investigation workflows with bi-directional deep linking and integrated evidence capture.',
+    content: 'V12.1.2: DOJ Datasets 9-12 Fully Ingested. Added 13,455 documents including Deutsche Bank records (Jes Staley), video evidence, and prosecutorial files. Total archive: 107,474 documents, 1.55M entity mentions.',
   },
 ];
 
@@ -642,54 +654,146 @@ export const AboutPage: React.FC = () => {
             protective orders.
           </p>
 
-          <h3 className="text-2xl font-bold text-white mt-8 mb-4">
-            Key Document Releases Timeline
-          </h3>
+          <h3 className="text-2xl font-bold text-white mt-8 mb-4">Key Discoveries from DOJ Datasets</h3>
 
-          <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
-            {/* Mobile Timeline */}
-            <div className="md:hidden space-y-4">
-              {timelineEvents.map((event, idx) => (
-                <div
-                  key={idx}
-                  className="bg-slate-700/30 p-4 rounded-lg border border-slate-600/50 relative overflow-hidden"
-                >
-                  <div className="absolute top-0 left-0 w-1 h-full bg-blue-500/50"></div>
-                  <div className="flex flex-col gap-1 pl-2">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-blue-400 font-mono text-xs font-bold uppercase tracking-wider bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">
-                        {event.date}
-                      </span>
-                    </div>
-                    <div className="text-white font-bold text-lg">{event.source}</div>
-                    <div className="text-slate-300 text-sm leading-relaxed mt-1">
-                      {event.content}
-                    </div>
-                  </div>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {/* Dataset 9 */}
+            <div className="bg-slate-800/50 rounded-lg p-5 border border-slate-700/50">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-lg font-semibold text-white">Dataset 9</h4>
+                <span className="text-xs font-mono text-yellow-400 bg-yellow-500/10 px-2 py-1 rounded border border-yellow-500/20">
+                  29% Redacted
+                </span>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <FileText className="h-4 w-4 text-blue-400" />
+                  <span className="text-slate-300">35 prosecutorial files</span>
                 </div>
-              ))}
+                <div className="text-sm text-slate-400 leading-relaxed">
+                  High-value DOJ files from US Attorney SDNY with an average of 4,490 words per
+                  document. Lowest redaction rate indicates maximum transparency for prosecutorial
+                  materials.
+                </div>
+              </div>
             </div>
 
-            {/* Desktop Timeline */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="text-slate-400 border-b border-slate-700">
-                  <tr>
-                    <th className="pb-2 text-left">Date</th>
-                    <th className="pb-2 text-left">Source</th>
-                    <th className="pb-2 text-left">Key Content</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-700">
-                  {timelineEvents.map((event, idx) => (
-                    <tr key={idx}>
-                      <td className="py-2 text-slate-300 whitespace-nowrap pr-4">{event.date}</td>
-                      <td className="py-2 text-slate-300 pr-4">{event.source}</td>
-                      <td className="py-2 text-slate-400">{event.content}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            {/* Dataset 10 */}
+            <div className="bg-slate-800/50 rounded-lg p-5 border border-slate-700/50">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-lg font-semibold text-white">Dataset 10</h4>
+                <span className="text-xs font-mono text-red-400 bg-red-500/10 px-2 py-1 rounded border border-red-500/20">
+                  48% Redacted
+                </span>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <FileText className="h-4 w-4 text-blue-400" />
+                  <span className="text-slate-300">8,497 financial documents</span>
+                </div>
+                <div className="text-sm text-slate-400 leading-relaxed">
+                  <strong className="text-slate-300">Deutsche Bank statements and invoices</strong>{' '}
+                  with extensive mentions of Jes Staley (698 docs) and Lesley Groff (601 docs).
+                  Reveals detailed financial transaction patterns and service charges across Epstein
+                  properties.
+                </div>
+              </div>
+            </div>
+
+            {/* Dataset 11 */}
+            <div className="bg-slate-800/50 rounded-lg p-5 border border-slate-700/50">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-lg font-semibold text-white">Dataset 11</h4>
+                <span className="text-xs font-mono text-red-400 bg-red-500/10 px-2 py-1 rounded border border-red-500/20">
+                  52% Redacted
+                </span>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <FileText className="h-4 w-4 text-blue-400" />
+                  <span className="text-slate-300">4,721 multimedia files</span>
+                </div>
+                <div className="text-sm text-slate-400 leading-relaxed">
+                  Video evidence, images, and short documents (avg 248 words). Highest redaction
+                  rate reflects sensitive nature of visual evidence requiring privacy protection.
+                </div>
+              </div>
+            </div>
+
+            {/* Dataset 12 */}
+            <div className="bg-slate-800/50 rounded-lg p-5 border border-slate-700/50">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-lg font-semibold text-white">Dataset 12</h4>
+                <span className="text-xs font-mono text-yellow-400 bg-yellow-500/10 px-2 py-1 rounded border border-yellow-500/20">
+                  35% Redacted
+                </span>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <FileText className="h-4 w-4 text-blue-400" />
+                  <span className="text-slate-300">202 investigative documents</span>
+                </div>
+                <div className="text-sm text-slate-400 leading-relaxed">
+                  Subject referrals including "Leon Black/Additional HT Subject Referral" and DOJ
+                  case correspondence. Substantive legal documents averaging 2,793 words.
+                </div>
+              </div>
+            </div>
+
+            {/* Overall Statistics */}
+            <div className="bg-gradient-to-br from-blue-900/30 to-purple-900/30 rounded-lg p-5 border border-blue-500/30 md:col-span-2 lg:col-span-2">
+              <h4 className="text-lg font-semibold text-white mb-3">
+                Cross-Dataset Analysis (13,455 Documents)
+              </h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-2xl font-bold text-blue-400">6,669</div>
+                  <div className="text-xs text-slate-400">Communications Documents (50%)</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-emerald-400">3,928</div>
+                  <div className="text-xs text-slate-400">Financial Records (29%)</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-purple-400">2,091</div>
+                  <div className="text-xs text-slate-400">Location References (16%)</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-orange-400">1,212</div>
+                  <div className="text-xs text-slate-400">Flight-Related (9%)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-blue-900/20 border border-blue-500/20 rounded-lg p-5 mt-6">
+            <h4 className="text-blue-300 font-semibold mb-2 flex items-center gap-2">
+              <Info className="h-5 w-5" />
+              What We Learned
+            </h4>
+            <ul className="text-sm text-blue-100/80 leading-relaxed space-y-2 list-disc list-inside mb-4">
+              <li>
+                <strong className="text-blue-200">Deutsche Bank connection</strong>: Jes Staley's
+                name appears in 698 documents, revealing extensive financial oversight
+              </li>
+              <li>
+                <strong className="text-blue-200">Operational network</strong>: Lesley Groff
+                coordinated transactions across 601 documents
+              </li>
+              <li>
+                <strong className="text-blue-200">Geographic footprint</strong>: 2,091 location
+                references spanning Palm Beach, Little St James, Manhattan, and Paris
+              </li>
+              <li>
+                <strong className="text-blue-200">Communication patterns</strong>: Half of all DOJ
+                documents contain email, message, or call records
+              </li>
+            </ul>
+            <div className="mt-4 pt-4 border-t border-blue-500/20">
+              <a href="/faq" className="text-blue-300 hover:text-white text-sm font-medium inline-flex items-center gap-1 transition-colors">
+                <Info className="h-4 w-4" />
+                Read Frequently Asked Questions
+              </a>
             </div>
           </div>
 
@@ -902,10 +1006,10 @@ export const AboutPage: React.FC = () => {
         </p>
         <div className="bg-blue-900/30 border border-blue-500/30 rounded-lg p-4 mt-4">
           <p className="text-blue-200 text-sm">
-            <strong>Latest Addition:</strong> February 2, 2026 - V12.0.0 Direct DOJ Dataset Integration.
-            Integrated and consolidated DOJ discovery volumes 10, 11, and 12, expanding the verified corpus
-            to over 51,000 documents with an Advanced Forensic Analysis Workspace. System now
-            security and a{' '}
+            <strong>Latest Addition:</strong> February 3, 2026 - V12.1.2 DOJ Datasets 9-12 Fully Ingested.
+            Added 13,455 new documents including Deutsche Bank financial statements, video evidence, and prosecutorial files.
+            Archive now contains over 107,000 documents with comprehensive financial transaction records,
+            communications analysis, and location data across all Epstein properties and associates.
             <a
               href="https://github.com/ErikVeland/epstein-archive/tree/main/docs/data-governance-standards.md"
               target="_blank"

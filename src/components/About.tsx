@@ -43,7 +43,7 @@ export const About: React.FC = () => {
           Epstein Archive Investigation Platform
         </h1>
         <p className="text-xl text-slate-400 mb-6">
-          Version 12.0.0 - Forensic Workspace & DOJ Archive Consolidation
+          Version 12.1.2 - DOJ Datasets 9-12 Ingested (107K Documents)
         </p>
 
         {stats && (

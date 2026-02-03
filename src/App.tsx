@@ -72,6 +72,10 @@ const EmailClient = lazy(() =>
 const AboutPage = lazy(() =>
   import('./components/AboutPage').then((module) => ({ default: module.default })),
 );
+const FAQPage = lazy(() =>
+  import('./components/FAQPage').then((module) => ({ default: module.default })),
+);
+
 const AdminDashboard = lazy(() =>
   import('./pages/AdminDashboard').then((module) => ({ default: module.AdminDashboard })),
 );
@@ -201,6 +205,7 @@ function App() {
     if (pathname.startsWith('/evidence/')) return 'evidence';
     if (pathname.startsWith('/flights')) return 'flights';
     if (pathname.startsWith('/properties')) return 'properties';
+    if (pathname.startsWith('/faq')) return 'faq';
     return 'people'; // default
   };
 
@@ -219,6 +224,7 @@ function App() {
     | 'emails'
     | 'login'
     | 'evidence'
+    | 'faq'
     | 'admin';
   const activeTab = getTabFromPath(location.pathname);
 
@@ -1347,11 +1353,10 @@ function App() {
                 <div className="relative group">
                   <button
                     onClick={() => navigate('/people')}
-                    className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${
-                      activeTab === 'people'
-                        ? 'bg-gradient-to-r from-cyan-600 to-cyan-500 text-white border border-cyan-400/50 shadow-sm shadow-cyan-500/20'
-                        : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-                    }`}
+                    className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${activeTab === 'people'
+                      ? 'bg-gradient-to-r from-cyan-600 to-cyan-500 text-white border border-cyan-400/50 shadow-sm shadow-cyan-500/20'
+                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
+                      }`}
                   >
                     <Icon name="Users" size="sm" />
                     <span className="hidden lg:inline">Subjects</span>
@@ -1389,11 +1394,10 @@ function App() {
                 </div>
                 <button
                   onClick={() => navigate('/documents')}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${
-                    activeTab === 'documents'
-                      ? 'bg-gradient-to-r from-red-600 to-red-500 text-white border border-red-400/50 shadow-sm shadow-red-500/20'
-                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-                  }`}
+                  className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${activeTab === 'documents'
+                    ? 'bg-gradient-to-r from-red-600 to-red-500 text-white border border-red-400/50 shadow-sm shadow-red-500/20'
+                    : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
+                    }`}
                 >
                   <Icon name="FileText" size="sm" />
                   <span className="hidden lg:inline">Docs</span>
@@ -1411,11 +1415,10 @@ function App() {
                       setInvestigatePopoverOpen(false);
                       navigate('/investigations');
                     }}
-                    className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${
-                      activeTab === 'investigations'
-                        ? 'bg-gradient-to-r from-pink-600 to-pink-500 text-white border border-pink-400/50 shadow-sm shadow-pink-500/20'
-                        : `bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm ${investigateAttract ? 'ring-2 ring-pink-500 shadow-lg shadow-pink-500/30 animate-pulse' : ''}`
-                    }`}
+                    className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${activeTab === 'investigations'
+                      ? 'bg-gradient-to-r from-pink-600 to-pink-500 text-white border border-pink-400/50 shadow-sm shadow-pink-500/20'
+                      : `bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm ${investigateAttract ? 'ring-2 ring-pink-500 shadow-lg shadow-pink-500/30 animate-pulse' : ''}`
+                      }`}
                     aria-haspopup="dialog"
                     aria-expanded={investigatePopoverOpen}
                     ref={investigateBtnRef}
@@ -1486,11 +1489,10 @@ function App() {
                 <button
                   onClick={() => navigate('/timeline')}
                   onMouseEnter={() => preloader.prefetchJson('/api/timeline')}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${
-                    activeTab === 'timeline'
-                      ? 'bg-gradient-to-r from-orange-600 to-orange-500 text-white border border-orange-400/50 shadow-sm shadow-orange-500/20'
-                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-                  }`}
+                  className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${activeTab === 'timeline'
+                    ? 'bg-gradient-to-r from-orange-600 to-orange-500 text-white border border-orange-400/50 shadow-sm shadow-orange-500/20'
+                    : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
+                    }`}
                 >
                   <Icon name="Clock" size="sm" />
                   <span className="hidden lg:inline">Timeline</span>
@@ -1498,11 +1500,10 @@ function App() {
                 <button
                   onClick={() => navigate('/flights')}
                   onMouseEnter={() => preloader.prefetchJson('/api/flights')}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${
-                    activeTab === 'flights'
-                      ? 'bg-gradient-to-r from-cyan-600 to-cyan-500 text-white border border-cyan-400/50 shadow-sm shadow-cyan-500/20'
-                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-                  }`}
+                  className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${activeTab === 'flights'
+                    ? 'bg-gradient-to-r from-cyan-600 to-cyan-500 text-white border border-cyan-400/50 shadow-sm shadow-cyan-500/20'
+                    : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
+                    }`}
                 >
                   <Icon name="Navigation" size="sm" />
                   <span className="hidden lg:inline">Flights</span>
@@ -1510,11 +1511,10 @@ function App() {
                 <button
                   onClick={() => navigate('/properties')}
                   onMouseEnter={() => preloader.prefetchJson('/api/properties/stats')}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${
-                    activeTab === 'properties'
-                      ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white border border-emerald-400/50 shadow-sm shadow-emerald-500/20'
-                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-                  }`}
+                  className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${activeTab === 'properties'
+                    ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white border border-emerald-400/50 shadow-sm shadow-emerald-500/20'
+                    : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
+                    }`}
                 >
                   <Icon name="Building" size="sm" />
                   <span className="hidden lg:inline">Property</span>
@@ -1525,11 +1525,10 @@ function App() {
                     preloader.prefetchJson('/api/media/albums');
                     preloader.prefetchJson('/api/media/images?limit=24');
                   }}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${
-                    activeTab === 'media'
-                      ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white border border-indigo-400/50 shadow-sm shadow-indigo-500/20'
-                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-                  }`}
+                  className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${activeTab === 'media'
+                    ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white border border-indigo-400/50 shadow-sm shadow-indigo-500/20'
+                    : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
+                    }`}
                 >
                   <Icon name="Newspaper" size="sm" />
                   <span className="hidden lg:inline">Media</span>
@@ -1537,11 +1536,10 @@ function App() {
                 <button
                   onClick={() => navigate('/emails')}
                   onMouseEnter={() => preloader.prefetchJson('/api/emails')}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${
-                    activeTab === 'emails'
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white border border-blue-400/50 shadow-sm shadow-blue-500/20'
-                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-                  }`}
+                  className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${activeTab === 'emails'
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white border border-blue-400/50 shadow-sm shadow-blue-500/20'
+                    : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
+                    }`}
                 >
                   <Icon name="Mail" size="sm" />
                   <span className="hidden lg:inline">Emails</span>
@@ -1549,33 +1547,30 @@ function App() {
                 <button
                   onClick={() => navigate('/blackbook')}
                   onMouseEnter={() => preloader.prefetchJson('/api/media/albums')}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${
-                    activeTab === 'blackbook'
-                      ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-white border border-amber-400/50 shadow-sm shadow-amber-500/20'
-                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-                  }`}
+                  className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${activeTab === 'blackbook'
+                    ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-white border border-amber-400/50 shadow-sm shadow-amber-500/20'
+                    : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
+                    }`}
                 >
                   <Icon name="BookOpen" size="sm" />
                   <span>Black Book</span>
                 </button>
                 <button
                   onClick={() => navigate('/analytics')}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${
-                    activeTab === 'analytics'
-                      ? 'bg-gradient-to-r from-purple-600 to-purple-500 text-white border border-purple-400/50 shadow-sm shadow-purple-500/20'
-                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-                  }`}
+                  className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${activeTab === 'analytics'
+                    ? 'bg-gradient-to-r from-purple-600 to-purple-500 text-white border border-purple-400/50 shadow-sm shadow-purple-500/20'
+                    : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
+                    }`}
                 >
                   <Icon name="BarChart3" size="sm" />
                   <span className="hidden lg:inline">Stats</span>
                 </button>
                 <button
                   onClick={() => navigate('/about')}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${
-                    activeTab === 'about'
-                      ? 'bg-gradient-to-r from-cyan-600 to-cyan-500 text-white border border-cyan-400/50 shadow-sm shadow-cyan-500/20'
-                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-                  }`}
+                  className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${activeTab === 'about'
+                    ? 'bg-gradient-to-r from-cyan-600 to-cyan-500 text-white border border-cyan-400/50 shadow-sm shadow-cyan-500/20'
+                    : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
+                    }`}
                 >
                   <Icon name="Shield" size="sm" />
                   <span className="hidden lg:inline">About</span>
@@ -1948,6 +1943,7 @@ function App() {
                     )}
 
                     {activeTab === 'about' && <AboutPage />}
+                    {activeTab === 'faq' && <FAQPage />}
 
                     {activeTab === 'login' && <LoginPage />}
 
@@ -1969,23 +1965,23 @@ function App() {
                             currentUser={
                               currentUser
                                 ? {
-                                    id: currentUser.id,
-                                    name: currentUser.username,
-                                    email: currentUser.email || 'investigator@example.com',
-                                    role: isAdmin ? 'lead' : 'analyst',
-                                    permissions: ['read', 'write', ...(isAdmin ? ['admin'] : [])],
-                                    joinedAt: new Date(),
-                                    expertise: ['investigative journalism', 'data analysis'],
-                                  }
+                                  id: currentUser.id,
+                                  name: currentUser.username,
+                                  email: currentUser.email || 'investigator@example.com',
+                                  role: isAdmin ? 'lead' : 'analyst',
+                                  permissions: ['read', 'write', ...(isAdmin ? ['admin'] : [])],
+                                  joinedAt: new Date(),
+                                  expertise: ['investigative journalism', 'data analysis'],
+                                }
                                 : {
-                                    id: 'guest',
-                                    name: 'Guest',
-                                    email: 'guest@example.com',
-                                    role: 'analyst',
-                                    permissions: ['read'],
-                                    joinedAt: new Date(),
-                                    expertise: [],
-                                  }
+                                  id: 'guest',
+                                  name: 'Guest',
+                                  email: 'guest@example.com',
+                                  role: 'analyst',
+                                  permissions: ['read'],
+                                  joinedAt: new Date(),
+                                  expertise: [],
+                                }
                             }
                           />
                         );

@@ -2,20 +2,68 @@
 
 All notable changes to this project will be documented in this file. The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
-## 12.1.0 — 2026-02-02
+## 12.1.2 — 2026-02-03
 
-### Zero-Downtime Deployment Pipeline
+### DOJ Datasets 9-12 Full Ingestion
 
-- **Unified Deploy Script**: Single command `./scripts/deploy.sh` for full deployments
-- **Bidirectional Sync**: Local ↔ Production database synchronization with automatic schema migration
-- **Automatic Rollback**: Health check validation with instant rollback on failure
-- **Script Consolidation**: Removed 19 deprecated scripts for single source of truth
+- **13,455 Documents Ingested**: Successfully processed all DOJ Datasets 9-12 into production database
+  - **Dataset 9**: 35 high-value prosecutorial files (avg 4,490 words, 29% redacted)
+  - **Dataset 10**: 8,497 Deutsche Bank financial records (avg 2,061 words, 48% redacted)
+  - **Dataset 11**: 4,721 video/multimedia files (avg 248 words, 52% redacted)
+  - **Dataset 12**: 202 investigative documents with subject referrals (avg 2,793 words, 35% redacted)
 
-### CI/CD Improvements
+### Intelligence Pipeline Enhancement
 
-- Fixed TypeScript type-check configuration
+- **1,550,777 Entity Mentions**: Extracted and mapped entity mentions across entire archive
+- **145,663 Entities**: Comprehensive entity database with VIP consolidation
+- **403,958 Relationship Pairs**: Co-occurrence linkage from 41,798 multi-entity documents
+
+### Key Discoveries
+
+- **Jes Staley** (Deutsche Bank): 698 document mentions
+- **Lesley Groff** (Epstein assistant): 601 document mentions
+- **Deutsche Bank**: 873 mentions across financial records
+- **6,669 communications documents** (50% of DOJ data)
+- **3,928 financial records** (29% of DOJ data)
+- **2,091 location references** (16% of DOJ data)
+- **1,212 flight-related documents** (9% of DOJ data)
+
+### Database Growth
+
+- **Total Documents**: 107,474 (+13,485)
+- **Database Size**: 1.7 GB
+- **Archive Quality**: Average 47% redaction rate across DOJ datasets
+
+### About Page Updates
+
+- Added detailed entries for DOJ Datasets 10, 11, and 12 with analysis findings
+- Updated Dataset 9 description with actual ingestion statistics
+- Updated latest addition section with comprehensive DOJ analysis summary
+
+---
+
+## 12.1.1 — 2026-02-03
+
+### Production Deployment & Infrastructure
+
+- **TypeScript Build Hardening**: Resolved 42 compilation errors across server-side Express route handlers by implementing explicit type casting for route parameters, ensuring type safety and build reliability
+- **Zero-Downtime Deployment Pipeline**: Unified `./scripts/deploy.sh` command for full deployments with bidirectional sync (Local ↔ Production)
+- **Automatic Rollback**: Health check validation with instant rollback on deployment failure
+- **Database Synchronization**: Successfully synchronized production database (1.4GB, 93,989 documents, 145,653 entities) maintaining data integrity across environments
+- **Script Consolidation**: Removed 19 deprecated deployment scripts for single source of truth
+
+### CI/CD & Build Improvements
+
+- Fixed TypeScript type-check configuration for clean CI builds
 - Installed missing `@types/node` dependency
 - Restructured `tsconfig.json` for frontend-only compilation
+
+### DOJ Data Preparation
+
+- **Downloaded DOJ Datasets 10-12**: Prepared 13,420 PDFs for future ingestion, expanding investigative coverage
+  - Vol 10: 8,497 PDFs
+  - Vol 11: 4,721 PDFs  
+  - Vol 12: 202 PDFs
 
 ### Connection Analysis
 
@@ -23,6 +71,11 @@ All notable changes to this project will be documented in this file. The format 
 - **8,593** instruction-intent relationships extracted
 - **1,856** financial relationships identified
 - **1,104** travel relationships documented
+
+### System Improvements
+
+- Updated version strings across all UI components (`About.tsx`, `AboutPage.tsx`, `MobileMenu.tsx`)
+- Comprehensive release documentation reflecting all system changes
 
 ---
 

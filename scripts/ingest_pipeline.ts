@@ -578,7 +578,7 @@ async function processDocument(
     const result = await db.run(
       `
             INSERT INTO documents (
-                filename, content, file_path, source_collection,
+                file_name, content, file_path, source_collection,
                 content_hash, page_count, metadata_json, red_flag_rating,
                 content_preview, file_type, file_size, word_count,
                 created_at,

@@ -413,6 +413,38 @@ async function processEmail(filePath: string): Promise<{
 }> {
   try {
     const rawContent = await fs.promises.readFile(filePath);
+
+    // Check if it's a JSON metadata file
+    if (filePath.endsWith('.meta') || rawContent.toString().trim().startsWith('{')) {
+      try {
+        const json = JSON.parse(rawContent.toString());
+        let content = '';
+        if (json.metadata && typeof json.metadata === 'string') {
+          content = json.metadata.replace(/^[a-z0-9]+:[a-z0-9]+:/, '');
+        }
+        const metadata = {
+          from: json.sender || '',
+          to: json.recipient || '',
+          subject: json.subject || '',
+          date: json.date ? new Date(json.date * 1000).toISOString() : undefined,
+          messageId: json.id?.toString() || '',
+        };
+        const resolution = RedactionResolver.resolve(content, {
+          sender: metadata.from,
+          receiver: metadata.to,
+          subject: metadata.subject,
+          date: metadata.date,
+        });
+        return {
+          content: resolution.resolvedText || '[Metadata Record Only]',
+          metadata,
+          date: metadata.date,
+        };
+      } catch (e) {
+        // ignore
+      }
+    }
+
     const parsed = await simpleParser(rawContent);
 
     // Prefer text body, fallback to html-to-text
@@ -424,6 +456,7 @@ async function processEmail(filePath: string): Promise<{
     }
 
     // Fallback to raw string if parsing failed completely but we have content
+    // (though usually simpleParser throws if it fails)
     if (!textBody && !parsed.html) {
       textBody = rawContent.toString('utf-8');
     }
@@ -536,7 +569,7 @@ async function processDocument(
       const result = await extractTextFromImage(filePath);
       content = result.text;
       pageCount = result.pageCount;
-    } else if (['.eml', '.msg'].includes(ext)) {
+    } else if (['.eml', '.msg', '.meta', '.html'].includes(ext)) {
       const result = await processEmail(filePath);
       content = result.content;
       meta.metadata_json = JSON.stringify(result.metadata);
@@ -634,7 +667,7 @@ async function processCollection(
   }
 
   // Find all files
-  const pattern = join(collection.rootPath, '**/*.{pdf,txt,rtf,jpg,jpeg,png}');
+  const pattern = join(collection.rootPath, '**/*.{pdf,txt,rtf,jpg,jpeg,png,eml,msg,meta,html}');
   const files = globSync(pattern, {
     ignore: ['**/thumbs/**', '**/.DS_Store'],
   });

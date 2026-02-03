@@ -13,6 +13,7 @@ interface TagSelectorProps {
   onTagClick?: (tag: TagData) => void;
   mediaId: number;
   className?: string;
+  isAdmin?: boolean;
 }
 
 export const TagSelector: React.FC<TagSelectorProps> = ({
@@ -21,6 +22,7 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
   onTagClick,
   mediaId,
   className = '',
+  isAdmin = false,
 }) => {
   const [allTags, setAllTags] = useState<TagData[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -132,15 +134,17 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
             }}
           >
             {tag.name}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleToggleTag(tag);
-              }}
-              className="hover:opacity-70 ml-1"
-            >
-              <X className="w-3 h-3" />
-            </button>
+            {isAdmin && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleToggleTag(tag);
+                }}
+                className="ml-1 p-0.5 hover:bg-slate-700 rounded transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
           </span>
         ))}
       </div>
@@ -157,19 +161,20 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
       {/* Dropdown */}
       {isOpen && (
         <div className="absolute z-50 mt-2 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden">
-          {/* Search */}
-          <div className="p-2 border-b border-slate-700">
-            <div className="relative">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search tags..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
-              />
+          {isAdmin && (
+            <div className="p-2 border-b border-slate-700">
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search tags..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Tags List */}
           <div className="max-h-40 overflow-y-auto p-1">
@@ -191,53 +196,55 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
             )}
           </div>
 
-          {/* Create New Tag */}
-          <div className="border-t border-slate-700 p-2">
-            {isCreating ? (
-              <div className="space-y-2">
-                <input
-                  type="text"
-                  placeholder="Tag name"
-                  value={newTagName}
-                  onChange={(e) => setNewTagName(e.target.value)}
-                  className="w-full px-2 py-1.5 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
-                  autoFocus
-                />
-                <div className="flex gap-1">
-                  {presetColors.map((color) => (
+          {/* Create New Tag - Admin Only */}
+          {isAdmin && (
+            <div className="border-t border-slate-700 p-2">
+              {isCreating ? (
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    placeholder="Tag name"
+                    value={newTagName}
+                    onChange={(e) => setNewTagName(e.target.value)}
+                    className="w-full px-2 py-1.5 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:outline-none focus:border-blue-500"
+                    autoFocus
+                  />
+                  <div className="flex gap-1">
+                    {presetColors.map((color) => (
+                      <button
+                        key={color}
+                        onClick={() => setNewTagColor(color)}
+                        className={`w-5 h-5 rounded-full ${newTagColor === color ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-800' : ''}`}
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
                     <button
-                      key={color}
-                      onClick={() => setNewTagColor(color)}
-                      className={`w-5 h-5 rounded-full ${newTagColor === color ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-800' : ''}`}
-                      style={{ backgroundColor: color }}
-                    />
-                  ))}
+                      onClick={handleCreateTag}
+                      className="flex-1 px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-medium"
+                    >
+                      Create
+                    </button>
+                    <button
+                      onClick={() => setIsCreating(false)}
+                      className="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-xs"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleCreateTag}
-                    className="flex-1 px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-medium"
-                  >
-                    Create
-                  </button>
-                  <button
-                    onClick={() => setIsCreating(false)}
-                    className="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-xs"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button
-                onClick={() => setIsCreating(true)}
-                className="w-full flex items-center gap-2 px-2 py-1.5 hover:bg-slate-700 rounded text-slate-300 hover:text-white text-sm"
-              >
-                <Plus className="w-4 h-4" />
-                Create new tag
-              </button>
-            )}
-          </div>
+              ) : (
+                <button
+                  onClick={() => setIsCreating(true)}
+                  className="w-full flex items-center gap-2 px-2 py-1.5 hover:bg-slate-700 rounded text-slate-300 hover:text-white text-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create new tag
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

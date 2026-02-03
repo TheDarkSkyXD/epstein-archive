@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { investigationsRepository } from '../db/investigationsRepository.js';
-import { authenticateRequest } from '../auth/middleware.js';
+import { authenticateRequest, requireRole } from '../auth/middleware.js';
 
 const router = Router();
 
@@ -108,6 +108,19 @@ router.put('/:id', authenticateRequest, async (req, res, next) => {
 router.delete('/:id', authenticateRequest, async (req, res, next) => {
   try {
     const { id } = req.params as { id: string };
+    const user = (req as any).user;
+
+    // Check if investigation exists and get owner
+    const investigation = await investigationsRepository.getInvestigationById(id);
+    if (!investigation) {
+      return res.status(404).json({ error: 'Investigation not found' });
+    }
+
+    // Authorization: Admin OR Owner
+    if (user.role !== 'admin' && investigation.owner_id !== user.id) {
+      return res.status(403).json({ error: 'Unauthorized: Only admins or owners can delete' });
+    }
+
     const success = await investigationsRepository.deleteInvestigation(parseInt(id));
 
     if (!success) {

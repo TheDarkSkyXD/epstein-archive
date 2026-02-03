@@ -430,7 +430,7 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
                                     : [];
                                 setInvestigationsList(list);
                               })
-                              .catch(() => {});
+                              .catch(() => { });
                           }
                         }}
                         className="w-6 h-6 flex items-center justify-center rounded bg-amber-700 text-white text-[11px] font-bold border border-amber-500"
@@ -684,111 +684,71 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
   return (
     <div className="flex flex-col h-full min-h-[500px] bg-slate-950 border border-slate-800 shadow-2xl overflow-hidden rounded-lg">
       {/* Header */}
-      <div className="bg-slate-900 border-b border-slate-800 flex flex-col md:flex-row md:items-center justify-between px-3 py-2 md:px-6 md:h-14 shrink-0 z-10 gap-2">
-        {/* Mobile Album Dropdown */}
-        <div className="md:hidden">
-          <button
-            onClick={() => setShowAlbumDropdown(!showAlbumDropdown)}
-            className="w-full flex items-center justify-between px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm h-8"
-          >
-            <span className="flex items-center gap-2">
-              <Icon name="Folder" size="sm" />
-              {selectedAlbum ? currentAlbum?.name : 'All Audio'}
-            </span>
-            <Icon name={showAlbumDropdown ? 'ChevronUp' : 'ChevronDown'} size="sm" />
-          </button>
-          {showAlbumDropdown && (
-            <div className="absolute left-3 right-3 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-30 max-h-60 overflow-y-auto">
-              <button
-                className={`w-full px-4 py-3 text-left text-sm flex items-center justify-between ${selectedAlbum === null ? 'bg-cyan-900/20 text-cyan-400' : 'text-slate-300 hover:bg-slate-700'}`}
-                onClick={() => {
-                  setSelectedAlbum(null);
-                  setShowAlbumDropdown(false);
-                }}
-              >
-                <span>All Audio</span>
-                <span className="text-xs opacity-70">{libraryTotalCount}</span>
-              </button>
-              {albums.map((album) => (
-                <button
-                  key={album.id}
-                  className={`w-full px-4 py-3 text-left text-sm flex items-center justify-between border-t border-slate-700/50 ${selectedAlbum === album.id ? 'bg-cyan-900/20 text-cyan-400' : 'text-slate-300 hover:bg-slate-700'}`}
-                  onClick={() => {
-                    setSelectedAlbum(album.id);
-                    setShowAlbumDropdown(false);
-                  }}
-                >
-                  <span className="truncate">{album.name}</span>
-                  <span className="text-xs opacity-70">{album.itemCount || 0}</span>
-                </button>
-              ))}
+      <div className="bg-slate-900 border-b border-slate-800 px-6 py-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between shrink-0 z-10">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+              <Music size={20} />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-white tracking-tight">Audio Recordings</h2>
+              <p className="text-slate-400 text-xs font-medium">
+                Forensic audio evidence and transcripts
+              </p>
+            </div>
+          </div>
+
+          {investigationSummary && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-amber-900/30 text-amber-300 border border-amber-500/30 text-[11px] font-bold uppercase tracking-wider">
+                <Icon name="Database" size="xs" />
+                <span>Evidence {investigationSummary.totalEvidence}</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-green-900/30 text-green-300 border border-green-500/30 text-[11px] font-bold uppercase tracking-wider">
+                <Icon name="Shield" size="xs" />
+                <span>High {(investigationSummary.evidence || []).filter((e: any) => e.relevance === 'high').length}</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-blue-900/30 text-blue-300 border border-blue-500/30 text-[11px] font-bold uppercase tracking-wider">
+                <Icon name="Check" size="xs" />
+                <span>Medium {(investigationSummary.evidence || []).filter((e: any) => e.relevance === 'medium').length}</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-slate-800/60 text-slate-400 border border-slate-700/50 text-[11px] font-bold uppercase tracking-wider">
+                <Icon name="Info" size="xs" />
+                <span>Low {(investigationSummary.evidence || []).filter((e: any) => e.relevance === 'low').length}</span>
+              </div>
             </div>
           )}
         </div>
 
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 flex-1">
-          <div>
-            <h2 className="text-lg font-light text-white">Audio Recordings</h2>
-            <p className="text-slate-400 text-xs hidden md:block">
-              Forensic audio evidence and transcripts
-            </p>
-            {investigationSummary && (
-              <div className="mt-1 text-xs flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded-full bg-amber-800/40 text-amber-300 border border-amber-700">
-                  Evidence {investigationSummary.totalEvidence}
-                </span>
-                <span className="px-2 py-0.5 rounded-full bg-green-800/30 text-green-300 border border-green-700">
-                  High{' '}
-                  {
-                    (investigationSummary.evidence || []).filter((e: any) => e.relevance === 'high')
-                      .length
-                  }
-                </span>
-                <span className="px-2 py-0.5 rounded-full bg-blue-800/30 text-blue-300 border border-blue-700">
-                  Medium{' '}
-                  {
-                    (investigationSummary.evidence || []).filter(
-                      (e: any) => e.relevance === 'medium',
-                    ).length
-                  }
-                </span>
-                <span className="px-2 py-0.5 rounded-full bg-slate-800/60 text-slate-300 border border-slate-700">
-                  Low{' '}
-                  {
-                    (investigationSummary.evidence || []).filter((e: any) => e.relevance === 'low')
-                      .length
-                  }
-                </span>
-              </div>
-            )}
+        <div className="flex items-center gap-3">
+          {/* Transcript search */}
+          <div className="relative w-64">
+            <Icon
+              name="Search"
+              size="sm"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"
+            />
+            <input
+              type="text"
+              value={transcriptSearch}
+              onChange={(e) => setTranscriptSearch(e.target.value)}
+              placeholder={selectedAlbum ? 'Search transcripts in this album…' : 'Search transcripts…'}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg text-slate-200 pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50 placeholder-slate-600 transition-all border-hover:slate-700"
+            />
           </div>
 
-          {/* Transcript search within current album / all audio */}
-          <div className="flex-1 flex items-center gap-2 min-w-[160px]">
-            <div className="relative w-full max-w-xs">
-              <Icon
-                name="Search"
-                size="sm"
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"
-              />
-              <input
-                type="text"
-                value={transcriptSearch}
-                onChange={(e) => setTranscriptSearch(e.target.value)}
-                placeholder={
-                  selectedAlbum ? 'Search transcripts in this album…' : 'Search transcripts…'
-                }
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg text-slate-200 pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-cyan-500 placeholder-slate-500"
-              />
-            </div>
-          </div>
+          <div className="h-8 w-[1px] bg-slate-800 mx-1 hidden md:block"></div>
 
           <button
             onClick={() => setIsBatchMode(!isBatchMode)}
-            className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${isBatchMode ? 'bg-cyan-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'}`}
+            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all shadow-lg ${isBatchMode
+                ? 'bg-cyan-600 text-white ring-2 ring-cyan-400/30'
+                : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 border border-slate-700'
+              }`}
           >
             {isBatchMode ? 'Exit Batch' : 'Batch Edit'}
           </button>
+
           <button
             onClick={async () => {
               try {
@@ -803,10 +763,10 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
                 void 0;
               }
             }}
-            className="px-3 py-1.5 rounded-lg text-xs bg-amber-700 hover:bg-amber-600 text-white border border-amber-500"
-            title="Open Investigation"
+            className="px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white border border-amber-500/50 shadow-lg shadow-amber-900/20 active:scale-95 transition-all flex items-center gap-2"
           >
-            Open Investigation
+            <Icon name="ExternalLink" size="xs" />
+            <span>Open Investigation</span>
           </button>
         </div>
       </div>
@@ -937,11 +897,11 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-4xl px-4">
           <BatchToolbar
             selectedCount={selectedItems.size}
-            onRotate={() => {}}
+            onRotate={() => { }}
             onAssignTags={(tags) => handleBatchTag(tags, 'add')}
             onAssignPeople={handleBatchPeople}
-            onAssignRating={() => {}}
-            onEditMetadata={() => {}}
+            onAssignRating={() => { }}
+            onEditMetadata={() => { }}
             onCancel={() => setSelectedItems(new Set())}
             onDeselect={() => setSelectedItems(new Set())}
           />
@@ -965,18 +925,18 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
                 documentId={selectedItem.id}
                 initialTime={
                   initialUrlTimestamp !== undefined &&
-                  selectedItem.id === (initialAudioId || selectedItem.id)
+                    selectedItem.id === (initialAudioId || selectedItem.id)
                     ? initialUrlTimestamp
                     : 0
                 }
                 albumImages={
                   selectedItem.title.includes('Sascha') ||
-                  (selectedItem.albumName && selectedItem.albumName.includes('Sascha')) ||
-                  (currentAlbum && currentAlbum.name.includes('Sascha'))
+                    (selectedItem.albumName && selectedItem.albumName.includes('Sascha')) ||
+                    (currentAlbum && currentAlbum.name.includes('Sascha'))
                     ? [
-                        '/data/media/audio/lvoocaudiop1/lvoocaudiop1.webp',
-                        '/data/media/audio/lvoocaudiop1/lvoocaudiop1.jpg',
-                      ]
+                      '/data/media/audio/lvoocaudiop1/lvoocaudiop1.webp',
+                      '/data/media/audio/lvoocaudiop1/lvoocaudiop1.jpg',
+                    ]
                     : []
                 }
                 onClose={() => {

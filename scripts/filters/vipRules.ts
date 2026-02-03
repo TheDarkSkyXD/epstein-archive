@@ -8,15 +8,15 @@ export interface VipRule {
   type: 'Person' | 'Organization' | 'Term' | 'Concept';
   metadata?: {
     category?:
-      | 'Perpetrator'
-      | 'Complicit'
-      | 'Associate'
-      | 'Witness'
-      | 'Survivor'
-      | 'Visitor'
-      | 'Reporter'
-      | 'Family'
-      | 'Codeword';
+    | 'Perpetrator'
+    | 'Complicit'
+    | 'Associate'
+    | 'Witness'
+    | 'Survivor'
+    | 'Visitor'
+    | 'Reporter'
+    | 'Family'
+    | 'Codeword';
     riskLevel?: 'high' | 'medium' | 'low';
     deathDate?: string; // YYYY-MM-DD
     birthDate?: string; // YYYY-MM-DD
@@ -37,8 +37,14 @@ export const VIP_RULES: VipRule[] = [
       'Jeffrey E. Epstein',
       'J. Epstein',
       'Jeffery Epstein',
+      'Sam Epstein',
     ],
-    patterns: [/Jeffrey\s+Epstein/i, /Jeff\s+Epstein/i, /Jeffery\s+Epstein/i],
+    patterns: [
+      /Jeffrey\s+Epstein/i,
+      /Jeff\s+Epstein/i,
+      /Jeffery\s+Epstein/i,
+      /Sam\s+Epstein/i,
+    ],
     metadata: {
       category: 'Perpetrator',
       riskLevel: 'high',

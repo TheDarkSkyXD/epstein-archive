@@ -84,6 +84,8 @@ else
       git pull origin main
       
       echo 'Installing Dependencies...'
+      export PNPM_HOME="/home/deploy/.local/share/pnpm"
+      export PATH="\$PNPM_HOME:\$PATH"
       pnpm install --frozen-lockfile
       
       echo 'Building on Server...'

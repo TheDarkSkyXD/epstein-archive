@@ -14,6 +14,7 @@ import MediaViewerModal from './MediaViewerModal';
 import BatchToolbar from './BatchToolbar';
 import LazyImage from './LazyImage';
 import { SensitiveContent } from './SensitiveContent';
+import { useAuth } from '../contexts/AuthContext';
 
 interface PhotoBrowserProps {
   onImageClick?: (image: MediaImage) => void;
@@ -173,10 +174,11 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
   const [sortField, setSortField] = useState<SortField>('date_added');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [searchQuery, setSearchQuery] = useState('');
+  const { isAdmin } = useAuth();
   const [loading, setLoading] = useState(true);
   const [viewerStartIndex, setViewerStartIndex] = useState<number | null>(null);
   const [showAlbumDropdown, setShowAlbumDropdown] = useState(false); // Mobile album dropdown
-  const [hasPeopleOnly, setHasPeopleOnly] = useState(true); // Default to people-linked images
+  const [hasPeopleOnly, setHasPeopleOnly] = useState(false); // Default to false as requested
   const [availableTags, setAvailableTags] = useState<any[]>([]);
   const [availablePeople, setAvailablePeople] = useState<any[]>([]);
 
@@ -360,10 +362,10 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
       // Backend now returns consistent camelCase in slim mode - minimal normalization needed
       const normalized: MediaImage[] = Array.isArray(data)
         ? data.map((img: any) => ({
-            ...img,
-            isSensitive: Boolean(img.isSensitive),
-            fileSize: img.fileSize || 0,
-          }))
+          ...img,
+          isSensitive: Boolean(img.isSensitive),
+          fileSize: img.fileSize || 0,
+        }))
         : [];
 
       if (append) {
@@ -1012,14 +1014,16 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
             </button>
           </div>
 
-          {/* Batch Mode Toggle */}
-          <button
-            onClick={isBatchMode ? exitBatchMode : enterBatchMode}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs font-medium transition-colors ${isBatchMode ? 'bg-cyan-600 hover:bg-cyan-500 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700'} h-8`}
-          >
-            <Icon name="CheckSquare" size="sm" />
-            {isBatchMode ? 'Exit Batch Mode' : 'Batch Edit'}
-          </button>
+          {/* Batch Mode Toggle - Admin Only */}
+          {isAdmin && (
+            <button
+              onClick={isBatchMode ? exitBatchMode : enterBatchMode}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs font-medium transition-colors ${isBatchMode ? 'bg-cyan-600 hover:bg-cyan-500 text-white' : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700'} h-8`}
+            >
+              <Icon name="CheckSquare" size="sm" />
+              {isBatchMode ? 'Exit Batch Mode' : 'Batch Edit'}
+            </button>
+          )}
         </div>
       </div>
 

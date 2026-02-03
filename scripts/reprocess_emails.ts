@@ -16,6 +16,48 @@ async function processEmail(filePath: string): Promise<{
 }> {
   try {
     const rawContent = await fs.promises.readFile(filePath);
+    // Check if it's a JSON metadata file (common in this dataset)
+    if (filePath.endsWith('.meta') || rawContent.toString().trim().startsWith('{')) {
+      try {
+        const json = JSON.parse(rawContent.toString());
+
+        let content = '';
+        if (json.metadata && typeof json.metadata === 'string') {
+          // Clean up the metadata string which seems to be a custom serialization
+          // Example: "d1:f45:we will have to wait..." -> "we will have to wait..."
+          // We'll just strip the prefix if it matches the pattern or take it all
+          content = json.metadata.replace(/^[a-z0-9]+:[a-z0-9]+:/, '');
+        }
+
+        const metadata = {
+          from: json.sender || '',
+          to: json.recipient || '', // JSON might not have recipient, check structure if needed
+          subject: json.subject || '',
+          date: json.date ? new Date(json.date * 1000).toISOString() : undefined,
+          cc: '',
+          messageId: json.id?.toString() || '',
+          inReplyTo: json.parent_id?.toString() || '',
+        };
+
+        const resolution = RedactionResolver.resolve(content, {
+          sender: metadata.from,
+          receiver: metadata.to,
+          subject: metadata.subject,
+          date: metadata.date,
+        });
+
+        return {
+          content: resolution.resolvedText || '[Metadata Record Only]',
+          metadata,
+          date: metadata.date,
+        };
+
+      } catch (err: any) {
+        // Fall through to standard parsing if JSON parse fails
+        console.warn(`  ⚠️ Failed to parse as JSON, falling back: ${err.message}`);
+      }
+    }
+
     const parsed = await simpleParser(rawContent);
 
     // Prefer text body, fallback to html-to-text
@@ -36,11 +78,11 @@ async function processEmail(filePath: string): Promise<{
 
     // Extract metadata
     const metadata = {
-      from: parsed.from?.text || '',
-      to: parsed.to?.text || '',
+      from: Array.isArray(parsed.from) ? parsed.from.map(a => a.text).join(', ') : (parsed.from?.text || ''),
+      to: Array.isArray(parsed.to) ? parsed.to.map(a => a.text).join(', ') : (parsed.to?.text || ''),
       subject: parsed.subject || '',
       date: parsed.date ? parsed.date.toISOString() : undefined,
-      cc: parsed.cc?.text || '',
+      cc: Array.isArray(parsed.cc) ? parsed.cc.map(a => a.text).join(', ') : (parsed.cc?.text || ''),
       messageId: parsed.messageId || '',
       inReplyTo: parsed.inReplyTo || '',
     };
@@ -141,7 +183,8 @@ async function main() {
                 evidence_type = 'email',
                 date_created = COALESCE(?, date_created),
                 content_preview = ?,
-                word_count = ?
+                word_count = ?,
+                title = ?
             WHERE id = ?
         `,
       ).run(
@@ -150,6 +193,7 @@ async function main() {
         result.date,
         result.content.substring(0, 500),
         (result.content.match(/\b[\w']+\b/g) || []).length,
+        result.metadata.subject || 'No Subject',
         row.id,
       );
       processed++;

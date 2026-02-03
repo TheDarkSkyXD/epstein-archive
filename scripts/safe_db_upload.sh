@@ -12,8 +12,8 @@ PRODUCTION_HOST="194.195.248.217"
 PRODUCTION_PATH="/home/deploy/epstein-archive"
 SSH_KEY_PATH="$HOME/.ssh/id_glasscode"
 LOCAL_DB="epstein-archive.db"
-REMOTE_TEMP="epstein-archive/epstein-archive.db.new"
-REMOTE_TARGET="epstein-archive/epstein-archive.db"
+REMOTE_TEMP="${PRODUCTION_PATH}/epstein-archive.db.new"
+REMOTE_TARGET="${PRODUCTION_PATH}/epstein-archive.db"
 
 # Colors
 GREEN='\033[0;32m'
@@ -72,7 +72,7 @@ ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "
 log "Waiting for service to stabilize..."
 sleep 5
 log "Checking API health..."
-HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://${PRODUCTION_HOST}:3012/api/stats)
+HTTP_STATUS=$(ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3012/api/health")
 
 if [ "$HTTP_STATUS" == "200" ]; then
   success "Deployment successful! API is responding (Status: $HTTP_STATUS)."

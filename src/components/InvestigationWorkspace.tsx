@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import {
   Investigation,
   EvidenceItem,
@@ -62,6 +63,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
   onInvestigationSelect,
   currentUser,
 }) => {
+  const { isAdmin } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const { addToast } = useToasts();
@@ -810,21 +812,19 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
               <div className="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700">
                 <button
                   onClick={() => setUseGlobalContext(false)}
-                  className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-                    !useGlobalContext
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${!useGlobalContext
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                    }`}
                 >
                   Investigation Scope
                 </button>
                 <button
                   onClick={() => setUseGlobalContext(true)}
-                  className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-                    useGlobalContext
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${useGlobalContext
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                    }`}
                 >
                   Global Context
                 </button>
@@ -919,7 +919,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                           >
                             {investigation.status}
                           </span>
-                          {currentUser.permissions?.includes('admin') && (
+                          {(isAdmin || investigation.leadInvestigator === currentUser.id) && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -982,9 +982,8 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
               <div className="hidden md:flex items-center justify-between mb-6">
                 <button
                   onClick={() => setSelectedInvestigation(null)}
-                  className={`text-sm text-slate-400 hover:text-white flex items-center gap-2 transition-colors h-10 px-3 bg-slate-800/50 hover:bg-slate-700 rounded-lg border border-slate-700/50 ${
-                    sidebarCollapsed ? 'hidden' : ''
-                  }`}
+                  className={`text-sm text-slate-400 hover:text-white flex items-center gap-2 transition-colors h-10 px-3 bg-slate-800/50 hover:bg-slate-700 rounded-lg border border-slate-700/50 ${sidebarCollapsed ? 'hidden' : ''
+                    }`}
                 >
                   <ArrowRight className="w-4 h-4 rotate-180" />
                   <span className="font-medium">Back to Dashboard</span>
@@ -1047,11 +1046,10 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                       onClick={() => navigateToTab(option.id)}
                       className={`
                           px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all
-                          ${
-                            activeTab === option.id
-                              ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30'
-                              : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white border border-slate-700'
-                          }
+                          ${activeTab === option.id
+                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30'
+                          : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white border border-slate-700'
+                        }
                         `}
                     >
                       {option.label}
@@ -1084,11 +1082,10 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                     className={`
                         flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all
                         whitespace-nowrap
-                        ${
-                          activeTab === tab.id
-                            ? 'bg-blue-900/40 text-blue-400 border border-blue-500/30 shadow-sm relative z-10'
-                            : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
-                        }
+                        ${activeTab === tab.id
+                        ? 'bg-blue-900/40 text-blue-400 border border-blue-500/30 shadow-sm relative z-10'
+                        : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
+                      }
                         ${sidebarCollapsed ? 'justify-center px-2 py-4' : 'w-full'}
                       `}
                     title={tab.label}
@@ -1320,13 +1317,15 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                   <h3 className="text-xl font-bold text-white">
                     Investigation Analytics & Network Analysis
                   </h3>
-                  <button
-                    onClick={() => setShowCreateRelationshipModal(true)}
-                    className="flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-sm font-medium shadow-lg shadow-purple-500/20"
-                  >
-                    <Network className="w-4 h-4" />
-                    <span>Add Connection</span>
-                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={() => setShowCreateRelationshipModal(true)}
+                      className="flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-sm font-medium shadow-lg shadow-purple-500/20"
+                    >
+                      <Network className="w-4 h-4" />
+                      <span>Add Connection</span>
+                    </button>
+                  )}
                 </div>
 
                 {/* Network Visualization */}
@@ -1402,15 +1401,14 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                           <div className="flex justify-between text-sm">
                             <span className="text-slate-400">Risk Level</span>
                             <span
-                              className={`px-2 py-0.5 rounded text-xs font-medium ${
-                                selectedNetworkNode.metadata.riskLevel === 'critical'
-                                  ? 'bg-red-900 text-red-200'
-                                  : selectedNetworkNode.metadata.riskLevel === 'high'
-                                    ? 'bg-orange-900 text-orange-200'
-                                    : selectedNetworkNode.metadata.riskLevel === 'medium'
-                                      ? 'bg-yellow-900 text-yellow-200'
-                                      : 'bg-green-900 text-green-200'
-                              }`}
+                              className={`px-2 py-0.5 rounded text-xs font-medium ${selectedNetworkNode.metadata.riskLevel === 'critical'
+                                ? 'bg-red-900 text-red-200'
+                                : selectedNetworkNode.metadata.riskLevel === 'high'
+                                  ? 'bg-orange-900 text-orange-200'
+                                  : selectedNetworkNode.metadata.riskLevel === 'medium'
+                                    ? 'bg-yellow-900 text-yellow-200'
+                                    : 'bg-green-900 text-green-200'
+                                }`}
                             >
                               {(selectedNetworkNode.metadata.riskLevel || 'low').toUpperCase()}
                             </span>

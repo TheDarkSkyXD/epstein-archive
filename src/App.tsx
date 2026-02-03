@@ -173,7 +173,18 @@ const parseReleaseNotes = (markdown: string) => {
         };
       })
       .filter(Boolean)
-      .filter((r: any) => r.notes.length > 0 || r.title !== 'Maintenance Update') as any[];
+      .filter((r: any) => r.notes.length > 0 || r.title !== 'Maintenance Update')
+      .sort((a: any, b: any) => {
+        // Sort by version (descending)
+        const vA = a.version.replace('v', '').split('.').map(Number);
+        const vB = b.version.replace('v', '').split('.').map(Number);
+        for (let i = 0; i < Math.max(vA.length, vB.length); i++) {
+          const numA = vA[i] || 0;
+          const numB = vB[i] || 0;
+          if (numA !== numB) return numB - numA;
+        }
+        return 0;
+      }) as any[];
   } catch (e) {
     console.error('Failed to parse release notes', e);
     return [];

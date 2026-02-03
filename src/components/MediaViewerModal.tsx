@@ -615,6 +615,7 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
               selectedTags={imageTags}
               onTagsChange={setImageTags}
               mediaId={currentImage.id}
+              isAdmin={isAdmin}
               onTagClick={(tag) => {
                 onClose();
                 navigate(`/media?tagId=${tag.id}`);
@@ -627,6 +628,7 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
             selectedPeople={imagePeople}
             onPeopleChange={setImagePeople}
             mediaId={currentImage.id}
+            isAdmin={isAdmin}
             onPersonClick={(person) => {
               onClose();
               // Check if we are in the entity card view or just need to open one

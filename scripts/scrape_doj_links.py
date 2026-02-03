@@ -13,22 +13,34 @@ if not os.path.exists(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR)
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Referer": "https://www.justice.gov/epstein/doj-disclosures/data-set-9-files",
+    "Cookie": "nmstat=4a5e72c3-3f06-4dc0-3655-65b562cb48b9; justiceGovAgeVerified=true; _gid=GA1.2.1423361600.1770098024; _ga=GA1.1.498949710.1769871746; _ga_CSLL4ZEK4L=GS2.1.s1770097966$o8$g1$t1770098157$j60$l0$h0",
+    "Sec-Ch-Ua": '"Chromium";v="144", "Not(A:Brand";v="24", "Google Chrome";v="144"',
+    "Sec-Ch-Ua-Mobile": "?0",
+    "Sec-Ch-Ua-Platform": '"macOS"',
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "same-origin",
+    "Sec-Fetch-User": "?1",
+    "Upgrade-Insecure-Requests": "1"
 }
 
 DATASETS = [
     {
-        "name": "dataset_10",
-        "url_base": "https://www.justice.gov/epstein/doj-disclosures/data-set-10-files?page=",
-        "output_file": os.path.join(OUTPUT_DIR, "dataset_10_links.json"),
-        "link_pattern": "/files/DataSet%2010/"
+        "name": "dataset_9",
+        "url_base": "https://www.justice.gov/epstein/doj-disclosures/data-set-9-files?page=",
+        "output_file": os.path.join(OUTPUT_DIR, "dataset_9_links.json"),
+        "link_pattern": "/files/DataSet%209/"
     },
     {
-        "name": "dataset_11",
-        "url_base": "https://www.justice.gov/epstein/doj-disclosures/data-set-11-files?page=",
-        "output_file": os.path.join(OUTPUT_DIR, "dataset_11_links.json"),
-        "link_pattern": "/files/DataSet%2011/"
+        "name": "dataset_12",
+        "url_base": "https://www.justice.gov/epstein/doj-disclosures/data-set-12-files?page=",
+        "output_file": os.path.join(OUTPUT_DIR, "dataset_12_links.json"),
+        "link_pattern": "/files/DataSet%2012/"
     }
 ]
 

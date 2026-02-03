@@ -1,121 +1,119 @@
+
 import requests
-import os
-import time
 import json
-from bs4 import BeautifulSoup
-from urllib.parse import urljoin, unquote
+import time
+import os
+import hashlib
 
 # Configuration
 BASE_URL = "https://www.justice.gov"
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "ingest")
-DELAY_BETWEEN_REQUESTS = 1.0  # Seconds
+DELAY_BETWEEN_REQUESTS = 0.1  # Seconds (Optimized for bulk)
 DATA_SETS = [
-    # {"name": "DOJVOL00009", "url": "https://www.justice.gov/epstein/doj-disclosures/data-set-9-files", "json": None},
+    {"name": "DOJVOL00009", "url": "https://www.justice.gov/epstein/doj-disclosures/data-set-9-files", "json": os.path.join(OUTPUT_DIR, "dataset_9_links.json")},
     {"name": "DOJVOL00010", "url": "https://www.justice.gov/epstein/doj-disclosures/data-set-10-files", "json": os.path.join(OUTPUT_DIR, "dataset_10_links.json")},
     {"name": "DOJVOL00011", "url": "https://www.justice.gov/epstein/doj-disclosures/data-set-11-video-files", "json": os.path.join(OUTPUT_DIR, "dataset_11_links.json")},
-    # {"name": "DOJVOL00012", "url": "https://www.justice.gov/epstein/doj-disclosures/data-set-12-files", "json": os.path.join(OUTPUT_DIR, "dataset_12_links.json")},
+    {"name": "DOJVOL00012", "url": "https://www.justice.gov/epstein/doj-disclosures/data-set-12-files", "json": os.path.join(OUTPUT_DIR, "dataset_12_links.json")},
 ]
 
-# Captured from Browser Agent (2026-02-01)
+# Captured from scraper/browser (2026-02-03)
 CAPTURED_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-    "Cookie": "QueueITAccepted-SDFrts345E-V3_usdojsearch=EventId%3Dusdojsearch%26RedirectType%3Dsafetynet%26IssueTime%3D1769871744%26Hash%3D554cdd87e35c1e0bbe3d52e0772431502c6cc1cdd6aba364b5e546cc19270bd1; nmstat=4a5e72c3-3f06-4dc0-3655-65b562cb48b9; _ga=GA1.1.498949710.1769871746; justiceGovAgeVerified=true; _ga_CSLL4ZEK4L=GS2.1.s1769871746$o1$g1$t1769871904$j60$l0$h0"
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.5",
+    "Cookie": "QueueITAccepted-SDFrts345E-V3_usdojsearch=EventId%3Dusdojsearch%26RedirectType%3Dsafetynet%26IssueTime%3D1770081097%26Hash%3D0b2dfccfa093f4c3fcb0ed84d44d23c2b52026247975138d1f64ad734c38357a; justiceGovAgeVerified=true"
 }
 
-def create_session():
-    """Create a session with captured browser headers."""
-    session = requests.Session()
-    session.headers.update(CAPTURED_HEADERS)
-    return session
+def calculate_hash(filepath):
+    """Calculate SHA256 hash of a file."""
+    sha256_hash = hashlib.sha256()
+    with open(filepath, "rb") as f:
+        # Read and update hash string value in blocks of 4K
+        for byte_block in iter(lambda: f.read(4096), b""):
+            sha256_hash.update(byte_block)
+    return sha256_hash.hexdigest()
 
-def download_file(session, url, output_path):
-    filename = os.path.basename(unquote(url))
-    # Sanitize
-    filename = "".join([c for c in filename if c.isalpha() or c.isdigit() or c in (' ', '.', '_', '-')]).rstrip()
-    filepath = os.path.join(output_path, filename)
+def download_file(url, output_dir, session):
+    filename = url.split('/')[-1]
+    # Remove query string if present
+    if "?" in filename:
+        filename = filename.split("?")[0]
+        
+    filepath = os.path.join(output_dir, filename)
+    tmp_filepath = filepath + ".tmp"
+    
+    # Ensure dir exists
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
-    if os.path.exists(filepath):
-        # Basic check
-        if os.path.getsize(filepath) > 1000:
-             try:
-                 with open(filepath, 'rb') as f:
-                     if f.read(4) == b'%PDF':
-                         return True
-             except:
-                 pass
-
+    print(f"  Downloading {filename}...", end="\r")
     try:
-        response = session.get(url, stream=True)
-        response.raise_for_status()
-
-        content_type = response.headers.get("Content-Type", "").lower()
-        if "html" in content_type:
-            print(f"  ⚠️ Warning: Got HTML for {filename} (Possible Auth/Rate Limit issue)")
-            return False
-
-        with open(filepath, 'wb') as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                f.write(chunk)
+        response = session.get(url, stream=True, timeout=30)
+        if response.status_code == 200:
+            with open(tmp_filepath, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            
+            # Check for existing file collision
+            if os.path.exists(filepath):
+                existing_hash = calculate_hash(filepath)
+                new_hash = calculate_hash(tmp_filepath)
                 
-        # Validate header
-        with open(filepath, 'rb') as f:
-            if f.read(4) != b'%PDF':
-                 print(f"  ❌ Downloaded file {filename} is NOT a PDF.")
-                 os.remove(filepath)
-                 return False
-                 
-        print(f"  Downloaded: {filename}")
-        time.sleep(DELAY_BETWEEN_REQUESTS)
-        return True
+                if existing_hash == new_hash:
+                    # True duplicate, discard
+                    if os.path.exists(tmp_filepath):
+                        os.remove(tmp_filepath)
+                    print(f"  Skipping {filename} (identical file exists)          ")
+                else:
+                    # Content differs! Save as conflict
+                    conflict_filename = f"{os.path.splitext(filename)[0]}_conflict_{new_hash[:8]}{os.path.splitext(filename)[1]}"
+                    conflict_path = os.path.join(output_dir, conflict_filename)
+                    if os.path.exists(conflict_path):
+                        if os.path.exists(tmp_filepath):
+                            os.remove(tmp_filepath)
+                        print(f"  Skipping duplicate conflict {conflict_filename}        ")
+                    else:
+                        os.rename(tmp_filepath, conflict_path)
+                        print(f"  ⚠️  CONFLICT: {filename} exists with different content! Saved as {conflict_filename}")
+            else:
+                # New file
+                os.rename(tmp_filepath, filepath)
+                print(f"  Saved {filename}                                     ")
+                
+        else:
+            print(f"  ❌ Failed to download {url}: Status {response.status_code}")
+            if os.path.exists(tmp_filepath):
+                os.remove(tmp_filepath)
     except Exception as e:
         print(f"  Error downloading {url}: {e}")
-        return False
+        if os.path.exists(tmp_filepath):
+            os.remove(tmp_filepath)
 
-def process_data_set(session, data_set):
-    print(f"\nProcessing {data_set['name']}...")
-    ds_dir = os.path.join(OUTPUT_DIR, data_set['name'])
-    os.makedirs(ds_dir, exist_ok=True)
+def process_dataset(dataset):
+    print(f"\nProcessing {dataset['name']}...")
     
-    json_filename = data_set.get('json')
-    if not json_filename:
-        print(f"  ❌ No JSON file configured for {data_set['name']}")
+    if not dataset['json'] or not os.path.exists(dataset['json']):
+        print(f"  Links file not found: {dataset['json']}")
         return
 
-    # Check local dir first
-    json_path = json_filename
-    if not os.path.exists(json_path):
-             print(f"  ❌ {json_filename} not found!")
-             return
-
-    with open(json_path, 'r') as f:
+    with open(dataset['json'], 'r') as f:
         links = json.load(f)
-        
-    print(f"  Loaded {len(links)} links from {json_path}")
     
-    total = len(links)
-    for i, pdf_url in enumerate(links):
-        filename = unquote(pdf_url.split('/')[-1])
-        filepath = os.path.join(ds_dir, filename)
-        
-        if os.path.exists(filepath):
-            continue
-            
-        if (i+1) % 100 == 0:
-            print(f"  [{i+1}/{total}] Processing...")
-            
-        download_file(session, pdf_url, ds_dir)
-
+    print(f"  Loaded {len(links)} links from {dataset['json']}")
+    
+    output_dir = os.path.join(OUTPUT_DIR, dataset['name'])
+    
+    session = requests.Session()
+    session.headers.update(CAPTURED_HEADERS)
+    
+    for link in links:
+        download_file(link, output_dir, session)
+        time.sleep(DELAY_BETWEEN_REQUESTS)
 
 def main():
-    if not os.path.exists(OUTPUT_DIR):
-        os.makedirs(OUTPUT_DIR)
-
-    session = create_session()
-    
-    for data_set in DATA_SETS:
-        process_data_set(session, data_set)
-
+    print("Starting optimized download pipeline...")
+    for dataset in DATA_SETS:
+        process_dataset(dataset)
     print("\nAll downloads complete.")
 
 if __name__ == "__main__":

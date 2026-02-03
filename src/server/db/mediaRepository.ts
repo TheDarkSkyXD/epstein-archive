@@ -169,6 +169,7 @@ export const mediaRepository = {
        * with albumId it gives us "search transcripts within this album".
        */
       transcriptQuery?: string;
+      hasPeople?: boolean;
     },
   ) => {
     const db = getDb();
@@ -176,34 +177,34 @@ export const mediaRepository = {
     const params: any[] = [];
 
     if (filters?.entityId) {
-      whereConditions.push('entity_id = ?');
+      whereConditions.push('m.entity_id = ?');
       params.push(filters.entityId);
     }
 
     if (filters?.verificationStatus) {
-      whereConditions.push('verification_status = ?');
+      whereConditions.push('m.verification_status = ?');
       params.push(filters.verificationStatus);
     }
 
     if (filters?.minRedFlagRating) {
-      whereConditions.push('red_flag_rating >= ?');
+      whereConditions.push('m.red_flag_rating >= ?');
       params.push(filters.minRedFlagRating);
     }
 
     if (filters?.fileType) {
       if (filters.fileType === 'image') {
-        whereConditions.push("file_type LIKE 'image/%'");
+        whereConditions.push("m.file_type LIKE 'image/%'");
       } else if (filters.fileType === 'audio') {
         // Relaxed filter to catch any audio type
-        whereConditions.push("file_type LIKE '%audio%'");
+        whereConditions.push("m.file_type LIKE '%audio%'");
       } else {
-        whereConditions.push('file_type LIKE ?');
+        whereConditions.push('m.file_type LIKE ?');
         params.push(`${filters.fileType}%`);
       }
     }
 
     if (filters?.albumId !== undefined) {
-      whereConditions.push('album_id = ?');
+      whereConditions.push('m.album_id = ?');
       params.push(filters.albumId);
     }
 
@@ -211,8 +212,12 @@ export const mediaRepository = {
       // Simple LIKE-based search over metadata_json which holds transcript
       // text for audio/video items. This is not FTS but works well enough
       // for targeted transcript queries.
-      whereConditions.push('metadata_json LIKE ?');
+      whereConditions.push('m.metadata_json LIKE ?');
       params.push(`%${filters.transcriptQuery}%`);
+    }
+
+    if (filters?.hasPeople) {
+      whereConditions.push('EXISTS (SELECT 1 FROM media_item_people WHERE media_item_id = m.id)');
     }
 
     console.log('getMediaItemsPaginated params:', { page, limit, filters });
@@ -275,16 +280,16 @@ export const mediaRepository = {
 
         const tags = item.tags
           ? item.tags.split(',').map((t: string) => {
-              const [id, name] = t.split(':');
-              return { id: parseInt(id), name };
-            })
+            const [id, name] = t.split(':');
+            return { id: parseInt(id), name };
+          })
           : [];
 
         const people = item.people
           ? item.people.split(',').map((p: string) => {
-              const [id, name] = p.split(':');
-              return { id: parseInt(id), name };
-            })
+            const [id, name] = p.split(':');
+            return { id: parseInt(id), name };
+          })
           : [];
 
         return {

@@ -14,6 +14,7 @@ interface PeopleSelectorProps {
   onPersonClick?: (person: PersonData) => void;
   mediaId: number;
   className?: string;
+  isAdmin?: boolean;
 }
 
 export const PeopleSelector: React.FC<PeopleSelectorProps> = ({
@@ -22,6 +23,7 @@ export const PeopleSelector: React.FC<PeopleSelectorProps> = ({
   onPersonClick,
   mediaId,
   className = '',
+  isAdmin = false,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<PersonData[]>([]);
@@ -124,60 +126,64 @@ export const PeopleSelector: React.FC<PeopleSelectorProps> = ({
                 {person.redFlagRating ? ` • 🚩 ${person.redFlagRating}` : ''}
               </div>
             </div>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleRemovePerson(person);
-              }}
-              className="p-1 hover:bg-slate-700 rounded text-slate-400 hover:text-red-400 transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            {isAdmin && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRemovePerson(person);
+                }}
+                className="p-1 hover:bg-slate-700 rounded text-slate-400 hover:text-red-400 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
         ))}
       </div>
 
-      {/* Add Person Search */}
-      <div className="relative" ref={dropdownRef}>
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search people to add..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onFocus={() => setShowDropdown(true)}
-            className="w-full pl-9 pr-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
-          />
-        </div>
-
-        {/* Search Results Dropdown */}
-        {showDropdown && (searchResults.length > 0 || isSearching) && (
-          <div className="absolute z-50 mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden">
-            {isSearching ? (
-              <div className="p-3 text-center text-sm text-slate-400">Searching...</div>
-            ) : (
-              <div className="max-h-48 overflow-y-auto">
-                {searchResults.map((person) => (
-                  <button
-                    key={person.id}
-                    onClick={() => handleAddPerson(person)}
-                    className="w-full flex items-center justify-between p-2 hover:bg-slate-700/50 text-left"
-                  >
-                    <div>
-                      <div className="text-sm text-white">{person.name}</div>
-                      <div className={`text-xs ${getRedFlagColor(person.redFlagRating)}`}>
-                        {person.role}
-                      </div>
-                    </div>
-                    <Plus className="w-4 h-4 text-slate-400" />
-                  </button>
-                ))}
-              </div>
-            )}
+      {/* Add Person Search - Admin Only */}
+      {isAdmin && (
+        <div className="relative" ref={dropdownRef}>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search people to add..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onFocus={() => setShowDropdown(true)}
+              className="w-full pl-9 pr-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
+            />
           </div>
-        )}
-      </div>
+
+          {/* Search Results Dropdown */}
+          {showDropdown && (searchResults.length > 0 || isSearching) && (
+            <div className="absolute z-50 mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden">
+              {isSearching ? (
+                <div className="p-3 text-center text-sm text-slate-400">Searching...</div>
+              ) : (
+                <div className="max-h-48 overflow-y-auto">
+                  {searchResults.map((person) => (
+                    <button
+                      key={person.id}
+                      onClick={() => handleAddPerson(person)}
+                      className="w-full flex items-center justify-between p-2 hover:bg-slate-700/50 text-left"
+                    >
+                      <div>
+                        <div className="text-sm text-white">{person.name}</div>
+                        <div className={`text-xs ${getRedFlagColor(person.redFlagRating)}`}>
+                          {person.role}
+                        </div>
+                      </div>
+                      <Plus className="w-4 h-4 text-slate-400" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

@@ -25,6 +25,9 @@ importers:
       '@types/leaflet':
         specifier: ^1.9.21
         version: 1.9.21
+      '@types/quoted-printable':
+        specifier: ^1.0.2
+        version: 1.0.2
       '@types/react-window-infinite-loader':
         specifier: ^1.0.9
         version: 1.0.9
@@ -127,6 +130,9 @@ importers:
       open:
         specifier: ^11.0.0
         version: 11.0.0
+      quoted-printable:
+        specifier: ^1.0.1
+        version: 1.0.1
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -1769,6 +1775,12 @@ packages:
     resolution:
       {
         integrity: sha512-eOunJqu0K1923aExK6y8p6fsihYEn/BYuQ4g0CxAAgFc4b/ZLN4CrsRZ55srTdqoiLzU2B2evC+apEIxprEzkQ==,
+      }
+
+  '@types/quoted-printable@1.0.2':
+    resolution:
+      {
+        integrity: sha512-3B28oB1rRaZNb3N5dlxysm8lH1ujzvReDuYBiIO4jvpTIg9ksrILCNgPxSGVyTWE/qwuxzgHaVehwMK3CVqAtA==,
       }
 
   '@types/range-parser@1.2.7':
@@ -5089,6 +5101,13 @@ packages:
         integrity: sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A==,
       }
 
+  quoted-printable@1.0.1:
+    resolution:
+      {
+        integrity: sha512-cihC68OcGiQOjGiXuo5Jk6XHANTHl1K4JLk/xlEJRTIXfy19Sg6XzB95XonYgr+1rB88bCpr7WZE7D7AlZow4g==,
+      }
+    hasBin: true
+
   range-parser@1.2.1:
     resolution:
       {
@@ -6033,6 +6052,12 @@ packages:
     resolution:
       {
         integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==,
+      }
+
+  utf8@2.1.2:
+    resolution:
+      {
+        integrity: sha512-QXo+O/QkLP/x1nyi54uQiG0XrODxdysuQvE5dtVqv7F5K2Qb6FsN+qbr6KhF5wQ20tfcV3VQp0/2x1e1MRSPWg==,
       }
 
   util-deprecate@1.0.2:
@@ -7072,6 +7097,8 @@ snapshots:
   '@types/prop-types@15.7.15': {}
 
   '@types/qs@6.14.0': {}
+
+  '@types/quoted-printable@1.0.2': {}
 
   '@types/range-parser@1.2.7': {}
 
@@ -9059,6 +9086,10 @@ snapshots:
 
   queue-microtask@1.2.3: {}
 
+  quoted-printable@1.0.1:
+    dependencies:
+      utf8: 2.1.2
+
   range-parser@1.2.1: {}
 
   raw-body@2.5.3:
@@ -9755,6 +9786,8 @@ snapshots:
   uri-js@4.4.1:
     dependencies:
       punycode: 2.3.1
+
+  utf8@2.1.2: {}
 
   util-deprecate@1.0.2: {}
 

@@ -7,6 +7,7 @@
  */
 
 import { decode } from 'html-entities';
+import quotedPrintable from 'quoted-printable';
 
 export class TextCleaner {
   /**
@@ -18,10 +19,28 @@ export class TextCleaner {
 
     let cleaned = text;
 
-    // 1. Decode HTML entities (e.g., &nbsp;, &amp;)
+    // 0. Robust Quoted-Printable Decoding
+    // Often email bodies come in partially decoded or with artifacts
+    if (
+      cleaned.includes('=') &&
+      (cleaned.includes('=3D') || cleaned.includes('=\r\n') || cleaned.includes('=\n'))
+    ) {
+      try {
+        cleaned = quotedPrintable.decode(cleaned);
+      } catch (e) {
+        // If standard decode fails, try to fix common softness
+        cleaned = cleaned.replace(/=\r?\n/g, '');
+      }
+    }
+
+    // Heuristic Fixes for specific corpus corruptions
+    // 1. Fix "=9yo" -> "19yo" (User reported corruption where '1' became '=')
+    cleaned = cleaned.replace(/=(\d)yo/gi, '1$1yo');
+
+    // 2. Decode HTML entities (e.g., &nbsp;, &amp;)
     cleaned = decode(cleaned);
 
-    // 2. Fix common Windows-1252 / UTF-8 Mojibake
+    // 3. Fix common Windows-1252 / UTF-8 Mojibake
     cleaned = cleaned
       .replace(/â€™/g, "'")
       .replace(/â€œ/g, '"')

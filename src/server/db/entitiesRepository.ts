@@ -352,6 +352,24 @@ export const entitiesRepository = {
       )
       .all(entity.id) as { type_name: string }[];
 
+    // Get "Spicy Passages" (High significance mentions)
+    const spicyPassages = db
+      .prepare(
+        `
+            SELECT 
+                em.mention_context as passage,
+                em.keyword,
+                d.file_name as filename,
+                d.evidence_type as source
+            FROM entity_mentions em
+            JOIN documents d ON em.document_id = d.id
+            WHERE em.entity_id = ?
+            ORDER BY em.significance_score DESC, em.confidence_score DESC
+            LIMIT 5
+        `,
+      )
+      .all(entity.id) as any[];
+
     return {
       ...entity,
       // Map DB fields to frontend expected camelCase
@@ -365,6 +383,7 @@ export const entitiesRepository = {
       // Add evidence types
       evidence_types: evidenceTypes.map((et) => et.type_name),
       evidenceTypes: evidenceTypes.map((et) => et.type_name),
+      spicy_passages: spicyPassages,
       // Add Black Book information if available
       blackBookEntry: blackBookEntry
         ? {

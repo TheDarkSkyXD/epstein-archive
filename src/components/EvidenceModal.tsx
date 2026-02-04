@@ -1,106 +1,52 @@
-import React, { useMemo, useState, useCallback, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, ChevronUp, ChevronDown, Network } from 'lucide-react';
+import { X, Network, Layout, FileText, Image, Activity } from 'lucide-react';
 import { Person } from '../types';
 import { apiClient } from '../services/apiClient';
-// TODO: Add article feed integration - see UNUSED_VARIABLES_RECOMMENDATIONS.md
-// import { ArticleFeed } from './ArticleFeed';
 import { RedFlagIndex } from './RedFlagIndex';
 import { Breadcrumb } from './Breadcrumb';
 import { SourceBadge } from './SourceBadge';
-// TODO: Add form fields for evidence editing
-// import FormField from './FormField';
 import Tooltip from './Tooltip';
 import Icon from './Icon';
 import { useModalFocusTrap } from '../hooks/useModalFocusTrap';
 import { CreateRelationshipModal } from './CreateRelationshipModal';
 import { EntityEvidencePanel } from './EntityEvidencePanel';
+import { EntityMediaGallery } from './EntityMediaGallery';
 
 interface EvidenceModalProps {
   person: Person;
   onClose: () => void;
-  searchTerm?: string; // Optional search term to highlight
-  onDocumentClick?: (document: any, searchTerm?: string) => void; // Callback when document is clicked
+  searchTerm?: string;
+  onDocumentClick?: (document: any, searchTerm?: string) => void;
 }
+
+type Tab = 'overview' | 'evidence' | 'media' | 'network';
 
 export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
   ({ person, onClose, searchTerm, onDocumentClick }) => {
-    const [expandedSections, setExpandedSections] = useState<Set<string>>(
-      new Set(['stats', 'evidence']),
-    );
+    const [activeTab, setActiveTab] = useState<Tab>('overview');
     const [documents, setDocuments] = useState<any[]>([]);
     const [loadingDocuments, setLoadingDocuments] = useState(false);
-    const [selectedEvidenceType, setSelectedEvidenceType] = useState<string | null>(null);
     const [filterQuery, setFilterQuery] = useState('');
     const [showRelationshipModal, setShowRelationshipModal] = useState(false);
     const { modalRef } = useModalFocusTrap(true);
 
-    // Handle keyboard events for modal
+    // Keyboard handling
     useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') {
-          onClose();
-        }
+        if (e.key === 'Escape') onClose();
       };
-
       document.addEventListener('keydown', handleKeyDown);
-      return () => {
-        document.removeEventListener('keydown', handleKeyDown);
-      };
+      return () => document.removeEventListener('keydown', handleKeyDown);
     }, [onClose]);
 
-    // Announce modal opening for screen readers
-    useEffect(() => {
-      const announcement = document.createElement('div');
-      announcement.setAttribute('aria-live', 'polite');
-      announcement.setAttribute('aria-atomic', 'true');
-      announcement.className = 'sr-only';
-      announcement.textContent = `Opened details for ${person.name}`;
-      document.body.appendChild(announcement);
-      return () => {
-        document.body.removeChild(announcement);
-      };
-    }, [person.name]);
-
-    const toggleSection = useCallback(
-      (section: string) => {
-        setExpandedSections((prev) => {
-          const newSet = new Set(prev);
-          if (newSet.has(section)) {
-            newSet.delete(section);
-          } else {
-            newSet.add(section);
-          }
-          return newSet;
-        });
-
-        // Announce section toggle for screen readers
-        const announcement = document.createElement('div');
-        announcement.setAttribute('aria-live', 'polite');
-        announcement.setAttribute('aria-atomic', 'true');
-        announcement.className = 'sr-only';
-        const isExpanded = !expandedSections.has(section);
-        announcement.textContent = `${section} section ${isExpanded ? 'expanded' : 'collapsed'}`;
-        document.body.appendChild(announcement);
-        setTimeout(() => document.body.removeChild(announcement), 1000);
-      },
-      [expandedSections],
-    );
-
-    const isSectionExpanded = useCallback(
-      (section: string) => expandedSections.has(section),
-      [expandedSections],
-    );
-
-    // Fetch documents when modal opens
+    // Fetch documents
     useEffect(() => {
       const fetchDocuments = async () => {
         if (!person.id) return;
-
         setLoadingDocuments(true);
         try {
           const personDocuments = await apiClient.getEntityDocuments(person.id);
-          // Sort by Red Flag Index (descending)
           const sortedDocuments = personDocuments
             .map((doc: any) => ({
               ...doc,
@@ -109,10 +55,8 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
               title: doc.title || doc.fileName || doc.filename || 'Untitled',
             }))
             .sort((a: any, b: any) => {
-              // Sort by Red Flag Index (desc)
               const rfiDiff = b.redFlagRating - a.redFlagRating;
               if (rfiDiff !== 0) return rfiDiff;
-              // Then by Mentions (desc)
               return b.mentions - a.mentions;
             });
           setDocuments(sortedDocuments);
@@ -122,661 +66,371 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
           setLoadingDocuments(false);
         }
       };
-
       fetchDocuments();
-    }, [person?.id]);
+    }, [person.id]);
 
-    // Memoize expensive computations with safety checks
-    const evidenceTypes = useMemo(
-      () =>
-        person?.evidence_types
-          ?.map((type) => type?.replace('_', ' ')?.toUpperCase())
-          ?.filter(Boolean) || [],
-      [person?.evidence_types],
-    );
-
-    const visibleContexts = useMemo(
-      () =>
-        isSectionExpanded('contexts')
-          ? person?.contexts || []
-          : person?.contexts?.slice(0, 3) || [],
-      [person?.contexts, isSectionExpanded],
-    );
-
-    const visiblePassages = useMemo(
-      () =>
-        isSectionExpanded('passages')
-          ? person?.spicy_passages || []
-          : person?.spicy_passages?.slice(0, 2) || [],
-      [person?.spicy_passages, isSectionExpanded],
-    );
-
-    // Filter and sort documents: RFI desc → mentions desc
+    // Derived State
     const filteredDocuments = useMemo(() => {
-      let docs = [...documents];
-
-      // Filter by selected evidence type
-      if (selectedEvidenceType) {
-        const filterType = selectedEvidenceType.toLowerCase().replace(' ', '_');
-        docs = docs.filter(
-          (doc) =>
-            doc.evidenceType?.toLowerCase() === filterType ||
-            doc.evidence_type?.toLowerCase() === filterType,
-        );
-      }
-
-      // Filter by search query
+      let docs = documents;
       if (filterQuery) {
         const query = filterQuery.toLowerCase();
         docs = docs.filter(
           (doc) =>
-            (doc.title || doc.fileName || doc.filename || '').toLowerCase().includes(query) ||
-            (doc.summary || doc.contextText || doc.aiSummary || doc.content || '')
-              .toLowerCase()
-              .includes(query),
+            (doc.title || '').toLowerCase().includes(query) ||
+            (doc.content || '').toLowerCase().includes(query),
         );
       }
+      return docs;
+    }, [documents, filterQuery]);
 
-      // Safety strict sort
-      return docs.sort((a, b) => {
-        if (b.redFlagRating !== a.redFlagRating) return b.redFlagRating - a.redFlagRating;
-        return b.mentions - a.mentions;
-      });
-    }, [documents, selectedEvidenceType, filterQuery]);
-
-    // Function to highlight search terms in text
     const highlightText = (text: string, term?: string) => {
-      if (!term || !text || typeof text !== 'string') return text;
-
+      if (!term || !text) return text;
       try {
         const regex = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-        return text.replace(regex, '<mark class="bg-yellow-500 text-black px-1 rounded">$1</mark>');
-      } catch (e) {
-        console.warn('Error highlighting text:', e);
+        return text.replace(
+          regex,
+          '<mark class="bg-yellow-500/40 text-white px-0.5 rounded">$1</mark>',
+        );
+      } catch {
         return text;
       }
     };
 
-    // Function to safely render highlighted text
     const renderHighlightedText = (text: string, term?: string) => {
-      if (!term || !text || typeof text !== 'string') return text;
-
-      try {
-        const highlighted = highlightText(text, term);
-        if (highlighted === text) return text;
-
-        return <span dangerouslySetInnerHTML={{ __html: highlighted }} />;
-      } catch (e) {
-        console.warn('Error rendering highlighted text:', e);
-        return text;
-      }
+      const highlighted = highlightText(text, term);
+      return <span dangerouslySetInnerHTML={{ __html: highlighted }} />;
     };
 
-    // Safety checks for person data
-    if (!person) {
+    if (!person) return null;
+
+    // Helper for risk badge
+    const getRiskBadge = () => {
+      const score = person.likelihood_score || 'UNKNOWN';
+      const color =
+        score === 'HIGH'
+          ? 'red'
+          : score === 'MEDIUM'
+            ? 'amber'
+            : score === 'LOW'
+              ? 'emerald'
+              : 'slate';
+
+      const theme = {
+        red: 'bg-red-950/50 text-red-200 border-red-500/50 shadow-red-900/20',
+        amber: 'bg-amber-950/50 text-amber-200 border-amber-500/50 shadow-amber-900/20',
+        emerald: 'bg-emerald-950/50 text-emerald-200 border-emerald-500/50 shadow-emerald-900/20',
+        slate: 'bg-slate-800 text-slate-300 border-slate-600',
+      }[color];
+
       return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 rounded-xl p-6 max-w-md">
-            <h2 className="text-xl font-bold text-white mb-4">Error</h2>
-            <p className="text-slate-300">No person data available.</p>
-            <button
-              onClick={onClose}
-              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Close
-            </button>
-          </div>
-        </div>
+        <span
+          className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider border backdrop-blur-md shadow-lg ${theme}`}
+        >
+          {score} RISK
+        </span>
       );
-    }
+    };
+
     return createPortal(
       <div
         ref={modalRef}
-        className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-0 md:p-4 overflow-hidden"
+        className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[100] p-0 md:p-6 overflow-hidden animate-in fade-in duration-200"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="modal-title"
-        aria-describedby="modal-description"
       >
-        <div
-          className="bg-slate-800 rounded-none md:rounded-xl w-full h-full md:h-auto md:max-h-[90vh] md:max-w-4xl overflow-y-auto border-0 md:border border-slate-700 flex flex-col max-w-full"
-          style={{ maxWidth: 'calc(100vw - 2rem)' }}
-        >
-          {/* Header - Mobile optimized sticky header */}
-          <div className="sticky top-0 bg-slate-800 border-b border-slate-700 px-4 py-3 md:p-6 flex flex-col gap-3 z-10">
-            {/* Top row: Close button and breadcrumb */}
-            <div className="flex items-center justify-between">
-              <Breadcrumb
-                items={[
-                  { label: 'Subjects', onClick: () => {} },
-                  { label: person.name || 'Unknown Person' },
-                ]}
-              />
-              <button
-                onClick={onClose}
-                className="p-2 rounded-full hover:bg-slate-700 text-slate-400 hover:text-white transition-colors touch-feedback"
-                aria-label="Close modal"
-              >
-                <X className="w-5 h-5" aria-hidden="true" />
-              </button>
+        <div className="bg-slate-900/90 w-full h-full md:rounded-2xl md:border border-slate-700 shadow-2xl flex flex-col max-w-6xl overflow-hidden relative">
+          {/* HERO HEADER */}
+          <div className="relative shrink-0 border-b border-slate-700/50 bg-slate-900">
+            {/* Background Pattern */}
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800/50 opacity-50 pointer-events-none" />
+
+            <div className="relative p-6 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+              <div className="flex items-center gap-5 flex-1 min-w-0">
+                {/* Large Avatar */}
+                <div className="shrink-0 relative">
+                  {person.photos && person.photos.length > 0 ? (
+                    <div className="w-20 h-20 rounded-xl overflow-hidden border-2 border-slate-600 shadow-xl ring-4 ring-slate-800/50">
+                      <img
+                        src={`/api/media/images/${person.photos[0].id}/thumbnail`}
+                        alt={person.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-20 h-20 rounded-xl bg-slate-800 border-2 border-slate-700 flex items-center justify-center shadow-inner">
+                      <Icon name="User" size="xl" className="text-slate-500" />
+                    </div>
+                  )}
+                  {/* Status Dot */}
+                  <div
+                    className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-slate-900 flex items-center justify-center border border-slate-700`}
+                  >
+                    <div
+                      className={`w-3 h-3 rounded-full ${person.status?.toLowerCase().includes('deceased') ? 'bg-slate-500' : 'bg-green-500'} shadow-[0_0_8px_currentColor]`}
+                    />
+                  </div>
+                </div>
+
+                <div className="min-w-0 space-y-1">
+                  <div className="flex items-center gap-3">
+                    <h1 className="text-2xl md:text-3xl font-bold text-white truncate tracking-tight">
+                      {searchTerm ? renderHighlightedText(person.name, searchTerm) : person.name}
+                    </h1>
+                    {getRiskBadge()}
+                  </div>
+                  <p className="text-slate-400 font-medium flex items-center gap-2 text-sm uppercase tracking-wide">
+                    {person.role || 'Entity'}
+                    <span className="w-1 h-1 rounded-full bg-slate-600" />
+                    <span className="text-slate-500">{person.title || 'No Title'}</span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center gap-3 self-end md:self-auto">
+                <button
+                  onClick={() => setShowRelationshipModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-600/90 hover:bg-purple-600 text-white rounded-lg text-sm font-medium transition-all shadow-lg hover:shadow-purple-500/20 active:scale-95"
+                >
+                  <Network className="w-4 h-4" />
+                  <span>Connect</span>
+                </button>
+                <button
+                  onClick={onClose}
+                  className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors border border-slate-700"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
-            {/* Person info row */}
-            <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
-              {person.photos && person.photos.length > 0 && person.photos[0].id ? (
-                <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-600 shrink-0 mr-1">
-                  <img
-                    src={`/api/media/images/${person.photos[0].id}/thumbnail`}
-                    alt={person.name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              ) : (
-                <Icon name="User" size="md" color="info" className="shrink-0" />
-              )}
-              <h1
-                id="modal-title"
-                className="text-base sm:text-lg md:text-2xl font-bold text-white truncate flex-1 min-w-0"
-              >
-                {searchTerm
-                  ? renderHighlightedText(person.name || 'Unknown', searchTerm)
-                  : person.name || 'Unknown'}
-              </h1>
-              <button
-                onClick={() => setShowRelationshipModal(true)}
-                className="hidden sm:flex items-center gap-2 px-3 h-8 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors shadow-lg shadow-purple-500/20"
-                title="Add Connection"
-              >
-                <Network className="w-4 h-4" />
-                <span className="hidden md:inline">Connect</span>
-              </button>
-              <span
-                className={`inline-flex items-center px-3 h-8 rounded-full text-xs font-bold border shadow-[0_0_10px_rgba(0,0,0,0.3)] backdrop-blur-sm ${
-                  person.likelihood_score === 'HIGH'
-                    ? 'bg-gradient-to-r from-red-950/80 to-red-900/60 border-red-500/50 text-red-200 shadow-red-900/20'
-                    : person.likelihood_score === 'MEDIUM'
-                      ? 'bg-gradient-to-r from-amber-950/80 to-amber-900/60 border-amber-500/50 text-amber-200 shadow-amber-900/20'
-                      : 'bg-gradient-to-r from-emerald-950/80 to-emerald-900/60 border-emerald-500/50 text-emerald-200 shadow-emerald-900/20'
-                }`}
-                aria-label={`Risk level: ${person.likelihood_score || 'UNKNOWN'}`}
-              >
-                {person.likelihood_score || 'UNKNOWN'} RISK
-              </span>
+            {/* TABS */}
+            <div className="flex items-center px-6 gap-6 overflow-x-auto scrollbar-none border-t border-slate-800/50">
+              {[
+                { id: 'overview', label: 'Overview', icon: Layout },
+                { id: 'evidence', label: `Documents (${documents.length})`, icon: FileText },
+                { id: 'media', label: `Media (${person.photos?.length || 0})`, icon: Image },
+                { id: 'network', label: 'Network Graph', icon: Activity },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as Tab)}
+                  className={`flex items-center gap-2 py-4 text-sm font-medium border-b-2 transition-all select-none whitespace-nowrap
+                           ${
+                             activeTab === tab.id
+                               ? 'border-cyan-500 text-cyan-400'
+                               : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-slate-700'
+                           }`}
+                >
+                  <tab.icon className="w-4 h-4" />
+                  {tab.label}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Content */}
-          <div id="modal-description" className="p-4 sm:p-6 space-y-5 sm:space-y-6">
-            {/* Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-              <div className="bg-slate-700 rounded-lg p-4 pr-10 sm:pr-4 text-center relative">
-                <div className="absolute top-2 right-2">
-                  <Tooltip
-                    content="Total number of times this subject is mentioned across all documents in the archive"
-                    position="bottom-end"
-                  >
-                    <Icon name="Info" size="sm" color="gray" className="cursor-help" />
-                  </Tooltip>
-                </div>
-                <div className="text-lg sm:text-2xl font-bold text-white">
-                  {(person?.mentions || 0).toLocaleString()}
-                </div>
-                <div
-                  className="text-slate-400 text-xs sm:text-sm"
-                  aria-label="Total mentions across all documents"
-                >
-                  Total Mentions
-                </div>
-              </div>
-              <div className="bg-slate-700 rounded-lg p-4 pr-10 sm:pr-4 text-center relative">
-                <div className="absolute top-2 right-2">
-                  <Tooltip
-                    content="Number of documents that reference or mention this subject"
-                    position="bottom-end"
-                  >
-                    <Icon name="Info" size="sm" color="gray" className="cursor-help" />
-                  </Tooltip>
-                </div>
-                <div className="text-lg sm:text-2xl font-bold text-white">{person?.files || 0}</div>
-                <div
-                  className="text-slate-400 text-xs sm:text-sm"
-                  aria-label="Number of documents referencing this person"
-                >
-                  Files
-                </div>
-              </div>
-              <div className="bg-slate-700 rounded-lg p-4 pr-10 sm:pr-4 text-center relative">
-                <div className="absolute top-2 right-2">
-                  <Tooltip
-                    content="Different categories of evidence associated with this subject"
-                    position="bottom-end"
-                  >
-                    <Icon name="Info" size="sm" color="gray" className="cursor-help" />
-                  </Tooltip>
-                </div>
-                <div className="text-lg sm:text-2xl font-bold text-white">
-                  {(person?.evidence_types || []).length}
-                </div>
-                <div
-                  className="text-slate-400 text-xs sm:text-sm"
-                  aria-label="Number of different evidence types"
-                >
-                  Evidence Types
-                </div>
-              </div>
-            </div>
-
-            {/* Black Book Information */}
-            {person?.blackBookEntry && (
-              <div className="bg-gradient-to-r from-purple-900/30 to-indigo-900/30 border border-purple-700/50 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Icon name="Book" size="sm" color="primary" />
-                  <h2
-                    className="text-lg font-semibold text-purple-300 flex items-center gap-2"
-                    aria-level={2}
-                  >
-                    Black Book Entry
-                    <Tooltip content="This person appears in Jeffrey Epstein's personal contact book">
-                      <Icon name="Info" size="sm" color="gray" />
-                    </Tooltip>
-                  </h2>
-                </div>
-                <div className="space-y-3">
-                  {person.blackBookEntry.phoneNumbers &&
-                    person.blackBookEntry.phoneNumbers.length > 0 && (
-                      <div>
-                        <h3 className="text-sm font-medium text-slate-300 mb-1">Phone Numbers</h3>
-                        <div className="flex flex-wrap gap-2">
-                          {person.blackBookEntry.phoneNumbers.map(
-                            (phone: string, index: number) => (
-                              <span
-                                key={index}
-                                className="inline-flex items-center gap-1 px-2 py-1 bg-purple-800/50 text-purple-200 rounded text-sm"
-                              >
-                                <Icon name="Phone" size="xs" />
-                                {phone}
-                              </span>
-                            ),
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  {person.blackBookEntry.emailAddresses &&
-                    person.blackBookEntry.emailAddresses.length > 0 && (
-                      <div>
-                        <h3 className="text-sm font-medium text-slate-300 mb-1">Email Addresses</h3>
-                        <div className="flex flex-wrap gap-2">
-                          {person.blackBookEntry.emailAddresses.map(
-                            (email: string, index: number) => (
-                              <span
-                                key={index}
-                                className="inline-flex items-center gap-1 px-2 py-1 bg-purple-800/50 text-purple-200 rounded text-sm"
-                              >
-                                <Icon name="Mail" size="xs" />
-                                {email}
-                              </span>
-                            ),
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  {person.blackBookEntry.addresses &&
-                    person.blackBookEntry.addresses.length > 0 && (
-                      <div>
-                        <h3 className="text-sm font-medium text-slate-300 mb-1">Addresses</h3>
-                        <div className="space-y-1">
-                          {person.blackBookEntry.addresses.map((address: string, index: number) => (
-                            <div
-                              key={index}
-                              className="flex items-start gap-2 text-sm text-slate-300"
-                            >
-                              <Icon name="MapPin" size="xs" className="mt-0.5 flex-shrink-0" />
-                              <span>{address}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  {person.blackBookEntry.notes && (
-                    <div>
-                      <h3 className="text-sm font-medium text-slate-300 mb-1">Notes</h3>
-                      <p className="text-sm text-slate-300 bg-slate-800/50 p-2 rounded">
-                        {person.blackBookEntry.notes}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Evidence Types - Horizontal scroll on mobile */}
-            <div>
-              <h2
-                className="text-base sm:text-lg font-semibold text-white mb-3 flex items-center gap-2"
-                aria-level={2}
-              >
-                <Icon name="FileText" size="sm" />
-                Evidence Types
-                <Tooltip content="Filter documents by evidence category">
-                  <Icon name="Info" size="sm" color="gray" />
-                </Tooltip>
-              </h2>
-              <div className="mobile-scroll-x -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex sm:flex-wrap gap-2">
-                <button
-                  onClick={() => setSelectedEvidenceType(null)}
-                  className={`mobile-chip mobile-chip-interactive touch-feedback shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-all shadow-sm backdrop-blur-sm border ${
-                    selectedEvidenceType === null
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white border-blue-400 shadow-blue-500/30'
-                      : 'bg-gradient-to-r from-slate-800 to-slate-900 text-slate-300 border-slate-700 hover:border-slate-500 hover:text-white'
-                  }`}
-                >
-                  ALL
-                </button>
-                {evidenceTypes.map((type, i) => (
-                  <button
-                    key={i}
-                    onClick={() =>
-                      setSelectedEvidenceType(type === selectedEvidenceType ? null : type)
-                    }
-                    className={`mobile-chip mobile-chip-interactive touch-feedback shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-all shadow-sm backdrop-blur-sm border ${
-                      selectedEvidenceType === type
-                        ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white border-blue-400 shadow-blue-500/30'
-                        : 'bg-gradient-to-r from-blue-900/40 to-blue-900/20 text-blue-200 border-blue-500/30 hover:bg-blue-900/60 hover:border-blue-400/50'
-                    }`}
-                  >
-                    {type}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Contexts */}
-            {person?.contexts?.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h2
-                    className="text-lg font-semibold text-white flex items-center gap-2"
-                    aria-level={2}
-                  >
-                    <Icon name="FileText" size="sm" />
-                    Contexts ({person.contexts.length})
-                    <Tooltip content="Relevant excerpts from documents mentioning this subject">
-                      <Icon name="Info" size="sm" color="gray" />
-                    </Tooltip>
-                  </h2>
-                  <button
-                    onClick={() => toggleSection('contexts')}
-                    className="flex items-center gap-1 text-slate-400 hover:text-white transition-colors"
-                  >
-                    {isSectionExpanded('contexts') ? (
-                      <>
-                        <ChevronUp className="w-4 h-4" /> Show Less
-                      </>
-                    ) : (
-                      <>
-                        <ChevronDown className="w-4 h-4" /> Show More
-                      </>
-                    )}
-                  </button>
-                </div>
-                <div className="space-y-3">
-                  {visibleContexts.map((context, i) => (
-                    <div key={i} className="bg-slate-700 rounded-lg p-4">
-                      <p className="text-slate-300 mb-2">
-                        {searchTerm
-                          ? renderHighlightedText(context?.context || '', searchTerm)
-                          : context?.context || 'No context available'}
-                      </p>
-                      <div className="flex items-center gap-4 text-xs text-slate-400">
-                        <span className="flex items-center gap-1">
-                          <Icon name="FileText" size="xs" />
-                          {context?.file || 'Unknown file'}
-                        </span>
-                        {context?.date && context.date !== 'Unknown' && (
-                          <span className="flex items-center gap-1">
-                            <Icon name="Calendar" size="xs" />
-                            {context.date}
-                          </span>
-                        )}
-                        {/* Source badge for context */}
-                        <SourceBadge source={context?.source || 'Seventh Production'} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Documents */}
-            {loadingDocuments && (
-              <div className="flex items-center justify-center py-4">
-                <div className="text-slate-400">Loading documents...</div>
-              </div>
-            )}
-
-            {!loadingDocuments && documents.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h2
-                    className="text-lg font-semibold text-white flex items-center gap-2"
-                    aria-level={2}
-                  >
-                    <Icon name="FileText" size="sm" />
-                    Documents ({filteredDocuments.length}
-                    {selectedEvidenceType ? ` of ${documents.length}` : ''})
-                    <Tooltip content="Documents that reference or mention this subject">
-                      <Icon name="Info" size="sm" color="gray" />
-                    </Tooltip>
-                  </h2>
-                  <button
-                    onClick={() => toggleSection('documents')}
-                    className="flex items-center gap-1 text-slate-400 hover:text-white transition-colors"
-                  >
-                    {isSectionExpanded('documents') ? (
-                      <>
-                        <ChevronUp className="w-4 h-4" /> Show Less
-                      </>
-                    ) : (
-                      <>
-                        <ChevronDown className="w-4 h-4" /> Show More
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                {/* Document Filter Input */}
-                {isSectionExpanded('documents') && (
-                  <div className="mb-4">
-                    <div className="relative">
-                      <Icon
-                        name="Search"
-                        size="sm"
-                        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Filter documents..."
-                        value={filterQuery}
-                        onChange={(e) => setFilterQuery(e.target.value)}
-                        className="w-full bg-slate-900/50 border border-slate-600 rounded-lg py-2 pl-14 pr-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
-                      />
-                      {filterQuery && (
-                        <button
-                          onClick={() => setFilterQuery('')}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
+          {/* CONTENT AREA */}
+          <div className="flex-1 overflow-y-auto bg-slate-950 p-6">
+            {/* OVERVIEW TAB */}
+            {activeTab === 'overview' && (
+              <div className="space-y-6 max-w-5xl mx-auto">
+                {/* Key Stats Grid */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 flex flex-col items-center justify-center text-center">
+                    <span className="text-3xl font-bold text-white mb-1">
+                      {person.mentions?.toLocaleString() || 0}
+                    </span>
+                    <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
+                      Mentions
+                    </span>
                   </div>
-                )}
+                  <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 flex flex-col items-center justify-center text-center">
+                    <span className="text-3xl font-bold text-blue-400 mb-1">
+                      {person.files || 0}
+                    </span>
+                    <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
+                      Documents
+                    </span>
+                  </div>
+                  <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 flex flex-col items-center justify-center text-center">
+                    <span className="text-3xl font-bold text-purple-400 mb-1">
+                      {person.photos?.length || 0}
+                    </span>
+                    <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
+                      Photos
+                    </span>
+                  </div>
+                  <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 flex flex-col items-center justify-center text-center">
+                    <RedFlagIndex value={person.red_flag_rating || 0} size="lg" />
+                    <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold mt-2">
+                      Risk Rating
+                    </span>
+                  </div>
+                </div>
+
+                {/* Bio / Description */}
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    {person.red_flag_description && (
+                      <div className="bg-red-950/10 border border-red-900/30 rounded-xl p-5 relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-1 h-full bg-red-500/50" />
+                        <h3 className="text-red-400 font-semibold mb-2 flex items-center gap-2">
+                          <Icon name="AlertTriangle" size="sm" />
+                          Red Flag Summary
+                        </h3>
+                        <p className="text-red-200/80 leading-relaxed text-sm">
+                          {person.red_flag_description.replace(/^Red Flag Index \d+[\s:-]*/i, '')}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Black Book Entry */}
+                    {person.blackBookEntry && (
+                      <div className="bg-purple-950/10 border border-purple-900/30 rounded-xl p-5">
+                        <h3 className="text-purple-400 font-semibold mb-3 flex items-center gap-2">
+                          <Icon name="Book" size="sm" />
+                          Black Book Entry
+                        </h3>
+                        <div className="space-y-3">
+                          {person.blackBookEntry.phoneNumbers?.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {person.blackBookEntry.phoneNumbers.map(
+                                (phone: string, i: number) => (
+                                  <span
+                                    key={i}
+                                    className="px-2 py-1 bg-purple-900/40 text-purple-200 text-xs rounded border border-purple-800/50 flex items-center gap-1"
+                                  >
+                                    <Icon name="Phone" size="xs" /> {phone}
+                                  </span>
+                                ),
+                              )}
+                            </div>
+                          )}
+                          <p className="text-slate-400 text-sm italic border-l-2 border-purple-800/50 pl-3">
+                            {person.blackBookEntry.notes || 'No notes in entry.'}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Recent Evidence Snippets */}
+                  <div className="space-y-4">
+                    <h3 className="text-slate-300 font-semibold flex items-center gap-2">
+                      <Icon name="FileText" size="sm" /> Top Key Passages
+                    </h3>
+                    {person.spicy_passages && person.spicy_passages.length > 0 ? (
+                      <div className="space-y-3">
+                        {person.spicy_passages.slice(0, 3).map((passage, i) => (
+                          <div
+                            key={i}
+                            className="bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm"
+                          >
+                            <p className="text-slate-300 mb-2 line-clamp-3">
+                              "...{passage.passage}..."
+                            </p>
+                            <div className="flex justify-between items-center text-xs text-slate-500">
+                              <span className="text-red-400 font-mono">{passage.keyword}</span>
+                              <span>{passage.filename}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-slate-500 italic text-sm">
+                        No specific key passages extracted yet.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* EVIDENCE TAB */}
+            {activeTab === 'evidence' && (
+              <div className="space-y-4 max-w-5xl mx-auto">
+                <div className="flex gap-4 mb-4">
+                  <div className="relative flex-1">
+                    <Icon
+                      name="Search"
+                      size="sm"
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Search within documents..."
+                      value={filterQuery}
+                      onChange={(e) => setFilterQuery(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg py-2 pl-10 pr-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                    />
+                  </div>
+                </div>
 
                 <div className="space-y-3">
-                  {(isSectionExpanded('documents')
-                    ? filteredDocuments
-                    : filteredDocuments.slice(0, 3)
-                  ).map((doc, i) => (
-                    <div
-                      key={i}
-                      className="bg-slate-700 rounded-lg p-4 cursor-pointer hover:bg-slate-600 transition-colors border border-slate-600 hover:border-blue-500"
-                      onClick={() => {
-                        // Ensure document has proper structure with id field
-                        const documentToOpen = { ...doc, id: doc.id || doc.documentId };
-                        onDocumentClick?.(documentToOpen, searchTerm || person.name);
-                      }}
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <h3 className="text-white font-medium">
-                          {doc.title || doc.fileName || doc.filename || 'Untitled Document'}
-                        </h3>
-                        <RedFlagIndex
-                          value={doc.redFlagRating || 0}
-                          size="sm"
-                          variant="combined"
-                          showTextLabel={true}
-                        />
-                      </div>
-                      <div className="flex items-center space-x-2 mb-3">
-                        {/* Source badge for document */}
-                        <SourceBadge source={doc.source || 'Seventh Production'} />
-                      </div>
-                      <p className="text-slate-300 text-sm mb-3 line-clamp-3">
-                        {searchTerm &&
-                        (doc.summary || doc.contextText || doc.aiSummary || doc.content)
-                          ? renderHighlightedText(
-                              (
-                                doc.summary ||
-                                doc.contextText ||
-                                doc.aiSummary ||
-                                doc.content ||
-                                ''
-                              ).substring(0, 200) + '...',
-                              searchTerm,
-                            )
-                          : (
-                              doc.summary ||
-                              doc.contextText ||
-                              doc.aiSummary ||
-                              doc.content ||
-                              'No description available'
-                            ).substring(0, 200) + '...'}
-                      </p>
-                      <div className="flex items-center gap-4 text-xs text-slate-400">
-                        <span className="flex items-center gap-1">
-                          <Icon name="FileText" size="xs" />
-                          {doc.fileName || doc.filename || 'Unknown file'}
-                        </span>
-                        {(doc.date || doc.dateCreated) && (
+                  {loadingDocuments ? (
+                    <div className="text-center py-10 text-slate-500">Loading documents...</div>
+                  ) : filteredDocuments.length > 0 ? (
+                    filteredDocuments.map((doc, i) => (
+                      <div
+                        key={i}
+                        onClick={() => {
+                          const documentToOpen = { ...doc, id: doc.id || doc.documentId };
+                          onDocumentClick?.(documentToOpen, searchTerm || person.name);
+                        }}
+                        className="bg-slate-900/50 border border-slate-800 hover:border-cyan-500/30 rounded-lg p-4 cursor-pointer transition-all hover:bg-slate-800 group"
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <h4 className="text-blue-400 group-hover:text-blue-300 font-medium truncate pr-4">
+                            {doc.title}
+                          </h4>
+                          <RedFlagIndex value={doc.redFlagRating} size="sm" />
+                        </div>
+                        <p className="text-slate-400 text-sm line-clamp-2 mb-3">
+                          {searchTerm
+                            ? renderHighlightedText(doc.content?.substring(0, 300), searchTerm)
+                            : doc.content?.substring(0, 300)}
+                          ...
+                        </p>
+                        <div className="flex items-center gap-4 text-xs text-slate-500">
                           <span className="flex items-center gap-1">
-                            <Icon name="Calendar" size="xs" />
-                            {doc.date || doc.dateCreated}
+                            <Icon name="Calendar" size="xs" /> {doc.date || 'Unknown Date'}
                           </span>
-                        )}
-                        <span className="text-xs text-slate-500">
-                          {doc.mentions || doc.mentionCount || 0} mentions
-                        </span>
+                          <span className="flex items-center gap-1">
+                            <Icon name="TrendingUp" size="xs" /> {doc.mentions} mentions
+                          </span>
+                          <SourceBadge source={doc.source} />
+                        </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-10 text-slate-500 italic">
+                      No documents found matching your search.
                     </div>
-                  ))}
-                  {filteredDocuments.length > 3 && !isSectionExpanded('documents') && (
-                    <button
-                      onClick={() => toggleSection('documents')}
-                      className="w-full py-2 text-slate-400 hover:text-white transition-colors text-sm"
-                    >
-                      Show {filteredDocuments.length - 3} more documents...
-                    </button>
                   )}
                 </div>
               </div>
             )}
 
-            {/* Spicy Passages */}
-            {person?.spicy_passages?.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h2
-                    className="text-lg font-semibold text-red-300 flex items-center gap-2"
-                    aria-level={2}
-                  >
-                    <Icon name="AlertTriangle" size="sm" color="danger" />
-                    Key Passages ({person.spicy_passages.length})
-                    <Tooltip content="Excerpts containing flagged keywords or significant mentions">
-                      <Icon name="Info" size="sm" color="gray" />
-                    </Tooltip>
-                  </h2>
-                  <button
-                    onClick={() => toggleSection('passages')}
-                    className="flex items-center gap-1 text-slate-400 hover:text-red-300 transition-colors"
-                  >
-                    {isSectionExpanded('passages') ? (
-                      <>
-                        <ChevronUp className="w-4 h-4" /> Show Less
-                      </>
-                    ) : (
-                      <>
-                        <ChevronDown className="w-4 h-4" /> Show More
-                      </>
-                    )}
-                  </button>
-                </div>
-                <div className="space-y-3">
-                  {visiblePassages.map((passage, i) => (
-                    <div
-                      key={i}
-                      className="bg-red-900 bg-opacity-30 rounded-lg p-4 border border-red-700"
-                    >
-                      <p className="text-red-200 mb-2">
-                        {searchTerm
-                          ? renderHighlightedText(passage?.passage || '', searchTerm)
-                          : passage?.passage || 'No passage available'}
-                      </p>
-                      <div className="flex items-center gap-4 text-xs text-red-400">
-                        <span className="px-2 py-1 bg-red-800 rounded">
-                          {searchTerm
-                            ? renderHighlightedText(passage?.keyword || '', searchTerm)
-                            : passage?.keyword?.toUpperCase() || 'UNKNOWN'}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Icon name="FileText" size="xs" />
-                          {passage?.filename || 'Unknown file'}
-                        </span>
-                        {/* Source badge for passage */}
-                        <SourceBadge source={passage?.source || 'Seventh Production'} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
+            {/* MEDIA TAB */}
+            {activeTab === 'media' && (
+              <div className="max-w-6xl mx-auto">
+                <EntityMediaGallery media={person.photos || []} entityName={person.name} />
               </div>
             )}
 
-            {/* Relationship & Communications Intelligence */}
-            {person?.id && (
-              <div className="mt-8">
-                <h2 className="text-lg font-semibold text-slate-100 mb-3 flex items-center gap-2">
-                  <Icon name="Network" size="sm" />
-                  Relationship & Communications Intelligence
-                </h2>
-                <p className="text-xs text-slate-400 mb-3 max-w-2xl">
-                  Aggregated evidence, relationship graph signals, and email communications for this
-                  entity across the archive.
-                </p>
-                <div className="bg-slate-900/60 border border-slate-700 rounded-xl p-3 md:p-4">
-                  <EntityEvidencePanel
-                    entityId={String(person.id)}
-                    entityName={person.name || 'Unknown'}
-                  />
-                </div>
+            {/* NETWORK TAB */}
+            {activeTab === 'network' && (
+              <div className="h-full min-h-[500px] bg-slate-900 rounded-xl overflow-hidden border border-slate-800">
+                <EntityEvidencePanel entityId={String(person.id)} entityName={person.name} />
               </div>
             )}
           </div>
         </div>
+
         {showRelationshipModal && (
           <CreateRelationshipModal
             onClose={() => setShowRelationshipModal(false)}
-            onSuccess={() => {
-              // Optional: refresh data or show success message
-            }}
+            onSuccess={() => {}}
             initialSourceId={person.id}
           />
         )}

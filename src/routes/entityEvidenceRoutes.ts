@@ -43,8 +43,11 @@ router.get('/:entityId/graph', async (req: Request, res: Response) => {
 
     // Use the shared relationshipsRepository graph slice so analytics and
     // UI graph components stay consistent.
+    const depth = req.query.depth
+      ? Math.min(4, Math.max(1, parseInt(req.query.depth as string)))
+      : 2;
     const { relationshipsRepository } = await import('../server/db/relationshipsRepository.js');
-    const graph = relationshipsRepository.getGraphSlice(dbEntityId, 2);
+    const graph = relationshipsRepository.getGraphSlice(dbEntityId, depth);
     res.json(graph);
   } catch (error) {
     console.error('Error fetching entity graph:', error);

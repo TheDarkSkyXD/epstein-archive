@@ -33,12 +33,12 @@ export class TextCleaner {
       }
     }
 
-    // Heuristic Fixes for specific corpus corruptions
-    // 1. Fix "=9yo" -> "19yo" and "=5" -> "15" (User reported corruption where '1' became '=')
-    // We only apply this if the equal sign is preceded by start-of-line or whitespace to avoid breaking "width=50"
-    cleaned = cleaned.replace(/(^|\s)=(\d)/g, '$11$2');
+    // Contextual MIME Repair: Infer masked characters
+    // The user identified that '=' sometimes replaces any alphanumeric character.
+    // Example: "=9yo" -> "19yo", "th=y" -> "they"
+    cleaned = TextCleaner.repairMimeWildcards(cleaned);
 
-    // 2. Decode HTML entities (e.g., &nbsp;, &amp;)
+    // 1. Decode HTML entities (e.g., &nbsp;, &amp;)
     cleaned = decode(cleaned);
 
     // 3. Fix common Windows-1252 / UTF-8 Mojibake
@@ -65,7 +65,213 @@ export class TextCleaner {
   }
 
   /**
+   * Internal dictionary of common words for contextual repair.
+   * Derived from the corpus frequency analysis.
+   */
+  private static COMMON_WORDS = new Set([
+    'the',
+    'of',
+    'and',
+    'to',
+    'in',
+    'is',
+    'for',
+    'that',
+    'it',
+    'as',
+    'be',
+    'are',
+    'on',
+    'with',
+    'at',
+    'this',
+    'by',
+    'from',
+    'they',
+    'we',
+    'she',
+    'he',
+    'was',
+    'her',
+    'his',
+    'or',
+    'an',
+    'will',
+    'my',
+    'one',
+    'all',
+    'would',
+    'there',
+    'their',
+    'what',
+    'so',
+    'up',
+    'out',
+    'if',
+    'about',
+    'who',
+    'get',
+    'which',
+    'go',
+    'me',
+    'when',
+    'make',
+    'can',
+    'like',
+    'time',
+    'no',
+    'just',
+    'him',
+    'know',
+    'take',
+    'person',
+    'people',
+    'into',
+    'year',
+    'your',
+    'good',
+    'some',
+    'could',
+    'them',
+    'see',
+    'other',
+    'than',
+    'then',
+    'now',
+    'look',
+    'only',
+    'come',
+    'its',
+    'over',
+    'think',
+    'also',
+    'back',
+    'after',
+    'use',
+    'how',
+    'our',
+    'work',
+    'first',
+    'well',
+    'way',
+    'even',
+    'new',
+    'want',
+    'because',
+    'any',
+    'these',
+    'give',
+    'day',
+    'most',
+    'us',
+    'where',
+    'when',
+    'why',
+    'who',
+    'how',
+    'which',
+    'what',
+    'whose',
+    'whom',
+    'there',
+    'their',
+    'they',
+    'them',
+    'these',
+    'those',
+    'that',
+    'this',
+    'girl',
+    'woman',
+    'child',
+    'children',
+    'young',
+    'years',
+    'old',
+    'age',
+    'born',
+    'birth',
+    'date',
+    'address',
+    'island',
+    'thomas',
+    'virgin',
+    'islands',
+    'estate',
+    'property',
+    'owner',
+    'trust',
+    'account',
+    'financial',
+    'bank',
+    'transfer',
+    'payment',
+    'money',
+    'evidence',
+    'document',
+    'manual',
+    'staff',
+    'employee',
+    'legal',
+    'law',
+    'case',
+    'court',
+    'judge',
+    'warrant',
+    'search',
+    'seizure',
+    'redacted',
+    'security',
+    'emergency',
+    'doctor',
+    'medical',
+    'hospital',
+    'health',
+    'condition',
+    'treatment',
+  ]);
+
+  /**
+   * Identifies words where '=' is acting as an alphanumeric wildcard and attempts to infer the missing character.
+   */
+  static repairMimeWildcards(text: string): string {
+    if (!text.includes('=')) return text;
+
+    // 1. General word repair: th=y -> they, wh=n -> when, wh=re -> where
+    let repaired = text.replace(/\b([a-zA-Z0-9]+)=([a-zA-Z0-9]+)\b/g, (match, prefix, suffix) => {
+      // Skip if it looks like a valid QP hex code
+      if (prefix === '' && /^[0-9A-Fa-f]{2}$/.test(suffix.substring(0, 2))) return match;
+
+      const alphabet = 'etainosrdhdlucmfgypwbvkxjqz1234567890'; // ordered by frequency
+      for (const char of alphabet) {
+        const candidate = (prefix + char + suffix).toLowerCase();
+        if (this.COMMON_WORDS.has(candidate)) {
+          return prefix + char + suffix;
+        }
+      }
+      return match;
+    });
+
+    // 2. Numeric/Age repair: =9yo -> 19yo, =5 days -> 15 days
+    // Specific corruption: '1' often becomes '=' in this dataset
+    repaired = repaired.replace(/(^|\s)=(\d+)/g, (match, space, digits) => {
+      // If it's isolated or followed by common age/time markers, prefer '1'
+      const context = repaired.substring(
+        repaired.indexOf(match) + match.length,
+        repaired.indexOf(match) + match.length + 10,
+      );
+      if (/yo\b|years?|days?|months?|am\b|pm\b/i.test(context) || context.trim() === '') {
+        return space + '1' + digits;
+      }
+      return match;
+    });
+
+    return repaired;
+  }
+
+  /**
    * Cleans text extracted via OCR (PDF or Image).
+
    * Focuses on layout repair, garbage character removal, and typo fixing.
    */
   static cleanOcrText(text: string): string {

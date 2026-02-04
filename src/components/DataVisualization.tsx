@@ -14,6 +14,7 @@ import {
 } from 'recharts';
 import { Person } from '../types';
 import { TreeMap } from './TreeMap';
+import { filterPeopleOnly, isJunkEntity } from '../utils/entityFilters';
 
 interface DataVisualizationProps {
   people: Person[];
@@ -134,89 +135,8 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
     );
   }
 
-  // Junk entity filter patterns - excludes non-person entities
-  const JUNK_PATTERNS = [
-    /^The\s/i,
-    /\sLike$/i,
-    /\sLike\s/i,
-    /^They\s/i,
-    /\sPrinted/i,
-    /\sTowers$/i,
-    /^Multiple\s/i,
-    /\sMac\s/i,
-    /Desktop/i,
-    /^Estate\s/i,
-    /\sEstate$/i,
-    /^Closed\s/i,
-    /Contai/i,
-    /sensit/i,
-    /\sStreet$/i,
-    /\sBeach$/i,
-    /\sCliffs$/i,
-    /\sJames$/i,
-    /\sIsland$/i,
-    /^New\s/i,
-    /Mexico$/i,
-    /York/i,
-    /\sTimes$/i,
-    /^Palm/i,
-    /^Wall\s/i,
-    /^Little\s/i,
-    /^Englewood/i,
-    /\d/,
-    /^Judge\s.*\s/i,
-    // Banking / financial junk
-    /Pricing$/i,
-    /Checking$/i,
-    /Subtractions$/i,
-    /Additions$/i,
-    /Interest\s/i,
-    /^Your\s/i,
-    /^Other\s/i,
-    /Advantage/i,
-    /^sted\s/i,
-    /^iered\s/i,
-    // Organizations / companies
-    /Automobiles$/i,
-    /^Zorro\s/i,
-    /^Zeero\s/i,
-    /Management\sGroup$/i,
-    /^estigative\s/i,
-    /^Contact\sUs$/i,
-    /\sGroup$/i,
-    /\sInc$/i,
-    /\sLLC$/i,
-    /\sCorp$/i,
-    /\sLtd$/i,
-    /^St\s[A-Z][a-z]+$/, // "St Thomas" etc - places not people
-    // Specific exclusions from user feedback
-    /All\sRights\sReserved/i,
-    /We\sDeliver\sFor/i,
-    /Warner\sCable/i,
-    /Valuable\sArticles/i,
-    /Uh\sFloor/i,
-    /Trusted\sDy\sProfessional/i,
-    /Taxes\sCellular/i,
-    /Sundar\sMonday/i,
-    /Tittery\sEpstein/i,
-    /Had\sEpstein/i,
-    /Timo$/i,
-    // Truncated/partial names (starts lowercase or looks like partial word)
-    /^[a-z]/,
-  ];
-
-  const isJunkEntity = (name: string): boolean => {
-    if (!name || name.length <= 3) return true;
-    return JUNK_PATTERNS.some((pattern) => pattern.test(name));
-  };
-
   // Filter people to only Person types, excluding junk
-  const filteredPersons = people.filter((p) => {
-    if (!p.name || isJunkEntity(p.name)) return false;
-    const entityType = (p as any).type;
-    if (entityType && entityType !== 'Person' && entityType !== 'Unknown') return false;
-    return true;
-  });
+  const filteredPersons = filterPeopleOnly(people);
 
   // Prepare Data
   const riskDistribution = [
@@ -339,9 +259,24 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
                   dataKey="name"
                   type="category"
                   stroke="#94a3b8"
-                  fontSize={11}
-                  width={130}
-                  tick={{ fill: '#e2e8f0', cursor: 'pointer' }}
+                  fontSize={10}
+                  width={150}
+                  tick={({ x, y, payload }: any) => {
+                    const label = payload.value || 'Unknown';
+                    const truncated = label.length > 22 ? label.substring(0, 20) + '...' : label;
+                    return (
+                      <text
+                        x={x}
+                        y={y}
+                        dy={4}
+                        fill="#e2e8f0"
+                        textAnchor="end"
+                        className="text-[10px] cursor-pointer"
+                      >
+                        {truncated}
+                      </text>
+                    );
+                  }}
                   tickLine={false}
                   axisLine={false}
                   onClick={(data) => {

@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Person } from '../types';
 import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { filterPeopleOnly } from '../utils/entityFilters';
 
 interface TreeMapProps {
   people: Person[];
@@ -14,44 +15,6 @@ interface TreeMapNode {
   person: Person;
 }
 
-// Patterns that indicate junk entities (not real people)
-const JUNK_PATTERNS = [
-  /^The\s/i,
-  /\sLike$/i,
-  /\sLike\s/i,
-  /^They\s/i,
-  /\sPrinted/i,
-  /\sTowers$/i,
-  /^Multiple\s/i,
-  /\sMac\s/i,
-  /Desktop/i,
-  /^Estate\s/i,
-  /\sEstate$/i,
-  /^Closed\s/i,
-  /Contai/i,
-  /sensit/i,
-  /\sStreet$/i,
-  /\sBeach$/i,
-  /\sCliffs$/i,
-  /\sJames$/i,
-  /\sIsland$/i,
-  /^New\s/i,
-  /Mexico$/i,
-  /York/i,
-  /\sTimes$/i,
-  /^Palm/i,
-  /^Wall\s/i,
-  /^Little\s/i,
-  /^Englewood/i,
-  /\d/,
-  /^Judge\s.*\s/i,
-];
-
-const isJunkEntity = (name: string): boolean => {
-  if (!name || name.length <= 3) return true;
-  return JUNK_PATTERNS.some((pattern) => pattern.test(name));
-};
-
 export const TreeMap: React.FC<TreeMapProps> = ({ people, onPersonClick }) => {
   const [hoveredNode, setHoveredNode] = useState<TreeMapNode | null>(null);
   const [transform, setTransform] = useState({ k: 1, x: 0, y: 0 });
@@ -60,17 +23,7 @@ export const TreeMap: React.FC<TreeMapProps> = ({ people, onPersonClick }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Prepare data - top 50 PERSON entities by mentions
-  // Filter out junk entities and non-person types
-  const nodes: TreeMapNode[] = people
-    .filter((p) => {
-      if ((p.mentions || 0) <= 0) return false;
-      // Only include Person type (or null/undefined type as legacy)
-      const entityType = (p as any).type;
-      if (entityType && entityType !== 'Person' && entityType !== 'Unknown') return false;
-      // Filter out junk patterns
-      if (isJunkEntity(p.name)) return false;
-      return true;
-    })
+  const nodes: TreeMapNode[] = filterPeopleOnly(people)
     .sort((a, b) => (b.mentions || 0) - (a.mentions || 0))
     .slice(0, 50)
     .map((p) => ({
@@ -83,8 +36,9 @@ export const TreeMap: React.FC<TreeMapProps> = ({ people, onPersonClick }) => {
   const total = nodes.reduce((sum, node) => sum + node.value, 0);
 
   // Constants for original canvas size
-  const WIDTH = 1000;
-  const HEIGHT = 600;
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  const WIDTH = isMobile ? 600 : 1000;
+  const HEIGHT = isMobile ? 1000 : 600;
 
   // Simple squarified treemap layout
   const layout = squarify(nodes, WIDTH, HEIGHT);
@@ -165,7 +119,7 @@ export const TreeMap: React.FC<TreeMapProps> = ({ people, onPersonClick }) => {
 
       <div
         ref={containerRef}
-        className="relative w-full h-[600px] bg-slate-900/50 rounded-xl border border-slate-700 overflow-hidden cursor-move"
+        className={`relative w-full ${isMobile ? 'h-[800px]' : 'h-[600px]'} bg-slate-900/50 rounded-xl border border-slate-700 overflow-hidden cursor-move`}
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}

@@ -102,13 +102,49 @@ export const VIP_RULES: VipRule[] = [
   {
     canonicalName: 'Donald Trump',
     type: 'Person',
-    aliases: ['Donald J. Trump', 'Mr. Trump', 'President Trump', 'The Donald', 'Donald John Trump'],
-    patterns: [/Donald\s+Trump/i, /President\s+Trump/i],
+    aliases: [
+      'Donald J. Trump',
+      'Mr. Trump',
+      'President Trump',
+      'The Donald',
+      'Donald John Trump',
+      'Trump, Doinac',
+      'President Donald Trump',
+    ],
+    patterns: [
+      /Donald\s+Trump/i,
+      /President\s+Trump/i,
+      /Trump,\s+Doinac/i,
+      /President\s+Donald\s+Trump/i,
+    ],
     metadata: {
       category: 'Associate',
       riskLevel: 'high',
       birthDate: '1946-06-14',
       bio: '45th U.S. President. Socialized with Epstein in Palm Beach and NYC in the 90s/00s. Quoted calling Epstein a "terrific guy".',
+    },
+  },
+  {
+    canonicalName: 'Mark Epstein',
+    type: 'Person',
+    aliases: ['izmo'],
+    patterns: [/Mark\s+Epstein/i, /izmo/i],
+    metadata: {
+      category: 'Associate',
+      riskLevel: 'medium',
+      bio: 'Brother of Jeffrey Epstein. Real estate developer. Listed in the Black Book as "izmo".',
+    },
+  },
+  {
+    canonicalName: 'Sean "Diddy" Combs',
+    type: 'Person',
+    aliases: ['P Diddy', 'p daddy', 'Sean Combs', 'Puffy', 'Puff Daddy', 'Brother Love'],
+    patterns: [/Sean\s+"?Diddy"?\s+Combs/i, /P\s+Diddy/i, /p\s+daddy/i, /Puff\s+Daddy/i],
+    metadata: {
+      category: 'Associate',
+      riskLevel: 'medium',
+      birthDate: '1969-11-04',
+      bio: 'American rapper and record producer. Associated with Epstein through various social circles.',
     },
   },
   {

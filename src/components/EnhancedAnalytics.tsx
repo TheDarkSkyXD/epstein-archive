@@ -3,6 +3,7 @@ import { Info, Users, Shield, Database, Activity, FileText, TrendingUp } from 'l
 import { SunburstChart } from './SunburstChart';
 import { AreaTimeline } from './AreaTimeline';
 import { NetworkGraph } from './NetworkGraph';
+import { filterPeopleOnly } from '../utils/entityFilters';
 
 interface EnhancedAnalyticsProps {
   onEntitySelect?: (entityId: number) => void;
@@ -59,14 +60,15 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
       const result = await response.json();
 
       // Filter out junk entities from Network Graph
-      // These are entities that are likely false positives/parsing errors
       if (result.topConnectedEntities) {
-        result.topConnectedEntities = result.topConnectedEntities.filter(
-          (e: any) =>
-            e.type !== 'Unknown' &&
-            !e.name.includes('Unknown') &&
-            // Specific junk names from user report
-            !['Gues', 'Teme', 'Taki', 'Oping'].includes(e.name),
+        result.topConnectedEntities = filterPeopleOnly(result.topConnectedEntities as any);
+      }
+
+      // Filter relationships to only include valid entities
+      if (result.topRelationships && result.topConnectedEntities) {
+        const validNames = new Set(result.topConnectedEntities.map((e: any) => e.name));
+        result.topRelationships = result.topRelationships.filter(
+          (r: any) => validNames.has(r.source) && validNames.has(r.target),
         );
       }
 

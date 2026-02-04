@@ -170,7 +170,38 @@ app.use(inputValidationMiddleware);
 import downloadRoutes from './server/routes/downloads.js';
 app.use('/api/downloads', downloadRoutes);
 
-// app.use('/api/relationships', relationshipsRepository.router); // relationshipsRepository has no router
+// Relationships API
+app.get('/api/relationships', async (req, res, next) => {
+  try {
+    const entityId = req.query.entityId as string;
+    if (!entityId) {
+      return res.status(400).json({ error: 'entityId is required' });
+    }
+
+    const { relationshipsRepository } = await import('./server/db/relationshipsRepository.js');
+    const limit = parseInt(req.query.limit as string) || 50;
+
+    // Using getRelationships but mapping to what InvestigationWorkspace expects if needed
+    // The repository returns source_id, target_id, etc.
+    const relations = relationshipsRepository.getRelationships(entityId, {
+      minWeight: req.query.minWeight ? parseFloat(req.query.minWeight as string) : undefined,
+    });
+
+    // Map to the structure expected by the frontend
+    const mapped = relations.slice(0, limit).map((r) => ({
+      entity_id: r.target_id,
+      related_entity_id: r.target_id,
+      relationship_type: r.relationship_type,
+      strength: r.proximity_score,
+      confidence: r.confidence,
+      weight: r.proximity_score,
+    }));
+
+    res.json({ relationships: mapped });
+  } catch (error) {
+    next(error);
+  }
+});
 app.use('/api/investigations', investigationsRouter);
 app.use('/api/investigation', investigationEvidenceRoutes);
 app.use('/api/evidence', evidenceRoutes);

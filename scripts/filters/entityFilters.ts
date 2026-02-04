@@ -258,6 +258,19 @@ const JUNK_PHRASES = new Set([
   'your advantage',
   'multiple he towers',
   'little st james', // Often better as Location, but if appearing as Person name, block matches
+  'unsubscribe',
+  'feedback',
+  'all rights reserved',
+  'privacy policy',
+  'terms of service',
+  'mailing list',
+  'click here',
+  'read more',
+  'font family',
+  'font size',
+  'px arial',
+  'px helvetica',
+  'sans-serif',
 ]);
 
 const JUNK_REGEX = [
@@ -281,6 +294,25 @@ const JUNK_REGEX = [
   /new york times/i,
   /other additions/i,
   /desktop/i,
+  /unsubscribe/i,
+  /feedback/i,
+  /all rights\s+reserved/i,
+  /copyright\s+\d{4}/i,
+  /font[-\s]family/i,
+  /font[-\s]size/i,
+  /\d+px\s+\w+/i, // e.g. 12px Arial
+  /arial|helvetica|verdana|times\s+new\s+roman/i,
+  /^page\s+\d+$/i,
+  /^doc\s+id:?/i,
+  /Cooling Tower/i,
+  /Water Treatment/i,
+  /Maintenance/i,
+  /Cleaning\s+&\s+Disinfection/i,
+  /Contact\s+N(u|y)mber/i,
+  /Search\s+P(u|e)r(v|s)enel/i,
+  /Trusted\s+D(y|y)\s+Professional/i,
+  /Tittery\s+Epstein/i,
+  /Maes\s+All\s+Events/i,
 ];
 
 export function isJunkEntity(name: string): boolean {

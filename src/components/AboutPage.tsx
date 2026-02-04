@@ -322,6 +322,18 @@ const timelineEvents = [
     content:
       'V12.1.2: DOJ Datasets 9-12 Fully Ingested. Added 13,455 documents including Deutsche Bank records (Jes Staley), video evidence, and prosecutorial files. Total archive: 107,474 documents, 1.55M entity mentions.',
   },
+  {
+    date: 'Feb 4, 2026',
+    source: 'Epstein Archive',
+    content:
+      'V12.7.0: Advanced Data Cleansing. Contextual MIME Wildcard Repair for corrupted text and robust email decoding integrated into the intelligence pipeline.',
+  },
+  {
+    date: 'Feb 4, 2026',
+    source: 'Epstein Archive',
+    content:
+      'V12.7.1: Dynamic Risk Intelligence. Implemented automated risk scoring engine based on exposure, network links, and codeword detection. Consolidated VIP entities including "izmo", "Trump, Doinac", and "p daddy".',
+  },
 ];
 
 // Helper to get color classes

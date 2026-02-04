@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import * as crypto from 'crypto';
-import { extractEvidence, scoreCategoryMatch } from './utils/evidence_extractor';
+import { extractEvidence, scoreCategoryMatch } from './utils/evidence_extractor.js';
+import { recalculateRisk } from './recalculate_entity_risk.js';
 
 // Simplistic NLP / Term Extraction
 // In a real "Ultimate" pipeline, we might call an LLM here,
@@ -69,9 +70,9 @@ import {
 } from '../src/config/entityBlacklist';
 
 // New Filters & Rules (2026-01-23)
-import { isJunkEntity } from './filters/entityFilters';
-import { resolveAmbiguity } from './filters/contextRules';
-import { resolveVip, VIP_RULES } from './filters/vipRules';
+import { isJunkEntity } from './filters/entityFilters.js';
+import { resolveAmbiguity } from './filters/contextRules.js';
+import { resolveVip, VIP_RULES } from './filters/vipRules.js';
 import { fileURLToPath } from 'url';
 import { BoilerplateService } from '../src/server/services/BoilerplateService.js';
 
@@ -109,16 +110,17 @@ export async function runIntelligencePipeline() {
 
   // Initialize DB locally within the function to avoid top-level side effects
   db = new Database(DB_PATH);
+  let currentResolverRunTableId: number | bigint = 0;
 
   // Register resolver run
   const hasResolverRuns = !!db
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'resolver_runs'")
     .get();
   if (hasResolverRuns) {
-    db.prepare('INSERT INTO resolver_runs (id, resolver_version) VALUES (?, ?)').run(
-      currentResolverRunId,
-      resolverVersion,
-    );
+    const res = db
+      .prepare('INSERT INTO resolver_runs (resolver_name, resolver_version) VALUES (?, ?)')
+      .run('UltimateIngestionPipeline', resolverVersion);
+    currentResolverRunTableId = res.lastInsertRowid;
   }
 
   const hasResolutionEvents = !!db
@@ -128,31 +130,21 @@ export async function runIntelligencePipeline() {
     .get();
   const insertResolutionEvent = hasResolutionEvents
     ? db.prepare(
-        'INSERT INTO entity_resolution_events (resolver_run_id, mention_id, mention_text, resolved_entity_id, resolution_method, confidence, evidence_json) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO entity_resolution_events (resolver_run_id, document_id, mention_text, resolved_entity_id, resolution_method, confidence, evidence_json) VALUES (?, ?, ?, ?, ?, ?, ?)',
       )
     : null;
 
   const insertEntity = db.prepare(
     'INSERT INTO entities (full_name, entity_type, red_flag_rating, risk_level, entity_category, death_date, notes, bio, birth_date, aliases) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
   );
-  // Check existing entity_mentions schema to see if extended columns are present.
-  const mentionsColumns = db.prepare('PRAGMA table_info(entity_mentions)').all() as {
-    name: string;
-  }[];
-  const hasAssignedBy = mentionsColumns.some((c) => c.name === 'assigned_by');
-  const hasScoreCol = mentionsColumns.some((c) => c.name === 'score');
-  const hasDecisionVersion = mentionsColumns.some((c) => c.name === 'decision_version');
-  const hasEvidenceJson = mentionsColumns.some((c) => c.name === 'evidence_json');
-  const hasMentionIdCol = mentionsColumns.some((c) => c.name === 'mention_id');
-
-  const insertEntityMention =
-    hasAssignedBy && hasScoreCol && hasDecisionVersion && hasEvidenceJson && hasMentionIdCol
-      ? db.prepare(
-          'INSERT INTO entity_mentions (entity_id, document_id, mention_context, keyword, assigned_by, score, decision_version, evidence_json, mention_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        )
-      : db.prepare(
-          'INSERT INTO entity_mentions (entity_id, document_id, mention_context, keyword) VALUES (?, ?, ?, ?)',
-        );
+  const insertEntityMention = db.prepare(`
+    INSERT INTO entity_mentions (
+      entity_id, document_id, mention_context, keyword, 
+      significance_score, confidence_score, link_method, 
+      resolver_run_id, resolver_version, evidence_json,
+      sentence_id, page_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
 
   // Optional new-schema integration (document_spans, mentions, resolution_candidates, relations)
   const hasDocumentSpans = !!db
@@ -205,9 +197,9 @@ export async function runIntelligencePipeline() {
 
   const insertTriple = db.prepare(`
     INSERT INTO claim_triples (
-      id, subject_entity_id, predicate, object_entity_id, object_literal,
-      document_id, sentence_id, confidence, modality, provenance_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      subject_entity_id, predicate, object_entity_id, object_text,
+      document_id, sentence_id, confidence, modality, evidence_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const CLAIM_PATTERNS = [
@@ -388,29 +380,28 @@ export async function runIntelligencePipeline() {
     const score = evidence.score;
     const context = evidence.context;
 
-    let mentionId = '';
-    if (hasAssignedBy && hasScoreCol && hasMentionIdCol) {
-      mentionId = makeId();
-      insertEntityMention.run(
-        entityId,
-        doc.id,
-        context,
-        cleanName,
-        'auto',
-        score,
-        1,
-        JSON.stringify(evidence),
-        mentionId,
-      );
-    } else {
-      insertEntityMention.run(entityId, doc.id, context, cleanName);
-    }
+    insertEntityMention.run(
+      entityId,
+      doc.id,
+      context,
+      cleanName,
+      score,
+      confidence,
+      resolutionMethod,
+      currentResolverRunTableId || null,
+      resolverVersion,
+      JSON.stringify(evidence),
+      sentenceId || null,
+      pageId || null,
+    );
+
+    const dbMentionId = Number((db.prepare('SELECT last_insert_rowid() as id').get() as any).id);
 
     // C. Resolution Event (Phase 3 Explainability)
-    if (insertResolutionEvent && mentionId) {
+    if (insertResolutionEvent) {
       insertResolutionEvent.run(
-        currentResolverRunId || 'manual',
-        mentionId,
+        currentResolverRunTableId || null,
+        doc.id,
         cleanName,
         entityId,
         resolutionMethod,
@@ -419,6 +410,7 @@ export async function runIntelligencePipeline() {
           original_text: rawName,
           context: context,
           vip_rule: !!vipResolution,
+          mention_id: dbMentionId,
         }),
       );
     }
@@ -428,7 +420,7 @@ export async function runIntelligencePipeline() {
 
     // Simplification: Count every extraction towards the cap to be safe and prevent massive fan-out
     (doc as any).newEntitiesCount = ((doc as any).newEntitiesCount || 0) + 1;
-    return { entityId, mentionId, type: entityType, confidence };
+    return { entityId, mentionId: dbMentionId, type: entityType, confidence };
   }
 
   function extractAndStoreTriples(
@@ -472,7 +464,6 @@ export async function runIntelligencePipeline() {
 
             try {
               insertTriple.run(
-                tripleId,
                 e1.entityId,
                 pattern.predicate,
                 e2.entityId,
@@ -803,8 +794,8 @@ export async function runIntelligencePipeline() {
   console.log('🔗 Generating consolidation candidates...');
   consolidateEntities();
 
-  console.log('⚖️ Corroborating Claims (Cross-Document Scoring)...');
-  consolidateClaims();
+  console.log('⚖️ Running Dynamic Risk Recalibration...');
+  await recalculateRisk();
 
   console.log(`\n============== REPORT ==============`);
   console.log(`Total New Entities: ${totalEntities}`);

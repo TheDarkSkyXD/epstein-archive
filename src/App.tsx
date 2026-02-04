@@ -254,7 +254,7 @@ function App() {
       localStorage.removeItem('epstein_archive_stats');
       localStorage.removeItem('epstein_archive_stats_v5_3_1');
 
-      const cached = localStorage.getItem('epstein_archive_people_page1_v5_3_4');
+      const cached = localStorage.getItem('epstein_archive_people_page1_v12_7_2');
       if (cached) {
         return JSON.parse(cached);
       }
@@ -538,7 +538,7 @@ function App() {
   const [dataStats, setDataStats] = useState(() => {
     // Try to load from local storage for immediate display
     try {
-      const cached = localStorage.getItem('epstein_archive_stats_v5_3_4');
+      const cached = localStorage.getItem('epstein_archive_stats_v12_7_2');
       if (cached) {
         return JSON.parse(cached);
       }
@@ -631,7 +631,7 @@ function App() {
 
         // Cache first page for next load
         try {
-          localStorage.setItem('epstein_archive_people_page1_v10_1_18', JSON.stringify(normalized));
+          localStorage.setItem('epstein_archive_people_page1_v12_7_2', JSON.stringify(normalized));
         } catch (e) {
           console.error('Error caching people data:', e);
         }
@@ -683,7 +683,7 @@ function App() {
         // Only update if changed to prevent animation restart
         setDataStats((prev: typeof newStats) => {
           if (JSON.stringify(prev) !== JSON.stringify(newStats)) {
-            localStorage.setItem('epstein_archive_stats_v10_1_18', JSON.stringify(newStats));
+            localStorage.setItem('epstein_archive_stats_v12_7_2', JSON.stringify(newStats));
             return newStats;
           }
           return prev;

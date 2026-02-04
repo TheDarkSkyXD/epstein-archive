@@ -1,5 +1,5 @@
 import React from 'react';
-import { PersonCardRefined } from './PersonCardRefined';
+import PersonCard from './PersonCard';
 import { DocumentCard } from './DocumentCard';
 import { MediaCard } from './MediaCard';
 import { SourceBadge } from './SourceBadge';
@@ -56,7 +56,7 @@ export const DesignSystemTest: React.FC = () => {
             <h3 className="text-[var(--font-size-h3)] font-semibold text-[var(--text-primary)] mb-[var(--space-3)]">
               Person Card
             </h3>
-            <PersonCardRefined person={mockPerson} onClick={() => console.log('Person clicked')} />
+            <PersonCard person={mockPerson} onClick={() => console.log('Person clicked')} />
           </div>
 
           <div>

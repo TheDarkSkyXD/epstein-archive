@@ -1,5 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Network, FileText, Search, Download } from 'lucide-react';
+import {
+  Network,
+  FileText,
+  Search,
+  Download,
+  Settings,
+  Sliders,
+  Filter,
+  Users,
+  Shield,
+  Zap,
+  Info,
+  ChevronRight,
+  ChevronDown,
+  CheckSquare,
+  Square,
+} from 'lucide-react';
 
 export interface NetworkNode {
   id: string;
@@ -75,13 +91,64 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [lastPan, setLastPan] = useState({ x: 0, y: 0 });
   const [showTableView, setShowTableView] = useState(false);
+  const [showSettings, setShowSettings] = useState(true);
+  const [minStrength, setMinStrength] = useState(0);
+  const [maxHops, setMaxHops] = useState(3);
+  const [rootNodeId, setRootNodeId] = useState<string | null>('1'); // Default to Jeffrey Epstein
+  const [selectedEdgeTypes, setSelectedEdgeTypes] = useState<Set<string>>(
+    new Set([
+      'connection',
+      'communication',
+      'financial',
+      'legal',
+      'family',
+      'business',
+      'evidence',
+      'co_occurrence',
+      'co_mention',
+    ]),
+  );
+  const [selectedNodeTypes, setSelectedNodeTypes] = useState<Set<string>>(
+    new Set(['person', 'organization', 'location', 'event', 'document', 'evidence']),
+  );
+  const [hopsMap, setHopsMap] = useState<Map<string, number>>(new Map());
 
-  // Initialize with force-directed layout
+  // Initialize with optimized radial layout
   useEffect(() => {
-    // Spread nodes more evenly across the canvas initially
-    const spreadNodes = initialNodes.map((node, index) => {
-      const angle = (index / initialNodes.length) * 2 * Math.PI;
-      const radius = 200 + (index % 5) * 50; // Vary radius to create layers
+    if (initialNodes.length === 0) return;
+
+    // BFS is needed here for hops-based radial positioning
+    const hopsMapForInit = new Map<string, number>();
+    const rootId = rootNodeId || '1';
+
+    // Simple local BFS just for init if global hopsMap isn't ready
+    const queue: [string, number][] = [[rootId, 0]];
+    hopsMapForInit.set(rootId, 0);
+
+    const adj = new Map<string, string[]>();
+    initialEdges.forEach((edge) => {
+      if (!adj.has(edge.source)) adj.set(edge.source, []);
+      if (!adj.has(edge.target)) adj.set(edge.target, []);
+      adj.get(edge.source)!.push(edge.target);
+      adj.get(edge.target)!.push(edge.source);
+    });
+
+    while (queue.length > 0) {
+      const [currId, dist] = queue.shift()!;
+      if (dist >= 5) continue;
+      const neighbors = adj.get(currId) || [];
+      for (const neighbor of neighbors) {
+        if (!hopsMapForInit.has(neighbor)) {
+          hopsMapForInit.set(neighbor, dist + 1);
+          queue.push([neighbor, dist + 1]);
+        }
+      }
+    }
+
+    const spreadNodes = initialNodes.map((node) => {
+      const hops = hopsMapForInit.get(node.id) ?? 3;
+      const angle = Math.random() * 2 * Math.PI;
+      const radius = hops === 0 ? 0 : 150 * hops + Math.random() * 50;
 
       return {
         ...node,
@@ -97,18 +164,68 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     setNodes(spreadNodes);
     setEdges(initialEdges);
 
-    // Apply force-directed layout with more iterations for better spacing
-    applyForceLayout(spreadNodes, initialEdges, 150);
+    // Apply layout multiple times for better stabilization
+    setTimeout(() => {
+      applyForceLayout(spreadNodes, initialEdges, 200);
+      setNodes([...spreadNodes]);
+      centerNetwork();
+    }, 100);
+  }, [initialNodes, initialEdges, rootNodeId]);
 
-    // Center the network after layout
-    setTimeout(() => centerNetwork(), 1000);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- centerNetwork is stable and only needs to run on initial data change
-  }, [initialNodes, initialEdges]);
+  // BFS calculation for hops from root
+  useEffect(() => {
+    if (!rootNodeId || nodes.length === 0) {
+      setHopsMap(new Map());
+      return;
+    }
+
+    const newHopsMap = new Map<string, number>();
+    const queue: [string, number][] = [[rootNodeId, 0]];
+    newHopsMap.set(rootNodeId, 0);
+
+    // Build adjacency list for faster traversal
+    const adj = new Map<string, string[]>();
+    edges.forEach((edge) => {
+      // Only traverse edges that meet the current strength and type requirements
+      if (edge.strength < minStrength) return;
+      if (!selectedEdgeTypes.has(edge.type)) return;
+
+      if (!adj.has(edge.source)) adj.set(edge.source, []);
+      if (!adj.has(edge.target)) adj.set(edge.target, []);
+      adj.get(edge.source)!.push(edge.target);
+      adj.get(edge.target)!.push(edge.source);
+    });
+
+    while (queue.length > 0) {
+      const [currId, dist] = queue.shift()!;
+      if (dist >= maxHops) continue;
+
+      const neighbors = adj.get(currId) || [];
+      for (const neighbor of neighbors) {
+        if (!newHopsMap.has(neighbor)) {
+          newHopsMap.set(neighbor, dist + 1);
+          queue.push([neighbor, dist + 1]);
+        }
+      }
+    }
+
+    setHopsMap(newHopsMap);
+  }, [nodes, edges, rootNodeId, maxHops, minStrength, selectedEdgeTypes]);
 
   // Apply filters
   useEffect(() => {
     let filtered = nodes;
 
+    // Filter by node types
+    filtered = filtered.filter((node) => selectedNodeTypes.has(node.type));
+
+    // Filter by Hops from root
+    if (rootNodeId && maxHops < 5) {
+      // Only apply if we are not showing "all" (simulated by maxHops=5)
+      filtered = filtered.filter((node) => hopsMap.has(node.id));
+    }
+
+    // Filter by Search
     if (searchTerm) {
       filtered = filtered.filter(
         (node) =>
@@ -117,104 +234,115 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       );
     }
 
-    if (filterType !== 'all') {
-      filtered = filtered.filter((node) => node.type === filterType);
-    }
-
-    if (filterRisk !== 'all') {
-      filtered = filtered.filter((node) => node.metadata.riskLevel === filterRisk);
-    }
-
     setFilteredNodes(filtered);
 
-    // Filter edges to only show connections between filtered nodes
+    // Filter edges
     const filteredNodeIds = new Set(filtered.map((n) => n.id));
     setFilteredEdges(
-      edges.filter((edge) => filteredNodeIds.has(edge.source) && filteredNodeIds.has(edge.target)),
+      edges.filter(
+        (edge) =>
+          filteredNodeIds.has(edge.source) &&
+          filteredNodeIds.has(edge.target) &&
+          edge.strength >= minStrength &&
+          selectedEdgeTypes.has(edge.type),
+      ),
     );
-  }, [nodes, edges, searchTerm, filterType, filterRisk]);
+  }, [
+    nodes,
+    edges,
+    searchTerm,
+    minStrength,
+    selectedEdgeTypes,
+    selectedNodeTypes,
+    hopsMap,
+    rootNodeId,
+    maxHops,
+  ]);
 
-  const getNodeColor = (type: NetworkNode['type'], riskLevel?: string): string => {
-    const baseColors = {
-      person: '#3b82f6', // Blue
-      document: '#10b981', // Green
-      organization: '#f59e0b', // Amber
-      location: '#8b5cf6', // Purple
-      event: '#ef4444', // Red
-      evidence: '#f97316', // Orange
+  const getNodeColor = (type: string, riskLevel?: string): string => {
+    const baseColors: Record<string, string> = {
+      person: '#38bdf8', // Blue/Cyan
+      organization: '#fbbf24', // Gold
+      location: '#10b981', // green
+      event: '#f472b6', // pink
+      document: '#94a3b8', // slate
+      evidence: '#f87171', // red
     };
 
     const riskColors: Record<string, string> = {
-      low: '#22c55e', // Green
-      medium: '#eab308', // Yellow
-      high: '#f97316', // Orange
-      critical: '#dc2626', // Red
+      low: '#22c55e',
+      medium: '#eab308',
+      high: '#f97316',
+      critical: '#dc2626',
     };
 
-    return riskLevel ? riskColors[riskLevel] || baseColors[type] : baseColors[type];
+    return riskLevel && riskLevel !== 'low'
+      ? riskColors[riskLevel] || baseColors[type] || '#64748b'
+      : baseColors[type] || '#64748b';
   };
 
   const getNodeSize = (importance: number): number => {
     return 8 + importance * 4; // 12-28px
   };
 
-  const getEdgeColor = (type: NetworkEdge['type']): string => {
-    const colors = {
-      connection: '#6b7280',
+  const getEdgeColor = (type: string): string => {
+    const colors: Record<string, string> = {
+      connection: '#64748b',
       communication: '#3b82f6',
-      financial: '#10b981',
-      legal: '#dc2626',
-      family: '#ec4899',
-      business: '#f59e0b',
+      financial: '#fbbf24',
+      legal: '#ef4444',
+      family: '#f472b6',
+      business: '#38bdf8',
       evidence: '#f97316',
+      co_occurrence: '#475569',
+      co_mention: '#475569',
+      Aviation: '#38bdf8',
+      Banking: '#fbbf24',
+      Investment: '#a855f7',
+      Legal: '#ef4444',
+      Personal: '#f472b6',
+      Professional: '#3b82f6',
+      'Real Estate': '#22c55e',
     };
-    return colors[type];
+    return colors[type] || '#64748b';
   };
 
   const applyForceLayout = (nodes: NetworkNode[], edges: NetworkEdge[], iterations = 150) => {
     const centerX = 400;
     const centerY = 300;
-    const repulsionStrength = 3000; // Further increased repulsion to spread nodes further apart
-    const attractionStrength = 0.03; // Further reduced attraction to prevent clustering
-    const damping = 0.9;
+    const repulsionStrength = 2500;
+    const attractionStrength = 0.05;
+    const damping = 0.85;
+    const radialForceStrength = 0.02;
 
     for (let i = 0; i < iterations; i++) {
-      // Apply repulsion between all nodes (increased to spread out more)
+      // 1. Repulsion between all nodes
       for (let j = 0; j < nodes.length; j++) {
         for (let k = j + 1; k < nodes.length; k++) {
-          const nodeA = nodes[j];
-          const nodeB = nodes[k];
+          const nodeStepA = nodes[j];
+          const nodeStepB = nodes[k];
 
-          if (!nodeA.position || !nodeB.position) continue;
+          if (!nodeStepA.position || !nodeStepB.position) continue;
 
-          const dx = nodeB.position.x - nodeA.position.x;
-          const dy = nodeB.position.y - nodeA.position.y;
+          const dx = nodeStepB.position.x - nodeStepA.position.x;
+          const dy = nodeStepB.position.y - nodeStepA.position.y;
           const distance = Math.sqrt(dx * dx + dy * dy) || 1;
 
-          // Increase minimum distance to prevent overlap
-          const minDistance = (nodeA.size || 12) + (nodeB.size || 12) + 30;
-          const force = (repulsionStrength * 4) / (distance * distance + 1);
-          const fx = (dx / (distance + 1)) * force;
-          const fy = (dy / (distance + 1)) * force;
+          if (distance < 500) {
+            // Limit repulsion range for better performance
+            const force = repulsionStrength / (distance * distance + 1);
+            const fx = (dx / distance) * force;
+            const fy = (dy / distance) * force;
 
-          nodeA.position.x -= fx;
-          nodeA.position.y -= fy;
-          nodeB.position.x += fx;
-          nodeB.position.y += fy;
-
-          // Additional separation if nodes are too close
-          if (distance < minDistance) {
-            const separationX = (dx / (distance + 1)) * (minDistance - distance);
-            const separationY = (dy / (distance + 1)) * (minDistance - distance);
-            nodeA.position.x -= separationX * 0.7;
-            nodeA.position.y -= separationY * 0.7;
-            nodeB.position.x += separationX * 0.7;
-            nodeB.position.y += separationY * 0.7;
+            nodeStepA.position.x -= fx;
+            nodeStepA.position.y -= fy;
+            nodeStepB.position.x += fx;
+            nodeStepB.position.y += fy;
           }
         }
       }
 
-      // Apply attraction for connected nodes
+      // 2. Attraction for connected nodes (Clustering)
       edges.forEach((edge) => {
         const source = nodes.find((n) => n.id === edge.source);
         const target = nodes.find((n) => n.id === edge.target);
@@ -225,10 +353,10 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         const dy = target.position.y - source.position.y;
         const distance = Math.sqrt(dx * dx + dy * dy) || 1;
 
-        // Reduce attraction strength to prevent tight clustering
-        const force = attractionStrength * distance * edge.strength * 0.3;
-        const fx = (dx / (distance + 1)) * force;
-        const fy = (dy / (distance + 1)) * force;
+        // Increase attraction for higher strength connections
+        const force = attractionStrength * Math.pow(distance, 1.2) * (edge.strength / 5);
+        const fx = (dx / distance) * force;
+        const fy = (dy / distance) * force;
 
         source.position.x += fx;
         source.position.y += fy;
@@ -236,27 +364,43 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         target.position.y -= fy;
       });
 
-      // Apply center gravity
+      // 3. Radial and Center Forces
       nodes.forEach((node) => {
         if (!node.position) return;
 
-        const dx = centerX - node.position.x;
-        const dy = centerY - node.position.y;
-
-        node.position.x += dx * 0.003; // Further reduced center gravity
-        node.position.y += dy * 0.003;
-      });
-
-      // Apply damping
-      nodes.forEach((node) => {
-        if (!node.position) return;
-
-        // Simulate velocity damping (simplified)
         const dx = node.position.x - centerX;
         const dy = node.position.y - centerY;
+        const distance = Math.sqrt(dx * dx + dy * dy) || 1;
 
-        node.position.x = centerX + dx * damping;
-        node.position.y = centerY + dy * damping;
+        // Radial constraint based on hops
+        const hops = hopsMap.get(node.id) ?? 2;
+        const targetRadius = hops === 0 ? 0 : 180 * hops;
+
+        const radialDiff = distance - targetRadius;
+        node.position.x -= (dx / distance) * radialDiff * radialForceStrength;
+        node.position.y -= (dy / distance) * radialDiff * radialForceStrength;
+
+        // Extra pull to center for high importance nodes
+        if (node.importance > 3) {
+          node.position.x -= dx * 0.01;
+          node.position.y -= dy * 0.01;
+        }
+      });
+
+      // 4. Damping / Area Bounds
+      nodes.forEach((node) => {
+        if (!node.position) return;
+
+        // Keep within reasonable bounds
+        const maxDist = 1200;
+        const dx = node.position.x - centerX;
+        const dy = node.position.y - centerY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist > maxDist) {
+          node.position.x = centerX + (dx / dist) * maxDist;
+          node.position.y = centerY + (dy / dist) * maxDist;
+        }
       });
     }
   };
@@ -283,13 +427,14 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
       if (!source?.position || !target?.position) return;
 
+      const edgeColor = getEdgeColor(edge.type);
       ctx.beginPath();
       ctx.moveTo(source.position.x, source.position.y);
       ctx.lineTo(target.position.x, target.position.y);
 
-      ctx.strokeStyle = getEdgeColor(edge.type);
-      ctx.lineWidth = edge.strength;
-      ctx.globalAlpha = 0.6;
+      ctx.strokeStyle = edgeColor;
+      ctx.lineWidth = edge.strength * 0.5; // Fine lines
+      ctx.globalAlpha = 0.25; // Translucent lines
 
       if (edge.direction === 'bidirectional') {
         ctx.setLineDash([]);
@@ -300,15 +445,6 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       ctx.stroke();
       ctx.setLineDash([]);
       ctx.globalAlpha = 1;
-
-      // Draw edge strength indicator
-      const midX = (source.position.x + target.position.x) / 2;
-      const midY = (source.position.y + target.position.y) / 2;
-
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '12px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(edge.strength.toString(), midX, midY - 5);
     });
 
     // Draw nodes
@@ -316,13 +452,33 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       if (!node.position) return;
 
       const isSelected = node.id === selectedNodeId;
+      const isRoot = node.id === rootNodeId;
+      const nodeSize = node.size || 12;
+
+      // Glow Effect
+      ctx.shadowBlur = isSelected ? 20 : 15;
+      ctx.shadowColor = node.color || '#3b82f6';
+
+      // Root Halo
+      if (isRoot) {
+        ctx.beginPath();
+        ctx.arc(node.position.x, node.position.y, nodeSize + 8, 0, 2 * Math.PI);
+        ctx.strokeStyle = node.color || '#3b82f6';
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.3;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
 
       // Draw node circle
       ctx.beginPath();
-      ctx.arc(node.position.x, node.position.y, node.size || 12, 0, 2 * Math.PI);
+      ctx.arc(node.position.x, node.position.y, nodeSize, 0, 2 * Math.PI);
 
       ctx.fillStyle = node.color || '#3b82f6';
       ctx.fill();
+
+      // Reset shadows for details
+      ctx.shadowBlur = 0;
 
       if (isSelected) {
         ctx.strokeStyle = '#ffffff';
@@ -332,31 +488,31 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
       // Draw node icon
       ctx.fillStyle = '#ffffff';
-      ctx.font = '14px sans-serif';
+      ctx.font = 'bold 12px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
       const icon = getNodeIcon(node.type);
       ctx.fillText(icon, node.position.x, node.position.y);
 
-      // Draw node label
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '12px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(node.label, node.position.x, node.position.y + (node.size || 12) + 15);
+      // Draw node label (only for important nodes or if zoomed in enough)
+      const shouldDrawLabel = zoom > 0.6 || node.importance > 3 || isSelected;
+      if (shouldDrawLabel) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.font = node.importance > 4 ? 'bold 13px Inter, sans-serif' : '11px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(node.label, node.position.x, node.position.y + nodeSize + 18);
+      }
 
       // Draw importance indicator
       if (node.importance > 3) {
         ctx.beginPath();
-        ctx.arc(
-          node.position.x + (node.size || 12) - 3,
-          node.position.y - (node.size || 12) + 3,
-          3,
-          0,
-          2 * Math.PI,
-        );
+        ctx.arc(node.position.x + nodeSize - 2, node.position.y - nodeSize + 2, 4, 0, 2 * Math.PI);
         ctx.fillStyle = '#fbbf24';
         ctx.fill();
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1;
+        ctx.stroke();
       }
     });
 
@@ -615,302 +771,427 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     URL.revokeObjectURL(url);
   };
 
-  return (
-    <div className="bg-slate-900 rounded-xl border border-slate-700/50 overflow-hidden">
-      {/* Header */}
-      <div className="p-4 border-b border-slate-700/50">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Network className="w-5 h-5 text-blue-400" />
-            <h3 className="text-lg font-semibold text-white">Network Analysis</h3>
-            <span className="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">
-              {filteredNodes.length} nodes • {filteredEdges.length} connections
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={exportNetwork}
-              className="h-9 w-9 flex items-center justify-center bg-slate-800 border border-slate-600 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700"
-              title="Export Network Data"
-            >
-              <Download className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setShowTableView(!showTableView)}
-              className={`h-9 px-3 flex items-center gap-2 border rounded-lg text-sm font-medium transition-colors ${
-                showTableView
-                  ? 'bg-blue-600 border-blue-500 text-white'
-                  : 'bg-slate-800 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700'
-              }`}
-            >
-              {showTableView ? <Network className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
-              <span className="hidden sm:inline">{showTableView ? 'Graph' : 'Table'}</span>
-            </button>
-          </div>
-        </div>
+  const Checkbox = ({
+    label,
+    checked,
+    onChange,
+    color,
+  }: {
+    label: string;
+    checked: boolean;
+    onChange: (checked: boolean) => void;
+    color?: string;
+  }) => (
+    <div
+      className="flex items-center gap-3 py-1 cursor-pointer group"
+      onClick={() => onChange(!checked)}
+    >
+      <div
+        className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${checked ? 'bg-blue-600 border-blue-500' : 'bg-slate-800 border-slate-600 group-hover:border-slate-500'}`}
+      >
+        {checked && <Zap className="w-3 h-3 text-white fill-current" />}
+      </div>
+      <div className="flex items-center gap-2">
+        {color && <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />}
+        <span className={`text-sm font-medium ${checked ? 'text-slate-100' : 'text-slate-400'}`}>
+          {label}
+        </span>
+      </div>
+    </div>
+  );
 
-        {/* Filters */}
-        {showFilters && (
-          <div className="flex flex-wrap gap-2">
-            <div className="relative flex-1 min-w-[150px] max-w-[250px]">
+  return (
+    <div className="bg-slate-900 rounded-xl border border-slate-700/50 overflow-hidden shadow-2xl flex flex-col h-full min-h-[600px]">
+      {/* Header */}
+      <div className="p-4 border-b border-slate-700/50 bg-slate-900/80 backdrop-blur-md z-10">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="bg-blue-500/10 p-2 rounded-lg">
+              <Network className="w-5 h-5 text-blue-400" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white tracking-tight">
+                Epstein Network Analysis
+              </h3>
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <span className="flex items-center gap-1">
+                  <Users className="w-3 h-3" /> {nodes.length} entities
+                </span>
+                <span>•</span>
+                <span className="flex items-center gap-1">
+                  <Zap className="w-3 h-3" /> {edges.length} connections
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="relative mr-4 hidden md:block">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search nodes..."
+                placeholder="Search entities..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full h-9 pl-9 pr-3 bg-slate-800 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
+                className="h-10 pl-10 pr-4 bg-slate-800/50 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all w-64"
               />
             </div>
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              className="h-9 px-3 bg-slate-800 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
+
+            <button
+              onClick={() => setShowTableView(!showTableView)}
+              className={`h-10 px-4 flex items-center gap-2 rounded-lg text-sm font-semibold transition-all ${
+                showTableView
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
+                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
+              }`}
             >
-              <option value="all">All Types</option>
-              <option value="person">People</option>
-              <option value="document">Documents</option>
-              <option value="organization">Organizations</option>
-              <option value="location">Locations</option>
-              <option value="event">Events</option>
-              <option value="evidence">Evidence</option>
-            </select>
-            <select
-              value={filterRisk}
-              onChange={(e) => setFilterRisk(e.target.value)}
-              className="h-9 px-3 bg-slate-800 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
+              {showTableView ? <Network className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+              <span>{showTableView ? 'Visual Graph' : 'Data Table'}</span>
+            </button>
+
+            <button
+              onClick={() => setShowSettings(!showSettings)}
+              className={`h-10 w-10 flex items-center justify-center rounded-lg transition-all ${showSettings ? 'bg-slate-700 text-white' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}
             >
-              <option value="all">All Risk</option>
-              <option value="low">Low Risk</option>
-              <option value="medium">Medium Risk</option>
-              <option value="high">High Risk</option>
-              <option value="critical">Critical</option>
-            </select>
+              <Settings className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={exportNetwork}
+              className="h-10 w-10 flex items-center justify-center bg-slate-800 border border-slate-700 rounded-lg text-slate-400 hover:text-white transition-all"
+              title="Export Network"
+            >
+              <Download className="w-4 h-4" />
+            </button>
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Table View (Accessible) */}
-      {showTableView ? (
-        <div
-          className="overflow-x-auto p-4 bg-slate-900"
-          style={{ height: height, overflowY: 'auto' }}
-        >
-          <h4 className="text-white font-medium mb-4">Network Nodes ({filteredNodes.length})</h4>
-          <table className="w-full text-left border-collapse mb-8" aria-label="Network Nodes Table">
-            <thead>
-              <tr className="border-b border-gray-700 text-gray-400 text-sm">
-                <th className="p-2">Name</th>
-                <th className="p-2">Type</th>
-                <th className="p-2">Importance</th>
-                <th className="p-2">Mentions</th>
-                <th className="p-2">Risk Level</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredNodes.map((node) => (
-                <tr
-                  key={node.id}
-                  className={`border-b border-gray-800 hover:bg-slate-800 cursor-pointer ${selectedNodeId === node.id ? 'bg-blue-900/30' : ''}`}
-                  onClick={() => onNodeClick?.(node)}
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      onNodeClick?.(node);
-                    }
-                  }}
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Main Content Area */}
+        <div className="flex-1 relative bg-[radial-gradient(circle_at_center,_#1e293b_0%,_#0f172a_100%)]">
+          {showTableView ? (
+            <div className="absolute inset-0 overflow-auto p-6 bg-slate-900/50">
+              <div className="max-w-6xl mx-auto space-y-8">
+                {/* Tables remain similar but with better styling */}
+                <div>
+                  <h4 className="text-white font-bold text-lg mb-4 flex items-center gap-2">
+                    <Users className="w-5 h-5 text-blue-400" />
+                    Filtered Entities ({filteredNodes.length})
+                  </h4>
+                  <div className="bg-slate-800/40 border border-slate-700 rounded-xl overflow-hidden backdrop-blur-sm">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-800/60 text-slate-400 text-xs font-bold uppercase tracking-wider">
+                          <th className="p-4">Entity Name</th>
+                          <th className="p-4">Type</th>
+                          <th className="p-4 text-center">Relevance</th>
+                          <th className="p-4 text-center">Hops</th>
+                          <th className="p-4 text-right">Mentions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-700/50">
+                        {filteredNodes.map((node) => (
+                          <tr
+                            key={node.id}
+                            className="hover:bg-blue-500/5 cursor-pointer transition-colors"
+                            onClick={() => onNodeClick?.(node)}
+                          >
+                            <td className="p-4">
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className="w-8 h-8 rounded-full flex items-center justify-center text-lg"
+                                  style={{ backgroundColor: `${node.color}22`, color: node.color }}
+                                >
+                                  {getNodeIcon(node.type)}
+                                </div>
+                                <span className="text-white font-medium">{node.label}</span>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <span className="text-xs font-semibold px-2 py-1 rounded-full bg-slate-700 text-slate-300 capitalize">
+                                {node.type}
+                              </span>
+                            </td>
+                            <td className="p-4 text-center">
+                              <div className="flex justify-center gap-0.5">
+                                {[...Array(5)].map((_, i) => (
+                                  <div
+                                    key={i}
+                                    className={`w-1.5 h-1.5 rounded-full ${i < node.importance ? 'bg-blue-400' : 'bg-slate-700'}`}
+                                  />
+                                ))}
+                              </div>
+                            </td>
+                            <td className="p-4 text-center">
+                              <span className="text-slate-400 font-mono text-sm">
+                                {hopsMap.get(node.id) === 0
+                                  ? 'Root'
+                                  : `+${hopsMap.get(node.id) || '?'}`}
+                              </span>
+                            </td>
+                            <td className="p-4 text-right font-mono text-slate-300">
+                              {node.metadata.mentions || 0}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="absolute inset-0 cursor-grab active:cursor-grabbing">
+              <canvas
+                ref={canvasRef}
+                width={800}
+                height={height}
+                className="w-full h-full"
+                onClick={handleCanvasClick}
+                onWheel={handleWheelEnhanced}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+              />
+
+              {/* Float Controls */}
+              <div className="absolute bottom-6 left-6 flex items-center gap-2 p-1 bg-slate-900/80 border border-slate-700 rounded-xl backdrop-blur-md shadow-2xl">
+                <button
+                  onClick={() => setZoom((prev) => Math.min(3, prev * 1.2))}
+                  className="p-2 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-all"
+                  title="Zoom In"
                 >
-                  <td className="p-2 text-white font-medium">{node.label}</td>
-                  <td className="p-2 text-gray-300 capitalize">{node.type}</td>
-                  <td className="p-2 text-gray-300">
-                    <div className="flex">
-                      {[...Array(5)].map((_, i) => (
-                        <div
-                          key={i}
-                          className={`w-2 h-2 rounded-full mr-1 ${i < node.importance ? 'bg-blue-500' : 'bg-gray-700'}`}
-                        />
-                      ))}
+                  <Search className="w-4 h-4" />
+                </button>
+                <div className="w-px h-4 bg-slate-700 mx-1" />
+                <button
+                  onClick={() => {
+                    setZoom(1);
+                    setPan({ x: 0, y: 0 });
+                  }}
+                  className="px-3 py-1.5 text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all"
+                >
+                  RESET
+                </button>
+                <button
+                  onClick={centerNetwork}
+                  className="px-3 py-1.5 text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all"
+                >
+                  CENTER
+                </button>
+              </div>
+
+              {/* Dynamic Legend */}
+              <div className="absolute bottom-6 right-6 p-4 bg-slate-900/60 border border-slate-700/50 rounded-xl backdrop-blur-sm hidden lg:block">
+                <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">
+                  Entity Key
+                </h5>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                  {['person', 'organization', 'location', 'event'].map((type) => (
+                    <div key={type} className="flex items-center gap-2">
+                      <div
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: getNodeColor(type as any) }}
+                      />
+                      <span className="text-xs text-slate-300 capitalize">{type}</span>
                     </div>
-                  </td>
-                  <td className="p-2 text-gray-300">{node.metadata.mentions || 0}</td>
-                  <td className="p-2">
-                    <span
-                      className={`px-2 py-0.5 rounded text-xs font-medium ${
-                        node.metadata.riskLevel === 'critical'
-                          ? 'bg-red-900 text-red-200'
-                          : node.metadata.riskLevel === 'high'
-                            ? 'bg-orange-900 text-orange-200'
-                            : node.metadata.riskLevel === 'medium'
-                              ? 'bg-yellow-900 text-yellow-200'
-                              : 'bg-green-900 text-green-200'
-                      }`}
-                    >
-                      {(node.metadata.riskLevel || 'low').toUpperCase()}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <h4 className="text-white font-medium mb-4">
-            Network Connections ({filteredEdges.length})
-          </h4>
-          <table
-            className="w-full text-left border-collapse"
-            aria-label="Network Connections Table"
-          >
-            <thead>
-              <tr className="border-b border-gray-700 text-gray-400 text-sm">
-                <th className="p-2">Source</th>
-                <th className="p-2">Target</th>
-                <th className="p-2">Type</th>
-                <th className="p-2">Strength</th>
-                <th className="p-2">Confidence</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredEdges.map((edge) => {
-                const source = nodes.find((n) => n.id === edge.source);
-                const target = nodes.find((n) => n.id === edge.target);
-                return (
-                  <tr
-                    key={edge.id}
-                    className={`border-b border-gray-800 hover:bg-slate-800 cursor-pointer ${selectedEdgeId === edge.id ? 'bg-blue-900/30' : ''}`}
-                    onClick={() => onEdgeClick?.(edge)}
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        onEdgeClick?.(edge);
-                      }
-                    }}
-                  >
-                    <td className="p-2 text-white">{source?.label || edge.source}</td>
-                    <td className="p-2 text-white">{target?.label || edge.target}</td>
-                    <td className="p-2 text-gray-300 capitalize">{edge.type}</td>
-                    <td className="p-2 text-gray-300">{edge.strength}/10</td>
-                    <td className="p-2 text-gray-300">
-                      {Math.round((edge.metadata.confidence || 0) * 100)}%
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        /* Canvas */
-        <div className="relative" style={{ height }}>
-          <canvas
-            ref={canvasRef}
-            width={800}
-            height={height}
-            className="w-full h-full cursor-grab active:cursor-grabbing"
-            onClick={handleCanvasClick}
-            onWheel={handleWheelEnhanced}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            style={{ maxWidth: '100%', height: 'auto', touchAction: 'none' }}
-            role="img"
-            aria-label={`Network visualization of ${filteredNodes.length} nodes and ${filteredEdges.length} connections. Use mouse wheel to zoom, drag to pan.`}
-          >
-            <p>
-              Your browser does not support the canvas element. This visualization shows connections
-              between entities.
-            </p>
-          </canvas>
-
-          {/* Controls */}
-          {interactive && (
-            <div className="absolute top-4 right-4 flex flex-col space-y-2">
-              <button
-                onClick={() => setZoom((prev) => Math.min(3, prev * 1.2))}
-                className="p-2 bg-gray-800 border border-gray-600 rounded-lg text-white hover:bg-gray-700"
-                title="Zoom In"
-                aria-label="Zoom In"
-              >
-                +
-              </button>
-              <button
-                onClick={() => setZoom((prev) => Math.max(0.1, prev * 0.8))}
-                className="p-2 bg-gray-800 border border-gray-600 rounded-lg text-white hover:bg-gray-700"
-                title="Zoom Out"
-                aria-label="Zoom Out"
-              >
-                -
-              </button>
-              <button
-                onClick={() => {
-                  setZoom(1);
-                  setPan({ x: 0, y: 0 });
-                }}
-                className="p-2 bg-gray-800 border border-gray-600 rounded-lg text-white hover:bg-gray-700 text-xs"
-                title="Reset View"
-                aria-label="Reset View"
-              >
-                Reset
-              </button>
-              <button
-                onClick={centerNetwork}
-                className="p-2 bg-gray-800 border border-gray-600 rounded-lg text-white hover:bg-gray-700 text-xs"
-                title="Center Network"
-                aria-label="Center Network"
-              >
-                Center
-              </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </div>
-      )}
 
-      {/* Legend */}
-      {showLegend && (
-        <div className="p-4 border-t border-gray-700">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <div className="text-sm">
-              <div className="flex items-center space-x-2 mb-2">
-                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                <span className="text-gray-300">Person</span>
+        {/* Settings Sidebar */}
+        <div
+          className={`overflow-hidden transition-all duration-500 border-l border-slate-700/50 bg-slate-900/95 backdrop-blur-xl z-20 ${showSettings ? 'w-80 opacity-100' : 'w-0 opacity-0'}`}
+        >
+          <div className="w-80 p-6 space-y-8 overflow-y-auto h-full scrollbar-thin">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-white font-bold flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-blue-400" />
+                Graph Settings
+              </h4>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="text-slate-500 hover:text-white"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Range Filters */}
+            <div className="space-y-6 pt-4 border-t border-slate-800">
+              <div className="space-y-3">
+                <div className="flex justify-between items-end">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    Network Density
+                  </label>
+                  <span className="text-blue-400 font-mono text-xs font-bold">≥ {minStrength}</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="10"
+                  step="0.5"
+                  value={minStrength}
+                  onChange={(e) => setMinStrength(parseFloat(e.target.value))}
+                  className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                />
+                <p className="text-[10px] text-slate-500 italic">
+                  Filter out weaker associations based on co-occurrence.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex justify-between items-end">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    Degree of Separation
+                  </label>
+                  <span className="text-purple-400 font-mono text-xs font-bold">
+                    {maxHops >= 5 ? '∞' : `≤ ${maxHops} Hops`}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="5"
+                  step="1"
+                  value={maxHops}
+                  onChange={(e) => setMaxHops(parseInt(e.target.value))}
+                  className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                />
+                <p className="text-[10px] text-slate-500 italic">
+                  Maximum connection distance from Jeffrey Epstein.
+                </p>
               </div>
             </div>
-            <div className="text-sm">
-              <div className="flex items-center space-x-2 mb-2">
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                <span className="text-gray-300">Document</span>
+
+            {/* Relationship Types */}
+            <div className="space-y-4 pt-6 border-t border-slate-800">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                  <Shield className="w-3 h-3" /> Relationship Types
+                </label>
+                <button
+                  className="text-[10px] text-blue-400 hover:text-blue-300 font-bold"
+                  onClick={() =>
+                    setSelectedEdgeTypes(
+                      new Set([
+                        'connection',
+                        'communication',
+                        'financial',
+                        'legal',
+                        'family',
+                        'business',
+                        'evidence',
+                        'co_occurrence',
+                        'co_mention',
+                        'Aviation',
+                        'Banking',
+                        'Investment',
+                        'Legal',
+                        'Personal',
+                        'Professional',
+                        'Real Estate',
+                      ]),
+                    )
+                  }
+                >
+                  RE-SELECT ALL
+                </button>
+              </div>
+              <div className="grid grid-cols-1 gap-1">
+                {[
+                  'Aviation',
+                  'Banking',
+                  'Investment',
+                  'Legal',
+                  'Personal',
+                  'Professional',
+                  'Real Estate',
+                ].map((type) => (
+                  <Checkbox
+                    key={type}
+                    label={type}
+                    color={getEdgeColor(type)}
+                    checked={selectedEdgeTypes.has(type)}
+                    onChange={(checked) => {
+                      const next = new Set(selectedEdgeTypes);
+                      if (checked) next.add(type);
+                      else next.delete(type);
+                      setSelectedEdgeTypes(next);
+                    }}
+                  />
+                ))}
+                {/* Fallback for generated data */}
+                {['co_occurrence', 'financial', 'legal'].map(
+                  (type) =>
+                    ![
+                      'Aviation',
+                      'Banking',
+                      'Investment',
+                      'Legal',
+                      'Personal',
+                      'Professional',
+                      'Real Estate',
+                    ].includes(type) && (
+                      <Checkbox
+                        key={type}
+                        label={type.charAt(0).toUpperCase() + type.slice(1)}
+                        color={getEdgeColor(type)}
+                        checked={selectedEdgeTypes.has(type)}
+                        onChange={(checked) => {
+                          const next = new Set(selectedEdgeTypes);
+                          if (checked) next.add(type);
+                          else next.delete(type);
+                          setSelectedEdgeTypes(next);
+                        }}
+                      />
+                    ),
+                )}
               </div>
             </div>
-            <div className="text-sm">
-              <div className="flex items-center space-x-2 mb-2">
-                <div className="w-3 h-3 bg-amber-500 rounded-full"></div>
-                <span className="text-gray-300">Organization</span>
+
+            {/* Entity Types */}
+            <div className="space-y-4 pt-6 border-t border-slate-800">
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                <Filter className="w-3 h-3" /> Entity Groups
+              </label>
+              <div className="grid grid-cols-1 gap-1">
+                {['person', 'organization', 'location', 'event'].map((type) => (
+                  <Checkbox
+                    key={type}
+                    label={type.charAt(0).toUpperCase() + type.slice(1) + 's'}
+                    color={getNodeColor(type as any)}
+                    checked={selectedNodeTypes.has(type)}
+                    onChange={(checked) => {
+                      const next = new Set(selectedNodeTypes);
+                      if (checked) next.add(type);
+                      else next.delete(type);
+                      setSelectedNodeTypes(next);
+                    }}
+                  />
+                ))}
               </div>
             </div>
-            <div className="text-sm">
-              <div className="flex items-center space-x-2 mb-2">
-                <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-                <span className="text-gray-300">Location</span>
-              </div>
-            </div>
-            <div className="text-sm">
-              <div className="flex items-center space-x-2 mb-2">
-                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                <span className="text-gray-300">Event</span>
-              </div>
-            </div>
-            <div className="text-sm">
-              <div className="flex items-center space-x-2 mb-2">
-                <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-                <span className="text-gray-300">Evidence</span>
+
+            <div className="pt-8 block">
+              <div className="bg-blue-500/5 border border-blue-500/20 p-4 rounded-xl">
+                <div className="flex gap-3">
+                  <Info className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    Connecting lines represent evidence-backed associations. Thicker lines indicate
+                    higher frequency or proximity scores in investigative files.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };

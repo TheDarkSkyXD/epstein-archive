@@ -378,73 +378,92 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
         // Transform entities to network nodes
         const nodes: NetworkNode[] = entities.map((e: any) => ({
           id: String(e.id),
-          type:
-            e.entity_type === 'ORGANIZATION'
-              ? 'organization'
-              : e.entity_type === 'LOCATION'
-                ? 'location'
-                : 'person',
+          type: e.entity_type?.toLowerCase() || 'person',
           label: e.full_name,
           description: e.primary_role || e.title || 'Person of Interest',
           importance: e.red_flag_rating || 0,
           metadata: {
             mentions: e.mentions || 0,
             riskLevel:
-              (e.red_flag_rating || 0) >= 5
+              (e.red_flag_rating || 0) >= 4
                 ? 'critical'
-                : (e.red_flag_rating || 0) >= 4
+                : (e.red_flag_rating || 0) >= 3
                   ? 'high'
                   : (e.red_flag_rating || 0) >= 2
                     ? 'medium'
                     : 'low',
             category: e.primary_role || e.title || 'Person of Interest',
-            documents: [],
-            connections: [],
           },
         }));
 
-        // Fetch real relationships for nodes
         const edges: NetworkEdge[] = [];
-        // Limit to top nodes to prevent exploding requests if list is huge
-        const nodeIds = nodes.slice(0, 20).map((n) => n.id);
 
-        for (const entityId of nodeIds) {
+        // If we are in analytics tab or use global context, ensure Jeffrey Epstein (ID 1) is present
+        // and fetch his immediate network to build a richer graph.
+        const epsteinId = '1';
+        if (!nodes.find((n) => n.id === epsteinId)) {
           try {
-            const relResp = await fetch(`/api/relationships?entityId=${entityId}&limit=5`);
-            const relData = await relResp.json();
-            const relationships = relData.relationships || [];
+            const epsteinResp = await fetch(`/api/entities/${epsteinId}`);
+            if (epsteinResp.ok) {
+              const e = await epsteinResp.json();
+              nodes.push({
+                id: String(e.id),
+                type: 'person',
+                label: e.full_name,
+                description: 'Primary Subject',
+                importance: 5,
+                metadata: {
+                  mentions: e.mentions || 0,
+                  riskLevel: 'critical',
+                  category: 'High Value Target',
+                },
+              });
+            }
+          } catch (e) {
+            console.warn('Could not fetch Epstein root node');
+          }
+        }
 
-            for (const rel of relationships) {
-              const targetId = String(rel.related_entity_id || rel.entity_id);
-              // Only add edge if target is in our nodes list
-              if (
-                nodes.some((n) => n.id === targetId) &&
-                !edges.some(
-                  (e) =>
-                    (e.source === entityId && e.target === targetId) ||
-                    (e.source === targetId && e.target === entityId),
-                )
-              ) {
+        // Fetch a broader graph slice to make the "Hops" filter useful
+        // We'll fetch the graph for Epstein up to 2-3 hops if possible
+        try {
+          const graphResp = await fetch(`/api/entities/${epsteinId}/graph?depth=2`);
+          if (graphResp.ok) {
+            const graphData = await graphResp.json();
+
+            // Merge nodes
+            graphData.nodes.forEach((gn: any) => {
+              if (!nodes.find((n) => n.id === String(gn.id))) {
+                nodes.push({
+                  id: String(gn.id),
+                  label: gn.label,
+                  type: (gn.type || 'person').toLowerCase(),
+                  importance: 1,
+                  metadata: { category: 'Connected Entity' },
+                });
+              }
+            });
+
+            // Merge edges
+            graphData.edges.forEach((ge: any, idx: number) => {
+              const edgeId = `graph-edge-${ge.source_id}-${ge.target_id}`;
+              if (!edges.find((e) => e.id === edgeId)) {
                 edges.push({
-                  id: `edge-${entityId}-${targetId}`,
-                  source: entityId,
-                  target: targetId,
-                  type: 'connection',
-                  strength: Math.min(10, rel.weight || rel.strength || 5),
-                  direction: 'bidirectional',
+                  id: edgeId,
+                  source: String(ge.source_id),
+                  target: String(ge.target_id),
+                  type: ge.relationship_type || 'connection',
+                  strength: Math.min(10, Math.round(ge.proximity_score * 10) || 5),
                   metadata: {
-                    frequency: rel.co_occurrences || rel.frequency || 0,
-                    context: rel.relationship_type || 'Document co-occurrence',
-                    confidence: rel.confidence || 0.8,
-                    dates: [],
-                    evidence: [],
+                    confidence: ge.confidence || 0.8,
+                    context: ge.relationship_type,
                   },
                 });
               }
-            }
-          } catch (_relError) {
-            // Skip this entity's relationships on error
+            });
           }
+        } catch (e) {
+          console.warn('Could not fetch Epstein graph slice', e);
         }
 
         setNetworkNodes(nodes);

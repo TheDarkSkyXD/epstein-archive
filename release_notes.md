@@ -1,4 +1,14 @@
-## v12.1.3 — 2026-02-03
+## v12.5.0 — 2026-02-04
+
+### Archival Intelligence & Real-Time Observability
+
+- **Archival Upgrade (Phase 11)**: Launched a massive metadata backfill script to upgrade the 119k+ legacy documents with advanced intelligence features (Signal Scoring, Boilerplate Filtering, and Redaction Detection) without re-ingestion.
+- **Dual-Progress Ingestion Dashboard**: Introduced a new granular tracking system on the `About` page, visualizing both "Download" and "Ingest" status for ongoing DOJ datasets.
+- **Dynamic Ingestion ETA**: Implemented an automated ETA calculator based on live processing jobs, providing transparent feedback on massive dataset imports.
+- **Structured Redaction Discovery**: Enhanced the regex engine to identify and classify redaction markers (e.g., "Privileged - Redacted") across the entire archive history.
+- **Platform Stabilization**: Hardened database writing logic with `SQLITE_BUSY` retry mechanisms for high-concurrency ingestion environments.
+
+## v12.4.0 — 2026-02-04
 
 ### Advanced Security & UI Stabilization
 

@@ -52,7 +52,7 @@ export const About: React.FC = () => {
           Epstein Archive Investigation Platform
         </h1>
         <p className="text-xl text-slate-400 mb-6">
-          Version 12.4.0 - DOJ Datasets 9-12 Ingestion In Progress
+          Version 12.5.0 - Archival Upgrade & DOJ 9-12 Ingestion
         </p>
         <div className="inline-block px-4 py-1.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 text-sm font-semibold animate-pulse mb-6">
           Estimated Time to Completion: ~{pipelineStatus?.eta_minutes || 240} minutes (Downloading &
@@ -697,7 +697,7 @@ export const About: React.FC = () => {
       {/* Footer */}
       <div className="text-center mt-12 pt-8 border-t border-slate-700">
         <p className="text-slate-400">Built with transparency and accountability in mind</p>
-        <p className="text-slate-500 text-sm mt-2">Last Updated: January 18, 2026</p>
+        <p className="text-slate-500 text-sm mt-2">Last Updated: February 4, 2026</p>
       </div>
     </div>
   );

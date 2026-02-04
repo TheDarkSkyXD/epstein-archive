@@ -34,8 +34,9 @@ export class TextCleaner {
     }
 
     // Heuristic Fixes for specific corpus corruptions
-    // 1. Fix "=9yo" -> "19yo" (User reported corruption where '1' became '=')
-    cleaned = cleaned.replace(/=(\d)yo/gi, '1$1yo');
+    // 1. Fix "=9yo" -> "19yo" and "=5" -> "15" (User reported corruption where '1' became '=')
+    // We only apply this if the equal sign is preceded by start-of-line or whitespace to avoid breaking "width=50"
+    cleaned = cleaned.replace(/(^|\s)=(\d)/g, '$11$2');
 
     // 2. Decode HTML entities (e.g., &nbsp;, &amp;)
     cleaned = decode(cleaned);

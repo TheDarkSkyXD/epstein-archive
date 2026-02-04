@@ -179,6 +179,18 @@ router.get('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Evidence not found' });
     }
 
+    // Check quarantine status manually if not using middleware on this specific route handler structure
+    // (Though we will apply middleware to the route definition below)
+    if (evidence.is_quarantined && (req as any).user?.role !== 'admin') {
+      logAudit('view', (req as any).user?.id, 'document', id, { reason: 'quarantined' });
+      return res
+        .status(403)
+        .json({ error: 'Evidence is quarantined', reason: evidence.quarantine_reason });
+    }
+
+    // Log successful access
+    logAudit('view', (req as any).user?.id, 'document', id, {});
+
     res.json(evidence);
   } catch (error) {
     console.error('Evidence retrieval error:', error);

@@ -83,6 +83,9 @@ const AdminDashboard = lazy(() =>
 const EvidenceDetail = lazy(() =>
   import('./pages/EvidenceDetail').then((module) => ({ default: module.EvidenceDetail })),
 );
+const ReviewDashboard = lazy(() =>
+  import('./pages/ReviewDashboard').then((module) => ({ default: module.ReviewDashboard })),
+);
 const EnhancedAnalytics = lazy(() =>
   import('./components/EnhancedAnalytics').then((module) => ({
     default: module.EnhancedAnalytics,
@@ -214,6 +217,7 @@ function App() {
     if (pathname.startsWith('/emails')) return 'emails';
     if (pathname === '/login') return 'login';
     if (pathname.startsWith('/admin')) return 'admin';
+    if (pathname.startsWith('/review')) return 'review';
     if (pathname.startsWith('/evidence/')) return 'evidence';
     if (pathname.startsWith('/flights')) return 'flights';
     if (pathname.startsWith('/properties')) return 'properties';
@@ -237,6 +241,7 @@ function App() {
     | 'login'
     | 'evidence'
     | 'faq'
+    | 'review'
     | 'admin';
   const activeTab = getTabFromPath(location.pathname);
 
@@ -1974,6 +1979,16 @@ function App() {
                     {activeTab === 'admin' && <AdminDashboard />}
 
                     {activeTab === 'evidence' && <EvidenceDetail />}
+
+                    {activeTab === 'review' && (
+                      <Suspense
+                        fallback={
+                          <LoadingIndicator isLoading={true} label="Loading Review Dashboard..." />
+                        }
+                      >
+                        <ReviewDashboard />
+                      </Suspense>
+                    )}
 
                     {activeTab === 'investigations' &&
                       (() => {

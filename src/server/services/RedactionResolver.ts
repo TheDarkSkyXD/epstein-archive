@@ -11,20 +11,15 @@ export class RedactionResolver {
   private static REDACTION_REGEX = /\[(.*?)\]/g;
 
   // Known entities mapping for context-aware guessing
-  // faster to hardcode common ones from this specific dataset context
+  // SAFETY CONSTRAINT: Map to Roles/Types only, NEVER attributes/identities.
   private static KNOWN_ENTITIES: Record<string, string> = {
-    lawyer: 'Alan Dershowitz', // High probability in 2015 Barak/Epstein context
-    alan: 'Alan Dershowitz',
-    dershowitz: 'Alan Dershowitz',
-    'prime minister': 'Ehud Barak',
-    ehud: 'Ehud Barak',
-    barak: 'Ehud Barak',
-    jeff: 'Jeffrey Epstein',
-    epstein: 'Jeffrey Epstein',
-    ghislaine: 'Ghislaine Maxwell',
-    maxwell: 'Ghislaine Maxwell',
-    assistant: 'Shelley Lewis', // Common assistant in this dataset
-    shelley: 'Shelley Lewis',
+    lawyer: 'Counsel',
+    mechanic: 'Service Provider',
+    pilot: 'Flight Staff',
+    assistant: 'Staff',
+    'prime minister': 'Government Official',
+    judge: 'Judicial Officer',
+    doctor: 'Medical Professional',
   };
 
   /**
@@ -56,11 +51,10 @@ export class RedactionResolver {
 
       // 2. Contextual Guessing based on "Lawyer"
       else if (lowerContent.includes('lawyer') || lowerContent.includes('counsel')) {
-        // refined guess based on date or subject could go here
-        candidate.guess = 'Alan Dershowitz';
+        candidate.guess = 'Counsel';
         candidate.confidence = 'medium';
-        candidate.reason = 'Context implies legal counsel (likely Dershowitz in this corpus)';
-        candidate.category = 'name';
+        candidate.reason = 'Context implies legal counsel';
+        candidate.category = 'other'; // Changed from 'name'
       }
 
       // 3. Sender/Receiver context

@@ -181,6 +181,8 @@ app.use('/api/email', emailRoutes);
 app.use('/api/articles', articlesRoutes);
 app.use('/api/financial', financialRoutes);
 app.use('/api/forensic', forensicRoutes);
+import activeLearningRoutes from './server/routes/activeLearning.js';
+app.use('/api/review', activeLearningRoutes);
 
 // Public Stats Endpoint (for About page)
 app.get('/api/stats', cacheMiddleware(300), async (_req, res, next) => {

@@ -1,5 +1,6 @@
 import express from 'express';
 import fs from 'fs';
+import { logAudit } from '../utils/auditLogger.js';
 // import { getDb } from '../db/connection.js';
 
 const router = express.Router();
@@ -19,6 +20,18 @@ router.get('/release/:id', async (req, res) => {
     if (FILE_MAP[releaseId]) {
       const filePath = FILE_MAP[releaseId];
       if (fs.existsSync(filePath)) {
+        // [AUDIT] Log the download
+        // We can't check 'is_quarantined' easily for these static files without a DB lookup if they aren't in the DB.
+        // But for now, we assume these static static files are safe (Black Book, Flight Logs).
+        // If we move to DB-backed releases, we should check.
+        // Let's log it at least.
+        const userId = (req as any).user?.id || 'anonymous';
+
+        // Log the download event
+        logAudit('download', userId, 'document', releaseId, {
+          status: 'success',
+          static_release: true,
+        });
         return res.download(filePath);
       }
     }

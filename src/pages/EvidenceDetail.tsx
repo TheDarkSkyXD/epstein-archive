@@ -16,6 +16,9 @@ import {
   Share2,
   Bookmark,
   ChevronLeft,
+  Activity,
+  Zap,
+  ShieldCheck,
 } from 'lucide-react';
 import { EmailViewer } from '../components/evidence/EmailViewer';
 import { DepositionViewer } from '../components/evidence/DepositionViewer';
@@ -24,6 +27,7 @@ import { ImageViewer } from '../components/evidence/ImageViewer';
 import { DocumentViewer } from '../components/evidence/DocumentViewer';
 import { ContactListViewer } from '../components/evidence/ContactListViewer';
 import { getEntityCategoryIcon } from '../config/entityIcons';
+import { ClaimsList } from '../components/evidence/ClaimsList';
 import { SEO } from '../components/SEO';
 
 interface Evidence {
@@ -49,6 +53,11 @@ interface Evidence {
   }>;
   wordCount: number;
   fileSize: number;
+  signalScore?: number;
+  ocrQualityScore?: number;
+  claims?: any[];
+  sentences?: any[];
+  unredaction_metrics?: any;
 }
 
 export function EvidenceDetail() {
@@ -206,6 +215,36 @@ export function EvidenceDetail() {
                 Red Flag: {evidence.redFlagRating}/5
               </span>
 
+              {evidence.signalScore !== undefined && (
+                <span
+                  className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800"
+                  title="Signal Strength"
+                >
+                  <Zap className="h-4 w-4 mr-1" />
+                  Signal: {(evidence.signalScore * 100).toFixed(0)}%
+                </span>
+              )}
+
+              {evidence.ocrQualityScore !== undefined && evidence.ocrQualityScore < 0.7 && (
+                <span
+                  className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800"
+                  title="Low OCR Quality"
+                >
+                  <Activity className="h-4 w-4 mr-1" />
+                  OCR Quality: Low
+                </span>
+              )}
+
+              {evidence.unredaction_metrics?.succeeded && (
+                <span
+                  className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800"
+                  title={`Gained ${evidence.unredaction_metrics.unredactedTextGain?.toFixed(0) || 0} characters`}
+                >
+                  <ShieldCheck className="h-4 w-4 mr-1" />
+                  Unredacted
+                </span>
+              )}
+
               {evidence.createdAt && (
                 <span className="inline-flex items-center text-sm text-gray-600">
                   <Calendar className="h-4 w-4 mr-1" />
@@ -244,6 +283,11 @@ export function EvidenceDetail() {
 
           {/* Sidebar */}
           <div className="lg:col-span-1 space-y-6">
+            {/* Claims & Facts */}
+            {evidence.claims && evidence.claims.length > 0 && (
+              <ClaimsList claims={evidence.claims} />
+            )}
+
             {/* Linked Entities */}
             {evidence.entities && evidence.entities.length > 0 && (
               <div className="bg-white rounded-lg shadow p-4">

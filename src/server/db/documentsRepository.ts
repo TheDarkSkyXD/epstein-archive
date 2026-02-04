@@ -201,6 +201,27 @@ export const documentsRepository = {
       source_collection: 'Epstein Files',
       // Ensure top-level access to the URL
       original_file_path: document.source_original_url || document.original_file_path,
+      redaction_spans: db
+        .prepare(`SELECT * FROM redaction_spans WHERE document_id = ? ORDER BY span_start ASC`)
+        .all(id),
+      claims: db
+        .prepare(
+          `SELECT ct.*, s.full_name as subject_name, o.full_name as object_name 
+           FROM claim_triples ct
+           LEFT JOIN entities s ON ct.subject_entity_id = s.id
+           LEFT JOIN entities o ON ct.object_entity_id = o.id
+           WHERE ct.document_id = ? 
+           ORDER BY ct.confidence DESC`,
+        )
+        .all(id),
+      sentences: db
+        .prepare(
+          `SELECT id, sentence_index, sentence_text, is_boilerplate, signal_score 
+           FROM document_sentences 
+           WHERE document_id = ? 
+           ORDER BY sentence_index ASC`,
+        )
+        .all(id),
       unredaction_metrics: {
         attempted: Boolean(document.unredactionAttempted),
         succeeded: Boolean(document.unredactionSucceeded),

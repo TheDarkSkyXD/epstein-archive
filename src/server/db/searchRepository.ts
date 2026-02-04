@@ -177,9 +177,52 @@ export const searchRepository = {
           snippet: row.snippet,
         })),
       };
+      return { entities: [], documents: [] };
     } catch (error) {
       console.error('Search error:', error);
       return { entities: [], documents: [] };
+    }
+  },
+
+  searchSentences: (query: string, limit: number = 20) => {
+    const db = getDb();
+    const searchTerm = query.trim();
+    if (!searchTerm) return [];
+
+    try {
+      const searchWords = searchTerm.split(/\s+/).filter((w) => w.length > 0);
+      const ftsQuery = searchWords.map((w) => `${w.replace(/"/g, '""')}*`).join(' AND ');
+
+      // Use document_sentences_fts
+      // Join with documents/pages to get metadata
+      const results = db
+        .prepare(
+          `
+        SELECT 
+          s.id,
+          s.document_id,
+          s.page_id,
+          s.sentence_text,
+          s.signal_score,
+          d.file_name,
+          COALESCE(p.page_number, 1) as page_number,
+          snippet(document_sentences_fts, 0, '<mark>', '</mark>', '...', 32) as snippet,
+          document_sentences_fts.rank
+        FROM document_sentences_fts
+        JOIN document_sentences s ON s.id = document_sentences_fts.rowid
+        JOIN documents d ON d.id = s.document_id
+        LEFT JOIN document_pages p ON p.id = s.page_id
+        WHERE document_sentences_fts MATCH @ftsQuery
+        ORDER BY document_sentences_fts.rank
+        LIMIT @limit
+      `,
+        )
+        .all({ ftsQuery, limit });
+
+      return results;
+    } catch (error) {
+      console.error('Sentence search error:', error);
+      return [];
     }
   },
 };

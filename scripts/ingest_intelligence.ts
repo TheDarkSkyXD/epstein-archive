@@ -73,6 +73,7 @@ import { isJunkEntity } from './filters/entityFilters';
 import { resolveAmbiguity } from './filters/contextRules';
 import { resolveVip, VIP_RULES } from './filters/vipRules';
 import { fileURLToPath } from 'url';
+import { BoilerplateService } from '../src/server/services/BoilerplateService.js';
 
 // const JUNK_REGEX = ENTITY_BLACKLIST_REGEX;
 
@@ -213,10 +214,15 @@ export async function runIntelligencePipeline() {
     { regex: /\b(met with|spoke to|called|visited|emailed|messaged)\b/i, predicate: 'contacted' },
     { regex: /\b(flew to|traveled to|arrived at|stayed at)\b/i, predicate: 'traveled_to' },
     {
-      regex: /\b(paid|transferred|sent money to|received money from)\b/i,
+      regex: /\b(paid|transferred|sent money to|received money from|wired)\b/i,
       predicate: 'financial_link',
     },
-    { regex: /\b(works for|employed by|member of|affiliated with)\b/i, predicate: 'affiliated' },
+    {
+      regex: /\b(works for|employed by|member of|affiliated with|partner at)\b/i,
+      predicate: 'affiliated',
+    },
+    { regex: /\b(accused|alleged|testified|deposed|stated)\b/i, predicate: 'legal_action' },
+    { regex: /\b(recruited|procured|trafficked)\b/i, predicate: 'recruited' },
   ];
 
   // Stats
@@ -289,10 +295,26 @@ export async function runIntelligencePipeline() {
 
     // A. Resolve
     const vipResolution = resolveVip(cleanName);
+
+    // Throttling Check (Hygiene)
+    // If not a VIP and we've exceeded the limit for this document, skip.
+    // We assume 'doc' object has a temporary 'newEntitiesCount' property we manage, or we pass it in.
+    // Let's attach it to 'doc' for now since it's passed around.
+    const MAX_ENTITIES_PER_DOC = 50;
+    if (!vipResolution && (doc as any).newEntitiesCount >= MAX_ENTITIES_PER_DOC) {
+      // console.log(`   Start throttling entities for doc ${doc.id}`);
+      return;
+    }
+
     let resolvedName = vipResolution || cleanName;
     let resolutionMethod = vipResolution ? 'vip_rule' : 'exact';
 
     if (!vipResolution) {
+      // Boilerplate Check on Context (Hygiene)
+      if (BoilerplateService.getInstance().isBoilerplate(fullText)) {
+        return; // Skip entities in boilerplate blocks
+      }
+
       const idx = match.index || 0;
       const start = Math.max(0, idx - 100);
       const end = Math.min(fullText.length, idx + rawName.length + 100);
@@ -351,6 +373,13 @@ export async function runIntelligencePipeline() {
     }
 
     // B. Mention
+    // Confidence assignment
+    let confidence = 0.5; // Default low for new/unknown
+    if (vipResolution) confidence = 1.0;
+    else if (entityType !== 'Person')
+      confidence = 0.7; // Orgs/Locs usually reliable
+    else if (entityId && !newEntities) confidence = 0.8; // Existing entity
+
     const evidence = extractEvidence(
       fullText,
       match.index || 0,
@@ -385,7 +414,7 @@ export async function runIntelligencePipeline() {
         cleanName,
         entityId,
         resolutionMethod,
-        vipResolution ? 1.0 : 0.85,
+        confidence, // Use the calculated confidence here
         JSON.stringify({
           original_text: rawName,
           context: context,
@@ -393,8 +422,13 @@ export async function runIntelligencePipeline() {
         }),
       );
     }
+
+    // Increment global and document-level counters
     newMentions++;
-    return { entityId, mentionId, type: entityType };
+
+    // Simplification: Count every extraction towards the cap to be safe and prevent massive fan-out
+    (doc as any).newEntitiesCount = ((doc as any).newEntitiesCount || 0) + 1;
+    return { entityId, mentionId, type: entityType, confidence };
   }
 
   function extractAndStoreTriples(
@@ -463,23 +497,103 @@ export async function runIntelligencePipeline() {
   }
 
   function processGranularProvenance(doc: any, sentences: any[]) {
+    const newEntitiesInDoc = 0;
+    (doc as any).newEntitiesCount = 0; // Initialize throttling counter
+    const updateSignal = db.prepare('UPDATE document_sentences SET signal_score = ? WHERE id = ?');
+
     for (const s of sentences) {
+      // 1. Boilerplate Filter (Kill Switch)
+      if (s.is_boilerplate === 1) {
+        continue;
+      }
+
+      // 2. Initial Signal Score (Base + Source Quality)
+      let score = 0.5;
+      if (s.text_source === 'visible_layer') score += 0.2;
+      if (s.ocr_quality_score && s.ocr_quality_score < 0.7) score -= 0.2;
+
       const content = s.sentence_text;
       const POTENTIAL_ENTITY_REGEX = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,5})\b/g;
       const matches = [...content.matchAll(POTENTIAL_ENTITY_REGEX)];
 
       const foundInSentence: any[] = [];
+      const hasVip = false;
+
       for (const match of matches) {
         const info = extractAndStoreMention(doc, match, content, s.id, s.page_id);
         if (info) {
           foundInSentence.push({ ...info, match });
+          // Check if VIP (naive check via type or prior resolution?)
+          // For now, if we found *any* entity, boost slightly.
+          // If detailed VIP check needed, we'd check entity type returned.
+          if (info.type && info.type !== 'Person') {
+            // reduced boost for non-people? No, orgs are important.
+          }
+          score += 0.1;
         }
       }
 
       if (foundInSentence.length >= 2) {
-        extractAndStoreTriples(doc, content, foundInSentence, s.id);
+        // Kill Switch: Do not create edges from unverified/low-confidence mentions
+        const highConfidenceEntities = foundInSentence.filter((e) => e.confidence >= 0.6);
+
+        if (highConfidenceEntities.length >= 2) {
+          extractAndStoreTriples(doc, content, highConfidenceEntities, s.id);
+          score += 0.2;
+        }
       }
+
+      // Cap score
+      score = Math.min(1.0, Math.max(0.0, score));
+      updateSignal.run(score, s.id);
     }
+
+    rollupScores(doc.id);
+  }
+
+  function rollupScores(docId: number) {
+    // 1. Rollup to Page: Avg of Setence Scores
+    const pages = db
+      .prepare(
+        `
+      SELECT page_id, AVG(signal_score) as avg_score
+      FROM document_sentences
+      WHERE document_id = ? AND page_id IS NOT NULL
+      GROUP BY page_id
+    `,
+      )
+      .all(docId) as { page_id: number; avg_score: number }[];
+
+    const updatePage = db.prepare('UPDATE document_pages SET signal_score = ? WHERE id = ?');
+    for (const p of pages) {
+      updatePage.run(p.avg_score, p.page_id);
+    }
+
+    // 2. Rollup to Document: Max of Page Scores (to highlight high-signal docs)
+    // Or avg? User said "max(page score), count of high-score sentences..."
+    // Let's use Max Page Score as the primary sort signal.
+    const docStats = db
+      .prepare(
+        `
+      SELECT MAX(signal_score) as max_score
+      FROM document_pages
+      WHERE document_id = ?
+    `,
+      )
+      .get(docId) as { max_score: number };
+
+    // If no pages (e.g. text file), fall back to avg of sentences
+    let docScore = docStats ? docStats.max_score : 0;
+    if (!docScore) {
+      const sentStats = db
+        .prepare(
+          'SELECT AVG(signal_score) as avg_score FROM document_sentences WHERE document_id = ?',
+        )
+        .get(docId) as { avg_score: number };
+      docScore = sentStats ? sentStats.avg_score : 0;
+    }
+
+    db.prepare('UPDATE documents SET signal_score = ? WHERE id = ?').run(docScore, docId);
   }
 
   function processCoarseProvenance(doc: any, content: string) {
@@ -643,14 +757,22 @@ export async function runIntelligencePipeline() {
         const sentences = db
           .prepare(
             `
-          SELECT s.id, s.sentence_text, p.id as page_id
+          SELECT s.id, s.sentence_text, s.is_boilerplate, 
+                 p.id as page_id, p.ocr_quality_score, p.text_source
           FROM document_sentences s
           LEFT JOIN document_pages p ON s.page_id = p.id
           WHERE s.document_id = ?
           ORDER BY s.id ASC
         `,
           )
-          .all(doc.id) as { id: number; sentence_text: string; page_id: number }[];
+          .all(doc.id) as {
+          id: number;
+          sentence_text: string;
+          page_id: number;
+          is_boilerplate: number;
+          ocr_quality_score: number;
+          text_source: string;
+        }[];
 
         if (sentences.length > 0) {
           processGranularProvenance(doc, sentences);
@@ -680,6 +802,9 @@ export async function runIntelligencePipeline() {
 
   console.log('🔗 Generating consolidation candidates...');
   consolidateEntities();
+
+  console.log('⚖️ Corroborating Claims (Cross-Document Scoring)...');
+  consolidateClaims();
 
   console.log(`\n============== REPORT ==============`);
   console.log(`Total New Entities: ${totalEntities}`);
@@ -958,6 +1083,7 @@ function performCleanup() {
   // 2. Merge Duplicates
   const je = checkStmt.get('Jeffrey Epstein') as { id: number } | undefined;
   if (je) {
+    // logic to merge
     const TO_MERGE_PATTERNS = [
       'Epstein Jeffrey',
       'Epstem Jeffrey',
@@ -969,9 +1095,11 @@ function performCleanup() {
       'Jeffrey  We',
       'Sam Epstein',
     ];
+
     const updateMentions = db.prepare(
       'UPDATE entity_mentions SET entity_id = ? WHERE entity_id = ?',
     );
+
     for (const name of TO_MERGE_PATTERNS) {
       const row = checkStmt.get(name) as { id: number } | undefined;
       if (row && row.id !== je.id) {
@@ -981,4 +1109,46 @@ function performCleanup() {
       }
     }
   }
+}
+
+function consolidateClaims() {
+  // Corroborate claims by counting occurrences across different documents
+  const counts = db
+    .prepare(
+      `
+    SELECT subject_entity_id, predicate, object_entity_id, COUNT(DISTINCT document_id) as doc_count, COUNT(*) as total_count
+    FROM claim_triples
+    GROUP BY subject_entity_id, predicate, object_entity_id
+    HAVING total_count > 1
+  `,
+    )
+    .all() as {
+    subject_entity_id: number;
+    predicate: string;
+    object_entity_id: number;
+    doc_count: number;
+    total_count: number;
+  }[];
+
+  const updateConf = db.prepare(`
+    UPDATE claim_triples 
+    SET confidence = ? 
+    WHERE subject_entity_id = ? AND predicate = ? AND object_entity_id = ?
+  `);
+
+  let updated = 0;
+  db.transaction(() => {
+    for (const row of counts) {
+      // Base confidence starts around 0.7 (from extraction)
+      // Boost by 0.1 for every extra document, up to 1.0 (max confidence)
+      // Corroboration formula: base + (log2(doc_count) * 0.1)
+      const boost = Math.min(0.3, Math.log2(row.doc_count) * 0.1);
+      const newConf = Math.min(1.0, 0.7 + boost);
+
+      updateConf.run(newConf, row.subject_entity_id, row.predicate, row.object_entity_id);
+      updated += row.total_count;
+    }
+  })();
+
+  console.log(`   ✅ Corroborated ${counts.length} unique claims across ${updated} instances.`);
 }

@@ -11,7 +11,35 @@ import {
   Download,
   Newspaper,
   Info,
+  HelpCircle,
+  ArrowRight,
+  TrendingUp,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { optimizedDataService } from '../services/OptimizedDataService';
+
+const faqs = [
+  {
+    question: 'What is the Epstein Archive?',
+    answer:
+      'The Epstein Archive is a centralized, searchable database of documents related to the Jeffrey Epstein investigation. It consolidates evidence from multiple sources, including unsealed court documents, police reports, and flight logs.',
+  },
+  {
+    question: "What are the 'DOJ Datasets'?",
+    answer:
+      'These are large volumes of evidence released by the Department of Justice, which we have processed and ingested. They include financial records, multimedia, and investigative referrals.',
+  },
+  {
+    question: "Why are there so many recent documents (past Epstein's death)?",
+    answer:
+      'The investigation into the network remained active long after 2019. These documents primarily pertain to the prosecution of Ghislaine Maxwell, ongoing civil litigation by survivors, and internal corporate investigations.',
+  },
+  {
+    question: 'Why are some documents redacted?',
+    answer:
+      'Redactions protect the privacy of victims, innocent third parties, and ongoing investigations. Our system analyzes redaction levels to give context on what is hidden.',
+  },
+];
 
 const DOCUMENT_SOURCES = [
   {
@@ -331,6 +359,37 @@ export const AboutPage: React.FC = () => {
     media: 0,
     albums: 0,
   });
+
+  const [ingestionStats, setIngestionStats] = useState<
+    { source_collection: string; count: number }[]
+  >([]);
+  const [pipelineStatus, setPipelineStatus] = useState<any | null>(null);
+  const [activeFaq, setActiveFaq] = useState(0);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const data = await optimizedDataService.getStatistics();
+        if (data) {
+          if (data.collectionCounts) {
+            setIngestionStats(data.collectionCounts);
+          }
+          if (data.pipeline_status) {
+            setPipelineStatus(data.pipeline_status);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch pipeline stats', e);
+      }
+    };
+    fetchStats();
+
+    // Carousel auto-play
+    const timer = setInterval(() => {
+      setActiveFaq((prev) => (prev + 1) % faqs.length);
+    }, 8000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -660,6 +719,72 @@ export const AboutPage: React.FC = () => {
             correspondence where most substantive content has been blacked out under privacy
             protective orders.
           </p>
+
+          {/* Ingestion Progress Dashboard (Requested placement) */}
+          <div className="bg-slate-800/80 rounded-xl p-8 my-8 border border-blue-500/30 shadow-lg shadow-blue-500/5 backdrop-blur-sm not-prose">
+            <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
+              <Database className="h-6 w-6 text-blue-400" />
+              Dataset Ingestion Dashboard
+              <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/20 animate-pulse uppercase tracking-wider">
+                Live Status
+              </span>
+            </h3>
+            <div className="space-y-8">
+              {(pipelineStatus?.datasets || []).map((dataset: any) => {
+                const currentIngested = dataset.ingested;
+                const currentDownloaded = dataset.downloaded;
+                const target = dataset.target;
+
+                const ingestPercent = Math.min(100, (currentIngested / target) * 100);
+                const downloadPercent = Math.min(100, (currentDownloaded / target) * 100);
+                const isComplete = currentIngested >= target;
+
+                return (
+                  <div key={dataset.name} className="space-y-3">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-200 font-semibold">{dataset.name}</span>
+                      <div className="text-right">
+                        <span className="text-slate-400 font-mono text-xs block">
+                          FILES SECURED: {currentDownloaded.toLocaleString()} /{' '}
+                          {target.toLocaleString()} ({downloadPercent.toFixed(1)}%)
+                        </span>
+                        <span className="text-blue-400 font-mono text-xs block">
+                          INGESTED: {currentIngested.toLocaleString()} / {target.toLocaleString()} (
+                          {ingestPercent.toFixed(1)}%)
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="relative h-3 bg-slate-900/50 rounded-full overflow-hidden border border-slate-700/50">
+                      <div
+                        className="absolute inset-y-0 left-0 bg-slate-500/20 transition-all duration-1000"
+                        style={{ width: `${downloadPercent}%` }}
+                      />
+                      <div
+                        className={`absolute inset-y-0 left-0 transition-all duration-1000 ${isComplete ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.5)]'}`}
+                        style={{ width: `${ingestPercent}%` }}
+                      >
+                        {!isComplete && (
+                          <div className="absolute inset-0 bg-white/10 animate-[shimmer_2s_infinite]"></div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {pipelineStatus?.eta_minutes && (
+              <div className="mt-6 pt-4 border-t border-slate-700/50 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-slate-400 text-xs">
+                  <TrendingUp className="h-4 w-4 text-cyan-400" />
+                  Processing documents at ~850 ms/page
+                </div>
+                <div className="text-xs font-mono text-blue-400">
+                  ETA: ~{pipelineStatus.eta_minutes} MINUTES
+                </div>
+              </div>
+            )}
+          </div>
 
           <h3 className="text-2xl font-bold text-white mt-8 mb-4">
             Key Discoveries from DOJ Datasets
@@ -1269,6 +1394,47 @@ export const AboutPage: React.FC = () => {
             accessible. Please consult qualified legal professionals for advice specific to your
             circumstances.
           </p>
+        </div>
+      </section>
+
+      {/* FAQ Link and Carousel */}
+      <section className="space-y-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <HelpCircle className="h-8 w-8 text-cyan-400" />
+            <h2 className="text-3xl font-bold text-white">Frequently Asked Questions</h2>
+          </div>
+          <Link
+            to="/faq"
+            className="flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors group"
+          >
+            Full FAQ
+            <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+          </Link>
+        </div>
+
+        <div className="relative bg-slate-800/50 rounded-xl p-8 border border-slate-700/50 overflow-hidden min-h-[180px] flex flex-col justify-center">
+          {/* Animated background element */}
+          <div className="absolute -top-12 -right-12 w-32 h-32 bg-cyan-500/5 rounded-full blur-3xl"></div>
+
+          <div className="relative z-10 space-y-4">
+            <div className="flex items-center gap-2 mb-2">
+              {faqs.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setActiveFaq(i)}
+                  className={`h-1 rounded-full transition-all duration-300 ${i === activeFaq ? 'w-8 bg-cyan-500' : 'w-2 bg-slate-700'}`}
+                />
+              ))}
+            </div>
+
+            <div className="transition-all duration-500 ease-in-out">
+              <h3 className="text-xl font-bold text-white mb-2">{faqs[activeFaq].question}</h3>
+              <p className="text-slate-300 leading-relaxed text-lg italic">
+                "{faqs[activeFaq].answer}"
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 

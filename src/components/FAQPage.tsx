@@ -29,6 +29,12 @@ const FAQPage = () => {
       icon: <Shield className="w-5 h-5 text-orange-400" />,
     },
     {
+      question: "Why are there so many recent documents (past Epstein's death)?",
+      answer:
+        'The investigation into the network remained active long after 2019. These documents primarily pertain to the prosecution of Ghislaine Maxwell, ongoing civil litigation by survivors, and internal corporate investigations (e.g., Barclays, JPMorgan). They provide crucial context on how the network operated and the legal efforts to identify co-conspirators.',
+      icon: <Eye className="w-5 h-5 text-cyan-400" />,
+    },
+    {
       question: 'Can I download the documents?',
       answer:
         'Yes. Publicly available documents can be viewed and often downloaded directly from the viewer. We maintain the original file integrity, including verifying cryptographic hashes to ensure evidence has not been tampered with.',

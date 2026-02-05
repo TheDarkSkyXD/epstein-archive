@@ -75,6 +75,21 @@ module.exports = {
         SQLITE_BUSY_TIMEOUT: '30000',
       },
     },
+    {
+      name: 'ingest-intelligence',
+      script: 'npm',
+      args: 'run ingest:intelligence',
+      instances: 1,
+      exec_mode: 'fork',
+      autorestart: false, // Don't auto-restart if it exits (it finishes when done)
+      watch: false,
+      max_memory_restart: '2G',
+      env: {
+        NODE_ENV: 'production',
+        DB_PATH: './epstein-archive.db',
+        SQLITE_BUSY_TIMEOUT: '30000',
+      }
+    },
   ],
 
   // === DEPLOYMENT CONFIGURATION ===

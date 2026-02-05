@@ -28,7 +28,7 @@ import { DocumentViewer } from '../components/evidence/DocumentViewer';
 import { ContactListViewer } from '../components/evidence/ContactListViewer';
 import { getEntityCategoryIcon } from '../config/entityIcons';
 import { ClaimsList } from '../components/evidence/ClaimsList';
-import { SEO } from '../components/SEO';
+import { SEO } from '../components/common/SEO';
 
 interface Evidence {
   id: number;

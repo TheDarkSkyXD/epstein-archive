@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import Icon from './Icon';
+import Icon from './common/Icon';
 import { Link } from 'react-router-dom';
-import { AddToInvestigationButton } from './AddToInvestigationButton';
-import { LocationMap } from './LocationMap';
-import { RouteMap } from './RouteMap';
-import { Select } from './Select';
+import { AddToInvestigationButton } from './common/AddToInvestigationButton';
+import { LocationMap } from './visualizations/LocationMap';
+import { RouteMap } from './visualizations/RouteMap';
+import { Select } from './common/Select';
 
 import './FlightTracker.css';
 

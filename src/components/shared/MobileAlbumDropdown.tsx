@@ -1,5 +1,5 @@
 import React from 'react';
-import Icon from '../Icon';
+import Icon from '../common/Icon';
 import type { MediaAlbum } from '../../hooks/useMediaBrowser';
 
 interface MobileAlbumDropdownProps {

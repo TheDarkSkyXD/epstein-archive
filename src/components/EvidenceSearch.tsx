@@ -3,15 +3,15 @@ import { useLocation } from 'react-router-dom';
 import { optimizedDataService } from '../services/OptimizedDataService';
 import { Person } from '../types';
 import { useNavigation } from '../services/ContentNavigationService.tsx';
-import { RedFlagIndex } from './RedFlagIndex';
+import { RedFlagIndex } from './visualizations/RedFlagIndex';
 import { useUndo } from './UndoManager';
-import FormField from './FormField';
-import Tooltip from './Tooltip';
+import FormField from './common/FormField';
+import Tooltip from './common/Tooltip';
 // TODO: Add help text for search features
-// import HelpText from './HelpText';
-import Icon from './Icon';
-import ProgressBar from './ProgressBar';
-import { AddToInvestigationButton } from './AddToInvestigationButton';
+// import HelpText from './common/HelpText';
+import Icon from './common/Icon';
+import ProgressBar from './common/ProgressBar';
+import { AddToInvestigationButton } from './common/AddToInvestigationButton';
 
 interface EvidenceSearchProps {
   onPersonClick?: (person: Person, searchTerm: string) => void;

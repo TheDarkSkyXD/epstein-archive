@@ -5,9 +5,9 @@ import { HelmetProvider } from 'react-helmet-async';
 import App from './App.tsx';
 import './index.css';
 import { NavigationProvider } from './services/ContentNavigationService.tsx';
-import ErrorBoundary from './components/ErrorBoundary';
+import ErrorBoundary from './components/common/ErrorBoundary';
 import { AuthProvider } from './contexts/AuthContext';
-import ToastProvider from './components/ToastProvider';
+import ToastProvider from './components/common/ToastProvider';
 
 import { SensitiveSettingsProvider } from './contexts/SensitiveSettingsContext';
 

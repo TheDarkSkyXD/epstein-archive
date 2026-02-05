@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { RedFlagIndex } from './RedFlagIndex';
+import { RedFlagIndex } from './visualizations/RedFlagIndex';
 
 describe('RedFlagIndex Component', () => {
   test('renders correctly with value 0', () => {

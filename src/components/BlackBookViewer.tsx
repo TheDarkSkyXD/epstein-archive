@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Search, Phone, Mail, MapPin, User, Book, Eye, FileText, ExternalLink } from 'lucide-react';
 import { extractCleanName, formatPhoneNumber } from '../utils/prettifyOCR';
 import { Link } from 'react-router-dom';
-import { AddToInvestigationButton } from './AddToInvestigationButton';
-import { EvidenceModal } from './EvidenceModal';
+import { AddToInvestigationButton } from './common/AddToInvestigationButton';
+import { EvidenceModal } from './common/EvidenceModal';
 import { apiClient } from '../services/apiClient';
 
 interface BlackBookEntry {

@@ -1,10 +1,10 @@
 import React from 'react';
-import PersonCard from './PersonCard';
-import { DocumentCard } from './DocumentCard';
-import { MediaCard } from './MediaCard';
-import { SourceBadge } from './SourceBadge';
-import { RedFlagIndex } from './RedFlagIndex';
-import { Layout, Section } from './Layout';
+import PersonCard from './entities/PersonCard';
+import { DocumentCard } from './documents/DocumentCard';
+import { MediaCard } from './media/MediaCard';
+import { SourceBadge } from './common/SourceBadge';
+import { RedFlagIndex } from './visualizations/RedFlagIndex';
+import { Layout, Section } from './layout/Layout';
 
 // Mock data for testing
 const mockPerson = {

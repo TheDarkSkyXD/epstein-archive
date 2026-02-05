@@ -1,5 +1,5 @@
 import React from 'react';
-import Icon from '../Icon';
+import Icon from '../common/Icon';
 
 interface MediaBrowserLayoutProps {
   /** Page title (e.g., "Audio Recordings", "Video Recordings") */

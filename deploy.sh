@@ -146,7 +146,8 @@ else
       pnpm build:prod
       
       echo 'Restarting Application...'
-      pm2 restart epstein-archive --update-env
+      echo 'Restarting Application...'
+      pm2 restart epstein-archive --update-env || pm2 start dist/server.js --name epstein-archive
     "
   fi
 fi

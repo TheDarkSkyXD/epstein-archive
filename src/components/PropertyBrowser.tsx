@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import Icon from './Icon';
+import Icon from './common/Icon';
 import { Link } from 'react-router-dom';
-import { AddToInvestigationButton } from './AddToInvestigationButton';
-import { Select } from './Select';
+import { AddToInvestigationButton } from './common/AddToInvestigationButton';
+import { Select } from './common/Select';
 
 interface Property {
   id: number;

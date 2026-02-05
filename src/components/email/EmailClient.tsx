@@ -25,8 +25,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { apiClient } from '../../services/apiClient';
 import { Document } from '../../types/documents';
-import { AddToInvestigationButton } from '../AddToInvestigationButton';
-import { EvidenceModal } from '../EvidenceModal';
+import { AddToInvestigationButton } from '../common/AddToInvestigationButton';
+import { EvidenceModal } from '../common/EvidenceModal';
 
 // --- Types ---
 

@@ -7,41 +7,41 @@ import { Person } from './types';
 import { Document } from './types/documents';
 import { OptimizedDataService, SearchFilters } from './services/OptimizedDataService';
 import { useNavigation } from './services/ContentNavigationService.tsx';
-import PersonCard from './components/PersonCard';
-import MediaAndArticlesTab from './components/MediaAndArticlesTab';
-import PersonCardSkeleton from './components/PersonCardSkeleton';
-import StatsSkeleton from './components/StatsSkeleton';
-import { StatsDisplay } from './components/StatsDisplay';
+import PersonCard from './components/entities/PersonCard';
+import MediaAndArticlesTab from './components/media/MediaAndArticlesTab';
+import PersonCardSkeleton from './components/entities/PersonCardSkeleton';
+import StatsSkeleton from './components/pages/StatsSkeleton';
+import { StatsDisplay } from './components/pages/StatsDisplay';
 import { apiClient } from './services/apiClient';
 import { DocumentProcessor } from './services/documentProcessor';
 // SECURITY: Removed synthetic sample documents import - never fall back to fake data
 import { useCountUp } from './hooks/useCountUp';
-import MobileMenu from './components/MobileMenu';
+import MobileMenu from './components/layout/MobileMenu';
 import UndoProvider from './components/UndoManager';
-import ToastProvider, { useToasts } from './components/ToastProvider';
-import ScopedErrorBoundary from './components/ScopedErrorBoundary';
+import ToastProvider, { useToasts } from './components/common/ToastProvider';
+import ScopedErrorBoundary from './components/common/ScopedErrorBoundary';
 // ProgressBar available but not currently used
-import LoadingIndicator from './components/LoadingIndicator';
+import LoadingIndicator from './components/common/LoadingIndicator';
 import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
-import { Breadcrumb } from './components/Breadcrumb';
-import { VirtualList } from './components/VirtualList';
-import Icon from './components/Icon';
+import { Breadcrumb } from './components/layout/Breadcrumb';
+import { VirtualList } from './components/common/VirtualList';
+import Icon from './components/common/Icon';
 import { RedactedLogo } from './components/RedactedLogo';
 // getEntityTypeIcon available via Icon component
-import EntityTypeFilter from './components/EntityTypeFilter';
-import SortFilter from './components/SortFilter';
+import EntityTypeFilter from './components/entities/EntityTypeFilter';
+import SortFilter from './components/layout/SortFilter';
 import { FirstRunOnboarding } from './components/FirstRunOnboarding';
 import { useFirstRunOnboarding } from './hooks/useFirstRunOnboarding';
 import { InvestigationsProvider } from './contexts/InvestigationsContext';
 import { useAuth } from './contexts/AuthContext';
 import { LoginPage } from './pages/LoginPage';
-import { SEO } from './components/SEO';
+import { SEO } from './components/common/SEO';
 // Lazy load heavy components
 const EvidenceModal = lazy(() =>
-  import('./components/EvidenceModal').then((module) => ({ default: module.EvidenceModal })),
+  import('./components/common/EvidenceModal').then((module) => ({ default: module.EvidenceModal })),
 );
 const DataVisualization = lazy(() =>
-  import('./components/DataVisualization').then((module) => ({
+  import('./components/visualizations/DataVisualization').then((module) => ({
     default: module.DataVisualization,
   })),
 );
@@ -52,13 +52,17 @@ const EvidenceSearch = lazy(() =>
   import('./components/EvidenceSearch').then((module) => ({ default: module.EvidenceSearch })),
 );
 const DocumentBrowser = lazy(() =>
-  import('./components/DocumentBrowser').then((module) => ({ default: module.DocumentBrowser })),
+  import('./components/documents/DocumentBrowser').then((module) => ({
+    default: module.DocumentBrowser,
+  })),
 );
 const DocumentModal = lazy(() =>
-  import('./components/DocumentModal').then((module) => ({ default: module.DocumentModal })),
+  import('./components/documents/DocumentModal').then((module) => ({
+    default: module.DocumentModal,
+  })),
 );
 const InvestigationWorkspace = lazy(() =>
-  import('./components/InvestigationWorkspace').then((module) => ({
+  import('./components/investigation/InvestigationWorkspace').then((module) => ({
     default: module.InvestigationWorkspace,
   })),
 );
@@ -71,10 +75,10 @@ const EmailClient = lazy(() =>
   import('./components/email/EmailClient').then((module) => ({ default: module.default })),
 );
 const AboutPage = lazy(() =>
-  import('./components/AboutPage').then((module) => ({ default: module.default })),
+  import('./components/pages/AboutPage').then((module) => ({ default: module.default })),
 );
 const FAQPage = lazy(() =>
-  import('./components/FAQPage').then((module) => ({ default: module.default })),
+  import('./components/pages/FAQPage').then((module) => ({ default: module.default })),
 );
 
 const AdminDashboard = lazy(() =>
@@ -87,7 +91,7 @@ const ReviewDashboard = lazy(() =>
   import('./pages/ReviewDashboard').then((module) => ({ default: module.ReviewDashboard })),
 );
 const EnhancedAnalytics = lazy(() =>
-  import('./components/EnhancedAnalytics').then((module) => ({
+  import('./components/pages/EnhancedAnalytics').then((module) => ({
     default: module.EnhancedAnalytics,
   })),
 );
@@ -195,8 +199,8 @@ const parseReleaseNotes = (markdown: string) => {
   }
 };
 
-import { CreateEntityModal } from './components/CreateEntityModal';
-import Footer from './components/Footer';
+import { CreateEntityModal } from './components/entities/CreateEntityModal';
+import Footer from './components/layout/Footer';
 
 function App() {
   const location = useLocation();

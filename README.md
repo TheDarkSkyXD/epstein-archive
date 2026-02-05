@@ -21,6 +21,10 @@
 - Node.js v18+
 - SQLite3
 
+> **New to the project?** Check out [**GETTING_STARTED.md**](GETTING_STARTED.md).
+> **Want to contribute?** Read [**CONTRIBUTING.md**](CONTRIBUTING.md) for our code structure guide.
+> **Building features?** See the [**Investigation System Guide**](INVESTIGATION_GUIDE.md).
+
 ### Installation
 
 ```bash

@@ -175,8 +175,8 @@ const DOCUMENT_SOURCES = [
   {
     title: 'DOJ Data Set 9',
     description:
-      'Released Feb 1, 2026: 35 high-value DOJ prosecutorial files (avg 4,490 words per doc, 29% redacted).',
-    redactionStatus: 'Redacted (~29%)',
+      'Released Feb 1, 2026: 531,217 prosecutorial files, witness statements, and investigative documents.',
+    redactionStatus: 'Partial (~29%)',
     redactionColor: 'yellow',
     impact: 'CRITICAL',
     impactColor: 'purple',
@@ -186,7 +186,7 @@ const DOCUMENT_SOURCES = [
   {
     title: 'DOJ Data Set 10',
     description:
-      'Released Feb 1, 2026: 8,497 Deutsche Bank statements, invoices, and financial records mentioning Jes Staley and Lesley Groff.',
+      'Released Feb 1, 2026: 452,031 financial records including Deutsche Bank statements and JPM invoices.',
     redactionStatus: 'Redacted (~48%)',
     redactionColor: 'red',
     impact: 'CRITICAL',
@@ -197,7 +197,7 @@ const DOCUMENT_SOURCES = [
   {
     title: 'DOJ Data Set 11',
     description:
-      'Released Feb 1, 2026: 4,721 video files, images, and short documents (avg 248 words, 52% redacted).',
+      'Released Feb 1, 2026: 331,681 media files and short documents (Videos, Photos, Metadata).',
     redactionStatus: 'Redacted (~52%)',
     redactionColor: 'red',
     impact: 'HIGH',
@@ -208,7 +208,7 @@ const DOCUMENT_SOURCES = [
   {
     title: 'DOJ Data Set 12',
     description:
-      'Released Feb 1, 2026: 202 investigative documents including Subject Referrals and case correspondence (avg 2,793 words, 35% redacted).',
+      'Released Feb 1, 2026: 202 high-priority investigative case referrals and correspondence.',
     redactionStatus: 'Redacted (~35%)',
     redactionColor: 'yellow',
     impact: 'HIGH',
@@ -320,7 +320,13 @@ const timelineEvents = [
     date: 'Feb 3, 2026',
     source: 'Epstein Archive',
     content:
-      'V12.1.2: DOJ Datasets 9-12 Fully Ingested. Added 13,455 documents including Deutsche Bank records (Jes Staley), video evidence, and prosecutorial files. Total archive: 107,474 documents, 1.55M entity mentions.',
+      'V12.1.2: DOJ Ingestion Expansion. Configured discovery for massive 1.3M file ingestion across Data Sets 9-11.',
+  },
+  {
+    date: 'Feb 5, 2026',
+    source: 'Epstein Archive',
+    content:
+      'V12.1.3: In-Progress Ingestion of 1.3M DOJ Files. Active hashing and discovery phase for Data Sets 9 (531k), 10 (452k), and 11 (331k). Hashing rate optimized to ~1,100 files/min.',
   },
 ];
 
@@ -780,7 +786,10 @@ export const AboutPage: React.FC = () => {
                   Processing documents at ~850 ms/page
                 </div>
                 <div className="text-xs font-mono text-blue-400">
-                  ETA: ~{pipelineStatus.eta_minutes} MINUTES
+                  ETA: ~
+                  {pipelineStatus.eta_minutes > 120
+                    ? `${(pipelineStatus.eta_minutes / 60).toFixed(1)} HOURS`
+                    : `${pipelineStatus.eta_minutes} MINUTES`}
                 </div>
               </div>
             )}

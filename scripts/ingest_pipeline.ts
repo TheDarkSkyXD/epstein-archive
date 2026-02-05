@@ -67,101 +67,101 @@ const COLLECTIONS: CollectionConfig[] = [
     name: 'Test',
     rootPath: 'data/ingest',
     description: 'Dev/Test collection',
-    enabled: true,
+    enabled: false,
   },
   {
     name: 'Epstein Estate Documents - Seventh Production',
     rootPath: 'data/originals/Epstein Estate Documents - Seventh Production',
     description: 'Seventh Production of Estate Documents',
-    enabled: true,
+    enabled: false,
   },
   {
     name: 'DOJ Discovery VOL00001',
     rootPath: 'data/originals/DOJ VOL00001',
     description: 'FBI Discovery Materials Vol 1',
-    enabled: true,
+    enabled: false,
   },
   {
     name: 'DOJ Discovery VOL00002',
     rootPath: 'data/originals/DOJ VOL00002',
     description: 'FBI Discovery Materials Vol 2',
-    enabled: true,
+    enabled: false,
   },
   {
     name: 'DOJ Discovery VOL00003',
     rootPath: 'data/originals/DOJ VOL00003',
     description: 'FBI Discovery Materials Vol 3',
-    enabled: true,
+    enabled: false,
   },
   {
     name: 'DOJ Discovery VOL00004',
     rootPath: 'data/originals/DOJ VOL00004',
     description: 'FBI Discovery Materials Vol 4',
-    enabled: true,
+    enabled: false,
   },
   {
     name: 'DOJ Discovery VOL00005',
     rootPath: 'data/originals/DOJ VOL00005',
     description: 'FBI Discovery Materials Vol 5',
-    enabled: true,
+    enabled: false,
   },
   {
     name: 'DOJ Discovery VOL00006',
     rootPath: 'data/originals/DOJ VOL00006',
     description: 'FBI Discovery Materials Vol 6',
-    enabled: true,
+    enabled: false,
   },
   {
     name: 'DOJ Discovery VOL00007',
     rootPath: 'data/originals/DOJ VOL00007',
     description: 'FBI Discovery Materials Vol 7',
-    enabled: true,
+    enabled: false,
   },
   {
     name: 'DOJ Discovery VOL00008',
     rootPath: 'data/originals/DOJ VOL00008',
     description: 'FBI Discovery Materials Vol 8',
-    enabled: true,
+    enabled: false,
   },
   {
     name: 'Court Case Evidence',
     rootPath: 'data/originals/Court Case Evidence',
     description: 'Various Court Exhibits',
-    enabled: true,
+    enabled: false,
   },
   {
     name: 'Maxwell Proffer',
     rootPath: 'data/originals/Maxwell Proffer',
     description: 'Ghislaine Maxwell Proffer Documents',
-    enabled: true,
+    enabled: false,
   },
   {
     name: 'DOJ Phase 1',
     rootPath: 'data/originals/DOJ Phase 1',
     description: 'DOJ Phase 1 Documents',
-    enabled: true,
+    enabled: false,
   },
   {
     name: 'Evidence',
     rootPath: 'data/media/images/Evidence',
     description: 'Miscellaneous evidence images',
-    enabled: true,
+    enabled: false,
   },
   {
     name: 'Confirmed Fake',
     rootPath: 'data/media/images/Confirmed Fake',
     description: 'Images confirmed to be fake/AI generated',
-    enabled: true,
+    enabled: false,
   },
   {
     name: 'Unconfirmed Claims',
     rootPath: 'data/media/images/Unconfirmed Claims',
     description: 'Images with unverified claims',
-    enabled: true,
+    enabled: false,
   },
   {
     name: 'DOJ Data Set 9',
-    rootPath: 'data/ingest/DOJVOL00009',
+    rootPath: 'data/ingest/DOJVOL00009/www.justice.gov/epstein/files/DataSet 9',
     description: '12,260 PDF files released Feb 1, 2026',
     enabled: true,
   },
@@ -173,7 +173,7 @@ const COLLECTIONS: CollectionConfig[] = [
   },
   {
     name: 'DOJ Data Set 11',
-    rootPath: 'data/ingest/DOJVOL00011',
+    rootPath: 'data/ingest/DOJVOL00011/www.justice.gov/epstein/files/DataSet 11',
     description: 'Data Set 11 (Videos) from DOJ',
     enabled: true,
   },
@@ -181,13 +181,13 @@ const COLLECTIONS: CollectionConfig[] = [
     name: 'DOJ Data Set 12',
     rootPath: 'data/ingest/DOJVOL00012',
     description: 'Data Set 12 from DOJ',
-    enabled: true,
+    enabled: false,
   },
   {
     name: 'DOJ Discovery VOL00012',
     rootPath: 'data/originals/DOJ VOL00012',
     description: 'DOJ Discovery Materials Vol 12',
-    enabled: true,
+    enabled: false,
   },
 ];
 
@@ -203,6 +203,8 @@ async function initDb() {
     filename: DB_PATH,
     driver: sqlite3.Database,
   });
+  await db.run('PRAGMA busy_timeout = 30000');
+  await db.run('PRAGMA journal_mode = WAL');
 }
 
 import { PipelineService, PipelineRun } from '../src/services/pipelineService.js';
@@ -222,6 +224,7 @@ async function startPipelineRun() {
 
   // Register basic steps
   await PipelineService.registerStep('discovery', 'Initial file discovery and hashing');
+  await PipelineService.registerStep('ingestion', 'Document ingestion and processing');
   await PipelineService.registerStep('extraction', 'Text extraction and OCR');
   await PipelineService.registerStep('intelligence', 'Entity extraction and relationship mapping');
 }
@@ -1303,7 +1306,10 @@ async function processCollection(
   }
 
   // Find all files
-  const pattern = join(collection.rootPath, '**/*.{pdf,txt,rtf,jpg,jpeg,png,eml,msg,meta,html}');
+  const pattern = join(
+    collection.rootPath,
+    '**/*.{pdf,txt,rtf,jpg,jpeg,png,eml,msg,meta,html,mp4,mov,avi,mkv,m4v,wav,mp3}',
+  );
   const files = globSync(pattern, {
     ignore: ['**/thumbs/**', '**/.DS_Store'],
   });

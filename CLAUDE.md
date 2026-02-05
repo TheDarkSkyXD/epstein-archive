@@ -117,6 +117,24 @@ pnpm build:prod   # Build frontend AND backend (to /dist)
 ./deploy.sh --db-only # **DB ONLY** Safe Atomic Swap
 ```
 
+## Deployment Protocol (STRICT)
+
+**EVERY deployment to production MUST follow this sequence:**
+
+1.  **Version Bump:**
+    - Update `version` in `package.json` (Patch bump by default).
+    - **Rule:** All runtime version displays must read from `package.json` (via `__APP_VERSION__`), never hardcoded.
+
+2.  **History & Documentation:**
+    - Update `CHANGELOG.md` with the new version and changes.
+    - Update `src/components/pages/AboutPage.tsx` "timelineEvents" array:
+      - **Add** the new version entry at the bottom.
+      - **PRESERVE** all historical entries (never delete history).
+      - Include the date, source ("Epstein Archive"), and a concise summary of the change.
+
+3.  **Execution:**
+    - Run `./deploy.sh`.
+
 **Database**
 
 ```bash

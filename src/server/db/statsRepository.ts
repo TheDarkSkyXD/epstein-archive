@@ -230,10 +230,10 @@ export const statsRepository = {
   getPipelineProgress: () => {
     const db = getDb();
     const datasets = [
-      { id: '9', name: 'DOJ Data Set 9', target: 284246, folder: 'DOJVOL00009' },
-      { id: '10', name: 'DOJ Data Set 10', target: 282820, folder: 'DOJVOL00010' },
-      { id: '11', name: 'DOJ Data Set 11', target: 170478, folder: 'DOJVOL00011' },
-      { id: '12', name: 'DOJ Data Set 12', target: 152, folder: 'DOJVOL00012' },
+      { id: '9', name: 'DOJ Data Set 9', target: 531217, folder: 'DOJVOL00009' },
+      { id: '10', name: 'DOJ Data Set 10', target: 452031, folder: 'DOJVOL00010' },
+      { id: '11', name: 'DOJ Data Set 11', target: 331681, folder: 'DOJVOL00011' },
+      { id: '12', name: 'DOJ Data Set 12', target: 202, folder: 'DOJVOL00012' },
     ];
 
     const results = datasets.map((ds) => {

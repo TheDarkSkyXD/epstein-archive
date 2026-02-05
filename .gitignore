@@ -18,6 +18,7 @@ build/
 
 # Database files
 *.db
+!sample.db
 *.db-shm
 *.db-wal
 *.sqlite

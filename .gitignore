@@ -177,3 +177,4 @@ backups/
 uploads/
 data/ingest
 *.local-backup-*
+ingestion_log.txt

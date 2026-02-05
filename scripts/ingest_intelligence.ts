@@ -145,10 +145,9 @@ export async function runIntelligencePipeline() {
   const insertEntityMention = db.prepare(`
     INSERT INTO entity_mentions (
       entity_id, document_id, mention_context, keyword, 
-      significance_score, confidence_score, link_method, 
-      resolver_run_id, resolver_version, evidence_json,
-      sentence_id, page_id
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      significance_score, confidence_score, link_method,
+      page_number
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   // Optional new-schema integration (document_spans, mentions, resolution_candidates, relations)
@@ -393,10 +392,6 @@ export async function runIntelligencePipeline() {
       score,
       confidence,
       resolutionMethod,
-      currentResolverRunTableId || null,
-      resolverVersion,
-      JSON.stringify(evidence),
-      sentenceId || null,
       pageId || null,
     );
 
@@ -750,9 +745,15 @@ export async function runIntelligencePipeline() {
         }
 
         // Fetch granular data (Pages/Sentences) for provenance
-        const sentences = db
+        const hasSentencesTable = !!db
           .prepare(
-            `
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='document_sentences'",
+          )
+          .get();
+        const sentences = hasSentencesTable
+          ? (db
+              .prepare(
+                `
           SELECT s.id, s.sentence_text, s.is_boilerplate, 
                  p.id as page_id, p.ocr_quality_score, p.text_source
           FROM document_sentences s
@@ -760,15 +761,16 @@ export async function runIntelligencePipeline() {
           WHERE s.document_id = ?
           ORDER BY s.id ASC
         `,
-          )
-          .all(doc.id) as {
-          id: number;
-          sentence_text: string;
-          page_id: number;
-          is_boilerplate: number;
-          ocr_quality_score: number;
-          text_source: string;
-        }[];
+              )
+              .all(doc.id) as {
+              id: number;
+              sentence_text: string;
+              page_id: number;
+              is_boilerplate: number;
+              ocr_quality_score: number;
+              text_source: string;
+            }[])
+          : [];
 
         if (sentences.length > 0) {
           processGranularProvenance(doc, sentences);
@@ -1167,8 +1169,18 @@ function sanitizeContent() {
 
   let cleanedCount = 0;
   const updateDoc = db.prepare('UPDATE documents SET content = ?, analyzed_at = NULL WHERE id = ?');
-  const clearSentences = db.prepare('DELETE FROM document_sentences WHERE document_id = ?');
-  const clearPages = db.prepare('DELETE FROM document_pages WHERE document_id = ?');
+  const hasSentences = !!db
+    .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='document_sentences'")
+    .get();
+  const hasPages = !!db
+    .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='document_pages'")
+    .get();
+  const clearSentences = hasSentences
+    ? db.prepare('DELETE FROM document_sentences WHERE document_id = ?')
+    : null;
+  const clearPages = hasPages
+    ? db.prepare('DELETE FROM document_pages WHERE document_id = ?')
+    : null;
   const clearMentions = db.prepare('DELETE FROM entity_mentions WHERE document_id = ?');
 
   const tx = db.transaction(() => {
@@ -1180,8 +1192,8 @@ function sanitizeContent() {
       // If content cleaned resulted in a change (meaning artifacts were removed/fixed)
       if (cleaned !== originals) {
         updateDoc.run(cleaned, doc.id);
-        clearSentences.run(doc.id);
-        clearPages.run(doc.id);
+        if (clearSentences) clearSentences.run(doc.id);
+        if (clearPages) clearPages.run(doc.id);
         clearMentions.run(doc.id); // Clear mentions so they get re-extracted on next pass
         cleanedCount++;
         if (cleanedCount % 50 === 0) process.stdout.write(`   Sanitized ${cleanedCount}...\r`);

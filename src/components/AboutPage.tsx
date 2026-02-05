@@ -326,7 +326,7 @@ const timelineEvents = [
     date: 'Feb 5, 2026',
     source: 'Epstein Archive',
     content:
-      'V12.1.3: In-Progress Ingestion of 1.3M DOJ Files. Active hashing and discovery phase for Data Sets 9 (531k), 10 (452k), and 11 (331k). Hashing rate optimized to ~1,100 files/min.',
+      'V12.7.4: Storage Expanded & Ingestion Resumed. Infrastructure upgraded to 310GB. Active processing of Sets 9-11 (1.3M documents) continuing.',
   },
   {
     date: 'Feb 4, 2026',

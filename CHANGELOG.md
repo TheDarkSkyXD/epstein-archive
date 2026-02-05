@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file. The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## 12.7.4 — 2026-02-05
+
+### Infrastructure
+
+- **Storage Expansion**: Infrastructure scaled to 310GB to accommodate remaining DOJ datasets.
+- **Ingestion Resumption**: Reactivated pipeline for Sets 9-11 (1.3M documents).
+
+## 12.7.3 — 2026-02-05
+
+### Infrastructure & Stability
+
+- **Ingestion Pipeline Repair**: Resolved `SqliteError` crashes by adding schema checks for `claim_triples`, `document_sentences` and `document_pages`.
+- **System Restoration**: Successfully restarted core ingestion (`ingest_pipeline.ts`) and analysis (`ingest_intelligence.ts`) services.
+
+### Content
+
+- **About Page Update**: Confirmed and documented completion of "Set 12" (202 files) in the project timeline.
+
 ## 12.7.2 — 2026-02-05
 
 ### Intelligence & Data Quality

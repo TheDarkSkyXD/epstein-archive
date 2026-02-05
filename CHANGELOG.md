@@ -1,5 +1,18 @@
 # Changelog
 
+## [12.6.1] - 2026-02-05
+
+### Added
+
+- **Social Previews**: Fixed dynamic `<title>` and OG tag injection for all routes. Added specific social preview images for About, Analytics, Timeline, and Flights pages.
+- **Ingestion Dashboard**: Updated About page with real-time progress tracking for the massive 1.3M file DOJ ingestion.
+- **Data Acquisition**: Verified and linked full DOJ datasets 9-11 (1.3M files) via symlinks.
+
+### Changed
+
+- **Performance**: Optimized `ingest_pipeline.ts` with WAL mode and busy timeouts for stability during heavy ingestion.
+- **SEO**: Improved server-side rendering of metadata for better discovery on social platforms.
+
 All notable changes to this project will be documented in this file. The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
 ## 12.7.2 — 2026-02-05

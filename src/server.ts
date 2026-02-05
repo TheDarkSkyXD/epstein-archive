@@ -4005,7 +4005,7 @@ app.post('/api/memory/:id/quality', async (req, res, next) => {
 // Error handling middleware (must be last)
 app.use(globalErrorHandler);
 
-// Helper to inject Open Graph tags into HTML
+// Helper to inject Open Graph tags and Page Title into HTML
 function injectOgTags(
   html: string,
   ogData: { title: string; description: string; imageUrl: string; url: string },
@@ -4021,21 +4021,36 @@ function injectOgTags(
 
   const ogTags = `
     <!-- Dynamic Open Graph Tags -->
-    <meta property="og:title" content="${safeTitle}" />
+    <title>${safeTitle} | Epstein Files Archive</title>
+    <meta property="og:title" content="${safeTitle} | Epstein Files Archive" />
     <meta property="og:description" content="${safeDesc}" />
     <meta property="og:image" content="${ogData.imageUrl}" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="${ogData.url}" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="${safeTitle}" />
+    <meta name="twitter:title" content="${safeTitle} | Epstein Files Archive" />
     <meta name="twitter:description" content="${safeDesc}" />
     <meta name="twitter:image" content="${ogData.imageUrl}" />
   `;
 
+  // 1. Handle <title> tag replacement
+  if (html.includes('<title>')) {
+    html = html.replace(
+      /<title>.*?<\/title>/,
+      `<title>${safeTitle} | Epstein Files Archive</title>`,
+    );
+  }
+
+  // 2. Handle Meta tag replacement
   const defaultTagsRegex =
-    /<!-- Default Open Graph Tags -->[\s\S]*?<meta name="twitter:image" content=".*?" \/>/;
+    /<!-- Default Open Graph Tags -->[\s\S]*?<!-- End Default Open Graph Tags -->/;
+  const metaRegexFull =
+    /<!-- Dynamic Open Graph Tags -->[\s\S]*?<!-- End Dynamic Open Graph Tags -->/;
+
   if (defaultTagsRegex.test(html)) {
     return html.replace(defaultTagsRegex, ogTags);
+  } else if (metaRegexFull.test(html)) {
+    return html.replace(metaRegexFull, ogTags);
   } else {
     return html.replace('</head>', `${ogTags}</head>`);
   }
@@ -4433,9 +4448,9 @@ app.get('*', async (req, res, next) => {
       // About
       if (routePath === '/about' || routePath.startsWith('/about')) {
         html = injectOgTags(html, {
-          title: 'About - Epstein Files Archive',
+          title: 'Live Ingestion Dashboard & Methodology',
           description:
-            'About the Epstein Files Archive project: methodology, sources, data integrity, and how to contribute to this open-source investigation tool.',
+            'Monitor the real-time ingestion of 1.3M new DOJ files. Explore our database methodology, data sources, and forensic analysis tools.',
           imageUrl: defaultOgImage,
           url: `${baseUrl}${req.originalUrl}`,
         });

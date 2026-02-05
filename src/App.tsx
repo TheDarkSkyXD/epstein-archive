@@ -372,6 +372,14 @@ function App() {
               spicy_passages: [],
               likelihood_score: data.likelihoodLevel || 'MEDIUM',
               fileReferences: [],
+              // Enhanced fields
+              bio: data.bio || data.description,
+              birthDate: data.birthDate,
+              deathDate: data.deathDate,
+              photos: data.photos,
+              blackBookEntry: data.blackBookEntry,
+              entityType: data.entityType || data.type,
+              red_flag_description: data.redFlagDescription || data.red_flag_description,
             };
             setSelectedPerson(person);
           }

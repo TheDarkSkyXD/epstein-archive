@@ -22,6 +22,7 @@
     "db:merge": "tsx scripts/sync-db.ts",
     "db:push": "./deploy.sh --db-only",
     "db:pull": "./scripts/sync_down_safe.sh",
+    "ingest:intelligence": "DB_PATH=./epstein-archive.db tsx scripts/ingest_intelligence.ts",
     "db:optimize": "tsx scripts/maintenance.ts",
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",

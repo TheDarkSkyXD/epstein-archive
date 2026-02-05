@@ -663,6 +663,18 @@ export const VIP_RULES: VipRule[] = [
       bio: 'Defense attorney for Epstein in 2008.',
     },
   },
+  {
+    canonicalName: 'Celina Midelfart',
+    type: 'Person',
+    aliases: ['Celina Midelfahrt', 'Ms. Midelfart'],
+    patterns: [/Celina\s+Midelfart/i, /Celina\s+Midelfahrt/i],
+    metadata: {
+      category: 'Associate',
+      riskLevel: 'medium',
+      birthDate: '1973-02-12',
+      bio: "Norwegian heir and businesswoman. Dated Donald Trump in the 90s. Flew on Epstein's plane (the 'Lolita Express') in 1996 and 1997 with Trump and Ghislaine Maxwell. Listed in Epstein's Little Black Book.",
+    },
+  },
 
   // --- OTHERS ---
   {

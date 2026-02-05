@@ -271,6 +271,30 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
                 {/* Bio / Description */}
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-4">
+                    {/* Bio Section */}
+                    {person.bio && (
+                      <div className="bg-slate-900 border border-slate-700/50 rounded-xl p-5 shadow-sm">
+                        <h3 className="text-cyan-400 font-semibold mb-3 flex items-center gap-2">
+                          <Icon name="Info" size="sm" />
+                          Biography
+                        </h3>
+                        <p className="text-slate-300 leading-relaxed text-sm">{person.bio}</p>
+                        {(person.birthDate || person.deathDate) && (
+                          <div className="mt-4 pt-4 border-t border-slate-800 flex flex-wrap gap-4 text-xs text-slate-500">
+                            {person.birthDate && (
+                              <div className="flex items-center gap-1.5">
+                                <Icon name="Calendar" size="xs" /> Born: {person.birthDate}
+                              </div>
+                            )}
+                            {person.deathDate && (
+                              <div className="flex items-center gap-1.5">
+                                <Icon name="X" size="xs" /> Died: {person.deathDate}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {person.red_flag_description && (
                       <div className="bg-red-950/10 border border-red-900/30 rounded-xl p-5 relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-1 h-full bg-red-500/50" />

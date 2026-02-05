@@ -75,6 +75,7 @@ import { resolveAmbiguity } from './filters/contextRules.js';
 import { resolveVip, VIP_RULES } from './filters/vipRules.js';
 import { fileURLToPath } from 'url';
 import { BoilerplateService } from '../src/server/services/BoilerplateService.js';
+import { TextCleaner } from './utils/text_cleaner.js';
 
 // const JUNK_REGEX = ENTITY_BLACKLIST_REGEX;
 
@@ -110,6 +111,10 @@ export async function runIntelligencePipeline() {
 
   // Initialize DB locally within the function to avoid top-level side effects
   db = new Database(DB_PATH);
+
+  // 0. Pre-Flight: MIME Sanitization (Critical for uncovering hidden entities)
+  sanitizeContent();
+
   let currentResolverRunTableId: number | bigint = 0;
 
   // Register resolver run
@@ -1142,4 +1147,55 @@ function consolidateClaims() {
   })();
 
   console.log(`   ✅ Corroborated ${counts.length} unique claims across ${updated} instances.`);
+}
+
+function sanitizeContent() {
+  console.log('🧹 Sanity Check: Scanning for MIME artifacts in database...');
+  // Heuristic: Documents with "=" followed by a newline or hex digits are likely dirty MIME QP
+  // We check for processing_status='succeeded' to only clean valid docs.
+  const candidates = db
+    .prepare(
+      `
+    SELECT id, content FROM documents 
+    WHERE (content LIKE '%=%' OR content LIKE '%â%')
+      AND (processing_status = 'succeeded' OR analyzed_at IS NOT NULL)
+  `,
+    )
+    .all() as { id: number; content: string }[];
+
+  console.log(`   Found ${candidates.length} candidates for MIME sanitization.`);
+
+  let cleanedCount = 0;
+  const updateDoc = db.prepare('UPDATE documents SET content = ?, analyzed_at = NULL WHERE id = ?');
+  const clearSentences = db.prepare('DELETE FROM document_sentences WHERE document_id = ?');
+  const clearPages = db.prepare('DELETE FROM document_pages WHERE document_id = ?');
+  const clearMentions = db.prepare('DELETE FROM entity_mentions WHERE document_id = ?');
+
+  const tx = db.transaction(() => {
+    for (const doc of candidates) {
+      if (!doc.content) continue;
+      const originals = doc.content;
+      const cleaned = TextCleaner.cleanEmailText(originals);
+
+      // If content cleaned resulted in a change (meaning artifacts were removed/fixed)
+      if (cleaned !== originals) {
+        updateDoc.run(cleaned, doc.id);
+        clearSentences.run(doc.id);
+        clearPages.run(doc.id);
+        clearMentions.run(doc.id); // Clear mentions so they get re-extracted on next pass
+        cleanedCount++;
+        if (cleanedCount % 50 === 0) process.stdout.write(`   Sanitized ${cleanedCount}...\r`);
+      }
+    }
+  });
+
+  if (candidates.length > 0) {
+    tx();
+  }
+
+  if (cleanedCount > 0) {
+    console.log(`   ✅ Sanitized and reset ${cleanedCount} documents.`);
+  } else {
+    console.log(`   ✅ No documents required sanitization.`);
+  }
 }

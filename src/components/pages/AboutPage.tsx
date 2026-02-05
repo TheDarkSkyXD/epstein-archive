@@ -323,10 +323,16 @@ const timelineEvents = [
       'V12.1.2: DOJ Ingestion Expansion. Configured discovery for massive 1.3M file ingestion across Data Sets 9-11.',
   },
   {
-    date: 'Feb 5, 2026',
+    date: 'Feb 4, 2026',
     source: 'Epstein Archive',
     content:
-      'V12.7.4: Storage Expanded & Ingestion Resumed. Infrastructure upgraded to 310GB. Active processing of Sets 9-11 (1.3M documents) continuing.',
+      'V12.5.0: Platform Standardization. Finalized platform upgrade, archival enrichment, and script decommissioning to streamline maintenance.',
+  },
+  {
+    date: 'Feb 4, 2026',
+    source: 'Epstein Archive',
+    content:
+      'V12.6.0: Entity UX Overhaul. Redesigned entity cards with profile photos, stats hierarchy, and "Spicy Passages" for immediate evidence visibility.',
   },
   {
     date: 'Feb 4, 2026',
@@ -339,6 +345,36 @@ const timelineEvents = [
     source: 'Epstein Archive',
     content:
       'V12.7.1: Dynamic Risk Intelligence. Implemented automated risk scoring engine based on exposure, network links, and codeword detection. Consolidated VIP entities including "izmo", "Trump, Doinac", and "p daddy".',
+  },
+  {
+    date: 'Feb 5, 2026',
+    source: 'Epstein Archive',
+    content:
+      'V12.6.1: Social Intelligence. Added dynamic social previews, Open Graph tags, and a live Ingestion Dashboard to track DOJ processing status.',
+  },
+  {
+    date: 'Feb 5, 2026',
+    source: 'Epstein Archive',
+    content:
+      'V12.7.2: Visual Overhaul. Re-engineered network graph with radial clustering, node glowing, and translucent edge rendering for premium aesthetics.',
+  },
+  {
+    date: 'Feb 5, 2026',
+    source: 'Epstein Archive',
+    content:
+      'V12.7.3: Pipeline Resilience. Resolved ingestion crashes by adding schema checks for claim_triples and document sentences.',
+  },
+  {
+    date: 'Feb 5, 2026',
+    source: 'Epstein Archive',
+    content:
+      'V12.7.4: Storage Expanded & Ingestion Resumed. Infrastructure upgraded to 310GB. Active processing of Sets 9-11 (1.3M documents) continuing.',
+  },
+  {
+    date: 'Feb 6, 2026',
+    source: 'Epstein Archive',
+    content:
+      'V12.7.5: UI Polish & Documentation Protocols. Refined entity display logic and established strict deployment governance for version integrity.',
   },
 ];
 

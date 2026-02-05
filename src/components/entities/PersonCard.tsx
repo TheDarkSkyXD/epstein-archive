@@ -152,7 +152,7 @@ const PersonCard: React.FC<PersonCardProps> = ({
                   <Icon key={i} name="Flag" size="xs" color="inherit" className="w-3 h-3" />
                 ))}
               </div>
-              <span className="ml-1">{rating > 0 ? `LVL ${rating}` : 'UNRATED'}</span>
+              {rating === 0 && <span className="ml-1">UNRATED</span>}
             </div>
           </div>
 
@@ -218,26 +218,29 @@ const PersonCard: React.FC<PersonCardProps> = ({
       {/* Red Flag / Bio Section */}
       <div className="mb-4 min-h-[3rem]">
         {/* Prioritize Red Flag Description if high risk, else Bio */}
-        {rating >= 3 && person.red_flag_description ? (
-          <div className="bg-red-950/20 border-l-2 border-red-500/50 pl-3 py-1">
-            <p className="text-xs text-red-100/90 leading-relaxed line-clamp-3 italic">
-              "
-              {searchTerm
-                ? highlightText(
-                    person.red_flag_description.replace(/^Red Flag Index \d+[\s:-]*/i, ''),
-                    searchTerm,
-                  )
-                : person.red_flag_description.replace(/^Red Flag Index \d+[\s:-]*/i, '')}
-              "
+        {(() => {
+          const cleanRedFlag = person.red_flag_description
+            ?.replace(/^Red Flag Index \d+[\s:-]*/i, '')
+            .trim();
+
+          if (rating >= 3 && cleanRedFlag) {
+            return (
+              <div className="bg-red-950/20 border-l-2 border-red-500/50 pl-3 py-1">
+                <p className="text-xs text-red-100/90 leading-relaxed line-clamp-3 italic">
+                  "{searchTerm ? highlightText(cleanRedFlag, searchTerm) : cleanRedFlag}"
+                </p>
+              </div>
+            );
+          }
+
+          return person.bio ? (
+            <p className="text-xs text-slate-300 leading-relaxed line-clamp-3 font-normal">
+              {searchTerm ? highlightText(person.bio, searchTerm) : person.bio}
             </p>
-          </div>
-        ) : person.bio ? (
-          <p className="text-xs text-slate-300 leading-relaxed line-clamp-3 font-normal">
-            {searchTerm ? highlightText(person.bio, searchTerm) : person.bio}
-          </p>
-        ) : (
-          <p className="text-xs text-slate-500 italic">No description available.</p>
-        )}
+          ) : (
+            <p className="text-xs text-slate-500 italic">No description available.</p>
+          );
+        })()}
       </div>
 
       {/* Evidence Badges */}

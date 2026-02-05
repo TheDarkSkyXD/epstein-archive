@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## 12.7.5 — 2026-02-06
+
+### UI & Documentation
+
+- **Entity Card Refinements**: Removed redundant "LVL" text and fixed empty red quote blocks for cleaner UI.
+- **Documentation Protocol**: Established strict versioning and history preservation rules in `CLAUDE.md`.
+- **History Backfill**: Restored missing version history entries (v12.5.0 - v12.7.3) in the About page.
+
 ## 12.7.4 — 2026-02-05
 
 ### Infrastructure

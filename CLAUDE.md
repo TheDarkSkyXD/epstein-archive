@@ -45,6 +45,9 @@ This file provides guidance to Claude Code (claude.ai/code) and human developers
 
 # PROJECT DOCUMENTATION
 
+- **[Technical Overview](file:///Users/veland/Downloads/Epstein%20Files/epstein-archive/TECHNICAL_OVERVIEW.md)**: Architecture and dataflow schematics.
+- **[Deployment Protocol](file:///Users/veland/Downloads/Epstein%20Files/epstein-archive/deploy.sh)**: Canonical source of truth for PROD updates.
+
 ## Project Overview
 
 **Epstein Archive** is a monolithic React + Express platform for investigative analysis of the Epstein corpus. It combines a high-performance document viewer, forensic entity graph, and full-text search engine into a single deployable unit.

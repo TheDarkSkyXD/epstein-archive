@@ -484,7 +484,7 @@ export const entitiesRepository = {
              proximity_score,
              risk_score, 
              confidence, 
-             metadata_json
+             NULL as metadata_json
            FROM entity_relationships 
            WHERE source_entity_id=?
            ORDER BY proximity_score DESC

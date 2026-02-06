@@ -98,7 +98,7 @@ export const relationshipsRepository = {
         `)
       : db.prepare(`
           SELECT source_entity_id as source_id, target_entity_id as target_id, relationship_type, proximity_score,
-                 risk_score, confidence, metadata_json
+                 risk_score, confidence, NULL as metadata_json
           FROM entity_relationships
           WHERE source_entity_id = ?
           ORDER BY proximity_score DESC
@@ -201,7 +201,7 @@ export const relationshipsRepository = {
         target_entity_id as target_id, 
         relationship_type,
         proximity_score,
-        risk_score, confidence, metadata_json
+        risk_score, confidence, NULL as metadata_json
       FROM entity_relationships 
       WHERE source_entity_id=?
       ORDER BY proximity_score DESC

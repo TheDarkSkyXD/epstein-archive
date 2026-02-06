@@ -155,6 +155,12 @@ const timelineEvents = [
     content:
       'V12.7.6: Lean Schema & Interactive Intelligence. Standardized risk/type columns, backfilled 700k+ records, and launched interactive metadata chips for instant archive filtering.',
   },
+  {
+    date: 'Feb 6, 2026',
+    source: 'Epstein Archive',
+    content:
+      'V12.8.0: Redaction Transparency & Pipeline Hardening. Fixed 0% redaction reporting bug and executed corpus-wide forensic backfill for 780k+ documents.',
+  },
 ];
 
 // Helper to get color classes

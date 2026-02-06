@@ -1,3 +1,11 @@
+## v12.8.0 — 2026-02-06
+
+### Redaction Transparency & Infrastructure Stabilization
+
+- **Redaction Metrics Fixed**: Resolved a state synchronization bug where the archive was incorrectly reporting 0% redaction levels. All forensic document tranches (including DOJ 9-11) now correctly reflect their privacy-protection status.
+- **Corpus-Wide Backfill**: Executed a high-performance metadata update across 780,000+ files to restore archival integrity.
+- **Ingestion Pipeline Hardening**: Updated the unified ingestion engine to proactively track and calculate redaction density during the initial forensic pass.
+
 ## v12.7.6 — 2026-02-06
 
 ### Lean Schema & Interactive Intelligence

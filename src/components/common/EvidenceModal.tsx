@@ -12,6 +12,7 @@ import { useModalFocusTrap } from '../../hooks/useModalFocusTrap';
 import { CreateRelationshipModal } from '../entities/CreateRelationshipModal';
 import { EntityEvidencePanel } from '../entities/EntityEvidencePanel';
 import { EntityMediaGallery } from '../entities/EntityMediaGallery';
+import { SignalAnalysis } from './SignalAnalysis';
 
 interface EvidenceModalProps {
   person: Person;
@@ -25,8 +26,10 @@ type Tab = 'overview' | 'evidence' | 'media' | 'network';
 export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
   ({ person, onClose, searchTerm, onDocumentClick }) => {
     const [activeTab, setActiveTab] = useState<Tab>('overview');
+    const [enrichedPerson, setEnrichedPerson] = useState<Person>(person);
     const [documents, setDocuments] = useState<any[]>([]);
     const [loadingDocuments, setLoadingDocuments] = useState(false);
+    const [loadingEnrichment, setLoadingEnrichment] = useState(false);
     const [filterQuery, setFilterQuery] = useState('');
     const [showRelationshipModal, setShowRelationshipModal] = useState(false);
     const { modalRef } = useModalFocusTrap(true);
@@ -39,6 +42,40 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
       document.addEventListener('keydown', handleKeyDown);
       return () => document.removeEventListener('keydown', handleKeyDown);
     }, [onClose]);
+
+    // Fetch full entity details if missing (self-enrichment)
+    useEffect(() => {
+      const fetchEnrichedData = async () => {
+        if (!person.id) return;
+
+        // Only fetch if we are missing key fields
+        const isMissingData =
+          !enrichedPerson.bio ||
+          !enrichedPerson.spicy_passages ||
+          (enrichedPerson.photos?.length || 0) === 0;
+
+        if (isMissingData) {
+          setLoadingEnrichment(true);
+          try {
+            const fullEntity = await apiClient.getEntity(person.id);
+            if (fullEntity) {
+              setEnrichedPerson((prev) => ({
+                ...prev,
+                ...fullEntity,
+                // Ensure photos are formatted correctly
+                photos: fullEntity.photos || prev.photos || [],
+              }));
+            }
+          } catch (error) {
+            console.error('Error enriching entity data:', error);
+          } finally {
+            setLoadingEnrichment(false);
+          }
+        }
+      };
+
+      fetchEnrichedData();
+    }, [person.id]);
 
     // Fetch documents
     useEffect(() => {
@@ -148,11 +185,11 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
               <div className="flex items-center gap-5 flex-1 min-w-0">
                 {/* Large Avatar */}
                 <div className="shrink-0 relative">
-                  {person.photos && person.photos.length > 0 ? (
+                  {enrichedPerson.photos && enrichedPerson.photos.length > 0 ? (
                     <div className="w-20 h-20 rounded-xl overflow-hidden border-2 border-slate-600 shadow-xl ring-4 ring-slate-800/50">
                       <img
-                        src={`/api/media/images/${person.photos[0].id}/thumbnail`}
-                        alt={person.name}
+                        src={`/api/media/images/${enrichedPerson.photos[0].id}/thumbnail`}
+                        alt={enrichedPerson.name}
                         className="w-full h-full object-cover"
                       />
                     </div>
@@ -166,7 +203,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
                     className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-slate-900 flex items-center justify-center border border-slate-700`}
                   >
                     <div
-                      className={`w-3 h-3 rounded-full ${person.status?.toLowerCase().includes('deceased') ? 'bg-slate-500' : 'bg-green-500'} shadow-[0_0_8px_currentColor]`}
+                      className={`w-3 h-3 rounded-full ${enrichedPerson.status?.toLowerCase().includes('deceased') ? 'bg-slate-500' : 'bg-green-500'} shadow-[0_0_8px_currentColor]`}
                     />
                   </div>
                 </div>
@@ -174,14 +211,25 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
                 <div className="min-w-0 space-y-1">
                   <div className="flex items-center gap-3">
                     <h1 className="text-2xl md:text-3xl font-bold text-white truncate tracking-tight">
-                      {searchTerm ? renderHighlightedText(person.name, searchTerm) : person.name}
+                      {searchTerm
+                        ? renderHighlightedText(enrichedPerson.name, searchTerm)
+                        : enrichedPerson.name}
                     </h1>
-                    {getRiskBadge()}
+                    <div className="flex items-center gap-2">
+                      {getRiskBadge()}
+                      {(enrichedPerson as any).isVip && (
+                        <span className="px-2 py-0.5 rounded text-[10px] uppercase font-black tracking-[0.15em] bg-yellow-500 text-black shadow-[0_0_12px_rgba(234,179,8,0.4)] animate-pulse">
+                          VIP ANCHOR
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <p className="text-slate-400 font-medium flex items-center gap-2 text-sm uppercase tracking-wide">
-                    {person.role || 'Entity'}
+                    {enrichedPerson.entity_type || 'Entity'}
                     <span className="w-1 h-1 rounded-full bg-slate-600" />
-                    <span className="text-slate-500">{person.title || 'No Title'}</span>
+                    <span className="text-slate-500">
+                      {enrichedPerson.title || (enrichedPerson as any).primaryRole || 'No Title'}
+                    </span>
                   </p>
                 </div>
               </div>
@@ -209,7 +257,11 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
               {[
                 { id: 'overview', label: 'Overview', icon: Layout },
                 { id: 'evidence', label: `Documents (${documents.length})`, icon: FileText },
-                { id: 'media', label: `Media (${person.photos?.length || 0})`, icon: Image },
+                {
+                  id: 'media',
+                  label: `Media (${enrichedPerson.photos?.length || 0})`,
+                  icon: Image,
+                },
                 { id: 'network', label: 'Network Graph', icon: Activity },
               ].map((tab) => (
                 <button
@@ -238,7 +290,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 flex flex-col items-center justify-center text-center">
                     <span className="text-3xl font-bold text-white mb-1">
-                      {person.mentions?.toLocaleString() || 0}
+                      {enrichedPerson.mentions?.toLocaleString() || 0}
                     </span>
                     <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
                       Mentions
@@ -246,7 +298,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
                   </div>
                   <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 flex flex-col items-center justify-center text-center">
                     <span className="text-3xl font-bold text-blue-400 mb-1">
-                      {person.files || 0}
+                      {enrichedPerson.files || 0}
                     </span>
                     <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
                       Documents
@@ -254,16 +306,16 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
                   </div>
                   <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 flex flex-col items-center justify-center text-center">
                     <span className="text-3xl font-bold text-purple-400 mb-1">
-                      {person.photos?.length || 0}
+                      {enrichedPerson.photos?.length || 0}
                     </span>
                     <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
                       Photos
                     </span>
                   </div>
                   <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 flex flex-col items-center justify-center text-center">
-                    <RedFlagIndex value={person.red_flag_rating || 0} size="lg" />
+                    <RedFlagIndex value={enrichedPerson.red_flag_rating || 0} size="lg" />
                     <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold mt-2">
-                      Risk Rating
+                      Risk Index
                     </span>
                   </div>
                 </div>
@@ -272,53 +324,67 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-4">
                     {/* Bio Section */}
-                    {person.bio && (
-                      <div className="bg-slate-900 border border-slate-700/50 rounded-xl p-5 shadow-sm">
+                    {enrichedPerson.bio ? (
+                      <div className="bg-slate-900 border border-slate-700/50 rounded-xl p-5 shadow-sm relative overflow-hidden group">
+                        {loadingEnrichment && (
+                          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-10">
+                            <Activity className="w-5 h-5 text-cyan-500 animate-spin" />
+                          </div>
+                        )}
                         <h3 className="text-cyan-400 font-semibold mb-3 flex items-center gap-2">
                           <Icon name="Info" size="sm" />
                           Biography
                         </h3>
-                        <p className="text-slate-300 leading-relaxed text-sm">{person.bio}</p>
-                        {(person.birthDate || person.deathDate) && (
+                        <p className="text-slate-300 leading-relaxed text-sm">
+                          {searchTerm
+                            ? renderHighlightedText(enrichedPerson.bio, searchTerm)
+                            : enrichedPerson.bio}
+                        </p>
+                        {(enrichedPerson.birthDate || enrichedPerson.deathDate) && (
                           <div className="mt-4 pt-4 border-t border-slate-800 flex flex-wrap gap-4 text-xs text-slate-500">
-                            {person.birthDate && (
+                            {enrichedPerson.birthDate && (
                               <div className="flex items-center gap-1.5">
-                                <Icon name="Calendar" size="xs" /> Born: {person.birthDate}
+                                <Icon name="Calendar" size="xs" /> Born: {enrichedPerson.birthDate}
                               </div>
                             )}
-                            {person.deathDate && (
+                            {enrichedPerson.deathDate && (
                               <div className="flex items-center gap-1.5">
-                                <Icon name="X" size="xs" /> Died: {person.deathDate}
+                                <Icon name="X" size="xs" /> Died: {enrichedPerson.deathDate}
                               </div>
                             )}
                           </div>
                         )}
                       </div>
-                    )}
-                    {person.red_flag_description && (
-                      <div className="bg-red-950/10 border border-red-900/30 rounded-xl p-5 relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-1 h-full bg-red-500/50" />
-                        <h3 className="text-red-400 font-semibold mb-2 flex items-center gap-2">
-                          <Icon name="AlertTriangle" size="sm" />
-                          Red Flag Summary
-                        </h3>
-                        <p className="text-red-200/80 leading-relaxed text-sm">
-                          {person.red_flag_description.replace(/^Red Flag Index \d+[\s:-]*/i, '')}
+                    ) : loadingEnrichment ? (
+                      <div className="bg-slate-900 border border-slate-700/50 rounded-xl p-5 h-32 animate-pulse flex items-center justify-center text-slate-500">
+                        Analyzing Forensic Bio...
+                      </div>
+                    ) : (
+                      <div className="bg-slate-900/40 border border-slate-800/50 border-dashed rounded-xl p-5 text-center">
+                        <p className="text-slate-500 text-sm">
+                          No biography extracted for this entity.
                         </p>
                       </div>
                     )}
 
+                    {enrichedPerson.red_flag_description && (
+                      <SignalAnalysis
+                        description={enrichedPerson.red_flag_description}
+                        rating={enrichedPerson.red_flag_rating || 0}
+                      />
+                    )}
+
                     {/* Black Book Entry */}
-                    {person.blackBookEntry && (
+                    {enrichedPerson.blackBookEntry && (
                       <div className="bg-purple-950/10 border border-purple-900/30 rounded-xl p-5">
                         <h3 className="text-purple-400 font-semibold mb-3 flex items-center gap-2">
                           <Icon name="Book" size="sm" />
                           Black Book Entry
                         </h3>
                         <div className="space-y-3">
-                          {person.blackBookEntry.phoneNumbers?.length > 0 && (
+                          {enrichedPerson.blackBookEntry.phoneNumbers?.length > 0 && (
                             <div className="flex flex-wrap gap-2">
-                              {person.blackBookEntry.phoneNumbers.map(
+                              {enrichedPerson.blackBookEntry.phoneNumbers.map(
                                 (phone: string, i: number) => (
                                   <span
                                     key={i}
@@ -331,7 +397,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
                             </div>
                           )}
                           <p className="text-slate-400 text-sm italic border-l-2 border-purple-800/50 pl-3">
-                            {person.blackBookEntry.notes || 'No notes in entry.'}
+                            {enrichedPerson.blackBookEntry.notes || 'No notes in entry.'}
                           </p>
                         </div>
                       </div>
@@ -340,29 +406,39 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
 
                   {/* Recent Evidence Snippets */}
                   <div className="space-y-4">
-                    <h3 className="text-slate-300 font-semibold flex items-center gap-2">
-                      <Icon name="FileText" size="sm" /> Top Key Passages
+                    <h3 className="text-slate-300 font-semibold flex items-center gap-2 font-mono uppercase tracking-widest text-xs">
+                      <Icon name="Search" size="xs" className="text-red-500" /> forensic spicy
+                      passages
                     </h3>
-                    {person.spicy_passages && person.spicy_passages.length > 0 ? (
+                    {loadingEnrichment ? (
                       <div className="space-y-3">
-                        {person.spicy_passages.slice(0, 3).map((passage, i) => (
+                        {[1, 2].map((i) => (
+                          <div key={i} className="bg-slate-900/50 h-24 rounded-lg animate-pulse" />
+                        ))}
+                      </div>
+                    ) : enrichedPerson.spicy_passages &&
+                      enrichedPerson.spicy_passages.length > 0 ? (
+                      <div className="space-y-3 font-serif">
+                        {enrichedPerson.spicy_passages.slice(0, 5).map((passage, i) => (
                           <div
                             key={i}
-                            className="bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm"
+                            className="bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm group/passage hover:border-red-500/30 transition-all"
                           >
-                            <p className="text-slate-300 mb-2 line-clamp-3">
-                              "...{passage.passage}..."
+                            <p className="text-slate-300 mb-2 leading-relaxed italic opacity-90 group-hover/passage:opacity-100">
+                              &ldquo;{passage.passage}&rdquo;
                             </p>
-                            <div className="flex justify-between items-center text-xs text-slate-500">
-                              <span className="text-red-400 font-mono">{passage.keyword}</span>
-                              <span>{passage.filename}</span>
+                            <div className="flex justify-between items-center text-[10px] text-slate-500 uppercase tracking-tighter">
+                              <span className="text-red-500 font-bold bg-red-950/30 px-1 rounded">
+                                {passage.keyword}
+                              </span>
+                              <span className="opacity-60">{passage.filename}</span>
                             </div>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <div className="text-slate-500 italic text-sm">
-                        No specific key passages extracted yet.
+                      <div className="text-slate-500 italic text-sm p-8 bg-slate-900/30 rounded-xl border border-dashed border-slate-800 text-center">
+                        No forensic high-significance passages extracted.
                       </div>
                     )}
                   </div>
@@ -399,7 +475,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
                         key={i}
                         onClick={() => {
                           const documentToOpen = { ...doc, id: doc.id || doc.documentId };
-                          onDocumentClick?.(documentToOpen, searchTerm || person.name);
+                          onDocumentClick?.(documentToOpen, searchTerm || enrichedPerson.name);
                         }}
                         className="bg-slate-900/50 border border-slate-800 hover:border-cyan-500/30 rounded-lg p-4 cursor-pointer transition-all hover:bg-slate-800 group"
                       >
@@ -438,14 +514,20 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
             {/* MEDIA TAB */}
             {activeTab === 'media' && (
               <div className="max-w-6xl mx-auto">
-                <EntityMediaGallery media={person.photos || []} entityName={person.name} />
+                <EntityMediaGallery
+                  media={enrichedPerson.photos || []}
+                  entityName={enrichedPerson.name}
+                />
               </div>
             )}
 
             {/* NETWORK TAB */}
             {activeTab === 'network' && (
               <div className="h-full min-h-[500px] bg-slate-900 rounded-xl overflow-hidden border border-slate-800">
-                <EntityEvidencePanel entityId={String(person.id)} entityName={person.name} />
+                <EntityEvidencePanel
+                  entityId={String(enrichedPerson.id)}
+                  entityName={enrichedPerson.name}
+                />
               </div>
             )}
           </div>

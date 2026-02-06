@@ -134,6 +134,10 @@ function storeRedactions(documentId: number, content: string) {
     );
   }
   if (count > 0) {
+    db.prepare('UPDATE documents SET has_redactions = 1, redaction_count = ? WHERE id = ?').run(
+      count,
+      documentId,
+    );
     console.log(`\n      📝 Stored ${count} redactions for doc ${documentId}`);
   }
 }

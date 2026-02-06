@@ -16,7 +16,7 @@ export const relationshipsRepository = {
     const params: any = { entityId };
 
     if (filters.minWeight !== undefined) {
-      where.push('(COALESCE(strength, 0) >= @minWeight)');
+      where.push('(proximity_score >= @minWeight)');
       params.minWeight = filters.minWeight;
     }
     if (filters.minConfidence !== undefined) {
@@ -34,7 +34,7 @@ export const relationshipsRepository = {
     }
 
     const sql = `
-      SELECT source_entity_id as source_id, target_entity_id as target_id, relationship_type, strength as proximity_score,
+      SELECT source_entity_id as source_id, target_entity_id as target_id, relationship_type, proximity_score,
              0 as risk_score, 1 as confidence, NULL as metadata_json
       FROM entity_relationships
       WHERE ${where.join(' AND ')}
@@ -97,11 +97,11 @@ export const relationshipsRepository = {
           LIMIT 200
         `)
       : db.prepare(`
-          SELECT source_entity_id as source_id, target_entity_id as target_id, relationship_type, strength as proximity_score,
-                 0 as risk_score, confidence, NULL as metadata_json
+          SELECT source_entity_id as source_id, target_entity_id as target_id, relationship_type, proximity_score,
+                 risk_score, confidence, metadata_json
           FROM entity_relationships
           WHERE source_entity_id = ?
-          ORDER BY strength DESC
+          ORDER BY proximity_score DESC
           LIMIT 200
         `);
 
@@ -156,8 +156,8 @@ export const relationshipsRepository = {
         `
       SELECT 
         COUNT(*) as total_relationships,
-        AVG(COALESCE(strength, 0)) as avg_proximity_score,
-        0 as avg_risk_score,
+        AVG(proximity_score) as avg_proximity_score,
+        AVG(risk_score) as avg_risk_score,
         AVG(confidence) as avg_confidence
       FROM entity_relationships
     `,
@@ -200,11 +200,11 @@ export const relationshipsRepository = {
         source_entity_id as source_id, 
         target_entity_id as target_id, 
         relationship_type,
-        strength as proximity_score,
-        0 as risk_score, confidence, NULL as metadata_json
+        proximity_score,
+        risk_score, confidence, metadata_json
       FROM entity_relationships 
       WHERE source_entity_id=?
-      ORDER BY strength DESC
+      ORDER BY proximity_score DESC
       LIMIT ?
     `,
       )

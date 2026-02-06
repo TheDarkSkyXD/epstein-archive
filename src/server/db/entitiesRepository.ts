@@ -481,13 +481,13 @@ export const entitiesRepository = {
              source_entity_id as source_id, 
              target_entity_id as target_id, 
              relationship_type as type,
-             strength as proximity_score,
-             0 as risk_score, 
+             proximity_score,
+             risk_score, 
              confidence, 
-             NULL as metadata_json
+             metadata_json
            FROM entity_relationships 
            WHERE source_entity_id=?
-           ORDER BY strength DESC
+           ORDER BY proximity_score DESC
            LIMIT ?
          `,
       )

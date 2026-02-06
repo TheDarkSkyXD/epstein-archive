@@ -41,233 +41,6 @@ const faqs = [
   },
 ];
 
-const DOCUMENT_SOURCES = [
-  {
-    title: 'Unredacted Black Book',
-    description: "Jeffrey Epstein's personal address book (2004-2005).",
-    redactionStatus: 'Unredacted (0%)',
-    redactionColor: 'green',
-    impact: 'CRITICAL',
-    impactColor: 'purple',
-    link: '/blackbook',
-    search: null,
-  },
-  {
-    title: 'Flight Logs',
-    description: "Pilot logs for Epstein's aircraft (1991-2003).",
-    redactionStatus: 'Unredacted (0%)',
-    redactionColor: 'green',
-    impact: 'CRITICAL',
-    impactColor: 'purple',
-    link: null,
-    search: 'Flight Log',
-  },
-  {
-    title: 'Giuffre v. Maxwell Unsealed',
-    description: 'Jan 2024 unsealing of court motions and exhibits.',
-    redactionStatus: 'Minimal (~5%)',
-    redactionColor: 'yellow',
-    impact: 'HIGH',
-    impactColor: 'blue',
-    link: null,
-    search: 'Unsealed',
-  },
-  {
-    title: 'Maxwell Deposition 2016',
-    description: 'Deposition of Ghislaine Maxwell in Giuffre v. Maxwell.',
-    redactionStatus: 'Unredacted (0%)',
-    redactionColor: 'green',
-    impact: 'HIGH',
-    impactColor: 'blue',
-    link: null,
-    search: 'Maxwell Deposition',
-  },
-  {
-    title: 'Giuffre Deposition 2016',
-    description: "Transcript of Virginia Giuffre's testimony.",
-    redactionStatus: 'Unredacted (0%)',
-    redactionColor: 'green',
-    impact: 'HIGH',
-    impactColor: 'blue',
-    link: null,
-    search: 'Giuffre Deposition',
-  },
-  {
-    title: 'Sjoberg Deposition 2016',
-    description: 'Testimony regarding Prince Andrew and Maxwell.',
-    redactionStatus: 'Unredacted (0%)',
-    redactionColor: 'green',
-    impact: 'HIGH',
-    impactColor: 'blue',
-    link: null,
-    search: 'Sjoberg',
-  },
-  {
-    title: 'Katie Johnson Complaint',
-    description: '2016 lawsuit against Epstein and Trump.',
-    redactionStatus: 'Unredacted (0%)',
-    redactionColor: 'green',
-    impact: 'HIGH',
-    impactColor: 'blue',
-    link: null,
-    search: 'Katie Johnson',
-  },
-  {
-    title: 'Katie Johnson Video Testimony',
-    description: 'Video deposition and interviews from the 2016 complaint.',
-    redactionStatus: 'Unredacted (0%)',
-    redactionColor: 'green',
-    impact: 'HIGH',
-    impactColor: 'blue',
-    link: '/media',
-    search: null,
-  },
-  {
-    title: 'Sascha Riley Testimony',
-    description: 'Audio recordings of Sascha Riley describing her experiences.',
-    redactionStatus: 'Unredacted (0%)',
-    redactionColor: 'green',
-    impact: 'CRITICAL',
-    impactColor: 'purple',
-    link: '/media',
-    search: null,
-  },
-  {
-    title: 'Federal Indictment 2019',
-    description: 'SDNY indictment charging sex trafficking.',
-    redactionStatus: 'Unredacted (0%)',
-    redactionColor: 'green',
-    impact: 'HIGH',
-    impactColor: 'blue',
-    link: null,
-    search: 'Indictment',
-  },
-  {
-    title: "FBI Files 'Phase 1'",
-    description: 'FBI interview summaries and internal memos.',
-    redactionStatus: 'Moderately Redacted (~35%)',
-    redactionColor: 'yellow',
-    impact: 'MEDIUM',
-    impactColor: 'slate',
-    link: null,
-    search: 'FBI',
-  },
-  {
-    title: 'Estate Emails',
-    description: 'Post-2008 correspondence (House Oversight).',
-    redactionStatus: 'Low Redaction (~12%)',
-    redactionColor: 'green',
-    impact: 'MEDIUM',
-    impactColor: 'slate',
-    link: null,
-    search: 'Oversight',
-  },
-  {
-    title: 'The Birthday Book',
-    description: '2003 Birthday messages and photos.',
-    redactionStatus: 'Unredacted (0%)',
-    redactionColor: 'green',
-    impact: 'MEDIUM',
-    impactColor: 'slate',
-    link: null,
-    search: 'Birthday Book',
-  },
-  {
-    title: 'DOJ Data Set 9',
-    description:
-      'Released Feb 1, 2026: 531,217 prosecutorial files, witness statements, and investigative documents.',
-    redactionStatus: 'Partial (~29%)',
-    redactionColor: 'yellow',
-    impact: 'CRITICAL',
-    impactColor: 'purple',
-    link: null,
-    search: 'Data Set 9',
-  },
-  {
-    title: 'DOJ Data Set 10',
-    description:
-      'Released Feb 1, 2026: 452,031 financial records including Deutsche Bank statements and JPM invoices.',
-    redactionStatus: 'Redacted (~48%)',
-    redactionColor: 'red',
-    impact: 'CRITICAL',
-    impactColor: 'purple',
-    link: null,
-    search: 'Data Set 10',
-  },
-  {
-    title: 'DOJ Data Set 11',
-    description:
-      'Released Feb 1, 2026: 331,681 media files and short documents (Videos, Photos, Metadata).',
-    redactionStatus: 'Redacted (~52%)',
-    redactionColor: 'red',
-    impact: 'HIGH',
-    impactColor: 'blue',
-    link: null,
-    search: 'Data Set 11',
-  },
-  {
-    title: 'DOJ Data Set 12',
-    description:
-      'Released Feb 1, 2026: 202 high-priority investigative case referrals and correspondence.',
-    redactionStatus: 'Redacted (~35%)',
-    redactionColor: 'yellow',
-    impact: 'HIGH',
-    impactColor: 'blue',
-    link: null,
-    search: 'Data Set 12',
-  },
-  {
-    title: 'DOJ Discovery VOL00001',
-    description: 'FBI evidence from July 2019 NY mansion search (3,158 items).',
-    redactionStatus: 'Unredacted (0%)',
-    redactionColor: 'green',
-    impact: 'CRITICAL',
-    impactColor: 'purple',
-    link: null,
-    search: 'EFTA',
-  },
-  {
-    title: 'DOJ Discovery VOL00002-8',
-    description: 'Additional discovery volumes containing heavily redacted documents.',
-    redactionStatus: 'Heavy Redaction (~95%)',
-    redactionColor: 'red',
-    impact: 'LOW',
-    impactColor: 'slate',
-    link: null,
-    search: 'DOJ VOL0000',
-  },
-  {
-    title: 'DOJ Discovery VOL00007-8',
-    description: 'Dec 2025 release: Financial records, witness statements, and communications.',
-    redactionStatus: 'Moderate Redaction (~40%)',
-    redactionColor: 'yellow',
-    impact: 'HIGH',
-    impactColor: 'blue',
-    link: null,
-    search: 'DOJ VOL00007 OR DOJ VOL00008',
-  },
-  {
-    title: 'DOJ Discovery VOL00009+',
-    description: 'Jan 2026 release: Additional evidence and victim statements.',
-    redactionStatus: 'Partial Redaction (~50%)',
-    redactionColor: 'yellow',
-    impact: 'HIGH',
-    impactColor: 'blue',
-    link: null,
-    search: 'DOJ VOL00009',
-  },
-  {
-    title: 'USVI Property Evidence',
-    description: 'Photos from Little Saint James island properties.',
-    redactionStatus: 'Unredacted (0%)',
-    redactionColor: 'green',
-    impact: 'HIGH',
-    impactColor: 'blue',
-    link: '/media',
-    search: null,
-  },
-];
-
 const timelineEvents = [
   {
     date: 'Jan 3, 2024',
@@ -414,36 +187,9 @@ export const AboutPage: React.FC = () => {
     albums: 0,
   });
 
-  const [ingestionStats, setIngestionStats] = useState<
-    { source_collection: string; count: number }[]
-  >([]);
+  const [documentSources, setDocumentSources] = useState<any[]>([]);
   const [pipelineStatus, setPipelineStatus] = useState<any | null>(null);
   const [activeFaq, setActiveFaq] = useState(0);
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const data = await optimizedDataService.getStatistics();
-        if (data) {
-          if (data.collectionCounts) {
-            setIngestionStats(data.collectionCounts);
-          }
-          if (data.pipeline_status) {
-            setPipelineStatus(data.pipeline_status);
-          }
-        }
-      } catch (e) {
-        console.error('Failed to fetch pipeline stats', e);
-      }
-    };
-    fetchStats();
-
-    // Carousel auto-play
-    const timer = setInterval(() => {
-      setActiveFaq((prev) => (prev + 1) % faqs.length);
-    }, 8000);
-    return () => clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -461,11 +207,47 @@ export const AboutPage: React.FC = () => {
           media: mediaRes.totalImages || 0,
           albums: mediaRes.totalAlbums || 0,
         });
+
+        if (statsRes.collectionStats) {
+          // Merge with static metadata for links/searches if needed
+          const enhancedStats = statsRes.collectionStats.map((src: any) => {
+            // Manual overrides for known collections to add links/search
+            let link = null;
+            let search = src.title;
+
+            if (src.title.includes('Black Book')) {
+              link = '/blackbook';
+              search = null;
+            } else if (src.title.includes('Flight Logs')) {
+              search = 'Flight Log';
+            } else if (
+              src.title.includes('Video') ||
+              src.title.includes('Media') ||
+              src.title.includes('Testimony')
+            ) {
+              link = '/media';
+              search = null;
+            }
+
+            return { ...src, link, search };
+          });
+          setDocumentSources(enhancedStats);
+        }
+
+        if (statsRes.pipeline_status) {
+          setPipelineStatus(statsRes.pipeline_status);
+        }
       } catch (e) {
         console.error('Failed to fetch about page stats', e);
       }
     };
     fetchData();
+
+    // Carousel auto-play
+    const timer = setInterval(() => {
+      setActiveFaq((prev) => (prev + 1) % faqs.length);
+    }, 8000);
+    return () => clearInterval(timer);
   }, []);
 
   return (
@@ -560,7 +342,7 @@ export const AboutPage: React.FC = () => {
 
           {/* Mobile Card View (< md) */}
           <div className="space-y-4 md:hidden">
-            {DOCUMENT_SOURCES.map((source, idx) => (
+            {documentSources.map((source, idx) => (
               <div
                 key={idx}
                 className="bg-slate-700/30 p-4 rounded-lg border border-slate-700/50 space-y-3 shadow-sm"
@@ -621,7 +403,7 @@ export const AboutPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="text-sm divide-y divide-slate-700/50">
-                {DOCUMENT_SOURCES.map((source, idx) => (
+                {documentSources.map((source, idx) => (
                   <tr key={idx} className="hover:bg-slate-700/30 transition-colors">
                     <td className="py-3 px-4 font-medium text-white">{source.title}</td>
                     <td className="py-3 px-4 text-slate-300">{source.description}</td>

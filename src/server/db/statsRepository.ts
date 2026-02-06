@@ -1,5 +1,77 @@
 import { getDb } from './connection.js';
 
+// Helper function to avoid circular reference
+const getCollectionStatsHelper = () => {
+  const db = getDb();
+  try {
+    // Aggregate stats per collection
+    const rows = db
+      .prepare(
+        `
+        SELECT 
+          source_collection as title,
+          COUNT(*) as documentCount,
+          SUM(CASE WHEN has_redactions = 1 OR has_redactions = 'true' THEN 1 ELSE 0 END) as redactedCount,
+          ROUND(AVG(red_flag_rating), 1) as avgRisk
+        FROM documents
+        WHERE source_collection IS NOT NULL AND source_collection != ''
+        GROUP BY source_collection
+        ORDER BY documentCount DESC
+      `,
+      )
+      .all() as { title: string; documentCount: number; redactedCount: number; avgRisk: number }[];
+
+    return rows.map((row) => {
+      const redactionPct =
+        row.documentCount > 0 ? (row.redactedCount / row.documentCount) * 100 : 0;
+
+      // Determine redaction status string and color
+      let redactionStatus = 'Unredacted (0%)';
+      let redactionColor = 'green';
+
+      if (redactionPct > 90) {
+        redactionStatus = `Heavy Redaction (~${Math.round(redactionPct)}%)`;
+        redactionColor = 'red';
+      } else if (redactionPct > 30) {
+        redactionStatus = `Moderate Redaction (~${Math.round(redactionPct)}%)`;
+        redactionColor = 'yellow';
+      } else if (redactionPct > 0) {
+        redactionStatus = `Minimal (~${Math.round(redactionPct)}%)`;
+        redactionColor = 'yellow'; // Or green depending on preference
+      }
+
+      // Determine impact based on risk
+      let impact = 'LOW';
+      let impactColor = 'slate';
+
+      if (row.avgRisk >= 4) {
+        impact = 'CRITICAL';
+        impactColor = 'purple';
+      } else if (row.avgRisk >= 2.5) {
+        impact = 'HIGH';
+        impactColor = 'blue';
+      } else if (row.avgRisk >= 1.5) {
+        impact = 'MEDIUM';
+        impactColor = 'slate';
+      }
+
+      return {
+        title: row.title,
+        description: `Contains ${row.documentCount.toLocaleString()} documents.`, // Default description, UI can enhance
+        redactionStatus,
+        redactionColor,
+        impact,
+        impactColor,
+        documentCount: row.documentCount,
+        rawAvgRisk: row.avgRisk,
+      };
+    });
+  } catch (e) {
+    console.error('Failed to fetch collection stats:', e);
+    return [];
+  }
+};
+
 export const statsRepository = {
   getStatistics: () => {
     const db = getDb();
@@ -223,6 +295,7 @@ export const statsRepository = {
       `,
         )
         .all() as { source_collection: string; count: number }[],
+      collectionStats: getCollectionStatsHelper(),
       pipeline_status: statsRepository.getPipelineProgress(),
     };
   },

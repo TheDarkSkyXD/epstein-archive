@@ -556,6 +556,13 @@ export const AboutPage: React.FC = () => {
             protective orders.
           </p>
 
+          <h4 className="text-xl font-semibold text-white mt-4">DOJ Data Sets 9-12 (2026)</h4>
+          <p>
+            The latest release comprises over 1.3 million documents from the post-Maxwell trial era.
+            This massive tranche includes "Data Set 12" (DOJ VOL00012), a smaller but highly
+            specific collection of forensic artifacts currently under analysis.
+          </p>
+
           {/* Ingestion Progress Dashboard (Requested placement) */}
           <div className="bg-slate-800/80 rounded-xl p-8 my-8 border border-blue-500/30 shadow-lg shadow-blue-500/5 backdrop-blur-sm not-prose">
             <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">

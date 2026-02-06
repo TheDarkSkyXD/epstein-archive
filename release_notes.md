@@ -1,3 +1,41 @@
+## v12.8.0 — 2026-02-06
+
+### Redaction Transparency & Infrastructure Stabilization
+
+- **Redaction Metrics Fixed**: Resolved a state synchronization bug where the archive was incorrectly reporting 0% redaction levels. All forensic document tranches (including DOJ 9-11) now correctly reflect their privacy-protection status.
+- **Corpus-Wide Backfill**: Executed a high-performance metadata update across 780,000+ files to restore archival integrity.
+- **Ingestion Pipeline Hardening**: Updated the unified ingestion engine to proactively track and calculate redaction density during the initial forensic pass.
+
+## v12.7.6 — 2026-02-06
+
+### Lean Schema & Interactive Intelligence
+
+- **Lean Schema Consolidation**: Unified disparate risk and type columns into a high-performance standardized format.
+- **Interactive Metadata Chips**: Entity roles and titles are now actionable—click to instantly filter the entire archive.
+- **Evidence Modal Enrichment**: Restored rich bio data, high-resolution profile photos, and forensic "Spicy Passages" for VIP entities.
+- **Deployment Hardening**: Integrated auto-formatting and linting into the pre-push protocol to ensure continuous delivery health.
+
+## v12.7.5 — 2026-02-06
+
+### UI Polish & Documentation Protocols
+
+- **Entity Card Refinements**: Removed redundant labels and fixed empty quote blocks for a cleaner investigative interface.
+- **Documentation Hardening**: Established strict versioning rules and history preservation in `CLAUDE.md`.
+
+## v12.7.1 — 2026-02-05
+
+### Intelligence & Risk Calibration
+
+- **Dynamic Risk Scoring Engine**: Recalibrates risk for 82,000+ entities based on network link density and media exposure.
+- **VIP Consolidation**: Automatically resolves aliases for high-profile targets into canonical profiles.
+
+## v12.6.0 — 2026-02-04
+
+### Entity UX Overhaul & Ingestion Dashboard
+
+- **Entity UI Redesign**: Launched new profile cards with photo integration and key stats hierarchy.
+- **Live Ingestion Dashboard**: Real-time observability for the ongoing 1.3M file DOJ ingestion process.
+
 ## v12.5.0 — 2026-02-04
 
 ### Archival Intelligence & Real-Time Observability

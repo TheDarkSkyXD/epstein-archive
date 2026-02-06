@@ -1,6 +1,21 @@
 # Changelog
 
-All notable changes to this project will be documented in this file. The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
+## 12.8.0 — 2026-02-06
+
+### Performance & Transparency Upgrade
+
+- **Redaction Intelligence Restoration**: Fixed a core regression in the ingestion and backfill pipelines that caused redaction status to default to 0% across the archive.
+- **Archive Metrics Backfill**: Successfully recalculated forensic redaction density for the corpus including the massive DOJ 9-11 tranches.
+- **Minor Version Promotion**: Transitioned to v12.8.0 branch to reflect significant stabilization of the intelligence extraction layer.
+
+## 12.7.6 — 2026-02-06
+
+### Lean Schema & Entity Intelligence
+
+- **Lean Schema (Phase 1)**: Standardized risk and entity type columns, backfilled 700k+ records, and removed redundant fallback logic.
+- **Interactive Entity UI**: Role and Title chips in the Entity Modal are now clickable for instant filtering.
+- **Rich Biographical Data**: Restored rendering of bios, profile photos, and key passages in the Evidence Modal.
+- **Risk Scoring Fix**: Resolved high-risk entities incorrectly defaulting to "LOW" in the UI.
 
 ## 12.7.5 — 2026-02-06
 

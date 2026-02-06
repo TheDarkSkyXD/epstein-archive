@@ -661,6 +661,7 @@ async function storeRedactions(documentId: number, content: string, unredactedSp
     // 2. Process "True" Redactions (Text Patterns)
     const redactedPattern = /\[(REDACTED|Media Redacted|Excerpt Redacted|Redacted|redacted)\]/g;
     let match;
+    let count = 0;
     while ((match = redactedPattern.exec(content)) !== null) {
       const start = match.index;
       const end = match.index + match[0].length;
@@ -681,6 +682,15 @@ async function storeRedactions(documentId: number, content: string, unredactedSp
         JSON.stringify(inference.evidence),
         null,
       );
+      count++;
+    }
+
+    if (count > 0) {
+      db.prepare('UPDATE documents SET has_redactions = 1, redaction_count = ? WHERE id = ?').run(
+        count,
+        documentId,
+      );
+      console.log(`\n      📝 Stored ${count} redactions for doc ${documentId}`);
     }
   } catch (e) {
     console.warn('   ⚠️ Failed to store redactions:', e);

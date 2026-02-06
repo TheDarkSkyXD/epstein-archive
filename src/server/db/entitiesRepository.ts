@@ -37,21 +37,14 @@ export const entitiesRepository = {
       }
     }
 
-    // 2. Likelihood Score (Red Flag Rating Mapping)
+    // 2. Risk Level Filter (HIGH/MEDIUM/LOW)
     if (filters?.likelihoodScore && filters.likelihoodScore.length > 0) {
-      const ratingConditions: string[] = [];
-      if (filters.likelihoodScore.includes('HIGH')) {
-        ratingConditions.push('(red_flag_rating >= 4)');
-      }
-      if (filters.likelihoodScore.includes('MEDIUM')) {
-        ratingConditions.push('(red_flag_rating >= 2 AND red_flag_rating < 4)');
-      }
-      if (filters.likelihoodScore.includes('LOW')) {
-        ratingConditions.push('(red_flag_rating < 2 OR red_flag_rating IS NULL)');
-      }
-      if (ratingConditions.length > 0) {
-        whereConditions.push(`(${ratingConditions.join(' OR ')})`);
-      }
+      const riskConditions = filters.likelihoodScore.map((score, i) => {
+        const paramName = `riskScore${i}`;
+        params[paramName] = score.toUpperCase();
+        return `risk_level = @${paramName}`;
+      });
+      whereConditions.push(`(${riskConditions.join(' OR ')})`);
     }
 
     // 3. Red Flag Index explicit range
@@ -98,11 +91,9 @@ export const entitiesRepository = {
       case 'mentions':
         orderByClause = `ORDER BY ${hasPhotoOrder}, mentions DESC, red_flag_rating DESC, full_name ASC`;
         break;
-      case 'spice':
       case 'risk':
       case 'red_flag':
       default:
-        // Default: Quality (Mentions + Photos) > Risk
         orderByClause = `ORDER BY ${hasPhotoOrder}, ${mentionsOrder}, ${safetyOrder}, full_name ASC`;
         break;
     }
@@ -370,8 +361,21 @@ export const entitiesRepository = {
       )
       .all(entity.id) as any[];
 
+    // Fetch photos for this specific entity
+    const photosSql = `
+        SELECT mi.id, mi.title, mi.file_path, mi.red_flag_rating as redFlagRating
+        FROM media_item_people mip 
+        JOIN media_items mi ON mip.media_item_id = mi.id 
+        WHERE mip.entity_id = ?
+        AND (mi.file_type LIKE 'image/%' OR mi.file_type IS NULL)
+        ORDER BY mi.red_flag_rating DESC
+        LIMIT 20
+    `;
+    const photos = db.prepare(photosSql).all(entity.id) as any[];
+
     return {
       ...entity,
+      id: String(entity.id),
       // Map DB fields to frontend expected camelCase
       fullName: entity.full_name,
       primaryRole: entity.primary_role,
@@ -379,11 +383,20 @@ export const entitiesRepository = {
       likelihoodLevel: entity.likelihood_level,
       redFlagRating: entity.red_flag_rating,
       redFlagDescription: entity.red_flag_description,
+      birthDate: entity.birth_date,
+      deathDate: entity.death_date,
+      bio: entity.bio,
+      isVip: Boolean(entity.is_vip),
       fileReferences,
       // Add evidence types
       evidence_types: evidenceTypes.map((et) => et.type_name),
       evidenceTypes: evidenceTypes.map((et) => et.type_name),
       spicy_passages: spicyPassages,
+      photos: photos.map((p) => ({
+        ...p,
+        id: String(p.id),
+        url: `/api/media/images/${p.id}/thumbnail`,
+      })),
       // Add Black Book information if available
       blackBookEntry: blackBookEntry
         ? {

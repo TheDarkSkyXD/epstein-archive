@@ -33,13 +33,12 @@ export interface Person {
     source?: string;
   }>;
   likelihood_score: 'HIGH' | 'MEDIUM' | 'LOW';
-  red_flag_rating?: number; // Red Flag Rating (0-5) - current field
-  red_flag_score?: number; // Red Flag Score
-  red_flag_peppers?: string; // Red Flag Peppers visualization
-  red_flag_description?: string; // Red Flag Description
-  risk_level?: 'HIGH' | 'MEDIUM' | 'LOW'; // Risk level
+  red_flag_rating?: number; // Standard 1-5 rating
+  red_flag_score?: number; // Aggregated score
+  red_flag_peppers?: string;
+  red_flag_description?: string;
+  risk_level?: 'HIGH' | 'MEDIUM' | 'LOW';
   entity_type?: string;
-  entityType?: string;
   blackBookEntry?: {
     phoneNumbers?: string[];
     emailAddresses?: string[];
@@ -100,4 +99,4 @@ export interface SearchFilters {
   dataSource?: string; // Filter by data source (e.g., 'black_book', 'seventh_production')
 }
 
-export type SortOption = 'name' | 'mentions' | 'red_flag' | 'recent' | 'spice' | 'risk';
+export type SortOption = 'name' | 'mentions' | 'red_flag' | 'recent' | 'risk';

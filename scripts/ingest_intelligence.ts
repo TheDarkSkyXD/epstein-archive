@@ -780,7 +780,7 @@ export async function runIntelligencePipeline() {
 
         markAnalyzed.run(doc.id);
       }
-    });
+    })();
 
     console.log(`   Batch complete. New Entities: ${newEntities}, Mentions: ${newMentions}`);
     totalEntities += newEntities;

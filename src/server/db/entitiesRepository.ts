@@ -478,16 +478,16 @@ export const entitiesRepository = {
       .prepare(
         `
            SELECT 
-             source_id, 
-             target_id, 
+             source_entity_id as source_id, 
+             target_entity_id as target_id, 
              relationship_type as type,
-             proximity_score,
-             risk_score, 
+             strength as proximity_score,
+             0 as risk_score, 
              confidence, 
              NULL as metadata_json
            FROM entity_relationships 
-           WHERE source_id=?
-           ORDER BY proximity_score DESC
+           WHERE source_entity_id=?
+           ORDER BY strength DESC
            LIMIT ?
          `,
       )

@@ -16,7 +16,7 @@ export const relationshipsRepository = {
     const params: any = { entityId };
 
     if (filters.minWeight !== undefined) {
-      where.push('(COALESCE(proximity_score, weight) >= @minWeight)');
+      where.push('(COALESCE(strength, 0) >= @minWeight)');
       params.minWeight = filters.minWeight;
     }
     if (filters.minConfidence !== undefined) {
@@ -97,11 +97,11 @@ export const relationshipsRepository = {
           LIMIT 200
         `)
       : db.prepare(`
-          SELECT source_entity_id as source_id, target_entity_id as target_id, relationship_type, COALESCE(proximity_score, weight) as proximity_score,
-                 risk_score, confidence, metadata_json
+          SELECT source_entity_id as source_id, target_entity_id as target_id, relationship_type, strength as proximity_score,
+                 0 as risk_score, confidence, NULL as metadata_json
           FROM entity_relationships
           WHERE source_entity_id = ?
-          ORDER BY proximity_score DESC
+          ORDER BY strength DESC
           LIMIT 200
         `);
 
@@ -156,8 +156,8 @@ export const relationshipsRepository = {
         `
       SELECT 
         COUNT(*) as total_relationships,
-        AVG(COALESCE(proximity_score, weight)) as avg_proximity_score,
-        AVG(COALESCE(risk_score, 0)) as avg_risk_score,
+        AVG(COALESCE(strength, 0)) as avg_proximity_score,
+        0 as avg_risk_score,
         AVG(confidence) as avg_confidence
       FROM entity_relationships
     `,
@@ -200,11 +200,11 @@ export const relationshipsRepository = {
         source_entity_id as source_id, 
         target_entity_id as target_id, 
         relationship_type,
-        COALESCE(proximity_score, weight) as proximity_score,
-        0 as risk_score, confidence, metadata_json
+        strength as proximity_score,
+        0 as risk_score, confidence, NULL as metadata_json
       FROM entity_relationships 
       WHERE source_entity_id=?
-      ORDER BY proximity_score DESC
+      ORDER BY strength DESC
       LIMIT ?
     `,
       )

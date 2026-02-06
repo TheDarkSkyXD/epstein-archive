@@ -117,6 +117,9 @@ pnpm build:prod   # Build frontend AND backend (to /dist)
 ./deploy.sh --db-only # **DB ONLY** Safe Atomic Swap
 ```
 
+> [!IMPORTANT]
+> **DEPLOYMENT RULE:** Any mention of "deploy" by the user implicitly means "deploy to PROD". Always use the production environment for deployment-related tasks unless a specific staging/dev environment is explicitly requested.
+
 ## Deployment Protocol (STRICT)
 
 **EVERY deployment to production MUST follow this sequence:**

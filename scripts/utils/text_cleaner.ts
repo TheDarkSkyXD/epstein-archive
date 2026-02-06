@@ -9,7 +9,44 @@
 import { decode } from 'html-entities';
 import quotedPrintable from 'quoted-printable';
 
+declare const process: any;
+
+import { AIEnrichmentService } from '../../src/server/services/AIEnrichmentService.js';
+
 export class TextCleaner {
+  /**
+   * Cleans text extracted from emails (Async version for AI enrichment).
+   */
+  static async cleanEmailTextAsync(text: string, context?: string): Promise<string> {
+    if (!text) return '';
+
+    // Phase 1: Conventional Cleaning
+    const cleaned = this.cleanEmailText(text);
+    return await this.applyAiEnrichmentIfEnabled(cleaned, context);
+  }
+
+  /**
+   * Cleans text extracted from OCR (Async version for AI enrichment).
+   */
+  static async cleanOcrTextAsync(text: string, context?: string): Promise<string> {
+    if (!text) return '';
+
+    // Phase 1: Conventional Cleaning
+    const cleaned = this.cleanOcrText(text);
+    return await this.applyAiEnrichmentIfEnabled(cleaned, context);
+  }
+
+  /**
+   * Shared logic for applying AI enrichment if toggled on.
+   */
+  private static async applyAiEnrichmentIfEnabled(text: string, context?: string): Promise<string> {
+    const ENABLE_AI = process.env.ENABLE_AI_ENRICHMENT === 'true';
+    if (ENABLE_AI && context && text.includes('=')) {
+      return await AIEnrichmentService.repairMimeWildcards(text, context);
+    }
+    return text;
+  }
+
   /**
    * Cleans text extracted from emails.
    * Focuses on encoding issues, HTML entities, and common email artifacts.

@@ -792,7 +792,7 @@ async function processEmail(filePath: string): Promise<{
       textBody = rawContent.toString('utf-8');
     }
 
-    const cleanText = TextCleaner.cleanEmailText(textBody || '');
+    const cleanText = await TextCleaner.cleanEmailTextAsync(textBody || '', parsed.subject || '');
 
     // Extract metadata
     const getAddressText = (addr: any) => {
@@ -990,6 +990,24 @@ async function processDocument(
     // buffer already read above for sha256
     // Use SHA-256 as the primary hash now
 
+    // Initial metadata object
+    let metadataObj: any = {
+      originalFilename: basename(filePath),
+      size: stats.size,
+      mtime: stats.mtime,
+      collection: collection.name,
+    };
+
+    // Merge if we have extra metadata (e.g. from email parsing)
+    if (meta.metadata_json) {
+      try {
+        const parsed = JSON.parse(meta.metadata_json);
+        metadataObj = { ...metadataObj, ...parsed };
+      } catch (e) {
+        // ignore invalid json
+      }
+    }
+
     // Extract text based on content-type
     if (mimeType === 'application/pdf') {
       // First, extract from the original PDF so we can estimate baseline coverage.
@@ -1014,7 +1032,13 @@ async function processDocument(
       const pdfBuffer = readFileSync(pdfPathForOcr);
       const result = await extractTextFromPdf(pdfBuffer);
       const unredactedText = (result.text || '').trim();
-      content = TextCleaner.cleanOcrText(unredactedText);
+
+      // AI Forensic Repair Integration
+      content = await TextCleaner.cleanOcrTextAsync(
+        unredactedText,
+        metadataObj.subject || basename(filePath),
+      );
+
       pageCount = result.pageCount;
       granularPages = result.pages;
 
@@ -1040,7 +1064,13 @@ async function processDocument(
       pageCount = 1;
     } else if (mimeType.startsWith('image/')) {
       const result = await extractTextFromImage(filePath);
-      content = TextCleaner.cleanOcrText(result.text);
+
+      // AI Forensic Repair Integration
+      content = await TextCleaner.cleanOcrTextAsync(
+        result.text,
+        metadataObj.subject || basename(filePath),
+      );
+
       pageCount = result.pageCount;
     } else if (mimeType === 'application/zip' || ext === '.zip') {
       const archResult = await processArchive(filePath);
@@ -1077,24 +1107,6 @@ async function processDocument(
     const contentPreview = content.substring(0, 500);
     const wordCount = content ? (content.match(/\b[\w']+\b/g) || []).length : 0;
     // fileType already calculated above
-
-    // Initial metadata object
-    let metadataObj: any = {
-      originalFilename: basename(filePath),
-      size: stats.size,
-      mtime: stats.mtime,
-      collection: collection.name,
-    };
-
-    // Merge if we have extra metadata (e.g. from email parsing)
-    if (meta.metadata_json) {
-      try {
-        const parsed = JSON.parse(meta.metadata_json);
-        metadataObj = { ...metadataObj, ...parsed };
-      } catch (e) {
-        // ignore invalid json
-      }
-    }
 
     // Update the skeleton document with extracted content
     await db.run(

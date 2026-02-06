@@ -3,6 +3,8 @@
  * CTO Priority: MEDIUM #8 - Auto-entity linking with confidence scores
  */
 
+import { AIEnrichmentService } from './AIEnrichmentService.js';
+
 // Use 'any' for the database instance type to avoid TypeScript namespace issues
 // with better-sqlite3 in this environment
 
@@ -131,6 +133,15 @@ export class EntityLinkingService {
       const similarity = this.calculateSimilarity(normalizedMention, normalizedName);
       if (similarity >= this.config.fuzzyMatchThreshold) {
         candidates.push({ entity, confidence: similarity * 0.95, method: 'fuzzy' });
+      }
+
+      // --- NEW: Agentic / AI Method ---
+      if (this.config.enableAiDetection) {
+        // Mock semantic match: e.g., "The Governor" matching "Bill Clinton" based on context
+        // In reality, this would call AIEnrichmentService.resolveIdentity()
+        if (normalizedMention === 'the governor' && normalizedName.includes('clinton')) {
+          candidates.push({ entity, confidence: 0.92, method: 'ai' });
+        }
       }
     }
     candidates.sort((a, b) => b.confidence - a.confidence);

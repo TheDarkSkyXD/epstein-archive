@@ -88,7 +88,7 @@ module.exports = {
         NODE_ENV: 'production',
         DB_PATH: './epstein-archive.db',
         SQLITE_BUSY_TIMEOUT: '30000',
-      }
+      },
     },
   ],
 

@@ -1,1 +1,17 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "Running pre-push quality check..."
+
+# Run formatter
 pnpm format
+
+# Check for uncommitted changes (dirty state) caused by formatter or otherwise
+if [ -n "$(git status --porcelain)" ]; then
+    echo "❌ Error: Found uncommitted changes after formatting."
+    echo "Please commit these changes before pushing:"
+    git status --short
+    exit 1
+fi
+
+echo "✅ Pre-push check passed."

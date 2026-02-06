@@ -1,6 +1,34 @@
-# Distributed AI Enrichment - Three-Mac Strategy
+# Distributed AI Enrichment
 
-## Prerequisites (All Macs)
+## Two Approaches
+
+### Option A: Exo Cluster (Recommended for macOS 26.2+)
+
+Uses Apple's Thunderbolt 5 RDMA for automatic distributed inference. All Macs act as one unified LLM.
+
+**Setup:**
+
+```bash
+# On each Mac
+pip install exo
+exo  # Starts discovery and joins cluster automatically
+```
+
+**Run enrichment:**
+
+```bash
+AI_PROVIDER=exo_cluster npx tsx scripts/ai_enrich_batch.ts
+```
+
+No ID partitioning needed - Exo distributes work automatically!
+
+---
+
+### Option B: Manual ID-Range Partitioning (Any macOS)
+
+Each Mac processes a specific ID range independently. Results merged at the end.
+
+## Prerequisites (Option B Only)
 
 1. **Clone the repo** (or git pull if already cloned)
 2. **Install Ollama**: `brew install ollama`
@@ -8,7 +36,7 @@
 4. **Start Ollama**: `ollama serve` (run in background terminal)
 5. **Copy the database**: Transfer `epstein-archive.db` (~1.9GB) to each Mac
 
-## Load Distribution
+## Load Distribution (Option B)
 
 | Mac         | RAM  | ID Range          | Documents | Command   |
 | :---------- | :--- | :---------------- | :-------- | :-------- |

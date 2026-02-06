@@ -213,7 +213,7 @@ export const relationshipsRepository = {
     const docs = db
       .prepare(
         `
-      SELECT id, file_name as title, evidence_type, metadata_json, red_flag_rating, word_count, date_created
+      SELECT id, file_name as title, evidence_type, NULL as metadata_json, red_flag_rating, word_count, date_created
       FROM documents
       WHERE file_name LIKE ? OR content LIKE ?
       LIMIT ?

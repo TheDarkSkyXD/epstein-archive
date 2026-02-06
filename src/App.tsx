@@ -382,7 +382,7 @@ function App() {
               deathDate: data.deathDate,
               photos: data.photos,
               blackBookEntry: data.blackBookEntry,
-              entityType: data.entityType || data.type,
+              entity_type: data.entity_type || (data as any).type,
               red_flag_description: data.redFlagDescription || data.red_flag_description,
             };
             setSelectedPerson(person);

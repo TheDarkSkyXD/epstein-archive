@@ -265,7 +265,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
 
         {/* Footer - Flex item at bottom */}
         <div className="flex-none p-4 border-t border-slate-800/50 bg-slate-900/95 text-center">
-          <p className="text-[10px] text-slate-500">v12.1.2 • Epstein Archive</p>
+          <p className="text-[10px] text-slate-500">v{__APP_VERSION__} • Epstein Archive</p>
         </div>
       </div>
     </div>

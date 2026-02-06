@@ -37,21 +37,14 @@ export const entitiesRepository = {
       }
     }
 
-    // 2. Likelihood Score (Red Flag Rating Mapping)
+    // 2. Risk Level Filter (HIGH/MEDIUM/LOW)
     if (filters?.likelihoodScore && filters.likelihoodScore.length > 0) {
-      const ratingConditions: string[] = [];
-      if (filters.likelihoodScore.includes('HIGH')) {
-        ratingConditions.push('(red_flag_rating >= 4)');
-      }
-      if (filters.likelihoodScore.includes('MEDIUM')) {
-        ratingConditions.push('(red_flag_rating >= 2 AND red_flag_rating < 4)');
-      }
-      if (filters.likelihoodScore.includes('LOW')) {
-        ratingConditions.push('(red_flag_rating < 2 OR red_flag_rating IS NULL)');
-      }
-      if (ratingConditions.length > 0) {
-        whereConditions.push(`(${ratingConditions.join(' OR ')})`);
-      }
+      const riskConditions = filters.likelihoodScore.map((score, i) => {
+        const paramName = `riskScore${i}`;
+        params[paramName] = score.toUpperCase();
+        return `risk_level = @${paramName}`;
+      });
+      whereConditions.push(`(${riskConditions.join(' OR ')})`);
     }
 
     // 3. Red Flag Index explicit range
@@ -98,11 +91,9 @@ export const entitiesRepository = {
       case 'mentions':
         orderByClause = `ORDER BY ${hasPhotoOrder}, mentions DESC, red_flag_rating DESC, full_name ASC`;
         break;
-      case 'spice':
       case 'risk':
       case 'red_flag':
       default:
-        // Default: Quality (Mentions + Photos) > Risk
         orderByClause = `ORDER BY ${hasPhotoOrder}, ${mentionsOrder}, ${safetyOrder}, full_name ASC`;
         break;
     }

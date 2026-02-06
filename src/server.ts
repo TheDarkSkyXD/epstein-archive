@@ -1108,14 +1108,11 @@ app.get('/api/entities', cacheMiddleware(300), async (req, res, next) => {
       evidenceTypes: entity.evidence_types || entity.evidenceTypes || [],
       photos: photosByEntity[entity.id] || [],
       spicy_passages: entity.red_flag_passages || entity.spicyPassages || [],
-      likelihood_score:
-        entity.likelihood_level || entity.likelihoodScore || entity.likelihoodLevel || 'LOW',
-      red_flag_score: entity.red_flag_score || entity.redFlagScore || 0,
-      red_flag_rating: entity.red_flag_rating || entity.redFlagRating || 0,
+      likelihood_score: (entity.risk_level || entity.riskLevel || 'LOW').toUpperCase(),
+      red_flag_score: entity.red_flag_score !== undefined ? entity.red_flag_score : 0,
+      red_flag_rating: entity.red_flag_rating !== undefined ? entity.red_flag_rating : 0,
       red_flag_peppers:
-        entity.red_flag_rating || entity.redFlagRating
-          ? '🚩'.repeat(entity.red_flag_rating || entity.redFlagRating)
-          : '🏳️',
+        entity.red_flag_rating !== undefined ? '🚩'.repeat(entity.red_flag_rating) : '🏳️',
       red_flag_description:
         entity.red_flag_description ||
         entity.redFlagDescription ||
@@ -1241,9 +1238,9 @@ app.get('/api/entities/:id', async (req, res, next) => {
       evidence_types: entity.evidence_types || entity.evidenceTypes || [],
       evidenceTypes: entity.evidence_types || entity.evidenceTypes || [],
       spicy_passages: entity.spicyPassages || [],
-      likelihood_score: entity.likelihoodLevel,
-      red_flag_score: entity.redFlagScore !== undefined ? entity.redFlagScore : 0,
-      red_flag_rating: entity.redFlagRating !== undefined ? entity.redFlagRating : 0,
+      likelihood_score: (entity.risk_level || entity.riskLevel || 'LOW').toUpperCase(),
+      red_flag_score: entity.red_flag_score !== undefined ? entity.red_flag_score : 0,
+      red_flag_rating: entity.red_flag_rating !== undefined ? entity.red_flag_rating : 0,
       red_flag_peppers:
         entity.redFlagRating !== undefined ? '🚩'.repeat(entity.redFlagRating) : '🏳️',
       red_flag_description:
@@ -2158,8 +2155,8 @@ app.get('/api/evidence/search', async (req, res, next) => {
         contexts: entity.contexts || [],
         evidence_types: entity.evidence_types || entity.evidenceTypes || [],
         spicy_passages: entity.spicyPassages || [],
-        likelihood_score: entity.likelihoodLevel,
-        red_flag_score: entity.redFlagScore !== undefined ? entity.redFlagScore : 0,
+        likelihood_score: (entity.risk_level || entity.riskLevel || 'LOW').toUpperCase(),
+        red_flag_score: entity.red_flag_score !== undefined ? entity.red_flag_score : 0,
         red_flag_rating: redFlagRating,
         red_flag_peppers:
           redFlagRating !== undefined ? redFlagIndicators.repeat(redFlagRating) : '🏳️',

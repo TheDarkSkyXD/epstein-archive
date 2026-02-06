@@ -1,3 +1,33 @@
+## v12.7.6 — 2026-02-06
+
+### Lean Schema & Interactive Intelligence
+
+- **Lean Schema Consolidation**: Unified disparate risk and type columns into a high-performance standardized format.
+- **Interactive Metadata Chips**: Entity roles and titles are now actionable—click to instantly filter the entire archive.
+- **Evidence Modal Enrichment**: Restored rich bio data, high-resolution profile photos, and forensic "Spicy Passages" for VIP entities.
+- **Deployment Hardening**: Integrated auto-formatting and linting into the pre-push protocol to ensure continuous delivery health.
+
+## v12.7.5 — 2026-02-06
+
+### UI Polish & Documentation Protocols
+
+- **Entity Card Refinements**: Removed redundant labels and fixed empty quote blocks for a cleaner investigative interface.
+- **Documentation Hardening**: Established strict versioning rules and history preservation in `CLAUDE.md`.
+
+## v12.7.1 — 2026-02-05
+
+### Intelligence & Risk Calibration
+
+- **Dynamic Risk Scoring Engine**: Recalibrates risk for 82,000+ entities based on network link density and media exposure.
+- **VIP Consolidation**: Automatically resolves aliases for high-profile targets into canonical profiles.
+
+## v12.6.0 — 2026-02-04
+
+### Entity UX Overhaul & Ingestion Dashboard
+
+- **Entity UI Redesign**: Launched new profile cards with photo integration and key stats hierarchy.
+- **Live Ingestion Dashboard**: Real-time observability for the ongoing 1.3M file DOJ ingestion process.
+
 ## v12.5.0 — 2026-02-04
 
 ### Archival Intelligence & Real-Time Observability

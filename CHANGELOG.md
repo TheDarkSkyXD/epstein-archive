@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## 12.7.6 — 2026-02-06
+
+### Lean Schema & Entity Intelligence
+
+- **Lean Schema (Phase 1)**: Standardized risk and entity type columns, backfilled 700k+ records, and removed redundant fallback logic.
+- **Interactive Entity UI**: Role and Title chips in the Entity Modal are now clickable for instant filtering.
+- **Rich Biographical Data**: Restored rendering of bios, profile photos, and key passages in the Evidence Modal.
+- **Risk Scoring Fix**: Resolved high-risk entities incorrectly defaulting to "LOW" in the UI.
+
 ## 12.7.5 — 2026-02-06
 
 ### UI & Documentation

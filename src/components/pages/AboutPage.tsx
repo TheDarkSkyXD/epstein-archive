@@ -149,6 +149,12 @@ const timelineEvents = [
     content:
       'V12.7.5: UI Polish & Documentation Protocols. Refined entity display logic and established strict deployment governance for version integrity.',
   },
+  {
+    date: 'Feb 6, 2026',
+    source: 'Epstein Archive',
+    content:
+      'V12.7.6: Lean Schema & Interactive Intelligence. Standardized risk/type columns, backfilled 700k+ records, and launched interactive metadata chips for instant archive filtering.',
+  },
 ];
 
 // Helper to get color classes

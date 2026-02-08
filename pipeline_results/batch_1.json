@@ -1,13 +1,55 @@
 [
   {
+    "id": 1,
+    "stages": {
+      "classify": {
+        "redactions": []
+      },
+      "summarize": {
+        "summary": null
+      }
+    },
+    "totalTimeMs": 23
+  },
+  {
+    "id": 2,
+    "stages": {
+      "classify": {
+        "redactions": []
+      }
+    },
+    "totalTimeMs": 0
+  },
+  {
+    "id": 3,
+    "stages": {
+      "classify": {
+        "redactions": []
+      }
+    },
+    "totalTimeMs": 0
+  },
+  {
     "id": 4,
-    "stages": {},
+    "stages": {
+      "classify": {
+        "redactions": []
+      }
+    },
     "totalTimeMs": 0
   },
   {
     "id": 5,
-    "stages": {},
-    "totalTimeMs": 0
+    "stages": {
+      "classify": {
+        "redactions": []
+      },
+      "relate": {
+        "relationships": []
+      }
+    },
+    "totalTimeMs": 2,
+    "error": "table entity_relationships has no column named source_document_id"
   },
   {
     "id": 6,
@@ -16,48 +58,72 @@
         "applied": false,
         "charsDiff": 0
       },
-      "summarize": {
-        "summary": null
+      "classify": {
+        "redactions": []
+      },
+      "relate": {
+        "relationships": []
       }
     },
-    "totalTimeMs": 58
+    "totalTimeMs": 5,
+    "error": "table entity_relationships has no column named source_document_id"
   },
   {
     "id": 7,
-    "stages": {},
+    "stages": {
+      "classify": {
+        "redactions": []
+      }
+    },
     "totalTimeMs": 0
   },
   {
     "id": 8,
-    "stages": {},
+    "stages": {
+      "classify": {
+        "redactions": []
+      }
+    },
     "totalTimeMs": 0
   },
   {
     "id": 9,
     "stages": {
-      "summarize": {
-        "summary": null
+      "classify": {
+        "redactions": []
+      },
+      "relate": {
+        "relationships": []
       }
     },
-    "totalTimeMs": 10
+    "totalTimeMs": 2,
+    "error": "table entity_relationships has no column named source_document_id"
   },
   {
     "id": 10,
     "stages": {
-      "summarize": {
-        "summary": null
+      "classify": {
+        "redactions": []
+      },
+      "relate": {
+        "relationships": []
       }
     },
-    "totalTimeMs": 2
+    "totalTimeMs": 2,
+    "error": "table entity_relationships has no column named source_document_id"
   },
   {
     "id": 11,
     "stages": {
-      "summarize": {
-        "summary": null
+      "classify": {
+        "redactions": []
+      },
+      "relate": {
+        "relationships": []
       }
     },
-    "totalTimeMs": 2
+    "totalTimeMs": 2,
+    "error": "table entity_relationships has no column named source_document_id"
   },
   {
     "id": 12,
@@ -66,16 +132,24 @@
         "applied": false,
         "charsDiff": 0
       },
-      "summarize": {
-        "summary": null
+      "classify": {
+        "redactions": []
+      },
+      "relate": {
+        "relationships": []
       }
     },
-    "totalTimeMs": 3
+    "totalTimeMs": 3,
+    "error": "table entity_relationships has no column named source_document_id"
   },
   {
     "id": 13,
-    "stages": {},
-    "totalTimeMs": 1
+    "stages": {
+      "classify": {
+        "redactions": []
+      }
+    },
+    "totalTimeMs": 0
   },
   {
     "id": 14,
@@ -84,30 +158,46 @@
         "applied": false,
         "charsDiff": 0
       },
-      "summarize": {
-        "summary": null
+      "classify": {
+        "redactions": []
+      },
+      "relate": {
+        "relationships": []
+      }
+    },
+    "totalTimeMs": 2,
+    "error": "table entity_relationships has no column named source_document_id"
+  },
+  {
+    "id": 15,
+    "stages": {
+      "classify": {
+        "redactions": []
       }
     },
     "totalTimeMs": 0
   },
   {
-    "id": 15,
-    "stages": {},
-    "totalTimeMs": 0
-  },
-  {
     "id": 16,
-    "stages": {},
+    "stages": {
+      "classify": {
+        "redactions": []
+      }
+    },
     "totalTimeMs": 0
   },
   {
     "id": 17,
     "stages": {
-      "summarize": {
-        "summary": null
+      "classify": {
+        "redactions": []
+      },
+      "relate": {
+        "relationships": []
       }
     },
-    "totalTimeMs": 1
+    "totalTimeMs": 2,
+    "error": "table entity_relationships has no column named source_document_id"
   },
   {
     "id": 18,
@@ -116,15 +206,23 @@
         "applied": false,
         "charsDiff": 0
       },
-      "summarize": {
-        "summary": null
+      "classify": {
+        "redactions": []
+      },
+      "relate": {
+        "relationships": []
       }
     },
-    "totalTimeMs": 2
+    "totalTimeMs": 2,
+    "error": "table entity_relationships has no column named source_document_id"
   },
   {
     "id": 19,
-    "stages": {},
+    "stages": {
+      "classify": {
+        "redactions": []
+      }
+    },
     "totalTimeMs": 0
   },
   {
@@ -134,15 +232,23 @@
         "applied": false,
         "charsDiff": 0
       },
-      "summarize": {
-        "summary": null
+      "classify": {
+        "redactions": []
+      },
+      "relate": {
+        "relationships": []
       }
     },
-    "totalTimeMs": 1
+    "totalTimeMs": 2,
+    "error": "table entity_relationships has no column named source_document_id"
   },
   {
     "id": 21,
-    "stages": {},
+    "stages": {
+      "classify": {
+        "redactions": []
+      }
+    },
     "totalTimeMs": 0
   },
   {
@@ -152,15 +258,23 @@
         "applied": false,
         "charsDiff": 0
       },
-      "summarize": {
-        "summary": null
+      "classify": {
+        "redactions": []
+      },
+      "relate": {
+        "relationships": []
       }
     },
-    "totalTimeMs": 3
+    "totalTimeMs": 2,
+    "error": "table entity_relationships has no column named source_document_id"
   },
   {
     "id": 23,
-    "stages": {},
+    "stages": {
+      "classify": {
+        "redactions": []
+      }
+    },
     "totalTimeMs": 0
   },
   {
@@ -170,11 +284,15 @@
         "applied": false,
         "charsDiff": 0
       },
-      "summarize": {
-        "summary": null
+      "classify": {
+        "redactions": []
+      },
+      "relate": {
+        "relationships": []
       }
     },
-    "totalTimeMs": 2
+    "totalTimeMs": 1,
+    "error": "table entity_relationships has no column named source_document_id"
   },
   {
     "id": 25,
@@ -183,11 +301,15 @@
         "applied": false,
         "charsDiff": 0
       },
-      "summarize": {
-        "summary": null
+      "classify": {
+        "redactions": []
+      },
+      "relate": {
+        "relationships": []
       }
     },
-    "totalTimeMs": 8
+    "totalTimeMs": 3,
+    "error": "table entity_relationships has no column named source_document_id"
   },
   {
     "id": 26,
@@ -196,11 +318,15 @@
         "applied": false,
         "charsDiff": 0
       },
-      "summarize": {
-        "summary": null
+      "classify": {
+        "redactions": []
+      },
+      "relate": {
+        "relationships": []
       }
     },
-    "totalTimeMs": 2
+    "totalTimeMs": 2,
+    "error": "table entity_relationships has no column named source_document_id"
   },
   {
     "id": 27,
@@ -209,16 +335,24 @@
         "applied": false,
         "charsDiff": 0
       },
-      "summarize": {
-        "summary": null
+      "classify": {
+        "redactions": []
+      },
+      "relate": {
+        "relationships": []
       }
     },
-    "totalTimeMs": 2
+    "totalTimeMs": 2,
+    "error": "table entity_relationships has no column named source_document_id"
   },
   {
     "id": 28,
-    "stages": {},
-    "totalTimeMs": 0
+    "stages": {
+      "classify": {
+        "redactions": []
+      }
+    },
+    "totalTimeMs": 1
   },
   {
     "id": 29,
@@ -227,11 +361,15 @@
         "applied": false,
         "charsDiff": 0
       },
-      "summarize": {
-        "summary": null
+      "classify": {
+        "redactions": []
+      },
+      "relate": {
+        "relationships": []
       }
     },
-    "totalTimeMs": 2
+    "totalTimeMs": 2,
+    "error": "table entity_relationships has no column named source_document_id"
   },
   {
     "id": 30,
@@ -240,11 +378,15 @@
         "applied": false,
         "charsDiff": 0
       },
-      "summarize": {
-        "summary": null
+      "classify": {
+        "redactions": []
+      },
+      "relate": {
+        "relationships": []
       }
     },
-    "totalTimeMs": 1
+    "totalTimeMs": 1,
+    "error": "table entity_relationships has no column named source_document_id"
   },
   {
     "id": 31,
@@ -253,11 +395,15 @@
         "applied": false,
         "charsDiff": 0
       },
-      "summarize": {
-        "summary": null
+      "classify": {
+        "redactions": []
+      },
+      "relate": {
+        "relationships": []
       }
     },
-    "totalTimeMs": 0
+    "totalTimeMs": 2,
+    "error": "table entity_relationships has no column named source_document_id"
   },
   {
     "id": 32,
@@ -266,11 +412,15 @@
         "applied": false,
         "charsDiff": 0
       },
-      "summarize": {
-        "summary": null
+      "classify": {
+        "redactions": []
+      },
+      "relate": {
+        "relationships": []
       }
     },
-    "totalTimeMs": 1
+    "totalTimeMs": 1,
+    "error": "table entity_relationships has no column named source_document_id"
   },
   {
     "id": 33,
@@ -279,15 +429,23 @@
         "applied": false,
         "charsDiff": 0
       },
-      "summarize": {
-        "summary": null
+      "classify": {
+        "redactions": []
+      },
+      "relate": {
+        "relationships": []
       }
     },
-    "totalTimeMs": 1
+    "totalTimeMs": 2,
+    "error": "table entity_relationships has no column named source_document_id"
   },
   {
     "id": 34,
-    "stages": {},
+    "stages": {
+      "classify": {
+        "redactions": []
+      }
+    },
     "totalTimeMs": 0
   },
   {
@@ -297,11 +455,15 @@
         "applied": false,
         "charsDiff": 0
       },
-      "summarize": {
-        "summary": null
+      "classify": {
+        "redactions": []
+      },
+      "relate": {
+        "relationships": []
       }
     },
-    "totalTimeMs": 1
+    "totalTimeMs": 1,
+    "error": "table entity_relationships has no column named source_document_id"
   },
   {
     "id": 36,
@@ -310,15 +472,23 @@
         "applied": false,
         "charsDiff": 0
       },
-      "summarize": {
-        "summary": null
+      "classify": {
+        "redactions": []
+      },
+      "relate": {
+        "relationships": []
       }
     },
-    "totalTimeMs": 0
+    "totalTimeMs": 2,
+    "error": "table entity_relationships has no column named source_document_id"
   },
   {
     "id": 37,
-    "stages": {},
+    "stages": {
+      "classify": {
+        "redactions": []
+      }
+    },
     "totalTimeMs": 0
   },
   {
@@ -328,11 +498,15 @@
         "applied": false,
         "charsDiff": 0
       },
-      "summarize": {
-        "summary": null
+      "classify": {
+        "redactions": []
+      },
+      "relate": {
+        "relationships": []
       }
     },
-    "totalTimeMs": 1
+    "totalTimeMs": 2,
+    "error": "table entity_relationships has no column named source_document_id"
   },
   {
     "id": 39,
@@ -341,20 +515,32 @@
         "applied": false,
         "charsDiff": 0
       },
-      "summarize": {
-        "summary": null
+      "classify": {
+        "redactions": []
+      },
+      "relate": {
+        "relationships": []
       }
     },
-    "totalTimeMs": 1
+    "totalTimeMs": 2,
+    "error": "table entity_relationships has no column named source_document_id"
   },
   {
     "id": 40,
-    "stages": {},
+    "stages": {
+      "classify": {
+        "redactions": []
+      }
+    },
     "totalTimeMs": 0
   },
   {
     "id": 41,
-    "stages": {},
+    "stages": {
+      "classify": {
+        "redactions": []
+      }
+    },
     "totalTimeMs": 0
   },
   {
@@ -364,11 +550,15 @@
         "applied": false,
         "charsDiff": 0
       },
-      "summarize": {
-        "summary": null
+      "classify": {
+        "redactions": []
+      },
+      "relate": {
+        "relationships": []
       }
     },
-    "totalTimeMs": 0
+    "totalTimeMs": 1,
+    "error": "table entity_relationships has no column named source_document_id"
   },
   {
     "id": 43,
@@ -377,11 +567,15 @@
         "applied": false,
         "charsDiff": 0
       },
-      "summarize": {
-        "summary": null
+      "classify": {
+        "redactions": []
+      },
+      "relate": {
+        "relationships": []
       }
     },
-    "totalTimeMs": 1
+    "totalTimeMs": 0,
+    "error": "table entity_relationships has no column named source_document_id"
   },
   {
     "id": 44,
@@ -390,25 +584,41 @@
         "applied": false,
         "charsDiff": 0
       },
-      "summarize": {
-        "summary": null
+      "classify": {
+        "redactions": []
+      },
+      "relate": {
+        "relationships": []
       }
     },
-    "totalTimeMs": 1
+    "totalTimeMs": 1,
+    "error": "table entity_relationships has no column named source_document_id"
   },
   {
     "id": 45,
-    "stages": {},
+    "stages": {
+      "classify": {
+        "redactions": []
+      }
+    },
     "totalTimeMs": 0
   },
   {
     "id": 46,
-    "stages": {},
+    "stages": {
+      "classify": {
+        "redactions": []
+      }
+    },
     "totalTimeMs": 0
   },
   {
     "id": 47,
-    "stages": {},
+    "stages": {
+      "classify": {
+        "redactions": []
+      }
+    },
     "totalTimeMs": 0
   },
   {
@@ -418,47 +628,36 @@
         "applied": false,
         "charsDiff": 0
       },
-      "summarize": {
-        "summary": null
+      "classify": {
+        "redactions": []
+      },
+      "relate": {
+        "relationships": []
       }
     },
-    "totalTimeMs": 1
+    "totalTimeMs": 1,
+    "error": "table entity_relationships has no column named source_document_id"
   },
   {
     "id": 49,
-    "stages": {},
+    "stages": {
+      "classify": {
+        "redactions": []
+      }
+    },
     "totalTimeMs": 0
   },
   {
     "id": 50,
     "stages": {
-      "summarize": {
-        "summary": null
-      }
-    },
-    "totalTimeMs": 1
-  },
-  {
-    "id": 51,
-    "stages": {
-      "repair": {
-        "applied": false,
-        "charsDiff": 0
+      "classify": {
+        "redactions": []
       },
-      "summarize": {
-        "summary": null
+      "relate": {
+        "relationships": []
       }
     },
-    "totalTimeMs": 0
-  },
-  {
-    "id": 52,
-    "stages": {},
-    "totalTimeMs": 0
-  },
-  {
-    "id": 53,
-    "stages": {},
-    "totalTimeMs": 0
+    "totalTimeMs": 1,
+    "error": "table entity_relationships has no column named source_document_id"
   }
 ]

@@ -50,8 +50,8 @@ export class AIEnrichmentService {
   ): string {
     const provider = process.env.AI_PROVIDER || 'local_ollama';
     if (provider === 'exo_cluster') {
-      // Exo uses OpenAI-compatible model names
-      return process.env.EXO_MODEL || 'llama-3.2-1b';
+      // Exo uses OpenAI-compatible model names - use the configured EXO_MODEL
+      return this.EXO_MODEL;
     }
     // Ollama model selection by task
     switch (task) {
@@ -116,73 +116,58 @@ export class AIEnrichmentService {
    * REPAIR: Contextual MIME Wildcard Reconstruction
    * Replaces deterministic repair (regex/dictionary) with semantic inference.
    */
+  /**
+   * REPAIR: Contextual MIME Wildcard Reconstruction
+   */
   static async repairMimeWildcards(text: string, context: string): Promise<string> {
     const isAiEnabled = process.env.ENABLE_AI_ENRICHMENT === 'true';
-    const provider = process.env.AI_PROVIDER || 'mock';
+    if (!isAiEnabled || !text.includes('=')) return text;
 
-    if (!text.includes('=')) return text;
+    const lines = text.split('\n');
+    const repairedLines: string[] = new Array(lines.length);
+    const batchTasks: { lines: string[]; indices: number[] }[] = [];
+    let currentBatch: string[] = [];
+    let currentIndices: number[] = [];
 
-    if (isAiEnabled && provider === 'local_ollama') {
-      const lines = text.split('\n');
-      const repairedLines: string[] = new Array(lines.length);
-      const batchTasks: { lines: string[]; indices: number[] }[] = [];
-      let currentBatch: string[] = [];
-      let currentIndices: number[] = [];
-
-      // Identify corrupted lines and group into batches
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        if (line.includes('=') && line.length > 3 && line.length < 2000) {
-          currentBatch.push(line);
-          currentIndices.push(i);
-        } else {
-          repairedLines[i] = line; // Non-corrupted or too-long lines stay as-is
-        }
-
-        if (currentBatch.length >= 10) {
-          batchTasks.push({ lines: currentBatch, indices: currentIndices });
-          currentBatch = [];
-          currentIndices = [];
-        }
+    // Identify corrupted lines and group into batches
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.includes('=') && line.length > 3 && line.length < 2000) {
+        currentBatch.push(line);
+        currentIndices.push(i);
+      } else {
+        repairedLines[i] = line;
       }
-      if (currentBatch.length > 0) {
+
+      if (currentBatch.length >= 10) {
         batchTasks.push({ lines: currentBatch, indices: currentIndices });
+        currentBatch = [];
+        currentIndices = [];
       }
+    }
+    if (currentBatch.length > 0) {
+      batchTasks.push({ lines: currentBatch, indices: currentIndices });
+    }
 
-      // Process batches in parallel chunks of 4
-      for (let i = 0; i < batchTasks.length; i += 4) {
-        const chunk = batchTasks.slice(i, i + 4);
-        const results = await Promise.all(
-          chunk.map((task) => this.callOllamaRepairBatch(task.lines, context)),
-        );
+    // Process batches in parallel chunks of 8 (better cluster utilization)
+    for (let i = 0; i < batchTasks.length; i += 8) {
+      const chunk = batchTasks.slice(i, i + 8);
+      const results = await Promise.all(
+        chunk.map((task) => this.callRepairBatch(task.lines, context)),
+      );
 
-        // Map results back to original indices
-        chunk.forEach((task, chunkIdx) => {
-          task.indices.forEach((originalIndex, lineIdx) => {
-            repairedLines[originalIndex] = results[chunkIdx][lineIdx];
-          });
+      // Map results back to original indices
+      chunk.forEach((task, chunkIdx) => {
+        task.indices.forEach((originalIndex, lineIdx) => {
+          repairedLines[originalIndex] = results[chunkIdx][lineIdx];
         });
-      }
-
-      return repairedLines.join('\n');
+      });
     }
 
-    // POC MOCK LOGIC: Fallback for local testing/benchmarks
-    let refined = text;
-    const lowerContext = (context || '').toLowerCase();
-
-    if (lowerContext.includes('waiting')) refined = refined.replace(/wh=n/gi, 'when');
-    if (lowerContext.includes('house')) refined = refined.replace(/th=re/gi, 'there');
-    if (lowerContext.includes('attorney')) refined = refined.replace(/cl=ent/gi, 'client');
-    if (lowerContext.includes('agent')) refined = refined.replace(/=9yo/gi, '19yo');
-
-    if (refined === text && text.includes('=')) {
-      refined = text.replace(/=/g, 'e'); // The "sledgehammer" fallback
-    }
-    return refined;
+    return repairedLines.join('\n');
   }
 
-  private static async callOllamaRepairBatch(lines: string[], context: string): Promise<string[]> {
+  private static async callRepairBatch(lines: string[], context: string): Promise<string[]> {
     try {
       const target = lines.join('\n[LINE_BREAK]\n');
       const prompt = `Task: Repair the corrupted lines in the [TARGET] block where '=' is a missing character.
@@ -192,25 +177,12 @@ ${target}
 
 Output the repaired lines, preserving the [LINE_BREAK] markers between them. Output ONLY the repaired text.`;
 
-      const response = await fetch(`${this.OLLAMA_HOST}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: this.OLLAMA_MODEL,
-          prompt,
-          stream: false,
-          options: {
-            temperature: 0.1,
-            num_predict: target.length * 1.2,
-            num_ctx: 32768,
-          },
-        }),
+      const result = await this.callLLM(prompt, {
+        maxTokens: Math.floor(target.length * 1.5),
+        temperature: 0.1,
       });
 
-      if (!response.ok) return lines;
-
-      const data = (await response.json()) as any;
-      const result = data.response?.trim() || '';
+      if (!result) return lines;
 
       const results = result.split('[LINE_BREAK]').map((l: string) => l.trim());
 
@@ -218,7 +190,7 @@ Output the repaired lines, preserving the [LINE_BREAK] markers between them. Out
       if (results.length !== lines.length) {
         const fallback = [];
         for (const line of lines) {
-          fallback.push(await this.callOllamaRepair(line, context));
+          fallback.push(await this.callRepairSingle(line, context));
         }
         return fallback;
       }
@@ -229,34 +201,18 @@ Output the repaired lines, preserving the [LINE_BREAK] markers between them. Out
     }
   }
 
-  private static async callOllamaRepair(text: string, context: string): Promise<string> {
+  private static async callRepairSingle(text: string, context: string): Promise<string> {
     try {
       const prompt = `Task: Repair the corrupted text in the [TARGET] segment where '=' is a missing character.
 Context: "${context}"
 Target: "${text}"
 Output ONLY the repaired text. No quotes.`;
 
-      const response = await fetch(`${this.OLLAMA_HOST}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: this.OLLAMA_MODEL,
-          prompt,
-          stream: false,
-          options: {
-            temperature: 0.1,
-            num_predict: 100,
-          },
-        }),
-      });
-
-      if (!response.ok) return text;
-
-      const data = (await response.json()) as any;
-      const result = data.response?.trim();
+      const result = await this.callLLM(prompt, { maxTokens: 100, temperature: 0.1 });
+      if (!result) return text;
 
       // Basic sanity check to prevent LLM bloat
-      if (result && result.length < text.length * 1.5) {
+      if (result.length < text.length * 1.5) {
         return result;
       }
       return text;
@@ -269,6 +225,9 @@ Output ONLY the repaired text. No quotes.`;
    * CLASSIFY: Semantic Redaction Inference
    * Uses narrative context to categorize redactions.
    * Model: llama3.2:3b (better reasoning for classification)
+   */
+  /**
+   * CLASSIFY: Semantic Redaction Inference
    */
   static async classifyRedaction(
     preContext: string,
@@ -293,24 +252,8 @@ Infer the type of the [REDACTED] entity based on the surrounding context.
 
 ### OUTPUT`;
 
-      const response = await fetch(`${this.OLLAMA_HOST}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: process.env.OLLAMA_CLASSIFY_MODEL || 'llama3.2:3b',
-          prompt,
-          stream: false,
-          options: {
-            temperature: 0.1,
-            num_predict: 20,
-          },
-        }),
-      });
-
-      if (!response.ok) return [];
-
-      const data = (await response.json()) as any;
-      const result = data.response?.trim() || '';
+      const result = await this.callLLM(prompt, { maxTokens: 20, temperature: 0.1 });
+      if (!result) return [];
 
       // Parse the structured output: "PERSON: 0.92"
       const match = result.match(
@@ -333,10 +276,9 @@ Infer the type of the [REDACTED] entity based on the surrounding context.
       return [];
     }
   }
+
   /**
    * RESOLVE: Semantic Entity Disambiguation
-   * Resolves ambiguous mentions like "The Senator" to known entities.
-   * Model: mistral:7b (better reasoning for entity resolution)
    */
   static async resolveIdentity(
     mention: string,
@@ -372,24 +314,8 @@ ${entityList}
 
 ### OUTPUT`;
 
-      const response = await fetch(`${this.OLLAMA_HOST}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: process.env.OLLAMA_RESOLVE_MODEL || 'mistral:7b',
-          prompt,
-          stream: false,
-          options: {
-            temperature: 0.1,
-            num_predict: 50,
-          },
-        }),
-      });
-
-      if (!response.ok) return { entityId: null, confidence: 0, canonicalName: null };
-
-      const data = (await response.json()) as any;
-      const result = data.response?.trim() || '';
+      const result = await this.callLLM(prompt, { maxTokens: 50, temperature: 0.1 });
+      if (!result) return { entityId: null, confidence: 0, canonicalName: null };
 
       // Parse: "MATCH: Jeffrey Epstein: 0.95"
       const match = result.match(/^MATCH:\s*(.+?):\s*([\d.]+)/i);
@@ -412,8 +338,6 @@ ${entityList}
 
   /**
    * EXTRACT: Relationship Mining
-   * Extracts explicit relationships between entities from text.
-   * Model: mistral:7b (better for structured extraction)
    */
   static async extractRelationships(
     paragraph: string,
@@ -440,26 +364,8 @@ ${entityNames.join(', ')}
 
 ### OUTPUT`;
 
-      const response = await fetch(`${this.OLLAMA_HOST}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: process.env.OLLAMA_RESOLVE_MODEL || 'mistral:7b',
-          prompt,
-          stream: false,
-          options: {
-            temperature: 0.1,
-            num_predict: 200,
-          },
-        }),
-      });
-
-      if (!response.ok) return [];
-
-      const data = (await response.json()) as any;
-      const result = data.response?.trim() || '';
-
-      if (result === 'NONE') return [];
+      const result = await this.callLLM(prompt, { maxTokens: 200, temperature: 0.1 });
+      if (!result || result === 'NONE') return [];
 
       // Parse: "[Entity A] -[RELATIONSHIP]-> [Entity B]: 0.85"
       const relationships: {
@@ -490,7 +396,6 @@ ${entityNames.join(', ')}
 
   /**
    * SUMMARIZE: Forensic Document Summary
-   * Generates a concise summary focused on forensic significance.
    */
   static async summarizeDocument(
     content: string,
@@ -514,27 +419,10 @@ Content: "${content.slice(0, 2000)}"
 
 ### SUMMARY`;
 
-      const response = await fetch(`${this.OLLAMA_HOST}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: process.env.OLLAMA_SUMMARIZE_MODEL || 'llama3.2:3b',
-          prompt,
-          stream: false,
-          options: {
-            temperature: 0.3,
-            num_predict: 150,
-          },
-        }),
-      });
-
-      if (!response.ok) return null;
-
-      const data = (await response.json()) as any;
-      const result = data.response?.trim() || '';
+      const result = await this.callLLM(prompt, { maxTokens: 150, temperature: 0.3 });
 
       // Basic sanity check
-      if (result && result.length > 20 && result.length < 500) {
+      if (result && result.length > 20 && result.length < 1000) {
         return result;
       }
 

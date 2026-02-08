@@ -179,3 +179,4 @@ uploads/
 data/ingest
 *.local-backup-*
 ingestion_log.txt
+pipeline_results/

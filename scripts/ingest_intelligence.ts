@@ -110,7 +110,7 @@ export async function runIntelligencePipeline() {
   const resolverVersion = '1.1.0';
 
   // Initialize DB locally within the function to avoid top-level side effects
-  db = new Database(DB_PATH);
+  db = new Database(DB_PATH, { timeout: 30000 });
 
   // 0. Pre-Flight: MIME Sanitization (Critical for uncovering hidden entities)
   sanitizeContent();
@@ -303,7 +303,7 @@ export async function runIntelligencePipeline() {
     }
 
     let resolvedName = vipResolution || cleanName;
-    let resolutionMethod = vipResolution ? 'vip_rule' : 'exact';
+    let resolutionMethod = vipResolution ? 'exact_match' : 'exact_match';
 
     if (!vipResolution) {
       // Boilerplate Check on Context (Hygiene)
@@ -318,7 +318,7 @@ export async function runIntelligencePipeline() {
       const res = resolveAmbiguity(cleanName, resolutionContext);
       if (res) {
         resolvedName = res.resolvedName;
-        resolutionMethod = 'context_rule';
+        resolutionMethod = 'exact_match';
       }
     }
 
@@ -329,7 +329,7 @@ export async function runIntelligencePipeline() {
     if (vipResolution) {
       const rule = VIP_RULES.find((r) => r.canonicalName === vipResolution);
       if (rule) entityType = rule.type;
-    } else if (resolutionMethod === 'context_rule') {
+    } else if (resolutionMethod === 'exact_match' && !vipResolution) {
       const idx = match.index || 0;
       const start = Math.max(0, idx - 100);
       const end = Math.min(fullText.length, idx + rawName.length + 100);

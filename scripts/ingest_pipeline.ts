@@ -366,16 +366,32 @@ async function maybeUnredactPdf(originalPath: string): Promise<UnredactionResult
       const child = execFile('python3', args, { cwd: tmpDir }, (err) => {
         if (err) {
           console.warn('  ⚠️  unredact.py failed, using original PDF:', err.message);
+          // Cleanup on error
+          try {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+          } catch (e) {}
           return resolve({ pdfPath: originalPath });
         }
 
         // Infer name: original.pdf -> original_UNREDACTED.pdf
         const base = basename(originalPath, '.pdf');
-        const candidatePdf = join(tmpDir, `${base}_UNREDACTED.pdf`);
+        const candidatePdf = join(
+          process.cwd(),
+          'data/temp_extraction',
+          `${base}_${Date.now()}.pdf`,
+        );
+        const resultPdf = join(tmpDir, `${base}_UNREDACTED.pdf`);
         const candidateJson = join(tmpDir, `${base}_UNREDACTED.json`);
 
-        if (existsSync(candidatePdf)) {
+        if (existsSync(resultPdf)) {
           let unredactedSpans = [];
+
+          // Copy the result PDF out of tmp before we delete tmp
+          if (!existsSync(join(process.cwd(), 'data/temp_extraction'))) {
+            mkdirSync(join(process.cwd(), 'data/temp_extraction'), { recursive: true });
+          }
+          copyFileSync(resultPdf, candidatePdf);
+
           if (existsSync(candidateJson)) {
             try {
               const raw = readFileSync(candidateJson, 'utf-8');
@@ -389,18 +405,29 @@ async function maybeUnredactPdf(originalPath: string): Promise<UnredactionResult
             }
           }
 
+          // Cleanup tmp dir
+          try {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+          } catch (e) {}
+
           console.log(`   🧰 Using unredacted PDF for OCR: ${candidatePdf}`);
           return resolve({ pdfPath: candidatePdf, unredactedSpans });
         }
 
         // Fallback to original if we cannot locate output
         console.warn('  ⚠️  unredact.py completed but output not found, using original PDF');
+        try {
+          fs.rmSync(tmpDir, { recursive: true, force: true });
+        } catch (e) {}
         resolve({ pdfPath: originalPath });
       });
 
       // If the process errors before callback
       child.on('error', (err) => {
         console.warn('  ⚠️  Failed to spawn unredact.py, using original PDF:', err.message);
+        try {
+          fs.rmSync(tmpDir, { recursive: true, force: true });
+        } catch (e) {}
         resolve({ pdfPath: originalPath });
       });
     } catch (e) {
@@ -964,6 +991,7 @@ async function processDocument(
     let unredactedSpans: any[] | null = null;
     let granularPages: any[] = [];
     const meta: any = metaOverride || {};
+    let pdfPathForOcr: string | null = null;
 
     // Quarantine check (Requirement J)
     if (basename(filePath).toLowerCase().includes('quarantine')) {
@@ -1031,8 +1059,9 @@ async function processDocument(
       // Try to unredact the PDF before extracting any text so we capture
       // redacted-under graphics/text where possible.
       unredactionAttempted = 1;
-      const { pdfPath: pdfPathForOcr, unredactedSpans: unredactedSpansData } =
-        await maybeUnredactPdf(filePath);
+      const unredactResult = await maybeUnredactPdf(filePath);
+      pdfPathForOcr = unredactResult.pdfPath;
+      const unredactedSpansData = unredactResult.unredactedSpans;
 
       if (unredactedSpansData && unredactedSpansData.length > 0) {
         unredactedSpans = unredactedSpansData;
@@ -1164,6 +1193,22 @@ async function processDocument(
         documentId,
       ],
     );
+
+    // Phase 9: Sync Job Completion
+    if (leasedJob) {
+      await jobsRepository.updateJobStatus(leasedJob.id, 'succeeded');
+    }
+
+    // Cleanup temp OCR PDF if it was created
+    if (
+      pdfPathForOcr &&
+      pdfPathForOcr !== filePath &&
+      pdfPathForOcr.includes('data/temp_extraction')
+    ) {
+      try {
+        fs.unlinkSync(pdfPathForOcr);
+      } catch (e) {}
+    }
 
     // Handle attachments if this was an email (Phase 2 Hardening)
     const attachments = (meta as any)._attachments;

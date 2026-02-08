@@ -88,6 +88,7 @@ export const statsRepository = {
         (SELECT COUNT(DISTINCT primary_role) FROM entities WHERE primary_role IS NOT NULL AND primary_role != '') as totalUniqueRoles,
         (SELECT COUNT(*) FROM entities WHERE mentions > 0) as entitiesWithDocuments,
         (SELECT COUNT(*) FROM documents WHERE metadata_json IS NOT NULL AND LENGTH(metadata_json) > 2) as documentsWithMetadata,
+        (SELECT COUNT(*) FROM documents WHERE content_refined IS NOT NULL) as documentsFixed,
         (SELECT COUNT(*) FROM investigations WHERE status = 'active' OR status = 'open') as activeInvestigations
     `,
       )
@@ -280,6 +281,7 @@ export const statsRepository = {
       totalUniqueRoles: stats.totalUniqueRoles,
       entitiesWithDocuments: stats.entitiesWithDocuments,
       documentsWithMetadata: stats.documentsWithMetadata,
+      documentsFixed: stats.documentsFixed,
       activeInvestigations: stats.activeInvestigations,
       topRoles,
       topEntities,

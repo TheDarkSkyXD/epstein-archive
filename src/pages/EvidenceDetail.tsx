@@ -37,6 +37,8 @@ interface Evidence {
   description: string;
   originalFilename: string;
   sourcePath: string;
+  content: string;
+  contentRefined?: string;
   extractedText: string;
   createdAt: string;
   modifiedAt: string;

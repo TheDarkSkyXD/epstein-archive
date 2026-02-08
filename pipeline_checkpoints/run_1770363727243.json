@@ -1,0 +1,8 @@
+{
+  "mode": "backfill",
+  "startTime": "2026-02-06T07:41:45.947Z",
+  "enrichStats": {
+    "documentsEnriched": 2700,
+    "summariesGenerated": 2700
+  }
+}

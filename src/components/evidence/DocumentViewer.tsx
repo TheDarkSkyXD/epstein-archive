@@ -13,6 +13,7 @@ interface DocumentViewerProps {
   evidence: {
     title: string;
     extractedText: string;
+    contentRefined?: string;
     metadata: any;
     original_file_path?: string;
     redaction_spans?: Array<{
@@ -131,14 +132,19 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
     }
 
     // 2. Fallback to standard text rendering
-    const displayText = showRaw
-      ? evidence.extractedText
-      : renderWithRedactions(prettifyOCRText(evidence.extractedText));
+    const rawText = evidence.extractedText;
+    const cleanText = evidence.contentRefined || prettifyOCRText(rawText);
+
+    const displayText = showRaw ? rawText : renderWithRedactions(cleanText);
 
     // If it's an array (from renderWithRedactions), we return it directly (search disabled for now on redacted view)
     if (Array.isArray(displayText)) return <div>{displayText}</div>;
 
-    return <div>{searchTerm ? highlightText(displayText as string, searchTerm) : displayText}</div>;
+    return (
+      <div className={showRaw ? 'font-mono' : 'font-sans'}>
+        {searchTerm ? highlightText(displayText as string, searchTerm) : displayText}
+      </div>
+    );
   };
 
   return (

@@ -161,6 +161,12 @@ const timelineEvents = [
     content:
       'V12.8.0: Redaction Transparency & Pipeline Hardening. Fixed 0% redaction reporting bug and executed corpus-wide forensic backfill for 780k+ documents.',
   },
+  {
+    date: 'Feb 8, 2026',
+    source: 'Epstein Archive',
+    content:
+      'V12.10.0: High-Speed AI Scaling & Semantic Repair. Integrated LLM-driven document cleanup into the concurrent orchestrator, repaired thousands of corrupted OCR artifacts cluster-wide, and enabled cleaned document views across the entire archive.',
+  },
 ];
 
 // Helper to get color classes
@@ -197,6 +203,7 @@ export const AboutPage: React.FC = () => {
     blackBook: 0,
     media: 0,
     albums: 0,
+    documentsFixed: 0,
   });
 
   const [documentSources, setDocumentSources] = useState<any[]>([]);
@@ -218,6 +225,7 @@ export const AboutPage: React.FC = () => {
           blackBook: blackBookRes.total || 0,
           media: mediaRes.totalImages || 0,
           albums: mediaRes.totalAlbums || 0,
+          documentsFixed: statsRes.documentsFixed || 0,
         });
 
         if (statsRes.collectionStats) {
@@ -304,9 +312,18 @@ export const AboutPage: React.FC = () => {
             <p className="text-3xl font-bold text-blue-400 mb-2">
               {stats.documents.toLocaleString()}
             </p>
-            <p className="text-slate-400">
+            <p className="text-slate-400 mb-4">
               Court documents, depositions, emails, and exhibits from multiple sources
             </p>
+            <div className="pt-4 border-t border-slate-700/50">
+              <p className="text-sm font-semibold text-emerald-400 mb-1 flex items-center gap-1">
+                <Shield className="h-3 w-3" /> AI Semantic Repair
+              </p>
+              <p className="text-2xl font-bold text-white">
+                {stats.documentsFixed.toLocaleString()}
+              </p>
+              <p className="text-xs text-slate-500">Fixed & Refined for Readability</p>
+            </div>
           </div>
 
           <div className="bg-slate-800/50 rounded-lg p-6">
@@ -571,8 +588,10 @@ export const AboutPage: React.FC = () => {
           <h4 className="text-xl font-semibold text-white mt-4">DOJ Data Sets 9-12 (2026)</h4>
           <p>
             The latest release comprises over 1.3 million documents from the post-Maxwell trial era.
-            This massive tranche includes "Data Set 12" (DOJ VOL00012), a smaller but highly
-            specific collection of forensic artifacts currently under analysis.
+            This massive tranche includes "Data Set 12" (DOJ VOL00012). Since Feb 2026, these
+            volumes are being processed through our <strong>Semantic Repair Pipeline</strong>, which
+            uses distributed AI to fix corrupted OCR text and ingestion wildcards, making them more
+            legible than the original government releases.
           </p>
 
           {/* Ingestion Progress Dashboard (Requested placement) */}

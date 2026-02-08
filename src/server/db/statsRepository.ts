@@ -11,7 +11,7 @@ const getCollectionStatsHelper = () => {
         SELECT 
           source_collection as title,
           COUNT(*) as documentCount,
-          SUM(CASE WHEN has_redactions = 1 OR has_redactions = 'true' THEN 1 ELSE 0 END) as redactedCount,
+          SUM(CASE WHEN (has_redactions = 1 OR has_redactions = 'true' OR redaction_count > 0 OR content LIKE '%[REDACTED]%' OR content LIKE '%XXXXX%' OR content LIKE '%(redacted)%') THEN 1 ELSE 0 END) as redactedCount,
           ROUND(AVG(red_flag_rating), 1) as avgRisk
         FROM documents
         WHERE source_collection IS NOT NULL AND source_collection != ''
@@ -337,20 +337,22 @@ export const statsRepository = {
     });
 
     // Calculate overall ETA
-    // Roughly 5.2m total, ~36.5k per hour is high. Let's look at recent jobs.
-    // Default to ~4 hours
-    const eta_minutes = 240;
+    // Remaining = Total Target - Total Ingested
+    const totalTarget = results.reduce((sum, r) => sum + r.target, 0);
+    const totalIngested = results.reduce((sum, r) => sum + r.ingested, 0);
+    const remaining = Math.max(0, totalTarget - totalIngested);
 
-    // Legacy speed calculation removed due to missing column in processing_jobs
-    // TODO: Re-implement speed tracking with correct schema
+    // Speed: ~1.2 docs/sec (Avg for Phase 1/2)
+    const ingestionSpeedSec = 1.2;
+    const total_eta_minutes = Math.ceil(remaining / ingestionSpeedSec / 60);
 
     return {
       datasets: results,
-      eta_minutes,
+      eta_minutes: total_eta_minutes,
+      remaining_docs: remaining,
       last_updated: new Date().toISOString(),
     };
   },
-
   getEnrichmentStats: () => {
     const db = getDb();
     try {

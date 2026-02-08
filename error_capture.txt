@@ -1,0 +1,50 @@
+/Users/veland/Downloads/Epstein Files/epstein-archive/scripts/migrate_transcripts_to_segments.ts
+  41:16  warning  'err' is defined but never used. Allowed unused caught errors must match /^_/u  @typescript-eslint/no-unused-vars
+--
+/Users/veland/Downloads/Epstein Files/epstein-archive/scripts/promote_boilerplate.ts
+  55:9  warning  'updateSentences' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/veland/Downloads/Epstein Files/epstein-archive/scripts/seed-flights-articles-timeline.ts
+  928:7   warning  'additionalAirports' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  988:10  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u                   @typescript-eslint/no-unused-vars
+
+/Users/veland/Downloads/Epstein Files/epstein-archive/scripts/unified_pipeline.ts
+   23:60  warning  'readFileSync' is defined but never used. Allowed unused vars must match /^_/u             @typescript-eslint/no-unused-vars
+  135:9   warning  'exitCode' is assigned a value but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+  198:9   warning  'updateMetaStmt' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  356:14  error    Unexpected constant condition                                                              no-constant-condition
+
+/Users/veland/Downloads/Epstein Files/epstein-archive/scripts/utils/text_cleaner.ts
+  67:16  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u  @typescript-eslint/no-unused-vars
+--
+/Users/veland/Downloads/Epstein Files/epstein-archive/src/components/investigation/InvestigationActivityFeed.tsx
+  3:10  warning  'Link' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/veland/Downloads/Epstein Files/epstein-archive/src/components/investigation/InvestigationWorkspace.tsx
+  156:9   warning  The 'navigateToTab' function makes the dependencies of useEffect Hook (at line 231) change on every render. To fix this, wrap the definition of 'navigateToTab' in its own useCallback() Hook  react-hooks/exhaustive-deps
+  426:20  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u                                                                                                                   @typescript-eslint/no-unused-vars
+--
+
+/Users/veland/Downloads/Epstein Files/epstein-archive/src/server.ts
+  18:10  warning  'forensicRepository' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/veland/Downloads/Epstein Files/epstein-archive/src/server/db/statsRepository.ts
+  379:16  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u  @typescript-eslint/no-unused-vars
+  416:16  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/veland/Downloads/Epstein Files/epstein-archive/src/server/routes/investigations.ts
+  3:31  warning  'requireRole' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+/Users/veland/Downloads/Epstein Files/epstein-archive/src/server/services/AIEnrichmentService.ts
+  110:14  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u      @typescript-eslint/no-unused-vars
+  199:14  warning  'error' is defined but never used. Allowed unused caught errors must match /^_/u  @typescript-eslint/no-unused-vars
+  219:14  warning  'error' is defined but never used. Allowed unused caught errors must match /^_/u  @typescript-eslint/no-unused-vars
+  275:14  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u      @typescript-eslint/no-unused-vars
+  334:14  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u      @typescript-eslint/no-unused-vars
+  392:14  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u      @typescript-eslint/no-unused-vars
+  430:14  warning  'e' is defined but never used. Allowed unused caught errors must match /^_/u      @typescript-eslint/no-unused-vars
+
+/Users/veland/Downloads/Epstein Files/epstein-archive/src/server/services/entityLinkingService.ts
+  6:10  warning  'AIEnrichmentService' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+✖ 115 problems (1 error, 114 warnings)

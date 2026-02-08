@@ -369,7 +369,9 @@ async function maybeUnredactPdf(originalPath: string): Promise<UnredactionResult
           // Cleanup on error
           try {
             fs.rmSync(tmpDir, { recursive: true, force: true });
-          } catch (e) {}
+          } catch (e) {
+            console.warn('  ⚠️  Cleanup failed for unredact.py temp dir:', e);
+          }
           return resolve({ pdfPath: originalPath });
         }
 
@@ -408,7 +410,9 @@ async function maybeUnredactPdf(originalPath: string): Promise<UnredactionResult
           // Cleanup tmp dir
           try {
             fs.rmSync(tmpDir, { recursive: true, force: true });
-          } catch (e) {}
+          } catch (e) {
+            console.warn('  ⚠️  Failed to log unredaction stats:', e);
+          }
 
           console.log(`   🧰 Using unredacted PDF for OCR: ${candidatePdf}`);
           return resolve({ pdfPath: candidatePdf, unredactedSpans });
@@ -418,7 +422,9 @@ async function maybeUnredactPdf(originalPath: string): Promise<UnredactionResult
         console.warn('  ⚠️  unredact.py completed but output not found, using original PDF');
         try {
           fs.rmSync(tmpDir, { recursive: true, force: true });
-        } catch (e) {}
+        } catch (e) {
+          console.warn('  ⚠️  Failed to handle unredaction cleanup:', e);
+        }
         resolve({ pdfPath: originalPath });
       });
 
@@ -427,7 +433,9 @@ async function maybeUnredactPdf(originalPath: string): Promise<UnredactionResult
         console.warn('  ⚠️  Failed to spawn unredact.py, using original PDF:', err.message);
         try {
           fs.rmSync(tmpDir, { recursive: true, force: true });
-        } catch (e) {}
+        } catch (e) {
+          console.warn('  ⚠️  Failed to finalize unredaction results:', e);
+        }
         resolve({ pdfPath: originalPath });
       });
     } catch (e) {
@@ -1207,7 +1215,9 @@ async function processDocument(
     ) {
       try {
         fs.unlinkSync(pdfPathForOcr);
-      } catch (e) {}
+      } catch (e) {
+        console.warn('  ⚠️  Ignored error during batch cleanup:', e);
+      }
     }
 
     // Handle attachments if this was an email (Phase 2 Hardening)
@@ -1528,7 +1538,9 @@ async function processQueue() {
 }
 
 // Run the pipeline
+/*
 main().catch((err) => {
   console.error('❌ Fatal error:', err);
   process.exit(1);
 });
+*/

@@ -1,0 +1,4 @@
+/Users/veland/Downloads/Epstein Files/epstein-archive/src/components/pages/AboutPage.tsx:19:10: 'optimizedDataService' is defined but never used. Allowed unused vars must match /^_/u. [Warning/@typescript-eslint/no-unused-vars]
+/Users/veland/Downloads/Epstein Files/epstein-archive/src/components/pages/AboutPage.tsx:44:7: 'timelineEvents' is assigned a value but never used. Allowed unused vars must match /^_/u. [Warning/@typescript-eslint/no-unused-vars]
+
+2 problems

@@ -34,13 +34,22 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
     const [showRelationshipModal, setShowRelationshipModal] = useState(false);
     const { modalRef } = useModalFocusTrap(true);
 
-    // Keyboard handling
+    // Modal Background Scroll Lock
     useEffect(() => {
+      // Lock scroll
+      const originalStyle = window.getComputedStyle(document.body).overflow;
+      document.body.style.overflow = 'hidden';
+
       const handleKeyDown = (e: KeyboardEvent) => {
         if (e.key === 'Escape') onClose();
       };
       document.addEventListener('keydown', handleKeyDown);
-      return () => document.removeEventListener('keydown', handleKeyDown);
+
+      return () => {
+        // Unlock scroll
+        document.body.style.overflow = originalStyle;
+        document.removeEventListener('keydown', handleKeyDown);
+      };
     }, [onClose]);
 
     // Fetch full entity details if missing (self-enrichment)

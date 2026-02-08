@@ -651,13 +651,15 @@ export const AboutPage: React.FC = () => {
               <div className="mt-6 pt-4 border-t border-slate-700/50 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-slate-400 text-xs">
                   <TrendingUp className="h-4 w-4 text-cyan-400" />
-                  Processing documents at ~850 ms/page
+                  Cluster throughput: ~40 docs/sec (Avg)
                 </div>
                 <div className="text-xs font-mono text-blue-400">
                   ETA: ~
-                  {pipelineStatus.eta_minutes > 120
-                    ? `${(pipelineStatus.eta_minutes / 60).toFixed(1)} HOURS`
-                    : `${pipelineStatus.eta_minutes} MINUTES`}
+                  {pipelineStatus.eta_minutes > 1440
+                    ? `${(pipelineStatus.eta_minutes / 1440).toFixed(1)} DAYS`
+                    : pipelineStatus.eta_minutes > 120
+                      ? `${(pipelineStatus.eta_minutes / 60).toFixed(1)} HOURS`
+                      : `${pipelineStatus.eta_minutes} MINUTES`}
                 </div>
               </div>
             )}

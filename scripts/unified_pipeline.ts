@@ -352,7 +352,7 @@ async function main() {
       console.log('\n🚀 Starting Continuous AI Enrichment Worker...');
       console.log('   Polling for completed documents to summarize...');
 
-      // Continuous loop for background worker
+      // eslint-disable-next-line no-constant-condition
       while (true) {
         const result = await runEnrichPhase('backfill');
         if (result.documentsEnriched === 0) {
@@ -398,4 +398,11 @@ async function main() {
   }
 }
 
-main().catch(console.error);
+import { fileURLToPath } from 'url';
+import { pathToFileURL } from 'url';
+
+/*
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch(console.error);
+}
+*/

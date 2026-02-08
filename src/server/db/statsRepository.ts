@@ -1,9 +1,14 @@
 import { getDb } from './connection.js';
 
 // Helper function to avoid circular reference
-const getCollectionStatsHelper = () => {
-  const db = getDb();
+const getCollectionStatsHelper = (db: any) => {
   try {
+    // Check if documents table exists
+    const tableCheck = db
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='documents'")
+      .get();
+    if (!tableCheck) return [];
+
     // Aggregate stats per collection
     const rows = db
       .prepare(
@@ -76,10 +81,43 @@ export const statsRepository = {
   getStatistics: () => {
     const db = getDb();
 
+    // Check if optional tables exist to prevent total failure
+    const hasInvestigations = db
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='investigations'")
+      .get();
+    const hasBlackBook = db
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='black_book_entries'")
+      .get();
+    const hasDocuments = db
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='documents'")
+      .get();
+    const hasEntities = db
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='entities'")
+      .get();
+
+    if (!hasDocuments || !hasEntities) {
+      return {
+        totalEntities: 0,
+        totalDocuments: 0,
+        totalMentions: 0,
+        averageRedFlagRating: 0,
+        totalUniqueRoles: 0,
+        entitiesWithDocuments: 0,
+        documentsWithMetadata: 0,
+        documentsFixed: 0,
+        activeInvestigations: 0,
+        collectionStats: [],
+        topRoles: [],
+        likelihoodDistribution: [],
+        topEntities: [],
+        recentActivity: [],
+        pipeline_status: statsRepository.getPipelineProgress(),
+        enrichment_stats: statsRepository.getEnrichmentStats(),
+      };
+    }
+
     // Aggregate stats query
-    const stats = db
-      .prepare(
-        `
+    const statsQuery = `
       SELECT 
         (SELECT COUNT(*) FROM entities) as totalEntities,
         (SELECT COUNT(*) FROM documents) as totalDocuments,
@@ -89,10 +127,10 @@ export const statsRepository = {
         (SELECT COUNT(*) FROM entities WHERE mentions > 0) as entitiesWithDocuments,
         (SELECT COUNT(*) FROM documents WHERE metadata_json IS NOT NULL AND LENGTH(metadata_json) > 2) as documentsWithMetadata,
         (SELECT COUNT(*) FROM documents WHERE content_refined IS NOT NULL) as documentsFixed,
-        (SELECT COUNT(*) FROM investigations WHERE status = 'active' OR status = 'open') as activeInvestigations
-    `,
-      )
-      .get() as any;
+        ${hasInvestigations ? "(SELECT COUNT(*) FROM investigations WHERE status = 'active' OR status = 'open')" : '0'} as activeInvestigations
+    `;
+
+    const stats = db.prepare(statsQuery).get() as any;
 
     const topRoles = db
       .prepare(
@@ -297,7 +335,7 @@ export const statsRepository = {
       `,
         )
         .all() as { source_collection: string; count: number }[],
-      collectionStats: getCollectionStatsHelper(),
+      collectionStats: getCollectionStatsHelper(db),
       pipeline_status: statsRepository.getPipelineProgress(),
     };
   },

@@ -1538,9 +1538,10 @@ async function processQueue() {
 }
 
 // Run the pipeline
-/*
-main().catch((err) => {
-  console.error('❌ Fatal error:', err);
-  process.exit(1);
-});
-*/
+import { pathToFileURL } from 'url';
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((err) => {
+    console.error('❌ Fatal error:', err);
+    process.exit(1);
+  });
+}

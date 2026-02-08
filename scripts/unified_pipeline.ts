@@ -401,8 +401,6 @@ async function main() {
 import { fileURLToPath } from 'url';
 import { pathToFileURL } from 'url';
 
-/*
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch(console.error);
 }
-*/

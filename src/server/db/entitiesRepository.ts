@@ -314,7 +314,7 @@ export const entitiesRepository = {
             JOIN entity_mentions em ON d.id = em.document_id
             WHERE em.entity_id = ?
             ORDER BY d.red_flag_rating DESC, d.date_created DESC
-            LIMIT 50
+            LIMIT 500
         `,
       )
       .all(entity.id);

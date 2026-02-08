@@ -354,12 +354,13 @@ export class MediaService {
 
   createImage(image: Omit<MediaImage, 'id' | 'dateAdded' | 'dateModified'>): MediaImage {
     const stmt = this.db.prepare(`
-      INSERT INTO media_images (
-        filename, original_filename, path, thumbnail_path, title, description,
-        album_id, width, height, file_size, format, date_taken,
+      INSERT INTO media_items (
+        filename, original_filename, file_path, thumbnail_path, title, description,
+        album_id, width, height, file_size, file_type, date_taken,
         camera_make, camera_model, lens, focal_length, aperture, shutter_speed,
-        iso, latitude, longitude, color_profile, orientation
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        iso, latitude, longitude, color_profile, orientation,
+        created_at, date_modified
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
     `);
 
     const result = stmt.run(
@@ -416,12 +417,15 @@ export class MediaService {
 
     if (fields.length > 0) {
       values.push(id);
-      const stmt = this.db.prepare(`
-        UPDATE media_images
+      this.db
+        .prepare(
+          `
+        UPDATE media_items
         SET ${fields.join(', ')}, date_modified = datetime('now')
         WHERE id = ?
-      `);
-      stmt.run(...values);
+      `,
+        )
+        .run(...values);
     }
   }
 
@@ -796,19 +800,18 @@ export class MediaService {
     }
     // Insert into DB
     const stmt = this.db.prepare(`
-      INSERT INTO media_images (
-        filename, original_filename, path, file_size, format,
+      INSERT INTO media_items (
+        filename, original_filename, file_path, file_size, file_type,
         width, height, date_taken, album_id,
         camera_make, camera_model, focal_length, aperture,
         shutter_speed, iso, latitude, longitude,
-        shutter_speed, iso, latitude, longitude,
-        date_added
+        created_at, date_modified
       ) VALUES (
         ?, ?, ?, ?, ?,
         ?, ?, ?, ?,
         ?, ?, ?, ?,
         ?, ?, ?, ?,
-        datetime('now')
+        datetime('now'), datetime('now')
       )
     `);
 

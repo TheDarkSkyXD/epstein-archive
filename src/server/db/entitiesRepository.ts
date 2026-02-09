@@ -576,7 +576,6 @@ export const entitiesRepository = {
           JOIN documents_fts fts ON d.id = fts.rowid
           WHERE fts.documents_fts MATCH ?
           ORDER BY d.red_flag_rating DESC, d.date_created DESC
-          LIMIT 50
         `;
 
     const ftsQuery = `"${entityNameObj.name.replace(/"/g, '""')}"`;

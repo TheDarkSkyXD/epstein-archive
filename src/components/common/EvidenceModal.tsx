@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Network, Layout, FileText, Image, Activity } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Person } from '../../types';
 import { apiClient } from '../../services/apiClient';
 import { RedFlagIndex } from '../visualizations/RedFlagIndex';
@@ -234,11 +235,21 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
                     </div>
                   </div>
                   <p className="text-slate-400 font-medium flex items-center gap-2 text-sm uppercase tracking-wide">
-                    {enrichedPerson.entity_type || 'Entity'}
+                    <Link
+                      to={`/entities?type=${encodeURIComponent(enrichedPerson.entity_type || 'Entity')}`}
+                      onClick={onClose}
+                      className="hover:text-cyan-400 transition-colors cursor-pointer"
+                    >
+                      {enrichedPerson.entity_type || 'Entity'}
+                    </Link>
                     <span className="w-1 h-1 rounded-full bg-slate-600" />
-                    <span className="text-slate-500">
+                    <Link
+                      to={`/entities?search=${encodeURIComponent(enrichedPerson.title || (enrichedPerson as any).primaryRole || '')}`}
+                      onClick={onClose}
+                      className="text-slate-500 hover:text-cyan-400 transition-colors cursor-pointer"
+                    >
                       {enrichedPerson.title || (enrichedPerson as any).primaryRole || 'No Title'}
-                    </span>
+                    </Link>
                   </p>
                 </div>
               </div>
@@ -307,7 +318,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
                   </div>
                   <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 flex flex-col items-center justify-center text-center">
                     <span className="text-3xl font-bold text-blue-400 mb-1">
-                      {enrichedPerson.files || 0}
+                      {documents.length || enrichedPerson.files || 0}
                     </span>
                     <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
                       Documents

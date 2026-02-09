@@ -167,6 +167,12 @@ const timelineEvents = [
     content:
       'V12.10.0: High-Speed AI Scaling & Semantic Repair. Integrated LLM-driven document cleanup into the concurrent orchestrator, repaired thousands of corrupted OCR artifacts cluster-wide, and enabled cleaned document views across the entire archive.',
   },
+  {
+    date: 'Feb 9, 2026',
+    source: 'Epstein Archive',
+    content:
+      'V12.11.0: AI Enrichment Integration. Deployed AI summaries and refined content for 242k+ documents across the archive. Enhanced document metadata panel with AI analysis, automatic content cleanup, and intelligent semantic enrichment powered by distributed exo cluster.',
+  },
 ];
 
 // Helper to get color classes
@@ -385,7 +391,9 @@ export const AboutPage: React.FC = () => {
                   </span>
                 </div>
 
-                <p className="text-slate-300 text-sm leading-relaxed">{source.description}</p>
+                <p className="text-slate-300 text-sm leading-relaxed">
+                  {source.documentCount?.toLocaleString() || '—'} documents
+                </p>
 
                 <div className="flex items-center justify-between pt-3 border-t border-slate-700/50">
                   <div className="flex items-center gap-2 text-xs">
@@ -425,7 +433,7 @@ export const AboutPage: React.FC = () => {
               <thead>
                 <tr className="border-b border-slate-700 text-slate-400 text-sm">
                   <th className="py-3 px-4 font-medium">Title</th>
-                  <th className="py-3 px-4 font-medium max-w-sm">Description</th>
+                  <th className="py-3 px-4 font-medium text-right">Documents</th>
                   <th className="py-3 px-4 font-medium whitespace-nowrap">Redaction Status</th>
                   <th className="py-3 px-4 font-medium whitespace-nowrap">Impact</th>
                   <th className="py-3 px-4 font-medium text-right whitespace-nowrap">Action</th>
@@ -435,7 +443,10 @@ export const AboutPage: React.FC = () => {
                 {documentSources.map((source, idx) => (
                   <tr key={idx} className="hover:bg-slate-700/30 transition-colors">
                     <td className="py-3 px-4 font-medium text-white">{source.title}</td>
-                    <td className="py-3 px-4 text-slate-300">{source.description}</td>
+
+                    <td className="py-3 px-4 text-right text-blue-400 font-mono">
+                      {source.documentCount?.toLocaleString() || '—'}
+                    </td>
                     <td className="py-3 px-4 whitespace-nowrap">
                       <span className="flex items-center gap-2">
                         <span

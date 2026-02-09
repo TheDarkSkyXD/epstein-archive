@@ -347,7 +347,8 @@ async function main() {
     if (mode === 'backfill') {
       stats.enrichStats = await runEnrichPhase('backfill');
     } else if (mode === 'ingest') {
-      stats.enrichStats = await runEnrichPhase('new');
+      // Use backfill to catch ALL unenriched docs, not just last 24h
+      stats.enrichStats = await runEnrichPhase('backfill');
     } else if (mode === 'enrich-worker') {
       console.log('\n🚀 Starting Continuous AI Enrichment Worker...');
       console.log('   Polling for completed documents to summarize...');

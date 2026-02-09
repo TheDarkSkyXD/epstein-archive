@@ -38,6 +38,43 @@ export const DocumentMetadataPanel: React.FC<DocumentMetadataPanelProps> = ({
 
   return (
     <div className={`space-y-6 ${className}`}>
+      {/* AI Analysis - Show if AI enrichment metadata exists */}
+      {metadata.ai_summary && (
+        <section className="bg-gradient-to-br from-purple-900/20 to-blue-900/20 rounded-lg p-4 border border-purple-500/30">
+          <h3 className="text-sm font-semibold text-purple-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <span className="text-lg">🤖</span>
+            AI Analysis
+          </h3>
+          <div className="space-y-3">
+            <div>
+              <span className="text-slate-500 block text-xs mb-1">AI Summary</span>
+              <p className="text-slate-200 text-sm leading-relaxed">{metadata.ai_summary}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-4 text-xs">
+              {metadata.ai_provider && (
+                <div>
+                  <span className="text-slate-500 block mb-1">AI Provider</span>
+                  <span className="text-purple-300 font-medium uppercase">
+                    {metadata.ai_provider}
+                  </span>
+                </div>
+              )}
+              {metadata.ai_enriched_at && (
+                <div>
+                  <span className="text-slate-500 block mb-1">Enriched At</span>
+                  <span className="text-slate-300">{formatDate(metadata.ai_enriched_at)}</span>
+                </div>
+              )}
+            </div>
+            {metadata.ai_error && (
+              <div className="mt-2 p-2 bg-red-900/20 border border-red-500/30 rounded text-xs text-red-300">
+                <strong>Error:</strong> {metadata.ai_error}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
       {/* File Information */}
       <section className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
         <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">

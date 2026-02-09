@@ -142,8 +142,10 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
 
   // Memoize processed content to avoid re-computation on every render
   const processedContent = useMemo(() => {
+    // Use contentRefined if available and not showing raw, otherwise use content
+    const rawText = doc.contentRefined && !showRaw ? doc.contentRefined : doc.content;
     // Apply prettifyOCRText unless showRaw is true
-    const baseContent = showRaw ? doc.content : prettifyOCRText(doc.content);
+    const baseContent = showRaw ? rawText : prettifyOCRText(rawText);
 
     // Step 1: Apply unredaction token highlighting (baseline diff)
     let content = baseContent as string;
@@ -211,20 +213,27 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
   return (
     <div className="prose prose-invert max-w-none">
       <div className="mb-1 flex items-center justify-between">
-        <div className="text-sm text-gray-400">
-          {doc.evidenceType === 'email'
-            ? '📧 Email Message'
-            : doc.evidenceType === 'legal'
-              ? '⚖️ Legal Document'
-              : doc.evidenceType === 'deposition'
-                ? '📜 Deposition'
-                : doc.evidenceType === 'financial'
-                  ? '💰 Financial Record'
-                  : doc.fileType?.match(/jpe?g|png|gif|bmp|webp/i)
-                    ? '📷 Image'
-                    : doc.fileType?.match(/csv|xls/i)
-                      ? '📊 Spreadsheet'
-                      : 'Select text to add annotations and evidence'}
+        <div className="text-sm text-gray-400 flex items-center gap-2">
+          <span>
+            {doc.evidenceType === 'email'
+              ? '📧 Email Message'
+              : doc.evidenceType === 'legal'
+                ? '⚖️ Legal Document'
+                : doc.evidenceType === 'deposition'
+                  ? '📜 Deposition'
+                  : doc.evidenceType === 'financial'
+                    ? '💰 Financial Record'
+                    : doc.fileType?.match(/jpe?g|png|gif|bmp|webp/i)
+                      ? '📷 Image'
+                      : doc.fileType?.match(/csv|xls/i)
+                        ? '📊 Spreadsheet'
+                        : 'Select text to add annotations and evidence'}
+          </span>
+          {doc.contentRefined && !showRaw && (
+            <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider bg-purple-900/40 text-purple-300 border border-purple-500/40">
+              🤖 AI Refined
+            </span>
+          )}
         </div>
         {!doc.fileType?.match(/jpe?g|png|gif|bmp|webp|csv|xls/i) && (
           <div className="flex items-center gap-3">

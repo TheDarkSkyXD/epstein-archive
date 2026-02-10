@@ -262,7 +262,7 @@ async function runEnrichPhase(
         // Update with BOTH refined content and metadata
         db.prepare('UPDATE documents SET metadata_json = ?, content_refined = ? WHERE id = ?').run(
           JSON.stringify(meta),
-          refinedText === doc.content ? null : refinedText,
+          refinedText, // Always save, even if identical to content
           doc.id,
         );
         summariesGenerated++;

@@ -173,6 +173,12 @@ const timelineEvents = [
     content:
       'V12.11.0: AI Enrichment Integration. Deployed AI summaries and refined content for 242k+ documents across the archive. Enhanced document metadata panel with AI analysis, automatic content cleanup, and intelligent semantic enrichment powered by distributed exo cluster.',
   },
+  {
+    date: 'Feb 10, 2026',
+    source: 'Epstein Archive',
+    content:
+      'V12.12.0: AI Ingestion at Scale. Full-scale ingestion activated with 3-node localized AI cluster. 228,000 documents backfilled with refined content. 14,000 corrupted documents successfully repaired.',
+  },
 ];
 
 // Helper to get color classes

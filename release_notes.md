@@ -1,3 +1,18 @@
+## v12.12.1 — 2026-02-11
+
+### Pipeline Reliability & Schema Hardening
+
+- **Per-Document Transaction Injection**: Refactored the intelligence pipeline to commit data at the document level. This ensures real-time observability and prevents massive batch rollbacks on single-file failures.
+- **Quarantine Schema Alignment**: Implemented Migration 022 to add missing `quarantine_status` and `quarantine_reason` columns, allowing the system to safely isolate sensitive content at scale.
+- **Job Manager Robustness**: Repaired the JobManager schema mismatch by adding missing processing tracking columns (`processing_attempts`, `lease_expires_at`, etc.).
+
+## v12.12.0 — 2026-02-10
+
+### AI Ingestion at Scale
+
+- **Full-Scale Ingestion Activation**: Launched 3-node localized AI cluster for high-speed processing.
+- **Content Refinement**: Backfilled 228,000 documents with refined content and repaired 14,000 corrupted documents.
+
 ## v12.8.0 — 2026-02-06
 
 ### Redaction Transparency & Infrastructure Stabilization

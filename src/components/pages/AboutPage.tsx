@@ -179,6 +179,12 @@ const timelineEvents = [
     content:
       'V12.12.0: AI Ingestion at Scale. Full-scale ingestion activated with 3-node localized AI cluster. 228,000 documents backfilled with refined content. 14,000 corrupted documents successfully repaired.',
   },
+  {
+    date: 'Feb 11, 2026',
+    source: 'Epstein Archive',
+    content:
+      'V12.12.1: Pipeline Reliability & Schema Hardening. Refactored intelligence worker for per-document commits and synchronized database quarantine logic for robust processing of the 1.3M document backlog.',
+  },
 ];
 
 // Helper to get color classes

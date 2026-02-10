@@ -723,8 +723,8 @@ export async function runIntelligencePipeline() {
       "UPDATE documents SET analyzed_at = datetime('now') WHERE id = ?",
     );
 
-    db.transaction(() => {
-      for (const doc of docs) {
+    for (const doc of docs) {
+      db.transaction(() => {
         const content = doc.content as string;
 
         // Phase 3: Content Classification & Quarantine
@@ -741,7 +741,7 @@ export async function runIntelligencePipeline() {
           ).run(q.reason, doc.id);
           console.log(`   ⚠️ Document ${doc.id} quarantined: ${q.reason}`);
           markAnalyzed.run(doc.id);
-          continue;
+          return;
         }
 
         // Fetch granular data (Pages/Sentences) for provenance
@@ -779,8 +779,8 @@ export async function runIntelligencePipeline() {
         }
 
         markAnalyzed.run(doc.id);
-      }
-    })();
+      })();
+    }
 
     console.log(`   Batch complete. New Entities: ${newEntities}, Mentions: ${newMentions}`);
     totalEntities += newEntities;

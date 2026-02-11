@@ -10,6 +10,7 @@ import { Layout, Section } from './layout/Layout';
 const mockPerson = {
   id: '1',
   name: 'John Doe',
+  fullName: 'John Doe',
   title: 'Former Executive',
   mentions: 42,
   files: 5,

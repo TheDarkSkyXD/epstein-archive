@@ -327,11 +327,11 @@ const PersonCard: React.FC<PersonCardProps> = ({
           </button>
           <AddToInvestigationButton
             item={{
-              id: person.id || '',
+              id: person.id?.toString() || '',
               title: person.name,
               description: person.role || 'Entity',
               type: 'entity',
-              sourceId: person.id || '',
+              sourceId: person.id?.toString() || '',
             }}
             variant="icon"
           />

@@ -701,11 +701,11 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
                       </div>
                       <AddToInvestigationButton
                         item={{
-                          id: result.person.id || '',
+                          id: result.person.id?.toString() || '',
                           title: result.person.name,
                           description: result.person.role || 'Person of interest',
                           type: 'entity',
-                          sourceId: result.person.id || '',
+                          sourceId: result.person.id?.toString() || '',
                         }}
                         variant="quick"
                         className="hover:bg-slate-700 self-start md:self-auto"

@@ -73,7 +73,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
         if (isMissingData) {
           setLoadingEnrichment(true);
           try {
-            const fullEntity = await apiClient.getEntity(person.id);
+            const fullEntity = await apiClient.getEntity(person.id.toString());
             if (fullEntity) {
               setEnrichedPerson((prev) => ({
                 ...prev,
@@ -99,7 +99,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
         if (!person.id) return;
         setLoadingDocuments(true);
         try {
-          const personDocuments = await apiClient.getEntityDocuments(person.id);
+          const personDocuments = await apiClient.getEntityDocuments(person.id.toString());
           const sortedDocuments = personDocuments
             .map((doc: any) => ({
               ...doc,
@@ -128,7 +128,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
         const fetchMedia = async () => {
           setLoadingMedia(true);
           try {
-            const media = await apiClient.getEntityMedia(person.id!);
+            const media = await apiClient.getEntityMedia(person.id!.toString());
             setFullMedia(media);
           } catch (error) {
             console.error('Error fetching entity media:', error);
@@ -737,7 +737,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
           <CreateRelationshipModal
             onClose={() => setShowRelationshipModal(false)}
             onSuccess={() => {}}
-            initialSourceId={person.id}
+            initialSourceId={person.id.toString()}
           />
         )}
       </div>,

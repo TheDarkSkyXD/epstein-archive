@@ -367,6 +367,7 @@ function App() {
             const person: Person = {
               id: data.id,
               name: data.fullName || data.full_name || 'Unknown',
+              fullName: data.fullName || data.full_name || 'Unknown',
               role: data.primaryRole || data.primary_role || 'Unknown',
               mentions: data.mentions || data.mention_count || 0,
               red_flag_rating: data.redFlagRating || data.red_flag_rating || 0,

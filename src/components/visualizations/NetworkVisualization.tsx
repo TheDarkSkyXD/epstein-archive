@@ -15,6 +15,7 @@ import {
   ChevronDown,
   CheckSquare,
   Square,
+  AlertTriangle,
 } from 'lucide-react';
 
 export interface NetworkNode {
@@ -49,6 +50,8 @@ export interface NetworkEdge {
     context?: string;
     evidence?: string[];
     confidence?: number;
+    was_agentic?: boolean;
+    ingestRunId?: string;
   };
 }
 
@@ -90,6 +93,7 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [lastPan, setLastPan] = useState({ x: 0, y: 0 });
+  const [damningEvidenceOnly, setDamningEvidenceOnly] = useState(false);
   const [showTableView, setShowTableView] = useState(false);
   const [showSettings, setShowSettings] = useState(true);
   const [minStrength, setMinStrength] = useState(0);
@@ -239,13 +243,19 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     // Filter edges
     const filteredNodeIds = new Set(filtered.map((n) => n.id));
     setFilteredEdges(
-      edges.filter(
-        (edge) =>
+      edges.filter((edge) => {
+        const basics =
           filteredNodeIds.has(edge.source) &&
           filteredNodeIds.has(edge.target) &&
           edge.strength >= minStrength &&
-          selectedEdgeTypes.has(edge.type),
-      ),
+          selectedEdgeTypes.has(edge.type);
+
+        if (!basics) return false;
+        if (damningEvidenceOnly) {
+          return (edge.metadata.confidence || 0) > 0.8 && (edge.strength || 0) >= 7;
+        }
+        return true;
+      }),
     );
   }, [
     nodes,
@@ -257,6 +267,7 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     hopsMap,
     rootNodeId,
     maxHops,
+    damningEvidenceOnly,
   ]);
 
   const getNodeColor = (type: string, riskLevel?: string): string => {
@@ -436,10 +447,12 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       ctx.lineWidth = edge.strength * 0.5; // Fine lines
       ctx.globalAlpha = 0.25; // Translucent lines
 
-      if (edge.direction === 'bidirectional') {
-        ctx.setLineDash([]);
+      if (edge.metadata.was_agentic) {
+        ctx.setLineDash([2, 4]); // Dotted for agentic
+      } else if (edge.direction === 'bidirectional') {
+        ctx.setLineDash([]); // Solid for verified/regular
       } else {
-        ctx.setLineDash([5, 5]);
+        ctx.setLineDash([8, 4]); // Dashed for directional/inferred
       }
 
       ctx.stroke();
@@ -1066,6 +1079,41 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
                 <p className="text-[10px] text-slate-500 italic">
                   Maximum connection distance from Jeffrey Epstein.
                 </p>
+              </div>
+
+              {/* Damning Evidence Mode Toggle */}
+              <div className="pt-4 border-t border-slate-800">
+                <div
+                  className={`p-4 rounded-xl border transition-all cursor-pointer ${
+                    damningEvidenceOnly
+                      ? 'bg-red-500/10 border-red-500/30'
+                      : 'bg-slate-800/50 border-slate-700 hover:border-slate-600'
+                  }`}
+                  onClick={() => setDamningEvidenceOnly(!damningEvidenceOnly)}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle
+                        className={`w-4 h-4 ${damningEvidenceOnly ? 'text-red-400' : 'text-slate-400'}`}
+                      />
+                      <span
+                        className={`text-xs font-bold uppercase tracking-wider ${damningEvidenceOnly ? 'text-red-400' : 'text-slate-300'}`}
+                      >
+                        Damning Evidence Mode
+                      </span>
+                    </div>
+                    <div
+                      className={`w-8 h-4 rounded-full relative transition-colors ${damningEvidenceOnly ? 'bg-red-500' : 'bg-slate-700'}`}
+                    >
+                      <div
+                        className={`absolute top-1 w-2 h-2 rounded-full bg-white transition-all ${damningEvidenceOnly ? 'left-5' : 'left-1'}`}
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-slate-400 leading-relaxed">
+                    Filters for high-confidence associations (&gt;80%) with elevated risk scores.
+                  </p>
+                </div>
               </div>
             </div>
 

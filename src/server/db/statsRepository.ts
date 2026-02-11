@@ -194,6 +194,8 @@ export const statsRepository = {
       };
     }
 
+    const pipelineProgress = statsRepository.getPipelineProgress();
+
     // Aggregate stats query
     const statsQuery = `
       SELECT 
@@ -432,7 +434,7 @@ export const statsRepository = {
         )
         .all() as { source_collection: string; count: number }[],
       collectionStats: getCollectionStatsHelper(db),
-      pipeline_status: statsRepository.getPipelineProgress(),
+      pipeline_status: pipelineProgress,
     };
   },
 
@@ -476,14 +478,31 @@ export const statsRepository = {
     const totalIngested = results.reduce((sum, r) => sum + r.ingested, 0);
     const remaining = Math.max(0, totalTarget - totalIngested);
 
-    // Speed: ~1.2 docs/sec (Avg for Phase 1/2)
-    const ingestionSpeedSec = 1.2;
-    const total_eta_minutes = Math.ceil(remaining / ingestionSpeedSec / 60);
+    // Dynamic Throughput based on active workers
+    const activeWorkersRow = db
+      .prepare(
+        `
+      SELECT COUNT(DISTINCT worker_id) as count 
+      FROM documents 
+      WHERE processing_status = 'processing' 
+        AND lease_expires_at > datetime('now')
+    `,
+      )
+      .get() as { count: number };
+
+    const activeWorkers = activeWorkersRow?.count || 0;
+
+    // Speed: ~1.5 docs/sec per worker (Estimate for Phase 3/4)
+    const baseSpeed = 1.5;
+    const throughput_docs_sec = activeWorkers > 0 ? activeWorkers * baseSpeed : baseSpeed;
+    const total_eta_minutes = Math.ceil(remaining / throughput_docs_sec / 60);
 
     return {
       datasets: results,
       eta_minutes: total_eta_minutes,
       remaining_docs: remaining,
+      active_workers: activeWorkers,
+      throughput_docs_sec,
       last_updated: new Date().toISOString(),
     };
   },

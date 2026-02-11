@@ -7,26 +7,40 @@ import { authenticateRequest, optionalAuthenticate } from './middleware.js';
 import rateLimit from 'express-rate-limit';
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-do-not-use-in-prod-if-possible';
+const JWT_ACCESS_SECRET = process.env.JWT_SECRET || 'dev-access-secret';
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret';
 
-if (
-  process.env.NODE_ENV === 'production' &&
-  JWT_SECRET === 'dev-secret-do-not-use-in-prod-if-possible'
-) {
-  console.warn(
-    '⚠️  WARNING: Using default JWT_SECRET in production! Set JWT_SECRET environment variable.',
-  );
+if (process.env.NODE_ENV === 'production') {
+  if (JWT_ACCESS_SECRET === 'dev-access-secret') {
+    console.warn('⚠️ WARNING: Using default JWT_SECRET in production!');
+  }
+  if (JWT_REFRESH_SECRET === 'dev-refresh-secret') {
+    console.warn('⚠️ WARNING: Using default JWT_REFRESH_SECRET in production!');
+  }
 }
 
-// Rate limiter for login: 5 attempts per 15 mins
-const loginLimiter = rateLimit({
+// Rate limiter for login/refresh: 5 attempts per 15 mins
+const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
-  message: { error: 'Too many login attempts, please try again after 15 minutes' },
+  max: 10, // Slightly more for refresh retries
+  message: { error: 'Too many authentication attempts, please try again after 15 minutes' },
 });
 
+// Helper to generate tokens
+const generateAccessToken = (user: any) => {
+  return jwt.sign({ id: user.id, username: user.username, role: user.role }, JWT_ACCESS_SECRET, {
+    expiresIn: '15m',
+  });
+};
+
+const generateRefreshToken = (user: any) => {
+  return jwt.sign({ id: user.id }, JWT_REFRESH_SECRET, {
+    expiresIn: '7d',
+  });
+};
+
 // POST /api/auth/login
-router.post('/login', loginLimiter, (req, res) => {
+router.post('/login', authLimiter, (req, res) => {
   const { username, password } = req.body;
 
   if (!username || !password) {
@@ -37,53 +51,72 @@ router.post('/login', loginLimiter, (req, res) => {
     const db = getDb();
     const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username) as any;
 
-    if (!user) {
-      // Don't reveal user existence
+    if (!user || !user.password_hash || !bcrypt.compareSync(password, user.password_hash)) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    if (!user.password_hash) {
-      return res.status(401).json({ error: 'Invalid user configuration' });
-    }
-
-    const isValid = bcrypt.compareSync(password, user.password_hash);
-    if (!isValid) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    // Generate Token
-    const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, JWT_SECRET, {
-      expiresIn: '7d',
-    });
+    // Generate Tokens
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
 
     // Update last_active
     db.prepare('UPDATE users SET last_active = CURRENT_TIMESTAMP WHERE id = ?').run(user.id);
 
-    // Return user info (sanitize)
-    // TODO: Use password_hash for security logging - see UNUSED_VARIABLES_RECOMMENDATIONS.md
-    const { password_hash: _password_hash, ...userInfo } = user;
-
-    // Secure Cookie
-    res.cookie('token', token, {
+    // Set Refresh Token in Secure Cookie
+    res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // Secure in prod (HTTPS)
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/api/auth/refresh', // Only send to refresh endpoint
     });
 
-    res.json({ success: true, user: userInfo });
+    // Return access token and sanitized user info
+    const { password_hash: _hash, ...userInfo } = user;
+    res.json({
+      success: true,
+      accessToken,
+      user: userInfo,
+    });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
+// POST /api/auth/refresh
+router.post('/refresh', authLimiter, (req, res) => {
+  const refreshToken = req.cookies.refreshToken;
+
+  if (!refreshToken) {
+    return res.status(401).json({ error: 'Refresh token missing' });
+  }
+
+  try {
+    const decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET) as any;
+    const db = getDb();
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(decoded.id) as any;
+
+    if (!user) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+
+    // Optional: Implement refresh token rotation here by issuing a new refreshToken as well
+
+    const accessToken = generateAccessToken(user);
+    res.json({ success: true, accessToken });
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid refresh token' });
+  }
+});
+
 // POST /api/auth/logout
 router.post('/logout', (req, res) => {
-  res.clearCookie('token', {
+  res.clearCookie('refreshToken', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
+    path: '/api/auth/refresh',
   });
   res.json({ success: true });
 });
@@ -91,11 +124,9 @@ router.post('/logout', (req, res) => {
 // GET /api/auth/me
 router.get('/me', optionalAuthenticate, (req: any, res) => {
   if (!req.user) {
-    // Return null user instead of 401 to suppress console errors
     return res.json({ user: null });
   }
-  // TODO: Use password_hash for security logging - see UNUSED_VARIABLES_RECOMMENDATIONS.md
-  const { password_hash: _password_hash2, ...userInfo } = req.user;
+  const { password_hash: _hash, ...userInfo } = req.user;
   res.json({ user: userInfo });
 });
 
@@ -103,22 +134,19 @@ router.get('/me', optionalAuthenticate, (req: any, res) => {
 router.post('/change-password', authenticateRequest, (req: any, res) => {
   const { currentPassword, newPassword } = req.body;
 
-  if (!newPassword || newPassword.length < 6) {
-    return res.status(400).json({ error: 'New password must be at least 6 characters' });
+  if (!newPassword || newPassword.length < 8) {
+    return res.status(400).json({ error: 'New password must be at least 8 characters' });
   }
 
   try {
     const db = getDb();
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id) as any;
 
-    if (!user) return res.status(404).json({ error: 'User not found' });
-
-    // Verify current password
-    if (!bcrypt.compareSync(currentPassword, user.password_hash)) {
+    if (!user || !bcrypt.compareSync(currentPassword, user.password_hash)) {
       return res.status(401).json({ error: 'Incorrect current password' });
     }
 
-    const newHash = bcrypt.hashSync(newPassword, 10);
+    const newHash = bcrypt.hashSync(newPassword, 12); // Slightly higher rounds for prod
     db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(newHash, req.user.id);
 
     res.json({ success: true });

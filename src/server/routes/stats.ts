@@ -4,6 +4,9 @@ import { getDb } from '../db/connection.js';
 import { config } from '../../config/index.js';
 import fs from 'fs';
 import path from 'path';
+import { ingestRunsRepository } from '../db/ingestRunsRepository.js';
+import { BackupService } from '../services/BackupService.js';
+import { FtsMaintenanceService } from '../services/ftsMaintenance.js';
 
 const router = Router();
 
@@ -56,7 +59,7 @@ router.get('/health', (_req, res) => {
 });
 
 // Deep health check
-router.get('/health/deep', (_req, res) => {
+router.get('/health/deep', async (_req, res) => {
   const checks: Record<
     string,
     { status: 'pass' | 'fail' | 'warn'; message: string; duration?: number }
@@ -208,6 +211,38 @@ router.get('/health/deep', (_req, res) => {
     } catch (e: any) {
       checks.database_size = { status: 'warn', message: `Could not check DB size: ${e.message}` };
     }
+
+    // 8. FTS Integrity Check
+    const ftsStart = Date.now();
+    try {
+      const ftsStatus = await FtsMaintenanceService.checkIntegrity();
+      const allSynced = ftsStatus.every((s) => s.isSynced);
+      checks.fts_integrity = {
+        status: allSynced ? 'pass' : 'warn',
+        message: allSynced ? 'All FTS tables synced' : 'Desync detected',
+        duration: Date.now() - ftsStart,
+      };
+      if (!allSynced && overallStatus === 'healthy') overallStatus = 'degraded';
+    } catch (e: any) {
+      checks.fts_integrity = { status: 'warn', message: `FTS check failed: ${e.message}` };
+    }
+
+    // 9. Backup Status
+    try {
+      const backups = BackupService.listBackups();
+      if (backups.length > 0) {
+        const latest = new Date(backups[0].createdAt);
+        const hoursOld = (Date.now() - latest.getTime()) / 1000 / 3600;
+        checks.backup_status = {
+          status: hoursOld < 48 ? 'pass' : 'warn',
+          message: `Latest backup: ${Math.round(hoursOld)}h ago`,
+        };
+      } else {
+        checks.backup_status = { status: 'warn', message: 'No backups found' };
+      }
+    } catch (e: any) {
+      checks.backup_status = { status: 'warn', message: `Backup check failed: ${e.message}` };
+    }
   } catch (e: any) {
     checks.fatal_error = { status: 'fail', message: `Health check crashed: ${e.message}` };
     overallStatus = 'critical';
@@ -229,12 +264,35 @@ router.get('/health/deep', (_req, res) => {
   res.status(httpStatus).json(response);
 });
 
-// Readiness check
-router.get('/ready', (_req, res) => {
-  if (getDb()) {
-    res.status(200).json({ status: 'ready' });
-  } else {
-    res.status(503).json({ status: 'not_ready', reason: 'database_not_initialized' });
+// --- ADMIN OPS ENDPOINTS (Phase 4) ---
+
+// Get Ingestion History
+router.get('/ingest-runs', async (_req, res, next) => {
+  try {
+    const runs = ingestRunsRepository.getRuns(50);
+    res.json(runs);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// List Backups
+router.get('/backups', async (_req, res, next) => {
+  try {
+    const backups = BackupService.listBackups();
+    res.json(backups);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Trigger Manual Backup
+router.post('/backups/trigger', async (_req, res, next) => {
+  try {
+    const path = await BackupService.createBackup();
+    res.json({ success: true, path });
+  } catch (e) {
+    next(e);
   }
 });
 

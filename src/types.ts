@@ -97,6 +97,10 @@ export interface Person {
   timelineEvents?: any[];
   networkConnections?: any[];
   connectionsToEpstein?: string;
+  wasAgentic?: boolean;
+  was_agentic?: boolean;
+  ingestRunId?: string;
+  ingest_run_id?: string;
 }
 
 export interface Mention {
@@ -130,6 +134,8 @@ export interface Evidence {
   isScannedDocument?: boolean;
   metadataJson?: string;
   fileName?: string;
+  ingestRunId?: string;
+  wasAgentic?: boolean;
 }
 
 export interface SearchFilters {

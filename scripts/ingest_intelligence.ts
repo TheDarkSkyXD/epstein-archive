@@ -1,7 +1,10 @@
 import Database from 'better-sqlite3';
 import * as crypto from 'crypto';
+import { execSync } from 'child_process';
 import { extractEvidence, scoreCategoryMatch } from './utils/evidence_extractor.js';
 import { recalculateRisk } from './recalculate_entity_risk.js';
+import { JobManager } from '../src/server/services/JobManager.js';
+import os from 'os';
 
 // Simplistic NLP / Term Extraction
 // In a real "Ultimate" pipeline, we might call an LLM here,
@@ -10,6 +13,11 @@ import { recalculateRisk } from './recalculate_entity_risk.js';
 const DB_PATH = process.env.DB_PATH || 'epstein-archive.db';
 let db: Database.Database;
 let currentResolverRunId: string;
+
+// Prepared statements for widespread use
+let insertSpan: any;
+let insertMentionRow: any;
+let insertRelation: any;
 
 // CONFIGURATION
 const BATCH_SIZE = 100;
@@ -224,8 +232,7 @@ function harvestContacts(doc: any, content: string, entitiesFound: any[]) {
 }
 
 function makeId(): string {
-  // Simple 128-bit hex id for spans, mentions, etc.
-  return crypto.randomBytes(16).toString('hex');
+  return crypto.randomUUID();
 }
 
 function makeDeterministicId(parts: Array<string | number>): string {
@@ -238,787 +245,851 @@ function makeDeterministicId(parts: Array<string | number>): string {
 }
 
 export async function runIntelligencePipeline() {
-  console.log('🚀 Starting ULTIMATE Entity Ingestion Pipeline...');
+  console.log('🚀 Starting ULTIMATE Evidentiary Ingestion Pipeline...');
 
-  currentResolverRunId = makeId();
-  const resolverVersion = '1.1.0';
-
-  // Initialize DB locally within the function to avoid top-level side effects
+  // Initialize DB at the top level of the function to be accessible by helper functions
   db = new Database(DB_PATH, { timeout: 30000 });
 
-  // 0. Pre-Flight: MIME Sanitization (Critical for uncovering hidden entities)
-  // sanitizeContent();
+  // Stats & Telemetry
+  let totalEntities = 0;
+  let totalMentions = 0;
+  let newEntities = 0; // Batch counter
+  let newMentions = 0; // Batch counter
+  let newEntitiesCount = 0; // Per-doc throttle helper
+  const ingestRunId = makeId();
+  currentResolverRunId = ingestRunId;
 
-  let currentResolverRunTableId: number | bigint = 0;
+  try {
+    // 1. Initialize Ingest Run
+    const gitCommit = execSync('git rev-parse HEAD').toString().trim();
+    const pipelineVersion = '2.0.0-evidentiary';
+    const resolverVersion = '2.0.0';
 
-  // Register resolver run
-  const hasResolverRuns = !!db
-    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'resolver_runs'")
-    .get();
-  if (hasResolverRuns) {
-    const res = db
-      .prepare('INSERT INTO resolver_runs (resolver_name, resolver_version) VALUES (?, ?)')
-      .run('UltimateIngestionPipeline', resolverVersion);
-    currentResolverRunTableId = res.lastInsertRowid;
-  }
+    db.prepare(
+      `
+      INSERT INTO ingest_runs (id, status, git_commit, pipeline_version, agentic_enabled)
+      VALUES (?, 'running', ?, ?, ?)
+    `,
+    ).run(ingestRunId, gitCommit, pipelineVersion, 0);
 
-  const hasResolutionEvents = !!db
-    .prepare(
-      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'entity_resolution_events'",
-    )
-    .get();
-  const insertResolutionEvent = hasResolutionEvents
-    ? db.prepare(
-        'INSERT INTO entity_resolution_events (resolver_run_id, document_id, mention_text, resolved_entity_id, resolution_method, confidence, evidence_json) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    // 0. Pre-Flight: MIME Sanitization (Critical for uncovering hidden entities)
+    // sanitizeContent();
+
+    let currentResolverRunTableId: number | bigint = 0;
+
+    // Register resolver run
+    const hasResolverRuns = !!db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'resolver_runs'")
+      .get();
+    if (hasResolverRuns) {
+      const res = db
+        .prepare('INSERT INTO resolver_runs (resolver_name, resolver_version) VALUES (?, ?)')
+        .run('UltimateIngestionPipeline', resolverVersion);
+      currentResolverRunTableId = res.lastInsertRowid;
+    }
+
+    const hasResolutionEvents = !!db
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'entity_resolution_events'",
       )
-    : null;
+      .get();
+    const insertResolutionEvent = hasResolutionEvents
+      ? db.prepare(
+          'INSERT INTO entity_resolution_events (resolver_run_id, document_id, mention_text, resolved_entity_id, resolution_method, confidence, evidence_json) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        )
+      : null;
 
-  const insertEntity = db.prepare(
-    'INSERT INTO entities (full_name, entity_type, red_flag_rating, risk_level, entity_category, death_date, notes, bio, birth_date, aliases) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-  );
-  const insertEntityMention = db.prepare(`
-    INSERT INTO entity_mentions (
-      entity_id, document_id, mention_context, keyword, 
-      significance_score, confidence_score, link_method,
-      page_number
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    const insertEntity = db.prepare(
+      'INSERT INTO entities (full_name, entity_type, red_flag_rating, risk_level, entity_category, death_date, notes, bio, birth_date, aliases) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    );
+    // Legacy entity_mentions is now entity_mentions_legacy.
+    // We use insertMentionRow for the new schema.
+
+    // Optional new-schema integration (document_spans, mentions, resolution_candidates, relations)
+    const hasDocumentSpans = !!db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'document_spans'")
+      .get();
+    const hasMentionsTable = !!db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'mentions'")
+      .get();
+    const hasResolutionCandidates = !!db
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'resolution_candidates'",
+      )
+      .get();
+    const hasRelationsTable = !!db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'relations'")
+      .get();
+    const hasQualityFlags = !!db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'quality_flags'")
+      .get();
+
+    insertSpan = db.prepare(`
+    INSERT INTO document_spans (id, document_id, start_offset, end_offset, extraction_method, confidence, ingest_run_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
 
-  // Optional new-schema integration (document_spans, mentions, resolution_candidates, relations)
-  const hasDocumentSpans = !!db
-    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'document_spans'")
-    .get();
-  const hasMentionsTable = !!db
-    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'mentions'")
-    .get();
-  const hasResolutionCandidates = !!db
-    .prepare(
-      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'resolution_candidates'",
-    )
-    .get();
-  const hasRelationsTable = !!db
-    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'relations'")
-    .get();
-  const hasQualityFlags = !!db
-    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'quality_flags'")
-    .get();
+    insertMentionRow = db.prepare(`
+    INSERT INTO entity_mentions (
+      id, entity_id, document_id, span_id, start_offset, end_offset, 
+      surface_text, mention_type, mention_context, confidence, ingest_run_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
 
-  const insertSpan = hasDocumentSpans
-    ? db.prepare(
-        'INSERT INTO document_spans (id, document_id, page_num, span_start_char, span_end_char, raw_text, cleaned_text, ocr_confidence, layout_json) VALUES (?, ?, NULL, ?, ?, ?, ?, NULL, NULL)',
-      )
-    : null;
+    insertRelation = db.prepare(`
+    INSERT INTO entity_relationships (
+      source_entity_id, target_entity_id, relationship_type, strength, confidence, ingest_run_id, evidence_pack_json
+    ) VALUES (?, ?, 'co_occurrence', ?, 0.5, ?, ?) 
+    ON CONFLICT(source_entity_id, target_entity_id, relationship_type) 
+    DO UPDATE SET 
+      strength = strength + excluded.strength, 
+      evidence_pack_json = excluded.evidence_pack_json,
+      ingest_run_id = excluded.ingest_run_id
+  `);
 
-  const insertMentionRow = hasMentionsTable
-    ? db.prepare(
-        'INSERT INTO mentions (id, document_id, span_id, mention_start_char, mention_end_char, surface_text, normalised_text, entity_type, ner_model, ner_confidence, context_window_before, context_window_after, sentence_id, paragraph_id, extracted_features_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?)',
-      )
-    : null;
+    const insertQualityFlag = hasQualityFlags
+      ? db.prepare(
+          "INSERT INTO quality_flags (id, target_type, target_id, flag_type, severity, details_json, created_at, resolved_at) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), NULL)",
+        )
+      : null;
 
-  const insertResolutionCandidate = hasResolutionCandidates
-    ? db.prepare(
-        "INSERT OR IGNORE INTO resolution_candidates (id, left_entity_id, right_entity_id, mention_id, candidate_type, score, feature_vector_json, decision, decided_at, decided_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)",
-      )
-    : null;
-
-  const _insertRelation = hasRelationsTable
-    ? db.prepare(
-        "INSERT INTO relations (id, subject_entity_id, object_entity_id, predicate, direction, weight, first_seen_at, last_seen_at, status) VALUES (?, ?, ?, 'mentioned_with', 'undirected', ?, datetime('now'), datetime('now'), 'active') ON CONFLICT(id) DO UPDATE SET weight = weight + excluded.weight, last_seen_at = excluded.last_seen_at",
-      )
-    : null;
-
-  const insertQualityFlag = hasQualityFlags
-    ? db.prepare(
-        "INSERT INTO quality_flags (id, target_type, target_id, flag_type, severity, details_json, created_at, resolved_at) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), NULL)",
-      )
-    : null;
-
-  const insertTriple = db.prepare(`
+    const insertTriple = db.prepare(`
     INSERT INTO claim_triples (
       subject_entity_id, predicate, object_entity_id, object_text,
       document_id, sentence_id, confidence, modality, evidence_json
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
-  const CLAIM_PATTERNS = [
-    { regex: /\b(met with|spoke to|called|visited|emailed|messaged)\b/i, predicate: 'contacted' },
-    { regex: /\b(flew to|traveled to|arrived at|stayed at)\b/i, predicate: 'traveled_to' },
-    {
-      regex: /\b(paid|transferred|sent money to|received money from|wired)\b/i,
-      predicate: 'financial_link',
-    },
-    {
-      regex: /\b(works for|employed by|member of|affiliated with|partner at)\b/i,
-      predicate: 'affiliated',
-    },
-    { regex: /\b(accused|alleged|testified|deposed|stated)\b/i, predicate: 'legal_action' },
-    { regex: /\b(recruited|procured|trafficked)\b/i, predicate: 'recruited' },
-  ];
+    const CLAIM_PATTERNS = [
+      { regex: /\b(met with|spoke to|called|visited|emailed|messaged)\b/i, predicate: 'contacted' },
+      { regex: /\b(flew to|traveled to|arrived at|stayed at)\b/i, predicate: 'traveled_to' },
+      {
+        regex: /\b(paid|transferred|sent money to|received money from|wired)\b/i,
+        predicate: 'financial_link',
+      },
+      {
+        regex: /\b(works for|employed by|member of|affiliated with|partner at)\b/i,
+        predicate: 'affiliated',
+      },
+      { regex: /\b(accused|alleged|testified|deposed|stated)\b/i, predicate: 'legal_action' },
+      { regex: /\b(recruited|procured|trafficked)\b/i, predicate: 'recruited' },
+    ];
 
-  // Stats
-  let totalEntities = 0;
-  let totalMentions = 0;
-  let newEntities = 0;
-  let newMentions = 0;
+    // Stats are now declared above
 
-  try {
-    db.prepare('ALTER TABLE documents ADD COLUMN analyzed_at DATETIME').run();
-    console.log('✅ Added analyzed_at column to documents.');
-  } catch {
-    // Column already exists - safe to ignore
-  }
-
-  // 1. Load Cache
-  const entityCache = new Map<string, number>();
-  // Also cache detected type to avoid re-detecting
-  // const typeCache = new Map<string, string>();
-
-  const entityRows = db
-    .prepare('SELECT id, full_name, aliases, entity_type FROM entities')
-    .all() as any[];
-
-  // Cache of normalized name -> entity id
-  entityRows.forEach((row) => {
-    entityCache.set(normalizeName(row.full_name).toLowerCase(), row.id);
-    if (row.aliases) {
-      row.aliases.split(',').forEach((alias: string) => {
-        entityCache.set(normalizeName(alias).toLowerCase(), row.id);
-      });
-    }
-  });
-
-  // Simple blocking index by last token of name/alias for resolution_candidates
-  const lastNameIndex = new Map<string, { id: number; full_name: string; entity_type: string }[]>();
-
-  function addToLastNameIndex(id: number, name: string, entityType: string) {
-    const norm = normalizeName(name);
-    const parts = norm.split(' ');
-    if (!parts.length) return;
-    const last = parts[parts.length - 1].toLowerCase();
-    if (last.length < 2) return;
-    const bucket = lastNameIndex.get(last) || [];
-    bucket.push({ id, full_name: norm, entity_type: entityType });
-    lastNameIndex.set(last, bucket);
-  }
-
-  /**
-   * Shared extraction and storage logic for mentions (Phase 3 Provenance).
-   */
-  function extractAndStoreMention(
-    doc: any,
-    match: RegExpMatchArray,
-    fullText: string,
-    sentenceId?: number,
-    pageId?: number,
-  ) {
-    const rawName = match[0];
-    const cleanName = normalizeName(rawName);
-
-    if (cleanName.length < 3 || isJunkEntity(cleanName)) return;
-    if (_ENTITY_BLACKLIST.includes(cleanName) || ENTITY_BLACKLIST_REGEX.test(cleanName)) return;
-    if (
-      ENTITY_PARTIAL_BLOCKLIST.some((term) => cleanName.toLowerCase().includes(term.toLowerCase()))
-    )
-      return;
-
-    if (cleanName.includes('Epstein') && !cleanName.includes('Island')) return;
-
-    // A. Resolve
-    const vipResolution = resolveVip(cleanName);
-
-    // Throttling Check (Hygiene)
-    // If not a VIP and we've exceeded the limit for this document, skip.
-    // We assume 'doc' object has a temporary 'newEntitiesCount' property we manage, or we pass it in.
-    // Let's attach it to 'doc' for now since it's passed around.
-    const MAX_ENTITIES_PER_DOC = 50;
-    if (!vipResolution && (doc as any).newEntitiesCount >= MAX_ENTITIES_PER_DOC) {
-      // console.log(`   Start throttling entities for doc ${doc.id}`);
-      return;
+    try {
+      db.prepare('ALTER TABLE documents ADD COLUMN analyzed_at DATETIME').run();
+      console.log('✅ Added analyzed_at column to documents.');
+    } catch {
+      // Column already exists - safe to ignore
     }
 
-    let resolvedName = vipResolution || cleanName;
-    let resolutionMethod = vipResolution ? 'exact_match' : 'exact_match';
+    // 1. Load Cache
+    const entityCache = new Map<string, number>();
+    // Also cache detected type to avoid re-detecting
+    // const typeCache = new Map<string, string>();
 
-    if (!vipResolution) {
-      // Boilerplate Check on Context (Hygiene)
-      if (BoilerplateService.getInstance().isBoilerplate(fullText)) {
-        return; // Skip entities in boilerplate blocks
+    const entityRows = db
+      .prepare('SELECT id, full_name, aliases, entity_type FROM entities')
+      .all() as any[];
+
+    // Cache of normalized name -> entity id
+    entityRows.forEach((row) => {
+      entityCache.set(normalizeName(row.full_name).toLowerCase(), row.id);
+      if (row.aliases) {
+        row.aliases.split(',').forEach((alias: string) => {
+          entityCache.set(normalizeName(alias).toLowerCase(), row.id);
+        });
+      }
+    });
+
+    // Simple blocking index by last token of name/alias for resolution_candidates
+    const lastNameIndex = new Map<
+      string,
+      { id: number; full_name: string; entity_type: string }[]
+    >();
+
+    function addToLastNameIndex(id: number, name: string, entityType: string) {
+      const norm = normalizeName(name);
+      const parts = norm.split(' ');
+      if (!parts.length) return;
+      const last = parts[parts.length - 1].toLowerCase();
+      if (last.length < 2) return;
+      const bucket = lastNameIndex.get(last) || [];
+      bucket.push({ id, full_name: norm, entity_type: entityType });
+      lastNameIndex.set(last, bucket);
+    }
+
+    /**
+     * Shared extraction and storage logic for mentions (Phase 3 Provenance).
+     */
+    function extractAndStoreMention(
+      doc: any,
+      match: RegExpMatchArray,
+      fullText: string,
+      sentenceId?: number,
+      pageId?: number,
+    ) {
+      const rawName = match[0];
+      const cleanName = normalizeName(rawName);
+
+      if (cleanName.length < 3 || isJunkEntity(cleanName)) return;
+      if (_ENTITY_BLACKLIST.includes(cleanName) || ENTITY_BLACKLIST_REGEX.test(cleanName)) return;
+      if (
+        ENTITY_PARTIAL_BLOCKLIST.some((term) =>
+          cleanName.toLowerCase().includes(term.toLowerCase()),
+        )
+      )
+        return;
+
+      if (cleanName.includes('Epstein') && !cleanName.includes('Island')) return;
+
+      // A. Resolve
+      const vipResolution = resolveVip(cleanName);
+
+      // Throttling Check (Hygiene)
+      // If not a VIP and we've exceeded the limit for this document, skip.
+      // We assume 'doc' object has a temporary 'newEntitiesCount' property we manage, or we pass it in.
+      // Let's attach it to 'doc' for now since it's passed around.
+      const MAX_ENTITIES_PER_DOC = 50;
+      if (!vipResolution && (doc as any).newEntitiesCount >= MAX_ENTITIES_PER_DOC) {
+        // console.log(`   Start throttling entities for doc ${doc.id}`);
+        return;
       }
 
-      const idx = match.index || 0;
-      const start = Math.max(0, idx - 100);
-      const end = Math.min(fullText.length, idx + rawName.length + 100);
-      const resolutionContext = fullText.substring(start, end);
-      const res = resolveAmbiguity(cleanName, resolutionContext);
-      if (res) {
-        resolvedName = res.resolvedName;
-        resolutionMethod = 'exact_match';
+      let resolvedName = vipResolution || cleanName;
+      let resolutionMethod = vipResolution ? 'exact_match' : 'exact_match';
+      let mentionContext: string | null = null;
+
+      if (!vipResolution) {
+        // Boilerplate Check on Context (Hygiene)
+        if (BoilerplateService.getInstance().isBoilerplate(fullText)) {
+          return; // Skip entities in boilerplate blocks
+        }
+
+        const idx = match.index || 0;
+        const start = Math.max(0, idx - 100);
+        const end = Math.min(fullText.length, idx + rawName.length + 100);
+        mentionContext = fullText.substring(start, end);
+        const res = resolveAmbiguity(cleanName, mentionContext);
+        if (res) {
+          resolvedName = res.resolvedName;
+          resolutionMethod = 'exact_match';
+        }
+      } else {
+        // Still grab context for VIPs for audit visibility
+        const idx = match.index || 0;
+        const start = Math.max(0, idx - 100);
+        const end = Math.min(fullText.length, idx + rawName.length + 100);
+        mentionContext = fullText.substring(start, end);
       }
-    }
 
-    const lowerName = resolvedName.toLowerCase();
-    let entityId = entityCache.get(lowerName);
-    let entityType = 'Person';
+      const lowerName = resolvedName.toLowerCase();
+      let entityId = entityCache.get(lowerName);
+      let entityType = 'Person';
 
-    if (vipResolution) {
-      const rule = VIP_RULES.find((r) => r.canonicalName === vipResolution);
-      if (rule) entityType = rule.type;
-    } else if (resolutionMethod === 'exact_match' && !vipResolution) {
-      const idx = match.index || 0;
-      const start = Math.max(0, idx - 100);
-      const end = Math.min(fullText.length, idx + rawName.length + 100);
-      const resContext = fullText.substring(start, end);
-      const res = resolveAmbiguity(cleanName, resContext);
-      if (res) entityType = res.entityType;
-    } else {
-      entityType = detectType(resolvedName);
-    }
-
-    if (!entityId) {
-      if (entityType === 'Other') return;
-      try {
-        const res = insertEntity.run(
-          resolvedName,
-          entityType,
-          1,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-          null,
-        );
-        entityId = Number(res.lastInsertRowid);
-        entityCache.set(lowerName, entityId);
-        newEntities++;
-      } catch {
-        const existing = db
-          .prepare('SELECT id FROM entities WHERE full_name = ?')
-          .get(resolvedName) as { id: number };
-        if (!existing) return;
-        entityId = existing.id;
-        entityCache.set(lowerName, entityId);
+      if (vipResolution) {
+        const rule = VIP_RULES.find((r) => r.canonicalName === vipResolution);
+        if (rule) entityType = rule.type;
+      } else if (resolutionMethod === 'exact_match' && !vipResolution) {
+        const idx = match.index || 0;
+        const start = Math.max(0, idx - 100);
+        const end = Math.min(fullText.length, idx + rawName.length + 100);
+        const resContext = fullText.substring(start, end);
+        const res = resolveAmbiguity(cleanName, resContext);
+        if (res) entityType = res.entityType;
+      } else {
+        entityType = detectType(resolvedName);
       }
-    }
 
-    // Role Attribution (Phase 4 Intelligence)
-    if (entityType === 'Person' && entityId) {
-      const idx = match.index || 0;
-      const start = Math.max(0, idx - 150);
-      const end = Math.min(fullText.length, idx + rawName.length + 150);
-      const roleContext = fullText.substring(start, end);
-
-      const foundRoles: string[] = [];
-      for (const pattern of ROLE_PATTERNS) {
-        if (pattern.regex.test(roleContext)) {
-          foundRoles.push(pattern.role);
+      if (!entityId) {
+        if (entityType === 'Other') return;
+        try {
+          const res = insertEntity.run(
+            resolvedName,
+            entityType,
+            1,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+          );
+          entityId = Number(res.lastInsertRowid);
+          entityCache.set(lowerName, entityId);
+          newEntities++;
+        } catch {
+          const existing = db
+            .prepare('SELECT id FROM entities WHERE full_name = ?')
+            .get(resolvedName) as { id: number };
+          if (!existing) return;
+          entityId = existing.id;
+          entityCache.set(lowerName, entityId);
         }
       }
 
-      if (foundRoles.length > 0) {
-        db.prepare(
-          `
+      // Role Attribution (Phase 4 Intelligence)
+      if (entityType === 'Person' && entityId) {
+        const idx = match.index || 0;
+        const start = Math.max(0, idx - 150);
+        const end = Math.min(fullText.length, idx + rawName.length + 150);
+        const roleContext = fullText.substring(start, end);
+
+        const foundRoles: string[] = [];
+        for (const pattern of ROLE_PATTERNS) {
+          if (pattern.regex.test(roleContext)) {
+            foundRoles.push(pattern.role);
+          }
+        }
+
+        if (foundRoles.length > 0) {
+          db.prepare(
+            `
           UPDATE entities 
           SET primary_role = COALESCE(primary_role, ?),
               entity_category = COALESCE(entity_category, ?)
           WHERE id = ? AND primary_role IS NULL
         `,
-        ).run(foundRoles[0], foundRoles[0], entityId);
+          ).run(foundRoles[0], foundRoles[0], entityId);
+        }
       }
-    }
+      // Confidence assignment
+      let confidence = 0.5; // Default low for new/unknown
+      if (vipResolution) confidence = 1.0;
+      else if (entityType !== 'Person')
+        confidence = 0.7; // Orgs/Locs usually reliable
+      else if (entityId && !newEntities) confidence = 0.8; // Existing entity
 
-    // B. Mention
-    // Confidence assignment
-    let confidence = 0.5; // Default low for new/unknown
-    if (vipResolution) confidence = 1.0;
-    else if (entityType !== 'Person')
-      confidence = 0.7; // Orgs/Locs usually reliable
-    else if (entityId && !newEntities) confidence = 0.8; // Existing entity
+      // B. Create Span and Mention
+      const spanId = makeId();
+      const idx = match.index || 0;
+      const end = idx + rawName.length;
 
-    const evidence = extractEvidence(
-      fullText,
-      match.index || 0,
-      (match.index || 0) + rawName.length,
-    );
-    const score = evidence.score;
-    const context = evidence.context;
-
-    insertEntityMention.run(
-      entityId,
-      doc.id,
-      context,
-      cleanName,
-      score,
-      confidence,
-      resolutionMethod,
-      pageId || null,
-    );
-
-    const dbMentionId = Number((db.prepare('SELECT last_insert_rowid() as id').get() as any).id);
-
-    // C. Resolution Event (Phase 3 Explainability)
-    if (insertResolutionEvent) {
-      insertResolutionEvent.run(
-        currentResolverRunTableId || null,
+      insertSpan.run(
+        spanId,
         doc.id,
-        cleanName,
-        entityId,
-        resolutionMethod,
-        confidence, // Use the calculated confidence here
-        JSON.stringify({
-          original_text: rawName,
-          context: context,
-          vip_rule: !!vipResolution,
-          mention_id: dbMentionId,
-        }),
+        idx,
+        end,
+        'pdf_native', // Simplified for now
+        1.0,
+        currentResolverRunId,
       );
+
+      const dbMentionId = makeId();
+      insertMentionRow.run(
+        dbMentionId,
+        entityId,
+        doc.id,
+        spanId,
+        idx,
+        end,
+        rawName,
+        entityType,
+        mentionContext,
+        confidence,
+        currentResolverRunId,
+      );
+
+      // Increment global and document-level counters
+      newMentions++;
+
+      // Simplification: Count every extraction towards the cap to be safe and prevent massive fan-out
+      (doc as any).newEntitiesCount = ((doc as any).newEntitiesCount || 0) + 1;
+      return {
+        entityId,
+        mentionId: dbMentionId,
+        type: entityType,
+        confidence,
+        name: resolvedName,
+      };
     }
 
-    // Increment global and document-level counters
-    newMentions++;
+    function extractAndStoreTriples(
+      doc: any,
+      fullText: string,
+      foundEntities: any[],
+      sentenceId?: number,
+    ) {
+      if (foundEntities.length < 2) return;
 
-    // Simplification: Count every extraction towards the cap to be safe and prevent massive fan-out
-    (doc as any).newEntitiesCount = ((doc as any).newEntitiesCount || 0) + 1;
-    return {
-      entityId,
-      mentionId: dbMentionId,
-      type: entityType,
-      confidence,
-      name: resolvedName,
-    };
-  }
+      // Check pairs of entities within the same context
+      for (let i = 0; i < foundEntities.length; i++) {
+        for (let j = 0; j < foundEntities.length; j++) {
+          if (i === j) continue;
 
-  function extractAndStoreTriples(
-    doc: any,
-    fullText: string,
-    foundEntities: any[],
-    sentenceId?: number,
-  ) {
-    if (foundEntities.length < 2) return;
+          const e1 = foundEntities[i];
+          const e2 = foundEntities[j];
 
-    // Check pairs of entities within the same context
-    for (let i = 0; i < foundEntities.length; i++) {
-      for (let j = 0; j < foundEntities.length; j++) {
-        if (i === j) continue;
+          // Text between entities
+          const start = Math.min(e1.match.index, e2.match.index);
+          const end = Math.max(
+            e1.match.index + e1.match[0].length,
+            e2.match.index + e2.match[0].length,
+          );
+          const midText = fullText.substring(start, end);
 
-        const e1 = foundEntities[i];
-        const e2 = foundEntities[j];
-
-        // Text between entities
-        const start = Math.min(e1.match.index, e2.match.index);
-        const end = Math.max(
-          e1.match.index + e1.match[0].length,
-          e2.match.index + e2.match[0].length,
-        );
-        const midText = fullText.substring(start, end);
-
-        for (const pattern of CLAIM_PATTERNS) {
-          if (pattern.regex.test(midText)) {
-            const tripleId = makeDeterministicId([
-              'triple',
-              e1.entityId,
-              pattern.predicate,
-              e2.entityId,
-              doc.id,
-              sentenceId || 0,
-            ]);
-            const modality =
-              midText.toLowerCase().includes('not') || midText.toLowerCase().includes('deny')
-                ? 'denied'
-                : 'asserted';
-
-            try {
-              insertTriple.run(
+          for (const pattern of CLAIM_PATTERNS) {
+            if (pattern.regex.test(midText)) {
+              const tripleId = makeDeterministicId([
+                'triple',
                 e1.entityId,
                 pattern.predicate,
                 e2.entityId,
-                null,
                 doc.id,
-                sentenceId || null,
-                0.7,
-                modality,
-                JSON.stringify({
-                  snippet: midText,
-                  e1_text: e1.match[0],
-                  e2_text: e2.match[0],
-                }),
-              );
-            } catch (e) {
-              // ignore duplicate triples
+                sentenceId || 0,
+              ]);
+              const modality =
+                midText.toLowerCase().includes('not') || midText.toLowerCase().includes('deny')
+                  ? 'denied'
+                  : 'asserted';
+
+              try {
+                insertTriple.run(
+                  e1.entityId,
+                  pattern.predicate,
+                  e2.entityId,
+                  null,
+                  doc.id,
+                  sentenceId || null,
+                  0.7,
+                  modality,
+                  JSON.stringify({
+                    snippet: midText,
+                    e1_text: e1.match[0],
+                    e2_text: e2.match[0],
+                  }),
+                );
+              } catch (e) {
+                // ignore duplicate triples
+              }
             }
           }
         }
       }
     }
-  }
 
-  function processGranularProvenance(doc: any, sentences: any[]) {
-    const newEntitiesInDoc = 0;
-    (doc as any).newEntitiesCount = 0; // Initialize throttling counter
-    const updateSignal = db.prepare('UPDATE document_sentences SET signal_score = ? WHERE id = ?');
+    function processGranularProvenance(doc: any, sentences: any[]) {
+      const newEntitiesInDoc = 0;
+      (doc as any).newEntitiesCount = 0; // Initialize throttling counter
+      const updateSignal = db.prepare(
+        'UPDATE document_sentences SET signal_score = ? WHERE id = ?',
+      );
 
-    for (const s of sentences) {
-      // 1. Boilerplate Filter (Kill Switch)
-      if (s.is_boilerplate === 1) {
-        continue;
-      }
+      for (const s of sentences) {
+        // 1. Boilerplate Filter (Kill Switch)
+        if (s.is_boilerplate === 1) {
+          continue;
+        }
 
-      // 2. Initial Signal Score (Base + Source Quality)
-      let score = 0.5;
-      if (s.text_source === 'visible_layer') score += 0.2;
-      if (s.ocr_quality_score && s.ocr_quality_score < 0.7) score -= 0.2;
+        // 2. Initial Signal Score (Base + Source Quality)
+        let score = 0.5;
+        if (s.text_source === 'visible_layer') score += 0.2;
+        if (s.ocr_quality_score && s.ocr_quality_score < 0.7) score -= 0.2;
 
-      const content = s.sentence_text;
-      const POTENTIAL_ENTITY_REGEX = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,5})\b/g;
-      const matches = [...content.matchAll(POTENTIAL_ENTITY_REGEX)];
+        const content = s.sentence_text;
+        const POTENTIAL_ENTITY_REGEX = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,5})\b/g;
+        const matches = [...content.matchAll(POTENTIAL_ENTITY_REGEX)];
 
-      const foundInSentence: any[] = [];
-      const hasVip = false;
+        const foundInSentence: any[] = [];
+        const hasVip = false;
 
-      for (const match of matches) {
-        const info = extractAndStoreMention(doc, match, content, s.id, s.page_id);
-        if (info) {
-          foundInSentence.push({ ...info, match });
-          // Check if VIP (naive check via type or prior resolution?)
-          // For now, if we found *any* entity, boost slightly.
-          // If detailed VIP check needed, we'd check entity type returned.
-          if (info.type && info.type !== 'Person') {
-            // reduced boost for non-people? No, orgs are important.
+        for (const match of matches) {
+          const info = extractAndStoreMention(doc, match, content, s.id, s.page_id);
+          if (info) {
+            foundInSentence.push({ ...info, match });
+            // Check if VIP (naive check via type or prior resolution?)
+            // For now, if we found *any* entity, boost slightly.
+            // If detailed VIP check needed, we'd check entity type returned.
+            if (info.type && info.type !== 'Person') {
+              // reduced boost for non-people? No, orgs are important.
+            }
+            score += 0.1;
           }
-          score += 0.1;
         }
+
+        if (foundInSentence.length >= 2) {
+          // Kill Switch: Do not create edges from unverified/low-confidence mentions
+          const highConfidenceEntities = foundInSentence.filter((e) => e.confidence >= 0.6);
+
+          if (highConfidenceEntities.length >= 2) {
+            extractAndStoreTriples(doc, content, highConfidenceEntities, s.id);
+            score += 0.2;
+          }
+        }
+
+        // Cap score
+        score = Math.min(1.0, Math.max(0.0, score));
+        updateSignal.run(score, s.id);
       }
 
-      if (foundInSentence.length >= 2) {
-        // Kill Switch: Do not create edges from unverified/low-confidence mentions
-        const highConfidenceEntities = foundInSentence.filter((e) => e.confidence >= 0.6);
+      // Expanded Harvesting: Extract contact information for persons found across all sentences
+      const allFound = sentences.flatMap((s) =>
+        [...s.sentence_text.matchAll(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,5})\b/g)]
+          .map((match) => {
+            const info = extractAndStoreMention(doc, match, s.sentence_text, s.id, s.page_id);
+            return info ? { name: info.name, type: info.type, entityId: info.entityId } : null;
+          })
+          .filter(Boolean),
+      );
+      harvestContacts(
+        doc,
+        (doc as any).content || sentences.map((s) => s.sentence_text).join(' '),
+        allFound,
+      );
 
-        if (highConfidenceEntities.length >= 2) {
-          extractAndStoreTriples(doc, content, highConfidenceEntities, s.id);
-          score += 0.2;
-        }
-      }
-
-      // Cap score
-      score = Math.min(1.0, Math.max(0.0, score));
-      updateSignal.run(score, s.id);
+      rollupScores(doc.id);
     }
 
-    // Expanded Harvesting: Extract contact information for persons found across all sentences
-    const allFound = sentences.flatMap((s) =>
-      [...s.sentence_text.matchAll(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,5})\b/g)]
-        .map((match) => {
-          const info = extractAndStoreMention(doc, match, s.sentence_text, s.id, s.page_id);
-          return info ? { name: info.name, type: info.type, entityId: info.entityId } : null;
-        })
-        .filter(Boolean),
-    );
-    harvestContacts(
-      doc,
-      (doc as any).content || sentences.map((s) => s.sentence_text).join(' '),
-      allFound,
-    );
-
-    rollupScores(doc.id);
-  }
-
-  function rollupScores(docId: number) {
-    // 1. Rollup to Page: Avg of Setence Scores
-    const pages = db
-      .prepare(
-        `
+    function rollupScores(docId: number) {
+      // 1. Rollup to Page: Avg of Setence Scores
+      const pages = db
+        .prepare(
+          `
       SELECT page_id, AVG(signal_score) as avg_score
       FROM document_sentences
       WHERE document_id = ? AND page_id IS NOT NULL
       GROUP BY page_id
     `,
-      )
-      .all(docId) as { page_id: number; avg_score: number }[];
+        )
+        .all(docId) as { page_id: number; avg_score: number }[];
 
-    const updatePage = db.prepare('UPDATE document_pages SET signal_score = ? WHERE id = ?');
-    for (const p of pages) {
-      updatePage.run(p.avg_score, p.page_id);
-    }
+      const updatePage = db.prepare('UPDATE document_pages SET signal_score = ? WHERE id = ?');
+      for (const p of pages) {
+        updatePage.run(p.avg_score, p.page_id);
+      }
 
-    // 2. Rollup to Document: Max of Page Scores (to highlight high-signal docs)
-    // Or avg? User said "max(page score), count of high-score sentences..."
-    // Let's use Max Page Score as the primary sort signal.
-    const docStats = db
-      .prepare(
-        `
+      // 2. Rollup to Document: Max of Page Scores (to highlight high-signal docs)
+      // Or avg? User said "max(page score), count of high-score sentences..."
+      // Let's use Max Page Score as the primary sort signal.
+      const docStats = db
+        .prepare(
+          `
       SELECT MAX(signal_score) as max_score
       FROM document_pages
       WHERE document_id = ?
     `,
-      )
-      .get(docId) as { max_score: number };
-
-    // If no pages (e.g. text file), fall back to avg of sentences
-    let docScore = docStats ? docStats.max_score : 0;
-    if (!docScore) {
-      const sentStats = db
-        .prepare(
-          'SELECT AVG(signal_score) as avg_score FROM document_sentences WHERE document_id = ?',
         )
-        .get(docId) as { avg_score: number };
-      docScore = sentStats ? sentStats.avg_score : 0;
-    }
+        .get(docId) as { max_score: number };
 
-    db.prepare('UPDATE documents SET signal_score = ? WHERE id = ?').run(docScore, docId);
-  }
-
-  function processCoarseProvenance(doc: any, content: string) {
-    const POTENTIAL_ENTITY_REGEX = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,5})\b/g;
-    const matches = [...content.matchAll(POTENTIAL_ENTITY_REGEX)];
-
-    const foundInDoc: any[] = [];
-    for (const match of matches) {
-      const info = extractAndStoreMention(doc, match, content);
-      if (info) {
-        foundInDoc.push({ ...info, match });
+      // If no pages (e.g. text file), fall back to avg of sentences
+      let docScore = docStats ? docStats.max_score : 0;
+      if (!docScore) {
+        const sentStats = db
+          .prepare(
+            'SELECT AVG(signal_score) as avg_score FROM document_sentences WHERE document_id = ?',
+          )
+          .get(docId) as { avg_score: number };
+        docScore = sentStats ? sentStats.avg_score : 0;
       }
+
+      db.prepare('UPDATE documents SET signal_score = ? WHERE id = ?').run(docScore, docId);
     }
 
-    // For coarse provenance, we only extract triples if they are relatively close (e.g. within 200 chars)
-    // but here we'll just skip to avoid garbage links in massive files.
-    // In a better version, we'd split by paragraph even in coarse mode.
+    function processCoarseProvenance(doc: any, content: string) {
+      const POTENTIAL_ENTITY_REGEX = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,5})\b/g;
+      const matches = [...content.matchAll(POTENTIAL_ENTITY_REGEX)];
 
-    // Expanded Harvesting: Extract contact information for persons
-    harvestContacts(
-      doc,
-      content,
-      foundInDoc.map((f) => ({ name: f.name, type: f.type, entityId: f.entityId })),
-    );
-  }
+      const foundInDoc: any[] = [];
+      for (const match of matches) {
+        const info = extractAndStoreMention(doc, match, content);
+        if (info) {
+          foundInDoc.push({ ...info, match });
+        }
+      }
 
-  entityRows.forEach((row) => {
-    addToLastNameIndex(row.id, row.full_name, row.entity_type || 'Unknown');
-    if (row.aliases) {
-      row.aliases.split(',').forEach((alias: string) => {
-        addToLastNameIndex(row.id, alias, row.entity_type || 'Unknown');
-      });
-    }
-  });
+      // For coarse provenance, we only extract triples if they are relatively close (e.g. within 200 chars)
+      // but here we'll just skip to avoid garbage links in massive files.
+      // In a better version, we'd split by paragraph even in coarse mode.
 
-  console.log(
-    `🧠 Loaded ${entityCache.size} existing entities into memory (blocking keys: ${lastNameIndex.size}).`,
-  );
-  // 2. Sync VIP Entities (Force Update/Insert)
-  console.log('👑 Syncing VIP entities...');
-  const updateEntity = db.prepare(
-    'UPDATE entities SET entity_category = ?, risk_level = ?, death_date = ?, notes = ?, red_flag_rating = ?, bio = ?, birth_date = ?, aliases = ? WHERE id = ?',
-  );
-
-  let syncedVips = 0;
-  for (const rule of VIP_RULES) {
-    const lower = normalizeName(rule.canonicalName).toLowerCase();
-    let id = entityCache.get(lower);
-
-    let riskLevel: string | null = null;
-    let category: string | null = null;
-    let deathDate: string | null = null;
-    let notes: string | null = null;
-    let bio: string | null = null;
-    let birthDate: string | null = null;
-    let redFlagRating = 1;
-
-    if (rule.metadata) {
-      riskLevel = rule.metadata.riskLevel || null;
-      category = rule.metadata.category || null;
-      deathDate = rule.metadata.deathDate || null;
-      notes = rule.metadata.notes || null;
-      bio = rule.metadata.bio || null;
-      birthDate = rule.metadata.birthDate || null;
-
-      if (riskLevel === 'high') redFlagRating = 3;
-      else if (riskLevel === 'medium') redFlagRating = 2;
-    }
-
-    const aliasesStr = rule.aliases ? rule.aliases.join(',') : null;
-
-    if (id) {
-      // Update
-      updateEntity.run(
-        category,
-        riskLevel,
-        deathDate,
-        notes,
-        redFlagRating,
-        bio,
-        birthDate,
-        aliasesStr,
-        id,
+      // Expanded Harvesting: Extract contact information for persons
+      harvestContacts(
+        doc,
+        content,
+        foundInDoc.map((f) => ({ name: f.name, type: f.type, entityId: f.entityId })),
       );
-    } else {
-      // Insert
-      try {
-        const res = insertEntity.run(
-          rule.canonicalName,
-          rule.type,
-          redFlagRating,
-          riskLevel,
+    }
+
+    entityRows.forEach((row) => {
+      addToLastNameIndex(row.id, row.full_name, row.entity_type || 'Unknown');
+      if (row.aliases) {
+        row.aliases.split(',').forEach((alias: string) => {
+          addToLastNameIndex(row.id, alias, row.entity_type || 'Unknown');
+        });
+      }
+    });
+
+    console.log(
+      `🧠 Loaded ${entityCache.size} existing entities into memory (blocking keys: ${lastNameIndex.size}).`,
+    );
+    // 2. Sync VIP Entities (Force Update/Insert)
+    console.log('👑 Syncing VIP entities...');
+    const updateEntity = db.prepare(
+      'UPDATE entities SET entity_category = ?, risk_level = ?, death_date = ?, notes = ?, red_flag_rating = ?, bio = ?, birth_date = ?, aliases = ? WHERE id = ?',
+    );
+
+    let syncedVips = 0;
+    for (const rule of VIP_RULES) {
+      const lower = normalizeName(rule.canonicalName).toLowerCase();
+      let id = entityCache.get(lower);
+
+      let riskLevel: string | null = null;
+      let category: string | null = null;
+      let deathDate: string | null = null;
+      let notes: string | null = null;
+      let bio: string | null = null;
+      let birthDate: string | null = null;
+      let redFlagRating = 1;
+
+      if (rule.metadata) {
+        riskLevel = rule.metadata.riskLevel || null;
+        category = rule.metadata.category || null;
+        deathDate = rule.metadata.deathDate || null;
+        notes = rule.metadata.notes || null;
+        bio = rule.metadata.bio || null;
+        birthDate = rule.metadata.birthDate || null;
+
+        if (riskLevel === 'high') redFlagRating = 3;
+        else if (riskLevel === 'medium') redFlagRating = 2;
+      }
+
+      const aliasesStr = rule.aliases ? rule.aliases.join(',') : null;
+
+      if (id) {
+        // Update
+        updateEntity.run(
           category,
+          riskLevel,
           deathDate,
           notes,
+          redFlagRating,
           bio,
           birthDate,
           aliasesStr,
+          id,
         );
-        id = Number(res.lastInsertRowid);
-        entityCache.set(lower, id);
-        // Also index aliases
-        if (rule.aliases) {
-          rule.aliases.forEach((alias) => {
-            entityCache.set(normalizeName(alias).toLowerCase(), id!);
-          });
-        }
-        addToLastNameIndex(id, rule.canonicalName, rule.type);
-      } catch (e) {
-        console.error(`Failed to insert VIP ${rule.canonicalName}:`, e);
-      }
-    }
-    syncedVips++;
-  }
-  console.log(`✅ Synced ${syncedVips} VIP entities.`);
-
-  // 3. Fetch Unanalyzed Documents
-  // Process in batches
-  let hasMoreDocs = true;
-  while (hasMoreDocs) {
-    // Parse CLI arguments for granular control
-    const targetDocIdIdx = process.argv.indexOf('--document-id');
-    const targetDocId =
-      process.argv.find((arg) => arg.startsWith('--document-id='))?.split('=')[1] ||
-      (targetDocIdIdx !== -1 && targetDocIdIdx + 1 < process.argv.length
-        ? process.argv[targetDocIdIdx + 1]
-        : null);
-
-    const limitIdx = process.argv.indexOf('--limit');
-    const cliLimit =
-      process.argv.find((arg) => arg.startsWith('--limit='))?.split('=')[1] ||
-      (limitIdx !== -1 && limitIdx + 1 < process.argv.length ? process.argv[limitIdx + 1] : null);
-
-    const targetIdVal = targetDocId && !isNaN(parseInt(targetDocId)) ? parseInt(targetDocId) : null;
-    const actualLimit = cliLimit && !isNaN(parseInt(cliLimit)) ? parseInt(cliLimit) : BATCH_SIZE;
-
-    const docs = db
-      .prepare(
-        `
-        SELECT id, content, file_name, file_path
-        FROM documents
-        WHERE (
-          (@id IS NOT NULL AND id = @id) OR
-          (@id IS NULL AND (analyzed_at IS NULL OR processing_status = 'queued'))
-        ) AND content IS NOT NULL
-        LIMIT @limit
-      `,
-      )
-      .all({ id: targetIdVal, limit: actualLimit }) as any[];
-
-    if (docs.length === 0) {
-      if (targetDocId) {
-        console.log(`❌ Document ${targetDocId} not found or has no content.`);
       } else {
-        console.log('✨ All documents processed.');
+        // Insert
+        try {
+          const res = insertEntity.run(
+            rule.canonicalName,
+            rule.type,
+            redFlagRating,
+            riskLevel,
+            category,
+            deathDate,
+            notes,
+            bio,
+            birthDate,
+            aliasesStr,
+          );
+          id = Number(res.lastInsertRowid);
+          entityCache.set(lower, id);
+          // Also index aliases
+          if (rule.aliases) {
+            rule.aliases.forEach((alias) => {
+              entityCache.set(normalizeName(alias).toLowerCase(), id!);
+            });
+          }
+          addToLastNameIndex(id, rule.canonicalName, rule.type);
+        } catch (e) {
+          console.error(`Failed to insert VIP ${rule.canonicalName}:`, e);
+        }
       }
-      hasMoreDocs = false;
-      continue;
+      syncedVips++;
     }
+    console.log(`✅ Synced ${syncedVips} VIP entities.`);
 
-    console.log(`📄 Processing batch of ${docs.length} documents...`);
-    newEntities = 0;
-    newMentions = 0;
+    // 3. Fetch Unanalyzed Documents using JobManager for cluster safety
+    const jobManager = new JobManager();
+    console.log(`🤖 Worker ID: ${jobManager.getWorkerId()}`);
 
-    const markAnalyzed = db.prepare(
-      "UPDATE documents SET analyzed_at = datetime('now'), processing_status = 'succeeded' WHERE id = ?",
-    );
+    // Signal Handling for Graceful Shutdown
+    let shuttingDown = false;
+    const currentJobId: number | null = null;
 
-    for (const doc of docs) {
-      db.transaction(() => {
-        const content = doc.content as string;
+    const handleSignal = () => {
+      if (shuttingDown) return;
+      console.log('\n🛑 Graceful shutdown initiated...');
+      shuttingDown = true;
+    };
 
-        // Phase 3: Content Classification & High Interest Booster
-        const q = checkHighInterest(content);
-        if (q.status === 'high_interest') {
-          db.prepare(
-            `
-            UPDATE documents 
-            SET red_flag_rating = 10, 
-                processing_error = ? 
-            WHERE id = ?
-          `,
-          ).run(`High Interest: ${q.reason}`, doc.id);
-          console.log(`   🔥 Document ${doc.id} flagged as High Interest: ${q.reason}`);
+    process.on('SIGINT', handleSignal);
+    process.on('SIGTERM', handleSignal);
+
+    let hasMoreDocs = true;
+    while (hasMoreDocs && !shuttingDown) {
+      // We still support CLI overrides for single doc debugging
+      const targetDocIdIdx = process.argv.indexOf('--document-id');
+      const targetDocId =
+        process.argv.find((arg) => arg.startsWith('--document-id='))?.split('=')[1] ||
+        (targetDocIdIdx !== -1 && targetDocIdIdx + 1 < process.argv.length
+          ? process.argv[targetDocIdIdx + 1]
+          : null);
+
+      let docs: any[] = [];
+
+      if (targetDocId) {
+        const idVal = parseInt(targetDocId);
+        docs = db
+          .prepare('SELECT id, content, file_name, file_path FROM documents WHERE id = ?')
+          .all(idVal);
+        hasMoreDocs = false; // Only process the requested doc
+      } else {
+        // Use JobManager to lease a batch of jobs
+        for (let i = 0; i < BATCH_SIZE; i++) {
+          const job = jobManager.acquireJob(600); // 10 min lease
+          if (job) {
+            const doc = db
+              .prepare('SELECT id, content, file_name, file_path FROM documents WHERE id = ?')
+              .get(job.id);
+            if (doc) docs.push(doc);
+          } else {
+            break;
+          }
+        }
+      }
+
+      if (docs.length === 0) {
+        console.log(
+          targetDocId ? `❌ Document ${targetDocId} not found.` : '✨ No more documents in queue.',
+        );
+        hasMoreDocs = false;
+        continue;
+      }
+
+      console.log(`📄 Processing leased batch of ${docs.length} documents...`);
+      newEntities = 0;
+      newMentions = 0;
+
+      for (const doc of docs) {
+        if (shuttingDown) {
+          jobManager.failJob(doc.id, 'Worker shutting down');
+          continue;
         }
 
-        // Phase 4: Credential Harvesting
-        extractCredentials(doc, content);
+        try {
+          db.transaction(() => {
+            const content = doc.content as string;
+            extractCredentials(doc, content);
 
-        // Fetch granular data (Pages/Sentences) for provenance
-        const hasSentencesTable = !!db
-          .prepare(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='document_sentences'",
-          )
-          .get();
-        const sentences = hasSentencesTable
-          ? (db
+            const hasSentences = !!db
               .prepare(
-                `
-          SELECT s.id, s.sentence_text, s.is_boilerplate, 
-                 p.id as page_id, p.ocr_quality_score, p.text_source
-          FROM document_sentences s
-          LEFT JOIN document_pages p ON s.page_id = p.id
-          WHERE s.document_id = ?
-          ORDER BY s.id ASC
-        `,
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='document_sentences'",
               )
-              .all(doc.id) as {
-              id: number;
-              sentence_text: string;
-              page_id: number;
-              is_boilerplate: number;
-              ocr_quality_score: number;
-              text_source: string;
-            }[])
-          : [];
+              .get();
+            const sentences = hasSentences
+              ? db
+                  .prepare(
+                    `
+                            SELECT s.id, s.sentence_text, s.is_boilerplate, 
+                                   p.id as page_id, p.ocr_quality_score, p.text_source
+                            FROM document_sentences s
+                            LEFT JOIN document_pages p ON s.page_id = p.id
+                            WHERE s.document_id = ?
+                            ORDER BY s.id ASC
+                        `,
+                  )
+                  .all(doc.id)
+              : [];
 
-        if (sentences.length > 0) {
-          processGranularProvenance(doc, sentences);
-        } else {
-          processCoarseProvenance(doc, content);
+            if (sentences.length > 0) {
+              processGranularProvenance(doc, sentences as any);
+            } else {
+              processCoarseProvenance(doc, content);
+            }
+
+            // Success
+            db.prepare("UPDATE documents SET analyzed_at = datetime('now') WHERE id = ?").run(
+              doc.id,
+            );
+            jobManager.completeJob(doc.id);
+          })();
+        } catch (err: any) {
+          console.error(`❌ Failed to process document ${doc.id}:`, err.message);
+          jobManager.failJob(doc.id, err.message);
         }
+      }
 
-        markAnalyzed.run(doc.id);
-      })();
+      console.log(`   Batch complete. New Entities: ${newEntities}, Mentions: ${newMentions}`);
+      totalEntities += newEntities;
+      totalMentions += newMentions;
     }
 
-    console.log(`   Batch complete. New Entities: ${newEntities}, Mentions: ${newMentions}`);
-    totalEntities += newEntities;
-    totalMentions += newMentions;
+    // 3. Post-Process: Map Relationships (Co-occurrence)
+    console.log('🔗 Mapping Relationships (Co-occurrence)...');
+    mapCoOccurrences();
+
+    // 4. Post-Process: Populate relation_evidence when schema is available
+    console.log('📎 Populating relation evidence from mentions...');
+    populateRelationEvidence();
+
+    console.log('🔗 Consolidating entities (auto-cleanup)...');
+    performCleanup();
+
+    console.log('🔗 Generating consolidation candidates...');
+    consolidateEntities();
+
+    console.log('⚖️ Running Dynamic Risk Recalibration...');
+    await recalculateRisk();
+
+    // Finalize Ingest Run with Invariants (Phase 1)
+    console.log('🏁 Finalizing Run Manifest and verifying invariants...');
+    try {
+      // 1. SQLite quick_check
+      const check = db.prepare('PRAGMA quick_check').get() as any;
+      if (check.quick_check !== 'ok') throw new Error(`Database corrupted: ${check.quick_check}`);
+
+      // 2. FTS Row count alignment (Sample)
+      const docCountRec = db.prepare('SELECT COUNT(*) as c FROM documents').get() as any;
+      const ftsCountRec = db.prepare('SELECT COUNT(*) as c FROM evidence_fts').get() as any;
+      const docCount = docCountRec ? docCountRec.c : 0;
+      const ftsCnt = ftsCountRec ? ftsCountRec.c : 0;
+
+      if (Math.abs(docCount - ftsCnt) > docCount * 0.05) {
+        // 5% drift tolerance
+        console.warn(`⚠️ FTS Drift detected: Docs=${docCount}, FTS=${ftsCnt}`);
+      }
+
+      db.prepare(
+        `
+        UPDATE ingest_runs 
+        SET status = 'success', finished_at = CURRENT_TIMESTAMP 
+        WHERE id = ?
+      `,
+      ).run(ingestRunId);
+      console.log('✅ Ingest Run completed successfully.');
+    } catch (invErr: any) {
+      console.error('❌ Invariant Check Failed:', invErr.message);
+      db.prepare(
+        `
+        UPDATE ingest_runs 
+        SET status = 'failed', finished_at = CURRENT_TIMESTAMP, notes = ? 
+        WHERE id = ?
+      `,
+      ).run(`Invariant failure: ${invErr.message}`, ingestRunId);
+    }
+
+    console.log(`\n============== REPORT ==============`);
+    console.log(`Total New Entities: ${totalEntities}`);
+    console.log(`Total Mentions Added: ${totalMentions}`);
+    console.log(`====================================`);
+  } catch (error: any) {
+    console.error('❌ Pipeline CRASHED:', error);
+    if (db) {
+      db.prepare(
+        `
+        UPDATE ingest_runs 
+        SET status = 'failed', finished_at = CURRENT_TIMESTAMP, notes = ? 
+        WHERE id = ?
+      `,
+      ).run(`Pipeline crash: ${error.message}`, currentResolverRunId);
+    }
+    throw error;
+  } finally {
+    if (db) db.close();
   }
-
-  // 3. Post-Process: Map Relationships (Co-occurrence)
-  console.log('🔗 Mapping Relationships (Co-occurrence)...');
-  mapCoOccurrences();
-
-  // 4. Post-Process: Populate relation_evidence when schema is available
-  console.log('📎 Populating relation evidence from mentions...');
-  populateRelationEvidence();
-
-  console.log('🔗 Consolidating entities (auto-cleanup)...');
-  performCleanup();
-
-  console.log('🔗 Generating consolidation candidates...');
-  consolidateEntities();
-
-  console.log('⚖️ Running Dynamic Risk Recalibration...');
-  await recalculateRisk();
-
-  console.log(`\n============== REPORT ==============`);
-  console.log(`Total New Entities: ${totalEntities}`);
-  console.log(`Total Mentions Added: ${totalMentions}`);
-  console.log(`====================================`);
 }
 
 // Check if this script is being run directly
@@ -1073,19 +1144,26 @@ function processPairs(rows: { ids: string }[], weight: number) {
     DO UPDATE SET strength = strength + ?
   `);
 
-  const tx = db.transaction((pairs: [number, number][]) => {
-    for (const [a, b] of pairs) {
-      insertRel.run(a, b, weight, weight);
+  const tx = db.transaction((pairs: [number, number, any][]) => {
+    for (const [a, b, evidence] of pairs) {
+      insertRelation.run(a, b, weight, currentResolverRunId, JSON.stringify(evidence));
     }
   });
 
-  let buffer: [number, number][] = [];
+  let buffer: [number, number, any][] = [];
   for (const row of rows) {
     const ids = [...new Set(row.ids.split(',').map(Number))].sort((a, b) => a - b);
     if (ids.length > 50) continue;
+
+    const evidence = {
+      base_comention_count: ids.length,
+      window_signal: weight === 1.0 ? 'sentence' : 'document',
+      score_breakdown: { base: weight },
+    };
+
     for (let i = 0; i < ids.length; i++) {
       for (let j = i + 1; j < ids.length; j++) {
-        buffer.push([ids[i], ids[j]]);
+        buffer.push([ids[i], ids[j], evidence]);
       }
     }
     if (buffer.length >= 500) {
@@ -1097,21 +1175,7 @@ function processPairs(rows: { ids: string }[], weight: number) {
 }
 
 function populateRelationEvidence() {
-  const hasRelationEvidence = !!db
-    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'relation_evidence'")
-    .get();
-  const hasRelations = !!db
-    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'relations'")
-    .get();
-  const hasMentions = !!db
-    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'mentions'")
-    .get();
-
-  if (!hasRelationEvidence || !hasRelations || !hasMentions) {
-    console.log('   Skipping relation_evidence population (schema not present).');
-    return;
-  }
-
+  // Use entity_relationships instead of legacy relations for evidence packs
   const insertRelationEvidence = db.prepare(
     'INSERT OR IGNORE INTO relation_evidence (id, relation_id, document_id, span_id, quote_text, confidence, mention_ids) VALUES (?, ?, ?, ?, ?, ?, ?)',
   );
@@ -1122,22 +1186,20 @@ function populateRelationEvidence() {
         SELECT 
           em.document_id as document_id,
           em.entity_id as entity_id,
-          em.mention_id as mention_id,
-          em.score as mention_score,
-          m.span_id as span_id,
-          m.surface_text as surface_text,
-          m.context_window_before as before,
-          m.context_window_after as after
+          em.id as mention_id,
+          em.confidence as mention_conf,
+          m.id as span_id,
+          m.surface_text as surface_text
         FROM entity_mentions em
-        JOIN mentions m ON m.id = em.mention_id
-        WHERE em.mention_id IS NOT NULL
+        JOIN document_spans m ON m.id = em.span_id
+        WHERE em.ingest_run_id = ?
         ORDER BY em.document_id
       `,
     )
-    .all() as any[];
+    .all(currentResolverRunId) as any[];
 
   if (!rows.length) {
-    console.log('   No mention-backed entity_mentions found for relation evidence.');
+    console.log('   No mentions found in this run for relation evidence.');
     return;
   }
 
@@ -1156,13 +1218,9 @@ function populateRelationEvidence() {
     }
 
     const existing = perDoc.get(entityId);
-    const quote = `${row.before || ''}${row.surface_text || ''}${row.after || ''}`
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 400);
-    const score = typeof row.mention_score === 'number' ? row.mention_score : 1.0;
+    const quote = `${row.surface_text || ''}`.replace(/\s+/g, ' ').trim().slice(0, 400);
+    const score = row.mention_conf || 1.0;
 
-    // Keep the highest-scoring mention per (doc, entity) pair
     if (!existing || score > existing.score) {
       perDoc.set(entityId, {
         mention_id: row.mention_id,
@@ -1184,31 +1242,18 @@ function populateRelationEvidence() {
         for (let j = i + 1; j < entityIds.length; j++) {
           const a = entityIds[i];
           const b = entityIds[j];
-          const relId = `${Math.min(a, b)}-${Math.max(a, b)}-mentioned_with`;
+          const evidence = {
+            supporting_mention_ids: [entityMap.get(a)!.mention_id, entityMap.get(b)!.mention_id],
+            document_id: docId,
+          };
 
-          const aData = entityMap.get(a)!;
-          const bData = entityMap.get(b)!;
-          const quote = (aData.quote || bData.quote || '').slice(0, 400);
-          const conf = Math.min(aData.score, bData.score);
-          const mentionIds = JSON.stringify([aData.mention_id, bData.mention_id]);
-          const spanId = aData.span_id || bData.span_id || null;
-
-          const evId = makeDeterministicId([
-            'relEvidence',
-            relId,
-            docId,
-            aData.mention_id,
-            bData.mention_id,
-          ]);
-
-          // Ensure relation exists to satisfy foreign key
-          if (hasRelations) {
-            db.prepare(
-              "INSERT OR IGNORE INTO relations (id, subject_entity_id, object_entity_id, predicate, direction, weight, status) VALUES (?, ?, ?, 'mentioned_with', 'undirected', 0, 'active')",
-            ).run(relId, Math.min(a, b), Math.max(a, b));
-          }
-
-          insertRelationEvidence.run(evId, relId, docId, spanId, quote, conf, mentionIds);
+          insertRelation.run(
+            a,
+            b,
+            0.1, // Small weight for co-occurrence co-mentions
+            currentResolverRunId,
+            JSON.stringify(evidence),
+          );
           inserted++;
         }
       }
@@ -1217,7 +1262,7 @@ function populateRelationEvidence() {
 
   tx();
 
-  console.log(`   ✅ Populated ${inserted} relation_evidence rows.`);
+  console.log(`   ✅ Populated ${inserted} evidentiary connections. `);
 }
 
 function consolidateEntities() {

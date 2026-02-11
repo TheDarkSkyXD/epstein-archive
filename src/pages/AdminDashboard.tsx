@@ -20,6 +20,8 @@ import {
   Cpu,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { ReviewQueuePanel } from '../components/admin/ReviewQueuePanel';
+import { ShieldCheck } from 'lucide-react';
 
 interface User {
   id: string;
@@ -54,10 +56,14 @@ interface SystemHealth {
 }
 
 export const AdminDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'users' | 'audit' | 'system'>('users');
+  const [activeTab, setActiveTab] = useState<
+    'users' | 'audit' | 'review' | 'system' | 'ingestion' | 'backups'
+  >('users');
   const [users, setUsers] = useState<User[]>([]);
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [health, setHealth] = useState<SystemHealth | null>(null);
+  const [ingestRuns, setIngestRuns] = useState<any[]>([]);
+  const [backups, setBackups] = useState<any[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [auditLoading, setAuditLoading] = useState(false);
@@ -143,6 +149,48 @@ export const AdminDashboard: React.FC = () => {
       console.error(e);
     }
   };
+
+  const fetchIngestRuns = async () => {
+    try {
+      const res = await fetch('/api/stats/ingest-runs');
+      if (res.ok) {
+        const data = await res.json();
+        setIngestRuns(data);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const fetchBackups = async () => {
+    try {
+      const res = await fetch('/api/stats/backups');
+      if (res.ok) {
+        const data = await res.json();
+        setBackups(data);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const triggerBackup = async () => {
+    if (!confirm('Create a new database snapshot? This is a zero-downtime operation.')) return;
+    try {
+      const res = await fetch('/api/stats/backups/trigger', { method: 'POST' });
+      if (res.ok) {
+        alert('Backup created successfully.');
+        fetchBackups();
+      }
+    } catch (e) {
+      alert('Backup failed');
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'ingestion') fetchIngestRuns();
+    if (activeTab === 'backups') fetchBackups();
+  }, [activeTab]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -314,6 +362,39 @@ export const AdminDashboard: React.FC = () => {
           >
             <Server size={18} />
             System Health
+          </button>
+          <button
+            onClick={() => setActiveTab('review')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === 'review'
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <ShieldCheck size={18} />
+            Agentic Review
+          </button>
+          <button
+            onClick={() => setActiveTab('ingestion')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === 'ingestion'
+                ? 'bg-orange-600 text-white shadow-lg shadow-orange-500/20'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <RefreshCw size={18} />
+            Ingestion History
+          </button>
+          <button
+            onClick={() => setActiveTab('backups')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === 'backups'
+                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <Database size={18} />
+            Backups
           </button>
         </div>
 
@@ -600,6 +681,141 @@ export const AdminDashboard: React.FC = () => {
                 </p>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* --- INGESTION TAB --- */}
+        {activeTab === 'ingestion' && (
+          <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl overflow-hidden animate-in fade-in duration-300">
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between font-bold">
+              <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+                <RefreshCw className="text-orange-400 w-5 h-5" />
+                Ingestion History
+              </h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-950 text-slate-400 text-sm border-b border-slate-800">
+                    <th className="px-6 py-3 font-medium">Run ID</th>
+                    <th className="px-6 py-3 font-medium">Status</th>
+                    <th className="px-6 py-3 font-medium">Date</th>
+                    <th className="px-6 py-3 font-medium">Commit</th>
+                    <th className="px-6 py-3 font-medium">Model / Agentic</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {ingestRuns.map((run) => (
+                    <tr key={run.id} className="hover:bg-slate-800/30">
+                      <td className="px-6 py-4 text-xs font-mono text-slate-300 truncate max-w-[120px]">
+                        {run.id}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                            run.status === 'success'
+                              ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                              : run.status === 'running'
+                                ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                                : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                          }`}
+                        >
+                          {run.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-xs text-slate-400">
+                        {new Date(run.startedAt).toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 text-[10px] font-mono text-slate-500">
+                        {run.gitCommit?.substring(0, 7) || 'N/A'}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] text-slate-300">
+                            {run.agenticModelId || 'Legacy'}
+                          </span>
+                          {run.agenticEnabled && (
+                            <span className="text-[8px] bg-purple-500/20 text-purple-400 px-1 rounded w-fit font-bold uppercase">
+                              AGENTIC
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {ingestRuns.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center text-slate-500 italic">
+                        No ingestion runs found in history.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* --- BACKUPS TAB --- */}
+        {activeTab === 'backups' && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-white">Database Backups</h2>
+                <p className="text-slate-400 text-sm">
+                  Compressed SQLite snapshots (Last 7 days retained)
+                </p>
+              </div>
+              <button
+                onClick={triggerBackup}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors shadow-lg shadow-emerald-500/20"
+              >
+                <RefreshCw size={18} />
+                Snapshot Now
+              </button>
+            </div>
+
+            <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl overflow-hidden">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-950 text-slate-400 text-sm border-b border-slate-800">
+                    <th className="px-6 py-3 font-medium">Filename</th>
+                    <th className="px-6 py-3 font-medium text-right">Size</th>
+                    <th className="px-6 py-3 font-medium text-right">Created</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {backups.map((backup) => (
+                    <tr key={backup.filename} className="hover:bg-slate-800/30">
+                      <td className="px-6 py-4 text-sm text-slate-300 flex items-center gap-2">
+                        <FileText size={14} className="text-slate-500" />
+                        {backup.filename}
+                      </td>
+                      <td className="px-6 py-4 text-xs font-mono text-slate-400 text-right">
+                        {(backup.size / 1024 / 1024).toFixed(2)} MB
+                      </td>
+                      <td className="px-6 py-4 text-xs text-slate-500 text-right">
+                        {new Date(backup.createdAt).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                  {backups.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="px-6 py-12 text-center text-slate-500 italic">
+                        No snapshots available. Trigger a manual backup to start.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* --- REVIEW TAB --- */}
+        {activeTab === 'review' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <ReviewQueuePanel />
           </div>
         )}
       </div>

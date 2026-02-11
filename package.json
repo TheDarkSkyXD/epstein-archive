@@ -1,7 +1,7 @@
 {
   "name": "epstein-archive",
   "private": true,
-  "version": "12.16.0",
+  "version": "13.0.0",
   "description": "Epstein Archive Analyzer",
   "type": "module",
   "scripts": {
@@ -14,7 +14,7 @@
     "preview": "vite preview",
     "migrate": "DB_PATH=./epstein-archive.db tsx scripts/migrate.ts",
     "seed:structure": "DB_PATH=./epstein-archive.db tsx scripts/ensure_structure.ts",
-    "verify": "DB_PATH=./epstein-archive.db tsx scripts/verify_deployment.ts",
+    "verify": "DB_PATH=./epstein-archive.db tsx scripts/credibility_tests.ts && tsx scripts/verify_deployment.ts",
     "verify:post-deploy": "./scripts/post_deploy_verify.sh",
     "rollback": "./scripts/emergency_rollback.sh",
     "seed:sascha-investigation": "DB_PATH=./epstein-archive.db tsx scripts/create_sascha_investigation.ts",

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { apiClient } from '../services/apiClient';
 
 export interface User {
   id: string;
@@ -9,8 +10,7 @@ export interface User {
 
 interface AuthContextType {
   user: User | null;
-  token: string | null;
-  login: (token: any, user: User) => void;
+  login: (userData: User, accessToken: string) => void;
   logout: () => void;
   isAuthenticated: boolean;
   isAdmin: boolean;
@@ -24,10 +24,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const checkAuth = async () => {
     try {
+      // First try to check current session
       const res = await fetch('/api/auth/me');
       if (res.ok) {
         const data = await res.json();
-        setUser(data.user);
+        if (data.user) {
+          setUser(data.user);
+          // If we have a user but no access token in memory yet,
+          // apiClient will handle it on first request failure via /refresh
+        } else {
+          setUser(null);
+        }
       } else {
         setUser(null);
       }
@@ -43,10 +50,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     checkAuth();
   }, []);
 
-  const login = (userData: User) => {
+  const login = (userData: User, accessToken: string) => {
     setUser(userData);
-    // No local storage for token anymore
-    localStorage.setItem('auth_user', JSON.stringify(userData)); // Optional: cache user info
+    apiClient.setAccessToken(accessToken);
+    localStorage.setItem('auth_user', JSON.stringify(userData));
   };
 
   const logout = async () => {
@@ -56,6 +63,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error('Logout failed', e);
     }
     setUser(null);
+    apiClient.setAccessToken(null);
     localStorage.removeItem('auth_user');
   };
 
@@ -63,8 +71,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     <AuthContext.Provider
       value={{
         user,
-        token: null, // Deprecated
-        login: (token: any, user: User) => login(user), // Adapt for existing consumers temporarily
+        login,
         logout,
         isAuthenticated: !!user,
         isAdmin: user?.role === 'admin',

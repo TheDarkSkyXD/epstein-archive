@@ -201,7 +201,7 @@ const timelineEvents = [
     date: 'Feb 11, 2026',
     source: 'Epstein Archive',
     content:
-      'V12.16.0: Entity Pipeline Hardening & Data Purification. Executed corpus-wide retroactive cleanup (~17k entities purged), launched context-aware role extraction, and hardened junk filters to ensure maximum signal-to-noise across the 1.3M document archive.',
+      'V13.0.0: Forensic Transparency. Launched Evidence Ladder, Agentic Fencing, and automated Credibility Test Suite. Hardened ops with deep health monitoring and automated restore drills.',
   },
 ];
 
@@ -689,19 +689,44 @@ export const AboutPage: React.FC = () => {
               })}
             </div>
             {pipelineStatus?.eta_minutes && (
-              <div className="mt-6 pt-4 border-t border-slate-700/50 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-slate-400 text-xs">
-                  <TrendingUp className="h-4 w-4 text-cyan-400" />
-                  Cluster throughput: ~40 docs/sec (Avg)
+              <div className="mt-6 pt-4 border-t border-slate-700/50 flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-slate-400 text-xs">
+                    <TrendingUp className="h-4 w-4 text-cyan-400" />
+                    Cluster throughput: ~{pipelineStatus.throughput_docs_sec?.toFixed(1) ||
+                      '40'}{' '}
+                    docs/sec
+                  </div>
+                  <div className="text-xs font-mono text-blue-400">
+                    ETA: ~
+                    {pipelineStatus.eta_minutes > 1440
+                      ? `${(pipelineStatus.eta_minutes / 1440).toFixed(1)} DAYS`
+                      : pipelineStatus.eta_minutes > 120
+                        ? `${(pipelineStatus.eta_minutes / 60).toFixed(1)} HOURS`
+                        : `${pipelineStatus.eta_minutes} MINUTES`}
+                  </div>
                 </div>
-                <div className="text-xs font-mono text-blue-400">
-                  ETA: ~
-                  {pipelineStatus.eta_minutes > 1440
-                    ? `${(pipelineStatus.eta_minutes / 1440).toFixed(1)} DAYS`
-                    : pipelineStatus.eta_minutes > 120
-                      ? `${(pipelineStatus.eta_minutes / 60).toFixed(1)} HOURS`
-                      : `${pipelineStatus.eta_minutes} MINUTES`}
-                </div>
+
+                {pipelineStatus.active_workers !== undefined && (
+                  <div className="flex items-center gap-2">
+                    <div className="flex gap-1">
+                      {[1, 2, 3].map((node) => (
+                        <div
+                          key={node}
+                          className={`h-2 w-2 rounded-full ${node <= pipelineStatus.active_workers ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-slate-700'}`}
+                          title={
+                            node <= pipelineStatus.active_workers
+                              ? `Node ${node} Active`
+                              : `Node ${node} Idle`
+                          }
+                        />
+                      ))}
+                    </div>
+                    <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">
+                      {pipelineStatus.active_workers} Exo Nodes Contributing
+                    </span>
+                  </div>
+                )}
               </div>
             )}
           </div>

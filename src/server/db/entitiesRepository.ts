@@ -373,6 +373,7 @@ export const entitiesRepository = {
       deathDate: entity.death_date,
       bio: entity.bio,
       isVip: Boolean(entity.is_vip),
+      wasAgentic: Boolean(entity.was_agentic),
       fileReferences,
       // Add evidence types
       evidence_types: evidenceTypes.map((et) => et.type_name),
@@ -488,7 +489,9 @@ export const entitiesRepository = {
              proximity_score,
              risk_score, 
              confidence, 
-             NULL as metadata_json
+             ingest_run_id,
+             evidence_pack_json,
+             was_agentic
            FROM entity_relationships 
            WHERE source_entity_id=?
            ORDER BY proximity_score DESC
@@ -532,6 +535,11 @@ export const entitiesRepository = {
         risk: r.risk_score,
         confidence: r.confidence,
         type: r.type,
+        ingestRunId: (r as any).ingest_run_id,
+        evidencePack: (r as any).evidence_pack_json
+          ? JSON.parse((r as any).evidence_pack_json)
+          : null,
+        wasAgentic: Boolean((r as any).was_agentic),
       })),
       documents: docs.map((d) => ({
         id: d.id,
@@ -577,6 +585,7 @@ export const entitiesRepository = {
 
             'Mentioned in document' as contextText,
             '' as aiSummary,
+            em.ingest_run_id as ingestRunId,
             0 as pageNumber,
             0 as position
           FROM documents d

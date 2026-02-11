@@ -26,9 +26,8 @@ const ACTUAL_SECRET = JWT_SECRET || 'dev-secret-do-not-use-in-prod';
 const verifyToken = (req: Request): any | null => {
   let token: string | undefined;
 
-  if (req.cookies && req.cookies.token) {
-    token = req.cookies.token;
-  } else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+  // ACCESS TOKEN should only be in the Authorization header
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
     token = req.headers.authorization.split(' ')[1];
   }
 

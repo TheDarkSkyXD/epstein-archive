@@ -29,7 +29,11 @@ export const LoginPage: React.FC = () => {
         throw new Error(data.error || 'Login failed');
       }
 
-      login(null, data.user); // Pass null as token since we use cookies now
+      if (!data.accessToken || !data.user) {
+        throw new Error('Invalid server response: missing token or user data');
+      }
+
+      login(data.user, data.accessToken);
       navigate('/');
     } catch (err: any) {
       setError(err.message);

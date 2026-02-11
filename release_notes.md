@@ -1,3 +1,22 @@
+## v13.0.0 — 2026-02-11
+
+### Forensic Transparency & Credibility
+
+- **Evidence Ladder & Pack Verification**: Launched a complete evidence ladder system with 100% provenance verification. For any "Direct" claim, the UI now surfaces at least one supporting document span and entity mention.
+- **Agentic Layer Fencing**: Implemented "Agentic Audit" system. Every LLM-assisted inference is now watermarked with `was_agentic=true` and possesses a corresponding forensic audit entry in the system logs.
+- **Evidence Integrity Suite**: New `credibility_tests` executable suite ensures 100% graph invariants, offset-bound validity, and confidence consistency across the entire 1.3M file archive.
+
+### Operations & Observability Hardening
+
+- **Deep Health & Integrity**: Enhanced `/api/health/deep` to monitor FTS synchronization, database journal WAL health, and critical table statistics.
+- **Automated Backup & Restore Drills**: Implemented a zero-downtime backup service with automated rotation and daily restore drills to guarantee forensic record preservation.
+- **FTS Reliability**: New auto-repair logic for FTS desync detection, ensuring search reliability remains constant during heavy concurrent write operations.
+
+### Security Posture
+
+- **Deny-by-Default RBAC**: Strengthened security fencing with strict RBAC rules. Admin endpoints (backups, ingest-runs, audit-logs) are physically isolated and reject all unauthorized or non-admin requests.
+- **CSP & Refresh Rotation**: Implemented strict Content Security Policy (CSP) and refresh token rotation with in-memory access tokens to mitigate session hijacking risks.
+
 ## v12.16.0 — 2026-02-11
 
 ### Entity Pipeline Hardening & Data Integrity

@@ -6,38 +6,46 @@ export const logAudit = (
   objectType: string,
   objectId: string | null,
   payload?: any,
+  ip?: string,
 ) => {
   try {
     const db = getDb();
-    // Default to 'system' if no user provided
-    const user = userId || 'anonymous';
-    const actorType = userId ? 'user' : 'system';
 
-    // Map objectType to target_type if needed, or rely on caller to pass valid type
-    // content_access_audit constraints: target_type IN ('document', 'evidence', 'media', 'entity')
-    // action IN ('view', 'search', 'export', 'download', 'modify', 'delete', 'quarantine', 'unquarantine')
+    // Auto-migrate/ensure table exists
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS audit_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        actor_id TEXT NOT NULL,
+        actor_type TEXT NOT NULL,
+        action TEXT NOT NULL,
+        target_type TEXT,
+        target_id TEXT,
+        payload_json TEXT,
+        ip_address TEXT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    const actorId = userId || 'system';
+    const actorType = userId ? 'user' : 'system';
 
     db.prepare(
       `
-      INSERT INTO content_access_audit (
-        actor_id, actor_type, action, target_type, target_id, reason, created_at
+      INSERT INTO audit_log (
+        actor_id, actor_type, action, target_type, target_id, payload_json, ip_address
       )
-      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `,
     ).run(
-      user,
+      actorId,
       actorType,
       action,
       objectType,
-      objectId || 0, // table expects target_id as INTEGER? Wait, schema said INTEGER NOT NULL.
-      // If objectId is a string (UUID), we might have issues if calling code passes UUIDs but schema expects INT.
-      // Schema: target_id INTEGER NOT NULL.
-      // Documents use INTEGER id.
-      // If objectId is null, we pass 0.
-      payload?.reason ? String(payload.reason) : payload ? JSON.stringify(payload) : null,
+      objectId,
+      payload ? JSON.stringify(payload) : null,
+      ip || null,
     );
   } catch (error) {
-    // Audit logging failure should be silent but logged to stderr
     console.error('FAILED TO LOG AUDIT:', error);
   }
 };

@@ -1,10 +1,12 @@
 import { getDb } from '../db/connection.js';
+import os from 'os';
 
 export class JobManager {
   private workerId: string;
 
   constructor(workerId?: string) {
-    this.workerId = workerId || `worker-${process.pid}-${Date.now()}`;
+    const hostname = os.hostname() || 'unknown-host';
+    this.workerId = workerId || `${hostname}-worker-${process.pid}-${Date.now()}`;
   }
 
   /**

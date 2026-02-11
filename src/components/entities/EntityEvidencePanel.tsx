@@ -11,9 +11,12 @@ import {
   Mail,
   MessageCircle,
   Clock3,
+  Fingerprint,
+  Info,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../services/apiClient';
+import { EvidenceLadder } from '../evidence/EvidenceLadder';
 
 import { NetworkVisualization } from '../visualizations/NetworkVisualization';
 import { AddToInvestigationButton } from '../common/AddToInvestigationButton';
@@ -30,6 +33,8 @@ interface Evidence {
   role: string;
   confidence: number;
   context_snippet: string;
+  ingestRunId?: string;
+  was_agentic?: boolean;
 }
 
 interface RelatedEntity {
@@ -545,6 +550,12 @@ export const EntityEvidencePanel: React.FC<EntityEvidencePanelProps> = ({
                       </span>
                     </div>
                   )}
+                  {item.was_agentic && (
+                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-purple-900/20 border border-purple-500/20 text-purple-400 text-[10px] uppercase font-bold">
+                      <Fingerprint size={10} />
+                      Agentic
+                    </div>
+                  )}
                   {item.confidence && (
                     <span className="text-xs text-slate-500">
                       {Math.round(item.confidence * 100)}% conf
@@ -552,7 +563,21 @@ export const EntityEvidencePanel: React.FC<EntityEvidencePanelProps> = ({
                   )}
                 </div>
               </div>
-              <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-700/50">
+
+              {/* Forensic Details (Hidden by default, toggle or tooltip could be here) */}
+              <div className="mt-3 overflow-hidden">
+                <EvidenceLadder
+                  level={
+                    item.evidence_type === 'entity_creation' ? 3 : item.confidence > 0.8 ? 1 : 2
+                  }
+                  confidence={item.confidence}
+                  ingestRunId={item.ingestRunId}
+                  wasAgentic={item.was_agentic}
+                  className="bg-slate-950/30 p-3 rounded-lg border border-slate-700/50"
+                />
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-700/50 mt-3">
                 <div className="flex items-center space-x-3">
                   <span className="flex items-center space-x-1">
                     <Tag className="w-3 h-3" />

@@ -47,12 +47,15 @@ import { globalErrorHandler } from './server/utils/errorHandler.js';
 import { memoryRepository } from './server/db/memoryRepository.js';
 import NodeCache from 'node-cache';
 import { getDb } from './server/db/connection.js';
+import { FtsMaintenanceService } from './server/services/ftsMaintenance.js';
+import { validate, entitySchema, searchSchema } from './server/middleware/validate.js';
 
 // New Routers
 import statsRoutes from './server/routes/stats.js';
 import relationshipsRoutes from './server/routes/relationships.js';
 import analyticsRoutes from './server/routes/analytics.js';
 import usersRoutes from './server/routes/users.js';
+import { reviewQueueRepository } from './server/db/reviewQueueRepository.js';
 
 interface AuthenticatedRequest extends express.Request {
   user?: User;
@@ -138,8 +141,12 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Required for React
-        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: [
+          "'self'",
+          "'unsafe-inline'", // Required for React development and some inline scripts
+          "'wasm-unsafe-eval'", // Better than unsafe-eval, if supported
+        ],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         imgSrc: ["'self'", 'data:', 'blob:', '*'],
         connectSrc: [
           "'self'",
@@ -150,34 +157,118 @@ app.use(
         objectSrc: ["'none'"],
         mediaSrc: ["'self'", 'blob:', '*'],
         frameSrc: ["'none'"],
+        workerSrc: ["'self'", 'blob:'], // Required for PDF.js worker
       },
     },
-    crossOriginEmbedderPolicy: false, // Required for some media
-    crossOriginResourcePolicy: false, // Required for mobile image loading
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' }, // Support media from other origins if needed
   }),
 );
 
 // Compress all responses
 app.use(compression());
 
-// Rate limiting (100 requests per 15 minutes per IP)
+// Granular Rate Limiting
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many authentication attempts.' },
+});
+
+const searchLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 30, // 30 searches per minute
+  message: { error: 'Search rate limit exceeded.' },
+});
+
 const apiLimiter = rateLimit({
-  windowMs: config.rateLimitWindowMs,
-  max: config.rateLimitMaxRequests,
+  windowMs: 15 * 60 * 1000,
+  max: 500, // General limit
   message: { error: 'Too many requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
-app.use('/api/', apiLimiter);
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use('/api/', apiLimiter);
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/refresh', authLimiter);
+app.use('/api/search', searchLimiter);
+
+app.use(express.json({ limit: '5mb' })); // Reduced from 10mb for safety
+app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
 // Input validation and sanitization middleware
 import { inputValidationMiddleware } from './server/middleware/validation.js';
 app.use(inputValidationMiddleware);
 
-// Mount specialized routes
+// --- RBAC and Deny-by-Default Configuration ---
+
+const PUBLIC_ROUTES = [
+  '/api/auth/login',
+  '/api/auth/refresh',
+  '/api/auth/logout',
+  '/api/health',
+  '/api/stats',
+];
+
+const RESEARCHER_READ_ONLY_PREFIXES = [
+  '/api/entities',
+  '/api/documents',
+  '/api/media',
+  '/api/search',
+  '/api/timeline',
+  '/api/analytics',
+  '/api/relationships',
+  '/api/evidence',
+  '/api/articles',
+  '/api/financial',
+  '/api/forensic',
+];
+
+app.use('/api', (req, res, next) => {
+  // 1. Allow Public Routes
+  if (PUBLIC_ROUTES.some((path) => req.path === path || req.path.startsWith(path + '/'))) {
+    return next();
+  }
+
+  // 2. Auth Check for everything else
+  authenticateRequest(req, res, (err) => {
+    if (err || !(req as any).user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const user = (req as any).user;
+
+    // 3. Admin has access to everything
+    if (user.role === 'admin') {
+      return next();
+    }
+
+    // 4. Researcher Read-Only Access
+    if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') {
+      if (
+        RESEARCHER_READ_ONLY_PREFIXES.some((prefix) => req.path.startsWith(prefix.substring(4)))
+      ) {
+        return next();
+      }
+    }
+
+    // 5. Deny by Default
+    console.warn(
+      `Access Denied: User ${user.username} (${user.role}) attempted ${req.method} ${req.path}`,
+    );
+    return res
+      .status(403)
+      .json({ error: 'Access forbidden', message: 'Insufficient permissions for this action' });
+  });
+});
+
+// --- Specialized Routes ---
+
+// Apply Zod validation to search
+app.use('/api/search', validate(searchSchema, 'query'));
+
+// Mount specialized routes (now protected by RBAC middleware above)
 import downloadRoutes from './server/routes/downloads.js';
 app.use('/api/downloads', downloadRoutes);
 
@@ -191,44 +282,42 @@ app.use('/api/investigation', investigationEvidenceRoutes);
 app.use('/api/evidence', evidenceRoutes);
 app.use('/api/entities', entityEvidenceRoutes);
 app.use('/api/email', emailRoutes);
-app.use('/api/entities', entityEvidenceRoutes);
-app.use('/api/email', emailRoutes);
 app.use('/api/articles', articlesRoutes);
 app.use('/api/financial', financialRoutes);
 app.use('/api/forensic', forensicRoutes);
 import activeLearningRoutes from './server/routes/activeLearning.js';
 app.use('/api/review', activeLearningRoutes);
 
-// Authentication middleware will be applied below
+// Auth Routes (Login/Logout/Refresh)
+app.use('/api/auth', authRoutes);
 
-// Serve static frontend from dist
+// --- Static File Serving & Resolution ---
 
 // Serve static frontend from dist
 const distPath = path.join(process.cwd(), 'dist');
 if (fs.existsSync(distPath)) {
-  // Serve static frontend from dist
   app.use(
     express.static(distPath, {
       setHeaders: (res, path) => {
-        // Don't cache index.html to ensure updates are seen immediately
         if (path.endsWith('index.html')) {
           res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
           res.setHeader('Pragma', 'no-cache');
           res.setHeader('Expires', '0');
         } else {
-          // Cache other assets (they have hash chunks)
           res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
         }
       },
     }),
   );
 }
+
 // Serve project data (images) statically
 const dataPath = path.join(process.cwd(), 'data');
 if (fs.existsSync(dataPath)) {
   app.use('/data', express.static(dataPath));
 }
-// Also try resolving relative to project root (handles different CWDs)
+
+// Resolve relative to project root
 try {
   const projectDataPath = path.join(__dirname, '..', 'data');
   if (fs.existsSync(projectDataPath)) {
@@ -237,7 +326,8 @@ try {
 } catch {
   void 0;
 }
-// And absolute /data (Docker/host volume)
+
+// Absolute /data (Docker volume)
 const absDataPath = '/data';
 try {
   if (fs.existsSync(absDataPath)) {
@@ -246,8 +336,8 @@ try {
 } catch {
   void 0;
 }
-// Local development document images (
-// maps absolute dataset folder to /files)
+
+// Local development document images
 try {
   if (fs.existsSync(CORPUS_BASE_PATH)) {
     app.use('/files', express.static(CORPUS_BASE_PATH));
@@ -262,9 +352,6 @@ app.get('/api/static', async (req, res, next) => {
     let raw = String(req.query.path || '');
     if (!raw) return res.status(400).json({ error: 'path required' });
 
-    // Normalize common forms:
-    // - "data/..."   → "/data/..."
-    // - already absolute "/data/..." is left as-is
     if (raw.startsWith('data/')) {
       raw = '/data/' + raw.substring('data/'.length);
     }
@@ -288,92 +375,73 @@ app.get('/api/static', async (req, res, next) => {
   }
 });
 
-// Auth Login Endpoint (Public)
-// Auth Routes (Login/Logout)
-app.use('/api/auth', authRoutes);
+// Admin Audit Log Endpoint
+app.get('/api/admin/audit-logs', requireRole('admin'), async (req, res, next) => {
+  try {
+    const limit = Math.min(1000, parseInt(req.query.limit as string) || 100);
+    const db = getDb();
 
-// Apply Auth Middleware to all other API routes
-// Authentication middleware - Selective protection
-app.use('/api', (req, res, next) => {
-  // 1. User management and profile info always require auth
-  if (req.path.startsWith('/users') || req.path.startsWith('/auth/me')) {
-    return authenticateRequest(req, res, next);
+    const logs = db
+      .prepare(
+        `
+          SELECT 
+            a.*, 
+            a.actor_id as performed_by
+          FROM audit_log a 
+          ORDER BY a.timestamp DESC 
+          LIMIT ?
+        `,
+      )
+      .all(limit);
+
+    const parsedLogs = logs.map((log: any) => {
+      let payload = null;
+      try {
+        payload = log.payload_json ? JSON.parse(log.payload_json) : null;
+      } catch (_e) {
+        payload = { error: 'Invalid JSON', raw: log.payload_json };
+      }
+      return { ...log, payload };
+    });
+
+    res.json(parsedLogs);
+  } catch (e) {
+    next(e);
   }
-
-  // 2. All investigative browsing (GET/HEAD/OPTIONS requests) is public per user request
-  // (media, entities, search, analytics, flights, memory)
-  // OPTIONS is whitelisted to allow CORS preflights to succeed for public routes.
-  if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') {
-    return next();
-  }
-
-  // 3. All mutations (POST, PUT, PATCH, DELETE) require authentication
-  // This protects media editing, adding entities, and document uploads.
-  authenticateRequest(req, res, next);
 });
 
-// Email routes (protected)
-app.use('/api/emails', emailRoutes);
+// Review Queue Endpoints (New for Phase 2)
+app.get('/api/admin/review-queue', requireRole('admin'), async (req, res, next) => {
+  try {
+    const limit = Math.min(100, parseInt(req.query.limit as string) || 50);
+    const items = reviewQueueRepository.getPendingItems(limit);
+    res.json(items);
+  } catch (e) {
+    next(e);
+  }
+});
 
-// Admin Audit Log Endpoint
-app.get(
-  '/api/admin/audit-logs',
-  authenticateRequest,
-  requireRole('admin'),
-  async (req, res, next) => {
-    try {
-      const limit = Math.min(1000, parseInt(req.query.limit as string) || 100); // Increased limit
-      const db = getDb();
+app.post('/api/admin/review-queue/:id/decide', requireRole('admin'), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status, notes } = req.body;
+    const userId = (req as AuthenticatedRequest).user?.id || 'admin';
 
-      // Check if audit_log table exists (it should, but safety first)
-      try {
-        const logs = db
-          .prepare(
-            `
-        SELECT a.*, u.username as performed_by
-        FROM audit_log a 
-        LEFT JOIN users u ON a.user_id = u.id 
-        ORDER BY a.timestamp DESC 
-        LIMIT ?
-      `,
-          )
-          .all(limit);
-
-        // Parse payload_json safely
-        const parsedLogs = logs.map((log: any) => {
-          let payload = null;
-          try {
-            payload = log.payload_json ? JSON.parse(log.payload_json) : null;
-          } catch (_e) {
-            payload = { error: 'Invalid JSON', raw: log.payload_json };
-          }
-          return { ...log, payload };
-        });
-
-        res.json(parsedLogs);
-      } catch (dbError: any) {
-        if (dbError.message.includes('no such table')) {
-          // Create table if missing (auto-heal)
-          db.exec(`
-          CREATE TABLE IF NOT EXISTS audit_log (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id TEXT,
-            action TEXT NOT NULL,
-            object_type TEXT,
-            object_id TEXT,
-            payload_json TEXT,
-            timestamp TEXT DEFAULT CURRENT_TIMESTAMP
-          )
-        `);
-          return res.json([]);
-        }
-        throw dbError;
-      }
-    } catch (e) {
-      next(e);
+    if (!['reviewed', 'rejected'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid decision status' });
     }
-  },
-);
+
+    const success = reviewQueueRepository.updateDecision(id, status, userId, notes);
+    if (!success) {
+      return res.status(404).json({ error: 'Review item not found' });
+    }
+
+    logAudit('review_queue_decision', userId, 'review_item', id, { status, notes });
+    res.json({ success: true });
+  } catch (e) {
+    next(e);
+  }
+});
 
 // Document Upload Endpoint with Security Validation (Issue 20)
 const ALLOWED_MIME_TYPES = [
@@ -619,7 +687,7 @@ const JUNK_ENTITY_PATTERNS = [
   /^(Unknown|None|Null|N\/A|TBD)$/i,
 ];
 
-app.post('/api/entities', async (req, res, next) => {
+app.post('/api/entities', validate(entitySchema), async (req, res, next) => {
   try {
     const { full_name } = req.body;
 
@@ -3978,6 +4046,10 @@ const server = app.listen(config.apiPort, () => {
     console.warn(`⚠️  [DEPLOYMENT WARNING] Production expects PORT 8080 or 3012!`);
     console.warn(`⚠️  Current PORT is ${config.apiPort} - API calls may return 404!`);
   }
+  // Perform FTS Maintenance
+  FtsMaintenanceService.performMaintenance()
+    .then(() => console.log('✅ FTS Maintenance complete'))
+    .catch((err) => console.error('❌ FTS Maintenance failed:', err));
 
   // Log startup diagnostics for debugging
   console.log('--- Startup Warnings ---');

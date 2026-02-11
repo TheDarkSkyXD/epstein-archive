@@ -55,6 +55,59 @@ function invalidateCache(pattern?: string): void {
 }
 
 class ApiClient {
+  private accessToken: string | null = null;
+  private isRefreshing = false;
+  private refreshSubscribers: ((token: string) => void)[] = [];
+
+  setAccessToken(token: string | null) {
+    this.accessToken = token;
+  }
+
+  private onTokenRefreshed(token: string) {
+    this.refreshSubscribers.map((cb) => cb(token));
+    this.refreshSubscribers = [];
+  }
+
+  private addRefreshSubscriber(cb: (token: string) => void) {
+    this.refreshSubscribers.push(cb);
+  }
+
+  private async refreshToken(): Promise<string | null> {
+    if (this.isRefreshing) {
+      return new Promise((resolve) => {
+        this.addRefreshSubscriber((token: string) => {
+          resolve(token);
+        });
+      });
+    }
+
+    this.isRefreshing = true;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Refresh failed');
+      }
+
+      const data = await response.json();
+      this.accessToken = data.accessToken;
+      this.onTokenRefreshed(data.accessToken);
+      return data.accessToken;
+    } catch (error) {
+      this.accessToken = null;
+      this.isRefreshing = false;
+      return null;
+    } finally {
+      this.isRefreshing = false;
+    }
+  }
+
   private async fetchWithErrorHandling<T>(
     url: string,
     options?: RequestInit & { useCache?: boolean; cacheTtl?: number },
@@ -65,22 +118,38 @@ class ApiClient {
 
     if (shouldCache) {
       const cached = getCachedData<T>(url);
-      if (cached) {
-        return cached;
-      }
+      if (cached) return cached;
     }
 
-    // Extract our custom options before passing to fetch
     const { useCache: _, cacheTtl, ...fetchOptions } = options || {};
 
-    try {
-      const response = await fetch(url, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...fetchOptions?.headers,
-        },
+    const executeRequest = async (token: string | null): Promise<Response> => {
+      const headers = new Headers(fetchOptions?.headers);
+      if (token) {
+        headers.set('Authorization', `Bearer ${token}`);
+      }
+      headers.set('Content-Type', 'application/json');
+
+      return fetch(url, {
         ...fetchOptions,
+        headers,
       });
+    };
+
+    try {
+      let response = await executeRequest(this.accessToken);
+
+      // Handle 401 - Unauthorized (Token expired)
+      if (
+        response.status === 401 &&
+        !url.includes('/auth/login') &&
+        !url.includes('/auth/refresh')
+      ) {
+        const newToken = await this.refreshToken();
+        if (newToken) {
+          response = await executeRequest(newToken);
+        }
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -89,16 +158,13 @@ class ApiClient {
 
       const data = await response.json();
 
-      // Cache the response
       if (shouldCache) {
         setCachedData(url, data, cacheTtl);
       }
 
       return data;
     } catch (error) {
-      if (error instanceof Error) {
-        throw error;
-      }
+      if (error instanceof Error) throw error;
       throw new Error('Network error occurred');
     }
   }

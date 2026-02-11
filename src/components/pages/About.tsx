@@ -691,13 +691,35 @@ export const About: React.FC = () => {
           Version History
         </h2>
         <div className="space-y-6">
-          <div className="border-l-2 border-cyan-500 pl-4">
+          <div className="border-l-2 border-emerald-500 pl-4">
             <h4 className="text-white font-bold flex items-center gap-2">
-              v12.15.0{' '}
-              <span className="text-[10px] bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 rounded">
-                LATEST
+              v13.0.0{' '}
+              <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/30 font-bold">
+                EVIDENTIARY GRADE
               </span>
             </h4>
+            <p className="text-xs text-slate-500 mb-2">February 11, 2026</p>
+            <ul className="text-sm text-slate-400 space-y-1">
+              <li>
+                • **Forensic Observability**: Integrated Ingestion History and Backup Management
+                into the Admin Dashboard.
+              </li>
+              <li>
+                • **Zero-Downtime Snapshots**: Native SQLite backup system with automated
+                compression and 7-day rotation.
+              </li>
+              <li>
+                • **Evidence Tracking**: Full provenance for entities and relationships, linking
+                every claim to a specific ingest run.
+              </li>
+              <li>
+                • **Integrity Monitoring**: Real-time forensic health checks for FTS synchronization
+                and database consistency.
+              </li>
+            </ul>
+          </div>
+          <div className="border-l-2 border-slate-700 pl-4">
+            <h4 className="text-slate-200 font-bold">v12.15.0</h4>
             <p className="text-xs text-slate-500 mb-2">February 11, 2026</p>
             <ul className="text-sm text-slate-400 space-y-1">
               <li>

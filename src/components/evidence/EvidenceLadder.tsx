@@ -1,0 +1,141 @@
+import React from 'react';
+import {
+  Shield,
+  Search,
+  Brain,
+  AlertCircle,
+  ChevronRight,
+  Database,
+  Fingerprint,
+} from 'lucide-react';
+
+export interface EvidenceLadderProps {
+  level: 1 | 2 | 3; // 1: Primary, 2: Derived, 3: Agentic
+  confidence: number;
+  ingestRunId?: string;
+  evidencePack?: any;
+  wasAgentic?: boolean;
+  className?: string;
+}
+
+export const EvidenceLadder: React.FC<EvidenceLadderProps> = ({
+  level,
+  confidence,
+  ingestRunId,
+  evidencePack,
+  wasAgentic,
+  className = '',
+}) => {
+  const levels = [
+    {
+      id: 1,
+      name: 'Primary Source',
+      description: 'Direct mention in original evidentiary document.',
+      icon: Search,
+      color: 'text-emerald-400',
+      bgColor: 'bg-emerald-500/10',
+      borderColor: 'border-emerald-500/20',
+    },
+    {
+      id: 2,
+      name: 'Derived Link',
+      description: 'Established via proximity or co-occurrence analysis.',
+      icon: Shield,
+      color: 'text-blue-400',
+      bgColor: 'bg-blue-500/10',
+      borderColor: 'border-blue-500/20',
+    },
+    {
+      id: 3,
+      name: 'Agentic Inference',
+      description: 'Derived using LLM-assisted context reconciliation.',
+      icon: Brain,
+      color: 'text-purple-400',
+      bgColor: 'bg-purple-500/10',
+      borderColor: 'border-purple-500/20',
+    },
+  ];
+
+  const activeLevel = levels.find((l) => l.id === level) || levels[0];
+
+  return (
+    <div className={`space-y-4 ${className}`}>
+      {/* Active Level Badge */}
+      <div
+        className={`flex items-start gap-4 p-4 rounded-xl border ${activeLevel.borderColor} ${activeLevel.bgColor} backdrop-blur-sm`}
+      >
+        <div className={`p-2 rounded-lg ${activeLevel.borderColor} border bg-slate-950/50`}>
+          <activeLevel.icon size={20} className={activeLevel.color} />
+        </div>
+        <div className="flex-1">
+          <div className="flex items-center justify-between mb-1">
+            <h4 className={`font-bold text-sm uppercase tracking-wider ${activeLevel.color}`}>
+              {activeLevel.name}
+            </h4>
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-950/50 border border-slate-800">
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Confidence</span>
+              <span
+                className={`text-xs font-bold ${confidence * 100 > 80 ? 'text-emerald-400' : 'text-amber-400'}`}
+              >
+                {(confidence * 100).toFixed(0)}%
+              </span>
+            </div>
+          </div>
+          <p className="text-slate-300 text-sm leading-relaxed">{activeLevel.description}</p>
+        </div>
+      </div>
+
+      {/* Forensic Provenance */}
+      {(ingestRunId || wasAgentic) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {ingestRunId && (
+            <div className="p-3 bg-slate-900/40 border border-slate-800 rounded-lg flex items-center gap-3">
+              <Database size={14} className="text-slate-500" />
+              <div className="flex-1 min-w-0">
+                <span className="block text-[10px] uppercase tracking-tighter text-slate-500 font-bold">
+                  Ingest Run
+                </span>
+                <span className="block text-xs font-mono text-slate-300 truncate">
+                  {ingestRunId}
+                </span>
+              </div>
+            </div>
+          )}
+          {wasAgentic && (
+            <div className="p-3 bg-purple-900/10 border border-purple-500/20 rounded-lg flex items-center gap-3">
+              <Fingerprint size={14} className="text-purple-400" />
+              <div className="flex-1">
+                <span className="block text-[10px] uppercase tracking-tighter text-purple-400 font-bold">
+                  Agentic Stamp
+                </span>
+                <span className="block text-xs text-purple-300">LLM-Processed</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Evidence Pack Details (Optional) */}
+      {evidencePack && (
+        <div className="bg-slate-950/50 border border-slate-800 rounded-lg p-3 space-y-2">
+          <div className="flex items-center gap-2 text-slate-400 text-[10px] font-bold uppercase tracking-widest px-1">
+            <ChevronRight size={12} />
+            Structural Context
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {evidencePack.proximity && (
+              <span className="px-2 py-1 rounded bg-slate-900 border border-slate-800 text-[10px] text-slate-300 font-mono">
+                PROX: {evidencePack.proximity} chars
+              </span>
+            )}
+            {evidencePack.document_count && (
+              <span className="px-2 py-1 rounded bg-slate-900 border border-slate-800 text-[10px] text-slate-300 font-mono">
+                DOCS: {evidencePack.document_count}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

@@ -55,7 +55,7 @@ async function runBackfill() {
     const entityId = entityMap.get(normalizeName(namePart).toLowerCase());
 
     db.prepare(
-      'UPDATE black_book_entries SET person_id = ?, entry_category = "original" WHERE id = ?',
+      "UPDATE black_book_entries SET person_id = ?, entry_category = 'original' WHERE id = ?",
     ).run(entityId || null, entry.id);
     if (entityId) linkedCount++;
   }

@@ -167,24 +167,32 @@ export type SortOption =
   | 'document-count';
 
 export interface SubjectCardDTO {
-  id: number;
+  id: string;
   name: string;
   role: string;
   short_bio?: string;
-  mentions_count: number;
-  documents_count: number;
-  distinct_sources_count: number;
-  risk_level: 'HIGH' | 'MEDIUM' | 'LOW';
-  evidence_ladder_level: 'L1' | 'L2' | 'L3' | 'NONE';
-  signal_exposure: number;
-  signal_connectivity: number;
-  signal_corroboration: number;
-  driver_labels: string[]; // max 4
-  verified_media_count: number;
-  top_evidence?: {
+  stats: {
+    mentions: number;
+    documents: number;
+    distinct_sources: number;
+    verified_media: number;
+  };
+  forensics: {
+    risk_level: 'HIGH' | 'MEDIUM' | 'LOW' | string;
+    evidence_ladder: 'L1' | 'L2' | 'L3' | 'NONE';
+    signal_strength: {
+      exposure: number;
+      connectivity: number;
+      corroboration: number;
+    };
+    driver_labels: string[];
+  };
+  top_preview?: {
+    id: string;
     type: 'document' | 'flight_log' | 'black_book' | 'testimony';
-    short_citation: string;
-    confidence_score: number; // 0-1
+    title: string;
+    citation: string;
+    confidence: number;
     year?: number;
   };
 }

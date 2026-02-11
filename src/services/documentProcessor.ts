@@ -786,9 +786,14 @@ export class DocumentProcessor {
     // Content matches (lower weight)
     searchTerms.forEach((term) => {
       const contentLower = document.content.toLowerCase();
-      const matches = contentLower.match(new RegExp(`\\b${term}\\b`, 'g'));
-      if (matches) {
-        score += matches.length;
+      try {
+        const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const matches = contentLower.match(new RegExp(`\\b${escapedTerm}\\b`, 'g'));
+        if (matches) {
+          score += matches.length;
+        }
+      } catch (e) {
+        // Ignore regex errors for weird terms
       }
     });
 

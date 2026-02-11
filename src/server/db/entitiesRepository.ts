@@ -157,9 +157,6 @@ export const entitiesRepository = {
       // Note: we need evidence_types parsed
       let eTypes: string[] = [];
       try {
-        // Assuming evidence_types is stored as comma-separated string or already parsed if JSON (sqlite stores text)
-        // In this codebase, it seems to be returned as a joined string or array depending on query.
-        // Let's assume text and try split, or array.
         if (typeof e.evidence_types === 'string') eTypes = e.evidence_types.split(',');
       } catch {
         // Evidence types might not be parseable or available
@@ -199,23 +196,28 @@ export const entitiesRepository = {
       if (drivers.length === 0 && e.was_agentic) drivers.push('AI Derived');
 
       return {
-        id: e.id,
+        id: String(e.id),
         name: e.full_name || 'Unknown',
         role: e.primary_role || 'Unknown',
         short_bio: e.bio ? e.bio.substring(0, 150) : undefined,
-        mentions_count: e.mentions || 0,
-        documents_count: e.mentions || 0, // Approx for now as per previous query usage
-        distinct_sources_count: eTypes.length, // Proxy
-        risk_level: (e.risk_level as any) || 'LOW',
-        evidence_ladder_level: ladder,
-        signal_exposure: Math.round(exposure),
-        signal_connectivity: Math.round(connectivity),
-        signal_corroboration: Math.round(corroboration),
-        driver_labels: drivers.slice(0, 4),
-        verified_media_count: e.media_count,
-        // Top evidence preview would require a subquery or join, keeping it optional/null for now for speed
-        // unless specifically requested to hydrate.
-        top_evidence: undefined,
+        stats: {
+          mentions: e.mentions || 0,
+          documents: e.mentions || 0, // Approx
+          distinct_sources: eTypes.length,
+          verified_media: e.media_count || 0,
+        },
+        forensics: {
+          risk_level: (e.risk_level as any) || 'LOW',
+          evidence_ladder: ladder,
+          signal_strength: {
+            exposure: Math.round(exposure),
+            connectivity: Math.round(connectivity),
+            corroboration: Math.round(corroboration),
+          },
+          driver_labels: drivers.slice(0, 4),
+        },
+        // Optional: Precomputing this would require a JOIN
+        top_preview: undefined,
       };
     });
 

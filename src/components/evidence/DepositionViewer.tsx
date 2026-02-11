@@ -26,17 +26,24 @@ export function DepositionViewer({ evidence }: DepositionViewerProps) {
   const lines = extractedText.split('\n');
 
   const highlightText = (text: string, search: string) => {
-    if (!search.trim()) return text;
-    const parts = text.split(new RegExp(`(${search})`, 'gi'));
-    return parts.map((part, index) =>
-      part.toLowerCase() === search.toLowerCase() ? (
-        <mark key={index} className="bg-yellow-200">
-          {part}
-        </mark>
-      ) : (
-        part
-      ),
-    );
+    if (!search || !search.trim()) return text;
+    try {
+      // Escape special characters to prevent regex syntax errors
+      const escapedSearch = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const parts = text.split(new RegExp(`(${escapedSearch})`, 'gi'));
+      return parts.map((part, index) =>
+        part.toLowerCase() === search.toLowerCase() ? (
+          <mark key={index} className="bg-yellow-200">
+            {part}
+          </mark>
+        ) : (
+          part
+        ),
+      );
+    } catch (error) {
+      console.warn('Regex error in DepositionViewer:', error);
+      return text;
+    }
   };
 
   return (

@@ -160,7 +160,7 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           x: 400 + Math.cos(angle) * radius,
           y: 300 + Math.sin(angle) * radius,
         },
-        color: node.color || getNodeColor(node.type, node.metadata.riskLevel),
+        color: node.color || getNodeColor(node.type, node.metadata?.riskLevel),
         size: node.size || getNodeSize(node.importance),
       };
     });

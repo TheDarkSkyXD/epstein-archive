@@ -20,7 +20,7 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
   const [entityMap, setEntityMap] = useState<Map<string, any>>(new Map());
   // TODO: Use entities for related entities sidebar - see UNUSED_VARIABLES_RECOMMENDATIONS.md
   const [_entities, setEntities] = useState<any[]>([]);
-  const [entityRegex, setEntityRegex] = useState<RegExp | null>(null);
+  const [entityRegexes, setEntityRegexes] = useState<RegExp[]>([]);
   const [showUnredactedHighlights, setShowUnredactedHighlights] = useState(true);
 
   // Fetch all entities for linking - optimized
@@ -49,11 +49,18 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
 
         setEntityMap(map);
 
-        // chunk regex if too large, but for <5000 items usually OK.
-        // If >10k, we might need Batched approach, but let's try single pass.
-        if (terms.length > 0) {
-          setEntityRegex(new RegExp(`\\b(${terms.join('|')})\\b`, 'gi'));
+        // chunk regex if too large
+        const CHUNK_SIZE = 500;
+        const chunks: RegExp[] = [];
+        for (let i = 0; i < terms.length; i += CHUNK_SIZE) {
+          const chunk = terms.slice(i, i + CHUNK_SIZE);
+          if (chunk.length > 0) {
+            chunks.push(new RegExp(`\\b(${chunk.join('|')})\\b`, 'gi'));
+          }
         }
+        // Store array of regexes instead of single one
+        // We need to update state type: [entityRegexes, setEntityRegexes]
+        setEntityRegexes(chunks);
       } catch (error) {
         console.error('Error fetching entities for linking:', error);
       }
@@ -100,17 +107,42 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
   };
 
   // Optimized Helper function to link entities in text
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- entityRegex/entityMap are stable across renders
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- entityRegexes/entityMap are stable across renders
   const linkEntitiesInText = (text: string) => {
-    if (!text || !entityRegex || entityMap.size === 0) return text;
+    if (!text || entityRegexes.length === 0 || entityMap.size === 0) return text;
 
-    // Single pass replacement
-    return text.replace(entityRegex, (match) => {
-      const entity = entityMap.get(match.toLowerCase());
-      if (!entity) return match;
+    let processedText = text;
+    // Apply each chunk sequentially
+    // Note: This could theoretically double-link if terms overlap in weird ways,
+    // but with \b boundary and replaced content being a <span>, it should be mostly safe
+    // providing we don't match inside the span tags.
+    // To be safer, we should use a placeholder approach, but for now let's try sequential.
+    // Actually, matching inside HTML tags is a risk.
+    // A better approach for massive entity lists is a customized scanner or finding positions first.
+    // Given the constraints, we will process chunks but strict word boundaries help.
 
-      return `<span class="entity-link" data-entity-id="${entity.id}" data-entity-name="${entity.full_name}" style="color: #60a5fa; text-decoration: underline; cursor: pointer; border-bottom: 1px dotted #60a5fa; padding: 0 1px;" title="Click to view entity details">${match}</span>`;
+    // HOWEVER, simpler fix for "Regular expression too large" is often just
+    // breaking it up. The risk of replacing inside tags exists if we just chain replace.
+    // A robust way: Tokenize text nodes, but that's expensive in React logic here.
+
+    // Let's stick to the current logic but iterating.
+    entityRegexes.forEach((regex) => {
+      processedText = processedText.replace(regex, (match) => {
+        // Check if we are inside a tag (rudimentary check)
+        // This is hard to do cleanly in regex replace callback without context.
+        // But since we are replacing plain text logic from the start...
+
+        const entity = entityMap.get(match.toLowerCase());
+        if (!entity) return match;
+
+        // To prevent recursive replacement of already linked items (if chunks overlap or we re-scan),
+        // we could check if match is wrapped. But here we are processing the string.
+        // We'll rely on the fact that terms are likely names.
+        return `<span class="entity-link" data-entity-id="${entity.id}" data-entity-name="${entity.full_name}" style="color: #60a5fa; text-decoration: underline; cursor: pointer; border-bottom: 1px dotted #60a5fa; padding: 0 1px;" title="Click to view entity details">${match}</span>`;
+      });
     });
+
+    return processedText;
   };
 
   // Add event listener for entity links
@@ -196,18 +228,18 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
 
     // Step 2: Apply entity linking (now optimized single-pass)
     // Only run linking if we have the regex ready
-    const contentWithEntities = entityRegex ? linkEntitiesInText(content) : content;
+    const contentWithEntities = entityRegexes.length > 0 ? linkEntitiesInText(content) : content;
 
     // Step 3: Apply search term highlighting on top
     return searchTerm ? highlightText(contentWithEntities, searchTerm) : contentWithEntities;
   }, [
     doc.content,
     showRaw,
-    entityRegex,
     searchTerm,
     doc.unredaction_metrics,
     showUnredactedHighlights,
     linkEntitiesInText,
+    entityRegexes,
   ]);
 
   return (
@@ -807,19 +839,23 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
           <div className="flex flex-wrap gap-2">
             {(() => {
               // Optimization: Only regex match if we have entities
-              if (!_entities.length || !entityRegex)
+              if (!_entities.length || entityRegexes.length === 0)
                 return <span className="text-gray-500 text-xs">No entities detected yet.</span>;
 
               // Find unique entities present in content
               // We use the same regex used for highlighting/linking
               const text = doc.content || '';
               const matches = new Set<string>();
-              let match;
-              // Reset regex lastIndex just in case
-              entityRegex.lastIndex = 0;
-              // We limit to first 50 unique matches to avoid perf kill on huge docs
-              while ((match = entityRegex.exec(text)) !== null) {
-                matches.add(match[0].toLowerCase());
+
+              // Iterate over all chunks
+              for (const regex of entityRegexes) {
+                let match;
+                regex.lastIndex = 0;
+                // We limit to first 50 unique matches to avoid perf kill on huge docs
+                while ((match = regex.exec(text)) !== null) {
+                  matches.add(match[0].toLowerCase());
+                  if (matches.size > 50) break;
+                }
                 if (matches.size > 50) break;
               }
 

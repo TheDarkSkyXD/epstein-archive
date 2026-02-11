@@ -179,6 +179,33 @@ class ApiClient {
     invalidateCache(pattern);
   }
 
+  async getSubjects(
+    filters: Record<string, any> = {},
+    page = 1,
+    limit = 24,
+  ): Promise<{ subjects: any[]; total: number }> {
+    const queryParams = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+    });
+
+    if (filters.search) queryParams.append('search', filters.search);
+    if (filters.role) queryParams.append('role', filters.role);
+    if (filters.entityType) queryParams.append('entityType', filters.entityType);
+    if (filters.sortBy) queryParams.append('sortBy', filters.sortBy);
+    if (filters.likelihood) {
+      if (Array.isArray(filters.likelihood)) {
+        filters.likelihood.forEach((l: string) => queryParams.append('likelihoodScore', l));
+      } else {
+        queryParams.append('likelihoodScore', filters.likelihood);
+      }
+    }
+
+    return this.fetchWithErrorHandling<{ subjects: any[]; total: number }>(
+      `/api/subjects?${queryParams.toString()}`,
+    );
+  }
+
   async getEntities(
     filters: SearchFilters = {},
     page: number = 1,

@@ -598,8 +598,20 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
               description: e.description || '',
               type: e.type,
               confidence: e.confidence || 'medium', // Default to medium if not present
-              relatedEntities: JSON.parse(e.entities_json || '[]'),
-              relatedDocuments: JSON.parse(e.documents_json || '[]'),
+              relatedEntities: (() => {
+                try {
+                  return JSON.parse(e.entities_json || '[]');
+                } catch {
+                  return [];
+                }
+              })(),
+              relatedDocuments: (() => {
+                try {
+                  return JSON.parse(e.documents_json || '[]');
+                } catch {
+                  return [];
+                }
+              })(),
             }));
             setTimelineEvents(events);
           }

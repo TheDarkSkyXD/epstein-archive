@@ -1,195 +1,261 @@
 import Database from 'better-sqlite3';
-import { readFileSync, unlinkSync, existsSync } from 'fs';
-import { join } from 'path';
+import { unlinkSync, existsSync } from 'fs';
 
 const SOURCE_DB_PATH = process.env.DB_PATH || 'epstein-archive.db';
 const SAMPLE_DB_PATH = 'sample.db';
-const SCHEMA_PATH = 'schema.sql';
 
-console.log(`Creating sample database from ${SOURCE_DB_PATH}...`);
+console.log(`🚀 Creating high-quality sample database from ${SOURCE_DB_PATH}...`);
 
-// 1. Clean up old sample
 if (existsSync(SAMPLE_DB_PATH)) {
   unlinkSync(SAMPLE_DB_PATH);
-  console.log('Removed existing sample.db');
+  console.log('🗑️  Removed existing sample.db');
 }
 
-// 2. Initialize Sample DB with Schema
-const sampleDb = new Database(SAMPLE_DB_PATH);
-const schema = readFileSync(SCHEMA_PATH, 'utf-8');
-sampleDb.exec(schema);
-console.log('Initialized sample.db with schema.');
-
-// 3. Connect to Source DB
 const sourceDb = new Database(SOURCE_DB_PATH);
+const sampleDb = new Database(SAMPLE_DB_PATH);
 
-// 4. Select Sample Documents (50 random)
-const documents = sourceDb
+// Disable FKs on both connections
+sourceDb.pragma('foreign_keys = OFF');
+sampleDb.pragma('foreign_keys = OFF');
+
+// 1. Dynamic Schema Cloning
+console.log('📐 Cloning schema...');
+const tables = sourceDb
+  .prepare(
+    "SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '%_fts%'",
+  )
+  .all() as any[];
+
+sampleDb.exec('BEGIN;');
+sampleDb.exec('PRAGMA foreign_keys = OFF;'); // Disable FKs for the copy
+for (const table of tables) {
+  sampleDb.exec(table.sql);
+}
+sampleDb.exec('COMMIT;');
+
+// 2. Intelligent Top Entities Selection
+console.log('👥 Identifying top entities...');
+const junkPatterns = [
+  '%House%',
+  '%Office%',
+  '%Street%',
+  '%Road%',
+  '%Avenue%',
+  '%Park%',
+  '%Beach%',
+  '%Islands%',
+  '%Times%',
+  '%Post%',
+  '%News%',
+  '%Press%',
+  '%Journal%',
+  '%Magazine%',
+  '%Inc%',
+  '%LLC%',
+  '%Corp%',
+  '%Ltd%',
+  '%Group%',
+  '%Trust%',
+  '%Foundation%',
+  '%University%',
+  '%College%',
+  '%School%',
+  '%Academy%',
+  '%Judge%',
+  '%Court%',
+  '%Attorney%',
+  '%Justice%',
+  '%Department%',
+  '%Bureau%',
+  '%Agency%',
+  '%Police%',
+  '%Sheriff%',
+  '%FBI%',
+  '%CIA%',
+  '%Secret Service%',
+  '%Tower%',
+  '%Desktop%',
+  '%Printed%',
+  '%Mexico%',
+  '%Prior%',
+  '%Subtractions%',
+  '%Interest%',
+  '%Checking%',
+  '%Pricing%',
+  '%Structure%',
+  '%Reserved%',
+  '%Management%',
+  '%Information%',
+  '%Code%',
+  '%Contact%',
+  '%Client%',
+  '%Cruz%',
+  '%Cooling%',
+  '%Inspection%',
+  '%Treatment%',
+  '%Water%',
+  '%Annual%',
+  '%Justin%',
+  '%Warner%',
+  '%Cable%',
+  '%Jed%',
+  '%Lines%',
+  '%Postage%',
+  '%Articles%',
+  '%Bills%',
+  '%Homeowners%',
+];
+
+const junkFilter = junkPatterns.map(() => 'full_name NOT LIKE ?').join(' AND ');
+
+const topEntities = sourceDb
   .prepare(
     `
-    SELECT DISTINCT d.* 
-    FROM documents d 
-    JOIN entity_mentions em ON d.id = em.document_id 
-    ORDER BY RANDOM() 
-    LIMIT 50
+  SELECT * FROM entities 
+  WHERE type = 'Person' 
+  AND mentions > 5 
+  AND ${junkFilter}
+  ORDER BY mentions DESC 
+  LIMIT 50
 `,
   )
-  .all();
-console.log(`Selected ${documents.length} documents.`);
+  .all(junkPatterns) as any[];
 
-if (documents.length === 0) {
-  console.error('No documents found in source DB!');
-  process.exit(1);
-}
+console.log(`✅ Selected ${topEntities.length} key entities.`);
 
-// 5. Insert Documents
-const insertDoc = sampleDb.prepare(`
-  INSERT INTO documents (
-    id, file_name, file_path, file_type, file_size, date_created, date_modified, 
-    content_preview, evidence_type, mentions_count, content, metadata_json, 
-    word_count, spice_rating, content_hash, original_file_id, original_file_path, 
-    created_at, title, source_collection, red_flag_rating, type
-  ) VALUES (
-    @id, @file_name, @file_path, @file_type, @file_size, @date_created, @date_modified, 
-    @content_preview, @evidence_type, @mentions_count, @content, @metadata_json, 
-    @word_count, @spice_rating, @content_hash, @original_file_id, @original_file_path, 
-    @created_at, @title, @source_collection, @red_flag_rating, @type
-  )
-`);
+// 3. Data Collection Logic
+const entityIds = new Set(topEntities.map((e) => e.id));
+const docIds = new Set<number>();
 
-// insertPage skipped because table is missing
-/*
-const insertPage = sampleDb.prepare(`
-  INSERT INTO document_pages (
-    document_id, page_number, extracted_text, text_source, ocr_quality_score, phash
-  ) VALUES (
-    @document_id, @page_number, @extracted_text, @text_source, @ocr_quality_score, @phash
-  )
-`);
-*/
+// Helper to copy data for a table using dynamic columns
+function copyTableData(tableName: string, ids: number[] | Set<number>, idColumn: string = 'id') {
+  const idArray = Array.from(ids);
+  if (idArray.length === 0) return;
 
-// We need to check if document_pages table exists in source schema, assuming it does based on previous context
-// Wait, looking at schema.sql I pulled earlier... I don't see `document_pages` in the CREATE TABLE list in the first view!
-// Let me double check if I missed it or if it schema.sql was incomplete in the view.
-// Ah, `schema.sql` in the view I got earlier went up to line 433 and `document_pages` was NOT there.
-// But `ingest_intelligence.ts` referenced it.
-// I should rely on what `ingest_intelligence.ts` uses or check `sqlite_master`.
-// For safety, I will check if tables exist before querying source.
+  const columns = sourceDb.prepare(`PRAGMA table_info(${tableName})`).all() as any[];
+  const colNames = columns.map((c) => c.name).join(', ');
+  const placeholders = columns.map((c) => `@${c.name}`).join(', ');
 
-function tableExists(db: Database.Database, tableName: string) {
-  return (
-    db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(tableName) !==
-    undefined
+  const insert = sampleDb.prepare(
+    `INSERT OR IGNORE INTO ${tableName} (${colNames}) VALUES (${placeholders})`,
   );
+
+  // Split into chunks to avoid SQLITE_LIMIT_VARIABLE_NUMBER
+  const chunkSize = 500;
+  for (let i = 0; i < idArray.length; i += chunkSize) {
+    const chunk = idArray.slice(i, i + chunkSize);
+    const selectStmt = `SELECT * FROM ${tableName} WHERE ${idColumn} IN (${chunk.map(() => '?').join(',')})`;
+    const rows = sourceDb.prepare(selectStmt).all(chunk) as any[];
+
+    sampleDb.transaction(() => {
+      for (const row of rows) {
+        insert.run(row);
+      }
+    })();
+  }
+  console.log(`📦 Copied data into ${tableName}.`);
 }
 
-const hasPages = tableExists(sourceDb, 'document_pages');
-const hasSentences = tableExists(sourceDb, 'document_sentences');
+// 4. Graph Expansion
+console.log('🕸️  Expanding graph relationships...');
 
-const insertMention = sampleDb.prepare(`
-  INSERT INTO entity_mentions (
-    entity_id, document_id, mention_context, mention_type, page_number, 
-    position_in_text, created_at, context_type, context_text, keyword, 
-    position_start, position_end, significance_score, assigned_by, score
-  ) VALUES (
-    @entity_id, @document_id, @mention_context, @mention_type, @page_number, 
-    @position_in_text, @created_at, @context_type, @context_text, @keyword, 
-    @position_start, @position_end, @significance_score, @assigned_by, @score
+// Level 1: Entities
+copyTableData('entities', entityIds);
+
+// Level 2: Mentions & Documents (Limit documents to top density)
+const mentions = sourceDb
+  .prepare(
+    `
+  SELECT document_id, count(*) as c 
+  FROM entity_mentions 
+  WHERE entity_id IN (${Array.from(entityIds)
+    .map(() => '?')
+    .join(',')})
+  GROUP BY document_id
+  ORDER BY c DESC
+  LIMIT 100
+`,
   )
-`);
+  .all(Array.from(entityIds)) as any[];
 
-const insertEntity = sampleDb.prepare(`
-  INSERT OR IGNORE INTO entities (
-    id, full_name, primary_role, secondary_roles, likelihood_level, mentions, 
-    current_status, connections_summary, spice_rating, spice_score, title, 
-    role, date_taken, date_added, date_modified, title_variants, created_at, 
-    updated_at, risk_factor, entity_type, type, entity_category, risk_level, 
-    red_flag_rating, red_flag_score, red_flag_description, aliases, death_date, 
-    notes, bio, birth_date, aliases_json, handles_json, status_last_updated, 
-    evidence_type_distribution
-  ) VALUES (
-    @id, @full_name, @primary_role, @secondary_roles, @likelihood_level, @mentions, 
-    @current_status, @connections_summary, @spice_rating, @spice_score, @title, 
-    @role, @date_taken, @date_added, @date_modified, @title_variants, @created_at, 
-    @updated_at, @risk_factor, @entity_type, @type, @entity_category, @risk_level, 
-    @red_flag_rating, @red_flag_score, @red_flag_description, @aliases, @death_date, 
-    @notes, @bio, @birth_date, @aliases_json, @handles_json, @status_last_updated, 
-    @evidence_type_distribution
+for (const m of mentions) docIds.add(m.document_id);
+console.log(`📄 Selected top ${docIds.size} related documents.`);
+
+// Level 3: Documents
+copyTableData('documents', docIds);
+
+// Level 4: All mentions in those documents (to get co-occurring entities)
+const allMentions = sourceDb
+  .prepare(
+    `
+  SELECT * FROM entity_mentions 
+  WHERE document_id IN (${Array.from(docIds)
+    .map(() => '?')
+    .join(',')})
+`,
   )
-`);
+  .all(Array.from(docIds)) as any[];
 
-sampleDb.transaction(() => {
-  for (const doc of documents as any[]) {
-    insertDoc.run(doc);
+const expandedEntityIds = new Set(entityIds);
+for (const m of allMentions) expandedEntityIds.add(m.entity_id);
 
-    // Pages - Skipped as table missing in schema.sql
-    /*
-    if (hasPages) {
-       // ...
+console.log(`🔗 Expanded to ${expandedEntityIds.size} total entities via co-occurrence.`);
+
+// Re-copy entities and mentions to ensure full coverage
+copyTableData('entities', expandedEntityIds);
+copyTableData('entity_mentions', docIds, 'document_id');
+
+// Level 5: Related Tables
+const relatedTables = [
+  { name: 'evidence_entity', idCol: 'entity_id', sourceIds: expandedEntityIds },
+  { name: 'timeline_events', idCol: 'entity_id', sourceIds: expandedEntityIds },
+  { name: 'entity_relationships', idCol: 'source_entity_id', sourceIds: expandedEntityIds },
+  { name: 'media_items', idCol: 'entity_id', sourceIds: expandedEntityIds },
+  { name: 'media_item_people', idCol: 'entity_id', sourceIds: expandedEntityIds },
+  { name: 'financial_transactions', idCol: 'from_entity', idIsName: true }, // Special case for names
+];
+
+for (const table of relatedTables) {
+  if (table.idIsName) {
+    const names = Array.from(expandedEntityIds)
+      .map((id) => {
+        const e = topEntities.find((te) => te.id === id);
+        return e ? e.full_name : null;
+      })
+      .filter(Boolean);
+
+    if (names.length > 0) {
+      const columns = sourceDb.prepare(`PRAGMA table_info(${table.name})`).all() as any[];
+      const colNames = columns.map((c) => c.name).join(', ');
+      const placeholders = columns.map((c) => `@${c.name}`).join(', ');
+      const insert = sampleDb.prepare(
+        `INSERT OR IGNORE INTO ${table.name} (${colNames}) VALUES (${placeholders})`,
+      );
+      const rows = sourceDb
+        .prepare(
+          `SELECT * FROM ${table.name} WHERE ${table.idCol} IN (${names.map(() => '?').join(',')})`,
+        )
+        .all(names) as any[];
+      sampleDb.transaction(() => {
+        for (const r of rows) insert.run(r);
+      })();
+      console.log(`📦 Copied ${rows.length} rows into ${table.name} (by name).`);
     }
-    */
-
-    // Mentions & Entities
-    const mentions = sourceDb
-      .prepare('SELECT * FROM entity_mentions WHERE document_id = ?')
-      .all(doc.id) as any[];
-    for (const mention of mentions) {
-      // Get the entity
-      const entity = sourceDb.prepare('SELECT * FROM entities WHERE id = ?').get(mention.entity_id);
-      if (entity) {
-        // Explicitly polyfill all columns expected by the INSERT statement
-        const safeEntity = {
-          ...entity,
-          secondary_roles: entity.secondary_roles || null,
-          likelihood_level: entity.likelihood_level || null,
-          primary_role: entity.primary_role || null,
-          title: entity.title || null,
-          role: entity.role || null,
-          current_status: entity.current_status || null,
-          connections_summary: entity.connections_summary || null,
-          title_variants: entity.title_variants || null,
-          risk_factor: entity.risk_factor || 0,
-          entity_type: entity.entity_type || 'Person',
-          type: entity.type || 'Person',
-          entity_category: entity.entity_category || null,
-          risk_level: entity.risk_level || null,
-          red_flag_rating: entity.red_flag_rating || 0,
-          red_flag_score: entity.red_flag_score || 0,
-          red_flag_description: entity.red_flag_description || null,
-          aliases: entity.aliases || null,
-          death_date: entity.death_date || null,
-          notes: entity.notes || null,
-          bio: entity.bio || null,
-          birth_date: entity.birth_date || null,
-          status_last_updated: entity.status_last_updated || null,
-          aliases_json: entity.aliases_json || '[]',
-          handles_json: entity.handles_json || '[]',
-          evidence_type_distribution: entity.evidence_type_distribution || '{}',
-        };
-        insertEntity.run(safeEntity);
-        // Polyfill mention
-        const safeMention = {
-          ...mention,
-          page_number: mention.page_number || null,
-          position_in_text: mention.position_in_text || null,
-          context_type: mention.context_type || 'mention',
-          context_text: mention.context_text || '',
-          keyword: mention.keyword || null,
-          position_start: mention.position_start || null,
-          position_end: mention.position_end || null,
-          significance_score: mention.significance_score || 1,
-          assigned_by: mention.assigned_by || null,
-          score: mention.score || null,
-        };
-
-        try {
-          insertMention.run(safeMention);
-        } catch (e) {
-          console.error('Failed to insert mention:', e);
-        }
-      }
-    }
+  } else {
+    copyTableData(table.name, table.sourceIds, table.idCol);
   }
-})();
+}
 
-console.log('Sample database created successfully.');
+// 5. Finalize
+console.log('🧹 Finalizing database...');
+sampleDb.exec('VACUUM;');
+const integrity = sampleDb.prepare('PRAGMA integrity_check').get() as any;
+
+if (integrity.integrity_check === 'ok') {
+  console.log('✨ Sample database created successfully! (Integrity OK)');
+} else {
+  console.error('❌ Database integrity check failed:', integrity);
+}
+
+sourceDb.close();
+sampleDb.close();

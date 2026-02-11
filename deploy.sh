@@ -33,12 +33,14 @@ log_error() { echo -e "${RED}❌ $1${NC}"; }
 CODE_ONLY=false
 DB_ONLY=false
 DRY_RUN=false
+SKIP_INTEGRITY=false
 
 for arg in "$@"; do
   case $arg in
     --dry-run) DRY_RUN=true ;;
     --code-only) CODE_ONLY=true ;;
     --db-only) DB_ONLY=true ;;
+    --skip-integrity) SKIP_INTEGRITY=true ;;
   esac
 done
 
@@ -59,12 +61,16 @@ else
     log_warning "DRY RUN: Would upload $LOCAL_DB to $PRODUCTION_HOST"
   else
     # 1. Verification
-    log_step "Checking local database integrity (quick check)..."
-    if ! sqlite3 "$LOCAL_DB" "PRAGMA quick_check;" | grep -q "ok"; then
-      log_error "Local database is corrupt! Aborting upload."
-      exit 1
+    if [ "$SKIP_INTEGRITY" = true ]; then
+      log_warning "Skipping local integrity check (--skip-integrity)"
+    else
+      log_step "Checking local database integrity (quick check)..."
+      if ! sqlite3 "$LOCAL_DB" "PRAGMA quick_check;" | grep -q "ok"; then
+        log_error "Local database is corrupt! Aborting upload."
+        exit 1
+      fi
+      log_success "Local integrity check passed."
     fi
-    log_success "Local integrity check passed."
 
     # 2. Upload to temporary file
     log_step "Uploading to temporary file ($REMOTE_TEMP)..."

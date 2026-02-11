@@ -12,9 +12,14 @@ import Tooltip from './Tooltip';
 import Icon from './Icon';
 import { useModalFocusTrap } from '../../hooks/useModalFocusTrap';
 import { CreateRelationshipModal } from '../entities/CreateRelationshipModal';
-import { EntityEvidencePanel } from '../entities/EntityEvidencePanel';
+
 import { EntityMediaGallery } from '../entities/EntityMediaGallery';
 import { SignalAnalysis } from './SignalAnalysis';
+import {
+  NetworkVisualization,
+  NetworkNode,
+  NetworkEdge,
+} from '../visualizations/NetworkVisualization';
 
 interface EvidenceModalProps {
   person: Person;
@@ -36,6 +41,10 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
     const [loadingMedia, setLoadingMedia] = useState(false);
     const [filterQuery, setFilterQuery] = useState('');
     const [showRelationshipModal, setShowRelationshipModal] = useState(false);
+    const [networkGraphData, setNetworkGraphData] = useState<{
+      nodes: NetworkNode[];
+      edges: NetworkEdge[];
+    } | null>(null);
     const { modalRef } = useModalFocusTrap(true);
     const navigate = useNavigate();
 
@@ -139,6 +148,18 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
         fetchMedia();
       }
     }, [activeTab, person.id, fullMedia.length]);
+
+    // Fetch network graph data when tab is active
+    useEffect(() => {
+      if (activeTab === 'network' && !networkGraphData && person.id) {
+        apiClient
+          .getEntityGraph(person.id.toString(), 2)
+          .then((data) => {
+            setNetworkGraphData(data);
+          })
+          .catch((err) => console.error('Error fetching graph:', err));
+      }
+    }, [activeTab, person.id, networkGraphData]);
 
     const [sortOption, setSortOption] = useState<SortOption>('risk');
     const [selectedSource, setSelectedSource] = useState<string>('all');
@@ -723,11 +744,28 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
 
             {/* NETWORK TAB */}
             {activeTab === 'network' && (
-              <div className="h-full min-h-[500px] bg-slate-900 rounded-xl overflow-hidden border border-slate-800">
-                <EntityEvidencePanel
-                  entityId={String(enrichedPerson.id)}
-                  entityName={enrichedPerson.name}
-                />
+              <div className="h-full min-h-[500px] bg-slate-900 rounded-xl overflow-hidden">
+                {networkGraphData ? (
+                  <NetworkVisualization
+                    nodes={networkGraphData.nodes}
+                    edges={networkGraphData.edges}
+                    interactive={true}
+                    height={600}
+                    onNodeClick={(node) => {
+                      if (node.id !== person.id.toString()) {
+                        onClose();
+                        navigate(`/entity/${node.id}`);
+                      }
+                    }}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-slate-500">
+                    <div className="flex flex-col items-center gap-3">
+                      <Activity className="w-8 h-8 animate-pulse text-blue-500" />
+                      <span>Loading network connection graph...</span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

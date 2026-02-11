@@ -197,6 +197,12 @@ const timelineEvents = [
     content:
       'V12.14.0: Schema Unification & Mobile UX. Consolidated media and evidence schemas, launched WikiLink auto-linking engine for document cross-referencing, and refined mobile EvidenceModal with sticky headers and glassmorphism.',
   },
+  {
+    date: 'Feb 11, 2026',
+    source: 'Epstein Archive',
+    content:
+      'V12.16.0: Entity Pipeline Hardening & Data Purification. Executed corpus-wide retroactive cleanup (~17k entities purged), launched context-aware role extraction, and hardened junk filters to ensure maximum signal-to-noise across the 1.3M document archive.',
+  },
 ];
 
 // Helper to get color classes
@@ -624,9 +630,9 @@ export const AboutPage: React.FC = () => {
           <p>
             The latest release comprises over 1.3 million documents from the post-Maxwell trial era.
             This massive tranche includes "Data Set 12" (DOJ VOL00012). Since Feb 2026, these
-            volumes are being processed through our <strong>Semantic Repair Pipeline</strong>, which
-            uses distributed AI to fix corrupted OCR text and ingestion wildcards, making them more
-            legible than the original government releases.
+            volumes are being processed through our <strong>Semantic Repair Pipeline</strong> and
+            <strong>Hardened Entity Engine</strong>, which fix corrupted OCR text, purge junk data,
+            and leverage context-aware role extraction for deep investigative accuracy.
           </p>
 
           {/* Ingestion Progress Dashboard (Requested placement) */}

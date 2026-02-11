@@ -1,3 +1,13 @@
+## v12.16.0 — 2026-02-11
+
+### Entity Pipeline Hardening & Data Integrity
+
+- **Hardened Entity Pipeline**: Implemented aggressive junk filtering and strengthened classification heuristics in the intelligence engine.
+- **Retroactive Database Cleanup**: Successfully purged **~17,000 junk entities** and OCR artifacts from the live archive, reducing noise and improving search relevance.
+- **Canonical Consolidation**: Merged numerous entity variants (e.g., Netanyahu, Epstein) into canonical profiles.
+- **Contextual Role Extraction**: The ingestion pipeline now automatically identifies roles (Pilot, Lawyer, Survivor, etc.) by analyzing the context window around entity mentions.
+- **Risk Engine Recalibration**: Fixed schema-related bugs in the risk engine and updated threat levels for over 82,000 entities across the corpus.
+
 ## v12.15.0 — 2026-02-11
 
 ### Schema Hardening & Metadata Surfacing

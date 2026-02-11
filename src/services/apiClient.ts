@@ -255,6 +255,11 @@ class ApiClient {
     }
   }
 
+  async getEntityGraph(entityId: string, depth: number = 2): Promise<any> {
+    const url = `${API_BASE_URL}/entities/${entityId}/graph?depth=${depth}`;
+    return this.fetchWithErrorHandling<any>(url);
+  }
+
   async getEntityDocuments(entityId: string): Promise<any[]> {
     const url = `${API_BASE_URL}/entities/${entityId}/documents`;
     const response = await this.fetchWithErrorHandling<any>(url);

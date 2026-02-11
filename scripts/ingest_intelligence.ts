@@ -16,12 +16,27 @@ const BATCH_SIZE = 100;
 
 // ... (Pattern definitions remain here) ...
 const LOCATION_PATTERN =
-  /\b(House|Street|Road|Avenue|Park|Beach|Islands|Drive|Place|Apartment|Mansion)\b/i;
+  /\b(House|Street|Road|Avenue|Park|Beach|Islands|Drive|Place|Apartment|Mansion|Ranch|Island|Airport|Courthouse|Building|Plaza|Center|Terminal|Hangar|Dock)\b/i;
 const HOUSEKEEPER_PATTERN = /Housekeeper/i;
 const ORG_PATTERN =
-  /\b(Inc\.?|LLC|Corp\.?|Ltd\.?|Group|Trust|Foundation|University|College|School|Academy|Department|Bureau|Agency|Police|Sheriff|FBI|CIA|Secret Service|Bank|Association|Club|Holdings|Limited|Fund)\b/i;
-const MEDIA_PATTERN = /\b(New York Times|Post|News|Press|Journal|Magazine)\b/i;
-const FINANCIAL_PATTERN = /\b(Bank|Financial|Transfer|Payment|Account|Trust|LLC|Inc|Corp)\b/i;
+  /\b(Inc\.?|LLC|Corp\.?|Ltd\.?|Group|Trust|Foundation|University|College|School|Academy|Department|Bureau|Agency|Police|Sheriff|FBI|CIA|Secret Service|Bank|Association|Club|Holdings|Limited|Fund|Service|Office|Registry|Commission|Board)\b/i;
+const MEDIA_PATTERN =
+  /\b(New York Times|Post|News|Press|Journal|Magazine|Broadcast|Radio|TV|Herald|Tribune|Chronicle)\b/i;
+const FINANCIAL_PATTERN =
+  /\b(Bank|Financial|Transfer|Payment|Account|Trust|LLC|Inc|Corp|Investment|Capital|Securities|Fund|Equity)\b/i;
+const PERSON_TITLE_PATTERN =
+  /\b(Judge|Officer|Agent|Senator|Representative|Justice|Professor|Doctor|Advocate|Counsel|Attorney|Lawyer|Pilot|Detective|Marshal|Sheriff|Foreman|Owner)\b/i;
+
+const ROLE_PATTERNS = [
+  { role: 'Pilot', regex: /\bpilot|aviation|flight|cockpit\b/i },
+  { role: 'Survivor', regex: /\bsurvivor|victim|accuser|whistleblower\b/i },
+  { role: 'Butler', regex: /\bbutler|housekeeper|maid|staff|employee\b/i },
+  { role: 'Lawyer', regex: /\blawyer|attorney|counsel|legal|prosecutor|defense\b/i },
+  { role: 'Associate', regex: /\bassociate|partner|colleague|friend|confidant\b/i },
+  { role: 'Political', regex: /\bsenator|representative|congress|governor|president|mayor\b/i },
+  { role: 'Judicial', regex: /\bjudge|justice|magistrate|court\b/i },
+  { role: 'Security', regex: /\bsecurity|guard|officer|agent|police|fbi|cia\b/i },
+];
 
 // Phase 3: High Interest Patterns (Simulated/Heuristic)
 const INTEREST_PATTERNS = [
@@ -55,20 +70,24 @@ function detectType(
 ): 'Person' | 'Organization' | 'Location' | 'Media' | 'Financial' | 'Other' {
   const parts = name.split(/[\s,.]+/);
 
-  // 1. Organization Check
+  // 1. Title check (e.g. "Officer Smith" -> Person)
+  if (PERSON_TITLE_PATTERN.test(name)) return 'Person';
+
+  // 2. Organization Check
   if (ORG_PATTERN.test(name)) return 'Organization';
 
-  // 2. Media Check
+  // 3. Media Check
   if (MEDIA_PATTERN.test(name)) return 'Media';
 
-  // 3. Financial Check
+  // 4. Financial Check
   if (FINANCIAL_PATTERN.test(name)) return 'Financial';
 
-  // 4. Location Check (with exclusions)
+  // 5. Location Check (with exclusions)
   if (LOCATION_PATTERN.test(name) && !HOUSEKEEPER_PATTERN.test(name)) return 'Location';
 
-  // 5. Person Heuristic (Default for 2-4 words capitalized)
-  if (parts.length >= 2 && parts.length <= 4) return 'Person';
+  // 6. Person Heuristic (Default for 2-3 words capitalized)
+  // Reduced from 4 to be more aggressive against noise
+  if (parts.length >= 2 && parts.length <= 3) return 'Person';
 
   return 'Other';
 }
@@ -480,6 +499,32 @@ export async function runIntelligencePipeline() {
         if (!existing) return;
         entityId = existing.id;
         entityCache.set(lowerName, entityId);
+      }
+    }
+
+    // Role Attribution (Phase 4 Intelligence)
+    if (entityType === 'Person' && entityId) {
+      const idx = match.index || 0;
+      const start = Math.max(0, idx - 150);
+      const end = Math.min(fullText.length, idx + rawName.length + 150);
+      const roleContext = fullText.substring(start, end);
+
+      const foundRoles: string[] = [];
+      for (const pattern of ROLE_PATTERNS) {
+        if (pattern.regex.test(roleContext)) {
+          foundRoles.push(pattern.role);
+        }
+      }
+
+      if (foundRoles.length > 0) {
+        db.prepare(
+          `
+          UPDATE entities 
+          SET primary_role = COALESCE(primary_role, ?),
+              entity_category = COALESCE(entity_category, ?)
+          WHERE id = ? AND primary_role IS NULL
+        `,
+        ).run(foundRoles[0], foundRoles[0], entityId);
       }
     }
 

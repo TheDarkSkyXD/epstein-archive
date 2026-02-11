@@ -271,6 +271,17 @@ const JUNK_PHRASES = new Set([
   'px arial',
   'px helvetica',
   'sans-serif',
+  'they like',
+  'estate thomas',
+  'estate thomas st',
+  'estate thomas fax',
+  'closed containessitems …',
+  'other structures contai…',
+  'other structures contained therean',
+  'other structures',
+  "estate thomas's lawyer",
+  "estate thomas's assistant",
+  "katie johnson's lawyer",
 ]);
 
 const JUNK_REGEX = [
@@ -317,6 +328,10 @@ const JUNK_REGEX = [
   /Towers/i,
   /Prior/i,
   /Printed/i,
+  /^estate\s+/i,
+  /\.\.\.$/,
+  /containessitems/i,
+  /structures\s+contai/i,
 ];
 
 export function isJunkEntity(name: string): boolean {
@@ -338,7 +353,7 @@ export function isJunkEntity(name: string): boolean {
 
   // 4. Check word count. Names are usually 2-3 words.
   const wordCount = normalized.split(/\s+/).length;
-  if (wordCount > 4) return true; // "Director of the Board of ..." -> Role, not name.
+  if (wordCount > 3) return true; // Reduced from 4 to be more aggressive against captures that are actually roles/phrases
 
   return false;
 }

@@ -641,7 +641,7 @@ export const entitiesRepository = {
             d.metadata_json as metadataJson,
             d.word_count as wordCount,
             d.red_flag_rating as redFlagRating,
-            d.md5_hash as contentHash,
+
             'Mentioned in document' as contextText,
             '' as aiSummary,
             0 as pageNumber,

@@ -29,7 +29,7 @@ const PersonCard: React.FC<PersonCardProps> = ({
   );
   const photos = React.useMemo(() => {
     if (person.photos && Array.isArray(person.photos)) {
-      return person.photos.slice(0, 5);
+      return person.photos; // Don't slice here so we can check total length
     }
     return [];
   }, [person.photos]);
@@ -278,36 +278,34 @@ const PersonCard: React.FC<PersonCardProps> = ({
             <span className="text-[10px] text-slate-600">{photos.length} items</span>
           </div>
 
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none mask-fade-right">
-            {photos.slice(0, 5).map((photo) => (
+          <div className="grid grid-cols-5 gap-2 pb-2">
+            {photos.slice(0, 5).map((photo, idx) => (
               <div
                 key={photo.id}
                 onClick={(e) => {
                   e.stopPropagation();
                   navigate(`/media?photoId=${photo.id}`);
                 }}
-                className="relative flex-shrink-0 w-16 h-12 rounded-md overflow-hidden border border-slate-700 hover:border-cyan-400 cursor-pointer group/photo transition-all"
+                className={`relative aspect-video rounded-md overflow-hidden border border-slate-700 hover:border-cyan-400 cursor-pointer group/photo transition-all ${
+                  idx === 4 && photos.length > 5 ? 'relative' : ''
+                }`}
                 title={photo.title || 'View photo'}
               >
                 <img
                   src={`/api/media/images/${photo.id}/thumbnail`}
                   alt={photo.title}
-                  className="w-full h-full object-cover opacity-80 group-hover/photo:opacity-100 transition-opacity"
+                  className={`w-full h-full object-cover opacity-80 group-hover/photo:opacity-100 transition-opacity ${
+                    idx === 4 && photos.length > 5 ? 'blur-[1px] brightness-50' : ''
+                  }`}
                   loading="lazy"
                 />
+                {idx === 4 && photos.length > 5 && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <span className="text-[10px] font-bold text-white">+{photos.length - 4}</span>
+                  </div>
+                )}
               </div>
             ))}
-            {photos.length > 5 && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate(`/media?personId=${person.id}`);
-                }}
-                className="flex-shrink-0 w-8 h-12 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center justify-center transition-colors"
-              >
-                <Icon name="ArrowRight" size="xs" className="text-slate-400" />
-              </button>
-            )}
           </div>
         </div>
       )}

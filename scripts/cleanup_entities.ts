@@ -57,113 +57,127 @@ const TO_MERGE_PATTERNS: { name: string; targetId: number }[] = [
   { name: 'Israeli Prime Minister Netanyahu', targetId: NETANYAHU_ID },
 ];
 
+import { isJunkEntity } from './filters/entityFilters.js';
+
+const deleteEntity = (id: number) => {
+  const safeRun = (sql: string, ...args: any[]) => {
+    try {
+      db.prepare(sql).run(...args);
+    } catch (e) {
+      // Ignore errors (e.g. table not found)
+    }
+  };
+
+  // 1. Mentions
+  safeRun('DELETE FROM entity_mentions WHERE entity_id = ?', id);
+
+  // 2. Relationships
+  safeRun(
+    'DELETE FROM entity_relationships WHERE source_entity_id = ? OR target_entity_id = ?',
+    id,
+    id,
+  );
+
+  // 3. Evidence Types
+  safeRun('DELETE FROM entity_evidence_types WHERE entity_id = ?', id);
+
+  // 4. Media Items
+  safeRun('UPDATE media_items SET entity_id = NULL WHERE entity_id = ?', id);
+
+  // 5. Evidence Entity
+  safeRun('DELETE FROM evidence_entity WHERE entity_id = ?', id);
+
+  // 6. Media Item People
+  safeRun('DELETE FROM media_item_people WHERE entity_id = ?', id);
+
+  // 7. Black Book
+  safeRun('DELETE FROM black_book_entries WHERE person_id = ?', id);
+
+  // 8. Link Candidates
+  safeRun('DELETE FROM entity_link_candidates WHERE candidate_entity_id = ?', id);
+
+  // 9. Flight Passengers
+  safeRun('UPDATE flight_passengers SET entity_id = NULL WHERE entity_id = ?', id);
+
+  // 10. Properties
+  safeRun(
+    'UPDATE palm_beach_properties SET linked_entity_id = NULL WHERE linked_entity_id = ?',
+    id,
+  );
+
+  // FINALLY delete entity
+  safeRun('DELETE FROM entities WHERE id = ?', id);
+};
+
+const mergeEntity = (sourceId: number, targetId: number) => {
+  const safeRun = (sql: string, ...args: any[]) => {
+    try {
+      db.prepare(sql).run(...args);
+    } catch (e) {
+      // Ignore
+    }
+  };
+
+  // Helper to generic update with conflict ignore
+  const safeUpdate = (table: string, col: string, src: number, tgt: number) => {
+    try {
+      db.prepare(`UPDATE OR IGNORE ${table} SET ${col} = ? WHERE ${col} = ?`).run(tgt, src);
+      db.prepare(`DELETE FROM ${table} WHERE ${col} = ?`).run(src);
+    } catch (e) {
+      safeRun(`DELETE FROM ${table} WHERE ${col} = ?`, src);
+    }
+  };
+
+  safeUpdate('entity_mentions', 'entity_id', sourceId, targetId);
+  safeUpdate('evidence_entity', 'entity_id', sourceId, targetId);
+  safeUpdate('media_item_people', 'entity_id', sourceId, targetId);
+  safeUpdate('entity_evidence_types', 'entity_id', sourceId, targetId);
+
+  safeRun(
+    'UPDATE OR IGNORE entity_relationships SET source_entity_id = ? WHERE source_entity_id = ?',
+    targetId,
+    sourceId,
+  );
+  safeRun(
+    'UPDATE OR IGNORE entity_relationships SET target_entity_id = ? WHERE target_entity_id = ?',
+    targetId,
+    sourceId,
+  );
+
+  safeRun('UPDATE flight_passengers SET entity_id = ? WHERE entity_id = ?', targetId, sourceId);
+  safeRun(
+    'UPDATE palm_beach_properties SET linked_entity_id = ? WHERE linked_entity_id = ?',
+    targetId,
+    sourceId,
+  );
+
+  // Delete source entity using the full delete logic
+  deleteEntity(sourceId);
+};
+
 function main() {
   console.log('🧹 Cleaning up entities...');
 
-  // 1. Delete Junk
-  const deleteStmt = db.prepare('DELETE FROM entities WHERE full_name = ?');
-  const checkStmt = db.prepare('SELECT id FROM entities WHERE full_name = ?');
+  // 0. Retroactive Junk Scan using Updated Filters
+  const allEntities = db.prepare('SELECT id, full_name FROM entities').all() as any[];
+  console.log(`🔍 Scanning ${allEntities.length} entities for junk...`);
 
-  // Pre-statements for dependencies
-  // We need to handle ALL tables referencing entities to avoid FK errors
-  // Tables: entity_mentions, entity_relationships, entity_evidence_types, media_items,
-  // evidence_entity, media_people, black_book_entries, media_item_people,
-  // entity_link_candidates, flight_passengers, palm_beach_properties, resolution_candidates
+  let junkCount = 0;
+  for (const entity of allEntities) {
+    // Safety: Never delete Jeffrey Epstein
+    if (entity.id === JEFFREY_ID) continue;
 
-  const deleteEntity = (id: number) => {
-    // 1. Mentions
-    db.prepare('DELETE FROM entity_mentions WHERE entity_id = ?').run(id);
-
-    // 2. Relationships
-    db.prepare(
-      'DELETE FROM entity_relationships WHERE source_entity_id = ? OR target_entity_id = ?',
-    ).run(id, id);
-
-    // 3. Evidence Types
-    db.prepare('DELETE FROM entity_evidence_types WHERE entity_id = ?').run(id);
-
-    // 4. Media Items
-    db.prepare('UPDATE media_items SET entity_id = NULL WHERE entity_id = ?').run(id);
-
-    // 5. Evidence Entity
-    db.prepare('DELETE FROM evidence_entity WHERE entity_id = ?').run(id);
-
-    // 6. Media Item People (Legacy media_people merged into this)
-    db.prepare('DELETE FROM media_item_people WHERE entity_id = ?').run(id);
-
-    // 7. Black Book (Cascade usually on but manual is safer)
-    db.prepare('DELETE FROM black_book_entries WHERE person_id = ?').run(id);
-
-    // 9. Link Candidates
-    db.prepare('DELETE FROM entity_link_candidates WHERE candidate_entity_id = ?').run(id);
-
-    // 10. Flight Passengers
-    db.prepare('UPDATE flight_passengers SET entity_id = NULL WHERE entity_id = ?').run(id);
-
-    // 11. Properties
-    db.prepare(
-      'UPDATE palm_beach_properties SET linked_entity_id = NULL WHERE linked_entity_id = ?',
-    ).run(id);
-
-    // 12. Resolution Candidates
-    db.prepare(
-      'DELETE FROM resolution_candidates WHERE left_entity_id = ? OR right_entity_id = ?',
-    ).run(id, id);
-
-    // FINALLY delete entity
-    db.prepare('DELETE FROM entities WHERE id = ?').run(id);
-  };
-
-  const mergeEntity = (sourceId: number, targetId: number) => {
-    // Helper to generic update with conflict ignore
-    const safeUpdate = (table: string, col: string, src: number, tgt: number) => {
-      try {
-        db.prepare(`UPDATE OR IGNORE ${table} SET ${col} = ? WHERE ${col} = ?`).run(tgt, src);
-        // Delete leftovers (if they were ignored due to unique constraint, it means target already had that record)
-        db.prepare(`DELETE FROM ${table} WHERE ${col} = ?`).run(src);
-      } catch (e) {
-        // Fallback delete
-        db.prepare(`DELETE FROM ${table} WHERE ${col} = ?`).run(src);
-      }
-    };
-
-    safeUpdate('entity_mentions', 'entity_id', sourceId, targetId);
-    safeUpdate('evidence_entity', 'entity_id', sourceId, targetId);
-    safeUpdate('media_item_people', 'entity_id', sourceId, targetId);
-    safeUpdate('entity_evidence_types', 'entity_id', sourceId, targetId);
-
-    // Relationships are trickier (source/target)
-    try {
-      db.prepare(
-        'UPDATE OR IGNORE entity_relationships SET source_entity_id = ? WHERE source_entity_id = ?',
-      ).run(targetId, sourceId);
-      db.prepare('DELETE FROM entity_relationships WHERE source_entity_id = ?').run(sourceId);
-
-      db.prepare(
-        'UPDATE OR IGNORE entity_relationships SET target_entity_id = ? WHERE target_entity_id = ?',
-      ).run(targetId, sourceId);
-      db.prepare('DELETE FROM entity_relationships WHERE target_entity_id = ?').run(sourceId);
-    } catch (e) {
-      console.warn('Error during relationship update/cleanup:', e);
+    if (isJunkEntity(entity.full_name)) {
+      console.log(`   🗑️ Deleting junk: "${entity.full_name}" (ID: ${entity.id})`);
+      deleteEntity(entity.id);
+      junkCount++;
     }
+  }
+  console.log(`✨ Retroactive cleanup finished. Removed ${junkCount} junk entities.`);
 
-    // Others like flight passengers, properties can just be updated (no unique constraint usually)
-    db.prepare('UPDATE flight_passengers SET entity_id = ? WHERE entity_id = ?').run(
-      targetId,
-      sourceId,
-    );
-    db.prepare(
-      'UPDATE palm_beach_properties SET linked_entity_id = ? WHERE linked_entity_id = ?',
-    ).run(targetId, sourceId);
-
-    // Clean up resolution candidates
-    db.prepare(
-      'DELETE FROM resolution_candidates WHERE left_entity_id = ? OR right_entity_id = ?',
-    ).run(sourceId, sourceId);
-
-    // Delete source entity using the full delete logic (to catch anything missed)
-    deleteEntity(sourceId);
-  };
+  // 1. Delete Junk (Specific Patterns)
+  const _deleteStmt = db.prepare('DELETE FROM entities WHERE full_name = ?');
+  const checkStmt = db.prepare('SELECT id FROM entities WHERE full_name = ?');
 
   for (const name of TO_DELETE_PATTERNS) {
     const row = checkStmt.get(name) as { id: number } | undefined;

@@ -163,12 +163,12 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
   const rawTopEntities =
     analyticsData?.topEntities ||
     filteredPersons
-      .sort((a, b) => (b.mentions || 0) - (a.mentions || 0))
-      .slice(0, 15)
+      .sort((a, b) => Number(b.mentions || 0) - Number(a.mentions || 0))
+      .slice(0, 30) // Increased to support scrollable bar chart better
       .map((p) => ({
         name: p.name,
-        mentions: p.mentions,
-        redFlagRating: p.red_flag_rating ?? 0,
+        mentions: Number(p.mentions || 0),
+        redFlagRating: Number(p.red_flag_rating ?? 0),
         person: p,
       }));
 
@@ -199,113 +199,118 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
             </span>
           </div>
 
-          <div className="h-[400px] relative z-10">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={topEntities.slice(0, 15)}
-                layout="vertical"
-                margin={{ left: 0, right: 30, top: 0, bottom: 0 }}
-              >
-                <defs>
-                  {topEntities.slice(0, 15).map((entry: any, index: number) => (
-                    <linearGradient
-                      key={`gradient-${index}`}
-                      id={`barGradient-${index}`}
-                      x1="0"
-                      y1="0"
-                      x2="1"
-                      y2="0"
-                    >
-                      <stop
-                        offset="0%"
-                        stopColor={
-                          entry.redFlagRating >= 5
-                            ? '#581c87'
-                            : entry.redFlagRating >= 4
-                              ? '#b91c1c'
-                              : '#1d4ed8'
-                        }
-                        stopOpacity={0.7}
-                      />
-                      <stop
-                        offset="100%"
-                        stopColor={
-                          entry.redFlagRating >= 5
-                            ? '#7e22ce'
-                            : entry.redFlagRating >= 4
-                              ? '#ef4444'
-                              : '#3b82f6'
-                        }
-                        stopOpacity={1}
-                      />
-                    </linearGradient>
-                  ))}
-                </defs>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="#334155"
-                  horizontal={false}
-                  vertical={true}
-                  opacity={0.3}
-                />
-                <XAxis
-                  type="number"
-                  stroke="#94a3b8"
-                  fontSize={11}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  dataKey="name"
-                  type="category"
-                  stroke="#94a3b8"
-                  fontSize={10}
-                  width={150}
-                  tick={({ x, y, payload }: any) => {
-                    const label = payload.value || 'Unknown';
-                    const truncated = label.length > 22 ? label.substring(0, 20) + '...' : label;
-                    return (
-                      <text
-                        x={x}
-                        y={y}
-                        dy={4}
-                        fill="#e2e8f0"
-                        textAnchor="end"
-                        className="text-[10px] cursor-pointer"
-                      >
-                        {truncated}
-                      </text>
-                    );
-                  }}
-                  tickLine={false}
-                  axisLine={false}
-                  onClick={(data) => {
-                    // Creating a map to find person by name since YAxis click returns simple data
-                    const person = topEntities.find((p: any) => p.name === data.value)?.person;
-                    if (person && onPersonSelect) onPersonSelect(person);
-                  }}
-                />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: '#ffffff', opacity: 0.05 }} />
-                <Bar
-                  dataKey="mentions"
-                  radius={[0, 4, 4, 0]}
-                  barSize={18}
-                  animationDuration={1000}
-                  onClick={(data) => {
-                    if (data.person && onPersonSelect) onPersonSelect(data.person);
-                  }}
-                  className="cursor-pointer"
+          <div className="h-[400px] relative z-10 overflow-y-auto pr-2 custom-scrollbar">
+            <div style={{ height: `${Math.max(400, topEntities.length * 40)}px` }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={topEntities.slice(0, 30)}
+                  layout="vertical"
+                  margin={{ left: 0, right: 30, top: 0, bottom: 0 }}
+                  barCategoryGap={10}
                 >
-                  {topEntities.slice(0, 15).map((entry: any, index: number) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={`url(#barGradient-${index})`}
-                      className="hover:opacity-80 transition-opacity"
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+                  <defs>
+                    {topEntities.slice(0, 30).map((entry: any, index: number) => (
+                      <linearGradient
+                        key={`gradient-${index}`}
+                        id={`barGradient-${index}`}
+                        x1="0"
+                        y1="0"
+                        x2="1"
+                        y2="0"
+                      >
+                        <stop
+                          offset="0%"
+                          stopColor={
+                            entry.redFlagRating >= 5
+                              ? '#581c87'
+                              : entry.redFlagRating >= 4
+                                ? '#b91c1c'
+                                : '#1d4ed8'
+                          }
+                          stopOpacity={0.7}
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor={
+                            entry.redFlagRating >= 5
+                              ? '#7e22ce'
+                              : entry.redFlagRating >= 4
+                                ? '#ef4444'
+                                : '#3b82f6'
+                          }
+                          stopOpacity={1}
+                        />
+                      </linearGradient>
+                    ))}
+                  </defs>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#334155"
+                    horizontal={false}
+                    vertical={true}
+                    opacity={0.3}
+                  />
+                  <XAxis
+                    type="number"
+                    stroke="#94a3b8"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    dataKey="name"
+                    type="category"
+                    stroke="#94a3b8"
+                    fontSize={11}
+                    width={180}
+                    tick={({ x, y, payload }: any) => {
+                      const label = payload.value || 'Unknown';
+                      // No truncation needed with horizontal scroll
+                      return (
+                        <text
+                          x={x}
+                          y={y}
+                          dy={4}
+                          fill="#e2e8f0"
+                          textAnchor="end"
+                          className="text-[11px] cursor-pointer font-medium hover:fill-cyan-400 transition-colors"
+                          onClick={() => {
+                            const person = topEntities.find((p: any) => p.name === label)?.person;
+                            if (person && onPersonSelect) onPersonSelect(person);
+                          }}
+                        >
+                          {label}
+                        </text>
+                      );
+                    }}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip
+                    content={<CustomTooltip />}
+                    cursor={{ fill: '#ffffff', opacity: 0.05 }}
+                  />
+                  <Bar
+                    dataKey="mentions"
+                    radius={[0, 4, 4, 0]}
+                    barSize={20}
+                    animationDuration={1500}
+                    onClick={(data) => {
+                      if (data.person && onPersonSelect) onPersonSelect(data.person);
+                    }}
+                    className="cursor-pointer"
+                  >
+                    {topEntities.slice(0, 30).map((entry: any, index: number) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={`url(#barGradient-${index})`}
+                        className="hover:opacity-80 transition-opacity"
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
 

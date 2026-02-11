@@ -385,6 +385,10 @@ export const statsRepository = {
       AND full_name NOT LIKE 'Other Additions%'
       AND full_name NOT LIKE '% Desktops'
       AND full_name NOT LIKE '% Mac %'
+      AND full_name NOT LIKE '%RightsReserved%'
+      AND full_name NOT LIKE '%We Deliver For%'
+      AND full_name NOT LIKE '%Taxes Cellular%'
+      AND full_name NOT LIKE '%Valuable Articles%'
       -- Exclude names starting with lowercase (truncated/partial)
       AND full_name NOT GLOB '[a-z]*'
       GROUP BY name

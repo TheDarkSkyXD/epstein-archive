@@ -38,11 +38,10 @@ export async function recalculateRisk() {
       e.id, 
       e.full_name, 
       e.mentions,
-      e.is_vip,
       (SELECT COUNT(*) FROM media_item_people WHERE entity_id = e.id) as media_count,
       (SELECT AVG(significance_score) FROM entity_mentions WHERE entity_id = e.id) as avg_significance
     FROM entities e
-    WHERE e.mentions > 0 OR e.is_vip = 1
+    WHERE e.mentions > 0
   `,
     )
     .all() as any[];
@@ -137,16 +136,8 @@ export async function recalculateRisk() {
         level = 'low';
       }
 
-      // Preserve VIP ratings if they are higher
-      const currentRating = db
-        .prepare('SELECT red_flag_rating FROM entities WHERE id = ?')
-        .get(entity.id) as any;
-      if (entity.is_vip && currentRating?.red_flag_rating > rating) {
-        rating = currentRating.red_flag_rating;
-        if (rating >= 4) level = 'high';
-        else if (rating >= 2) level = 'medium';
-        else level = 'low';
-      }
+      // Note: VIP preservation logic removed as is_vip column does not exist.
+      // High-risk anchors and bios handle important entities.
 
       const description =
         reasons.length > 0

@@ -12,4 +12,8 @@ export const ENTITY_PARTIAL_BLOCKLIST: string[] = [
   'Received Received',
   'Sent from my',
   'Original Message',
+  'They Like',
+  'Estate Thomas',
+  'Other Structures',
+  'Closed Containess',
 ];

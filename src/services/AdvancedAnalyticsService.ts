@@ -148,10 +148,10 @@ export class AdvancedAnalyticsService {
         d.id,
         d.file_name,
         d.red_flag_rating,
-        d.mentions_count
+        (SELECT COUNT(*) FROM entity_mentions WHERE document_id = d.id) as mentions_count
       FROM documents d
       WHERE d.red_flag_rating >= 4 
-        AND (d.mentions_count IS NULL OR d.mentions_count < 5)
+        AND ((SELECT COUNT(*) FROM entity_mentions WHERE document_id = d.id) IS NULL OR (SELECT COUNT(*) FROM entity_mentions WHERE document_id = d.id) < 5)
       ORDER BY d.red_flag_rating DESC
       LIMIT 10
     `,

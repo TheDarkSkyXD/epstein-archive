@@ -693,9 +693,32 @@ export const About: React.FC = () => {
         <div className="space-y-6">
           <div className="border-l-2 border-emerald-500 pl-4">
             <h4 className="text-white font-bold flex items-center gap-2">
+              v13.0.1{' '}
+              <span className="text-[10px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded border border-blue-500/30 font-bold">
+                PARTIAL GO
+              </span>
+            </h4>
+            <p className="text-xs text-slate-500 mb-2">February 11, 2026</p>
+            <ul className="text-sm text-slate-400 space-y-1">
+              <li>
+                • **Live Ingestion Stats**: Real-time dashboard integration for DOJ dataset
+                processing.
+              </li>
+              <li>
+                • **Exo Cluster Optimization**: Enhanced AI enrichment pipeline for distributed
+                Llama-3.1 inference.
+              </li>
+              <li>
+                • **Forensic Snapshot**: Production release of the v13.0.0 codebase with
+                user-approved partial certification.
+              </li>
+            </ul>
+          </div>
+          <div className="border-l-2 border-slate-700 pl-4">
+            <h4 className="text-slate-200 font-bold">
               v13.0.0{' '}
-              <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/30 font-bold">
-                EVIDENTIARY GRADE
+              <span className="text-[10px] bg-slate-500/20 text-slate-400 px-1.5 py-0.5 rounded border border-slate-500/30 font-bold">
+                CERTIFIED
               </span>
             </h4>
             <p className="text-xs text-slate-500 mb-2">February 11, 2026</p>

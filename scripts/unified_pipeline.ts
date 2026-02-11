@@ -27,6 +27,7 @@ import { AIEnrichmentService } from '../src/server/services/AIEnrichmentService.
 // Configuration
 const DB_PATH = process.env.DB_PATH || './epstein-archive.db';
 const BATCH_SIZE = parseInt(process.env.BATCH_SIZE || '50', 10);
+const CONCURRENCY = parseInt(process.env.PIPELINE_CONCURRENCY || '8', 10);
 const CHECKPOINT_DIR = './pipeline_checkpoints';
 
 // Ensure AI is enabled with Exo by default
@@ -161,7 +162,9 @@ async function runEnrichPhase(
   console.log(`   Provider: ${process.env.AI_PROVIDER}`);
   console.log(`   Mode: ${mode}`);
 
-  const db = new Database(DB_PATH, { timeout: 30000 });
+  const db = new Database(DB_PATH, { timeout: 60000 });
+  db.pragma('journal_mode = WAL');
+  db.pragma('synchronous = NORMAL');
 
   // Build query based on mode
   let whereClause = 'content IS NOT NULL AND length(content) > 50';
@@ -214,81 +217,83 @@ async function runEnrichPhase(
 
     if (docs.length === 0) break;
 
-    for (const doc of docs) {
-      try {
-        // Parse existing metadata (preserve everything)
-        let meta: Record<string, any> = {};
-        if (doc.metadata_json) {
+    // Process batch with concurrency
+    for (let i = 0; i < docs.length; i += CONCURRENCY) {
+      const chunk = docs.slice(i, i + CONCURRENCY);
+
+      await Promise.all(
+        chunk.map(async (doc) => {
           try {
-            meta = JSON.parse(doc.metadata_json);
-          } catch {
-            meta = { _original: doc.metadata_json };
+            // Parse existing metadata (preserve everything)
+            let meta: Record<string, any> = {};
+            if (doc.metadata_json) {
+              try {
+                meta = JSON.parse(doc.metadata_json);
+              } catch {
+                meta = { _original: doc.metadata_json };
+              }
+            }
+
+            // Get subject/context for better summarization
+            const subject = meta.subject || meta.title || doc.file_name || 'Unknown Document';
+
+            // Step 1: Semantic Repair (Cleanup for human readability)
+            let refinedText = doc.content;
+            if (doc.content.includes('=')) {
+              refinedText = await AIEnrichmentService.repairMimeWildcards(doc.content, subject);
+            }
+
+            // Step 2: Generate AI summary - ALWAYS produce something
+            let summary = await AIEnrichmentService.summarizeDocument(refinedText, {
+              fileName: doc.file_name,
+              subject,
+            });
+
+            // If LLM returned null/empty, create a basic summary (never return null)
+            if (!summary || summary.length < 10) {
+              const contentPreview = refinedText
+                .replace(/[\r\n]+/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .slice(0, 200);
+              summary = `Document "${doc.file_name}" contains ${doc.content.length} characters. Preview: ${contentPreview}...`;
+            }
+
+            // Store AI enrichment (additive - never delete existing data)
+            meta.ai_summary = summary;
+            meta.ai_enriched_at = new Date().toISOString();
+            meta.ai_provider = process.env.AI_PROVIDER;
+
+            // Update with BOTH refined content and metadata
+            db.prepare(
+              'UPDATE documents SET metadata_json = ?, content_refined = ? WHERE id = ?',
+            ).run(JSON.stringify(meta), refinedText, doc.id);
+            summariesGenerated++;
+            documentsEnriched++;
+          } catch (error) {
+            // Even on error, mark as attempted with basic summary
+            let meta: Record<string, any> = {};
+            if (doc.metadata_json) {
+              try {
+                meta = JSON.parse(doc.metadata_json);
+              } catch {
+                meta = {};
+              }
+            }
+            meta.ai_summary = `[Auto-generated] Document: ${doc.file_name} (${doc.content.length} chars)`;
+            meta.ai_enriched_at = new Date().toISOString();
+            meta.ai_error = error instanceof Error ? error.message : 'Unknown error';
+            db.prepare('UPDATE documents SET metadata_json = ? WHERE id = ?').run(
+              JSON.stringify(meta),
+              doc.id,
+            );
+            documentsEnriched++;
           }
-        }
-
-        // Get subject/context for better summarization
-        const subject = meta.subject || meta.title || doc.file_name || 'Unknown Document';
-
-        // Step 1: Semantic Repair (Cleanup for human readability)
-        let refinedText = doc.content;
-        if (doc.content.includes('=')) {
-          // console.log(`\n   🧹 Repairing text for document ${doc.id}...`);
-          refinedText = await AIEnrichmentService.repairMimeWildcards(doc.content, subject);
-        }
-
-        // Step 2: Generate AI summary - ALWAYS produce something
-        let summary = await AIEnrichmentService.summarizeDocument(refinedText, {
-          fileName: doc.file_name,
-          subject,
-        });
-
-        // If LLM returned null/empty, create a basic summary (never return null)
-        if (!summary || summary.length < 10) {
-          // Create fallback summary from content
-          const contentPreview = refinedText
-            .replace(/[\r\n]+/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim()
-            .slice(0, 200);
-
-          summary = `Document "${doc.file_name}" contains ${doc.content.length} characters. Preview: ${contentPreview}...`;
-        }
-
-        // Store AI enrichment (additive - never delete existing data)
-        meta.ai_summary = summary;
-        meta.ai_enriched_at = new Date().toISOString();
-        meta.ai_provider = process.env.AI_PROVIDER;
-
-        // Update with BOTH refined content and metadata
-        db.prepare('UPDATE documents SET metadata_json = ?, content_refined = ? WHERE id = ?').run(
-          JSON.stringify(meta),
-          refinedText, // Always save, even if identical to content
-          doc.id,
-        );
-        summariesGenerated++;
-        documentsEnriched++;
-      } catch (error) {
-        // Even on error, mark as attempted with basic summary
-        let meta: Record<string, any> = {};
-        if (doc.metadata_json) {
-          try {
-            meta = JSON.parse(doc.metadata_json);
-          } catch {
-            meta = {};
-          }
-        }
-        meta.ai_summary = `[Auto-generated] Document: ${doc.file_name} (${doc.content.length} chars)`;
-        meta.ai_enriched_at = new Date().toISOString();
-        meta.ai_error = error instanceof Error ? error.message : 'Unknown error';
-        db.prepare('UPDATE documents SET metadata_json = ? WHERE id = ?').run(
-          JSON.stringify(meta),
-          doc.id,
-        );
-        documentsEnriched++;
-      }
+        }),
+      );
 
       // Progress
-      if (documentsEnriched % 10 === 0) {
+      if (documentsEnriched % 10 === 0 || documentsEnriched === totalDocs) {
         const elapsed = (Date.now() - startTime) / 1000;
         const rate = documentsEnriched / elapsed;
         const eta = (totalDocs - documentsEnriched) / rate / 60;

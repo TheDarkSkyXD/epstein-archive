@@ -27,9 +27,49 @@ export class AIEnrichmentService {
   private static OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3.2:1b';
 
   // Exo (distributed cluster) configuration
-  // Exo auto-discovers devices and exposes a unified API endpoint
   private static EXO_HOST = process.env.EXO_HOST || 'http://localhost:52415';
-  private static EXO_MODEL = process.env.EXO_MODEL || 'mlx-community/Llama-3.2-3B-Instruct-8bit';
+  private static discoveredExoModel: string | null = '8A6B3AA5';
+
+  /**
+   * Automatically discovers the active model on the Exo cluster
+   */
+  private static async autoDiscoverExoModel(): Promise<string> {
+    if (this.discoveredExoModel) return this.discoveredExoModel;
+
+    try {
+      console.error('🔍 Attempting Exo model discovery via:', `${this.EXO_HOST}/v1/models`);
+      const response = await fetch(`${this.EXO_HOST}/v1/models`);
+      if (!response.ok) throw new Error(`Exo discovery failed: ${response.status}`);
+
+      const data = (await response.json()) as any;
+      if (data.data && data.data.length > 0) {
+        // 1. Try to find a Llama 3/3.1/3.2 model first
+        const llama = data.data.find(
+          (m: any) =>
+            (m.id.toLowerCase().includes('llama-3') || m.id.toLowerCase().includes('llama-3.1')) &&
+            m.id.toLowerCase().includes('instruct'),
+        );
+
+        // 2. Fallback to any "Instruct" model
+        const anyInstruct = data.data.find((m: any) => m.id.toLowerCase().includes('instruct'));
+
+        // 3. Fallback to first available
+        const selected = llama || anyInstruct || data.data[0];
+
+        // Strip mlx-community/ prefix if it helps, but actually standard OpenAI clients use the full ID.
+        // Exo often accepts either. We'll use the full ID to be safe, or local ID if it's a short hash.
+        this.discoveredExoModel = selected.id;
+        console.error(`🤖 Auto-discovered Exo model: ${this.discoveredExoModel} (Priority match)`);
+        return this.discoveredExoModel!;
+      }
+    } catch (err: any) {
+      console.error('❌ Failed to discover Exo model:', err.message);
+    }
+
+    const fallback = process.env.EXO_MODEL || 'mlx-community/Llama-3.2-3B-Instruct-8bit';
+    console.error(`⚠️ Using fallback Exo model: ${fallback}`);
+    return fallback;
+  }
 
   /**
    * Get the appropriate API endpoint based on provider
@@ -45,13 +85,12 @@ export class AIEnrichmentService {
   /**
    * Get the model name for the current provider
    */
-  private static getModel(
+  private static async getModelId(
     task: 'repair' | 'classify' | 'resolve' | 'summarize' = 'repair',
-  ): string {
+  ): Promise<string> {
     const provider = process.env.AI_PROVIDER || 'local_ollama';
     if (provider === 'exo_cluster') {
-      // Exo uses OpenAI-compatible model names - use the configured EXO_MODEL
-      return this.EXO_MODEL;
+      return await this.autoDiscoverExoModel();
     }
     // Ollama model selection by task
     switch (task) {
@@ -70,46 +109,65 @@ export class AIEnrichmentService {
    */
   private static async callLLM(
     prompt: string,
-    options: { maxTokens?: number; temperature?: number } = {},
+    options: { maxTokens?: number; temperature?: number; retryCount?: number } = {},
   ): Promise<string> {
     const provider = process.env.AI_PROVIDER || 'local_ollama';
-    const { maxTokens = 100, temperature = 0.1 } = options;
+    const { maxTokens = 100, temperature = 0.1, retryCount = 2 } = options;
 
-    try {
-      if (provider === 'exo_cluster') {
-        // OpenAI-compatible API (Exo)
-        const response = await fetch(`${this.EXO_HOST}/v1/chat/completions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: this.getModel(),
-            messages: [{ role: 'user', content: prompt }],
-            max_tokens: maxTokens,
-            temperature,
-          }),
-        });
-        if (!response.ok) return '';
-        const data = (await response.json()) as any;
-        return data.choices?.[0]?.message?.content?.trim() || '';
-      } else {
-        // Ollama native API
-        const response = await fetch(`${this.OLLAMA_HOST}/api/generate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: this.getModel(),
-            prompt,
-            stream: false,
-            options: { temperature, num_predict: maxTokens },
-          }),
-        });
-        if (!response.ok) return '';
-        const data = (await response.json()) as any;
-        return data.response?.trim() || '';
+    let attempt = 0;
+    while (attempt <= retryCount) {
+      try {
+        const modelId = await this.getModelId();
+        if (provider === 'exo_cluster') {
+          // OpenAI-compatible API (Exo)
+          const response = await fetch(`${this.EXO_HOST}/v1/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: modelId,
+              messages: [{ role: 'user', content: prompt }],
+              max_tokens: maxTokens,
+              temperature,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`Exo cluster returned ${response.status}`);
+          }
+
+          const data = (await response.json()) as any;
+          return data.choices?.[0]?.message?.content?.trim() || '';
+        } else {
+          // Ollama native API
+          const response = await fetch(`${this.OLLAMA_HOST}/api/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: modelId,
+              prompt,
+              stream: false,
+              options: { temperature, num_predict: maxTokens },
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`Ollama returned ${response.status}`);
+          }
+
+          const data = (await response.json()) as any;
+          return data.response?.trim() || '';
+        }
+      } catch (e) {
+        attempt++;
+        if (attempt > retryCount) {
+          console.error(`❌ AI Enrichment failed after ${retryCount + 1} attempts:`, e);
+          return '';
+        }
+        // Exponential backoff
+        await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 500));
       }
-    } catch (e) {
-      return '';
     }
+    return '';
   }
 
   /**

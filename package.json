@@ -1,7 +1,7 @@
 {
   "name": "epstein-archive",
   "private": true,
-  "version": "13.0.0",
+  "version": "13.0.1",
   "description": "Epstein Archive Analyzer",
   "type": "module",
   "scripts": {
@@ -12,6 +12,8 @@
     "server": "DB_PATH=./epstein-archive.db tsx src/server.ts",
     "api": "DB_PATH=./epstein-archive.db tsx src/server.ts",
     "preview": "vite preview",
+    "go:prod": "tsx scripts/go_prod.ts",
+    "certify": "tsx scripts/certify.ts",
     "migrate": "DB_PATH=./epstein-archive.db tsx scripts/migrate.ts",
     "seed:structure": "DB_PATH=./epstein-archive.db tsx scripts/ensure_structure.ts",
     "verify": "DB_PATH=./epstein-archive.db tsx scripts/credibility_tests.ts && tsx scripts/verify_deployment.ts",

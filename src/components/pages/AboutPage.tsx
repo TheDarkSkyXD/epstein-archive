@@ -203,6 +203,12 @@ const timelineEvents = [
     content:
       'V13.0.0: Forensic Transparency. Launched Evidence Ladder, Agentic Fencing, and automated Credibility Test Suite. Hardened ops with deep health monitoring and automated restore drills.',
   },
+  {
+    date: 'Feb 11, 2026',
+    source: 'Epstein Archive',
+    content:
+      'V13.0.1: Live Ingestion & Exo Optimization. Deployed production snapshot with real-time ingestion dashboard and distributed AI enrichment. Release certified as "Partial GO" for immediate availability.',
+  },
 ];
 
 // Helper to get color classes

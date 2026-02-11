@@ -478,7 +478,28 @@ export const statsRepository = {
     const totalIngested = results.reduce((sum, r) => sum + r.ingested, 0);
     const remaining = Math.max(0, totalTarget - totalIngested);
 
-    // Dynamic Throughput based on active workers
+    // Dynamic Throughput Calculation (Real-time)
+    let throughput_docs_sec = 0;
+    try {
+      // Look at the last 5 minutes of activity
+      const recentProcessed = db
+        .prepare(
+          `
+        SELECT COUNT(*) as count 
+        FROM documents 
+        WHERE last_processed_at > datetime('now', '-5 minutes')
+      `,
+        )
+        .get() as { count: number };
+
+      if (recentProcessed && recentProcessed.count > 0) {
+        throughput_docs_sec = recentProcessed.count / 300; // docs per second over 5 mins
+      }
+    } catch (e) {
+      console.warn('Failed to calculate dynamic throughput:', e);
+    }
+
+    // Fallback heuristic if no recent activity (e.g., just starting up) but workers are active
     const activeWorkersRow = db
       .prepare(
         `
@@ -492,10 +513,15 @@ export const statsRepository = {
 
     const activeWorkers = activeWorkersRow?.count || 0;
 
-    // Speed: ~1.5 docs/sec per worker (Estimate for Phase 3/4)
-    const baseSpeed = 1.5;
-    const throughput_docs_sec = activeWorkers > 0 ? activeWorkers * baseSpeed : baseSpeed;
-    const total_eta_minutes = Math.ceil(remaining / throughput_docs_sec / 60);
+    if (throughput_docs_sec === 0 && activeWorkers > 0) {
+      // Heuristic: Exo cluster (3 nodes) ~ 4 docs/sec/node for mixed tasks?
+      // Conservative estimate to avoid overpromising
+      const baseSpeed = 4.0;
+      throughput_docs_sec = activeWorkers * baseSpeed;
+    }
+
+    const total_eta_minutes =
+      throughput_docs_sec > 0 ? Math.ceil(remaining / throughput_docs_sec / 60) : 0;
 
     return {
       datasets: results,

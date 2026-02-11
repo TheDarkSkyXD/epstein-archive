@@ -6,11 +6,13 @@ interface DocumentMetadataPanelProps {
   document: any;
   analysis?: any;
   className?: string;
+  entities?: any[]; // Array of { name, role, id }
 }
 
 export const DocumentMetadataPanel: React.FC<DocumentMetadataPanelProps> = ({
   document,
   className = '',
+  entities = [],
 }) => {
   if (!document) return null;
 
@@ -262,6 +264,46 @@ export const DocumentMetadataPanel: React.FC<DocumentMetadataPanelProps> = ({
           )}
         </div>
       </section>
+
+      {/* Mentioned Entities */}
+      {entities && entities.length > 0 && (
+        <section className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <span className="text-lg">👥</span>
+            Mentioned People
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {entities.map((entity, i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between p-2 bg-slate-900/50 rounded border border-slate-800 hover:border-cyan-500/30 transition-colors group cursor-pointer"
+                onClick={() => {
+                  // Dispatch event to open entity modal
+                  window.dispatchEvent(
+                    new CustomEvent('entityClick', {
+                      detail: { id: entity.id, name: entity.name },
+                    }),
+                  );
+                }}
+              >
+                <div className="min-w-0">
+                  <div className="text-sm text-slate-200 font-medium truncate group-hover:text-cyan-400">
+                    {entity.name}
+                  </div>
+                  {entity.role && (
+                    <div className="text-xs text-slate-500 truncate">{entity.role}</div>
+                  )}
+                </div>
+                {entity.mentions && (
+                  <span className="text-xs text-slate-600 bg-slate-800 px-1.5 py-0.5 rounded">
+                    {entity.mentions}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 };

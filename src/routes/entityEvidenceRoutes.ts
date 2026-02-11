@@ -55,4 +55,19 @@ router.get('/:entityId/graph', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/entities/:id/documents
+router.get('/:entityId/documents', async (req: Request, res: Response) => {
+  try {
+    const { entityId } = req.params as { entityId: string };
+    // We import entitiesRepository dynamically to avoid circular deps if any,
+    // though here it's likely fine.
+    const { entitiesRepository } = await import('../server/db/entitiesRepository.js');
+    const result = await entitiesRepository.getEntityDocuments(entityId);
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching entity documents:', error);
+    res.status(500).json({ error: 'Failed to fetch entity documents' });
+  }
+});
+
 export default router;

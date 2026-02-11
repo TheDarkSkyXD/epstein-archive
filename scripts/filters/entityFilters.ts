@@ -313,6 +313,10 @@ const JUNK_REGEX = [
   /Trusted\s+D(y|y)\s+Professional/i,
   /Tittery\s+Epstein/i,
   /Maes\s+All\s+Events/i,
+  /Desktops/i,
+  /Towers/i,
+  /Prior/i,
+  /Printed/i,
 ];
 
 export function isJunkEntity(name: string): boolean {

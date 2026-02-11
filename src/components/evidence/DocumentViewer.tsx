@@ -8,6 +8,9 @@ import React, { useState } from 'react';
 import { Search, Copy, Check, Eye, Download, FileText } from 'lucide-react';
 import { prettifyOCRText } from '../../utils/prettifyOCR';
 import { RedactionPlaceholder } from './RedactionPlaceholder';
+import { WikiLink } from '../common/WikiLink';
+import { apiClient } from '../../services/apiClient';
+import { Person } from '../../types';
 
 interface DocumentViewerProps {
   evidence: {
@@ -24,6 +27,7 @@ interface DocumentViewerProps {
       confidence: number;
       redaction_kind: 'pdf_overlay' | 'removed_text' | 'image_box' | 'unknown';
     }>;
+    allEntities?: Array<{ id: string; name: string }>;
   };
 }
 
@@ -32,6 +36,18 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
   const [copied, setCopied] = useState(false);
   const [showRaw, setShowRaw] = useState(false);
   const [hideBoilerplate, setHideBoilerplate] = useState(false);
+  const [entities, setEntities] = useState<Array<{ id: string; name: string }>>(
+    evidence.allEntities || [],
+  );
+
+  // Fetch all entities for linking if not provided
+  React.useEffect(() => {
+    if (entities.length === 0) {
+      apiClient.getAllEntities().then((data) => {
+        setEntities(data.map((e: any) => ({ id: String(e.id), name: e.full_name || e.name })));
+      });
+    }
+  }, [entities.length]);
 
   // Extend props type safely
   const docEvidence = evidence as any;
@@ -142,7 +158,11 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
 
     return (
       <div className={showRaw ? 'font-mono' : 'font-sans'}>
-        {searchTerm ? highlightText(displayText as string, searchTerm) : displayText}
+        {searchTerm ? (
+          highlightText(displayText as string, searchTerm)
+        ) : (
+          <WikiLink text={displayText as string} entities={entities} />
+        )}
       </div>
     );
   };

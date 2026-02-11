@@ -104,7 +104,7 @@ const PersonCard: React.FC<PersonCardProps> = ({
               <img
                 src={`/api/media/images/${avatarPhoto.id}/thumbnail`}
                 alt={person.name}
-                className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500"
+                className="w-full h-full object-cover object-top transform group-hover:scale-110 transition-transform duration-500"
                 loading="lazy"
                 onError={(e) => {
                   // Fallback if image fails
@@ -189,7 +189,7 @@ const PersonCard: React.FC<PersonCardProps> = ({
           </div>
         </div>
         <div className="flex flex-col items-center justify-center p-1 border-l border-slate-800/50">
-          {person?.blackBookEntry ? (
+          {person.blackBookEntries && person.blackBookEntries.length > 0 ? (
             <>
               <span className="text-[10px] text-purple-400/80 uppercase tracking-wider font-semibold">
                 Source

@@ -3182,14 +3182,13 @@ app.put(
             if (action === 'add') {
               // Add person to image
               db.prepare(
-                'INSERT OR IGNORE INTO media_people (media_id, entity_id) VALUES (?, ?)',
+                'INSERT OR IGNORE INTO media_item_people (media_item_id, entity_id) VALUES (?, ?)',
               ).run(id, eid);
             } else {
               // Remove person from image
-              db.prepare('DELETE FROM media_people WHERE media_id = ? AND entity_id = ?').run(
-                id,
-                eid,
-              );
+              db.prepare(
+                'DELETE FROM media_item_people WHERE media_item_id = ? AND entity_id = ?',
+              ).run(id, eid);
             }
           }
 
@@ -3487,8 +3486,8 @@ app.get('/api/media/images/:id/people', async (req, res, next) => {
         `
       SELECT e.id, e.full_name as name, e.primary_role as role, e.red_flag_rating as redFlagRating
       FROM entities e
-      JOIN media_people mp ON e.id = mp.entity_id
-      WHERE mp.media_id = ?
+      JOIN media_item_people mp ON e.id = mp.entity_id
+      WHERE mp.media_item_id = ?
       ORDER BY e.full_name ASC
     `,
       )
@@ -3511,10 +3510,9 @@ app.post('/api/media/images/:id/people', authenticateRequest, async (req, res, n
       return res.status(400).json({ error: 'Invalid image or entity ID' });
 
     const db = getDb();
-    db.prepare('INSERT OR IGNORE INTO media_people (media_id, entity_id) VALUES (?, ?)').run(
-      imageId,
-      entityId,
-    );
+    db.prepare(
+      'INSERT OR IGNORE INTO media_item_people (media_item_id, entity_id) VALUES (?, ?)',
+    ).run(imageId, entityId);
 
     res.json({ success: true });
   } catch (error) {
@@ -3535,7 +3533,7 @@ app.delete(
       if (isNaN(imageId) || isNaN(entityId)) return res.status(400).json({ error: 'Invalid IDs' });
 
       const db = getDb();
-      db.prepare('DELETE FROM media_people WHERE media_id = ? AND entity_id = ?').run(
+      db.prepare('DELETE FROM media_item_people WHERE media_item_id = ? AND entity_id = ?').run(
         imageId,
         entityId,
       );

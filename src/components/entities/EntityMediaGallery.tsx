@@ -13,10 +13,28 @@ interface MediaItem {
 interface EntityMediaGalleryProps {
   media: MediaItem[];
   entityName: string;
+  loading?: boolean;
 }
 
-export const EntityMediaGallery: React.FC<EntityMediaGalleryProps> = ({ media, entityName }) => {
+export const EntityMediaGallery: React.FC<EntityMediaGalleryProps> = ({
+  media,
+  entityName,
+  loading,
+}) => {
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 animate-pulse">
+        {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+          <div
+            key={i}
+            className="aspect-square bg-slate-800/50 rounded-lg border border-slate-700/50"
+          />
+        ))}
+      </div>
+    );
+  }
 
   if (!media || media.length === 0) {
     return (

@@ -122,7 +122,7 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
 
   if (!doc)
     return createPortal(
-      <div className="fixed inset-0 bg-black/75 z-[1050] flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[1050] flex items-center justify-center p-4">
         <div className="bg-slate-900 rounded-lg p-6 border border-slate-700 pointer-events-auto">
           <div className="text-white font-semibold mb-2">Unable to load document</div>
           <div className="text-slate-400 mb-4">
@@ -152,7 +152,7 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
   const portal = createPortal(
     <div
       ref={modalRef}
-      className="fixed inset-0 bg-black/75 z-[10000] flex items-center justify-center p-0 md:p-4"
+      className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[10000] flex items-center justify-center p-0 md:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="document-modal-title"
@@ -367,7 +367,12 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
             </div>
           )}
 
-          {activeTab === 'metadata' && <DocumentMetadataPanel document={doc} />}
+          {activeTab === 'metadata' && (
+            <DocumentMetadataPanel
+              document={doc}
+              entities={doc.entities || doc.mentionedEntities || []}
+            />
+          )}
         </div>
       </div>
     </div>,

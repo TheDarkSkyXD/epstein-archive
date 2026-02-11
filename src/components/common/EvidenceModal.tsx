@@ -32,6 +32,8 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
     const [documents, setDocuments] = useState<any[]>([]);
     const [loadingDocuments, setLoadingDocuments] = useState(false);
     const [loadingEnrichment, setLoadingEnrichment] = useState(false);
+    const [fullMedia, setFullMedia] = useState<any[]>([]);
+    const [loadingMedia, setLoadingMedia] = useState(false);
     const [filterQuery, setFilterQuery] = useState('');
     const [showRelationshipModal, setShowRelationshipModal] = useState(false);
     const { modalRef } = useModalFocusTrap(true);
@@ -42,6 +44,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
       // Lock scroll
       const originalStyle = window.getComputedStyle(document.body).overflow;
       document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
 
       const handleKeyDown = (e: KeyboardEvent) => {
         if (e.key === 'Escape') onClose();
@@ -51,6 +54,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
       return () => {
         // Unlock scroll
         document.body.style.overflow = originalStyle;
+        document.documentElement.style.overflow = '';
         document.removeEventListener('keydown', handleKeyDown);
       };
     }, [onClose]);
@@ -116,11 +120,37 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
         }
       };
       fetchDocuments();
+      fetchDocuments();
     }, [person.id]);
+
+    // Fetch full media when tab is active
+    useEffect(() => {
+      if (activeTab === 'media' && person.id && fullMedia.length === 0) {
+        const fetchMedia = async () => {
+          setLoadingMedia(true);
+          try {
+            const media = await apiClient.getEntityMedia(person.id!);
+            setFullMedia(media);
+          } catch (error) {
+            console.error('Error fetching entity media:', error);
+          } finally {
+            setLoadingMedia(false);
+          }
+        };
+        fetchMedia();
+      }
+    }, [activeTab, person.id, fullMedia.length]);
+
+    const [sortOption, setSortOption] = useState<'date-desc' | 'date-asc' | 'risk' | 'relevance'>(
+      'risk',
+    );
+    const [selectedSource, setSelectedSource] = useState<string>('all');
 
     // Derived State
     const filteredDocuments = useMemo(() => {
-      let docs = documents;
+      let docs = [...documents];
+
+      // 1. Text Search
       if (filterQuery) {
         const query = filterQuery.toLowerCase();
         docs = docs.filter(
@@ -129,8 +159,40 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
             (doc.content || '').toLowerCase().includes(query),
         );
       }
+
+      // 2. Source Filter
+      if (selectedSource !== 'all') {
+        docs = docs.filter((doc) => {
+          if (selectedSource === 'court')
+            return doc.source_collection?.toLowerCase().includes('court');
+          if (selectedSource === 'email')
+            return (
+              doc.file_type === 'email' ||
+              doc.source_collection?.toLowerCase().includes('discovery')
+            );
+          if (selectedSource === 'flight')
+            return doc.source_collection?.toLowerCase().includes('flight');
+          return true;
+        });
+      }
+
+      // 3. Sorting
+      docs.sort((a, b) => {
+        switch (sortOption) {
+          case 'date-desc':
+            return new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime();
+          case 'date-asc':
+            return new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime();
+          case 'risk':
+            return (b.redFlagRating || 0) - (a.redFlagRating || 0);
+          case 'relevance':
+          default:
+            return (b.mentions || 0) - (a.mentions || 0);
+        }
+      });
+
       return docs;
-    }, [documents, filterQuery]);
+    }, [documents, filterQuery, selectedSource, sortOption]);
 
     const highlightText = (text: string, term?: string) => {
       if (!term || !text) return text;
@@ -173,7 +235,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
 
       return (
         <span
-          className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider border backdrop-blur-md shadow-lg ${theme}`}
+          className={`inline-flex items-center rounded-full px-3 py-0.5 text-xs font-semibold ${theme}`}
         >
           {score} RISK
         </span>
@@ -182,14 +244,17 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
 
     return createPortal(
       <div
-        ref={modalRef}
-        className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[100] p-0 md:p-6 overflow-hidden animate-in fade-in duration-200"
-        role="dialog"
-        aria-modal="true"
+        className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4 bg-black/90 backdrop-blur-md transition-opacity duration-300"
+        onClick={(e) => e.target === e.currentTarget && onClose()}
       >
-        <div className="bg-slate-900/90 w-full h-full md:rounded-2xl md:border border-slate-700 shadow-2xl flex flex-col max-w-6xl overflow-hidden relative">
+        <div
+          ref={modalRef}
+          className="relative bg-slate-900 w-full h-full sm:h-auto sm:max-h-[95vh] sm:max-w-6xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200"
+          role="dialog"
+          aria-modal="true"
+        >
           {/* HERO HEADER */}
-          <div className="relative shrink-0 border-b border-slate-700/50 bg-slate-900">
+          <div className="relative shrink-0 border-b border-slate-700/50 bg-slate-900 sticky top-0 z-30">
             {/* Background Pattern */}
             <div className="absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800/50 opacity-50 pointer-events-none" />
 
@@ -202,7 +267,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
                       <img
                         src={`/api/media/images/${enrichedPerson.photos[0].id}/thumbnail`}
                         alt={enrichedPerson.name}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover object-top"
                       />
                     </div>
                   ) : (
@@ -281,7 +346,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
                 { id: 'evidence', label: `Documents (${documents.length})`, icon: FileText },
                 {
                   id: 'media',
-                  label: `Media (${enrichedPerson.photos?.length || 0})`,
+                  label: `Media (${fullMedia.length || enrichedPerson.photos?.length || 0})`,
                   icon: Image,
                 },
                 { id: 'network', label: 'Network Graph', icon: Activity },
@@ -540,7 +605,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
             {/* EVIDENCE TAB */}
             {activeTab === 'evidence' && (
               <div className="space-y-4 max-w-5xl mx-auto">
-                <div className="flex gap-4 mb-4">
+                <div className="flex flex-col md:flex-row gap-4 mb-6">
                   <div className="relative flex-1">
                     <Icon
                       name="Search"
@@ -552,8 +617,30 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
                       placeholder="Search within documents..."
                       value={filterQuery}
                       onChange={(e) => setFilterQuery(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg py-2 pl-10 pr-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg py-2.5 pl-10 pr-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
                     />
+                  </div>
+                  <div className="flex gap-2">
+                    <select
+                      value={sortOption}
+                      onChange={(e) => setSortOption(e.target.value as any)}
+                      className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-300 focus:outline-none focus:border-cyan-500"
+                    >
+                      <option value="risk">Risk Level</option>
+                      <option value="relevance">Relevance</option>
+                      <option value="date-desc">Newest First</option>
+                      <option value="date-asc">Oldest First</option>
+                    </select>
+                    <select
+                      value={selectedSource}
+                      onChange={(e) => setSelectedSource(e.target.value)}
+                      className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-300 focus:outline-none focus:border-cyan-500"
+                    >
+                      <option value="all">All Sources</option>
+                      <option value="court">Court Docs</option>
+                      <option value="email">Emails / Discovery</option>
+                      <option value="flight">Flight Logs</option>
+                    </select>
                   </div>
                 </div>
 
@@ -606,8 +693,9 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
             {activeTab === 'media' && (
               <div className="max-w-6xl mx-auto">
                 <EntityMediaGallery
-                  media={enrichedPerson.photos || []}
+                  media={fullMedia.length > 0 ? fullMedia : enrichedPerson.photos || []}
                   entityName={enrichedPerson.name}
+                  loading={loadingMedia}
                 />
               </div>
             )}

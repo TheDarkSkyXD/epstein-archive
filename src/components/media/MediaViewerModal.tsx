@@ -26,8 +26,10 @@ import PeopleSelector from '../entities/PeopleSelector';
 interface MediaViewerModalProps {
   images: MediaImage[];
   initialIndex: number;
+
   onClose: () => void;
   onImageUpdate?: (updatedImage: MediaImage) => void;
+  onEntityClick?: (person: any) => void;
 }
 
 const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
@@ -35,6 +37,7 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
   initialIndex,
   onClose,
   onImageUpdate,
+  onEntityClick,
 }) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   // Initialize sidebar state based on screen width to prevent it covering image on mobile
@@ -325,7 +328,7 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[2000] bg-black flex overflow-hidden">
+    <div className="fixed inset-0 z-[2000] bg-black/95 backdrop-blur-md flex overflow-hidden">
       {/* Main Image Area */}
       <div
         className={`relative flex-1 flex flex-col h-full transition-all duration-300 ${showSidebar ? 'md:mr-80' : 'mr-0'}`}
@@ -630,38 +633,12 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
             mediaId={currentImage.id}
             isAdmin={isAdmin}
             onPersonClick={(person) => {
-              onClose();
-              // Check if we are in the entity card view or just need to open one
-              // For now, let's navigate to the investigation board with this person focused
-              // OR navigate to the media gallery filtered by this person?
-              // User requested: "People should be clickable and show EntityCard"
-              // EntityCard is usually in a list or modal.
-              // Best bet: Navigate to global search or entity page if it exists.
-              // Since we added photo filtering by person, maybe showing their photos is good?
-              // User said: "People should be clickable and show EntityCard"
-              // Let's assume EntityCard is shown via a route or modal we can trigger.
-              // If we use '/search?q=PersonName', it opens the search result which usually allows opening the card.
-              // Or if there is a dedicated entity route.
-              // Looking at `PersonCard.tsx`, it navigates to `/documents?search=...`.
-              // The system seems to use `onDocumentClick` or similar to show details.
-              // Let's navigate to the media gallery filtered by this person FIRST,
-              // as that is consistent with "Filter by tag or person in browser".
-              // WAIT, requirement 3: "People should be clickable and show EntityCard"
-              // Requirement 1: "Filter by tag or person in browser"
-
-              // Let's do this: Open EntityCard is hard if it's just a component.
-              // Usually EntityCards are displayed in a context.
-              // Let's navigate to `/investigations?tab=analytics&focus=${person.id}` which usually highlights them,
-              // OR better, since we implemented filtering, let's navigate to `/media?personId=${person.id}`
-              // BUT the user specifically asked for "show EntityCard".
-              // I will stick to the filtered view for now as it's the "Browser" context,
-              // but maybe add a query param to open the card?
-              // Actually, sticking to the filtered view satisfies requirement 1.
-              // Requirement 3 might mean "In the photo viewer, clicking a person name opens their card".
-              // Let's try to open the EntityCard if possible.
-              // But `EntityCard` is a component.
-              // I'll navigate to the media filter for now as it is robust.
-              navigate(`/media?personId=${person.id}`);
+              if (onEntityClick) {
+                onEntityClick(person);
+              } else {
+                onClose();
+                navigate(`/media?personId=${person.id}`);
+              }
             }}
           />
         </div>

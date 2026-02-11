@@ -295,7 +295,12 @@ export const statsRepository = {
           ELSE full_name
         END as name,
         SUM(mentions) as mentions,
-        MAX(red_flag_rating) as redFlagRating
+        MAX(red_flag_rating) as redFlagRating,
+        MAX(bio) as bio,
+        MAX(title) as title,
+        MAX(primary_role) as primaryRole,
+        MAX(entity_type) as entityType,
+        MAX(red_flag_description) as redFlagDescription
       FROM entities
       WHERE mentions > 0 
       AND (entity_type = 'Person' OR entity_type IS NULL)
@@ -368,11 +373,11 @@ export const statsRepository = {
       AND full_name NOT LIKE '% Tower'
       AND full_name NOT LIKE '% Towers'
       -- Explicit User Reported Junk
-      AND full_name NOT LIKE 'They Like'
-      AND full_name NOT LIKE 'Judge Prior'
-      AND full_name NOT LIKE 'Judge Printed'
-      AND full_name NOT LIKE 'New York Times' -- Should be Media
-      AND full_name NOT LIKE 'New Mexico' -- Should be Location
+      AND full_name NOT LIKE '%They Like%'
+      AND full_name NOT LIKE '%Judge Prior%'
+      AND full_name NOT LIKE '%Judge Printed%'
+      AND full_name NOT LIKE '%New York Times%' -- Should be Media
+      AND full_name NOT LIKE '%New Mexico%' -- Should be Location
       AND full_name NOT LIKE 'Estate %'
       AND full_name NOT LIKE '% Estate'
       AND full_name NOT LIKE 'Multiple %'
@@ -387,7 +392,16 @@ export const statsRepository = {
       LIMIT 30
     `,
       )
-      .all() as { name: string; mentions: number; redFlagRating: number }[];
+      .all() as {
+      name: string;
+      mentions: number;
+      redFlagRating: number;
+      bio: string;
+      title: string;
+      primaryRole: string;
+      entityType: string;
+      redFlagDescription: string;
+    }[];
 
     return {
       totalEntities: stats.totalEntities,

@@ -15,6 +15,12 @@ import BatchToolbar from '../common/BatchToolbar';
 import LazyImage from '../common/LazyImage';
 import { SensitiveContent } from '../common/SensitiveContent';
 import { useAuth } from '../../contexts/AuthContext';
+import { Person } from '../../types';
+
+// Lazy load EvidenceModal to reduce initial bundle size
+const EvidenceModal = React.lazy(() =>
+  import('../common/EvidenceModal').then((module) => ({ default: module.EvidenceModal })),
+);
 
 interface PhotoBrowserProps {
   onImageClick?: (image: MediaImage) => void;
@@ -181,6 +187,7 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
   const [hasPeopleOnly, setHasPeopleOnly] = useState(false); // Default to false as requested
   const [availableTags, setAvailableTags] = useState<any[]>([]);
   const [availablePeople, setAvailablePeople] = useState<any[]>([]);
+  const [previewPerson, setPreviewPerson] = useState<Person | null>(null);
 
   // Batch selection state
   const [selectedImages, setSelectedImages] = useState<Set<number>>(new Set());
@@ -1289,7 +1296,24 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
               setImages(newImages);
             }
           }}
+          onEntityClick={(person) => {
+            // Open EvidenceModal for the clicked person
+            // Construct a partial person object from the minimal data we have
+            const partialPerson: any = {
+              id: person.id,
+              name: person.name,
+              // Add other known fields if available to prevent flash of content
+            };
+            setPreviewPerson(partialPerson);
+          }}
         />
+      )}
+      {previewPerson && (
+        <React.Suspense fallback={null}>
+          <div className="fixed inset-0 z-[11000] pointer-events-auto">
+            <EvidenceModal person={previewPerson} onClose={() => setPreviewPerson(null)} />
+          </div>
+        </React.Suspense>
       )}
       <div ref={sentinelRef} className="h-4 w-full"></div>
     </div>

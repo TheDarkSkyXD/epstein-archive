@@ -269,6 +269,11 @@ class ApiClient {
     return [];
   }
 
+  async getEntityMedia(entityId: string): Promise<any[]> {
+    const url = `${API_BASE_URL}/entities/${entityId}/media`;
+    return this.fetchWithErrorHandling<any[]>(url);
+  }
+
   async analyzeDocument(documentId: string): Promise<any> {
     const url = `${API_BASE_URL}/evidence/${documentId}/analyze`;
     return this.fetchWithErrorHandling<any>(url, { method: 'POST' });

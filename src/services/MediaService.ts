@@ -15,9 +15,6 @@ import archiver from 'archiver';
 
 export class MediaService {
   private db: any;
-  // Cached schema metadata so we can adapt to slightly different
-  // production/local database schemas without throwing SQL errors.
-  private mediaImagesColumns: Set<string> | null = null;
 
   constructor(dbOrPath: string | any) {
     if (typeof dbOrPath === 'string') {
@@ -27,10 +24,6 @@ export class MediaService {
     }
   }
 
-  /**
-   * Check if a table exists in the current database. Used to gracefully
-   * degrade when running against older production schemas.
-   */
   private hasTable(tableName: string): boolean {
     try {
       const row = this.db
@@ -41,35 +34,6 @@ export class MediaService {
       console.error('MediaService.hasTable failed for', tableName, error);
       return false;
     }
-  }
-
-  /**
-   * Lazily introspect the media_images table to see which columns are
-   * actually available. This lets us avoid referencing non-existent
-   * columns in ORDER BY / WHERE clauses on older schemas.
-   */
-  private ensureMediaImagesColumns(): void {
-    if (this.mediaImagesColumns) return;
-    this.mediaImagesColumns = new Set<string>();
-    try {
-      if (!this.hasTable('media_images')) {
-        return;
-      }
-      const rows = this.db.prepare('PRAGMA table_info(media_images)').all() as { name: string }[];
-      for (const row of rows) {
-        if (row?.name) {
-          this.mediaImagesColumns.add(row.name);
-        }
-      }
-    } catch (error) {
-      console.error('MediaService.ensureMediaImagesColumns failed', error);
-      // Leave the set empty; callers will treat columns as missing.
-    }
-  }
-
-  private hasMediaImagesColumn(column: string): boolean {
-    this.ensureMediaImagesColumns();
-    return this.mediaImagesColumns?.has(column) ?? false;
   }
 
   // ============ TAG OPERATIONS ============
@@ -86,10 +50,10 @@ export class MediaService {
       SELECT 
         a.*,
         COUNT(i.id) as imageCount,
-        ci.path as coverImagePath
+        ci.file_path as coverImagePath
       FROM media_albums a
-      LEFT JOIN media_images i ON a.id = i.album_id
-      LEFT JOIN media_images ci ON a.cover_image_id = ci.id
+      LEFT JOIN media_items i ON a.id = i.album_id AND i.file_type LIKE 'image/%'
+      LEFT JOIN media_items ci ON a.cover_image_id = ci.id
       GROUP BY a.id
       HAVING imageCount > 0
       ORDER BY a.name
@@ -102,10 +66,10 @@ export class MediaService {
       SELECT 
         a.*,
         COUNT(i.id) as imageCount,
-        ci.path as coverImagePath
+        ci.file_path as coverImagePath
       FROM media_albums a
-      LEFT JOIN media_images i ON a.id = i.album_id
-      LEFT JOIN media_images ci ON a.cover_image_id = ci.id
+      LEFT JOIN media_items i ON a.id = i.album_id AND i.file_type LIKE 'image/%'
+      LEFT JOIN media_items ci ON a.cover_image_id = ci.id
       WHERE a.id = ?
       GROUP BY a.id
     `);
@@ -173,8 +137,12 @@ export class MediaService {
    */
   imageExists(originalFilename: string, albumId?: number): boolean {
     const stmt = albumId
-      ? this.db.prepare('SELECT id FROM media_images WHERE original_filename = ? AND album_id = ?')
-      : this.db.prepare('SELECT id FROM media_images WHERE original_filename = ?');
+      ? this.db.prepare(
+          'SELECT id FROM media_items WHERE original_filename = ? AND album_id = ? AND file_type LIKE "image/%"',
+        )
+      : this.db.prepare(
+          'SELECT id FROM media_items WHERE original_filename = ? AND file_type LIKE "image/%"',
+        );
 
     const result = albumId ? stmt.get(originalFilename, albumId) : stmt.get(originalFilename);
 
@@ -184,21 +152,15 @@ export class MediaService {
   // ============ IMAGE OPERATIONS ============
 
   getAllImages(filter?: ImageFilter, sort?: ImageSort): MediaImage[] {
-    // If the core table is missing entirely, fail soft with an empty
-    // result set instead of throwing and 500-ing the API.
-    if (!this.hasTable('media_images')) {
-      console.error('getAllImages: media_images table not found; returning empty result set');
-      return [];
-    }
-
-    // NOTE: We intentionally avoid joining media_image_tags/media_tags here
-    // so this works even if those auxiliary tables are missing on older databases.
+    // Unified media_items table handles all media types.
     let query = `
       SELECT 
         i.*,
+        i.file_path as path,
         a.name as albumName
-      FROM media_images i
+      FROM media_items i
       LEFT JOIN media_albums a ON i.album_id = a.id
+      WHERE i.file_type LIKE 'image/%'
     `;
 
     const conditions: string[] = [];
@@ -209,55 +171,46 @@ export class MediaService {
         conditions.push('i.album_id = ?');
         params.push(filter.albumId);
       }
-      // Tag-based filtering is disabled here to keep this endpoint compatible
-      // with databases that may not yet have media_image_tags.
-      // if (filter.tagId) {
-      //   conditions.push('i.id IN (SELECT image_id FROM media_image_tags WHERE tag_id = ?)');
-      //   params.push(filter.tagId);
-      // }
-      if (filter.personId && this.hasTable('media_people')) {
-        conditions.push('i.id IN (SELECT media_id FROM media_people WHERE entity_id = ?)');
+      if (filter.personId) {
+        conditions.push(
+          'i.id IN (SELECT media_item_id FROM media_item_people WHERE entity_id = ?)',
+        );
         params.push(filter.personId);
       }
-      if (filter.format && this.hasMediaImagesColumn('format')) {
-        conditions.push('i.format = ?');
-        params.push(filter.format);
+      if (filter.format) {
+        conditions.push('i.file_type = ?');
+        params.push(`image/${filter.format}`);
       }
-      if (filter.dateFrom && this.hasMediaImagesColumn('date_taken')) {
+      if (filter.dateFrom) {
         conditions.push('i.date_taken >= ?');
         params.push(filter.dateFrom);
       }
-      if (filter.dateTo && this.hasMediaImagesColumn('date_taken')) {
+      if (filter.dateTo) {
         conditions.push('i.date_taken <= ?');
         params.push(filter.dateTo);
       }
-      if (filter.searchQuery && this.hasTable('media_images_fts')) {
+      if (filter.searchQuery && this.hasTable('media_items_fts')) {
         conditions.push(`i.id IN (
-          SELECT rowid FROM media_images_fts 
-          WHERE media_images_fts MATCH ?
+          SELECT rowid FROM media_items_fts 
+          WHERE media_items_fts MATCH ?
         )`);
         params.push(filter.searchQuery);
       }
-      // if (filter.hasPeople) {
-      //   conditions.push('i.id IN (SELECT media_id FROM media_people)');
-      // }
     }
 
     if (conditions.length > 0) {
-      query += ' WHERE ' + conditions.join(' AND ');
+      query += ' AND ' + conditions.join(' AND ');
     }
 
     query += ' GROUP BY i.id';
 
-    // Build a schema-aware ORDER BY clause so we don't reference columns
-    // that might not exist on older databases.
+    // Default sort
     let orderBy = 'i.id DESC';
     if (sort && sort.field && sort.order) {
-      if (this.hasMediaImagesColumn(sort.field)) {
-        orderBy = `i.${sort.field} ${sort.order.toUpperCase()}`;
-      }
-    } else if (this.hasMediaImagesColumn('date_added')) {
-      orderBy = 'i.date_added DESC';
+      const field = sort.field === 'date_added' ? 'created_at' : sort.field;
+      orderBy = `i.${field} ${sort.order.toUpperCase()}`;
+    } else {
+      orderBy = 'i.created_at DESC';
     }
     query += ` ORDER BY ${orderBy}`;
 
@@ -280,12 +233,8 @@ export class MediaService {
   }
 
   getImageCount(filter?: ImageFilter): number {
-    if (!this.hasTable('media_images')) {
-      console.error('getImageCount: media_images table not found; returning 0');
-      return 0;
-    }
-
-    let query = 'SELECT COUNT(DISTINCT i.id) as count FROM media_images i';
+    let query =
+      'SELECT COUNT(DISTINCT i.id) as count FROM media_items i WHERE i.file_type LIKE "image/%"';
 
     const conditions: string[] = [];
     const params: any[] = [];
@@ -295,38 +244,35 @@ export class MediaService {
         conditions.push('i.album_id = ?');
         params.push(filter.albumId);
       }
-      // See getAllImages: tag-based filtering is disabled for broad compatibility.
-      // if (filter.tagId) {
-      //   conditions.push('i.id IN (SELECT image_id FROM media_image_tags WHERE tag_id = ?)');
-      //   params.push(filter.tagId);
-      // }
-      if (filter.personId && this.hasTable('media_people')) {
-        conditions.push('i.id IN (SELECT media_id FROM media_people WHERE entity_id = ?)');
+      if (filter.personId) {
+        conditions.push(
+          'i.id IN (SELECT media_item_id FROM media_item_people WHERE entity_id = ?)',
+        );
         params.push(filter.personId);
       }
-      if (filter.format && this.hasMediaImagesColumn('format')) {
-        conditions.push('i.format = ?');
-        params.push(filter.format);
+      if (filter.format) {
+        conditions.push('i.file_type = ?');
+        params.push(`image/${filter.format}`);
       }
-      if (filter.dateFrom && this.hasMediaImagesColumn('date_taken')) {
+      if (filter.dateFrom) {
         conditions.push('i.date_taken >= ?');
         params.push(filter.dateFrom);
       }
-      if (filter.dateTo && this.hasMediaImagesColumn('date_taken')) {
+      if (filter.dateTo) {
         conditions.push('i.date_taken <= ?');
         params.push(filter.dateTo);
       }
-      if (filter.searchQuery && this.hasTable('media_images_fts')) {
+      if (filter.searchQuery && this.hasTable('media_items_fts')) {
         conditions.push(`i.id IN (
-          SELECT rowid FROM media_images_fts 
-          WHERE media_images_fts MATCH ?
+          SELECT rowid FROM media_items_fts 
+          WHERE media_items_fts MATCH ?
         )`);
         params.push(filter.searchQuery);
       }
     }
 
     if (conditions.length > 0) {
-      query += ' WHERE ' + conditions.join(' AND ');
+      query += ' AND ' + conditions.join(' AND ');
     }
 
     const result = this.db.prepare(query).get(...params) as { count: number };
@@ -338,8 +284,9 @@ export class MediaService {
     const stmt = this.db.prepare(`
       SELECT 
         i.*,
+        i.file_path as path,
         a.name as albumName
-      FROM media_images i
+      FROM media_items i
       LEFT JOIN media_albums a ON i.album_id = a.id
       WHERE i.id = ?
     `);
@@ -506,7 +453,7 @@ export class MediaService {
   }
 
   deleteImage(id: number): void {
-    const stmt = this.db.prepare('DELETE FROM media_images WHERE id = ?');
+    const stmt = this.db.prepare('DELETE FROM media_items WHERE id = ?');
     stmt.run(id);
   }
 
@@ -601,22 +548,27 @@ export class MediaService {
   // ============ STATISTICS ============
 
   getMediaStats(): MediaStats {
-    const totalImages = this.db.prepare('SELECT COUNT(*) as count FROM media_images').get() as {
+    const totalImages = this.db
+      .prepare('SELECT COUNT(*) as count FROM media_items WHERE file_type LIKE "image/%"')
+      .get() as {
       count: number;
     };
     const totalAlbums = this.db.prepare('SELECT COUNT(*) as count FROM media_albums').get() as {
       count: number;
     };
-    const totalSize = this.db.prepare('SELECT SUM(file_size) as size FROM media_images').get() as {
+    const totalSize = this.db
+      .prepare('SELECT SUM(file_size) as size FROM media_items WHERE file_type LIKE "image/%"')
+      .get() as {
       size: number;
     };
 
     const formatBreakdown = this.db
       .prepare(
         `
-      SELECT format, COUNT(*) as count
-      FROM media_images
-      GROUP BY format
+      SELECT file_type as format, COUNT(*) as count
+      FROM media_items
+      WHERE file_type LIKE 'image/%'
+      GROUP BY file_type
     `,
       )
       .all() as { format: string; count: number }[];
@@ -626,7 +578,7 @@ export class MediaService {
         `
       SELECT a.name, COUNT(i.id) as count
       FROM media_albums a
-      LEFT JOIN media_images i ON a.id = i.album_id
+      LEFT JOIN media_items i ON a.id = i.album_id AND i.file_type LIKE 'image/%'
       GROUP BY a.id
     `,
       )
@@ -840,8 +792,8 @@ export class MediaService {
 
   batchDelete(ids: number[]): void {
     const deleteTags = this.db.prepare('DELETE FROM media_image_tags WHERE image_id = ?');
-    const deleteImage = this.db.prepare('DELETE FROM media_images WHERE id = ?');
-    const getImage = this.db.prepare('SELECT path FROM media_images WHERE id = ?');
+    const deleteImage = this.db.prepare('DELETE FROM media_items WHERE id = ?');
+    const getImage = this.db.prepare('SELECT file_path as path FROM media_items WHERE id = ?');
 
     const transaction = this.db.transaction((imageIds: number[]) => {
       for (const id of imageIds) {

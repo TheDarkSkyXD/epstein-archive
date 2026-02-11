@@ -36,7 +36,20 @@ async function applyMigration(db: Database, filename: string, sql: string) {
     const hasTriggers = sql.includes('CREATE TRIGGER');
 
     if (hasTriggers) {
-      await db.exec(sql);
+      try {
+        await db.exec(sql);
+      } catch (err: any) {
+        const msg = err.message || '';
+        if (
+          msg.includes('duplicate column name') ||
+          msg.includes('already exists') ||
+          msg.includes('duplicate index')
+        ) {
+          console.log(`  ⚠ Skipping duplicate/existing in block: ${filename}`);
+        } else {
+          throw err;
+        }
+      }
     } else {
       // Split by semicolon, remove comments and empty lines
       const statements = sql
@@ -49,9 +62,14 @@ async function applyMigration(db: Database, filename: string, sql: string) {
         try {
           await db.exec(stmt);
         } catch (err: any) {
-          // Ignore duplicate column errors (manual IF NOT EXISTS)
-          if (err.message && err.message.includes('duplicate column name')) {
-            console.log(`  ⚠ Skipping duplicate column: ${stmt.substring(0, 50)}...`);
+          // Ignore duplicate column/index/table errors (manual IF NOT EXISTS)
+          const msg = err.message || '';
+          if (
+            msg.includes('duplicate column name') ||
+            msg.includes('already exists') ||
+            msg.includes('duplicate index')
+          ) {
+            console.log(`  ⚠ Skipping duplicate/existing: ${stmt.substring(0, 50)}...`);
             continue;
           }
           throw err;

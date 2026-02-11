@@ -352,7 +352,7 @@ export class DatabaseService {
           entity_id INTEGER NOT NULL,
           role TEXT, -- sender, recipient, mentioned, subject, passenger, deponent, etc.
           confidence REAL CHECK(confidence >= 0.0 AND confidence <= 1.0),
-          context_snippet TEXT,
+          mention_context TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (evidence_id) REFERENCES evidence(id) ON DELETE CASCADE,
           FOREIGN KEY (entity_id) REFERENCES entities(id) ON DELETE CASCADE,
@@ -760,7 +760,7 @@ export class DatabaseService {
   async getEntitySummarySource(
     entityId: number,
     topN: number = 10,
-  ): Promise<{ entity: any; relationships: any[]; documents: any[] }> {
+  ): Promise<{ entity: any; relationships: any[]; documents: any[] } | null> {
     return relationshipsRepository.getEntitySummarySource(entityId, topN);
   } // Get document by ID with full content
   async getDocumentById(id: string): Promise<any | null> {

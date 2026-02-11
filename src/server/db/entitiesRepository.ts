@@ -150,20 +150,48 @@ export const entitiesRepository = {
         '%FBI%',
         '%CIA%',
         '%Secret Service%',
+        '%Tower%',
+        '%Desktop%',
+        '%Printed%',
+        '%Mexico%',
+        '%Prior%',
+        '%Police%',
+        '%Sheriff%',
+        '%FBI%',
+        '%CIA%',
+        '%Secret Service%',
+        '%Printed%',
+        '%Dated%',
+        '%Page%',
+        '%Exhibit%',
+        '%Government%',
+        '%District%',
+        '%County%',
+        '%State%',
+        '%City%',
+        '%New Mexico%',
+        '%Virgin Islands%',
+        '%Florida%',
+        '%York%',
+        '%London%',
+        '%Palm Beach%',
       ];
 
-      const junkConditions = junkPatterns.map((p, i) => {
-        const pName = `junkPattern${i}`;
-        params[pName] = p;
-        return `full_name NOT LIKE @${pName}`;
+      junkPatterns.forEach((pattern, i) => {
+        const paramName = `junkPattern${i}`;
+        params[paramName] = pattern;
+        whereConditions.push(`full_name NOT LIKE @${paramName}`);
       });
 
-      whereConditions.push(`(${junkConditions.join(' AND ')})`);
-
-      // Also ensure minimum relevance for default view
-      whereConditions.push(
-        '(mentions >= 3 OR red_flag_rating >= 2 OR (SELECT COUNT(*) FROM media_item_people WHERE entity_id = entities.id) > 0)',
-      );
+      // Aggressively remove noise from featured results:
+      // 1. Must have at least 3 mentions
+      // 2. OR Must have a photo
+      // 3. OR Must have a bio (indicating manual verification or high-quality extraction)
+      whereConditions.push(`(
+        mentions >= 3
+        OR bio IS NOT NULL
+        OR (SELECT COUNT(*) FROM media_item_people WHERE entity_id = entities.id) > 0
+      )`);
     }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
@@ -314,7 +342,7 @@ export const entitiesRepository = {
             JOIN entity_mentions em ON d.id = em.document_id
             WHERE em.entity_id = ?
             ORDER BY d.red_flag_rating DESC, d.date_created DESC
-            LIMIT 500
+            LIMIT 1000
         `,
       )
       .all(entity.id);
@@ -548,7 +576,7 @@ export const entitiesRepository = {
 
     if (!entityNameObj) return [];
 
-    // Use FTS for more accurate matching
+    // Use JOIN on entity_mentions for accurate document retrieval (matching the count)
     const filesQuery = `
           SELECT 
             d.id,
@@ -569,13 +597,13 @@ export const entitiesRepository = {
             0 as pageNumber,
             0 as position
           FROM documents d
-          JOIN documents_fts fts ON d.id = fts.rowid
-          WHERE fts.documents_fts MATCH ?
+          JOIN entity_mentions em ON d.id = em.document_id
+          WHERE em.entity_id = ?
           ORDER BY d.red_flag_rating DESC, d.date_created DESC
+          LIMIT 5000 -- Increased from 1000 for better document coverage
         `;
 
-    const ftsQuery = `"${entityNameObj.name.replace(/"/g, '""')}"`;
-    const fileReferences = db.prepare(filesQuery).all(ftsQuery) as any[];
+    const fileReferences = db.prepare(filesQuery).all(entityId) as any[];
     return fileReferences.map((file) => {
       let metadata = {};
       try {
@@ -591,5 +619,33 @@ export const entitiesRepository = {
         metadata,
       };
     });
+  },
+
+  // Get all media for a specific entity
+  getEntityMedia: (entityId: string): any[] => {
+    const db = getDb();
+
+    // Validate entity ID format
+    if (!entityId || !/^[1-9]\d*$/.test(entityId)) {
+      throw new Error('Invalid entity ID format');
+    }
+
+    const photosSql = `
+        SELECT mi.id, mi.title, mi.file_path, mi.red_flag_rating as redFlagRating, mi.file_type, mi.created_at
+        FROM media_item_people mip 
+        JOIN media_items mi ON mip.media_item_id = mi.id 
+        WHERE mip.entity_id = ?
+        ORDER BY mi.red_flag_rating DESC, mi.created_at DESC
+    `;
+
+    const photos = db.prepare(photosSql).all(entityId) as any[];
+
+    return photos.map((p) => ({
+      ...p,
+      id: String(p.id),
+      url: `/api/media/images/${p.id}/thumbnail`,
+      fullUrl: `/api/media/images/${p.id}`,
+      type: p.file_type?.startsWith('video') ? 'video' : 'image',
+    }));
   },
 };

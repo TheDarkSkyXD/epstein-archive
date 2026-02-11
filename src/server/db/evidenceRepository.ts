@@ -35,7 +35,7 @@ export const evidenceRepository = {
         e.created_at,
         ee.role,
         ee.confidence,
-        ee.context_snippet
+        ee.mention_context
       FROM evidence e
       INNER JOIN evidence_entity ee ON ee.evidence_id = e.id
       WHERE ee.entity_id = ?
@@ -384,7 +384,7 @@ export const evidenceRepository = {
             entity_id,
             role,
             confidence,
-            context_snippet
+            mention_context
           ) VALUES (?, ?, ?, ?, ?)
         `,
         ).run(evidenceId, p.entity_id, p.role || 'participant', 0.8, '');
@@ -692,7 +692,7 @@ export const evidenceRepository = {
         ent.primary_role as category,
         ee.role,
         ee.confidence,
-        ee.context_snippet as contextSnippet
+        ee.mention_context as contextSnippet
       FROM evidence_entity ee
       INNER JOIN entities ent ON ent.id = ee.entity_id
       WHERE ee.evidence_id = ?
@@ -765,7 +765,8 @@ export const evidenceRepository = {
         e.red_flag_rating as redFlagRating,
         e.created_at as createdAt,
         SUBSTR(e.extracted_text, 1, 200) as snippet,
-        ee.role
+        ee.role,
+        ee.mention_context
       FROM evidence e
       INNER JOIN evidence_entity ee ON ee.evidence_id = e.id
       WHERE ee.entity_id = ?

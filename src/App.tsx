@@ -381,7 +381,7 @@ function App() {
               birthDate: data.birthDate,
               deathDate: data.deathDate,
               photos: data.photos,
-              blackBookEntry: data.blackBookEntry,
+              blackBookEntries: data.blackBookEntry,
               entity_type: data.entity_type || (data as any).type,
               red_flag_description: data.redFlagDescription || data.red_flag_description,
             };
@@ -391,6 +391,27 @@ function App() {
         .catch((err) => console.error('Error loading entity from URL:', err));
     }
   }, [location.pathname, selectedPerson]);
+
+  // Handle global entity click events (e.g. from DocumentMetadataPanel or MediaViewerModal)
+  useEffect(() => {
+    const handleEntityClick = (event: CustomEvent) => {
+      const { id, name } = event.detail;
+      if (id) {
+        // We create a partial person object, EvidenceModal will self-enrich
+        // Use a partial object that satisfies the Person interface roughly, or cast
+        const partialPerson: any = {
+          id: Number(id),
+          name: name || 'Unknown Entity',
+        };
+        setSelectedPerson(partialPerson);
+      }
+    };
+
+    window.addEventListener('entityClick', handleEntityClick as EventListener);
+    return () => {
+      window.removeEventListener('entityClick', handleEntityClick as EventListener);
+    };
+  }, []);
 
   // Load document from URL on page load (for shareable links)
   useEffect(() => {

@@ -63,8 +63,11 @@ export interface Person {
   photos?: {
     id: string;
     filePath: string;
+    url?: string;
+    fullUrl?: string; // For lightbox
     title?: string;
     redFlagRating?: number;
+    type?: 'image' | 'video';
   }[];
 }
 

@@ -88,14 +88,11 @@ function main() {
     // 5. Evidence Entity
     db.prepare('DELETE FROM evidence_entity WHERE entity_id = ?').run(id);
 
-    // 6. Media People
-    db.prepare('DELETE FROM media_people WHERE entity_id = ?').run(id);
+    // 6. Media Item People (Legacy media_people merged into this)
+    db.prepare('DELETE FROM media_item_people WHERE entity_id = ?').run(id);
 
     // 7. Black Book (Cascade usually on but manual is safer)
     db.prepare('DELETE FROM black_book_entries WHERE person_id = ?').run(id);
-
-    // 8. Media Item People
-    db.prepare('DELETE FROM media_item_people WHERE entity_id = ?').run(id);
 
     // 9. Link Candidates
     db.prepare('DELETE FROM entity_link_candidates WHERE candidate_entity_id = ?').run(id);
@@ -132,7 +129,6 @@ function main() {
 
     safeUpdate('entity_mentions', 'entity_id', sourceId, targetId);
     safeUpdate('evidence_entity', 'entity_id', sourceId, targetId);
-    safeUpdate('media_people', 'entity_id', sourceId, targetId);
     safeUpdate('media_item_people', 'entity_id', sourceId, targetId);
     safeUpdate('entity_evidence_types', 'entity_id', sourceId, targetId);
 

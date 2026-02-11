@@ -35,7 +35,10 @@ export const ArticleViewerModal: React.FC<Props> = ({ article, highlight, onClos
   const content = highlightText(article.content || article.summary || '', highlight);
 
   return createPortal(
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 md:p-8">
+    <div
+      id="ArticleViewerModal"
+      className="fixed inset-0 z-[10000] flex items-center justify-center p-4 md:p-8"
+    >
       {/* Background Backdrop with Hero Image Blur */}
       <div className="absolute inset-0 bg-black/90 header-blur-backdrop" onClick={onClose} />
       {article.imageUrl && (

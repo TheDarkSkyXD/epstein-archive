@@ -693,11 +693,28 @@ export const About: React.FC = () => {
         <div className="space-y-6">
           <div className="border-l-2 border-cyan-500 pl-4">
             <h4 className="text-white font-bold flex items-center gap-2">
-              v12.14.1{' '}
+              v12.15.0{' '}
               <span className="text-[10px] bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 rounded">
                 LATEST
               </span>
             </h4>
+            <p className="text-xs text-slate-500 mb-2">February 11, 2026</p>
+            <ul className="text-sm text-slate-400 space-y-1">
+              <li>
+                • **Strict Type Safety**: Consolidated server types and removed unsafe assertions.
+              </li>
+              <li>
+                • **Enhanced Media Linking**: Fixed photo tagging to surface all mentioned entities
+                in galleries.
+              </li>
+              <li>
+                • **Metadata Panel**: Added Unredaction Analysis and Knowledge Graph Claims to
+                document views.
+              </li>
+            </ul>
+          </div>
+          <div className="border-l-2 border-slate-700 pl-4">
+            <h4 className="text-slate-200 font-bold">v12.14.1</h4>
             <p className="text-xs text-slate-500 mb-2">February 11, 2026</p>
             <ul className="text-sm text-slate-400 space-y-1">
               <li>• Restored missing entity biographies and descriptions in profile cards.</li>

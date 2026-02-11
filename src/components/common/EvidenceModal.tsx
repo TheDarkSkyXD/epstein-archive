@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Network, Layout, FileText, Image, Activity, Phone, Mail, MapPin } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Person } from '../../types';
+import { Person, SortOption, Evidence, Photo } from '../../types';
 
 import { apiClient } from '../../services/apiClient';
 import { RedFlagIndex } from '../visualizations/RedFlagIndex';
@@ -20,7 +20,7 @@ interface EvidenceModalProps {
   person: Person;
   onClose: () => void;
   searchTerm?: string;
-  onDocumentClick?: (document: any, searchTerm?: string) => void;
+  onDocumentClick?: (document: Evidence, searchTerm?: string) => void;
 }
 
 type Tab = 'overview' | 'evidence' | 'media' | 'network';
@@ -29,10 +29,10 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
   ({ person, onClose, searchTerm, onDocumentClick }) => {
     const [activeTab, setActiveTab] = useState<Tab>('overview');
     const [enrichedPerson, setEnrichedPerson] = useState<Person>(person);
-    const [documents, setDocuments] = useState<any[]>([]);
+    const [documents, setDocuments] = useState<Evidence[]>([]);
     const [loadingDocuments, setLoadingDocuments] = useState(false);
     const [loadingEnrichment, setLoadingEnrichment] = useState(false);
-    const [fullMedia, setFullMedia] = useState<any[]>([]);
+    const [fullMedia, setFullMedia] = useState<Photo[]>([]);
     const [loadingMedia, setLoadingMedia] = useState(false);
     const [filterQuery, setFilterQuery] = useState('');
     const [showRelationshipModal, setShowRelationshipModal] = useState(false);
@@ -120,7 +120,6 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
         }
       };
       fetchDocuments();
-      fetchDocuments();
     }, [person.id]);
 
     // Fetch full media when tab is active
@@ -141,9 +140,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
       }
     }, [activeTab, person.id, fullMedia.length]);
 
-    const [sortOption, setSortOption] = useState<'date-desc' | 'date-asc' | 'risk' | 'relevance'>(
-      'risk',
-    );
+    const [sortOption, setSortOption] = useState<SortOption>('risk');
     const [selectedSource, setSelectedSource] = useState<string>('all');
 
     // Derived State
@@ -244,6 +241,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
 
     return createPortal(
       <div
+        id="EvidenceModal"
         className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4 bg-black/90 backdrop-blur-md transition-opacity duration-300"
         onClick={(e) => e.target === e.currentTarget && onClose()}
       >
@@ -343,13 +341,17 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
             <div className="flex items-center px-6 gap-6 overflow-x-auto scrollbar-none border-t border-slate-800/50">
               {[
                 { id: 'overview', label: 'Overview', icon: Layout },
-                { id: 'evidence', label: `Documents (${documents.length})`, icon: FileText },
+                {
+                  id: 'evidence',
+                  label: `Documents (${documents.length || enrichedPerson.files || 0})`,
+                  icon: FileText,
+                },
                 {
                   id: 'media',
-                  label: `Media (${fullMedia.length || enrichedPerson.photos?.length || 0})`,
+                  label: `Media (${fullMedia.length || enrichedPerson.photos?.length || enrichedPerson.mediaCount || 0})`,
                   icon: Image,
                 },
-                { id: 'network', label: 'Network Graph', icon: Activity },
+                { id: 'network', label: 'Graph', icon: Activity },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -375,43 +377,58 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
               <div className="space-y-6 max-w-5xl mx-auto">
                 {/* Key Stats Grid */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 flex flex-col items-center justify-center text-center">
-                    <span className="text-3xl font-bold text-white mb-1">
+                  <button
+                    onClick={() => setActiveTab('evidence')}
+                    className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 flex flex-col items-center justify-center text-center hover:bg-slate-800 hover:border-blue-500/50 transition-all group/stat"
+                  >
+                    <span className="text-3xl font-bold text-white mb-1 group-hover/stat:scale-110 transition-transform">
                       {enrichedPerson.mentions?.toLocaleString() || 0}
                     </span>
-                    <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
+                    <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold group-hover/stat:text-white transition-colors">
                       Mentions
                     </span>
-                  </div>
-                  <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 flex flex-col items-center justify-center text-center">
-                    <span className="text-3xl font-bold text-blue-400 mb-1">
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('evidence')}
+                    className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 flex flex-col items-center justify-center text-center hover:bg-slate-800 hover:border-blue-500/50 transition-all group/stat"
+                  >
+                    <span className="text-3xl font-bold text-blue-400 mb-1 group-hover/stat:scale-110 transition-transform">
                       {documents.length || enrichedPerson.files || 0}
                     </span>
-                    <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
+                    <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold group-hover/stat:text-blue-400 transition-colors">
                       Documents
                     </span>
-                  </div>
-                  <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 flex flex-col items-center justify-center text-center">
-                    <span className="text-3xl font-bold text-purple-400 mb-1">
-                      {enrichedPerson.photos?.length || 0}
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('media')}
+                    className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 flex flex-col items-center justify-center text-center hover:bg-slate-800 hover:border-purple-500/50 transition-all group/stat"
+                  >
+                    <span className="text-3xl font-bold text-purple-400 mb-1 group-hover/stat:scale-110 transition-transform">
+                      {fullMedia.length ||
+                        enrichedPerson.photos?.length ||
+                        enrichedPerson.mediaCount ||
+                        0}
                     </span>
-                    <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold">
+                    <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold group-hover/stat:text-purple-400 transition-colors">
                       Photos
                     </span>
-                  </div>
-                  <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 flex flex-col items-center justify-center text-center">
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('network')}
+                    className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 flex flex-col items-center justify-center text-center hover:bg-slate-800 hover:border-cyan-500/50 transition-all group/stat"
+                  >
                     <RedFlagIndex value={enrichedPerson.red_flag_rating || 0} size="lg" />
-                    <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold mt-2">
+                    <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold mt-2 group-hover/stat:text-cyan-400 transition-colors">
                       Risk Index
                     </span>
-                  </div>
+                  </button>
                 </div>
 
                 {/* Bio / Description */}
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-4">
                     {/* Bio Section */}
-                    {enrichedPerson.bio ? (
+                    {enrichedPerson.bio || enrichedPerson.description ? (
                       <div className="bg-slate-900 border border-slate-700/50 rounded-xl p-5 shadow-sm relative overflow-hidden group">
                         {loadingEnrichment && (
                           <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-10">
@@ -420,12 +437,15 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
                         )}
                         <h3 className="text-cyan-400 font-semibold mb-3 flex items-center gap-2">
                           <Icon name="Info" size="sm" />
-                          Biography
+                          {enrichedPerson.bio ? 'Biography' : 'Description'}
                         </h3>
                         <p className="text-slate-300 leading-relaxed text-sm">
                           {searchTerm
-                            ? renderHighlightedText(enrichedPerson.bio, searchTerm)
-                            : enrichedPerson.bio}
+                            ? renderHighlightedText(
+                                enrichedPerson.bio || enrichedPerson.description || '',
+                                searchTerm,
+                              )
+                            : enrichedPerson.bio || enrichedPerson.description}
                         </p>
                         {(enrichedPerson.birthDate || enrichedPerson.deathDate) && (
                           <div className="mt-4 pt-4 border-t border-slate-800 flex flex-wrap gap-4 text-xs text-slate-500">
@@ -537,10 +557,11 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
                                             <button
                                               onClick={() => {
                                                 const doc = documents.find(
-                                                  (d) => d.id === entry.document_id,
+                                                  (d) => String(d.id) === String(entry.document_id),
                                                 );
                                                 if (doc) onDocumentClick?.(doc);
-                                                else navigate(`/documents/${entry.document_id}`);
+                                                else if (entry.document_id)
+                                                  navigate(`/documents/${entry.document_id}`);
                                               }}
                                               className="text-[10px] text-slate-500 hover:text-cyan-400 flex items-center gap-1 transition-colors group-hover/contact:text-slate-400"
                                             >
@@ -623,7 +644,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
                   <div className="flex gap-2">
                     <select
                       value={sortOption}
-                      onChange={(e) => setSortOption(e.target.value as any)}
+                      onChange={(e) => setSortOption(e.target.value as SortOption)}
                       className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-300 focus:outline-none focus:border-cyan-500"
                     >
                       <option value="risk">Risk Level</option>

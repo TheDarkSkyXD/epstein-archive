@@ -1,5 +1,5 @@
 import { getDb } from './connection.js';
-import { SearchFilters, SortOption } from '../../types.js';
+import { Person, SearchFilters, SortOption } from '../../types.js';
 
 export interface EntityRepositoryResult {
   entities: any[];
@@ -216,7 +216,7 @@ export const entitiesRepository = {
             LIMIT @limit OFFSET @offset
         `;
 
-    const entities = db.prepare(sql).all({ ...params, limit, offset }) as any[];
+    const entities = db.prepare(sql).all({ ...params, limit, offset }) as Person[];
 
     // Fetch photos for these entities
     if (entities.length > 0) {
@@ -231,7 +231,12 @@ export const entitiesRepository = {
         `;
 
       try {
-        const photos = db.prepare(photosSql).all() as any[];
+        const photos = db.prepare(photosSql).all() as Array<{
+          entity_id: number;
+          id: number;
+          title: string;
+          file_path: string;
+        }>;
 
         // Map photos to entities
         const photosByEntity: Record<number, any[]> = {};
@@ -249,7 +254,7 @@ export const entitiesRepository = {
 
         // Attach to entities
         for (const entity of entities) {
-          entity.photos = photosByEntity[entity.id] || [];
+          entity.photos = photosByEntity[entity.id as unknown as number] || [];
         }
       } catch (e) {
         console.error('Error fetching photos for entity list:', e);
@@ -279,7 +284,7 @@ export const entitiesRepository = {
 
         // Attach to entities
         for (const entity of entities) {
-          entity.evidence_types = evidenceTypesByEntity[entity.id] || [];
+          entity.evidence_types = evidenceTypesByEntity[entity.id as unknown as number] || [];
         }
       } catch (e) {
         console.error('Error fetching evidence types for entity list:', e);
@@ -319,9 +324,9 @@ export const entitiesRepository = {
   /**
    * Get single entity by ID with full details
    */
-  getEntityById: (id: string | number): any | null => {
+  getEntityById: (id: string | number): Person | null => {
     const db = getDb();
-    const entity = db.prepare('SELECT * FROM entities WHERE id = ?').get(id) as any;
+    const entity = db.prepare('SELECT * FROM entities WHERE id = ?').get(id) as Person | null;
 
     if (!entity) return null;
 
@@ -357,7 +362,18 @@ export const entitiesRepository = {
             ORDER BY bb.created_at DESC
         `,
       )
-      .all(entity.id) as any[];
+      .all(entity.id) as Array<{
+      id: number;
+      person_id: number;
+      entry_text: string;
+      phone_numbers?: string;
+      addresses?: string;
+      email_addresses?: string;
+      notes?: string;
+      entry_category?: string;
+      document_id?: number;
+      created_at: string;
+    }>;
 
     // Get evidence types for this entity
     const evidenceTypes = db
@@ -387,7 +403,12 @@ export const entitiesRepository = {
             LIMIT 5
         `,
       )
-      .all(entity.id) as any[];
+      .all(entity.id) as Array<{
+      passage: string;
+      keyword: string;
+      filename: string;
+      source: string;
+    }>;
 
     // Fetch photos for this specific entity
     const photosSql = `
@@ -399,13 +420,18 @@ export const entitiesRepository = {
         ORDER BY mi.red_flag_rating DESC
         LIMIT 20
     `;
-    const photos = db.prepare(photosSql).all(entity.id) as any[];
+    const photos = db.prepare(photosSql).all(entity.id) as Array<{
+      id: number;
+      title: string;
+      file_path: string;
+      redFlagRating: number;
+    }>;
 
     return {
       ...entity,
       id: String(entity.id),
       // Map DB fields to frontend expected camelCase
-      fullName: entity.full_name,
+      fullName: entity.full_name || entity.fullName || 'Unknown',
       primaryRole: entity.primary_role,
       secondaryRoles: entity.secondary_roles ? entity.secondary_roles.split(', ') : [],
       likelihoodLevel: entity.likelihood_level,
@@ -423,6 +449,7 @@ export const entitiesRepository = {
       photos: photos.map((p) => ({
         ...p,
         id: String(p.id),
+        filePath: p.file_path,
         url: `/api/media/images/${p.id}/thumbnail`,
       })),
       // Add Black Book information if available
@@ -507,7 +534,15 @@ export const entitiesRepository = {
       .prepare(
         'SELECT id, full_name, primary_role as role, red_flag_rating, risk_level FROM entities WHERE id=?',
       )
-      .get(entityId) as any;
+      .get(entityId) as
+      | {
+          id: number;
+          full_name: string;
+          role: string;
+          red_flag_rating: number;
+          risk_level: string;
+        }
+      | undefined;
 
     if (!entity) return null;
 
@@ -528,7 +563,14 @@ export const entitiesRepository = {
            LIMIT ?
          `,
       )
-      .all(entityId, topN) as any[];
+      .all(entityId, topN) as Array<{
+      source_id: number;
+      target_id: number;
+      type: string;
+      proximity_score: number;
+      risk_score: number;
+      confidence: number;
+    }>;
 
     const docs = db
       .prepare(
@@ -539,7 +581,15 @@ export const entitiesRepository = {
            LIMIT ?
          `,
       )
-      .all(`%${entity.full_name}%`, `%${entity.full_name}%`, topN) as any[];
+      .all(`%${entity.full_name}%`, `%${entity.full_name}%`, topN) as Array<{
+      id: string;
+      title: string;
+      evidence_type: string;
+      metadata_json: string;
+      red_flag_rating: number;
+      word_count: number;
+      date_created: string;
+    }>;
 
     return {
       entity,
@@ -603,7 +653,25 @@ export const entitiesRepository = {
           LIMIT 5000 -- Increased from 1000 for better document coverage
         `;
 
-    const fileReferences = db.prepare(filesQuery).all(entityId) as any[];
+    const fileReferences = db.prepare(filesQuery).all(entityId) as Array<{
+      id: string;
+      fileName: string;
+      filePath: string;
+      fileType: string;
+      fileSize: number;
+      dateCreated: string;
+      contentPreview: string;
+      evidenceType: string;
+      content: string;
+      metadataJson: string;
+      wordCount: number;
+      redFlagRating: number;
+      contentHash: string;
+      contextText: string;
+      aiSummary: string;
+      pageNumber: number;
+      position: number;
+    }>;
     return fileReferences.map((file) => {
       let metadata = {};
       try {
@@ -638,7 +706,14 @@ export const entitiesRepository = {
         ORDER BY mi.red_flag_rating DESC, mi.created_at DESC
     `;
 
-    const photos = db.prepare(photosSql).all(entityId) as any[];
+    const photos = db.prepare(photosSql).all(entityId) as Array<{
+      id: number;
+      title: string;
+      file_path: string;
+      redFlagRating: number;
+      file_type: string;
+      created_at: string;
+    }>;
 
     return photos.map((p) => ({
       ...p,

@@ -1,3 +1,14 @@
+## v12.15.0 — 2026-02-11
+
+### Schema Hardening & Metadata Surfacing
+
+- **Strict Type Safety**: Removed unsafe type assertions (`as any`) from the server core and repositories, ensuring robust data handling and fewer runtime errors.
+- **Enhanced Media Linking**: Updated `mediaRepository` to use the junction table, ensuring all tagged photos of entities (not just primary ones) are correctly surfaced.
+- **Investigative Metadata Panel**:
+  - **Unredaction Analysis**: New panel showing text recovery metrics.
+  - **Extracted Claims**: Visualization of knowledge graph triples (Subject -> Predicate -> Object) for deeper insight.
+  - **Technical Details**: Exposed EXIF data and document lineage.
+
 ## v12.14.1 — 2026-02-11
 
 ### Internal Maintenance & CI

@@ -44,25 +44,26 @@ export const mediaRepository = {
   getMediaItems: async (entityId: string) => {
     const db = getDb();
     const query = `
-      SELECT 
-        id,
-        entity_id as entityId,
-        document_id as documentId,
-        file_path as filePath,
-        file_type as fileType,
-        title,
-        description,
-        is_sensitive as isSensitive,
-        verification_status as verificationStatus,
-        red_flag_rating as redFlagRating,
-        metadata_json as metadataJson,
-        created_at as createdAt
-      FROM media_items
-      WHERE entity_id = ?
-      ORDER BY red_flag_rating DESC, created_at DESC
+      SELECT DISTINCT
+        m.id,
+        m.entity_id as entityId,
+        m.document_id as documentId,
+        m.file_path as filePath,
+        m.file_type as fileType,
+        m.title,
+        m.description,
+        m.is_sensitive as isSensitive,
+        m.verification_status as verificationStatus,
+        m.red_flag_rating as redFlagRating,
+        m.metadata_json as metadataJson,
+        m.created_at as createdAt
+      FROM media_items m
+      LEFT JOIN media_item_people mip ON m.id = mip.media_item_id
+      WHERE m.entity_id = ? OR mip.entity_id = ?
+      ORDER BY m.red_flag_rating DESC, m.created_at DESC
     `;
 
-    const mediaItems = db.prepare(query).all(entityId) as any[];
+    const mediaItems = db.prepare(query).all(entityId, entityId) as any[];
 
     return mediaItems.map((item) => {
       let metadata = {};
@@ -99,9 +100,13 @@ export const mediaRepository = {
         m.red_flag_rating as redFlagRating,
         m.metadata_json as metadataJson,
         m.created_at as createdAt,
-        e.full_name as entityName
+        e.full_name as entityName,
+        GROUP_CONCAT(DISTINCT p.full_name) as relatedEntities
       FROM media_items m
       LEFT JOIN entities e ON m.entity_id = e.id
+      LEFT JOIN media_item_people mip ON m.id = mip.media_item_id
+      LEFT JOIN entities p ON mip.entity_id = p.id
+      GROUP BY m.id
       ORDER BY m.red_flag_rating DESC, m.created_at DESC
     `;
 
@@ -121,7 +126,11 @@ export const mediaRepository = {
         ...item,
         redFlagRating: item.redFlagRating,
         metadata,
-        relatedEntities: item.entityName ? [item.entityName] : [],
+        relatedEntities: item.relatedEntities
+          ? item.relatedEntities.split(',')
+          : item.entityName
+            ? [item.entityName]
+            : [],
       };
     });
   },
@@ -314,19 +323,25 @@ export const mediaRepository = {
     // Use window function to limit to 5 per entity
     const query = `
       SELECT * FROM (
-        SELECT 
-          id,
-          entity_id as entityId,
-          file_path as filePath,
-          title,
-          is_sensitive as isSensitive,
-          ROW_NUMBER() OVER (PARTITION BY entity_id ORDER BY red_flag_rating DESC, created_at DESC) as rn
-        FROM media_items
-        WHERE entity_id IN (${placeholders})
-          AND file_type LIKE 'image/%'
+        SELECT DISTINCT
+          m.id,
+          COALESCE(mip.entity_id, m.entity_id) as entityId,
+          m.file_path as filePath,
+          m.title,
+          m.is_sensitive as isSensitive,
+          m.red_flag_rating,
+          ROW_NUMBER() OVER (
+            PARTITION BY COALESCE(mip.entity_id, m.entity_id) 
+            ORDER BY m.red_flag_rating DESC, m.created_at DESC
+          ) as rn
+        FROM media_items m
+        LEFT JOIN media_item_people mip ON m.id = mip.media_item_id
+        WHERE (mip.entity_id IN (${placeholders}) OR m.entity_id IN (${placeholders}))
+          AND m.file_type LIKE 'image/%'
       ) WHERE rn <= 5
     `;
 
-    return db.prepare(query).all(...entityIds) as any[];
+    // We need to double the args because we use them twice (OR condition)
+    return db.prepare(query).all(...entityIds, ...entityIds) as any[];
   },
 };

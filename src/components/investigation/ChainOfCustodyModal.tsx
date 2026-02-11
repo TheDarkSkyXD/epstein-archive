@@ -67,7 +67,10 @@ export const ChainOfCustodyModal: React.FC<Props> = ({ evidenceId, onClose }) =>
   };
 
   return createPortal(
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+    <div
+      id="ChainOfCustodyModal"
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
+    >
       <div className="bg-slate-800 rounded-lg w-full max-w-2xl">
         <div className="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
           <h3 className="text-white font-semibold">Chain of Custody</h3>

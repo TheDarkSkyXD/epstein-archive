@@ -6,19 +6,36 @@ export interface User {
   lastActive?: string;
 }
 
+export interface Photo {
+  id: string;
+  filePath: string;
+  url?: string;
+  fullUrl?: string;
+  title?: string;
+  redFlagRating?: number;
+  type?: 'image' | 'video';
+  thumbnail_path?: string;
+  file_path?: string;
+  path?: string;
+}
+
 export interface Person {
-  id?: string; // Add optional ID field
+  id: number | string;
   name: string;
-  title?: string; // Extracted title (e.g., "President", "Senator")
-  role?: string; // Full role description (e.g., "President of the United States")
-  primaryRole?: string; // Primary role from DB
-  secondary_roles?: string; // Comma-separated list of secondary roles
-  secondaryRoles?: string[]; // Array of secondary roles from API
-  status?: string; // Current status
-  connections?: string; // Summary of connections
-  title_variants?: string[]; // JSON array of all title variants found
+  fullName: string;
+  full_name?: string;
+  title?: string;
+  role?: string;
+  primaryRole?: string;
+  primary_role?: string;
+  secondary_roles?: string;
+  secondaryRoles?: string[];
+  status?: string;
+  connections?: string;
+  title_variants?: string[];
   mentions: number;
   files: number;
+  documentCount?: number;
   contexts: Array<{
     file: string;
     context: string;
@@ -26,19 +43,28 @@ export interface Person {
     source?: string;
   }>;
   evidence_types: string[];
+  evidenceTypes?: string[];
   spicy_passages: Array<{
     keyword: string;
     passage: string;
     filename: string;
     source?: string;
   }>;
-  likelihood_score: 'HIGH' | 'MEDIUM' | 'LOW';
-  red_flag_rating?: number; // Standard 1-5 rating
-  red_flag_score?: number; // Aggregated score
+  likelihood_score?: 'HIGH' | 'MEDIUM' | 'LOW' | string;
+  likelihood_level?: string;
+  likelihoodLevel?: string;
+  red_flag_rating?: number;
+  red_flag_score?: number;
   red_flag_peppers?: string;
   red_flag_description?: string;
-  risk_level?: 'HIGH' | 'MEDIUM' | 'LOW';
+  redFlagRating?: number;
+  redFlagDescription?: string;
+  risk_level?: 'HIGH' | 'MEDIUM' | 'LOW' | string;
+  riskLevel?: string;
   entity_type?: string;
+  entityType?: string;
+  is_vip?: boolean | number;
+  isVip?: boolean;
   blackBookEntries?: {
     id: number;
     phoneNumbers?: string[];
@@ -46,7 +72,6 @@ export interface Person {
     addresses?: string[];
     entryText?: string;
     notes?: string;
-
     entry_category?: string;
     document_id?: number;
   }[];
@@ -57,19 +82,21 @@ export interface Person {
     content?: string;
     contentPreview?: string;
   }[];
-  bio?: string; // Short biography
-  description?: string; // Legacy/Fallback description
+  bio?: string;
+  description?: string;
   birthDate?: string;
   deathDate?: string;
-  photos?: {
-    id: string;
-    filePath: string;
-    url?: string;
-    fullUrl?: string; // For lightbox
-    title?: string;
-    redFlagRating?: number;
-    type?: 'image' | 'video';
-  }[];
+  birth_date?: string;
+  death_date?: string;
+  photos?: Photo[];
+
+  // DB & Internal Fields
+  connectionsSummary?: string;
+  spicyPassages?: any[];
+  mediaCount?: number;
+  timelineEvents?: any[];
+  networkConnections?: any[];
+  connectionsToEpstein?: string;
 }
 
 export interface Mention {
@@ -89,6 +116,20 @@ export interface Evidence {
   date?: string;
   fileReference: string;
   significance: 'high' | 'medium' | 'low';
+  redFlagRating?: number;
+  source_collection?: string;
+  file_type?: string;
+  mentions?: number;
+  documentId?: string;
+  source?: string;
+  filePath?: string;
+  file_path?: string;
+  original_file_path?: string;
+  fileUrl?: string;
+  originalFileUrl?: string;
+  isScannedDocument?: boolean;
+  metadataJson?: string;
+  fileName?: string;
 }
 
 export interface SearchFilters {
@@ -100,12 +141,21 @@ export interface SearchFilters {
   likelihoodScore?: ('HIGH' | 'MEDIUM' | 'LOW')[];
   maxMentions?: number;
   evidenceTypes?: string[];
-  sortBy?: 'name' | 'mentions' | 'red_flag' | 'risk';
+  sortBy?: SortOption;
   sortOrder?: 'asc' | 'desc';
   minRedFlagIndex?: number;
   maxRedFlagIndex?: number;
   entityType?: string;
-  dataSource?: string; // Filter by data source (e.g., 'black_book', 'seventh_production')
+  dataSource?: string;
 }
 
-export type SortOption = 'name' | 'mentions' | 'red_flag' | 'recent' | 'risk';
+export type SortOption =
+  | 'name'
+  | 'mentions'
+  | 'red_flag'
+  | 'recent'
+  | 'risk'
+  | 'date-desc'
+  | 'date-asc'
+  | 'relevance'
+  | 'document-count';

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Database, Tag, Shield, AlertTriangle, Globe, File } from 'lucide-react';
+import { Database, Tag, Shield, AlertTriangle, Globe, File, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface DocumentMetadataPanelProps {
@@ -110,6 +110,68 @@ export const DocumentMetadataPanel: React.FC<DocumentMetadataPanelProps> = ({
           </div>
         </div>
       </section>
+
+      {/* Unredaction Analysis */}
+      {document.unredaction_metrics && document.unredaction_metrics.attempted && (
+        <section className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <Eye className="w-4 h-4" />
+            Unredaction Analysis
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-slate-500 block text-xs mb-1">Status</span>
+              <span
+                className={`font-medium ${document.unredaction_metrics.succeeded ? 'text-green-400' : 'text-orange-400'}`}
+              >
+                {document.unredaction_metrics.succeeded ? 'Success' : 'Partial / Failed'}
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-500 block text-xs mb-1">Text Gain</span>
+              <span className="text-slate-200">
+                {document.unredaction_metrics.unredactedTextGain
+                  ? `+${document.unredaction_metrics.unredactedTextGain} chars`
+                  : '0 chars'}
+              </span>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Extracted Claims */}
+      {document.claims && document.claims.length > 0 && (
+        <section className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+          <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <Shield className="w-4 h-4" />
+            Extracted Claims
+          </h3>
+          <div className="space-y-2">
+            {document.claims.slice(0, 5).map((claim: any, i: number) => (
+              <div key={i} className="bg-slate-900/40 p-2 rounded text-xs border border-slate-800">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-cyan-400 font-medium">
+                    {claim.subject_name || claim.subject}
+                  </span>
+                  <span className="text-slate-500">→</span>
+                  <span className="text-purple-400 font-medium">
+                    {claim.object_name || claim.object}
+                  </span>
+                </div>
+                <div className="text-slate-300">{claim.predicate}</div>
+                <div className="mt-1 flex items-center justify-between text-[10px] text-slate-500">
+                  <span>Confidence: {Math.round(claim.confidence * 100)}%</span>
+                </div>
+              </div>
+            ))}
+            {document.claims.length > 5 && (
+              <div className="text-center text-xs text-slate-500 pt-1">
+                + {document.claims.length - 5} more claims
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Technical Metadata */}
       <section className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">

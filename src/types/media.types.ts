@@ -19,7 +19,9 @@ export interface MediaImage {
   filename: string;
   originalFilename: string;
   path: string;
+  file_path?: string;
   thumbnailPath?: string;
+  thumbnail_path?: string;
   title?: string;
   description?: string;
   albumId?: number;

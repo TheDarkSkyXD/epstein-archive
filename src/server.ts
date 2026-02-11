@@ -39,13 +39,18 @@ import crypto from 'crypto';
 import multer from 'multer';
 import fs from 'fs';
 import bcrypt from 'bcryptjs';
-import { SearchFilters, SortOption } from './types';
+import { Person, SearchFilters, SortOption, Evidence, Photo, User } from './types';
+import { MediaImage } from './types/media.types';
 import { config } from './config/index.js';
 import { blackBookRepository } from './server/db/blackBookRepository.js';
 import { globalErrorHandler } from './server/utils/errorHandler.js';
 import { memoryRepository } from './server/db/memoryRepository.js';
 import NodeCache from 'node-cache';
 import { getDb } from './server/db/connection.js';
+
+interface AuthenticatedRequest extends express.Request {
+  user?: User;
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -756,100 +761,115 @@ app.get('/api/users/current', async (req, res, next) => {
 });
 
 // Create new user (Admin only)
-app.post('/api/users', authenticateRequest, requireRole('admin'), async (req, res, next) => {
-  try {
-    const { username, password, email, role } = req.body;
+app.post(
+  '/api/users',
+  authenticateRequest,
+  requireRole('admin'),
+  async (req: AuthenticatedRequest, res, next) => {
+    try {
+      const { username, password, email, role } = req.body;
 
-    if (!username || !password) {
-      return res.status(400).json({ error: 'Username and password required' });
-    }
+      if (!username || !password) {
+        return res.status(400).json({ error: 'Username and password required' });
+      }
 
-    const id = `user-${Date.now()}`;
-    const db = getDb();
+      const id = `user-${Date.now()}`;
+      const db = getDb();
 
-    // Hash password
-    const passwordHash = bcrypt.hashSync(password, 10);
+      // Hash password
+      const passwordHash = bcrypt.hashSync(password, 10);
 
-    db.prepare(
-      `
+      db.prepare(
+        `
       INSERT INTO users (id, username, email, role, password_hash, created_at, last_active)
       VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     `,
-    ).run(id, username, email || null, role || 'viewer', passwordHash);
+      ).run(id, username, email || null, role || 'viewer', passwordHash);
 
-    logAudit('create_user', (req as any).user?.id, 'user', id, { username, role });
-    res.status(201).json({ id, username, email, role });
-  } catch (e) {
-    next(e);
-  }
-});
+      logAudit('create_user', req.user?.id || null, 'user', id, { username, role });
+      res.status(201).json({ id, username, email, role });
+    } catch (e) {
+      next(e);
+    }
+  },
+);
 
 // Update user (Admin only)
-app.put('/api/users/:id', authenticateRequest, requireRole('admin'), async (req, res, next) => {
-  try {
-    const { id } = req.params as { id: string };
-    const { email, role, password } = req.body;
-    const db = getDb();
+app.put(
+  '/api/users/:id',
+  authenticateRequest,
+  requireRole('admin'),
+  async (req: AuthenticatedRequest, res, next) => {
+    try {
+      const { id } = req.params as { id: string };
+      const { email, role, password } = req.body;
+      const db = getDb();
 
-    let query = 'UPDATE users SET last_active = CURRENT_TIMESTAMP';
-    const params: any[] = [];
+      let query = 'UPDATE users SET last_active = CURRENT_TIMESTAMP';
+      const params: any[] = [];
 
-    if (email !== undefined) {
-      query += ', email = ?';
-      params.push(email);
+      if (email !== undefined) {
+        query += ', email = ?';
+        params.push(email);
+      }
+
+      if (role !== undefined) {
+        // Prevent self-lockout? simplified for now
+        query += ', role = ?';
+        params.push(role);
+      }
+
+      if (password) {
+        const hash = bcrypt.hashSync(password, 10);
+        query += ', password_hash = ?';
+        params.push(hash);
+      }
+
+      query += ' WHERE id = ?';
+      params.push(id);
+
+      const result = db.prepare(query).run(...params);
+
+      if (result.changes === 0) return res.status(404).json({ error: 'User not found' });
+
+      logAudit('update_user', req.user?.id || null, 'user', id, {
+        role,
+        emailUpdated: !!email,
+        passwordUpdated: !!password,
+      });
+      res.json({ success: true });
+    } catch (e) {
+      next(e);
     }
-
-    if (role !== undefined) {
-      // Prevent self-lockout? simplified for now
-      query += ', role = ?';
-      params.push(role);
-    }
-
-    if (password) {
-      const hash = bcrypt.hashSync(password, 10);
-      query += ', password_hash = ?';
-      params.push(hash);
-    }
-
-    query += ' WHERE id = ?';
-    params.push(id);
-
-    const result = db.prepare(query).run(...params);
-
-    if (result.changes === 0) return res.status(404).json({ error: 'User not found' });
-
-    logAudit('update_user', (req as any).user?.id, 'user', id, {
-      role,
-      emailUpdated: !!email,
-      passwordUpdated: !!password,
-    });
-    res.json({ success: true });
-  } catch (e) {
-    next(e);
-  }
-});
+  },
+);
 
 // Delete user (Admin only)
-app.delete('/api/users/:id', authenticateRequest, requireRole('admin'), async (req, res, next) => {
-  try {
-    const { id } = req.params as { id: string };
-    const db = getDb();
+app.delete(
+  '/api/users/:id',
+  authenticateRequest,
+  requireRole('admin'),
+  async (req: AuthenticatedRequest, res, next) => {
+    try {
+      const { id } = req.params as { id: string };
+      const db = getDb();
 
-    // Prevent self-deletion
-    if ((req as any).user?.id === id) {
-      return res.status(400).json({ error: 'Cannot delete yourself' });
+      // Prevent self-deletion
+      if (req.user?.id === id) {
+        return res.status(400).json({ error: 'Cannot delete yourself' });
+      }
+
+      const result = db.prepare('DELETE FROM users WHERE id = ?').run(id);
+
+      if (result.changes === 0) return res.status(404).json({ error: 'User not found' });
+
+      logAudit('delete_user', req.user?.id || null, 'user', id, {});
+      res.json({ success: true });
+    } catch (e) {
+      next(e);
     }
-
-    const result = db.prepare('DELETE FROM users WHERE id = ?').run(id);
-
-    if (result.changes === 0) return res.status(404).json({ error: 'User not found' });
-
-    logAudit('delete_user', (req as any).user?.id, 'user', id, {});
-    res.json({ success: true });
-  } catch (e) {
-    next(e);
-  }
-});
+  },
+);
 
 // Admin Audit Log Endpoint
 app.get(
@@ -961,7 +981,7 @@ app.post('/api/upload-document', upload.single('document'), async (req, res, nex
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const userId = (req as any).user?.id || 'system';
+    const userId = (req as AuthenticatedRequest).user?.id || 'system';
     const db = getDb();
 
     // Calculate file hash for integrity
@@ -1072,7 +1092,7 @@ app.get('/api/entities', cacheMiddleware(300), async (req, res, next) => {
       }
     }
     if (entityType) filters.entityType = entityType.trim();
-    if (sortBy) filters.sortBy = sortBy.trim() as any;
+    if (sortBy) (filters as any).sortBy = sortBy.trim();
     if (sortOrder) filters.sortOrder = sortOrder;
 
     const result = entitiesRepository.getEntities(page, limit, filters, sortBy as SortOption);
@@ -1172,9 +1192,15 @@ app.post('/api/entities', async (req, res, next) => {
     }
 
     const id = entitiesRepository.createEntity(req.body);
-    logAudit('create_entity', (req as any).user?.id, 'entity', String(id), {
-      name: req.body.full_name,
-    });
+    logAudit(
+      'create_entity',
+      (req as AuthenticatedRequest).user?.id || null,
+      'entity',
+      String(id),
+      {
+        name: req.body.full_name,
+      },
+    );
     res.status(201).json({ id });
   } catch (e) {
     next(e);
@@ -1186,7 +1212,13 @@ app.patch('/api/entities/:id', async (req, res, next) => {
     const id = req.params.id;
     const changes = entitiesRepository.updateEntity(id, req.body);
     if (changes === 0) return res.status(404).json({ error: 'Not found or no changes' });
-    logAudit('update_entity', (req as any).user?.id, 'entity', String(id), req.body);
+    logAudit(
+      'update_entity',
+      (req as AuthenticatedRequest).user?.id || null,
+      'entity',
+      String(id),
+      req.body,
+    );
     res.json({ success: true });
   } catch (e) {
     next(e);
@@ -1219,7 +1251,7 @@ app.get('/api/entities/:id', async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid entity ID format' });
     }
 
-    const entity = entitiesRepository.getEntityById(entityId) as any;
+    const entity = entitiesRepository.getEntityById(entityId) as Person | null;
 
     if (!entity) {
       return res.status(404).json({ error: 'Entity not found' });
@@ -1238,7 +1270,6 @@ app.get('/api/entities/:id', async (req, res, next) => {
       contexts: entity.contexts || [],
       evidence_types: entity.evidence_types || entity.evidenceTypes || [],
       evidenceTypes: entity.evidence_types || entity.evidenceTypes || [],
-      spicy_passages: entity.spicy_passages || [],
       likelihood_score: (entity.risk_level || entity.riskLevel || 'LOW').toUpperCase(),
       red_flag_score: entity.red_flag_score !== undefined ? entity.red_flag_score : 0,
       red_flag_rating: entity.red_flag_rating !== undefined ? entity.red_flag_rating : 0,
@@ -1253,10 +1284,12 @@ app.get('/api/entities/:id', async (req, res, next) => {
       networkConnections: entity.networkConnections || [],
       // Include Black Book information if available
       blackBookEntries: entity.blackBookEntries || [],
-      // NEW: Include bio, description and photos
-      bio: entity.bio || '',
-      description: entity.description || '',
+      // NEW: Include bio, description and photos with fallbacks
+      bio: entity.bio || entity.description || '',
+      description: entity.description || entity.bio || '',
       photos: entity.photos || [],
+      // Ensure spicy_passages key is consistent
+      spicy_passages: entity.spicy_passages || entity.spicyPassages || [],
     };
 
     res.json(transformedEntity);
@@ -1429,7 +1462,13 @@ app.get('/api/data-quality/metrics', async (_req, res, next) => {
       FROM entities
     `,
       )
-      .get() as any;
+      .get() as {
+      total: number;
+      withRoles: number;
+      withDescription: number;
+      missingRatings: number;
+      nullRedFlagRating: number;
+    };
 
     // 3. Data Integrity & Junk Detection
     const orphanedMentions = db
@@ -1557,7 +1596,18 @@ app.get('/api/documents/:id/lineage', async (req, res, next) => {
       WHERE d.id = ?
     `,
       )
-      .get(docId) as any;
+      .get(docId) as {
+      id: string;
+      file_name: string;
+      source_collection: string;
+      source_original_url: string;
+      credibility_score: number;
+      ocr_engine: string;
+      ocr_quality_score: number;
+      ocr_processed_at: string;
+      original_file_id: string | null;
+      original_file_name: string | null;
+    };
 
     if (!doc) return res.status(404).json({ error: 'Document not found' });
 
@@ -1612,9 +1662,10 @@ app.get('/api/entities/:id/confidence', async (req, res, next) => {
     const db = getDb();
     const entityId = req.params.id;
 
-    const entity = db
-      .prepare('SELECT id, full_name FROM entities WHERE id = ?')
-      .get(entityId) as any;
+    const entity = db.prepare('SELECT id, full_name FROM entities WHERE id = ?').get(entityId) as {
+      id: string;
+      full_name: string;
+    };
     if (!entity) return res.status(404).json({ error: 'Entity not found' });
 
     const mentionsByType = db
@@ -1774,16 +1825,21 @@ app.get('/api/documents', async (req, res, next) => {
 app.get('/api/documents/:id', async (req, res, next) => {
   try {
     const id = req.params.id as string;
-    const doc = documentsRepository.getDocumentById(id) as any;
+    const doc = documentsRepository.getDocumentById(id) as Evidence | null;
     if (!doc) {
       return res.status(404).json({ error: 'not_found' });
     }
-
     // Transform file paths to accessible URLs
     // First check if it's in the local data directory (using loose check for migrated paths)
-    if (doc.file_path && (doc.file_path.includes('/data/') || doc.file_path.includes('\\data\\'))) {
+    const filePathToCheck = doc.filePath || doc.file_path;
+    if (
+      filePathToCheck &&
+      (filePathToCheck.includes('/data/') || filePathToCheck.includes('\\data\\'))
+    ) {
       // Replace everything up to and including /data/ with /data/
-      doc.fileUrl = doc.file_path.replace(/^.*[/\\]data[/\\]/, '/data/').replace(/\\/g, '/');
+      // Use filePathToCheck as source of truth if possible, or fall back to doc.file_path (safe as we checked one exists)
+      const p = doc.file_path || doc.filePath || '';
+      doc.fileUrl = p.replace(/^.*[/\\]data[/\\]/, '/data/').replace(/\\/g, '/');
     } else if (doc.file_path && doc.file_path.startsWith(CORPUS_BASE_PATH)) {
       doc.fileUrl = doc.file_path.replace(CORPUS_BASE_PATH, '/files');
     }
@@ -1851,7 +1907,12 @@ app.get('/api/documents/:id/redactions', async (req, res, next) => {
       WHERE id = ?
     `,
       )
-      .get(id) as any;
+      .get(id) as {
+      id: string;
+      has_failed_redactions: boolean | number;
+      failed_redaction_count: number;
+      failed_redaction_data: string | null;
+    };
 
     if (!doc) {
       return res.status(404).json({ error: 'not_found' });
@@ -1893,7 +1954,7 @@ app.get('/api/documents/:id/pages', async (req, res, next) => {
     try {
       dbPages = getDb()
         .prepare('SELECT * FROM document_pages WHERE document_id = ? ORDER BY page_number ASC')
-        .all(id) as any[];
+        .all(id) as Array<{ id: string; name: string }>;
     } catch {
       // Table doesn't exist, continue with other methods
     }
@@ -1910,7 +1971,7 @@ app.get('/api/documents/:id/pages', async (req, res, next) => {
     }
 
     // Otherwise, check if request is an OCR document and find its original image
-    const doc = documentsRepository.getDocumentById(id) as any;
+    const doc = documentsRepository.getDocumentById(id) as Evidence | null;
     if (!doc) {
       return res.status(404).json({ error: 'not_found' });
     }
@@ -1929,7 +1990,7 @@ app.get('/api/documents/:id/pages', async (req, res, next) => {
       // Ignore JSON parse errors - imageFolder remains empty
     }
 
-    const oversightMatch = doc.fileName.match(/^House Oversight (\d+)-OCR\.txt$/i);
+    const oversightMatch = (doc.fileName || '').match(/^House Oversight (\d+)-OCR\.txt$/i);
 
     if (imageFolder || oversightMatch) {
       const folderNum = imageFolder ? path.basename(imageFolder) : oversightMatch![1]; // e.g., "001"
@@ -2030,7 +2091,7 @@ app.get('/api/documents/:id/pages', async (req, res, next) => {
 app.get('/api/documents/:id/file', async (req, res, next) => {
   try {
     const id = req.params.id as string;
-    const doc = documentsRepository.getDocumentById(id) as any;
+    const doc = documentsRepository.getDocumentById(id) as Evidence | null;
     if (!doc) {
       return res.status(404).json({ error: 'not_found' });
     }
@@ -2608,7 +2669,7 @@ app.get('/api/media/images/:id/file', async (req, res, next) => {
     if (!image) {
       return res.status(404).json({ error: 'Image not found' });
     }
-    const p = ((image as any).path || (image as any).file_path || '').toString();
+    const p = (image.path || image.file_path || '').toString();
     if (!p) {
       return res.status(404).json({ error: 'Image path missing' });
     }
@@ -2649,7 +2710,7 @@ app.get('/api/media/images/:id/raw', async (req, res, next) => {
     if (!image) {
       return res.status(404).json({ error: 'Image not found' });
     }
-    const p = ((image as any).path || (image as any).file_path || '').toString();
+    const p = (image.path || image.file_path || '').toString();
     if (!p) {
       return res.status(404).json({ error: 'Image path missing' });
     }
@@ -2693,7 +2754,7 @@ app.get('/api/media/images/:id/thumbnail', async (req, res, next) => {
     }
 
     // Check for thumbnail path first
-    const thumbnailPath = ((image as any).thumbnail_path || '').toString();
+    const thumbnailPath = ((image as unknown as MediaImage).thumbnail_path || '').toString();
     let absPath = '';
 
     if (thumbnailPath && thumbnailPath.includes('thumbnails')) {
@@ -2719,7 +2780,11 @@ app.get('/api/media/images/:id/thumbnail', async (req, res, next) => {
 
     // Fall back to original image if thumbnail doesn't exist
     if (!absPath || !fs.existsSync(absPath)) {
-      const p = ((image as any).path || (image as any).file_path || '').toString();
+      const p = (
+        (image as unknown as MediaImage).path ||
+        (image as unknown as MediaImage).file_path ||
+        ''
+      ).toString();
       const candidates: string[] = [];
       if (p.startsWith('/data/')) {
         candidates.push(path.join(process.cwd(), p.substring(1)));

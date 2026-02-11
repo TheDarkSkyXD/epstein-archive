@@ -151,6 +151,7 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
 
   const portal = createPortal(
     <div
+      id="DocumentModal"
       ref={modalRef}
       className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[10000] flex items-center justify-center p-0 md:p-4"
       role="dialog"

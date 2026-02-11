@@ -328,7 +328,10 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[2000] bg-black/95 backdrop-blur-md flex overflow-hidden">
+    <div
+      id="MediaViewerModal"
+      className="fixed inset-0 z-[2000] bg-black/95 backdrop-blur-md flex overflow-hidden"
+    >
       {/* Main Image Area */}
       <div
         className={`relative flex-1 flex flex-col h-full transition-all duration-300 ${showSidebar ? 'md:mr-80' : 'mr-0'}`}

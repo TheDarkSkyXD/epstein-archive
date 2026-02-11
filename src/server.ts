@@ -225,7 +225,8 @@ const RESEARCHER_READ_ONLY_PREFIXES = [
 
 app.use('/api', (req, res, next) => {
   // 1. Allow Public Routes
-  if (PUBLIC_ROUTES.some((path) => req.path === path || req.path.startsWith(path + '/'))) {
+  const currentPath = req.originalUrl.split('?')[0];
+  if (PUBLIC_ROUTES.some((path) => currentPath === path || currentPath.startsWith(path + '/'))) {
     return next();
   }
 

@@ -109,7 +109,7 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
 
       // Add sort
       if (sortBy === 'redflag_desc') {
-        filters.sortBy = 'spice';
+        filters.sortBy = 'red_flag';
         filters.sortOrder = 'desc';
       } else if (sortBy === 'redflag_asc') {
         filters.sortBy = 'spice';

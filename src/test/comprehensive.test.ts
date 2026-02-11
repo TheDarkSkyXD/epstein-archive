@@ -90,7 +90,7 @@ async function runComprehensiveTest() {
     console.log(`  ✓ Document processed successfully`);
     console.log(`  ✓ Document ID: ${document.id}`);
     console.log(`  ✓ File type: ${document.fileType}`);
-    console.log(`  ✓ Spice rating: ${document.spiceRating}/5`);
+    console.log(`  ✓ Red flag rating: ${document.redFlagRating}/5`);
 
     // Verify entities
     const entityNames = document.entities.map((e) => e.name);
@@ -142,7 +142,7 @@ async function runComprehensiveTest() {
     if (statsResponse.ok) {
       console.log(`    Total entities: ${statsData.totalEntities}`);
       console.log(`    Total documents: ${statsData.totalDocuments}`);
-      console.log(`    Average spice rating: ${statsData.averageSpiceRating}`);
+      console.log(`    Average red flag rating: ${statsData.averageRedFlagRating}`);
     }
 
     // Test search endpoint

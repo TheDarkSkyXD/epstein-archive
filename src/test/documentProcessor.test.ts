@@ -34,8 +34,8 @@ processor
     console.log(`  Title: ${document.title}`);
     console.log(`  File type: ${document.fileType}`);
     console.log(`  File size: ${document.fileSize}`);
-    console.log(`  Spice score: ${document.spiceScore}`);
-    console.log(`  Spice rating: ${document.spiceRating}`);
+    console.log(`  Red flag score: ${document.redFlagScore}`);
+    console.log(`  Red flag rating: ${document.redFlagRating}`);
 
     console.log('\n2. Extracted entities:');
     document.entities.forEach((entity) => {

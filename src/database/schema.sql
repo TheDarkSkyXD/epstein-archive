@@ -11,8 +11,8 @@ CREATE TABLE IF NOT EXISTS entities (
     mentions INTEGER DEFAULT 0,
     current_status TEXT,
     connections_summary TEXT,
-    spice_rating INTEGER DEFAULT 0,
-    spice_score REAL DEFAULT 0.0,
+    red_flag_rating INTEGER DEFAULT 0,
+    red_flag_score REAL DEFAULT 0.0,
     title TEXT,                    -- Extracted title (e.g., "President", "Senator")
     role TEXT,                     -- Full role description (e.g., "President of the United States")
     title_variants TEXT,           -- JSON array of all title variants found
@@ -62,8 +62,6 @@ CREATE TABLE documents (
     content_hash TEXT,
     page_count INTEGER DEFAULT 1,
     red_flag_rating INTEGER DEFAULT 0,
-    word_count INTEGER DEFAULT 0,
-    spice_rating INTEGER DEFAULT 0,
     title TEXT,                -- Human-readable title with filename
     evidence_type TEXT,        -- Email, Legal, Flight Log, Article, Document
     content_preview TEXT,      -- First 500 chars for summary
@@ -84,8 +82,8 @@ CREATE TABLE entity_mentions (
     entity_id INTEGER NOT NULL,
     document_id INTEGER NOT NULL,
     context_text TEXT NOT NULL,
-    context_type TEXT DEFAULT 'mention', -- 'mention', 'spicy', 'key_passage'
-    keyword TEXT, -- For spicy passages
+    context_type TEXT DEFAULT 'mention', -- 'mention', 'red_flag', 'key_passage'
+    keyword TEXT, -- For significant passages
     position_start INTEGER,
     position_end INTEGER,
     significance_score INTEGER DEFAULT 1,
@@ -131,7 +129,7 @@ CREATE VIRTUAL TABLE documents_fts USING fts5(
 -- Indexes for performance
 CREATE INDEX idx_entities_name ON entities(full_name);
 CREATE INDEX idx_entities_mentions ON entities(mentions DESC);
-CREATE INDEX idx_entities_spice_rating ON entities(spice_rating DESC);
+CREATE INDEX idx_entities_red_flag_rating ON entities(red_flag_rating DESC);
 CREATE INDEX idx_entities_likelihood ON entities(likelihood_level);
 CREATE INDEX idx_entity_mentions_entity ON entity_mentions(entity_id);
 CREATE INDEX idx_entity_mentions_document ON entity_mentions(document_id);
@@ -169,8 +167,8 @@ SELECT
     e.primary_role,
     e.likelihood_level,
     e.mentions,
-    e.spice_rating,
-    e.spice_score,
+    e.red_flag_rating,
+    e.red_flag_score,
     e.title,
     e.role,
     (
@@ -194,7 +192,7 @@ SELECT
     d.filename,
     d.file_type,
     d.word_count,
-    d.spice_rating,
+    d.red_flag_rating,
     COUNT(DISTINCT em.entity_id) as entity_count,
     COUNT(DISTINCT em.id) as mention_count,
     MIN(em.created_at) as first_mention_date,

@@ -515,7 +515,7 @@ export class DocumentProcessor {
       }
     });
 
-    // Bonus for multiple spicy keywords
+    // Bonus for multiple red-flag keywords
     if (keywordCount >= 5) score += 10;
     if (keywordCount >= 10) score += 20;
 
@@ -792,7 +792,7 @@ export class DocumentProcessor {
       }
     });
 
-    // Spice score bonus
+    // Red-flag rating bonus (Core investigative feature)
     score += document.redFlagRating * 0.5;
 
     return score;
@@ -854,7 +854,7 @@ export class DocumentProcessor {
         if (!hasMatchingCategory) return false;
       }
 
-      // Spice level filter
+      // Red-flag rating filter
       if (filters.redFlagLevel) {
         if (
           doc.redFlagRating < filters.redFlagLevel.min ||
@@ -893,7 +893,7 @@ export class DocumentProcessor {
           comparison = dateA.localeCompare(dateB);
           break;
         }
-        case 'spice':
+        case 'red_flag':
           comparison = a.redFlagScore - b.redFlagScore;
           break;
         case 'fileType':
@@ -1265,14 +1265,14 @@ export class DocumentProcessor {
   getStatistics() {
     const collection = this.getDocumentCollection();
     const totalEntities = Array.from(this.entities.values()).length;
-    const avgSpiceScore =
+    const avgRedFlagScore =
       collection.documents.reduce((sum, doc) => sum + doc.redFlagScore, 0) / collection.totalFiles;
 
     return {
       totalDocuments: collection.totalFiles,
       totalEntities,
       totalSize: collection.totalSize,
-      averageSpiceScore: Math.round(avgSpiceScore * 100) / 100,
+      averageRedFlagScore: Math.round(avgRedFlagScore * 100) / 100,
       fileTypes: Array.from(collection.fileTypes.entries()),
       topEntities: this.getAllEntities().slice(0, 10),
       dateRange: collection.dateRange,

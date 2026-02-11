@@ -14,7 +14,13 @@ export interface AuthRequest extends Request {
 
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-do-not-use-in-prod-if-possible';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
+  console.error('CRITICAL: JWT_SECRET environment variable is not set!');
+  process.exit(1);
+}
+// Fallback only for development
+const ACTUAL_SECRET = JWT_SECRET || 'dev-secret-do-not-use-in-prod';
 
 // Shared verification helper
 const verifyToken = (req: Request): any | null => {
@@ -29,7 +35,7 @@ const verifyToken = (req: Request): any | null => {
   if (!token) return null;
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const decoded = jwt.verify(token, ACTUAL_SECRET) as any;
     const db = getDb();
     const user = db
       .prepare('SELECT id, username, role, email FROM users WHERE id = ?')

@@ -1714,7 +1714,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                   </select>
                 </div>
 
-                {/* Spice Level Filter */}
+                {/* Red Flag Index Filter */}
                 <div>
                   <label className="block text-sm font-medium mb-2">Red Flag Index</label>
                   <div className="space-y-2">

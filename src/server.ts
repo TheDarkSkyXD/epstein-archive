@@ -207,6 +207,21 @@ const PUBLIC_ROUTES = [
   '/api/auth/logout',
   '/api/health',
   '/api/stats',
+  '/api/entities',
+  '/api/documents',
+  '/api/media',
+  '/api/search',
+  '/api/timeline',
+  '/api/analytics',
+  '/api/relationships',
+  '/api/evidence',
+  '/api/articles',
+  '/api/financial',
+  '/api/forensic',
+  '/api/flights',
+  '/api/properties',
+  '/api/emails',
+  '/api/black-book',
 ];
 
 // Health Check Endpoint

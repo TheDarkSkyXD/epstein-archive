@@ -9,18 +9,32 @@ interface FooterProps {
 }
 
 const Footer: React.FC<FooterProps> = ({ onVersionClick }) => {
-  const [systemStatus, setSystemStatus] = useState<'checking' | 'operational' | 'error'>(
-    'checking',
-  );
+  const [systemStatus, setSystemStatus] = useState<{
+    status: 'checking' | 'operational' | 'error';
+    message?: string;
+  }>({ status: 'checking' });
   const { showAllSensitive, toggleShowAllSensitive } = useSensitiveSettings();
 
   useEffect(() => {
     const checkHealth = async () => {
       try {
         const health = await apiClient.healthCheck();
-        setSystemStatus(health.status === 'healthy' ? 'operational' : 'error');
-      } catch {
-        setSystemStatus('error');
+        if (health.status === 'healthy' || health.status === 'ok') {
+          setSystemStatus({ status: 'operational' });
+        } else {
+          setSystemStatus({
+            status: 'error',
+            message:
+              typeof health.status === 'string'
+                ? health.status
+                : 'Service reporting unhealthy status',
+          });
+        }
+      } catch (error) {
+        setSystemStatus({
+          status: 'error',
+          message: error instanceof Error ? error.message : 'Unable to connect to API server',
+        });
       }
     };
     checkHealth();
@@ -48,9 +62,24 @@ const Footer: React.FC<FooterProps> = ({ onVersionClick }) => {
               A comprehensive, searchable forensic archive of documents, connections, and financial
               flows regarding the Jeffrey Epstein network.
             </p>
-            <div className="pt-2 flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${statusConfig[systemStatus].color}`}></div>
-              <p className="text-slate-500 text-xs font-mono">{statusConfig[systemStatus].text}</p>
+            <div
+              className={`pt-2 flex items-center gap-2 group relative ${systemStatus.status === 'error' ? 'cursor-help' : ''}`}
+            >
+              <div
+                className={`w-2 h-2 rounded-full ${statusConfig[systemStatus.status].color}`}
+              ></div>
+              <p className="text-slate-500 text-xs font-mono">
+                {statusConfig[systemStatus.status].text}
+              </p>
+
+              {/* Error Tooltip */}
+              {systemStatus.status === 'error' && systemStatus.message && (
+                <div className="absolute bottom-full left-0 mb-2 px-3 py-2 bg-slate-950 border border-red-500/30 rounded shadow-xl text-red-400 text-xs w-64 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none backdrop-blur-md">
+                  <div className="font-bold mb-1">System Error:</div>
+                  {systemStatus.message}
+                  <div className="absolute -bottom-1 left-4 w-2 h-2 bg-slate-950 border-r border-b border-red-500/30 transform rotate-45"></div>
+                </div>
+              )}
             </div>
           </div>
 

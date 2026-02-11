@@ -32,6 +32,7 @@
     "type-check": "tsc --noEmit",
     "test:smoke": "tsx scripts/smoke-tests.ts",
     "deploy:prod": "./deploy.sh",
+    "db:check": "sqlite3 epstein-archive.db 'PRAGMA integrity_check;' | grep -q 'ok' && echo '✅ Database integrity OK' || (echo '❌ Database corruption detected'; exit 1)",
     "prepare": "husky"
   },
   "dependencies": {

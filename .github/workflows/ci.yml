@@ -77,6 +77,16 @@ jobs:
           fi
           echo "✅ FTS schema check passed"
 
+      - name: Verify build database integrity
+        run: |
+          if [ -f "epstein-archive.db" ]; then
+            echo "🔍 Checking database integrity..."
+            sqlite3 epstein-archive.db "PRAGMA integrity_check;" | grep -q "ok"
+            echo "✅ Database integrity check passed"
+          else
+            echo "ℹ️ No database file found in CI environment (expected if using remote DB)"
+          fi
+
   quality:
     name: 💎 Code Quality
     needs: integrity

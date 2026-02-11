@@ -383,9 +383,9 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
   // Render EvidenceModal when an entity is selected
   return selectedEntity ? (
     <EvidenceModal
-      person={selectedEntity}
+      entityId={selectedEntity.id}
+      isOpen={!!selectedEntity}
       onClose={() => setSelectedEntity(null)}
-      searchTerm={searchTerm}
     />
   ) : (
     portal

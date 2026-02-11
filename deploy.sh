@@ -60,21 +60,31 @@ else
   if [ "$DRY_RUN" = true ]; then
     log_warning "DRY RUN: Would upload $LOCAL_DB to $PRODUCTION_HOST"
   else
-    # 1. Verification
+    # 1. Create Consistent Snapshot
+    SNAPSHOT_DB="${LOCAL_DB}.snapshot"
+    log_step "Creating consistent snapshot (to handle concurrent writes)..."
+    rm -f "$SNAPSHOT_DB"
+    sqlite3 "$LOCAL_DB" ".backup '$SNAPSHOT_DB'"
+    
+    # 2. Verification of Snapshot
     if [ "$SKIP_INTEGRITY" = true ]; then
       log_warning "Skipping local integrity check (--skip-integrity)"
     else
-      log_step "Checking local database integrity (quick check)..."
-      if ! sqlite3 "$LOCAL_DB" "PRAGMA quick_check;" | grep -q "ok"; then
-        log_error "Local database is corrupt! Aborting upload."
+      log_step "Checking snapshot integrity (quick check)..."
+      if ! sqlite3 "$SNAPSHOT_DB" "PRAGMA quick_check;" | grep -q "ok"; then
+        log_error "Snapshot is corrupt! Aborting upload."
+        rm -f "$SNAPSHOT_DB"
         exit 1
       fi
-      log_success "Local integrity check passed."
+      log_success "Snapshot integrity check passed."
     fi
 
-    # 2. Upload to temporary file
-    log_step "Uploading to temporary file ($REMOTE_TEMP)..."
-    rsync -avz --progress -e "ssh -i $SSH_KEY_PATH" "$LOCAL_DB" "${PRODUCTION_USER}@${PRODUCTION_HOST}:${REMOTE_TEMP}"
+    # 3. Upload Snapshot to temporary file
+    log_step "Uploading snapshot to temporary file ($REMOTE_TEMP)..."
+    rsync -avz --progress -e "ssh -i $SSH_KEY_PATH" "$SNAPSHOT_DB" "${PRODUCTION_USER}@${PRODUCTION_HOST}:${REMOTE_TEMP}"
+    
+    # Clean up local snapshot
+    rm -f "$SNAPSHOT_DB"
 
     # 3. Verify remote integrity
     log_step "Verifying remote temporary file integrity (quick check)..."

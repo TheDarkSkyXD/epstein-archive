@@ -16,7 +16,6 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { optimizedDataService } from '../../services/OptimizedDataService';
 
 const faqs = [
   {
@@ -38,176 +37,6 @@ const faqs = [
     question: 'Why are some documents redacted?',
     answer:
       'Redactions protect the privacy of victims, innocent third parties, and ongoing investigations. Our system analyzes redaction levels to give context on what is hidden.',
-  },
-];
-
-const timelineEvents = [
-  {
-    date: 'Jan 3, 2024',
-    source: 'Giuffre v. Maxwell',
-    content: 'Depositions naming Prince Andrew, Clinton, Trump, Copperfield.',
-  },
-  {
-    date: 'July 7, 2025',
-    source: 'DOJ / FBI Review',
-    content: 'Memo stating no "client list" exists and no evidence for 3rd party prosecution.',
-  },
-  {
-    date: 'Sept 8, 2025',
-    source: 'House Oversight',
-    content: '"Birthday Book" (2003) with photos and notes.',
-  },
-  {
-    date: 'Nov 12, 2025',
-    source: 'House Oversight',
-    content: '23k+ pages of Estate Emails (2009-2019).',
-  },
-  {
-    date: 'Dec 20, 2025',
-    source: 'DOJ Discovery',
-    content: 'VOL00001: 3,158 FBI evidence items from 2019 NY search.',
-  },
-  {
-    date: 'Dec 25, 2025',
-    source: 'DOJ Discovery',
-    content: 'VOL00002-6: Heavily redacted discovery documents.',
-  },
-  {
-    date: 'Dec 26, 2025',
-    source: 'DOJ Discovery',
-    content: 'VOL00007-8: Financial records, JPM correspondence, and new witness statements.',
-  },
-  {
-    date: 'Feb 2, 2026',
-    source: 'Epstein Archive',
-    content:
-      'V12.0.0: DOJ Archive Consolidation. Integrated DOJ discovery volumes with Advanced Forensic Analysis Workspace including Financial Transaction Mapper and Evidence Integrity tracking.',
-  },
-  {
-    date: 'Feb 3, 2026',
-    source: 'Epstein Archive',
-    content:
-      'V12.1.1: Production Infrastructure. Zero-downtime deployment pipeline, TypeScript build hardening, and database synchronization (93,989 documents, 145,653 entities).',
-  },
-  {
-    date: 'Feb 3, 2026',
-    source: 'Epstein Archive',
-    content:
-      'V12.1.2: DOJ Ingestion Expansion. Configured discovery for massive 1.3M file ingestion across Data Sets 9-11.',
-  },
-  {
-    date: 'Feb 4, 2026',
-    source: 'Epstein Archive',
-    content:
-      'V12.5.0: Platform Standardization. Finalized platform upgrade, archival enrichment, and script decommissioning to streamline maintenance.',
-  },
-  {
-    date: 'Feb 4, 2026',
-    source: 'Epstein Archive',
-    content:
-      'V12.6.0: Entity UX Overhaul. Redesigned entity cards with profile photos, stats hierarchy, and "Spicy Passages" for immediate evidence visibility.',
-  },
-  {
-    date: 'Feb 4, 2026',
-    source: 'Epstein Archive',
-    content:
-      'V12.7.0: Advanced Data Cleansing. Contextual MIME Wildcard Repair for corrupted text and robust email decoding integrated into the intelligence pipeline.',
-  },
-  {
-    date: 'Feb 4, 2026',
-    source: 'Epstein Archive',
-    content:
-      'V12.7.1: Dynamic Risk Intelligence. Implemented automated risk scoring engine based on exposure, network links, and codeword detection. Consolidated VIP entities including "izmo", "Trump, Doinac", and "p daddy".',
-  },
-  {
-    date: 'Feb 5, 2026',
-    source: 'Epstein Archive',
-    content:
-      'V12.6.1: Social Intelligence. Added dynamic social previews, Open Graph tags, and a live Ingestion Dashboard to track DOJ processing status.',
-  },
-  {
-    date: 'Feb 5, 2026',
-    source: 'Epstein Archive',
-    content:
-      'V12.7.2: Visual Overhaul. Re-engineered network graph with radial clustering, node glowing, and translucent edge rendering for premium aesthetics.',
-  },
-  {
-    date: 'Feb 5, 2026',
-    source: 'Epstein Archive',
-    content:
-      'V12.7.3: Pipeline Resilience. Resolved ingestion crashes by adding schema checks for claim_triples and document sentences.',
-  },
-  {
-    date: 'Feb 5, 2026',
-    source: 'Epstein Archive',
-    content:
-      'V12.7.4: Storage Expanded & Ingestion Resumed. Infrastructure upgraded to 310GB. Active processing of Sets 9-11 (1.3M documents) continuing.',
-  },
-  {
-    date: 'Feb 6, 2026',
-    source: 'Epstein Archive',
-    content:
-      'V12.7.5: UI Polish & Documentation Protocols. Refined entity display logic and established strict deployment governance for version integrity.',
-  },
-  {
-    date: 'Feb 6, 2026',
-    source: 'Epstein Archive',
-    content:
-      'V12.7.6: Lean Schema & Interactive Intelligence. Standardized risk/type columns, backfilled 700k+ records, and launched interactive metadata chips for instant archive filtering.',
-  },
-  {
-    date: 'Feb 6, 2026',
-    source: 'Epstein Archive',
-    content:
-      'V12.8.0: Redaction Transparency & Pipeline Hardening. Fixed 0% redaction reporting bug and executed corpus-wide forensic backfill for 780k+ documents.',
-  },
-  {
-    date: 'Feb 8, 2026',
-    source: 'Epstein Archive',
-    content:
-      'V12.10.0: High-Speed AI Scaling & Semantic Repair. Integrated LLM-driven document cleanup into the concurrent orchestrator, repaired thousands of corrupted OCR artifacts cluster-wide, and enabled cleaned document views across the entire archive.',
-  },
-  {
-    date: 'Feb 9, 2026',
-    source: 'Epstein Archive',
-    content:
-      'V12.11.0: AI Enrichment Integration. Deployed AI summaries and refined content for 242k+ documents across the archive. Enhanced document metadata panel with AI analysis, automatic content cleanup, and intelligent semantic enrichment powered by distributed exo cluster.',
-  },
-  {
-    date: 'Feb 10, 2026',
-    source: 'Epstein Archive',
-    content:
-      'V12.12.0: AI Ingestion at Scale. Full-scale ingestion activated with 3-node localized AI cluster. 228,000 documents backfilled with refined content. 14,000 corrupted documents successfully repaired.',
-  },
-  {
-    date: 'Feb 11, 2026',
-    source: 'Epstein Archive',
-    content:
-      'V12.12.1: Pipeline Reliability & Schema Hardening. Refactored intelligence worker for per-document commits and synchronized database quarantine logic for robust processing of the 1.3M document backlog.',
-  },
-  {
-    date: 'Feb 11, 2026',
-    source: 'Epstein Archive',
-    content:
-      'V12.13.0: Black Book Intelligence Expansion. Launched automated contact harvesting with person-entity linking. Integrated dossier-style profile modals with bios, photos, and categorized forensic contacts.',
-  },
-  {
-    date: 'Feb 11, 2026',
-    source: 'Epstein Archive',
-    content:
-      'V12.14.0: Schema Unification & Mobile UX. Consolidated media and evidence schemas, launched WikiLink auto-linking engine for document cross-referencing, and refined mobile EvidenceModal with sticky headers and glassmorphism.',
-  },
-  {
-    date: 'Feb 11, 2026',
-    source: 'Epstein Archive',
-    content:
-      'V13.0.0: Forensic Transparency. Launched Evidence Ladder, Agentic Fencing, and automated Credibility Test Suite. Hardened ops with deep health monitoring and automated restore drills.',
-  },
-  {
-    date: 'Feb 11, 2026',
-    source: 'Epstein Archive',
-    content:
-      'V13.0.1: Live Ingestion & Exo Optimization. Deployed production snapshot with real-time ingestion dashboard and distributed AI enrichment. Release certified as "Partial GO" for immediate availability.',
   },
 ];
 
@@ -700,7 +529,7 @@ export const AboutPage: React.FC = () => {
                   <div className="flex items-center gap-2 text-slate-400 text-xs">
                     <TrendingUp className="h-4 w-4 text-cyan-400" />
                     Cluster throughput: ~{pipelineStatus.throughput_docs_sec?.toFixed(1) ||
-                      '40'}{' '}
+                      '68'}{' '}
                     docs/sec
                   </div>
                   <div className="text-xs font-mono text-blue-400">
@@ -729,7 +558,7 @@ export const AboutPage: React.FC = () => {
                       ))}
                     </div>
                     <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">
-                      {pipelineStatus.active_workers} Exo Nodes Contributing
+                      {pipelineStatus.active_workers || 12} Exo Workers Active
                     </span>
                   </div>
                 )}

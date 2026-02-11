@@ -1,787 +1,513 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Network, Layout, FileText, Image, Activity, Phone, Mail, MapPin } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Person, SortOption, Evidence, Photo } from '../../types';
-
-import { apiClient } from '../../services/apiClient';
-import { RedFlagIndex } from '../visualizations/RedFlagIndex';
-import { Breadcrumb } from '../layout/Breadcrumb';
-import { SourceBadge } from './SourceBadge';
-import Tooltip from './Tooltip';
-import Icon from './Icon';
-import { useModalFocusTrap } from '../../hooks/useModalFocusTrap';
-import { CreateRelationshipModal } from '../entities/CreateRelationshipModal';
-
-import { EntityMediaGallery } from '../entities/EntityMediaGallery';
-import { SignalAnalysis } from './SignalAnalysis';
 import {
-  NetworkVisualization,
-  NetworkNode,
-  NetworkEdge,
-} from '../visualizations/NetworkVisualization';
+  X,
+  Search,
+  FileText,
+  Activity,
+  AlertTriangle,
+  ExternalLink,
+  Filter,
+  Calendar,
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FixedSizeList as List } from 'react-window';
+import { InfiniteLoader } from 'react-window-infinite-loader';
+import { AutoSizer } from 'react-virtualized-auto-sizer';
+
+import { SignalPanel } from '../entities/cards/SignalPanel';
+import { DriverChips } from '../entities/cards/DriverChips';
+import { EvidenceBadge } from '../entities/cards/EvidenceBadge';
+import { useAuth } from '../../contexts/AuthContext';
+import { apiClient } from '../../services/apiClient';
+import { cn } from '../../utils/cn';
+import {
+  calculateEvidenceLadder,
+  calculateSignalMetrics,
+  generateDriverChips,
+} from '../../utils/forensics';
+import { Skeleton } from './Skeleton';
 
 interface EvidenceModalProps {
-  person: Person;
+  entityId: string;
+  isOpen: boolean;
   onClose: () => void;
-  searchTerm?: string;
-  onDocumentClick?: (document: Evidence, searchTerm?: string) => void;
 }
 
-type Tab = 'overview' | 'evidence' | 'media' | 'network';
+interface EntityDetails {
+  id: string;
+  fullName: string;
+  primaryRole: string;
+  bio: string;
+  description?: string;
+  mentions: number;
+  likelihoodLevel: string;
+  redFlagRating: number;
+  fileReferences: any[]; // Kept for types but unused in virtualized view
+  significant_passages: any[];
+  photos: any[];
+  evidenceTypes: string[];
+}
 
-export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
-  ({ person, onClose, searchTerm, onDocumentClick }) => {
-    const [activeTab, setActiveTab] = useState<Tab>('overview');
-    const [enrichedPerson, setEnrichedPerson] = useState<Person>(person);
-    const [documents, setDocuments] = useState<Evidence[]>([]);
-    const [loadingDocuments, setLoadingDocuments] = useState(false);
-    const [loadingEnrichment, setLoadingEnrichment] = useState(false);
-    const [fullMedia, setFullMedia] = useState<Photo[]>([]);
-    const [loadingMedia, setLoadingMedia] = useState(false);
-    const [filterQuery, setFilterQuery] = useState('');
-    const [showRelationshipModal, setShowRelationshipModal] = useState(false);
-    const [networkGraphData, setNetworkGraphData] = useState<{
-      nodes: NetworkNode[];
-      edges: NetworkEdge[];
-    } | null>(null);
-    const { modalRef } = useModalFocusTrap(true);
-    const navigate = useNavigate();
+export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, onClose }) => {
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'overview' | 'evidence' | 'media' | 'network'>(
+    'overview',
+  );
+  const [entity, setEntity] = useState<EntityDetails | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-    // Modal Background Scroll Lock
-    useEffect(() => {
-      // Lock scroll
-      const originalStyle = window.getComputedStyle(document.body).overflow;
-      document.body.style.overflow = 'hidden';
-      document.documentElement.style.overflow = 'hidden';
+  // Documents Pagination State
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [totalDocs, setTotalDocs] = useState(0);
+  const [isDocsLoading, setIsDocsLoading] = useState(false);
+  const [docsInitialized, setDocsInitialized] = useState(false);
+  const [docFilters, setDocFilters] = useState({ search: '', source: 'all', sort: 'relevance' });
 
-      const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') onClose();
-      };
-      document.addEventListener('keydown', handleKeyDown);
+  useEffect(() => {
+    if (isOpen && entityId) {
+      fetchEntityDetails();
+    }
+  }, [isOpen, entityId]);
 
-      return () => {
-        // Unlock scroll
-        document.body.style.overflow = originalStyle;
-        document.documentElement.style.overflow = '';
-        document.removeEventListener('keydown', handleKeyDown);
-      };
-    }, [onClose]);
+  useEffect(() => {
+    if (isOpen && entityId && activeTab === 'evidence') {
+      // Reset docs when tab or entity changes
+      setDocuments([]);
+      setTotalDocs(0);
+      setDocsInitialized(false);
+      loadMoreDocuments(0, 1); // Initial load (startIndex, stopIndex)
+    }
+  }, [isOpen, entityId, activeTab, docFilters]);
 
-    // Fetch full entity details if missing (self-enrichment)
-    useEffect(() => {
-      const fetchEnrichedData = async () => {
-        if (!person.id) return;
+  const fetchEntityDetails = async () => {
+    setLoading(true);
+    try {
+      const data = (await apiClient.get(`/entities/${entityId}`)) as EntityDetails;
+      setEntity(data);
+    } catch (err) {
+      setError('Failed to load entity details');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        // Only fetch if we are missing key fields
-        const isMissingData =
-          !enrichedPerson.bio ||
-          !enrichedPerson.significant_passages ||
-          (enrichedPerson.photos?.length || 0) === 0;
+  const loadMoreDocuments = async (startIndex: number, stopIndex: number) => {
+    if (isDocsLoading) return;
+    setIsDocsLoading(true);
+    try {
+      // react-window-infinite-loader might request ranges.
+      // We map index to page.
+      const page = Math.floor(startIndex / 50) + 1;
+      // Use any for params to bypass strict type check on apiClient if needed, or fix apiClient type
+      const response = (await apiClient.get(`/entities/${entityId}/documents`, {
+        params: {
+          page,
+          limit: 50,
+          ...docFilters,
+        },
+      } as any)) as any;
 
-        if (isMissingData) {
-          setLoadingEnrichment(true);
-          try {
-            const fullEntity = await apiClient.getEntity(person.id.toString());
-            if (fullEntity) {
-              setEnrichedPerson((prev) => ({
-                ...prev,
-                ...fullEntity,
-                // Ensure photos are formatted correctly
-                photos: fullEntity.photos || prev.photos || [],
-              }));
-            }
-          } catch (error) {
-            console.error('Error enriching entity data:', error);
-          } finally {
-            setLoadingEnrichment(false);
-          }
-        }
-      };
+      const newDocs = response.data;
+      setTotalDocs(response.total);
 
-      fetchEnrichedData();
-    }, [person.id]);
-
-    // Fetch documents
-    useEffect(() => {
-      const fetchDocuments = async () => {
-        if (!person.id) return;
-        setLoadingDocuments(true);
-        try {
-          const personDocuments = await apiClient.getEntityDocuments(person.id.toString());
-          const sortedDocuments = personDocuments
-            .map((doc: any) => ({
-              ...doc,
-              redFlagRating: Number(doc.redFlagRating || doc.red_flag_rating || 0),
-              mentions: Number(doc.mentions || doc.mentionCount || 0),
-              title: doc.title || doc.fileName || doc.filename || 'Untitled',
-            }))
-            .sort((a: any, b: any) => {
-              const rfiDiff = b.redFlagRating - a.redFlagRating;
-              if (rfiDiff !== 0) return rfiDiff;
-              return b.mentions - a.mentions;
-            });
-          setDocuments(sortedDocuments);
-        } catch (error) {
-          console.error('Error fetching documents:', error);
-        } finally {
-          setLoadingDocuments(false);
-        }
-      };
-      fetchDocuments();
-    }, [person.id]);
-
-    // Fetch full media when tab is active
-    useEffect(() => {
-      if (activeTab === 'media' && person.id && fullMedia.length === 0) {
-        const fetchMedia = async () => {
-          setLoadingMedia(true);
-          try {
-            const media = await apiClient.getEntityMedia(person.id!.toString());
-            setFullMedia(media);
-          } catch (error) {
-            console.error('Error fetching entity media:', error);
-          } finally {
-            setLoadingMedia(false);
-          }
-        };
-        fetchMedia();
-      }
-    }, [activeTab, person.id, fullMedia.length]);
-
-    // Fetch network graph data when tab is active
-    useEffect(() => {
-      if (activeTab === 'network' && !networkGraphData && person.id) {
-        apiClient
-          .getEntityGraph(person.id.toString(), 2)
-          .then((data) => {
-            setNetworkGraphData(data);
-          })
-          .catch((err) => console.error('Error fetching graph:', err));
-      }
-    }, [activeTab, person.id, networkGraphData]);
-
-    const [sortOption, setSortOption] = useState<SortOption>('risk');
-    const [selectedSource, setSelectedSource] = useState<string>('all');
-
-    // Derived State
-    const filteredDocuments = useMemo(() => {
-      let docs = [...documents];
-
-      // 1. Text Search
-      if (filterQuery) {
-        const query = filterQuery.toLowerCase();
-        docs = docs.filter(
-          (doc) =>
-            (doc.title || '').toLowerCase().includes(query) ||
-            (doc.content || '').toLowerCase().includes(query),
-        );
-      }
-
-      // 2. Source Filter
-      if (selectedSource !== 'all') {
-        docs = docs.filter((doc) => {
-          if (selectedSource === 'court')
-            return doc.source_collection?.toLowerCase().includes('court');
-          if (selectedSource === 'email')
-            return (
-              doc.file_type === 'email' ||
-              doc.source_collection?.toLowerCase().includes('discovery')
-            );
-          if (selectedSource === 'flight')
-            return doc.source_collection?.toLowerCase().includes('flight');
-          return true;
-        });
-      }
-
-      // 3. Sorting
-      docs.sort((a, b) => {
-        switch (sortOption) {
-          case 'date-desc':
-            return new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime();
-          case 'date-asc':
-            return new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime();
-          case 'risk':
-            return (b.redFlagRating || 0) - (a.redFlagRating || 0);
-          case 'relevance':
-          default:
-            return (b.mentions || 0) - (a.mentions || 0);
-        }
+      setDocuments((prev) => {
+        // If it's the first page, just set it
+        if (page === 1) return newDocs;
+        return [...prev, ...newDocs];
       });
+    } catch (err) {
+      console.error('Error loading docs', err);
+    } finally {
+      setIsDocsLoading(false);
+      setDocsInitialized(true);
+    }
+  };
 
-      return docs;
-    }, [documents, filterQuery, selectedSource, sortOption]);
+  // Helper to check if item is loaded
+  const isItemLoaded = (index: number) => !!documents[index];
 
-    const highlightText = (text: string, term?: string) => {
-      if (!term || !text || !term.trim()) return text;
-      try {
-        const regex = new RegExp(`(${term.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-        return text.replace(
-          regex,
-          '<mark class="bg-yellow-500/40 text-white px-0.5 rounded">$1</mark>',
-        );
-      } catch {
-        return text;
-      }
+  // Forensic Calculations
+  const forensicData = useMemo(() => {
+    if (!entity) return null;
+    // Cast to any to satisfy Person interface for utils which expect a richer object
+    // The utils only need basic props which EntityDetails has (mentions, evidenceTypes mock)
+    const personAdapter = {
+      ...entity,
+      files: 0,
+      contexts: [],
+      evidence_types: entity.evidenceTypes || [],
+    } as any;
+
+    return {
+      ladder: calculateEvidenceLadder(personAdapter),
+      signals: calculateSignalMetrics(personAdapter),
+      drivers: generateDriverChips(personAdapter),
     };
+  }, [entity]);
 
-    const renderHighlightedText = (text: string, term?: string) => {
-      const highlighted = highlightText(text, term);
-      return <span dangerouslySetInnerHTML={{ __html: highlighted }} />;
-    };
+  if (!isOpen) return null;
 
-    if (!person) return null;
+  return createPortal(
+    <AnimatePresence>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+          onClick={onClose}
+        />
 
-    // Helper for risk badge
-    const getRiskBadge = () => {
-      const score = person.likelihood_score || 'UNKNOWN';
-      const color =
-        score === 'HIGH'
-          ? 'red'
-          : score === 'MEDIUM'
-            ? 'amber'
-            : score === 'LOW'
-              ? 'emerald'
-              : 'slate';
-
-      const theme = {
-        red: 'bg-red-950/50 text-red-200 border-red-500/50 shadow-red-900/20',
-        amber: 'bg-amber-950/50 text-amber-200 border-amber-500/50 shadow-amber-900/20',
-        emerald: 'bg-emerald-950/50 text-emerald-200 border-emerald-500/50 shadow-emerald-900/20',
-        slate: 'bg-slate-800 text-slate-300 border-slate-600',
-      }[color];
-
-      return (
-        <span
-          className={`inline-flex items-center rounded-full px-3 py-0.5 text-xs font-semibold ${theme}`}
+        <motion.div
+          initial={{ scale: 0.95, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.95, opacity: 0, y: 20 }}
+          className="relative w-full max-w-6xl max-h-[90vh] bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden flex flex-col"
         >
-          {score} RISK
-        </span>
-      );
-    };
+          {/* HEADER */}
+          <div className="flex bg-slate-950 p-6 border-b border-slate-800 items-start gap-6 shrink-0">
+            {/* Profile Photo */}
+            <div className="relative shrink-0">
+              <div className="w-24 h-24 rounded-lg bg-slate-800 border-2 border-slate-700 overflow-hidden shadow-inner">
+                {entity?.photos?.[0] ? (
+                  <img
+                    src={entity.photos[0].url}
+                    alt={entity.fullName}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-slate-600">
+                    <Search size={32} />
+                  </div>
+                )}
+              </div>
+              {forensicData && (
+                <div className="absolute -bottom-3 -right-3">
+                  <EvidenceBadge level={forensicData.ladder.level} />
+                </div>
+              )}
+            </div>
 
-    return createPortal(
-      <div
-        id="EvidenceModal"
-        className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4 bg-black/90 backdrop-blur-md transition-opacity duration-300"
-        onClick={(e) => e.target === e.currentTarget && onClose()}
-      >
-        <div
-          ref={modalRef}
-          className="relative bg-slate-900 w-full h-full sm:h-auto sm:max-h-[95vh] sm:max-w-6xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200"
-          role="dialog"
-          aria-modal="true"
-        >
-          {/* HERO HEADER */}
-          <div className="relative shrink-0 border-b border-slate-700/50 bg-slate-900 sticky top-0 z-30">
-            {/* Background Pattern */}
-            <div className="absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800/50 opacity-50 pointer-events-none" />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-3 mb-1">
+                <h2 className="text-3xl font-bold text-slate-100 truncate">{entity?.fullName}</h2>
+                {entity?.likelihoodLevel === 'HIGH' && (
+                  <span className="px-2 py-0.5 rounded text-xs font-bold bg-red-500/20 text-red-500 border border-red-500/30">
+                    HIGH RISK
+                  </span>
+                )}
+              </div>
+              <p className="text-slate-400 text-lg mb-4">{entity?.primaryRole}</p>
 
-            <div className="relative p-6 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
-              <div className="flex items-center gap-5 flex-1 min-w-0">
-                {/* Large Avatar */}
-                <div className="shrink-0 relative">
-                  {enrichedPerson.photos && enrichedPerson.photos.length > 0 ? (
-                    <div className="w-20 h-20 rounded-xl overflow-hidden border-2 border-slate-600 shadow-xl ring-4 ring-slate-800/50">
-                      <img
-                        src={`/api/media/images/${enrichedPerson.photos[0].id}/thumbnail`}
-                        alt={enrichedPerson.name}
-                        className="w-full h-full object-cover object-top"
-                      />
-                    </div>
-                  ) : (
-                    <div className="w-20 h-20 rounded-xl bg-slate-800 border-2 border-slate-700 flex items-center justify-center shadow-inner">
-                      <Icon name="User" size="xl" className="text-slate-500" />
-                    </div>
-                  )}
-                  {/* Status Dot */}
-                  <div
-                    className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-slate-900 flex items-center justify-center border border-slate-700`}
+              {/* ACTION TABS */}
+              <div className="flex gap-1">
+                {['overview', 'evidence', 'media'].map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab as any)}
+                    className={cn(
+                      'px-4 py-2 rounded-lg text-sm font-medium transition-colors border',
+                      activeTab === tab
+                        ? 'bg-indigo-600 text-white border-indigo-500'
+                        : 'bg-slate-800/50 text-slate-400 border-transparent hover:bg-slate-800 hover:text-slate-200',
+                    )}
                   >
-                    <div
-                      className={`w-3 h-3 rounded-full ${enrichedPerson.status?.toLowerCase().includes('deceased') ? 'bg-slate-500' : 'bg-green-500'} shadow-[0_0_8px_currentColor]`}
-                    />
-                  </div>
-                </div>
-
-                <div className="min-w-0 space-y-1">
-                  <div className="flex items-center gap-3">
-                    <h1 className="text-2xl md:text-3xl font-bold text-white truncate tracking-tight">
-                      {searchTerm
-                        ? renderHighlightedText(enrichedPerson.name, searchTerm)
-                        : enrichedPerson.name}
-                    </h1>
-                    <div className="flex items-center gap-2">
-                      {getRiskBadge()}
-                      {(enrichedPerson as any).isVip && (
-                        <span className="px-2 py-0.5 rounded text-[10px] uppercase font-black tracking-[0.15em] bg-yellow-500 text-black shadow-[0_0_12px_rgba(234,179,8,0.4)] animate-pulse">
-                          VIP ANCHOR
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <p className="text-slate-400 font-medium flex items-center gap-2 text-sm uppercase tracking-wide">
-                    <Link
-                      to={`/entities?type=${encodeURIComponent(enrichedPerson.entity_type || 'Entity')}`}
-                      onClick={onClose}
-                      className="hover:text-cyan-400 transition-colors cursor-pointer"
-                    >
-                      {enrichedPerson.entity_type || 'Entity'}
-                    </Link>
-                    <span className="w-1 h-1 rounded-full bg-slate-600" />
-                    <Link
-                      to={`/entities?search=${encodeURIComponent(enrichedPerson.title || (enrichedPerson as any).primaryRole || '')}`}
-                      onClick={onClose}
-                      className="text-slate-500 hover:text-cyan-400 transition-colors cursor-pointer"
-                    >
-                      {enrichedPerson.title || (enrichedPerson as any).primaryRole || 'No Title'}
-                    </Link>
-                  </p>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center gap-3 self-end md:self-auto">
-                <button
-                  onClick={() => setShowRelationshipModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-purple-600/90 hover:bg-purple-600 text-white rounded-lg text-sm font-medium transition-all shadow-lg hover:shadow-purple-500/20 active:scale-95"
-                >
-                  <Network className="w-4 h-4" />
-                  <span>Connect</span>
-                </button>
-                <button
-                  onClick={onClose}
-                  className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors border border-slate-700"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                    {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* TABS */}
-            <div className="flex items-center px-6 gap-6 overflow-x-auto scrollbar-none border-t border-slate-800/50">
-              {[
-                { id: 'overview', label: 'Overview', icon: Layout },
-                {
-                  id: 'evidence',
-                  label: `Documents (${documents.length || enrichedPerson.files || 0})`,
-                  icon: FileText,
-                },
-                {
-                  id: 'media',
-                  label: `Media (${fullMedia.length || enrichedPerson.photos?.length || enrichedPerson.mediaCount || 0})`,
-                  icon: Image,
-                },
-                { id: 'network', label: 'Graph', icon: Activity },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as Tab)}
-                  className={`flex items-center gap-2 py-4 text-sm font-medium border-b-2 transition-all select-none whitespace-nowrap
-                           ${
-                             activeTab === tab.id
-                               ? 'border-cyan-500 text-cyan-400'
-                               : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-slate-700'
-                           }`}
-                >
-                  <tab.icon className="w-4 h-4" />
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-slate-800 rounded-full text-slate-500 hover:text-slate-300 transition-colors"
+            >
+              <X size={24} />
+            </button>
           </div>
 
           {/* CONTENT AREA */}
-          <div className="flex-1 overflow-y-auto bg-slate-950 p-6">
-            {/* OVERVIEW TAB */}
-            {activeTab === 'overview' && (
-              <div className="space-y-6 max-w-5xl mx-auto">
-                {/* Key Stats Grid */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <button
-                    onClick={() => setActiveTab('evidence')}
-                    className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 flex flex-col items-center justify-center text-center hover:bg-slate-800 hover:border-blue-500/50 transition-all group/stat"
-                  >
-                    <span className="text-3xl font-bold text-white mb-1 group-hover/stat:scale-110 transition-transform">
-                      {enrichedPerson.mentions?.toLocaleString() || 0}
-                    </span>
-                    <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold group-hover/stat:text-white transition-colors">
-                      Mentions
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('evidence')}
-                    className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 flex flex-col items-center justify-center text-center hover:bg-slate-800 hover:border-blue-500/50 transition-all group/stat"
-                  >
-                    <span className="text-3xl font-bold text-blue-400 mb-1 group-hover/stat:scale-110 transition-transform">
-                      {documents.length || enrichedPerson.files || 0}
-                    </span>
-                    <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold group-hover/stat:text-blue-400 transition-colors">
-                      Documents
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('media')}
-                    className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 flex flex-col items-center justify-center text-center hover:bg-slate-800 hover:border-purple-500/50 transition-all group/stat"
-                  >
-                    <span className="text-3xl font-bold text-purple-400 mb-1 group-hover/stat:scale-110 transition-transform">
-                      {fullMedia.length ||
-                        enrichedPerson.photos?.length ||
-                        enrichedPerson.mediaCount ||
-                        0}
-                    </span>
-                    <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold group-hover/stat:text-purple-400 transition-colors">
-                      Photos
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('network')}
-                    className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 flex flex-col items-center justify-center text-center hover:bg-slate-800 hover:border-cyan-500/50 transition-all group/stat"
-                  >
-                    <RedFlagIndex value={enrichedPerson.red_flag_rating || 0} size="lg" />
-                    <span className="text-xs text-slate-500 uppercase tracking-wider font-semibold mt-2 group-hover/stat:text-cyan-400 transition-colors">
-                      Risk Index
-                    </span>
-                  </button>
+          <div className="flex-1 overflow-y-auto bg-slate-900 custom-scrollbar">
+            {/* 1. OVERVIEW TAB */}
+            {loading && (
+              <div className="p-6 space-y-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Skeleton className="h-48 w-full rounded-xl bg-slate-900" />
+                  <Skeleton className="h-48 w-full rounded-xl bg-slate-900" />
                 </div>
-
-                {/* Bio / Description */}
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    {/* Bio Section */}
-                    {enrichedPerson.bio || enrichedPerson.description ? (
-                      <div className="bg-slate-900 border border-slate-700/50 rounded-xl p-5 shadow-sm relative overflow-hidden group">
-                        {loadingEnrichment && (
-                          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-10">
-                            <Activity className="w-5 h-5 text-cyan-500 animate-spin" />
-                          </div>
-                        )}
-                        <h3 className="text-cyan-400 font-semibold mb-3 flex items-center gap-2">
-                          <Icon name="Info" size="sm" />
-                          {enrichedPerson.bio ? 'Biography' : 'Description'}
-                        </h3>
-                        <p className="text-slate-300 leading-relaxed text-sm">
-                          {searchTerm
-                            ? renderHighlightedText(
-                                enrichedPerson.bio || enrichedPerson.description || '',
-                                searchTerm,
-                              )
-                            : enrichedPerson.bio || enrichedPerson.description}
-                        </p>
-                        {(enrichedPerson.birthDate || enrichedPerson.deathDate) && (
-                          <div className="mt-4 pt-4 border-t border-slate-800 flex flex-wrap gap-4 text-xs text-slate-500">
-                            {enrichedPerson.birthDate && (
-                              <div className="flex items-center gap-1.5">
-                                <Icon name="Calendar" size="xs" /> Born: {enrichedPerson.birthDate}
-                              </div>
-                            )}
-                            {enrichedPerson.deathDate && (
-                              <div className="flex items-center gap-1.5">
-                                <Icon name="X" size="xs" /> Died: {enrichedPerson.deathDate}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ) : loadingEnrichment ? (
-                      <div className="bg-slate-900 border border-slate-700/50 rounded-xl p-5 h-32 animate-pulse flex items-center justify-center text-slate-500">
-                        Analyzing Forensic Bio...
-                      </div>
-                    ) : (
-                      <div className="bg-slate-900/40 border border-slate-800/50 border-dashed rounded-xl p-5 text-center">
-                        <p className="text-slate-500 text-sm">
-                          No biography extracted for this entity.
-                        </p>
-                      </div>
-                    )}
-
-                    {enrichedPerson.red_flag_description && (
-                      <SignalAnalysis
-                        description={enrichedPerson.red_flag_description}
-                        rating={enrichedPerson.red_flag_rating || 0}
-                      />
-                    )}
-
-                    {/* Black Book Entries */}
-                    {enrichedPerson.blackBookEntries &&
-                      enrichedPerson.blackBookEntries.length > 0 && (
-                        <div className="space-y-4">
-                          <div className="bg-slate-900 border border-slate-700/50 rounded-xl p-5">
-                            <h3 className="text-cyan-400 font-semibold mb-3 flex items-center gap-2">
-                              <Icon name="Book" size="sm" />
-                              Contact Information
-                            </h3>
-                            <div className="space-y-6">
-                              {/* Grouped by Category */}
-                              {['original', 'contact', 'credential'].map((cat) => {
-                                const catEntries = enrichedPerson.blackBookEntries?.filter(
-                                  (e) =>
-                                    e.entry_category === cat ||
-                                    (!e.entry_category && cat === 'original'),
-                                );
-                                if (!catEntries || catEntries.length === 0) return null;
-
-                                return (
-                                  <div key={cat} className="space-y-3">
-                                    <div className="flex items-center gap-2">
-                                      <div className="h-px flex-1 bg-slate-800" />
-                                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                                        {cat === 'original'
-                                          ? 'Verified Profile'
-                                          : cat === 'contact'
-                                            ? 'Harvested Intelligence'
-                                            : 'Credentials'}
-                                      </span>
-                                      <div className="h-px flex-1 bg-slate-800" />
-                                    </div>
-
-                                    {catEntries.map((entry, idx) => (
-                                      <div
-                                        key={idx}
-                                        className="bg-slate-950/50 rounded-lg p-3 border border-slate-800/50 group/contact"
-                                      >
-                                        <div className="flex flex-wrap gap-2 mb-2">
-                                          {entry.phoneNumbers?.map((phone, i) => (
-                                            <span
-                                              key={i}
-                                              className="px-2 py-1 bg-blue-900/20 text-blue-300 text-xs rounded border border-blue-800/30 flex items-center gap-1"
-                                            >
-                                              <Icon name="Phone" size="xs" /> {phone}
-                                            </span>
-                                          ))}
-                                          {entry.emailAddresses?.map((email, i) => (
-                                            <span
-                                              key={i}
-                                              className="px-2 py-1 bg-emerald-900/20 text-emerald-300 text-xs rounded border border-emerald-800/30 flex items-center gap-1"
-                                            >
-                                              <Icon name="Mail" size="xs" /> {email}
-                                            </span>
-                                          ))}
-                                          {entry.addresses?.map((addr, i) => (
-                                            <span
-                                              key={i}
-                                              className="px-2 py-1 bg-amber-900/20 text-amber-300 text-xs rounded border border-amber-800/30 flex items-center gap-1"
-                                            >
-                                              <Icon name="MapPin" size="xs" /> {addr}
-                                            </span>
-                                          ))}
-                                        </div>
-
-                                        <p className="text-slate-400 text-sm italic mb-2">
-                                          {entry.entryText?.includes('⭐')
-                                            ? entry.entryText
-                                            : entry.notes || 'No details.'}
-                                        </p>
-
-                                        {entry.document_id && (
-                                          <div className="flex justify-end">
-                                            <button
-                                              onClick={() => {
-                                                const doc = documents.find(
-                                                  (d) => String(d.id) === String(entry.document_id),
-                                                );
-                                                if (doc) onDocumentClick?.(doc);
-                                                else if (entry.document_id)
-                                                  navigate(`/documents/${entry.document_id}`);
-                                              }}
-                                              className="text-[10px] text-slate-500 hover:text-cyan-400 flex items-center gap-1 transition-colors group-hover/contact:text-slate-400"
-                                            >
-                                              <Icon name="FileText" size="xs" />
-                                              Source Document
-                                            </button>
-                                          </div>
-                                        )}
-                                      </div>
-                                    ))}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                  </div>
-
-                  {/* Recent Evidence Snippets */}
-                  <div className="space-y-4">
-                    <h3 className="text-slate-300 font-semibold flex items-center gap-2 font-mono uppercase tracking-widest text-xs">
-                      <Icon name="Search" size="xs" className="text-red-500" /> forensic spicy
-                      passages
-                    </h3>
-                    {loadingEnrichment ? (
-                      <div className="space-y-3">
-                        {[1, 2].map((i) => (
-                          <div key={i} className="bg-slate-900/50 h-24 rounded-lg animate-pulse" />
-                        ))}
-                      </div>
-                    ) : enrichedPerson.significant_passages &&
-                      enrichedPerson.significant_passages.length > 0 ? (
-                      <div className="space-y-3 font-serif">
-                        {enrichedPerson.significant_passages.slice(0, 5).map((passage, i) => (
-                          <div
-                            key={i}
-                            className="bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm group/passage hover:border-red-500/30 transition-all"
-                          >
-                            <p className="text-slate-300 mb-2 leading-relaxed italic opacity-90 group-hover/passage:opacity-100">
-                              &ldquo;{passage.passage}&rdquo;
-                            </p>
-                            <div className="flex justify-between items-center text-[10px] text-slate-500 uppercase tracking-tighter">
-                              <span className="text-red-500 font-bold bg-red-950/30 px-1 rounded">
-                                {passage.keyword}
-                              </span>
-                              <span className="opacity-60">{passage.filename}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-slate-500 italic text-sm p-8 bg-slate-900/30 rounded-xl border border-dashed border-slate-800 text-center">
-                        No forensic high-significance passages extracted.
-                      </div>
-                    )}
-                  </div>
+                <div className="space-y-4">
+                  <Skeleton className="h-6 w-48 bg-slate-900" />
+                  <Skeleton className="h-24 w-full rounded-lg bg-slate-900" />
+                  <Skeleton className="h-24 w-full rounded-lg bg-slate-900" />
                 </div>
               </div>
             )}
 
-            {/* EVIDENCE TAB */}
+            {activeTab === 'overview' && !loading && entity && forensicData && (
+              <div className="p-6 space-y-8">
+                {/* METRICS & SIGNAL PANEL */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* LEFT: CORE STATS */}
+                  <div className="bg-slate-950/50 rounded-xl p-5 border border-slate-800 flex flex-col justify-between">
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div className="p-3 bg-slate-900 rounded-lg">
+                        <div className="text-2xl font-bold text-indigo-400">{entity.mentions}</div>
+                        <div className="text-xs text-slate-500 uppercase tracking-wider mt-1">
+                          Mentions
+                        </div>
+                      </div>
+                      <div className="p-3 bg-slate-900 rounded-lg">
+                        <div className="text-2xl font-bold text-sky-400">
+                          {totalDocs > 0 ? totalDocs : entity.mentions /* Fallback */}
+                        </div>
+                        <div className="text-xs text-slate-500 uppercase tracking-wider mt-1">
+                          Documents
+                        </div>
+                      </div>
+                      <div className="p-3 bg-slate-900 rounded-lg">
+                        <div className="text-2xl font-bold text-emerald-400">
+                          {entity.photos?.length || 0}
+                        </div>
+                        <div className="text-xs text-slate-500 uppercase tracking-wider mt-1">
+                          Media
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-6 pt-6 border-t border-slate-800/50">
+                      <h4 className="text-sm font-semibold text-slate-400 mb-3 flex items-center gap-2">
+                        <Activity size={14} /> KEY DRIVERS
+                      </h4>
+                      <DriverChips chips={forensicData.drivers} />
+                    </div>
+                  </div>
+
+                  {/* RIGHT: SIGNAL ANALYSIS */}
+                  <div className="bg-slate-950/50 rounded-xl p-5 border border-slate-800">
+                    <h4 className="text-sm font-semibold text-slate-300 mb-4 flex items-center justify-between">
+                      <span>FORENSIC SIGNALS</span>
+                      <span className="text-xs font-mono text-slate-500">EXO-METRICS v2</span>
+                    </h4>
+                    <SignalPanel metrics={forensicData.signals} />
+
+                    <div className="mt-6 p-3 bg-slate-900/80 rounded-lg border border-slate-800/80">
+                      <div className="text-xs text-slate-400 leading-relaxed">
+                        <span className="text-indigo-400 font-medium">Analysis:</span>{' '}
+                        {forensicData.ladder.description}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* HIGH SIGNIFICANCE EVIDENCE (Formerly Spicy) */}
+                {entity.significant_passages && entity.significant_passages.length > 0 && (
+                  <div>
+                    <h3 className="text-slate-300 font-semibold flex items-center gap-2 font-mono uppercase tracking-widest text-xs mb-4">
+                      <AlertTriangle size={14} className="text-amber-500" /> High Significance
+                      Evidence
+                    </h3>
+                    <div className="grid gap-4">
+                      {entity.significant_passages.map((passage, idx) => (
+                        <div
+                          key={idx}
+                          className="bg-slate-950 border border-slate-800 rounded-lg p-4 hover:border-indigo-500/30 transition-colors"
+                        >
+                          <div className="flex items-start gap-4">
+                            <div className="mt-1 shrink-0 p-2 bg-slate-900 rounded text-slate-400">
+                              <FileText size={16} />
+                            </div>
+                            <div>
+                              <p className="text-slate-300 text-sm leading-relaxed font-serif italic border-l-2 border-indigo-500/50 pl-4 mb-3">
+                                "{passage.passage || passage.mention_context}"
+                              </p>
+                              <div className="flex items-center gap-3 text-xs text-slate-500">
+                                <span className="flex items-center gap-1">
+                                  <FileText size={10} /> {passage.filename}
+                                </span>
+                                <span className="w-1 h-1 rounded-full bg-slate-700" />
+                                <span className="text-indigo-400">
+                                  {passage.source || 'Document'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* BIO */}
+                <div>
+                  <h3 className="text-slate-300 font-semibold mb-3">Biography</h3>
+                  <p className="text-slate-400 text-sm leading-relaxed max-w-4xl">
+                    {entity.bio || entity.description || 'No biographical data available.'}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* 2. EVIDENCE TAB (Virtualized) */}
             {activeTab === 'evidence' && (
-              <div className="space-y-4 max-w-5xl mx-auto">
-                <div className="flex flex-col md:flex-row gap-4 mb-6">
-                  <div className="relative flex-1">
-                    <Icon
-                      name="Search"
-                      size="sm"
+              <div className="h-full flex flex-col">
+                {/* FILTERS TOOLBAR */}
+                <div className="p-4 bg-slate-950/30 border-b border-slate-800 flex gap-4 shrink-0">
+                  <div className="relative flex-1 max-w-md">
+                    <Search
                       className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+                      size={16}
                     />
                     <input
                       type="text"
-                      placeholder="Search within documents..."
-                      value={filterQuery}
-                      onChange={(e) => setFilterQuery(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg py-2.5 pl-10 pr-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
+                      placeholder="Search relevant documents..."
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
+                      value={docFilters.search}
+                      onChange={(e) =>
+                        setDocFilters((prev) => ({ ...prev, search: e.target.value }))
+                      }
                     />
                   </div>
-                  <div className="flex gap-2">
-                    <select
-                      value={sortOption}
-                      onChange={(e) => setSortOption(e.target.value as SortOption)}
-                      className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-300 focus:outline-none focus:border-cyan-500"
-                    >
-                      <option value="risk">Risk Level</option>
-                      <option value="relevance">Relevance</option>
-                      <option value="date-desc">Newest First</option>
-                      <option value="date-asc">Oldest First</option>
-                    </select>
-                    <select
-                      value={selectedSource}
-                      onChange={(e) => setSelectedSource(e.target.value)}
-                      className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-300 focus:outline-none focus:border-cyan-500"
-                    >
-                      <option value="all">All Sources</option>
-                      <option value="court">Court Docs</option>
-                      <option value="email">Emails / Discovery</option>
-                      <option value="flight">Flight Logs</option>
-                    </select>
-                  </div>
+                  <select
+                    className="bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
+                    value={docFilters.source}
+                    onChange={(e) => setDocFilters((prev) => ({ ...prev, source: e.target.value }))}
+                  >
+                    <option value="all">All Sources</option>
+                    <option value="court">Court Logs</option>
+                    <option value="flight">Flight Logs</option>
+                    <option value="email">Emails</option>
+                  </select>
                 </div>
 
-                <div className="space-y-3">
-                  {loadingDocuments ? (
-                    <div className="text-center py-10 text-slate-500">Loading documents...</div>
-                  ) : filteredDocuments.length > 0 ? (
-                    filteredDocuments.map((doc, i) => (
-                      <div
-                        key={i}
-                        onClick={() => {
-                          const documentToOpen = { ...doc, id: doc.id || doc.documentId };
-                          onDocumentClick?.(documentToOpen, searchTerm || enrichedPerson.name);
-                        }}
-                        className="bg-slate-900/50 border border-slate-800 hover:border-cyan-500/30 rounded-lg p-4 cursor-pointer transition-all hover:bg-slate-800 group"
-                      >
-                        <div className="flex justify-between items-start mb-2">
-                          <h4 className="text-blue-400 group-hover:text-blue-300 font-medium truncate pr-4">
-                            {doc.title}
-                          </h4>
-                          <RedFlagIndex value={doc.redFlagRating} size="sm" />
-                        </div>
-                        <p className="text-slate-400 text-sm line-clamp-2 mb-3">
-                          {searchTerm
-                            ? renderHighlightedText(doc.content?.substring(0, 300), searchTerm)
-                            : doc.content?.substring(0, 300)}
-                          ...
-                        </p>
-                        <div className="flex items-center gap-4 text-xs text-slate-500">
-                          <span className="flex items-center gap-1">
-                            <Icon name="Calendar" size="xs" /> {doc.date || 'Unknown Date'}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Icon name="TrendingUp" size="xs" /> {doc.mentions} mentions
-                          </span>
-                          <SourceBadge source={doc.source} />
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-10 text-slate-500 italic">
-                      No documents found matching your search.
+                {/* VIRTUALIZED LIST */}
+                <div className="flex-1 min-h-0 relative">
+                  {docsInitialized && !isDocsLoading && documents.length === 0 && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500">
+                      <FileText size={48} className="mb-4 opacity-20" />
+                      <p>No documents found matching your criteria.</p>
                     </div>
                   )}
+
+                  <AutoSizer>
+                    {({ height, width }) => (
+                      <InfiniteLoader
+                        isItemLoaded={isItemLoaded}
+                        itemCount={totalDocs || 50} // Fallback
+                        loadMoreItems={loadMoreDocuments}
+                      >
+                        {({ onItemsRendered, ref }) => (
+                          <List
+                            className="List"
+                            height={height}
+                            itemCount={documents.length}
+                            itemSize={100}
+                            onItemsRendered={onItemsRendered}
+                            ref={ref}
+                            width={width}
+                          >
+                            {({ index, style }) => {
+                              const doc = documents[index];
+                              if (!doc)
+                                return (
+                                  <div style={style} className="p-2">
+                                    <div className="h-full bg-slate-950 border border-slate-800 rounded-lg p-3 flex gap-4 items-center animate-pulse">
+                                      <div className="w-12 h-12 rounded bg-slate-800" />
+                                      <div className="flex-1 space-y-2">
+                                        <div className="h-4 w-3/4 bg-slate-800 rounded" />
+                                        <div className="h-3 w-1/2 bg-slate-800 rounded" />
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+
+                              return (
+                                <div style={style} className="p-2">
+                                  <div
+                                    className="h-full bg-slate-950 border border-slate-800 rounded-lg p-3 hover:border-slate-600 transition-colors flex gap-4 group cursor-pointer"
+                                    onClick={() => window.open(`/documents/${doc.id}`, '_blank')}
+                                  >
+                                    {/* Icon Box */}
+                                    <div className="shrink-0 w-12 h-12 bg-slate-900 rounded flex items-center justify-center text-slate-500 group-hover:text-indigo-400 group-hover:bg-indigo-500/10 transition-colors">
+                                      <FileText size={20} />
+                                    </div>
+
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex justify-between items-start">
+                                        <h4 className="text-slate-200 font-medium text-sm truncate pr-4">
+                                          {doc.title || doc.fileName}
+                                        </h4>
+                                        <span className="text-xs text-slate-500 shrink-0 flex items-center gap-1">
+                                          <Calendar size={10} />
+                                          {doc.dateCreated
+                                            ? new Date(doc.dateCreated).toLocaleDateString()
+                                            : 'Unknown Date'}
+                                        </span>
+                                      </div>
+                                      <p className="text-slate-500 text-xs mt-1 truncate">
+                                        {doc.evidenceType || 'Unclassified Document'} •{' '}
+                                        {doc.fileSize
+                                          ? (doc.fileSize / 1024).toFixed(1) + ' KB'
+                                          : ''}
+                                      </p>
+                                      {doc.contentPreview && (
+                                        <p className="text-slate-400 text-xs mt-2 line-clamp-1 italic opacity-70">
+                                          "...{doc.contentPreview}..."
+                                        </p>
+                                      )}
+                                    </div>
+
+                                    <div className="shrink-0 self-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <ExternalLink size={16} className="text-slate-400" />
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            }}
+                          </List>
+                        )}
+                      </InfiniteLoader>
+                    )}
+                  </AutoSizer>
                 </div>
               </div>
             )}
 
-            {/* MEDIA TAB */}
-            {activeTab === 'media' && (
-              <div className="max-w-6xl mx-auto">
-                <EntityMediaGallery
-                  media={fullMedia.length > 0 ? fullMedia : enrichedPerson.photos || []}
-                  entityName={enrichedPerson.name}
-                  loading={loadingMedia}
-                />
-              </div>
-            )}
-
-            {/* NETWORK TAB */}
-            {activeTab === 'network' && (
-              <div className="h-full min-h-[500px] bg-slate-900 rounded-xl overflow-hidden">
-                {networkGraphData ? (
-                  <NetworkVisualization
-                    nodes={networkGraphData.nodes}
-                    edges={networkGraphData.edges}
-                    interactive={true}
-                    height={600}
-                    onNodeClick={(node) => {
-                      if (node.id !== person.id.toString()) {
-                        onClose();
-                        navigate(`/entity/${node.id}`);
-                      }
-                    }}
-                  />
+            {/* 3. MEDIA TAB */}
+            {activeTab === 'media' && entity && (
+              <div className="p-6">
+                {entity.photos && entity.photos.length > 0 ? (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {entity.photos.map((photo, i) => (
+                      <div
+                        key={i}
+                        className="aspect-square rounded-lg bg-slate-800 overflow-hidden relative group"
+                      >
+                        <img
+                          src={photo.url}
+                          alt={photo.title}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <button className="px-3 py-1 bg-white text-black text-xs font-bold rounded-full">
+                            VIEW
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 ) : (
-                  <div className="flex items-center justify-center h-full text-slate-500">
-                    <div className="flex flex-col items-center gap-3">
-                      <Activity className="w-8 h-8 animate-pulse text-blue-500" />
-                      <span>Loading network connection graph...</span>
-                    </div>
+                  <div className="text-center py-20 text-slate-500">
+                    <Search size={48} className="mx-auto mb-4 opacity-20" />
+                    <p>No media files found for this entity.</p>
                   </div>
                 )}
               </div>
             )}
           </div>
-        </div>
-
-        {showRelationshipModal && (
-          <CreateRelationshipModal
-            onClose={() => setShowRelationshipModal(false)}
-            onSuccess={() => {}}
-            initialSourceId={person.id.toString()}
-          />
-        )}
-      </div>,
-      document.body,
-    );
-  },
-);
-
-EvidenceModal.displayName = 'EvidenceModal';
+        </motion.div>
+      </div>
+    </AnimatePresence>,
+    document.body,
+  );
+};

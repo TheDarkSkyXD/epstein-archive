@@ -710,7 +710,11 @@ export const EmailClient: React.FC = () => {
       </AnimatePresence>
 
       {selectedEntity && (
-        <EvidenceModal person={selectedEntity} onClose={() => setSelectedEntity(null)} />
+        <EvidenceModal
+          entityId={selectedEntity.id}
+          isOpen={!!selectedEntity}
+          onClose={() => setSelectedEntity(null)}
+        />
       )}
     </div>
   );

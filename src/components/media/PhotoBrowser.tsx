@@ -1311,7 +1311,11 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
       {previewPerson && (
         <React.Suspense fallback={null}>
           <div className="fixed inset-0 z-[11000] pointer-events-auto">
-            <EvidenceModal person={previewPerson} onClose={() => setPreviewPerson(null)} />
+            <EvidenceModal
+              entityId={String(previewPerson.id)}
+              isOpen={!!previewPerson}
+              onClose={() => setPreviewPerson(null)}
+            />
           </div>
         </React.Suspense>
       )}

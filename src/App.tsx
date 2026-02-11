@@ -7,11 +7,6 @@ import { Person } from './types';
 import { Document } from './types/documents';
 import { OptimizedDataService, SearchFilters } from './services/OptimizedDataService';
 import { useNavigation } from './services/ContentNavigationService.tsx';
-import PersonCard from './components/entities/PersonCard';
-import MediaAndArticlesTab from './components/media/MediaAndArticlesTab';
-import PersonCardSkeleton from './components/entities/PersonCardSkeleton';
-import StatsSkeleton from './components/pages/StatsSkeleton';
-import { StatsDisplay } from './components/pages/StatsDisplay';
 import { apiClient } from './services/apiClient';
 import { DocumentProcessor } from './services/documentProcessor';
 // SECURITY: Removed synthetic sample documents import - never fall back to fake data
@@ -24,12 +19,9 @@ import ScopedErrorBoundary from './components/common/ScopedErrorBoundary';
 import LoadingIndicator from './components/common/LoadingIndicator';
 import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
 import { Breadcrumb } from './components/layout/Breadcrumb';
-import { VirtualList } from './components/common/VirtualList';
 import Icon from './components/common/Icon';
 import { RedactedLogo } from './components/RedactedLogo';
 // getEntityTypeIcon available via Icon component
-import EntityTypeFilter from './components/entities/EntityTypeFilter';
-import SortFilter from './components/layout/SortFilter';
 import { FirstRunOnboarding } from './components/FirstRunOnboarding';
 import { useFirstRunOnboarding } from './hooks/useFirstRunOnboarding';
 import { InvestigationsProvider } from './contexts/InvestigationsContext';
@@ -47,21 +39,11 @@ import { AnalyticsPage } from './pages/AnalyticsPage';
 const EvidenceModal = lazy(() =>
   import('./components/common/EvidenceModal').then((module) => ({ default: module.EvidenceModal })),
 );
-const DataVisualization = lazy(() =>
-  import('./components/visualizations/DataVisualization').then((module) => ({
-    default: module.DataVisualization,
-  })),
-);
 const BlackBookViewer = lazy(() =>
   import('./components/BlackBookViewer').then((module) => ({ default: module.BlackBookViewer })),
 );
 const EvidenceSearch = lazy(() =>
   import('./components/EvidenceSearch').then((module) => ({ default: module.EvidenceSearch })),
-);
-const DocumentBrowser = lazy(() =>
-  import('./components/documents/DocumentBrowser').then((module) => ({
-    default: module.DocumentBrowser,
-  })),
 );
 const DocumentModal = lazy(() =>
   import('./components/documents/DocumentModal').then((module) => ({
@@ -78,9 +60,6 @@ const ReleaseNotesPanel = lazy(() =>
     default: module.ReleaseNotesPanel,
   })),
 );
-const EmailClient = lazy(() =>
-  import('./components/email/EmailClient').then((module) => ({ default: module.default })),
-);
 const AboutPage = lazy(() =>
   import('./components/pages/AboutPage').then((module) => ({ default: module.default })),
 );
@@ -96,20 +75,6 @@ const EvidenceDetail = lazy(() =>
 );
 const ReviewDashboard = lazy(() =>
   import('./pages/ReviewDashboard').then((module) => ({ default: module.ReviewDashboard })),
-);
-const EnhancedAnalytics = lazy(() =>
-  import('./components/pages/EnhancedAnalytics').then((module) => ({
-    default: module.EnhancedAnalytics,
-  })),
-);
-const TimelineWithFlights = lazy(() =>
-  import('./components/TimelineWithFlights').then((module) => ({ default: module.default })),
-);
-const FlightTracker = lazy(() =>
-  import('./components/FlightTracker').then((module) => ({ default: module.default })),
-);
-const PropertyBrowser = lazy(() =>
-  import('./components/PropertyBrowser').then((module) => ({ default: module.default })),
 );
 
 import releaseNotesRaw from '../release_notes.md?raw';
@@ -1822,13 +1787,12 @@ function App() {
               {selectedPerson && (
                 <ScopedErrorBoundary>
                   <EvidenceModal
-                    person={selectedPerson}
+                    entityId={selectedPerson.id.toString()}
+                    isOpen={!!selectedPerson}
                     onClose={() => {
                       setSelectedPerson(null);
                       navigate(previousPath || '/people');
                     }}
-                    searchTerm={searchTermForModal}
-                    onDocumentClick={handleDocumentClick}
                   />
                 </ScopedErrorBoundary>
               )}

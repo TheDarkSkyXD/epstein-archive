@@ -424,7 +424,11 @@ export const BlackBookViewer: React.FC = () => {
 
       {/* Entity Modal */}
       {selectedEntity && (
-        <EvidenceModal person={selectedEntity} onClose={() => setSelectedEntity(null)} />
+        <EvidenceModal
+          entityId={selectedEntity.id}
+          isOpen={true}
+          onClose={() => setSelectedEntity(null)}
+        />
       )}
     </div>
   );

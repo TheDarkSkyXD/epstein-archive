@@ -15,7 +15,6 @@ import { mediaRepository } from './server/db/mediaRepository.js';
 import { investigationsRepository } from './server/db/investigationsRepository.js';
 import { searchRepository } from './server/db/searchRepository.js';
 import { timelineRepository } from './server/db/timelineRepository.js';
-import { forensicRepository } from './server/db/forensicRepository.js';
 import { runMigrations } from './server/db/migrator.js';
 import { validateStartup } from './server/utils/startupValidation.js';
 import { authenticateRequest, requireRole } from './server/auth/middleware.js';
@@ -38,8 +37,7 @@ import { communicationsRepository } from './server/db/communicationsRepository.j
 import crypto from 'crypto';
 import multer from 'multer';
 import fs from 'fs';
-import bcrypt from 'bcryptjs';
-import { Person, SearchFilters, SortOption, Evidence, Photo, User } from './types';
+import { Person, SearchFilters, SortOption, Evidence, User } from './types';
 import { MediaImage } from './types/media.types';
 import { config } from './config/index.js';
 import { blackBookRepository } from './server/db/blackBookRepository.js';
@@ -748,8 +746,38 @@ app.get('/api/entities/all', cacheMiddleware(300), async (_req, res, next) => {
   }
 });
 
+// ULTRATHINK: New Subject Card Endpoint
+app.get('/api/subjects', cacheMiddleware(300), (req, res) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 24;
+
+    // Parse filters ensuring arrays are handled correctly
+    const likelihoodScore = req.query.likelihoodScore
+      ? ((Array.isArray(req.query.likelihoodScore)
+          ? req.query.likelihoodScore
+          : [req.query.likelihoodScore]) as ('HIGH' | 'MEDIUM' | 'LOW')[])
+      : undefined;
+
+    const filters: SearchFilters = {
+      searchTerm: (req.query.search as string) || undefined,
+      role: (req.query.role as string) || undefined,
+      entityType: (req.query.entityType as string) || undefined,
+      likelihoodScore,
+    };
+
+    const sortBy = (req.query.sortBy as SortOption) || 'red_flag';
+
+    const result = entitiesRepository.getSubjectCards(page, limit, filters, sortBy);
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching subject cards:', error);
+    res.status(500).json({ error: 'Failed to fetch subjects' });
+  }
+});
+
 // Get single entity with error handling
-app.get('/api/entities/:id', async (req, res, next) => {
+app.get('/api/entities/:id', cacheMiddleware(60), async (req, res, next) => {
   try {
     const entityId = req.params.id;
 
@@ -811,6 +839,55 @@ app.get('/api/entities/:id', async (req, res, next) => {
   }
 });
 
+// Get paginated documents for an entity (Performance Optimization)
+app.get('/api/entities/:id/documents', cacheMiddleware(30), async (req, res, next) => {
+  try {
+    const entityId = req.params.id;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 50;
+    const search = req.query.search as string;
+    const source = req.query.source as string;
+    const sort = req.query.sort as string;
+
+    if (!/^\d+$/.test(entityId)) {
+      return res.status(400).json({ error: 'Invalid entity ID' });
+    }
+
+    const filters = { search, source, sort };
+
+    // Parallel fetch for perf
+    // We skip count if searching (complex) or just do it separate
+    const documents = entitiesRepository.getEntityDocumentsPaginated(
+      entityId,
+      page,
+      limit,
+      filters,
+    );
+
+    // Only get total count on first page or if explicitly requested
+    // For search, we might need a separate count query or just let infinite scroll run until empty
+    let total = 0;
+    if (!search && !source) {
+      total = entitiesRepository.getEntityDocumentCount(entityId);
+    } else {
+      // Approximation or separate count query for filtered results could be added here
+      // For now, if we returned < limit, we know we're at the end.
+      // If we returned limit, assume there's more.
+      // React-window-infinite-loader handles this often by "itemCount + 1"
+      total = 50000; // soft max or implement filtered count
+    }
+
+    res.json({
+      data: documents,
+      page,
+      limit,
+      total, // Client can use this to set list height
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
 // Communications for an entity (email-based)
 app.get('/api/entities/:id/communications', async (req, res, next) => {
   try {
@@ -844,18 +921,6 @@ app.get('/api/entities/:id/communications', async (req, res, next) => {
 
 // Mount Articles Routes
 app.use('/api/articles', articlesRoutes);
-
-// Get documents for a specific entity
-app.get('/api/entities/:id/documents', async (req, res, next) => {
-  try {
-    const entityId = req.params.id;
-    const result = await entitiesRepository.getEntityDocuments(entityId);
-    res.json(result);
-  } catch (error) {
-    console.error('Error fetching entity documents:', error);
-    next(error);
-  }
-});
 
 // Get media for a specific entity
 app.get('/api/entities/:id/media', async (req, res, next) => {

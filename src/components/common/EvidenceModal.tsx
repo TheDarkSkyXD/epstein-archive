@@ -1,8 +1,9 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Network, Layout, FileText, Image, Activity } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { X, Network, Layout, FileText, Image, Activity, Phone, Mail, MapPin } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Person } from '../../types';
+
 import { apiClient } from '../../services/apiClient';
 import { RedFlagIndex } from '../visualizations/RedFlagIndex';
 import { Breadcrumb } from '../layout/Breadcrumb';
@@ -34,6 +35,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
     const [filterQuery, setFilterQuery] = useState('');
     const [showRelationshipModal, setShowRelationshipModal] = useState(false);
     const { modalRef } = useModalFocusTrap(true);
+    const navigate = useNavigate();
 
     // Modal Background Scroll Lock
     useEffect(() => {
@@ -394,34 +396,103 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
                       />
                     )}
 
-                    {/* Black Book Entry */}
-                    {enrichedPerson.blackBookEntry && (
-                      <div className="bg-purple-950/10 border border-purple-900/30 rounded-xl p-5">
-                        <h3 className="text-purple-400 font-semibold mb-3 flex items-center gap-2">
-                          <Icon name="Book" size="sm" />
-                          Black Book Entry
-                        </h3>
-                        <div className="space-y-3">
-                          {enrichedPerson.blackBookEntry.phoneNumbers?.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                              {enrichedPerson.blackBookEntry.phoneNumbers.map(
-                                (phone: string, i: number) => (
-                                  <span
-                                    key={i}
-                                    className="px-2 py-1 bg-purple-900/40 text-purple-200 text-xs rounded border border-purple-800/50 flex items-center gap-1"
-                                  >
-                                    <Icon name="Phone" size="xs" /> {phone}
-                                  </span>
-                                ),
-                              )}
+                    {/* Black Book Entries */}
+                    {enrichedPerson.blackBookEntries &&
+                      enrichedPerson.blackBookEntries.length > 0 && (
+                        <div className="space-y-4">
+                          <div className="bg-slate-900 border border-slate-700/50 rounded-xl p-5">
+                            <h3 className="text-cyan-400 font-semibold mb-3 flex items-center gap-2">
+                              <Icon name="Book" size="sm" />
+                              Contact Information
+                            </h3>
+                            <div className="space-y-6">
+                              {/* Grouped by Category */}
+                              {['original', 'contact', 'credential'].map((cat) => {
+                                const catEntries = enrichedPerson.blackBookEntries?.filter(
+                                  (e) =>
+                                    e.entry_category === cat ||
+                                    (!e.entry_category && cat === 'original'),
+                                );
+                                if (!catEntries || catEntries.length === 0) return null;
+
+                                return (
+                                  <div key={cat} className="space-y-3">
+                                    <div className="flex items-center gap-2">
+                                      <div className="h-px flex-1 bg-slate-800" />
+                                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                                        {cat === 'original'
+                                          ? 'Verified Profile'
+                                          : cat === 'contact'
+                                            ? 'Harvested Intelligence'
+                                            : 'Credentials'}
+                                      </span>
+                                      <div className="h-px flex-1 bg-slate-800" />
+                                    </div>
+
+                                    {catEntries.map((entry, idx) => (
+                                      <div
+                                        key={idx}
+                                        className="bg-slate-950/50 rounded-lg p-3 border border-slate-800/50 group/contact"
+                                      >
+                                        <div className="flex flex-wrap gap-2 mb-2">
+                                          {entry.phoneNumbers?.map((phone, i) => (
+                                            <span
+                                              key={i}
+                                              className="px-2 py-1 bg-blue-900/20 text-blue-300 text-xs rounded border border-blue-800/30 flex items-center gap-1"
+                                            >
+                                              <Icon name="Phone" size="xs" /> {phone}
+                                            </span>
+                                          ))}
+                                          {entry.emailAddresses?.map((email, i) => (
+                                            <span
+                                              key={i}
+                                              className="px-2 py-1 bg-emerald-900/20 text-emerald-300 text-xs rounded border border-emerald-800/30 flex items-center gap-1"
+                                            >
+                                              <Icon name="Mail" size="xs" /> {email}
+                                            </span>
+                                          ))}
+                                          {entry.addresses?.map((addr, i) => (
+                                            <span
+                                              key={i}
+                                              className="px-2 py-1 bg-amber-900/20 text-amber-300 text-xs rounded border border-amber-800/30 flex items-center gap-1"
+                                            >
+                                              <Icon name="MapPin" size="xs" /> {addr}
+                                            </span>
+                                          ))}
+                                        </div>
+
+                                        <p className="text-slate-400 text-sm italic mb-2">
+                                          {entry.entryText?.includes('⭐')
+                                            ? entry.entryText
+                                            : entry.notes || 'No details.'}
+                                        </p>
+
+                                        {entry.document_id && (
+                                          <div className="flex justify-end">
+                                            <button
+                                              onClick={() => {
+                                                const doc = documents.find(
+                                                  (d) => d.id === entry.document_id,
+                                                );
+                                                if (doc) onDocumentClick?.(doc);
+                                                else navigate(`/documents/${entry.document_id}`);
+                                              }}
+                                              className="text-[10px] text-slate-500 hover:text-cyan-400 flex items-center gap-1 transition-colors group-hover/contact:text-slate-400"
+                                            >
+                                              <Icon name="FileText" size="xs" />
+                                              Source Document
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                );
+                              })}
                             </div>
-                          )}
-                          <p className="text-slate-400 text-sm italic border-l-2 border-purple-800/50 pl-3">
-                            {enrichedPerson.blackBookEntry.notes || 'No notes in entry.'}
-                          </p>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
                   </div>
 
                   {/* Recent Evidence Snippets */}

@@ -1,3 +1,12 @@
+## v12.13.0 — 2026-02-11
+
+### Black Book Intelligence Expansion
+
+- **Automated Contact Harvesting**: The ingestion pipeline now extracts emails and phone numbers from document context and automatically links them to person entities via `person_id`.
+- **Dossier-Style Entity Modals**: Redesigned `EvidenceModal` to include comprehensive biographies, profile pictures, and categorized contact information (Verified Profile vs. Harvested Intelligence).
+- **Proactive Source Linking**: All harvested intelligence now features direct "Source Document" links for immediate forensic verification.
+- **Enhanced Black Book UX**: Added category filtering (Original, Contact, Credential) to the Black Book viewer with visual highlighting (⭐) for AI-enriched data.
+
 ## v12.12.1 — 2026-02-11
 
 ### Pipeline Reliability & Schema Hardening

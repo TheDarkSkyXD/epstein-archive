@@ -431,4 +431,48 @@ Content: "${content.slice(0, 2000)}"
       return null;
     }
   }
+
+  /**
+   * CLEAN: Black Book Entry Normalization
+   */
+  static async cleanBlackBookEntry(entryText: string): Promise<{
+    name: string;
+    phones: string[];
+    emails: string[];
+    addresses: string[];
+    notes: string;
+  } | null> {
+    const isAiEnabled = process.env.ENABLE_AI_ENRICHMENT === 'true';
+    if (!isAiEnabled || !entryText || entryText.length < 5) return null;
+
+    try {
+      const prompt = `### INSTRUCTION
+Normalize this "Black Book" contact entry. Fix OCR errors, extract structured fields, and separate notes.
+
+### ENTRY TEXT
+"${entryText.replace(/"/g, "'")}"
+
+### OUTPUT FORMAT (JSON ONLY)
+{
+  "name": "Canonical Full Name",
+  "phones": ["+1-XXX-XXX-XXXX"],
+  "emails": ["example@domain.com"],
+  "addresses": ["Full Address"],
+  "notes": "Any extra context (titles, assistant names, etc.)"
+}
+
+### OUTPUT`;
+
+      const result = await this.callLLM(prompt, { maxTokens: 300, temperature: 0.1 });
+
+      // Attempt to parse JSON
+      const jsonMatch = result.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
 }

@@ -14,6 +14,8 @@ interface BlackBookEntry {
   addresses: string[];
   email_addresses: string[];
   notes: string;
+  entry_category: 'original' | 'contact' | 'credential';
+  document_id?: number;
   person_name?: string;
 }
 
@@ -26,7 +28,9 @@ export const BlackBookViewer: React.FC = () => {
   const [hasPhone, setHasPhone] = useState<boolean>(false);
   const [hasEmail, setHasEmail] = useState<boolean>(false);
   const [hasAddress, setHasAddress] = useState<boolean>(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [showRaw, setShowRaw] = useState<boolean>(false);
+
   const [selectedEntity, setSelectedEntity] = useState<any | null>(null);
   const [loadingEntity, setLoadingEntity] = useState<number | null>(null);
 
@@ -40,7 +44,7 @@ export const BlackBookViewer: React.FC = () => {
   useEffect(() => {
     fetchBlackBookEntries();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchBlackBookEntries is stable and defined below
-  }, [searchTerm, selectedLetter, hasPhone, hasEmail, hasAddress]);
+  }, [searchTerm, selectedLetter, hasPhone, hasEmail, hasAddress, selectedCategory]);
 
   const fetchBlackBookEntries = async () => {
     try {
@@ -51,7 +55,9 @@ export const BlackBookViewer: React.FC = () => {
       if (hasPhone) params.set('hasPhone', 'true');
       if (hasEmail) params.set('hasEmail', 'true');
       if (hasAddress) params.set('hasAddress', 'true');
+      if (selectedCategory !== 'ALL') params.set('category', selectedCategory.toLowerCase());
       params.set('limit', '5000');
+
       const response = await fetch(`/api/black-book?${params.toString()}`);
       const result = await response.json();
 
@@ -232,6 +238,24 @@ export const BlackBookViewer: React.FC = () => {
           <span>Has Address</span>
           <MapPin className="w-4 h-4 text-slate-400" />
         </label>
+
+        <div className="h-6 w-px bg-slate-700 mx-2 hidden sm:block" />
+
+        <div className="flex bg-slate-800/80 p-1 rounded-lg border border-slate-700/50">
+          {['ALL', 'Original', 'Contact', 'Credential'].map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                selectedCategory === cat
+                  ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Entries Grid */}
@@ -358,6 +382,31 @@ export const BlackBookViewer: React.FC = () => {
                       No contact information available
                     </div>
                   )}
+
+                {/* Metadata & Categories */}
+                <div className="pt-3 mt-auto flex items-center justify-between border-t border-slate-700/50">
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                      entry.entry_category === 'credential'
+                        ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                        : entry.entry_category === 'contact'
+                          ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
+                          : 'bg-slate-700/50 text-slate-400 border border-slate-600/30'
+                    }`}
+                  >
+                    {entry.entry_category}
+                  </span>
+
+                  {entry.document_id && (
+                    <Link
+                      to={`/documents/${entry.document_id}`}
+                      className="text-[10px] text-slate-500 hover:text-cyan-400 flex items-center gap-1 transition-colors"
+                    >
+                      <FileText className="w-3 h-3" />
+                      Source Document
+                    </Link>
+                  )}
+                </div>
               </div>
             </div>
           );

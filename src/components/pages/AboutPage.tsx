@@ -185,6 +185,12 @@ const timelineEvents = [
     content:
       'V12.12.1: Pipeline Reliability & Schema Hardening. Refactored intelligence worker for per-document commits and synchronized database quarantine logic for robust processing of the 1.3M document backlog.',
   },
+  {
+    date: 'Feb 11, 2026',
+    source: 'Epstein Archive',
+    content:
+      'V12.13.0: Black Book Intelligence Expansion. Launched automated contact harvesting with person-entity linking. Integrated dossier-style profile modals with bios, photos, and categorized forensic contacts.',
+  },
 ];
 
 // Helper to get color classes

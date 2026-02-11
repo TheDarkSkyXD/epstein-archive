@@ -319,17 +319,17 @@ export const entitiesRepository = {
       )
       .all(entity.id);
 
-    // Check if this entity has an entry in the Black Book
-    const blackBookEntry = db
+    // Check for entries in the Black Book
+    const blackBookEntries = db
       .prepare(
         `
             SELECT bb.*
             FROM black_book_entries bb
             WHERE bb.person_id = ?
-            LIMIT 1
+            ORDER BY bb.created_at DESC
         `,
       )
-      .get(entity.id) as any;
+      .all(entity.id) as any[];
 
     // Get evidence types for this entity
     const evidenceTypes = db
@@ -398,21 +398,17 @@ export const entitiesRepository = {
         url: `/api/media/images/${p.id}/thumbnail`,
       })),
       // Add Black Book information if available
-      blackBookEntry: blackBookEntry
-        ? {
-            id: blackBookEntry.id,
-            personId: blackBookEntry.person_id,
-            entryText: blackBookEntry.entry_text,
-            phoneNumbers: blackBookEntry.phone_numbers
-              ? JSON.parse(blackBookEntry.phone_numbers)
-              : [],
-            addresses: blackBookEntry.addresses ? JSON.parse(blackBookEntry.addresses) : [],
-            emailAddresses: blackBookEntry.email_addresses
-              ? JSON.parse(blackBookEntry.email_addresses)
-              : [],
-            notes: blackBookEntry.notes,
-          }
-        : null,
+      blackBookEntries: blackBookEntries.map((bb) => ({
+        id: bb.id,
+        personId: bb.person_id,
+        entryText: bb.entry_text,
+        phoneNumbers: bb.phone_numbers ? JSON.parse(bb.phone_numbers) : [],
+        addresses: bb.addresses ? JSON.parse(bb.addresses) : [],
+        emailAddresses: bb.email_addresses ? JSON.parse(bb.email_addresses) : [],
+        notes: bb.notes,
+        entry_category: bb.entry_category,
+        document_id: bb.document_id,
+      })),
     };
   },
   createEntity: (data: any) => {

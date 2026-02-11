@@ -39,12 +39,17 @@ export interface Person {
   red_flag_description?: string;
   risk_level?: 'HIGH' | 'MEDIUM' | 'LOW';
   entity_type?: string;
-  blackBookEntry?: {
+  blackBookEntries?: {
+    id: number;
     phoneNumbers?: string[];
     emailAddresses?: string[];
     addresses?: string[];
+    entryText?: string;
     notes?: string;
-  };
+
+    entry_category?: string;
+    document_id?: number;
+  }[];
   fileReferences: {
     id?: string;
     filename: string;

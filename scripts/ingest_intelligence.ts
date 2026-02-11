@@ -23,16 +23,28 @@ const ORG_PATTERN =
 const MEDIA_PATTERN = /\b(New York Times|Post|News|Press|Journal|Magazine)\b/i;
 const FINANCIAL_PATTERN = /\b(Bank|Financial|Transfer|Payment|Account|Trust|LLC|Inc|Corp)\b/i;
 
-// Phase 3: Quarantine Patterns (Simulated/Heuristic)
-const QUARANTINE_PATTERNS = [
+// Phase 3: High Interest Patterns (Simulated/Heuristic)
+const INTEREST_PATTERNS = [
   { regex: /explicit|child|illegal/i, reason: 'Potentially sensitive keywords' },
   { regex: /password|secret|key/i, reason: 'Potentially leaked credentials' },
 ];
 
-function checkQuarantine(text: string): { status: 'quarantined' | 'none'; reason?: string } {
-  for (const pattern of QUARANTINE_PATTERNS) {
+const CREDENTIAL_PATTERNS = [
+  { type: 'Password', regex: /password[:=]\s*([a-zA-Z0-9!@#$%^&*()_+]{4,})/i },
+  { type: 'API Key', regex: /(?:api[_-]?key|access[_-]?token)[:=]\s*([a-zA-Z0-9-_.]{16,})/i },
+  { type: 'Bank Account', regex: /\b(?:account[_-]?number|iban|routing)[:=]\s*([A-Z0-9-]{8,})\b/i },
+];
+
+const CONTACT_PATTERNS = {
+  email:
+    /[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*/g,
+  phone: /(?:\+?(\d{1,3}))?[-. (]*(\d{3})[-. )]*(\d{3})[-. ]*(\d{4})/g,
+};
+
+function checkHighInterest(text: string): { status: 'high_interest' | 'none'; reason?: string } {
+  for (const pattern of INTEREST_PATTERNS) {
     if (pattern.regex.test(text)) {
-      return { status: 'quarantined', reason: pattern.reason };
+      return { status: 'high_interest', reason: pattern.reason };
     }
   }
   return { status: 'none' };
@@ -89,6 +101,109 @@ function normalizeName(name: string): string {
     .trim();
 }
 
+function extractCredentials(doc: any, content: string) {
+  for (const pattern of CREDENTIAL_PATTERNS) {
+    const regex = new RegExp(pattern.regex, 'gi');
+    const matches = [...content.matchAll(regex)];
+    for (const match of matches) {
+      if (match[1]) {
+        db.prepare(
+          `
+          INSERT INTO black_book_entries (entry_text, notes, document_id, entry_category, created_at)
+          VALUES (?, ?, ?, 'credential', CURRENT_TIMESTAMP)
+        `,
+        ).run(
+          `⭐ ${pattern.type}: ${match[1]}`,
+          `[CREDENTIAL] Extracted from document ${doc.id} (${doc.file_name})`,
+          doc.id,
+        );
+        console.log(`   🔐 Extracted ${pattern.type} from document ${doc.id}`);
+      }
+    }
+  }
+}
+
+function harvestContacts(doc: any, content: string, entitiesFound: any[]) {
+  // Look for contact info near identified Person entities
+  for (const entity of entitiesFound) {
+    if (entity.type !== 'Person') continue;
+
+    // Find name mentions in content to look around them
+
+    const nameRegex = new RegExp(entity.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    let match;
+    while ((match = nameRegex.exec(content)) !== null) {
+      const idx = match.index;
+      // Look for contacts in the next 150 characters
+      const window = content.substring(idx, idx + 200);
+
+      const emails = [...window.matchAll(CONTACT_PATTERNS.email)];
+      const phones = [...window.matchAll(CONTACT_PATTERNS.phone)];
+
+      for (const emailMatch of emails) {
+        const email = emailMatch[0];
+        // Only insert if not already present for this doc
+        const existing = db
+          .prepare(
+            `
+          SELECT id FROM black_book_entries 
+          WHERE document_id = ? AND entry_text LIKE ?
+        `,
+          )
+          .get(doc.id, `%${email}%`);
+
+        if (!existing) {
+          const entry_text = `⭐ ${entity.name} (Contact): ${email}`;
+          const notes = `[HARVESTED] Found near name in document ${doc.id} (${doc.file_name})`;
+
+          db.prepare(
+            `
+            INSERT INTO black_book_entries (person_id, entry_text, notes, document_id, entry_category, created_at)
+            VALUES (@person_id, @entry_text, @notes, @document_id, 'contact', CURRENT_TIMESTAMP)
+          `,
+          ).run({
+            person_id: entity.entityId || null,
+            entry_text,
+            notes,
+            document_id: doc.id,
+          });
+          console.log(`   📧 Harvested email for ${entity.name}`);
+        }
+      }
+
+      for (const phoneMatch of phones) {
+        const phone = phoneMatch[0];
+        const existing = db
+          .prepare(
+            `
+          SELECT id FROM black_book_entries 
+          WHERE document_id = ? AND entry_text LIKE ?
+        `,
+          )
+          .get(doc.id, `%${phone}%`);
+
+        if (!existing) {
+          const entry_text = `⭐ ${entity.name} (Contact): ${phone}`;
+          const notes = `[HARVESTED] Found near name in document ${doc.id} (${doc.file_name})`;
+
+          db.prepare(
+            `
+            INSERT INTO black_book_entries (person_id, entry_text, notes, document_id, entry_category, created_at)
+            VALUES (@person_id, @entry_text, @notes, @document_id, 'contact', CURRENT_TIMESTAMP)
+          `,
+          ).run({
+            person_id: entity.entityId || null,
+            entry_text,
+            notes,
+            document_id: doc.id,
+          });
+          console.log(`   📞 Harvested phone for ${entity.name}`);
+        }
+      }
+    }
+  }
+}
+
 function makeId(): string {
   // Simple 128-bit hex id for spans, mentions, etc.
   return crypto.randomBytes(16).toString('hex');
@@ -113,7 +228,7 @@ export async function runIntelligencePipeline() {
   db = new Database(DB_PATH, { timeout: 30000 });
 
   // 0. Pre-Flight: MIME Sanitization (Critical for uncovering hidden entities)
-  sanitizeContent();
+  // sanitizeContent();
 
   let currentResolverRunTableId: number | bigint = 0;
 
@@ -420,7 +535,13 @@ export async function runIntelligencePipeline() {
 
     // Simplification: Count every extraction towards the cap to be safe and prevent massive fan-out
     (doc as any).newEntitiesCount = ((doc as any).newEntitiesCount || 0) + 1;
-    return { entityId, mentionId: dbMentionId, type: entityType, confidence };
+    return {
+      entityId,
+      mentionId: dbMentionId,
+      type: entityType,
+      confidence,
+      name: resolvedName,
+    };
   }
 
   function extractAndStoreTriples(
@@ -539,6 +660,21 @@ export async function runIntelligencePipeline() {
       updateSignal.run(score, s.id);
     }
 
+    // Expanded Harvesting: Extract contact information for persons found across all sentences
+    const allFound = sentences.flatMap((s) =>
+      [...s.sentence_text.matchAll(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,5})\b/g)]
+        .map((match) => {
+          const info = extractAndStoreMention(doc, match, s.sentence_text, s.id, s.page_id);
+          return info ? { name: info.name, type: info.type, entityId: info.entityId } : null;
+        })
+        .filter(Boolean),
+    );
+    harvestContacts(
+      doc,
+      (doc as any).content || sentences.map((s) => s.sentence_text).join(' '),
+      allFound,
+    );
+
     rollupScores(doc.id);
   }
 
@@ -602,6 +738,13 @@ export async function runIntelligencePipeline() {
     // For coarse provenance, we only extract triples if they are relatively close (e.g. within 200 chars)
     // but here we'll just skip to avoid garbage links in massive files.
     // In a better version, we'd split by paragraph even in coarse mode.
+
+    // Expanded Harvesting: Extract contact information for persons
+    harvestContacts(
+      doc,
+      content,
+      foundInDoc.map((f) => ({ name: f.name, type: f.type, entityId: f.entityId })),
+    );
   }
 
   entityRows.forEach((row) => {
@@ -698,19 +841,42 @@ export async function runIntelligencePipeline() {
   // Process in batches
   let hasMoreDocs = true;
   while (hasMoreDocs) {
+    // Parse CLI arguments for granular control
+    const targetDocIdIdx = process.argv.indexOf('--document-id');
+    const targetDocId =
+      process.argv.find((arg) => arg.startsWith('--document-id='))?.split('=')[1] ||
+      (targetDocIdIdx !== -1 && targetDocIdIdx + 1 < process.argv.length
+        ? process.argv[targetDocIdIdx + 1]
+        : null);
+
+    const limitIdx = process.argv.indexOf('--limit');
+    const cliLimit =
+      process.argv.find((arg) => arg.startsWith('--limit='))?.split('=')[1] ||
+      (limitIdx !== -1 && limitIdx + 1 < process.argv.length ? process.argv[limitIdx + 1] : null);
+
+    const targetIdVal = targetDocId && !isNaN(parseInt(targetDocId)) ? parseInt(targetDocId) : null;
+    const actualLimit = cliLimit && !isNaN(parseInt(cliLimit)) ? parseInt(cliLimit) : BATCH_SIZE;
+
     const docs = db
       .prepare(
         `
         SELECT id, content, file_name, file_path
         FROM documents
-        WHERE analyzed_at IS NULL AND content IS NOT NULL
-        LIMIT ?
+        WHERE (
+          (@id IS NOT NULL AND id = @id) OR
+          (@id IS NULL AND (analyzed_at IS NULL OR processing_status = 'queued'))
+        ) AND content IS NOT NULL
+        LIMIT @limit
       `,
       )
-      .all(BATCH_SIZE) as any[];
+      .all({ id: targetIdVal, limit: actualLimit }) as any[];
 
     if (docs.length === 0) {
-      console.log('✨ All documents processed.');
+      if (targetDocId) {
+        console.log(`❌ Document ${targetDocId} not found or has no content.`);
+      } else {
+        console.log('✨ All documents processed.');
+      }
       hasMoreDocs = false;
       continue;
     }
@@ -720,29 +886,29 @@ export async function runIntelligencePipeline() {
     newMentions = 0;
 
     const markAnalyzed = db.prepare(
-      "UPDATE documents SET analyzed_at = datetime('now') WHERE id = ?",
+      "UPDATE documents SET analyzed_at = datetime('now'), processing_status = 'succeeded' WHERE id = ?",
     );
 
     for (const doc of docs) {
       db.transaction(() => {
         const content = doc.content as string;
 
-        // Phase 3: Content Classification & Quarantine
-        const q = checkQuarantine(content);
-        if (q.status === 'quarantined') {
+        // Phase 3: Content Classification & High Interest Booster
+        const q = checkHighInterest(content);
+        if (q.status === 'high_interest') {
           db.prepare(
             `
             UPDATE documents 
-            SET quarantine_status = 'quarantined', 
-                quarantine_reason = ?, 
-                quarantine_at = CURRENT_TIMESTAMP 
+            SET red_flag_rating = 10, 
+                processing_error = ? 
             WHERE id = ?
           `,
-          ).run(q.reason, doc.id);
-          console.log(`   ⚠️ Document ${doc.id} quarantined: ${q.reason}`);
-          markAnalyzed.run(doc.id);
-          return;
+          ).run(`High Interest: ${q.reason}`, doc.id);
+          console.log(`   🔥 Document ${doc.id} flagged as High Interest: ${q.reason}`);
         }
+
+        // Phase 4: Credential Harvesting
+        extractCredentials(doc, content);
 
         // Fetch granular data (Pages/Sentences) for provenance
         const hasSentencesTable = !!db

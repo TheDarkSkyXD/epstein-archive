@@ -1251,8 +1251,9 @@ app.get('/api/entities/:id', async (req, res, next) => {
       timelineEvents: entity.timelineEvents || [],
       networkConnections: entity.networkConnections || [],
       // Include Black Book information if available
-      blackBookEntry: entity.blackBookEntry || null,
+      blackBookEntries: entity.blackBookEntries || [],
     };
+
     res.json(transformedEntity);
   } catch (error) {
     console.error('Error fetching entity:', error);
@@ -1380,6 +1381,7 @@ app.get('/api/black-book', cacheMiddleware(300), async (req, res, next) => {
       hasPhone: req.query.hasPhone === 'true',
       hasEmail: req.query.hasEmail === 'true',
       hasAddress: req.query.hasAddress === 'true',
+      category: req.query.category as 'original' | 'contact' | 'credential' | undefined,
       limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
     };
 

@@ -54,6 +54,7 @@ export const blackBookRepository = {
     hasPhone?: boolean;
     hasEmail?: boolean;
     hasAddress?: boolean;
+    category?: 'original' | 'contact' | 'credential';
     limit?: number;
   }) => {
     const db = getDb();
@@ -91,6 +92,10 @@ export const blackBookRepository = {
     if (filters?.hasAddress) {
       whereClauses.push(`bb.addresses IS NOT NULL AND bb.addresses != '[]'`);
     }
+    if (filters?.category) {
+      whereClauses.push(`bb.entry_category = @category`);
+      params.category = filters.category;
+    }
 
     const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
     const limitClause = filters?.limit ? `LIMIT ${filters.limit}` : '';
@@ -104,8 +109,11 @@ export const blackBookRepository = {
         bb.addresses,
         bb.email_addresses,
         bb.notes,
+        bb.entry_category,
+        bb.document_id,
         p.full_name as person_name,
         ${displayNameExpr} as display_name
+
       FROM black_book_entries bb
       LEFT JOIN entities p ON bb.person_id = p.id
       ${whereClause}

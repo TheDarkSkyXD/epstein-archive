@@ -1,7 +1,7 @@
 {
   "name": "epstein-archive",
   "private": true,
-  "version": "12.12.1",
+  "version": "12.13.0",
   "description": "Epstein Archive Analyzer",
   "type": "module",
   "scripts": {
@@ -23,6 +23,7 @@
     "db:push": "./deploy.sh --db-only",
     "db:pull": "./scripts/sync_down_safe.sh",
     "ingest:intelligence": "DB_PATH=./epstein-archive.db tsx scripts/ingest_intelligence.ts",
+    "black-book:enrich": "DB_PATH=./epstein-archive.db tsx scripts/enrich_black_book.ts",
     "db:optimize": "tsx scripts/maintenance.ts",
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",

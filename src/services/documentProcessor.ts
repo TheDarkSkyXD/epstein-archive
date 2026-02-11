@@ -30,8 +30,8 @@ export class DocumentProcessor {
   private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
   private readonly MAX_CACHE_SIZE = 100;
 
-  // Keywords for spice rating calculation
-  private readonly SPICY_KEYWORDS = {
+  // Keywords for red flag rating calculation
+  private readonly RED_FLAG_KEYWORDS = {
     criminal: 5,
     indictment: 5,
     charges: 5,
@@ -73,8 +73,8 @@ export class DocumentProcessor {
     const metadata = this.extractMetadata(filePath, content);
     const entities = this.extractEntities(content, filePath);
     const passages = this.extractPassages(content, filePath);
-    const redFlagScore = this.calculateSpiceScore(content);
-    const redFlagRating = this.calculateSpiceRating(redFlagScore);
+    const redFlagScore = this.calculateRedFlagScore(content);
+    const redFlagRating = this.calculateRedFlagRating(redFlagScore);
 
     // Forensic Analysis
     const technical = this.extractTechnicalMetadata(content, filePath);
@@ -390,7 +390,7 @@ export class DocumentProcessor {
       if (trimmedSentence.length > 20) {
         const entities = this.extractEntitiesFromPassage(trimmedSentence);
         const keywords = this.extractKeywords(trimmedSentence);
-        const redFlagLevel = this.calculateSpiceScore(trimmedSentence);
+        const redFlagLevel = this.calculateRedFlagScore(trimmedSentence);
 
         passages.push({
           id: `${filePath}_passage_${index}`,
@@ -436,7 +436,7 @@ export class DocumentProcessor {
       (word) =>
         word.length > 3 &&
         !this.isStopWord(word) &&
-        (this.SPICY_KEYWORDS[word as keyof typeof this.SPICY_KEYWORDS] || 0) > 0,
+        (this.RED_FLAG_KEYWORDS[word as keyof typeof this.RED_FLAG_KEYWORDS] || 0) > 0,
     );
 
     return [...new Set(keywords)];
@@ -501,12 +501,12 @@ export class DocumentProcessor {
     return 'low';
   }
 
-  private calculateSpiceScore(content: string): number {
+  private calculateRedFlagScore(content: string): number {
     const lowerContent = content.toLowerCase();
     let score = 0;
     let keywordCount = 0;
 
-    Object.entries(this.SPICY_KEYWORDS).forEach(([keyword, weight]) => {
+    Object.entries(this.RED_FLAG_KEYWORDS).forEach(([keyword, weight]) => {
       const regex = new RegExp(`\\b${keyword}\\b`, 'gi');
       const matches = lowerContent.match(regex);
       if (matches) {
@@ -522,7 +522,7 @@ export class DocumentProcessor {
     return Math.min(score, 100); // Cap at 100
   }
 
-  private calculateSpiceRating(score: number): {
+  private calculateRedFlagRating(score: number): {
     rating: number;
     peppers: string;
     description: string;

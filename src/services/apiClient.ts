@@ -148,7 +148,7 @@ class ApiClient {
       ...e,
       name: e.name ?? e.fullName ?? e.full_name,
       fullName: e.fullName ?? e.name ?? e.full_name,
-      red_flag_rating: e.red_flag_rating ?? e.redFlagRating ?? e.spiceRating ?? 0,
+      red_flag_rating: e.red_flag_rating ?? e.redFlagRating ?? 0,
       files: e.files ?? e.documentCount ?? 0,
       blackBookEntry: e.blackBookEntry || null,
     }));
@@ -162,7 +162,7 @@ class ApiClient {
       ...e,
       name: e.name ?? e.fullName ?? e.full_name,
       fullName: e.fullName ?? e.name ?? e.full_name,
-      red_flag_rating: e.red_flag_rating ?? e.redFlagRating ?? e.spiceRating ?? 0,
+      red_flag_rating: e.red_flag_rating ?? e.redFlagRating ?? 0,
       blackBookEntry: e.blackBookEntry || null,
     } as Person;
   }
@@ -213,7 +213,7 @@ class ApiClient {
           ...e,
           name: e.name ?? e.fullName ?? e.full_name,
           fullName: e.fullName ?? e.name ?? e.full_name,
-          red_flag_rating: e.red_flag_rating ?? e.redFlagRating ?? e.spiceRating ?? 0,
+          red_flag_rating: e.red_flag_rating ?? e.redFlagRating ?? 0,
           blackBookEntry: e.blackBookEntry || null,
         }))
       : [];

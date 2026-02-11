@@ -374,7 +374,7 @@ function App() {
               files: data.documentCount || data.document_count || 0,
               contexts: [],
               evidence_types: data.evidenceTypes || [],
-              spicy_passages: [],
+              significant_passages: [],
               likelihood_score: data.likelihoodLevel || 'MEDIUM',
               fileReferences: [],
               // Enhanced fields

@@ -44,7 +44,7 @@ export interface Person {
   }>;
   evidence_types: string[];
   evidenceTypes?: string[];
-  spicy_passages: Array<{
+  significant_passages: Array<{
     keyword: string;
     passage: string;
     filename: string;
@@ -92,7 +92,7 @@ export interface Person {
 
   // DB & Internal Fields
   connectionsSummary?: string;
-  spicyPassages?: any[];
+  significantPassages?: any[];
   mediaCount?: number;
   timelineEvents?: any[];
   networkConnections?: any[];

@@ -21,12 +21,7 @@ const PersonCard: React.FC<PersonCardProps> = ({
   searchTerm,
 }) => {
   const navigate = useNavigate();
-  const rating = Number(
-    (person as any).red_flag_rating ??
-      (person as any).redFlagRating ??
-      (person as any).spiceRating ??
-      0,
-  );
+  const rating = Number((person as any).red_flag_rating ?? (person as any).redFlagRating ?? 0);
   const photos = React.useMemo(() => {
     if (person.photos && Array.isArray(person.photos)) {
       return person.photos; // Don't slice here so we can check total length

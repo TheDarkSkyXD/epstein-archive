@@ -1128,7 +1128,7 @@ app.get('/api/entities', cacheMiddleware(300), async (req, res, next) => {
       evidence_types: entity.evidence_types || entity.evidenceTypes || [],
       evidenceTypes: entity.evidence_types || entity.evidenceTypes || [],
       photos: photosByEntity[entity.id] || [],
-      spicy_passages: entity.red_flag_passages || entity.spicyPassages || [],
+      significant_passages: entity.red_flag_passages || entity.significantPassages || [],
       likelihood_score: (entity.risk_level || entity.riskLevel || 'LOW').toUpperCase(),
       red_flag_score: entity.red_flag_score !== undefined ? entity.red_flag_score : 0,
       red_flag_rating: entity.red_flag_rating !== undefined ? entity.red_flag_rating : 0,
@@ -1288,8 +1288,8 @@ app.get('/api/entities/:id', async (req, res, next) => {
       bio: entity.bio || entity.description || '',
       description: entity.description || entity.bio || '',
       photos: entity.photos || [],
-      // Ensure spicy_passages key is consistent
-      spicy_passages: entity.spicy_passages || entity.spicyPassages || [],
+      // Ensure significant_passages key is consistent
+      significant_passages: entity.significant_passages || entity.significantPassages || [],
     };
 
     res.json(transformedEntity);
@@ -2169,7 +2169,7 @@ app.get('/api/evidence/search', async (req, res, next) => {
         files: entity.documentCount || (entity.fileReferences ? entity.fileReferences.length : 0),
         contexts: entity.contexts || [],
         evidence_types: entity.evidence_types || entity.evidenceTypes || [],
-        spicy_passages: entity.spicyPassages || [],
+        significant_passages: entity.significantPassages || [],
         likelihood_score: (entity.risk_level || entity.riskLevel || 'LOW').toUpperCase(),
         red_flag_score: entity.red_flag_score !== undefined ? entity.red_flag_score : 0,
         red_flag_rating: redFlagRating,
@@ -2226,7 +2226,7 @@ app.get('/api/search', async (req, res, next) => {
       files: entity.documentCount || (entity.fileReferences ? entity.fileReferences.length : 0),
       contexts: entity.contexts || [],
       evidence_types: entity.evidence_types || entity.evidenceTypes || [],
-      spicy_passages: entity.spicyPassages || [],
+      significant_passages: entity.significantPassages || [],
       likelihood_score: entity.likelihoodLevel,
       red_flag_score: entity.redFlagScore !== undefined ? entity.redFlagScore : 0,
       red_flag_rating: entity.redFlagRating !== undefined ? entity.redFlagRating : 0,

@@ -16,7 +16,7 @@ const mockPerson = {
   files: 5,
   contexts: [],
   evidence_types: ['Email', 'Deposition', 'Flight Record'],
-  spicy_passages: [],
+  significant_passages: [],
   likelihood_score: 'HIGH' as const,
   spice_score: 8,
   spice_rating: 4,

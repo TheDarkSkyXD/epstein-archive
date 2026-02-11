@@ -47,7 +47,7 @@ export class DataLoaderService {
         files: person.fileReferences?.split(',')?.length || 0,
         contexts: this.generateContexts(person),
         evidence_types: person.keyEvidence?.split(',')?.map((e: string) => e.trim()) || [],
-        spicy_passages: [],
+        significant_passages: [],
         likelihood_score: this.mapLikelihood(person.likelihoodLevel),
         red_flag_score: this.calculateRedFlagScore(person),
         red_flag_rating: this.calculateRedFlagRating(person),

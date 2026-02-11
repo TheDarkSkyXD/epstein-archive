@@ -270,7 +270,7 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
     return people.map((person) => ({
       person,
       matchingContexts: person.contexts.slice(0, 3),
-      matchingPassages: person.spicy_passages?.slice(0, 3) || [],
+      matchingPassages: person.significant_passages?.slice(0, 3) || [],
       score: person.red_flag_score || person.mentions,
     }));
   }, [people, loading]);

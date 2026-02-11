@@ -76,7 +76,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
         // Only fetch if we are missing key fields
         const isMissingData =
           !enrichedPerson.bio ||
-          !enrichedPerson.spicy_passages ||
+          !enrichedPerson.significant_passages ||
           (enrichedPerson.photos?.length || 0) === 0;
 
         if (isMissingData) {
@@ -614,10 +614,10 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
                           <div key={i} className="bg-slate-900/50 h-24 rounded-lg animate-pulse" />
                         ))}
                       </div>
-                    ) : enrichedPerson.spicy_passages &&
-                      enrichedPerson.spicy_passages.length > 0 ? (
+                    ) : enrichedPerson.significant_passages &&
+                      enrichedPerson.significant_passages.length > 0 ? (
                       <div className="space-y-3 font-serif">
-                        {enrichedPerson.spicy_passages.slice(0, 5).map((passage, i) => (
+                        {enrichedPerson.significant_passages.slice(0, 5).map((passage, i) => (
                           <div
                             key={i}
                             className="bg-slate-900 border border-slate-800 rounded-lg p-3 text-sm group/passage hover:border-red-500/30 transition-all"

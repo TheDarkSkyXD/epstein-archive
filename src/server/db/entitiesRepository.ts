@@ -1,5 +1,6 @@
 import { getDb } from './connection.js';
 import { Person, SearchFilters, SortOption } from '../../types.js';
+import { ENTITY_BLACKLIST_PATTERNS } from '../../config/entityBlacklist.js';
 
 export interface EntityRepositoryResult {
   entities: any[];
@@ -112,74 +113,9 @@ export const entitiesRepository = {
     if (isDefaultView) {
       // Exclude suspected non-person entities from "People" tab
       // These are often locations or organizations mislabeled as "Person"
-      const junkPatterns = [
-        '%House%',
-        '%Office%',
-        '%Street%',
-        '%Road%',
-        '%Avenue%',
-        '%Park%',
-        '%Beach%',
-        '%Islands%',
-        '%Times%',
-        '%Post%',
-        '%News%',
-        '%Press%',
-        '%Journal%',
-        '%Magazine%',
-        '%Inc%',
-        '%LLC%',
-        '%Corp%',
-        '%Ltd%',
-        '%Group%',
-        '%Trust%',
-        '%Foundation%',
-        '%University%',
-        '%College%',
-        '%School%',
-        '%Academy%',
-        '%Judge%',
-        '%Court%',
-        '%Attorney%',
-        '%Justice%',
-        '%Department%',
-        '%Bureau%',
-        '%Agency%',
-        '%Police%',
-        '%Sheriff%',
-        '%FBI%',
-        '%CIA%',
-        '%Secret Service%',
-        '%Tower%',
-        '%Desktop%',
-        '%Printed%',
-        '%Mexico%',
-        '%Prior%',
-        '%Police%',
-        '%Sheriff%',
-        '%FBI%',
-        '%CIA%',
-        '%Secret Service%',
-        '%Printed%',
-        '%Dated%',
-        '%Page%',
-        '%Exhibit%',
-        '%Government%',
-        '%District%',
-        '%County%',
-        '%State%',
-        '%City%',
-        '%New Mexico%',
-        '%Virgin Islands%',
-        '%Florida%',
-        '%York%',
-        '%London%',
-        '%Palm Beach%',
-      ];
-
-      junkPatterns.forEach((pattern, i) => {
+      ENTITY_BLACKLIST_PATTERNS.forEach((pattern, i) => {
         const paramName = `junkPattern${i}`;
-        params[paramName] = pattern;
+        params[paramName] = `%${pattern}%`;
         whereConditions.push(`full_name NOT LIKE @${paramName}`);
       });
 
@@ -205,11 +141,7 @@ export const entitiesRepository = {
     const sql = `
             SELECT 
               entities.*,
-              (
-                SELECT COUNT(DISTINCT em.document_id)
-                FROM entity_mentions em
-                WHERE em.entity_id = entities.id
-              ) AS documentCount
+              entities.mentions AS documentCount
             FROM ${sourceTable}
             ${whereClause}
             ${orderByClause}
@@ -388,7 +320,7 @@ export const entitiesRepository = {
       .all(entity.id) as { type_name: string }[];
 
     // Get "Spicy Passages" (High significance mentions)
-    const spicyPassages = db
+    const significantPassages = db
       .prepare(
         `
             SELECT 
@@ -445,7 +377,7 @@ export const entitiesRepository = {
       // Add evidence types
       evidence_types: evidenceTypes.map((et) => et.type_name),
       evidenceTypes: evidenceTypes.map((et) => et.type_name),
-      spicy_passages: spicyPassages,
+      significant_passages: significantPassages,
       photos: photos.map((p) => ({
         ...p,
         id: String(p.id),
@@ -641,6 +573,7 @@ export const entitiesRepository = {
             d.metadata_json as metadataJson,
             d.word_count as wordCount,
             d.red_flag_rating as redFlagRating,
+            d.content_sha256 as contentHash,
 
             'Mentioned in document' as contextText,
             '' as aiSummary,

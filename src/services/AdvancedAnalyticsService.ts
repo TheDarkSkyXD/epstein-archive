@@ -148,10 +148,10 @@ export class AdvancedAnalyticsService {
         d.id,
         d.file_name,
         d.red_flag_rating,
-        (SELECT COUNT(*) FROM entity_mentions WHERE document_id = d.id) as mentions_count
+        d.mentions_count
       FROM documents d
       WHERE d.red_flag_rating >= 4 
-        AND ((SELECT COUNT(*) FROM entity_mentions WHERE document_id = d.id) IS NULL OR (SELECT COUNT(*) FROM entity_mentions WHERE document_id = d.id) < 5)
+        AND (d.mentions_count IS NULL OR d.mentions_count < 5)
       ORDER BY d.red_flag_rating DESC
       LIMIT 10
     `,
@@ -178,13 +178,15 @@ export class AdvancedAnalyticsService {
       .prepare(
         `
       SELECT 
+        e.id,
         e.full_name,
         e.red_flag_rating,
         COUNT(er.id) as relationshipCount
       FROM entities e
       LEFT JOIN entity_relationships er ON e.id = er.source_entity_id
       WHERE e.red_flag_rating >= 4
-        AND (er.id IS NULL OR relationshipCount < 3)
+      GROUP BY e.id
+      HAVING relationshipCount < 3
       ORDER BY e.red_flag_rating DESC
       LIMIT 10
     `,

@@ -78,9 +78,6 @@ export class OptimizedDataService {
           files: person.fileReferences?.split(',').length || 0,
           evidence_types: (person.keyEvidence?.split(',') || []).map((type: string) => type.trim()),
           contexts: [], // Will be populated from evidence data
-          spicy_passages: [], // Will be populated from evidence data
-          spice_score: 0,
-          spice_peppers: '🌶️',
           red_flag_rating: person.redFlagRating ?? 0,
           role: person.primaryRole || '',
           secondary_roles: person.secondaryRoles || '',
@@ -181,8 +178,7 @@ export class OptimizedDataService {
             const term = (filters.searchTerm || '').toLowerCase();
             result.data = result.data
               .map((person: any) => {
-                const baseRating =
-                  person.red_flag_rating ?? person.redFlagRating ?? person.spiceRating ?? 0;
+                const baseRating = person.red_flag_rating ?? person.redFlagRating ?? 0;
                 const mentions = person.mentions || 0;
 
                 // Heuristic risk calibration from mentions, using Trump/Maxwell scale as baseline
@@ -268,8 +264,7 @@ export class OptimizedDataService {
               const term = (filters.searchTerm || '').toLowerCase();
               result.data = result.data
                 .map((person: any) => {
-                  const baseRating =
-                    person.red_flag_rating ?? person.redFlagRating ?? person.spiceRating ?? 0;
+                  const baseRating = person.red_flag_rating ?? person.redFlagRating ?? 0;
                   const mentions = person.mentions || 0;
 
                   let mentionRisk = 0;
@@ -377,11 +372,7 @@ export class OptimizedDataService {
                     aValue = a.mentions;
                     bValue = b.mentions;
                     break;
-                  case 'spice':
-                    // Weighted score: 30% mentions, 70% spice score
-                    // This ensures high-profile targets (high mentions) with high risk bubble to the top
-                    aValue = a.mentions * 0.3 + a.spice_score * 0.7;
-                    bValue = b.mentions * 0.3 + b.spice_score * 0.7;
+                    bValue = b.mentions * 0.3 + (b.red_flag_score || 0) * 0.7;
                     break;
                   case 'risk':
                     aValue = a.likelihood_score;

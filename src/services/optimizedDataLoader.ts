@@ -11,7 +11,7 @@ export interface RealPerson extends Person {
     filePath: string;
     content?: string;
     contextText?: string;
-    spiceRating?: number;
+    redFlagRating?: number;
   }>;
   connectionsToEpstein: string;
   title?: string;
@@ -33,7 +33,7 @@ export interface SearchFilters {
   minMentions?: number;
   maxMentions?: number;
   evidenceTypes?: string[];
-  sortBy?: 'name' | 'mentions' | 'spice' | 'risk';
+  sortBy?: 'name' | 'mentions' | 'red_flag' | 'risk';
   sortOrder?: 'asc' | 'desc';
   minRedFlagIndex?: number;
   maxRedFlagIndex?: number;
@@ -130,7 +130,7 @@ export class OptimizedDataService {
       files: entity.files || 0,
       contexts: entity.contexts || [],
       evidence_types: entity.evidence_types || [],
-      spicy_passages: entity.spicy_passages || [],
+      significant_passages: entity.significant_passages || [],
       likelihood_score: entity.likelihood_score || 'LOW',
       red_flag_score: entity.red_flag_score || entity.mentions || 0,
       red_flag_rating: entity.red_flag_rating || 1,

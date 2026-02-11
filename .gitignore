@@ -57,6 +57,9 @@ playwright-report/
 
 # Large SQL dumps
 *.sql.gz
+dump.sql
+/db/
+scripts/migrations/*.sql
 
 # Node debug logs
 npm-debug.log*

@@ -59,8 +59,8 @@ else
     log_warning "DRY RUN: Would upload $LOCAL_DB to $PRODUCTION_HOST"
   else
     # 1. Verification
-    log_step "Checking local database integrity..."
-    if ! sqlite3 "$LOCAL_DB" "PRAGMA integrity_check;" | grep -q "ok"; then
+    log_step "Checking local database integrity (quick check)..."
+    if ! sqlite3 "$LOCAL_DB" "PRAGMA quick_check;" | grep -q "ok"; then
       log_error "Local database is corrupt! Aborting upload."
       exit 1
     fi
@@ -71,8 +71,8 @@ else
     rsync -avz --progress -e "ssh -i $SSH_KEY_PATH" "$LOCAL_DB" "${PRODUCTION_USER}@${PRODUCTION_HOST}:${REMOTE_TEMP}"
 
     # 3. Verify remote integrity
-    log_step "Verifying remote temporary file integrity..."
-    if ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "sqlite3 $REMOTE_TEMP 'PRAGMA integrity_check;' | grep -q 'ok'"; then
+    log_step "Verifying remote temporary file integrity (quick check)..."
+    if ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "sqlite3 $REMOTE_TEMP 'PRAGMA quick_check;' | grep -q 'ok'"; then
       log_success "Remote integrity check passed."
     else
       log_error "Remote file integrity check failed! Upload may be corrupt."

@@ -33,7 +33,7 @@ async function runBackfill() {
   console.log('🔗 Linking existing Black Book entries to Entities...');
   const entries = db
     .prepare(
-      'SELECT id, entry_text FROM black_book_entries WHERE entry_category = "original" OR entry_category IS NULL',
+      "SELECT id, entry_text FROM black_book_entries WHERE entry_category = 'original' OR entry_category IS NULL",
     )
     .all() as any[];
 

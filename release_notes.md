@@ -1,3 +1,18 @@
+## v12.14.1 — 2026-02-11
+
+### Internal Maintenance & CI
+
+- **Dependency Audit**: Updated core security dependencies and refined build pipelines for improved deployment reliability.
+- **Bug Fixes**: Resolved minor UI inconsistencies in the Evidence Modal and Person Card components.
+
+## v12.14.0 — 2026-02-11
+
+### Schema Unification & Mobile UX
+
+- **Consolidated media and evidence schemas**: unified investigative data models for consistent cross-referencing.
+- **WikiLink engine**: Launched automated auto-linking for document mentions across the platform.
+- **Mobile Refinement**: Updated `EvidenceModal` with sticky headers and glassmorphism for enhanced mobile navigation.
+
 ## v12.13.0 — 2026-02-11
 
 ### Black Book Intelligence Expansion
@@ -143,3 +158,12 @@
 
 - **Media Gallery Polish**: Fixed a visual flicker in the `PhotoBrowser` by optimizing the loading spinner logic. The full-screen overlay now only appears on initial load, using a discreet spinner for updates.
 - **Mobile UX**: Refined `MobileMenu` with a premium glassmorphism design and improved touch targets.
+
+## v11.3.8 — 2025-06-21
+
+### Risk Assessment & UI Polish
+
+- **Risk Assessment Regression**: Fixed a critical issue where high-risk individuals (including Jeffrey Epstein) were incorrectly displayed as "Low Risk" in the Analytics dashboard.
+- **Media Browser**: Reduced image flickering during loading states.
+- **Top Mentioned Individuals**: Improved filtering to exclude junk terms (e.g., "All Rights Reserved", "We Deliver For") from the top entities chart.
+- **Dropdowns**: Standardized all dropdown menus with a new, premium-styled `Select` component.

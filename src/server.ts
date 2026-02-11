@@ -1238,7 +1238,7 @@ app.get('/api/entities/:id', async (req, res, next) => {
       contexts: entity.contexts || [],
       evidence_types: entity.evidence_types || entity.evidenceTypes || [],
       evidenceTypes: entity.evidence_types || entity.evidenceTypes || [],
-      spicy_passages: entity.spicyPassages || [],
+      spicy_passages: entity.spicy_passages || [],
       likelihood_score: (entity.risk_level || entity.riskLevel || 'LOW').toUpperCase(),
       red_flag_score: entity.red_flag_score !== undefined ? entity.red_flag_score : 0,
       red_flag_rating: entity.red_flag_rating !== undefined ? entity.red_flag_rating : 0,
@@ -1253,6 +1253,10 @@ app.get('/api/entities/:id', async (req, res, next) => {
       networkConnections: entity.networkConnections || [],
       // Include Black Book information if available
       blackBookEntries: entity.blackBookEntries || [],
+      // NEW: Include bio, description and photos
+      bio: entity.bio || '',
+      description: entity.description || '',
+      photos: entity.photos || [],
     };
 
     res.json(transformedEntity);
@@ -1300,73 +1304,22 @@ app.use('/api/articles', articlesRoutes);
 app.get('/api/entities/:id/documents', async (req, res, next) => {
   try {
     const entityId = req.params.id;
-    const page = Math.max(1, parseInt(req.query.page as string) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 50));
-    const offset = (page - 1) * limit;
-
-    // Get entity name first
-    const entity = getDb()
-      .prepare('SELECT full_name as name FROM entities WHERE id = ?')
-      .get(entityId) as { name: string };
-
-    if (!entity) {
-      return res.json({ data: [], total: 0, page, pageSize: limit, totalPages: 0 });
-    }
-
-    const query = `
-      SELECT 
-        d.id,
-        d.file_name as fileName,
-        d.file_path as filePath,
-        d.file_type as fileType,
-        d.file_size as fileSize,
-        d.date_created as dateCreated,
-        substr(d.content, 1, 300) as contentPreview,
-        d.evidence_type as evidenceType,
-        d.content,
-        d.metadata_json as metadata,
-        d.word_count as wordCount,
-        d.red_flag_rating as redFlagRating,
-        d.content_hash as contentHash,
-        d.file_name as title,
-        (SELECT COUNT(*) FROM entity_mentions em2 WHERE em2.document_id = d.id AND em2.entity_id = ?) as mentionsCount
-      FROM entity_mentions em
-      JOIN documents d ON em.document_id = d.id
-      WHERE em.entity_id = ?
-      GROUP BY d.id
-      ORDER BY d.red_flag_rating DESC
-      LIMIT ? OFFSET ?
-    `;
-
-    const countQuery = `
-      SELECT COUNT(DISTINCT document_id) as total
-      FROM entity_mentions
-      WHERE entity_id = ?
-    `;
-
-    let documents = getDb().prepare(query).all(entityId, entityId, limit, offset) as any[];
-
-    // Map file paths to URLs
-    documents = documents.map((doc) => {
-      if (doc.filePath && doc.filePath.startsWith(CORPUS_BASE_PATH)) {
-        doc.filePath = doc.filePath.replace(CORPUS_BASE_PATH, '/files');
-      }
-      return doc;
-    });
-
-    const totalResult = getDb().prepare(countQuery).get(entityId) as {
-      total: number;
-    };
-
-    res.json({
-      data: documents,
-      total: totalResult.total,
-      page,
-      pageSize: limit,
-      totalPages: Math.ceil(totalResult.total / limit),
-    });
+    const result = await entitiesRepository.getEntityDocuments(entityId);
+    res.json(result);
   } catch (error) {
     console.error('Error fetching entity documents:', error);
+    next(error);
+  }
+});
+
+// Get media for a specific entity
+app.get('/api/entities/:id/media', async (req, res, next) => {
+  try {
+    const entityId = req.params.id;
+    const result = await entitiesRepository.getEntityMedia(entityId);
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching entity media:', error);
     next(error);
   }
 });

@@ -195,9 +195,9 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = React.memo(
     }, [documents, filterQuery, selectedSource, sortOption]);
 
     const highlightText = (text: string, term?: string) => {
-      if (!term || !text) return text;
+      if (!term || !text || !term.trim()) return text;
       try {
-        const regex = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+        const regex = new RegExp(`(${term.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
         return text.replace(
           regex,
           '<mark class="bg-yellow-500/40 text-white px-0.5 rounded">$1</mark>',

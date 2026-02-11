@@ -20,18 +20,24 @@
 
 - Node.js v18+
 - SQLite3
-
-> **New to the project?** Check out [**GETTING_STARTED.md**](GETTING_STARTED.md).
-> **Want to contribute?** Read [**CONTRIBUTING.md**](CONTRIBUTING.md) for our code structure guide.
-> **Building features?** See the [**Investigation System Guide**](INVESTIGATION_GUIDE.md).
+- pnpm
 
 ### Installation
 
 ```bash
-# Install dependencies
+# Clone and install
+git clone <repo-url>
+cd epstein-archive
 pnpm install
 
-# Start development server (Frontend + API)
+# Setup Database (Scenario A: Sample Data)
+# Points to the included sample.db (~50 docs, ~130 entities)
+echo "DB_PATH=./sample.db" > .env.local
+
+# Scenario B: Full Ingestion (Requires 300GB+ SSD)
+# See TECHNICAL_OVERVIEW.md for pipeline details
+
+# Start development server
 pnpm dev
 ```
 

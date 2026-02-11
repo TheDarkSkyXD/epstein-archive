@@ -57,9 +57,9 @@ const PersonCard: React.FC<PersonCardProps> = ({
 
   // Highlight search term in text
   const highlightText = (text: string, term?: string) => {
-    if (!term || !text) return text;
+    if (!term || !text || !term.trim()) return text;
     try {
-      const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const escapedTerm = term.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const regex = new RegExp(`(${escapedTerm})`, 'gi');
       const parts = text.split(regex);
       return parts.map((part, i) =>
@@ -236,6 +236,10 @@ const PersonCard: React.FC<PersonCardProps> = ({
           return person.bio ? (
             <p className="text-xs text-slate-300 leading-relaxed line-clamp-3 font-normal">
               {searchTerm ? highlightText(person.bio, searchTerm) : person.bio}
+            </p>
+          ) : person.description ? (
+            <p className="text-xs text-slate-300 leading-relaxed line-clamp-3 font-normal">
+              {searchTerm ? highlightText(person.description, searchTerm) : person.description}
             </p>
           ) : (
             <p className="text-xs text-slate-500 italic">No description available.</p>

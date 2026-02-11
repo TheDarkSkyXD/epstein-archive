@@ -58,6 +58,7 @@ export interface Person {
     contentPreview?: string;
   }[];
   bio?: string; // Short biography
+  description?: string; // Legacy/Fallback description
   birthDate?: string;
   deathDate?: string;
   photos?: {

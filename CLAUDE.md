@@ -132,7 +132,7 @@ pnpm build:prod   # Build frontend AND backend (to /dist)
     - **Rule:** All runtime version displays must read from `package.json` (via `__APP_VERSION__`), never hardcoded.
 
 2.  **History & Documentation:**
-    - Update `CHANGELOG.md` with the new version and changes.
+    - Update `release_notes.md` (the **SINGLE SOURCE OF TRUTH** for version history).
     - Update `src/components/pages/AboutPage.tsx` "timelineEvents" array:
       - **Add** the new version entry at the bottom.
       - **PRESERVE** all historical entries (never delete history).

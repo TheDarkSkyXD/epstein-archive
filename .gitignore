@@ -56,7 +56,7 @@ playwright-report/
 *.zip
 
 # Large SQL dumps
-*.sql
+*.sql.gz
 
 # Node debug logs
 npm-debug.log*
@@ -163,7 +163,6 @@ test-promotion.db
 *.gz
 *.tar.gz
 *.zip
-*.sql
 *.sql.gz
 *.db
 *.db-shm

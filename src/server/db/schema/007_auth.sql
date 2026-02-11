@@ -1,0 +1,2 @@
+-- Redundant: password_hash is already included in users table creation in 002_ensure_tables.sql
+-- ALTER TABLE users ADD COLUMN password_hash TEXT;

@@ -209,6 +209,11 @@ const PUBLIC_ROUTES = [
   '/api/stats',
 ];
 
+// Health Check Endpoint
+app.get('/api/health', (_req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 const RESEARCHER_READ_ONLY_PREFIXES = [
   '/api/entities',
   '/api/documents',

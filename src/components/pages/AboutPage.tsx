@@ -191,6 +191,12 @@ const timelineEvents = [
     content:
       'V12.13.0: Black Book Intelligence Expansion. Launched automated contact harvesting with person-entity linking. Integrated dossier-style profile modals with bios, photos, and categorized forensic contacts.',
   },
+  {
+    date: 'Feb 11, 2026',
+    source: 'Epstein Archive',
+    content:
+      'V12.14.0: Schema Unification & Mobile UX. Consolidated media and evidence schemas, launched WikiLink auto-linking engine for document cross-referencing, and refined mobile EvidenceModal with sticky headers and glassmorphism.',
+  },
 ];
 
 // Helper to get color classes

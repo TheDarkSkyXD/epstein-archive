@@ -1098,6 +1098,7 @@ app.get('/api/entities', cacheMiddleware(300), async (req, res, next) => {
       id: entity.id,
       name: entity.full_name || entity.fullName,
       fullName: entity.full_name || entity.fullName,
+      bio: entity.bio,
       entity_type: entity.entity_type || entity.entityType || 'Person',
       primaryRole: entity.primary_role || entity.primaryRole || 'Person of Interest',
       secondaryRoles: entity.secondary_roles || entity.secondaryRoles || [],
@@ -1301,6 +1302,7 @@ app.get('/api/entities/:id/documents', async (req, res, next) => {
     const entityId = req.params.id;
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 50));
+    const offset = (page - 1) * limit;
 
     // Get entity name first
     const entity = getDb()
@@ -1310,10 +1312,6 @@ app.get('/api/entities/:id/documents', async (req, res, next) => {
     if (!entity) {
       return res.json({ data: [], total: 0, page, pageSize: limit, totalPages: 0 });
     }
-
-    // Query documents that mention this entity (using simple name search)
-    const offset = (page - 1) * limit;
-    const searchTerm = `%${entity.name}%`;
 
     const query = `
       SELECT 
@@ -1325,27 +1323,28 @@ app.get('/api/entities/:id/documents', async (req, res, next) => {
         d.date_created as dateCreated,
         substr(d.content, 1, 300) as contentPreview,
         d.evidence_type as evidenceType,
-        0 as mentionsCount,
         d.content,
         d.metadata_json as metadata,
         d.word_count as wordCount,
         d.red_flag_rating as redFlagRating,
         d.content_hash as contentHash,
         d.file_name as title,
-        0 as entityMentions
-      FROM documents d
-      WHERE d.content LIKE ? OR d.file_name LIKE ?
+        (SELECT COUNT(*) FROM entity_mentions em2 WHERE em2.document_id = d.id AND em2.entity_id = ?) as mentionsCount
+      FROM entity_mentions em
+      JOIN documents d ON em.document_id = d.id
+      WHERE em.entity_id = ?
+      GROUP BY d.id
       ORDER BY d.red_flag_rating DESC
       LIMIT ? OFFSET ?
     `;
 
     const countQuery = `
-      SELECT COUNT(*) as total
-      FROM documents d
-      WHERE d.content LIKE ? OR d.file_name LIKE ?
+      SELECT COUNT(DISTINCT document_id) as total
+      FROM entity_mentions
+      WHERE entity_id = ?
     `;
 
-    let documents = getDb().prepare(query).all(searchTerm, searchTerm, limit, offset) as any[];
+    let documents = getDb().prepare(query).all(entityId, entityId, limit, offset) as any[];
 
     // Map file paths to URLs
     documents = documents.map((doc) => {
@@ -1355,7 +1354,7 @@ app.get('/api/entities/:id/documents', async (req, res, next) => {
       return doc;
     });
 
-    const totalResult = getDb().prepare(countQuery).get(searchTerm, searchTerm) as {
+    const totalResult = getDb().prepare(countQuery).get(entityId) as {
       total: number;
     };
 

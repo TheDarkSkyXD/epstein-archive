@@ -8,6 +8,7 @@ import {
   FileText,
   Users,
   Target,
+  Activity,
 } from 'lucide-react';
 
 import { optimizedDataService } from '../../services/OptimizedDataService';
@@ -680,6 +681,54 @@ export const About: React.FC = () => {
               </div>
             </li>
           </ul>
+        </div>
+      </div>
+
+      {/* Version History */}
+      <div className="bg-slate-800/50 rounded-xl p-8 mb-8 border border-slate-700">
+        <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+          <Activity className="h-6 w-6 text-cyan-400" />
+          Version History
+        </h2>
+        <div className="space-y-6">
+          <div className="border-l-2 border-cyan-500 pl-4">
+            <h4 className="text-white font-bold flex items-center gap-2">
+              v12.14.1{' '}
+              <span className="text-[10px] bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 rounded">
+                LATEST
+              </span>
+            </h4>
+            <p className="text-xs text-slate-500 mb-2">February 11, 2026</p>
+            <ul className="text-sm text-slate-400 space-y-1">
+              <li>• Restored missing entity biographies and descriptions in profile cards.</li>
+              <li>
+                • Fixed document association tracking to ensure accurate mention counts in modals.
+              </li>
+              <li>• Optimized API field mapping for unified entity intelligence.</li>
+            </ul>
+          </div>
+          <div className="border-l-2 border-slate-700 pl-4">
+            <h4 className="text-slate-200 font-bold">v12.14.0</h4>
+            <p className="text-xs text-slate-500 mb-2">February 10, 2026</p>
+            <ul className="text-sm text-slate-400 space-y-1">
+              <li>
+                • <strong>Mobile UX Hardening:</strong> Implemented sticky headers, background
+                scroll-lock, and responsive modal scaling.
+              </li>
+              <li>
+                • <strong>Schema Unification:</strong> Standardized media and entity mention
+                structures across the entire archive.
+              </li>
+              <li>
+                • <strong>WikiLink Engine:</strong> Automated cross-referencing for entities
+                discovered within document text.
+              </li>
+              <li>
+                • <strong>Sample Intelligence:</strong> Revived and upgraded the sample database
+                generation pipeline for local development.
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
 

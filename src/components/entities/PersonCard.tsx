@@ -5,6 +5,7 @@ import { formatNumber } from '../../utils/search';
 import { AddToInvestigationButton } from '../common/AddToInvestigationButton';
 import Icon from '../common/Icon';
 import { getEntityTypeIcon } from '../../utils/entityTypeIcons';
+import { SignalAnalysis } from '../common/SignalAnalysis';
 
 interface PersonCardProps {
   person: Person;
@@ -217,6 +218,15 @@ const PersonCard: React.FC<PersonCardProps> = ({
           const cleanRedFlag = person.red_flag_description
             ?.replace(/^Red Flag Index \d+[\s:-]*/i, '')
             .trim();
+
+          // Check if this is a Signal Analysis
+          if (cleanRedFlag && cleanRedFlag.startsWith('Signal Analysis:')) {
+            return (
+              <div className="mt-2">
+                <SignalAnalysis description={cleanRedFlag} rating={rating} />
+              </div>
+            );
+          }
 
           if (rating >= 3 && cleanRedFlag) {
             return (

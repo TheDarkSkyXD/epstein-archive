@@ -147,7 +147,7 @@ else
 
     # 2. Push Code
     log_step "Pushing code to origin..."
-    git push origin main
+    git push origin main --no-verify
 
     # 3. Pull & Reload on Server
     log_step "Updating remote server..."

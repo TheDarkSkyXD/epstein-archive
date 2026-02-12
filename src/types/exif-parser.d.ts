@@ -1,38 +1,22 @@
 declare module 'exif-parser' {
-  interface ExifData {
-    tags: {
-      Make?: string;
-      Model?: string;
-      LensModel?: string;
-      LensMake?: string;
-      FocalLength?: number;
-      FNumber?: number;
-      ExposureTime?: number;
-      ISO?: number;
-      DateTimeOriginal?: number;
-      CreateDate?: number;
-      GPSLatitude?: number;
-      GPSLongitude?: number;
-      GPSLatitudeRef?: string;
-      GPSLongitudeRef?: string;
-      ColorSpace?: number;
-      Orientation?: number;
-      Software?: string;
-      Artist?: string;
-      Copyright?: string;
-      [key: string]: any;
-    };
-    imageSize?: {
+  interface ExifTags {
+    [key: string]: any;
+    DateTimeOriginal?: number;
+    Make?: string;
+    Model?: string;
+  }
+
+  interface ExifResult {
+    tags: ExifTags;
+    imageSize: {
       width?: number;
       height?: number;
     };
   }
 
-  interface Parser {
-    parse(): ExifData;
+  interface ExifParser {
+    parse(): ExifResult;
   }
 
-  function create(buffer: Buffer): Parser;
-
-  export = { create };
+  export function create(buffer: Buffer): ExifParser;
 }

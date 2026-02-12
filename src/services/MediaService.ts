@@ -138,10 +138,10 @@ export class MediaService {
   imageExists(originalFilename: string, albumId?: number): boolean {
     const stmt = albumId
       ? this.db.prepare(
-          'SELECT id FROM media_items WHERE original_filename = ? AND album_id = ? AND file_type LIKE "image/%"',
+          "SELECT id FROM media_items WHERE original_filename = ? AND album_id = ? AND file_type LIKE 'image/%'",
         )
       : this.db.prepare(
-          'SELECT id FROM media_items WHERE original_filename = ? AND file_type LIKE "image/%"',
+          "SELECT id FROM media_items WHERE original_filename = ? AND file_type LIKE 'image/%'",
         );
 
     const result = albumId ? stmt.get(originalFilename, albumId) : stmt.get(originalFilename);
@@ -244,7 +244,7 @@ export class MediaService {
 
   getImageCount(filter?: ImageFilter): number {
     let query =
-      'SELECT COUNT(DISTINCT i.id) as count FROM media_items i WHERE i.file_type LIKE "image/%"';
+      "SELECT COUNT(DISTINCT i.id) as count FROM media_items i WHERE i.file_type LIKE 'image/%'";
 
     const conditions: string[] = [];
     const params: any[] = [];
@@ -568,7 +568,7 @@ export class MediaService {
 
   getMediaStats(): MediaStats {
     const totalImages = this.db
-      .prepare('SELECT COUNT(*) as count FROM media_items WHERE file_type LIKE "image/%"')
+      .prepare("SELECT COUNT(*) as count FROM media_items WHERE file_type LIKE 'image/%'")
       .get() as {
       count: number;
     };
@@ -576,7 +576,7 @@ export class MediaService {
       count: number;
     };
     const totalSize = this.db
-      .prepare('SELECT SUM(file_size) as size FROM media_items WHERE file_type LIKE "image/%"')
+      .prepare("SELECT SUM(file_size) as size FROM media_items WHERE file_type LIKE 'image/%'")
       .get() as {
       size: number;
     };

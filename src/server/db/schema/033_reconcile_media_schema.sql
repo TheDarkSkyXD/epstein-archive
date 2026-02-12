@@ -34,26 +34,7 @@ CREATE VIRTUAL TABLE IF NOT EXISTS media_items_fts USING fts5(
     content_rowid='id'
 );
 
--- 3. Re-initialize FTS triggers
-DROP TRIGGER IF EXISTS media_items_ai;
-CREATE TRIGGER media_items_ai AFTER INSERT ON media_items BEGIN
-  INSERT INTO media_items_fts(rowid, title, description)
-  VALUES (new.id, new.title, new.description);
-END;
-
-DROP TRIGGER IF EXISTS media_items_ad;
-CREATE TRIGGER media_items_ad AFTER DELETE ON media_items BEGIN
-  INSERT INTO media_items_fts(media_items_fts, rowid, title, description)
-  VALUES('delete', old.id, old.title, old.description);
-END;
-
-DROP TRIGGER IF EXISTS media_items_au;
-CREATE TRIGGER media_items_au AFTER UPDATE ON media_items BEGIN
-  INSERT INTO media_items_fts(media_items_fts, rowid, title, description)
-  VALUES('delete', old.id, old.title, old.description);
-  INSERT INTO media_items_fts(rowid, title, description)
-  VALUES (new.id, new.title, new.description);
-END;
+-- Triggers moved to 034_media_fts_triggers.sql to avoid transaction block errors with duplicate columns
 
 -- 4. Sync FTS data if it was empty
 INSERT INTO media_items_fts(rowid, title, description)

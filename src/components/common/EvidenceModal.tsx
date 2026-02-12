@@ -13,7 +13,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { FixedSizeList as List } from 'react-window';
 import { InfiniteLoader } from 'react-window-infinite-loader';
-import { AutoSizer } from 'react-virtualized-auto-sizer';
+import AutoSizer from 'react-virtualized-auto-sizer';
 
 import { SignalPanel } from '../entities/cards/SignalPanel';
 import { DriverChips } from '../entities/cards/DriverChips';
@@ -443,84 +443,93 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                   )}
 
                   <AutoSizer>
-                    {({ height, width }) => (
-                      <InfiniteLoader
-                        isItemLoaded={isItemLoaded}
-                        itemCount={totalDocs || 50} // Fallback
-                        loadMoreItems={loadMoreDocuments}
-                      >
-                        {({ onItemsRendered, ref }) => (
-                          <List
-                            className="List"
-                            height={height}
-                            itemCount={documents.length}
-                            itemSize={100}
-                            onItemsRendered={onItemsRendered}
-                            ref={ref}
-                            width={width}
-                          >
-                            {({ index, style }) => {
-                              const doc = documents[index];
-                              if (!doc)
+                    {({ height, width }) => {
+                      // Workaround for react-window-infinite-loader types incompatibility
+                      const InfiniteLoaderComponent = InfiniteLoader as any;
+                      return (
+                        <InfiniteLoaderComponent
+                          isItemLoaded={isItemLoaded}
+                          itemCount={totalDocs || 50} // Fallback
+                          loadMoreItems={loadMoreDocuments}
+                        >
+                          {({ onRowsRendered, registerChild }) => (
+                            <List
+                              className="List"
+                              height={height}
+                              itemCount={documents.length}
+                              itemSize={100}
+                              onItemsRendered={({ visibleStartIndex, visibleStopIndex }) => {
+                                onRowsRendered({
+                                  startIndex: visibleStartIndex,
+                                  stopIndex: visibleStopIndex,
+                                });
+                              }}
+                              ref={registerChild}
+                              width={width}
+                            >
+                              {({ index, style }) => {
+                                const doc = documents[index];
+                                if (!doc)
+                                  return (
+                                    <div style={style} className="p-2">
+                                      <div className="h-full bg-slate-950 border border-slate-800 rounded-lg p-3 flex gap-4 items-center animate-pulse">
+                                        <div className="w-12 h-12 rounded bg-slate-800" />
+                                        <div className="flex-1 space-y-2">
+                                          <div className="h-4 w-3/4 bg-slate-800 rounded" />
+                                          <div className="h-3 w-1/2 bg-slate-800 rounded" />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+
                                 return (
                                   <div style={style} className="p-2">
-                                    <div className="h-full bg-slate-950 border border-slate-800 rounded-lg p-3 flex gap-4 items-center animate-pulse">
-                                      <div className="w-12 h-12 rounded bg-slate-800" />
-                                      <div className="flex-1 space-y-2">
-                                        <div className="h-4 w-3/4 bg-slate-800 rounded" />
-                                        <div className="h-3 w-1/2 bg-slate-800 rounded" />
+                                    <div
+                                      className="h-full bg-slate-950 border border-slate-800 rounded-lg p-3 hover:border-slate-600 transition-colors flex gap-4 group cursor-pointer"
+                                      onClick={() => window.open(`/documents/${doc.id}`, '_blank')}
+                                    >
+                                      {/* Icon Box */}
+                                      <div className="shrink-0 w-12 h-12 bg-slate-900 rounded flex items-center justify-center text-slate-500 group-hover:text-indigo-400 group-hover:bg-indigo-500/10 transition-colors">
+                                        <FileText size={20} />
+                                      </div>
+
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex justify-between items-start">
+                                          <h4 className="text-slate-200 font-medium text-sm truncate pr-4">
+                                            {doc.title || doc.fileName}
+                                          </h4>
+                                          <span className="text-xs text-slate-500 shrink-0 flex items-center gap-1">
+                                            <Calendar size={10} />
+                                            {doc.dateCreated
+                                              ? new Date(doc.dateCreated).toLocaleDateString()
+                                              : 'Unknown Date'}
+                                          </span>
+                                        </div>
+                                        <p className="text-slate-500 text-xs mt-1 truncate">
+                                          {doc.evidenceType || 'Unclassified Document'} •{' '}
+                                          {doc.fileSize
+                                            ? (doc.fileSize / 1024).toFixed(1) + ' KB'
+                                            : ''}
+                                        </p>
+                                        {doc.contentPreview && (
+                                          <p className="text-slate-400 text-xs mt-2 line-clamp-1 italic opacity-70">
+                                            "...{doc.contentPreview}..."
+                                          </p>
+                                        )}
+                                      </div>
+
+                                      <div className="shrink-0 self-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <ExternalLink size={16} className="text-slate-400" />
                                       </div>
                                     </div>
                                   </div>
                                 );
-
-                              return (
-                                <div style={style} className="p-2">
-                                  <div
-                                    className="h-full bg-slate-950 border border-slate-800 rounded-lg p-3 hover:border-slate-600 transition-colors flex gap-4 group cursor-pointer"
-                                    onClick={() => window.open(`/documents/${doc.id}`, '_blank')}
-                                  >
-                                    {/* Icon Box */}
-                                    <div className="shrink-0 w-12 h-12 bg-slate-900 rounded flex items-center justify-center text-slate-500 group-hover:text-indigo-400 group-hover:bg-indigo-500/10 transition-colors">
-                                      <FileText size={20} />
-                                    </div>
-
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex justify-between items-start">
-                                        <h4 className="text-slate-200 font-medium text-sm truncate pr-4">
-                                          {doc.title || doc.fileName}
-                                        </h4>
-                                        <span className="text-xs text-slate-500 shrink-0 flex items-center gap-1">
-                                          <Calendar size={10} />
-                                          {doc.dateCreated
-                                            ? new Date(doc.dateCreated).toLocaleDateString()
-                                            : 'Unknown Date'}
-                                        </span>
-                                      </div>
-                                      <p className="text-slate-500 text-xs mt-1 truncate">
-                                        {doc.evidenceType || 'Unclassified Document'} •{' '}
-                                        {doc.fileSize
-                                          ? (doc.fileSize / 1024).toFixed(1) + ' KB'
-                                          : ''}
-                                      </p>
-                                      {doc.contentPreview && (
-                                        <p className="text-slate-400 text-xs mt-2 line-clamp-1 italic opacity-70">
-                                          "...{doc.contentPreview}..."
-                                        </p>
-                                      )}
-                                    </div>
-
-                                    <div className="shrink-0 self-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <ExternalLink size={16} className="text-slate-400" />
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            }}
-                          </List>
-                        )}
-                      </InfiniteLoader>
-                    )}
+                              }}
+                            </List>
+                          )}
+                        </InfiniteLoaderComponent>
+                      );
+                    }}
                   </AutoSizer>
                 </div>
               </div>

@@ -7,7 +7,7 @@ import SortFilter from '../components/layout/SortFilter';
 import SubjectCardV2 from '../components/entities/SubjectCardV2';
 import PersonCardSkeleton from '../components/entities/PersonCardSkeleton';
 import { FixedSizeGrid as Grid } from 'react-window';
-import { AutoSizer } from 'react-virtualized-auto-sizer';
+import AutoSizer from 'react-virtualized-auto-sizer';
 import { Person, SubjectCardDTO } from '../types';
 import { apiClient } from '../services/apiClient';
 
@@ -249,7 +249,6 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
           </div>
         ) : (
           <>
-            {/* @ts-expect-error AutoSizer types are incompatible with React 18 in this context */}
             <AutoSizer>
               {({ height, width }: { height: number; width: number }) => {
                 const columnCount = Math.floor(width / COLUMN_WIDTH) || 1;

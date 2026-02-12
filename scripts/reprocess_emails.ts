@@ -2,108 +2,177 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import * as fs from 'fs';
-import { simpleParser } from 'mailparser';
-import { convert } from 'html-to-text';
+import { cleanMime, CleanedEmailParts } from '../src/server/services/mimeCleaner.js';
+import { JSDOM } from 'jsdom';
 import { RedactionResolver } from '../src/server/services/RedactionResolver.js';
 
 const DB_PATH = process.env.DB_PATH || 'epstein-archive.db';
-const db = new Database(DB_PATH);
+const db = new Database(DB_PATH, { timeout: 10000 }); // 10s timeout for busy locks
+
+// Helper to parse the specific HTML format found in the dataset
+function parseHtmlEmail(raw: string): CleanedEmailParts {
+  try {
+    const dom = new JSDOM(raw);
+    const doc = dom.window.document;
+
+    // Helper to get text from table cells
+    const getText = (id: string) => {
+      const el = doc.getElementById(id);
+      return el ? el.textContent?.trim() || '' : '';
+    };
+
+    const from = getText('from_text') || getText('from_row')?.replace('From:', '').trim() || '';
+    const toRaw = getText('to_text') || getText('to_row')?.replace('To:', '').trim() || '';
+    const ccRaw = getText('cc_text') || getText('cc_row')?.replace('CC:', '').trim() || '';
+    const dateStr = getText('date_text') || getText('date_row')?.replace('Date:', '').trim() || '';
+    const subject =
+      getText('subject_text') || getText('subject_row')?.replace('Subject:', '').trim() || '';
+
+    // Body is in #msg_body
+    const bodyEl = doc.getElementById('msg_body');
+    const bodyHtml = bodyEl ? bodyEl.innerHTML : '';
+    const bodyText = bodyEl ? bodyEl.textContent?.trim() || '' : '';
+
+    // Parse Date
+    let date: Date | null = null;
+    if (dateStr) {
+      try {
+        date = new Date(dateStr);
+        if (isNaN(date.getTime())) date = null;
+      } catch {}
+    }
+
+    return {
+      body_clean_text: bodyText,
+      body_clean_html: bodyHtml,
+      subject,
+      from,
+      to: toRaw
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+      cc: ccRaw
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+      bcc: [],
+      date,
+      message_id: '', // HTML export doesn't have message-id usually
+      references: [],
+      attachments_count: 0, // TODO: parse #attach_table if needed
+      mime_parse_status: 'success',
+      headers: {},
+    };
+  } catch (error: any) {
+    return {
+      body_clean_text: raw,
+      body_clean_html: '',
+      subject: '',
+      from: '',
+      to: [],
+      cc: [],
+      bcc: [],
+      date: null,
+      message_id: '',
+      references: [],
+      attachments_count: 0,
+      mime_parse_status: 'failed',
+      mime_parse_reason: error.message,
+      headers: {},
+    };
+  }
+}
 
 async function processEmail(filePath: string): Promise<{
   content: string;
   metadata: any;
   date?: string;
+  preview: string;
 }> {
   try {
-    const rawContent = await fs.promises.readFile(filePath);
-    // Check if it's a JSON metadata file (common in this dataset)
-    if (filePath.endsWith('.meta') || rawContent.toString().trim().startsWith('{')) {
-      try {
-        const json = JSON.parse(rawContent.toString());
+    const rawBuffer = await fs.promises.readFile(filePath);
+    const rawContent = rawBuffer.toString();
 
-        let content = '';
+    let parts: CleanedEmailParts;
+
+    // 1. JSON Metadata File
+    if (filePath.endsWith('.meta') || rawContent.trim().startsWith('{')) {
+      try {
+        const json = JSON.parse(rawContent);
+        let body = '';
         if (json.metadata && typeof json.metadata === 'string') {
-          // Clean up the metadata string which seems to be a custom serialization
-          // Example: "d1:f45:we will have to wait..." -> "we will have to wait..."
-          // We'll just strip the prefix if it matches the pattern or take it all
-          content = json.metadata.replace(/^[a-z0-9]+:[a-z0-9]+:/, '');
+          body = json.metadata.replace(/^[a-z0-9]+:[a-z0-9]+:/, '');
         }
 
-        const metadata = {
-          from: json.sender || '',
-          to: json.recipient || '', // JSON might not have recipient, check structure if needed
+        // Map JSON to CleanedEmailParts structure
+        parts = {
+          body_clean_text: body,
+          body_clean_html: `<div>${body}</div>`,
           subject: json.subject || '',
-          date: json.date ? new Date(json.date * 1000).toISOString() : undefined,
-          cc: '',
-          messageId: json.id?.toString() || '',
-          inReplyTo: json.parent_id?.toString() || '',
-        };
-
-        const resolution = RedactionResolver.resolve(content, {
-          sender: metadata.from,
-          receiver: metadata.to,
-          subject: metadata.subject,
-          date: metadata.date,
-        });
-
-        return {
-          content: resolution.resolvedText || '[Metadata Record Only]',
-          metadata,
-          date: metadata.date,
+          from: json.sender || '',
+          to: json.recipient ? [json.recipient] : [],
+          cc: [],
+          bcc: [],
+          date: json.date ? new Date(json.date * 1000) : null,
+          message_id: json.id?.toString() || '',
+          references: json.parent_id ? [json.parent_id.toString()] : [],
+          attachments_count: 0,
+          mime_parse_status: 'success',
+          headers: {},
         };
       } catch (err: any) {
-        // Fall through to standard parsing if JSON parse fails
-        console.warn(`  ⚠️ Failed to parse as JSON, falling back: ${err.message}`);
+        console.warn(`  ⚠️ Failed to parse as JSON: ${err.message}`);
+        parts = {
+          body_clean_text: rawContent,
+          body_clean_html: '',
+          subject: '',
+          from: '',
+          to: [],
+          cc: [],
+          bcc: [],
+          date: null,
+          message_id: '',
+          references: [],
+          attachments_count: 0,
+          mime_parse_status: 'failed',
+          mime_parse_reason: err.message,
+          headers: {},
+        };
       }
     }
-
-    const parsed = await simpleParser(rawContent);
-
-    // Prefer text body, fallback to html-to-text
-    let textBody = parsed.text;
-    if (!textBody && parsed.html) {
-      textBody = convert(parsed.html, {
-        wordwrap: 130,
-      });
+    // 2. HTML Export
+    else if (filePath.endsWith('.html')) {
+      parts = parseHtmlEmail(rawContent);
+    }
+    // 3. Raw MIME (.eml, .msg)
+    else {
+      parts = await cleanMime(rawContent);
     }
 
-    // Fallback to raw string if parsing failed completely but we have content
-    // (though usually simpleParser throws if it fails)
-    if (!textBody && !parsed.html) {
-      textBody = rawContent.toString('utf-8');
-    }
-
-    const cleanText = textBody || '';
-
-    // Extract metadata
-    const metadata = {
-      from: Array.isArray(parsed.from)
-        ? parsed.from.map((a) => a.text).join(', ')
-        : parsed.from?.text || '',
-      to: Array.isArray(parsed.to)
-        ? parsed.to.map((a) => a.text).join(', ')
-        : parsed.to?.text || '',
-      subject: parsed.subject || '',
-      date: parsed.date ? parsed.date.toISOString() : undefined,
-      cc: Array.isArray(parsed.cc)
-        ? parsed.cc.map((a) => a.text).join(', ')
-        : parsed.cc?.text || '',
-      messageId: parsed.messageId || '',
-      inReplyTo: parsed.inReplyTo || '',
-    };
-
-    // Apply Redaction Resolver
-    const resolution = RedactionResolver.resolve(cleanText, {
-      sender: metadata.from,
-      receiver: metadata.to,
-      subject: metadata.subject,
-      date: metadata.date,
+    // Apply Redaction Resolver (if needed, but user wants RAW mostly)
+    // The user said "raw source accessible".
+    // We will store the cleaned text in content.
+    const resolution = RedactionResolver.resolve(parts.body_clean_text, {
+      sender: parts.from,
+      receiver: parts.to.join(', '),
+      subject: parts.subject,
+      date: parts.date?.toISOString(),
     });
 
+    const finalContent = resolution.resolvedText || parts.body_clean_text;
+
+    // Merge parts into metadata
+    const metadata = {
+      ...parts, // Include all cleaned parts in metadata
+      // explicit overrides if needed
+      thread_id: parts.references.length > 0 ? parts.references[0] : parts.message_id, // Simple threading attempt
+    };
+
     return {
-      content: resolution.resolvedText,
+      content: finalContent,
       metadata,
-      date: metadata.date,
+      date: parts.date?.toISOString(),
+      preview: finalContent.substring(0, 500),
     };
   } catch (error) {
     console.warn(`  ⚠️  Email parsing failed for ${path.basename(filePath)}:`, error);
@@ -111,6 +180,7 @@ async function processEmail(filePath: string): Promise<{
       content: '',
       metadata: { error: 'Parse failed' },
       date: undefined,
+      preview: '',
     };
   }
 }

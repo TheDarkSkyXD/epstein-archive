@@ -1,5 +1,6 @@
 import express from 'express';
 import { getDb } from '../db/connection.js';
+import { communicationsRepository } from '../db/communicationsRepository.js';
 import {
   classifyEmail,
   buildCategoryWhereClause,
@@ -9,6 +10,73 @@ import {
 } from '../services/emailClassificationService.js';
 
 const router = express.Router();
+
+// --- Canonical Backend Contract Endpoints ---
+
+// GET /api/emails/threads
+router.get('/threads', async (req, res, next) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 50));
+
+    const threads = communicationsRepository.getThreads(page, limit);
+
+    // Get total count for pagination (simplified, ideally repo returns this)
+    const db = getDb();
+    const countResult = db
+      .prepare(
+        `
+      SELECT COUNT(DISTINCT COALESCE(json_extract(metadata_json, '$.thread_id'), CAST(id AS TEXT))) as total 
+      FROM documents 
+      WHERE evidence_type = 'email'
+    `,
+      )
+      .get() as { total: number };
+
+    res.json({
+      data: threads,
+      meta: {
+        total: countResult.total,
+        page,
+        limit,
+        totalPages: Math.ceil(countResult.total / limit),
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching threads:', error);
+    next(error);
+  }
+});
+
+// GET /api/emails/thread/:id
+router.get('/thread/:id', async (req, res, next) => {
+  try {
+    const thread = communicationsRepository.getThreadById(req.params.id);
+    if (!thread) {
+      return res.status(404).json({ error: 'Thread not found' });
+    }
+    res.json(thread);
+  } catch (error) {
+    console.error('Error fetching thread:', error);
+    next(error);
+  }
+});
+
+// GET /api/emails/message/:id
+router.get('/message/:id', async (req, res, next) => {
+  try {
+    const message = communicationsRepository.getMessageById(req.params.id);
+    if (!message) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+    res.json(message);
+  } catch (error) {
+    console.error('Error fetching message:', error);
+    next(error);
+  }
+});
+
+// --- Legacy / Classification Endpoints ---
 
 // Gmail-style category counts
 router.get('/categories', async (_req, res, next) => {

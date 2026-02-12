@@ -49,6 +49,51 @@ if [ "$CODE_ONLY" = true ] && [ "$DB_ONLY" = true ]; then
   exit 1
 fi
 
+# Rollback Function
+perform_rollback() {
+    log_warning "Initiating Automatic Rollback..."
+    
+    # Construct remote command
+    # We use a heredoc for clarity, but need to be careful with variable expansion
+    # We want local variables ($PRODUCTION_PATH) to expand, but some remote logic to remain
+    
+    ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "
+        set -e
+        cd ${PRODUCTION_PATH}
+        
+        echo 'Stopping service...'
+        pm2 stop epstein-archive || true
+        
+        # Rollback DB if it was deployed (CODE_ONLY=false)
+        if [ \"$CODE_ONLY\" = false ] && [ -f epstein-archive.db.bak ]; then
+             echo 'Restoring Database backup...'
+             mv epstein-archive.db.bak epstein-archive.db
+        fi
+        
+        # Rollback Code if it was deployed (DB_ONLY=false)
+        if [ \"$DB_ONLY\" = false ] && [ -f .rollback_commit ]; then
+             TARGET=\$(cat .rollback_commit)
+             echo \"Rolling back code to \$TARGET...\"
+             git reset --hard \$TARGET
+             
+             echo 'Restoring dependencies...'
+             export PNPM_HOME=\"/home/deploy/.local/share/pnpm\"
+             export PATH=\"\$PNPM_HOME:\$PATH\"
+             export NODE_ENV=production
+             pnpm install --frozen-lockfile
+             
+             echo 'Rebuilding previous version...'
+             pnpm build:prod
+        fi
+        
+        echo 'Restarting Application...'
+        pm2 restart epstein-archive --update-env || pm2 start dist/server.js --name epstein-archive
+    "
+    
+    log_success "Rollback completed. System restored to previous state."
+    exit 1
+}
+
 # ============================================
 # PHASE 1: DATABASE DEPLOYMENT
 # ============================================
@@ -132,15 +177,7 @@ fi
 # ============================================
 if [ "$DB_ONLY" = true ]; then
   log_warning "Skipping code deployment (--db-only)"
-  # Restart to ensure DB connection is fresh
-  # Restart currently handled in loop or Phase 1 if DB_ONLY? 
-  # Wait, if code-only, we didn't stop. If db-only, we stopped and started in Phase 1?
-  # Let's verify logic.
-  # If DB_ONLY=true, Phase 1 block runs. I added `pm2 start` there.
-  # So this block is redundant/conflicting?
-  # If DB_ONLY=true:
-  #   Phase 1 -> Swap -> Start
-  #   Phase 2 -> Check DB_ONLY -> Skip Code -> Restart (redundant but safe-ish?)
+  # If DB_ONLY, we already restarted in Phase 1 if needed.
   
   if [ "$DRY_RUN" = false ]; then
       log_step "Ensuring service is running..."
@@ -183,6 +220,10 @@ else
       set -e
       cd ${PRODUCTION_PATH}
       
+      # Save current state for rollback
+      echo 'Saving current commit hash for potential rollback...'
+      git rev-parse HEAD > .rollback_commit
+      
       echo 'Forcing Git Sync...'
       git fetch origin
       git reset --hard origin/main
@@ -199,25 +240,39 @@ else
       pnpm build:prod
       
       echo 'Restarting Application...'
-      echo 'Restarting Application...'
       pm2 restart epstein-archive --update-env || pm2 start dist/server.js --name epstein-archive
     "
   fi
 fi
 
 # ============================================
-# PHASE 3: HEALTH CHECK
+# PHASE 3: HEALTH CHECK & ROLLBACK
 # ============================================
 if [ "$DRY_RUN" = false ]; then
-    log_step "Waiting for service to stabilize..."
-    sleep 5
-    log_step "Checking API health..."
-    HTTP_STATUS=$(ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3012/api/health")
+    MAX_RETRIES=12 # 60 seconds total
+    COUNT=0
+    SUCCESS=false
+    
+    log_step "Waiting for service to stabilize (up to 60s)..."
+    
+    while [ $COUNT -lt $MAX_RETRIES ]; do
+        sleep 5
+        # Check HTTP status (timeout 2s)
+        HTTP_STATUS=$(ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "curl -s -o /dev/null -w \"%{http_code}\" --max-time 2 http://localhost:3012/api/health" || echo "000")
+        
+        if [ "$HTTP_STATUS" == "200" ]; then
+            SUCCESS=true
+            break
+        fi
+        
+        log_step "Attempt $((COUNT+1))/$MAX_RETRIES: Status $HTTP_STATUS... waiting..."
+        COUNT=$((COUNT+1))
+    done
 
-    if [ "$HTTP_STATUS" == "200" ]; then
-      log_success "Deployment successful! API is responding (Status: $HTTP_STATUS)."
+    if [ "$SUCCESS" = true ]; then
+      log_success "Deployment successful! API is responding (Status: 200)."
     else
-      log_error "Deployment completed but API returned status $HTTP_STATUS. Please check logs."
-      exit 1
+      log_error "Health check failed after $MAX_RETRIES attempts (Last Status: $HTTP_STATUS)."
+      perform_rollback
     fi
 fi

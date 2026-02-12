@@ -45,6 +45,8 @@ interface EntityDetails {
   photos: any[];
   evidenceTypes: string[];
   blackBookEntries?: BlackBookEntry[];
+  birthDate?: string | null;
+  deathDate?: string | null;
 }
 
 export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, onClose }) => {
@@ -60,6 +62,18 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
   const [isDocsLoading, setIsDocsLoading] = useState(false);
   const [docsInitialized, setDocsInitialized] = useState(false);
   const [docFilters, setDocFilters] = useState({ search: '', source: 'all', sort: 'relevance' });
+
+  // Relationships (Network) State
+  const [relationships, setRelationships] = useState<
+    Array<{
+      entity_id: string;
+      relationship_type: string;
+      strength: number;
+      confidence: number;
+      name?: string;
+    }>
+  >([]);
+  const [networkLoading, setNetworkLoading] = useState(false);
 
   const fetchEntityDetails = React.useCallback(async () => {
     setLoading(true);
@@ -138,6 +152,44 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
     }
   }, [isOpen, entityId, activeTab, docFilters, loadMoreDocuments]);
 
+  useEffect(() => {
+    if (isOpen && entityId && activeTab === 'network') {
+      const fetchRelationships = async () => {
+        setNetworkLoading(true);
+        try {
+          const resp = (await apiClient.get(`/relationships?entityId=${entityId}`)) as {
+            relationships: Array<{
+              entity_id: string;
+              relationship_type: string;
+              strength: number;
+              confidence: number;
+            }>;
+          };
+          const rels = resp.relationships || [];
+          // Fetch names for top relationships
+          const top = rels.slice(0, 20);
+          const withNames = await Promise.all(
+            top.map(async (r) => {
+              try {
+                const e = await apiClient.get(`/entities/${r.entity_id}`);
+                return { ...r, name: (e as any).fullName || (e as any).name || r.entity_id };
+              } catch {
+                return { ...r, name: r.entity_id };
+              }
+            }),
+          );
+          setRelationships(withNames);
+        } catch (e) {
+          console.error('Error loading relationships', e);
+          setRelationships([]);
+        } finally {
+          setNetworkLoading(false);
+        }
+      };
+      fetchRelationships();
+    }
+  }, [isOpen, entityId, activeTab]);
+
   // Helper to check if item is loaded
   const isItemLoaded = (index: number) => !!documents[index];
 
@@ -211,11 +263,49 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                   </span>
                 )}
               </div>
-              <p className="text-slate-400 text-lg mb-4">{entity?.primaryRole}</p>
+              <div className="text-slate-400 text-lg mb-4">
+                <span>{entity?.primaryRole}</span>
+                {(entity?.birthDate || entity?.deathDate) && (
+                  <span className="ml-3 text-sm text-slate-500">
+                    {entity?.birthDate ? `b. ${entity.birthDate}` : ''}
+                    {entity?.deathDate ? ` • d. ${entity.deathDate}` : ''}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3 mb-4">
+                <a
+                  href={`/black-book?search=${encodeURIComponent(entity?.fullName || '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-purple-400 hover:text-purple-300 hover:underline flex items-center gap-1 transition-colors"
+                >
+                  <Icon name="Book" size="xs" />
+                  Black Book
+                </a>
+                <a
+                  href={`/timeline?search=${encodeURIComponent(entity?.fullName || '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-400 hover:text-blue-300 hover:underline flex items-center gap-1 transition-colors"
+                >
+                  <Calendar size={12} />
+                  Timeline
+                </a>
+                <a
+                  href={`/search?q=${encodeURIComponent(entity?.fullName || '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-cyan-400 hover:text-cyan-300 hover:underline flex items-center gap-1 transition-colors"
+                >
+                  <Icon name="Link" size="xs" />
+                  Search
+                </a>
+              </div>
 
               {/* ACTION TABS */}
               <div className="flex gap-1">
-                {['overview', 'evidence', 'media'].map((tab) => (
+                {['overview', 'evidence', 'media', 'network'].map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab as any)}
@@ -566,6 +656,54 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                   <div className="text-center py-20 text-slate-500">
                     <Search size={48} className="mx-auto mb-4 opacity-20" />
                     <p>No media files found for this entity.</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 4. NETWORK TAB */}
+            {activeTab === 'network' && (
+              <div className="p-6">
+                {networkLoading ? (
+                  <div className="text-center py-20 text-slate-500">
+                    <Search size={32} className="mx-auto mb-4 opacity-20" />
+                    <p>Loading relationships…</p>
+                  </div>
+                ) : relationships.length === 0 ? (
+                  <div className="text-center py-20 text-slate-500">
+                    <Search size={32} className="mx-auto mb-4 opacity-20" />
+                    <p>No relationships found.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {relationships.map((r, idx) => (
+                      <button
+                        key={`${r.entity_id}-${idx}`}
+                        type="button"
+                        onClick={() => window.open(`/entities/${r.entity_id}`, '_blank')}
+                        className="text-left p-4 bg-slate-950 border border-slate-800 rounded-lg hover:border-indigo-500/40 transition-colors"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold text-slate-100 truncate">
+                              {r.name || r.entity_id}
+                            </div>
+                            <div className="text-xs text-slate-400 mt-0.5">
+                              {r.relationship_type}
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="text-xs text-slate-300">Strength</div>
+                            <div className="text-sm font-mono text-indigo-400">
+                              {Math.round((r.strength || 0) * 100) / 100}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="mt-3 text-[11px] text-slate-500">
+                          Confidence: {Math.round((r.confidence || 0) * 100)}%
+                        </div>
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>

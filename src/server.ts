@@ -903,6 +903,8 @@ app.get('/api/entities/:id', cacheMiddleware(60), async (req, res, next) => {
       photos: entity.photos || [],
       // Ensure significant_passages key is consistent
       significant_passages: entity.significant_passages || entity.significantPassages || [],
+      birthDate: (entity as any).birthDate || null,
+      deathDate: (entity as any).deathDate || null,
     };
 
     res.json(transformedEntity);

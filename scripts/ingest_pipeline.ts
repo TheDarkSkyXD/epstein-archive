@@ -40,6 +40,7 @@ import AdmZip from 'adm-zip';
 import { RedactionResolver } from '../src/server/services/RedactionResolver.js';
 import { TextCleaner } from './utils/text_cleaner.js';
 import { getDb } from '../src/server/db/connection.js';
+import { AIEnrichmentService } from '../src/server/services/AIEnrichmentService.js';
 
 // ============================================================================
 // CONFIGURATION & VERSIONING
@@ -54,6 +55,14 @@ const STEP_VERSIONS = {
 };
 
 const DB_PATH = process.env.DB_PATH || 'epstein-archive.db';
+
+// Default AI integration to Exo cluster unless explicitly disabled
+if (!process.env.ENABLE_AI_ENRICHMENT) {
+  process.env.ENABLE_AI_ENRICHMENT = 'true';
+}
+if (!process.env.AI_PROVIDER) {
+  process.env.AI_PROVIDER = 'exo_cluster';
+}
 
 interface CollectionConfig {
   name: string;
@@ -275,7 +284,10 @@ async function detectMimeType(filePath: string): Promise<string> {
 // ============================================================================
 
 import { discoveryRepository } from '../src/server/db/discoveryRepository.js';
-import { RedactionClassifier } from '../src/server/services/RedactionClassifier.js';
+import {
+  RedactionClassifier,
+  RedactionInference,
+} from '../src/server/services/RedactionClassifier.js';
 
 async function extractTextFromPdf(buffer: Buffer): Promise<{
   text: string;
@@ -675,7 +687,32 @@ async function storeRedactions(documentId: number, content: string, unredactedSp
             idx + cleanSpanText.length + 100,
           );
 
-          const inference = RedactionClassifier.classify(pre, post);
+          let inference = RedactionClassifier.classify(pre, post);
+          // If AI enrichment enabled, try semantic classification
+          try {
+            const aiInferences = await AIEnrichmentService.classifyRedaction(pre, post);
+            if (aiInferences && aiInferences.length > 0) {
+              const top = aiInferences[0];
+              const map: Record<string, RedactionInference['inferredClass']> = {
+                PERSON: 'person',
+                ORGANIZATION: 'org',
+                LOCATION: 'location',
+                DATE: 'date',
+                FINANCIAL: 'misc',
+                LEGAL: 'misc',
+                OTHER: 'misc',
+              };
+              const mapped = map[top.type?.toUpperCase()] || 'misc';
+              inference = {
+                inferredClass: mapped,
+                inferredRole: mapped === 'misc' ? top.type?.toLowerCase() || null : null,
+                confidence: top.confidence || 0.6,
+                evidence: [top.description || 'ai_inferred'],
+              };
+            }
+          } catch (_e) {
+            // fall back to deterministic inference
+          }
 
           insertSpan.run(
             documentId,
@@ -1152,6 +1189,19 @@ async function processDocument(
 
     // Calculate metadata
     const contentPreview = content.substring(0, 500);
+    // AI summary (forensic-focused)
+    let aiSummary: string | null = null;
+    try {
+      aiSummary = await AIEnrichmentService.summarizeDocument(content, {
+        fileName: metadataObj.subject || basename(filePath),
+        subject: metadataObj.subject,
+      });
+    } catch (_e) {
+      aiSummary = null;
+    }
+    if (aiSummary) {
+      metadataObj.aiSummary = aiSummary;
+    }
     const wordCount = content ? (content.match(/\b[\w']+\b/g) || []).length : 0;
     // fileType already calculated above
 
@@ -1177,6 +1227,7 @@ async function processDocument(
                 unredaction_baseline_vocab = ?,
                 evidence_type = ?,
                 unredacted_span_json = ?,
+                analyzed_at = datetime('now'),
                 created_at = datetime('now')
             WHERE id = ?
         `,

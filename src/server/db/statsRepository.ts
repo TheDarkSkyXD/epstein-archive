@@ -163,9 +163,6 @@ export const statsRepository = {
     const hasInvestigations = db
       .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='investigations'")
       .get();
-    const hasBlackBook = db
-      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='black_book_entries'")
-      .get();
     const hasDocuments = db
       .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='documents'")
       .get();
@@ -554,7 +551,7 @@ export const statsRepository = {
             `SELECT finished_at FROM jobs WHERE job_type='relationships_recompute' AND status='success' ORDER BY finished_at DESC LIMIT 1`,
           )
           .get() as any;
-      } catch (e) {
+      } catch (_e) {
         // jobs table might not exist
       }
 
@@ -591,7 +588,7 @@ export const statsRepository = {
             `SELECT finished_at FROM jobs WHERE job_type='alias_cluster' AND status='success' ORDER BY finished_at DESC LIMIT 1`,
           )
           .get() as any;
-      } catch (e) {
+      } catch (_e) {
         // jobs table might not exist
       }
 

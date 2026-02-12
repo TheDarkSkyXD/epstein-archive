@@ -1,3 +1,12 @@
+## v13.1.3 — 2026-02-12
+
+### Production Stabilization & Zero-Warning Cleanliness
+
+- **Dead Code Elimination**: Removed unused variables, imports, and handlers across 20+ files to reduce bundle size and improve maintainability.
+- **React Hook Stabilization**: Fixed critical `useEffect` and `useCallback` dependencies in `App.tsx`, `VideoBrowser`, and `VideoPlayer` to prevent infinite render loops and stale closures.
+- **Zero-Warning Policy**: Achieved a completely clean lint report (`eslint`), ensuring maximum code reliability and standard compliance.
+- **Backend Optimizations**: Cleaned up unused error variables and DTOs in server repositories.
+
 ## v13.0.0 — 2026-02-11
 
 ### Forensic Transparency & Credibility

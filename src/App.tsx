@@ -5,7 +5,7 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 // Icons imported as needed via Icon component
 import { Person } from './types';
 import { Document } from './types/documents';
-import { SearchFilters } from './services/OptimizedDataService';
+
 import { useNavigation } from './services/ContentNavigationService.tsx';
 import { apiClient } from './services/apiClient';
 import { DocumentProcessor } from './services/documentProcessor';
@@ -239,21 +239,31 @@ function App() {
     }
     return [];
   });
-  const [filteredPeople, setFilteredPeople] = useState<Person[]>(people);
+
+  // UNUSED STATE REMOVED:  const [people, setPeople] = useState<Person[]>([]);
+  // filteredPeople removed - unused
+  const [sortBy, setSortBy] = useState<'name' | 'mentions' | 'red_flag' | 'risk'>('red_flag');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [entityType, setEntityType] = useState<string>('all');
+  const [selectedRiskLevel, setSelectedRiskLevel] = useState<'HIGH' | 'MEDIUM' | 'LOW' | null>(
+    null,
+  );
+
+  // Modal State
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
-  const [previousPath, setPreviousPath] = useState<string>('/people'); // Track path before modal opens
+  const [previousPath, setPreviousPath] = useState<string>('/people');
   const [searchTermForModal, setSearchTermForModal] = useState<string>('');
-  const [selectedDocumentId, setSelectedDocumentId] = useState<string>('');
+
+  // Document Viewing
+  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
   const [selectedDocumentSearchTerm, setSelectedDocumentSearchTerm] = useState<string>('');
-  const [showAudioCTA, setShowAudioCTA] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem('cta_audio_dismissed') !== '1';
-    } catch {
-      return true;
-    }
-  });
-  const [documentModalId, setDocumentModalId] = useState<string>('');
-  const [documentModalInitial, setDocumentModalInitial] = useState<any | null>(null);
+  const [documentModalId, setDocumentModalId] = useState<string | null>(null);
+  const [documentModalInitial, setDocumentModalInitial] = useState<any>(null);
+
+  // Document Processor
+  const [documentProcessor, setDocumentProcessor] = useState<DocumentProcessor | null>(null);
+  const [documentsLoaded, setDocumentsLoaded] = useState(false);
+
   const [investigateAttract, setInvestigateAttract] = useState<boolean>(false);
   const [investigatePopoverOpen, setInvestigatePopoverOpen] = useState<boolean>(false);
   const investigateBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -262,18 +272,12 @@ function App() {
     y: 0,
   });
   const [investigateArrowLeft, setInvestigateArrowLeft] = useState<number>(16);
-  const [sortBy, setSortBy] = useState<'name' | 'mentions' | 'red_flag' | 'risk'>('red_flag');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [entityType, setEntityType] = useState<string>('all');
-  const [selectedRiskLevel, setSelectedRiskLevel] = useState<'HIGH' | 'MEDIUM' | 'LOW' | null>(
-    null,
-  );
-  const [documentProcessor, setDocumentProcessor] = useState<DocumentProcessor | null>(null);
-  const [documentsLoaded, setDocumentsLoaded] = useState(false);
+
   const [showReleaseNotes, setShowReleaseNotes] = useState(false);
   const [showCreateEntityModal, setShowCreateEntityModal] = useState(false);
   const parsedReleaseNotes = useMemo(() => parseReleaseNotes(releaseNotesRaw), []);
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
+
   // Use navigation context for shared state
   const navigation = useNavigation();
   const { searchTerm, setSearchTerm } = navigation;
@@ -316,7 +320,7 @@ function App() {
     return () => clearTimeout(debounceTimeout);
   }, [searchTerm]);
 
-  // First run onboarding
+  // First  // Onboarding
   const { shouldShowOnboarding, completeOnboarding, skipOnboarding } = useFirstRunOnboarding();
 
   // Clear selected document when switching tabs
@@ -329,41 +333,42 @@ function App() {
   // Load entity from URL on page load (for shareable links)
   useEffect(() => {
     const entityMatch = location.pathname.match(/^\/entity\/(\d+)/);
-    if (entityMatch && !selectedPerson) {
+    // Only fetch if we don't have the person OR if the ID doesn't match
+    if (entityMatch) {
       const entityId = parseInt(entityMatch[1], 10);
-      // Fetch entity data from API
-      fetch(`/api/entities/${entityId}`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data && data.id) {
-            const person: Person = {
-              id: data.id,
-              name: data.fullName || data.full_name || 'Unknown',
-              fullName: data.fullName || data.full_name || 'Unknown',
-              role: data.primaryRole || data.primary_role || 'Unknown',
-              mentions: data.mentions || data.mention_count || 0,
-              red_flag_rating: data.redFlagRating || data.red_flag_rating || 0,
-              files: data.documentCount || data.document_count || 0,
-              contexts: [],
-              evidence_types: data.evidenceTypes || [],
-              significant_passages: [],
-              likelihood_score: data.likelihoodLevel || 'MEDIUM',
-              fileReferences: [],
-              // Enhanced fields
-              bio: data.bio || data.description,
-              birthDate: data.birthDate,
-              deathDate: data.deathDate,
-              photos: data.photos,
-              blackBookEntries: data.blackBookEntry,
-              entity_type: data.entity_type || (data as any).type,
-              red_flag_description: data.redFlagDescription || data.red_flag_description,
-            };
-            setSelectedPerson(person);
-          }
-        })
-        .catch((err) => console.error('Error loading entity from URL:', err));
+      if (!selectedPerson || selectedPerson.id !== entityId) {
+        fetch(`/api/entities/${entityId}`)
+          .then((res) => res.json())
+          .then((data) => {
+            if (data && data.id) {
+              const person: Person = {
+                id: data.id,
+                name: data.fullName || data.full_name || 'Unknown',
+                fullName: data.fullName || data.full_name || 'Unknown',
+                role: data.primaryRole || data.primary_role || 'Unknown',
+                mentions: data.mentions || data.mention_count || 0,
+                red_flag_rating: data.redFlagRating || data.red_flag_rating || 0,
+                files: data.documentCount || data.document_count || 0,
+                contexts: [],
+                evidence_types: data.evidenceTypes || [],
+                significant_passages: [],
+                likelihood_score: data.likelihoodLevel || 'MEDIUM',
+                fileReferences: [],
+                bio: data.bio || data.description,
+                birthDate: data.birthDate,
+                deathDate: data.deathDate,
+                photos: data.photos,
+                blackBookEntries: data.blackBookEntry,
+                entity_type: data.entity_type || (data as any).type,
+                red_flag_description: data.redFlagDescription || data.red_flag_description,
+              };
+              setSelectedPerson(person);
+            }
+          })
+          .catch((err) => console.error('Error loading entity from URL:', err));
+      }
     }
-  }, [location.pathname, selectedPerson]);
+  }, [location.pathname, selectedPerson]); // Correct dependency: we check selectedPerson logic inside
 
   // Handle global entity click events (e.g. from DocumentMetadataPanel or MediaViewerModal)
   useEffect(() => {
@@ -371,7 +376,6 @@ function App() {
       const { id, name } = event.detail;
       if (id) {
         // We create a partial person object, EvidenceModal will self-enrich
-        // Use a partial object that satisfies the Person interface roughly, or cast
         const partialPerson: any = {
           id: Number(id),
           name: name || 'Unknown Entity',
@@ -391,19 +395,10 @@ function App() {
     const docMatch = location.pathname.match(/^\/documents\/(\d+)/);
     if (docMatch && !documentModalId) {
       const docId = docMatch[1];
-      // Set IDs to trigger modal opening
       setDocumentModalId(docId);
       setSelectedDocumentId(docId);
-
-      // Optionally fetch document details if needed immediately,
-      // but DocumentModal usually handles fetching if passed an ID
     }
   }, [location.pathname, documentModalId]);
-
-  // Update navigation context when search term changes
-  useEffect(() => {
-    // This will automatically sync with the navigation context
-  }, [searchTerm]);
 
   // Keyboard shortcuts for power users
   useEffect(() => {
@@ -463,6 +458,7 @@ function App() {
         if (selectedPerson) {
           setSelectedPerson(null);
           navigate(previousPath || '/people');
+          // Announce modal close for screen readers
           // Announce modal close for screen readers
           const announcement = document.createElement('div');
           announcement.setAttribute('aria-live', 'polite');
@@ -542,15 +538,6 @@ function App() {
     };
   }, [navigate, selectedPerson, documentModalId, showReleaseNotes, showKeyboardShortcuts]);
   const [dataStats, setDataStats] = useState(() => {
-    // Try to load from local storage for immediate display
-    try {
-      const cached = sessionStorage.getItem('epstein_archive_stats_v12_7_2');
-      if (cached) {
-        return JSON.parse(cached);
-      }
-    } catch (e) {
-      console.error('Error loading cached stats:', e);
-    }
     return {
       totalPeople: 0,
       totalMentions: 0,
@@ -627,7 +614,6 @@ function App() {
                 : 'LOW'),
         }));
         setPeople(normalized);
-        setFilteredPeople(normalized);
         setCurrentPage(result.page);
         setTotalPages(result.totalPages);
         setTotalPeople(result.total);
@@ -1771,59 +1757,6 @@ function App() {
             )}
 
             <Footer onVersionClick={() => setShowReleaseNotes(true)} />
-            {showAudioCTA && activeTab !== 'media' && (
-              <div className="fixed bottom-4 right-4 z-50">
-                <div className="flex items-center gap-3 px-4 py-3 rounded-full bg-slate-900/90 border border-cyan-600 shadow-xl backdrop-blur">
-                  <button
-                    onClick={() => {
-                      navigate('/media/audio?albumId=25&quickstart=1');
-                      try {
-                        localStorage.setItem('cta_audio_dismissed', '1');
-                      } catch (e) {
-                        console.warn('Failed to persist audio CTA dismissal flag', e);
-                      }
-                      setShowAudioCTA(false);
-                    }}
-                    className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-full text-xs"
-                  >
-                    Listen Now
-                  </button>
-                  <span className="text-xs text-slate-300">New: Sascha Barros Testimony</span>
-                  <button
-                    onClick={async () => {
-                      try {
-                        const resp = await fetch(
-                          `/api/investigations/by-title?title=${encodeURIComponent('Sascha Barros Testimony')}`,
-                        );
-                        if (resp.ok) {
-                          const inv = await resp.json();
-                          navigate(`/investigations/${inv.id}`);
-                        }
-                      } catch (e) {
-                        console.warn('Failed to open Sascha investigation from CTA', e);
-                      }
-                    }}
-                    className="px-3 py-1.5 bg-amber-700 hover:bg-amber-600 text-white rounded-full text-xs border border-amber-500"
-                  >
-                    Open Investigation
-                  </button>
-                  <button
-                    onClick={() => {
-                      try {
-                        localStorage.setItem('cta_audio_dismissed', '1');
-                      } catch (e) {
-                        console.warn('Failed to persist audio CTA dismissal flag', e);
-                      }
-                      setShowAudioCTA(false);
-                    }}
-                    className="text-slate-400 hover:text-white"
-                    aria-label="Dismiss"
-                  >
-                    ×
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         </InvestigationsProvider>
       </UndoProvider>

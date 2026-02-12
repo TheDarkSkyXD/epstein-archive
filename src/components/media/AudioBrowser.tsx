@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom';
 import { FixedSizeList as List } from 'react-window';
 import { AudioPlayer, TranscriptSegment, Chapter } from './AudioPlayer';
-import { Music, CheckSquare, Square, AlertTriangle, Clock, Calendar } from 'lucide-react';
+import { Music, CheckSquare, Square, Clock, Calendar } from 'lucide-react';
 import { SensitiveContent } from '../common/SensitiveContent';
 import BatchToolbar from '../common/BatchToolbar';
 import { SensitiveWarningBanner } from '../shared/SensitiveWarningBanner';

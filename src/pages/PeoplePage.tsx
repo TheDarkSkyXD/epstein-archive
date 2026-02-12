@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Icon from '../components/common/Icon';
 import { StatsDisplay } from '../components/pages/StatsDisplay';
 import StatsSkeleton from '../components/pages/StatsSkeleton';
@@ -52,7 +52,7 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
   onSortOrderToggle,
   searchTerm,
   onPersonClick,
-  navigate,
+  // navigate unused
 }) => {
   // Local state for ULTRATHINK mode
   const [subjects, setSubjects] = useState<SubjectCardDTO[]>([]);
@@ -248,29 +248,32 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
             <p className="text-slate-400">Try adjusting your search terms</p>
           </div>
         ) : (
-          <AutoSizer>
-            {({ height, width }) => {
-              const columnCount = Math.floor(width / COLUMN_WIDTH) || 1;
-              const rowCount = Math.ceil(subjects.length / columnCount);
-              // Calculate improved column width to fill space
-              const effectiveColWidth = width / columnCount;
+          <>
+            {/* @ts-expect-error AutoSizer types are incompatible with React 18 in this context */}
+            <AutoSizer>
+              {({ height, width }: { height: number; width: number }) => {
+                const columnCount = Math.floor(width / COLUMN_WIDTH) || 1;
+                const rowCount = Math.ceil(subjects.length / columnCount);
+                // Calculate improved column width to fill space
+                const effectiveColWidth = width / columnCount;
 
-              return (
-                <Grid
-                  ref={gridRef}
-                  columnCount={columnCount}
-                  columnWidth={effectiveColWidth}
-                  height={height}
-                  rowCount={rowCount}
-                  rowHeight={ROW_HEIGHT}
-                  width={width}
-                  itemData={{ items: subjects, columnCount }}
-                >
-                  {Cell}
-                </Grid>
-              );
-            }}
-          </AutoSizer>
+                return (
+                  <Grid
+                    ref={gridRef}
+                    columnCount={columnCount}
+                    columnWidth={effectiveColWidth}
+                    height={height}
+                    rowCount={rowCount}
+                    rowHeight={ROW_HEIGHT}
+                    width={width}
+                    itemData={{ items: subjects, columnCount }}
+                  >
+                    {Cell}
+                  </Grid>
+                );
+              }}
+            </AutoSizer>
+          </>
         )}
       </div>
 

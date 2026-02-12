@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import Icon from './common/Icon';
 import { Link } from 'react-router-dom';
 import { AddToInvestigationButton } from './common/AddToInvestigationButton';
-import { LocationMap } from './visualizations/LocationMap';
+
 import { RouteMap } from './visualizations/RouteMap';
 import { Select } from './common/Select';
 
@@ -59,12 +59,7 @@ const FlightTracker: React.FC = () => {
   const [coOccurrences, setCoOccurrences] = useState<CoOccurrence[]>([]);
   const [networkLoading, setNetworkLoading] = useState(false);
 
-  useEffect(() => {
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadData is stable and defined below
-  }, [selectedPassenger, dateRange.start, dateRange.end]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -97,7 +92,11 @@ const FlightTracker: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedPassenger, dateRange.start, dateRange.end]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const loadCoOccurrences = async () => {
     setNetworkLoading(true);

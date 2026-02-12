@@ -6,15 +6,6 @@ import bcrypt from 'bcryptjs';
 
 const router = Router();
 
-interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-    username: string;
-    role: string;
-    email?: string | null;
-  };
-}
-
 // User Management Endpoints
 router.get('/', authenticateRequest, requireRole('admin'), async (_req, res, next) => {
   try {

@@ -12,9 +12,6 @@ import {
   Zap,
   Info,
   ChevronRight,
-  ChevronDown,
-  CheckSquare,
-  Square,
   AlertTriangle,
 } from 'lucide-react';
 
@@ -75,8 +72,7 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   onEdgeClick,
   selectedNodeId,
   selectedEdgeId,
-  showFilters = true,
-  showLegend = true,
+  // showFilters/showLegend removed from destructuring (unused)
   interactive = true,
   height = 600,
 }) => {
@@ -85,9 +81,9 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   const [edges, setEdges] = useState<NetworkEdge[]>([]);
   const [filteredNodes, setFilteredNodes] = useState<NetworkNode[]>([]);
   const [filteredEdges, setFilteredEdges] = useState<NetworkEdge[]>([]);
+
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<string>('all');
-  const [filterRisk, setFilterRisk] = useState<string>('all');
+  // filterType/Risk removed (unused)
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -174,6 +170,7 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       setNodes([...spreadNodes]);
       centerNetwork();
     }, 100);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialNodes, initialEdges, rootNodeId]);
 
   // BFS calculation for hops from root
@@ -323,7 +320,8 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     const centerY = 300;
     const repulsionStrength = 2500;
     const attractionStrength = 0.05;
-    const damping = 0.85;
+
+    // damping removed (unused)
     const radialForceStrength = 0.02;
 
     for (let i = 0; i < iterations; i++) {
@@ -619,54 +617,6 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     if (clickedEdge) {
       onEdgeClick?.(clickedEdge);
     }
-  };
-
-  // Touch Event Handlers for Mobile Support
-  const handleTouchStart = (event: React.TouchEvent<HTMLCanvasElement>) => {
-    if (!interactive) return;
-    // Prevent scrolling page while panning canvas
-    if (event.cancelable) event.preventDefault();
-
-    if (event.touches.length === 1) {
-      const touch = event.touches[0];
-      setIsDragging(true);
-      setDragStart({ x: touch.clientX, y: touch.clientY });
-      setLastPan({ x: pan.x, y: pan.y });
-    }
-  };
-
-  const handleTouchMove = (event: React.TouchEvent<HTMLCanvasElement>) => {
-    if (!interactive || !isDragging) return;
-    if (event.cancelable) event.preventDefault();
-
-    if (event.touches.length === 1) {
-      const touch = event.touches[0];
-      const deltaX = touch.clientX - dragStart.x; // Drag factor 1:1 on screen pixels
-      const deltaY = touch.clientY - dragStart.y;
-
-      // Need to account for canvas scaling if we want 1:1 visual movement
-      // But typically pan is in logical canvas coords.
-      // If we move finger 100px, we want canvas to shift 100px visually.
-      // So we map screen delta to canvas scale?
-      // current pan is in canvas units.
-      // We want to update canvas units.
-
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-
-      setPan({
-        x: lastPan.x + deltaX * scaleX,
-        y: lastPan.y + deltaY * scaleY,
-      });
-    }
-  };
-
-  const handleTouchEnd = () => {
-    setIsDragging(false);
   };
 
   // Enhanced zoom to center on mouse position

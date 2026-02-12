@@ -182,7 +182,7 @@ export const AdminDashboard: React.FC = () => {
         alert('Backup created successfully.');
         fetchBackups();
       }
-    } catch (e) {
+    } catch (_e) {
       alert('Backup failed');
     }
   };

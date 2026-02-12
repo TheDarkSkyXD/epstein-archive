@@ -1,13 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import {
-  Newspaper,
-  Search,
-  ChevronDown,
-  ChevronUp,
-  ExternalLink,
-  Calendar,
-  Clock,
-} from 'lucide-react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Newspaper, Search, ChevronDown, ChevronUp, Clock } from 'lucide-react';
 import ArticleViewerModal from './ArticleViewerModal';
 import { Article } from './ArticleCard';
 
@@ -28,7 +20,6 @@ export const ArticlesTab: React.FC = () => {
 
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
-  const [total, setTotal] = useState(0);
 
   useEffect(() => {
     // Reset and fetch when filters change
@@ -37,57 +28,59 @@ export const ArticlesTab: React.FC = () => {
     fetchArticles(1, true);
   }, [searchTerm, selectedPublication, sortOrder]);
 
-  const fetchArticles = async (pageNum: number, isReset: boolean = false) => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams({
-        page: pageNum.toString(),
-        limit: '12',
-        sort: sortOrder,
-      });
+  const fetchArticles = useCallback(
+    async (pageNum: number, isReset: boolean = false) => {
+      try {
+        setLoading(true);
+        const params = new URLSearchParams({
+          page: pageNum.toString(),
+          limit: '12',
+          sort: sortOrder,
+        });
 
-      if (searchTerm) params.append('search', searchTerm);
-      if (selectedPublication) params.append('publication', selectedPublication);
+        if (searchTerm) params.append('search', searchTerm);
+        if (selectedPublication) params.append('publication', selectedPublication);
 
-      const response = await fetch(`/api/articles?${params.toString()}`);
+        const response = await fetch(`/api/articles?${params.toString()}`);
 
-      if (!response.ok) {
-        console.warn('Articles API not available, using empty array');
+        if (!response.ok) {
+          console.warn('Articles API not available, using empty array');
+          if (isReset) setArticles([]);
+          return;
+        }
+
+        const { data, pagination } = await response.json();
+
+        if (Array.isArray(data)) {
+          // Normalize API response
+          const normalized = data.map((item: any) => ({
+            id: item.id,
+            title: item.title,
+            url: item.link || item.url,
+            author: item.author || 'Unknown',
+            publication: item.source || item.publication || 'Unknown',
+            published_date: item.pub_date || item.published_date || '',
+            summary: item.description || item.summary || '',
+            tags: item.tags || '',
+            redFlagRating: item.red_flag_rating ?? item.redFlagRating ?? 0,
+            imageUrl: item.image_url || item.imageUrl || null,
+            reading_time: item.reading_time || item.readingTime || null,
+          }));
+
+          setArticles((prev) => (isReset ? normalized : [...prev, ...normalized]));
+          setHasMore(Math.ceil(pagination.total / pagination.limit) > pageNum);
+        } else {
+          if (isReset) setArticles([]);
+        }
+      } catch (error) {
+        console.error('Error fetching articles:', error);
         if (isReset) setArticles([]);
-        return;
+      } finally {
+        setLoading(false);
       }
-
-      const { data, pagination } = await response.json();
-
-      if (Array.isArray(data)) {
-        // Normalize API response
-        const normalized = data.map((item: any) => ({
-          id: item.id,
-          title: item.title,
-          url: item.link || item.url,
-          author: item.author || 'Unknown',
-          publication: item.source || item.publication || 'Unknown',
-          published_date: item.pub_date || item.published_date || '',
-          summary: item.description || item.summary || '',
-          tags: item.tags || '',
-          redFlagRating: item.red_flag_rating ?? item.redFlagRating ?? 0,
-          imageUrl: item.image_url || item.imageUrl || null,
-          reading_time: item.reading_time || item.readingTime || null,
-        }));
-
-        setArticles((prev) => (isReset ? normalized : [...prev, ...normalized]));
-        setHasMore(Math.ceil(pagination.total / pagination.limit) > pageNum);
-        setTotal(pagination.total);
-      } else {
-        if (isReset) setArticles([]);
-      }
-    } catch (error) {
-      console.error('Error fetching articles:', error);
-      if (isReset) setArticles([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [page, searchTerm, selectedPublication, sortOrder],
+  );
 
   const handleLoadMore = () => {
     const nextPage = page + 1;
@@ -132,14 +125,6 @@ export const ArticlesTab: React.FC = () => {
     } catch {
       return dateStr;
     }
-  };
-
-  const getRedFlagColor = (rating: number) => {
-    if (rating >= 5) return 'text-red-400 bg-red-900/30';
-    if (rating >= 4) return 'text-orange-400 bg-orange-900/30';
-    if (rating >= 3) return 'text-yellow-400 bg-yellow-900/30';
-    if (rating >= 2) return 'text-blue-400 bg-blue-900/30';
-    return 'text-slate-400 bg-slate-800';
   };
 
   return (

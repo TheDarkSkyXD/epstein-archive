@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { investigationsRepository } from '../db/investigationsRepository.js';
-import { authenticateRequest, requireRole } from '../auth/middleware.js';
+import { authenticateRequest } from '../auth/middleware.js';
 
 const router = Router();
 

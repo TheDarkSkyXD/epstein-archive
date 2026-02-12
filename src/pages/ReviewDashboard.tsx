@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Shield, Check, X, AlertTriangle, ExternalLink } from 'lucide-react';
+import { Shield, Check, X, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface MentionQueueItem {

@@ -3,7 +3,6 @@ import { statsRepository } from '../db/statsRepository.js';
 import { getDb } from '../db/connection.js';
 import { config } from '../../config/index.js';
 import fs from 'fs';
-import path from 'path';
 import { ingestRunsRepository } from '../db/ingestRunsRepository.js';
 import { BackupService } from '../services/BackupService.js';
 import { FtsMaintenanceService } from '../services/ftsMaintenance.js';

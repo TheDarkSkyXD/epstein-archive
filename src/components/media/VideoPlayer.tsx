@@ -199,6 +199,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
+  const seek = useCallback(
+    (time: number) => {
+      if (videoRef.current) {
+        videoRef.current.currentTime = Math.max(0, Math.min(time, duration));
+        setCurrentTime(videoRef.current.currentTime);
+      }
+    },
+    [duration],
+  );
+
   const jumpToTranscriptMatch = useCallback(
     (nextIndex: number) => {
       if (!transcriptMatches.length) return;
@@ -211,7 +221,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       scrollToSegment(segIndex);
       scrollOverlayToSegment(segIndex);
     },
-    [transcriptMatches, transcript],
+    [transcriptMatches, transcript, seek],
   );
 
   const goToNextTranscriptMatch = useCallback(
@@ -295,13 +305,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       document.exitFullscreen();
     } else if ((document as any).webkitExitFullscreen) {
       (document as any).webkitExitFullscreen();
-    }
-  };
-
-  const seek = (time: number) => {
-    if (videoRef.current) {
-      videoRef.current.currentTime = Math.max(0, Math.min(time, duration));
-      setCurrentTime(videoRef.current.currentTime);
     }
   };
 

@@ -330,7 +330,7 @@ Infer the type of the [REDACTED] entity based on the surrounding context.
       }
 
       return [];
-    } catch (e) {
+    } catch (_e) {
       return [];
     }
   }
@@ -389,7 +389,7 @@ ${entityList}
       }
 
       return { entityId: null, confidence: 0, canonicalName: null };
-    } catch (e) {
+    } catch (_e) {
       return { entityId: null, confidence: 0, canonicalName: null };
     }
   }
@@ -447,7 +447,7 @@ ${entityNames.join(', ')}
       }
 
       return relationships;
-    } catch (e) {
+    } catch (_e) {
       return [];
     }
   }
@@ -485,7 +485,7 @@ Content: "${content.slice(0, 2000)}"
       }
 
       return null;
-    } catch (e) {
+    } catch (_e) {
       return null;
     }
   }
@@ -529,7 +529,7 @@ Normalize this "Black Book" contact entry. Fix OCR errors, extract structured fi
         return JSON.parse(jsonMatch[0]);
       }
       return null;
-    } catch (e) {
+    } catch (_e) {
       return null;
     }
   }

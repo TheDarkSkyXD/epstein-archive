@@ -37,7 +37,7 @@ import { communicationsRepository } from './server/db/communicationsRepository.j
 import crypto from 'crypto';
 import multer from 'multer';
 import fs from 'fs';
-import { Person, SearchFilters, SortOption, Evidence, User, SubjectCardDTO } from './types';
+import { Person, SearchFilters, SortOption, Evidence, User } from './types'; // SubjectCardDTO removed (unused)
 import { MediaImage } from './types/media.types';
 import { config } from './config/index.js';
 import { blackBookRepository } from './server/db/blackBookRepository.js';

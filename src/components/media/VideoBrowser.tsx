@@ -3,7 +3,7 @@ import { FixedSizeGrid as Grid, GridChildComponentProps, areEqual } from 'react-
 import { createPortal } from 'react-dom';
 import AutoSizer from '../common/AutoSizer';
 import { VideoPlayer } from './VideoPlayer';
-import { Play, Calendar, CheckSquare, AlertTriangle, Clock } from 'lucide-react';
+import { Play, Calendar, CheckSquare, Clock } from 'lucide-react';
 import { SensitiveContent } from '../common/SensitiveContent';
 import BatchToolbar from '../common/BatchToolbar';
 import { SensitiveWarningBanner } from '../shared/SensitiveWarningBanner';
@@ -234,49 +234,52 @@ export const VideoBrowser: React.FC = () => {
     }
   };
 
-  const fetchVideos = async (pageNum: number) => {
-    try {
-      setLoading(true);
+  const fetchVideos = useCallback(
+    async (pageNum: number) => {
+      try {
+        setLoading(true);
 
-      // Abort previous request
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
+        // Abort previous request
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+        }
+        abortControllerRef.current = new AbortController();
+
+        const params = new URLSearchParams({
+          page: pageNum.toString(),
+          limit: '24',
+        });
+        if (selectedAlbum) params.append('albumId', selectedAlbum.toString());
+        if (transcriptSearch.trim()) params.append('transcriptQuery', transcriptSearch.trim());
+        // Always sort by title as requested
+        params.append('sortBy', 'title');
+
+        const res = await fetch(`/api/media/video?${params}`, {
+          signal: abortControllerRef.current.signal,
+        });
+        if (!res.ok) throw new Error('Failed to load video files');
+
+        const data = await res.json();
+        const newItems = data.mediaItems || [];
+
+        if (pageNum === 1) {
+          setItems(newItems);
+        } else {
+          setItems((prev) => [...prev, ...newItems]);
+        }
+
+        setHasMore(newItems.length === 24);
+        setPage(pageNum);
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return;
+        console.error(err);
+        setError('Failed to load video content');
+      } finally {
+        setLoading(false);
       }
-      abortControllerRef.current = new AbortController();
-
-      const params = new URLSearchParams({
-        page: pageNum.toString(),
-        limit: '24',
-      });
-      if (selectedAlbum) params.append('albumId', selectedAlbum.toString());
-      if (transcriptSearch.trim()) params.append('transcriptQuery', transcriptSearch.trim());
-      // Always sort by title as requested
-      params.append('sortBy', 'title');
-
-      const res = await fetch(`/api/media/video?${params}`, {
-        signal: abortControllerRef.current.signal,
-      });
-      if (!res.ok) throw new Error('Failed to load video files');
-
-      const data = await res.json();
-      const newItems = data.mediaItems || [];
-
-      if (pageNum === 1) {
-        setItems(newItems);
-      } else {
-        setItems((prev) => [...prev, ...newItems]);
-      }
-
-      setHasMore(newItems.length === 24);
-      setPage(pageNum);
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return;
-      console.error(err);
-      setError('Failed to load video content');
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [selectedAlbum, transcriptSearch],
+  );
 
   const formatDate = useCallback((dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-US', {

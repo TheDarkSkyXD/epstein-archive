@@ -15,9 +15,6 @@ import { optimizedDataService } from '../../services/OptimizedDataService';
 
 export const About: React.FC = () => {
   const [stats, setStats] = React.useState<any | null>(null);
-  const [ingestionStats, setIngestionStats] = React.useState<
-    { source_collection: string; count: number }[]
-  >([]);
   const [pipelineStatus, setPipelineStatus] = React.useState<any | null>(null);
 
   React.useEffect(() => {
@@ -30,7 +27,7 @@ export const About: React.FC = () => {
             released: data.totalDocuments || data.documents || 0,
           });
           if (data.collectionCounts) {
-            setIngestionStats(data.collectionCounts);
+            // setIngestionStats(data.collectionCounts); // unused
           }
           if (data.pipeline_status) {
             setPipelineStatus(data.pipeline_status);

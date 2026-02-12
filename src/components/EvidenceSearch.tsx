@@ -51,36 +51,7 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
     }
   }, [queryParam, setSearchTerm]);
 
-  useEffect(() => {
-    loadPeopleData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadPeopleData is stable and defined below
-  }, []);
-
-  // Reload data when filters change
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      loadPeopleData(); // Announce filter change for screen readers
-      const announcement = document.createElement('div');
-      announcement.setAttribute('aria-live', 'polite');
-      announcement.setAttribute('aria-atomic', 'true');
-      announcement.className = 'sr-only';
-      announcement.textContent = 'Search results updated';
-      document.body.appendChild(announcement);
-      setTimeout(() => document.body.removeChild(announcement), 1000);
-    }, 500); // 500ms debounce
-
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadPeopleData is stable and defined below
-  }, [
-    searchTerm,
-    selectedRiskLevel,
-    selectedEvidenceType,
-    minRedFlagRating,
-    maxRedFlagRating,
-    sortBy,
-  ]);
-
-  const loadPeopleData = async () => {
+  const loadPeopleData = React.useCallback(async () => {
     try {
       setLoading(true);
       setLoadingProgress('Connecting to database...');
@@ -140,7 +111,43 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
     } finally {
       setLoading(false);
     }
-  };
+  }, [
+    searchTerm,
+    selectedRiskLevel,
+    selectedEvidenceType,
+    minRedFlagRating,
+    maxRedFlagRating,
+    sortBy,
+  ]);
+
+  useEffect(() => {
+    loadPeopleData();
+  }, [loadPeopleData]); // Initial load and updates are handled by the debounced effect below? No, wait.
+  // Actually, we want one effect for initial load and one for updates?
+  // Or just one effect that depends on loadPeopleData?
+  // If we have just one effect:
+  // useEffect(() => { loadPeopleData(); }, [loadPeopleData]);
+  // Then every time loadPeopleData changes (which is on every state change), it runs immediately. No debounce.
+  // We want debounce.
+  // So we need a debounced effect.
+
+  // Debounced effect for search/filters
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadPeopleData();
+
+      // Announce filter change for screen readers
+      const announcement = document.createElement('div');
+      announcement.setAttribute('aria-live', 'polite');
+      announcement.setAttribute('aria-atomic', 'true');
+      announcement.className = 'sr-only';
+      announcement.textContent = 'Search results updated';
+      document.body.appendChild(announcement);
+      setTimeout(() => document.body.removeChild(announcement), 1000);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [loadPeopleData]);
 
   const allEvidenceTypes = useMemo(() => {
     const types = new Set<string>();

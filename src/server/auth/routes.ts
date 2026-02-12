@@ -105,7 +105,7 @@ router.post('/refresh', authLimiter, (req, res) => {
 
     const accessToken = generateAccessToken(user);
     res.json({ success: true, accessToken });
-  } catch (error) {
+  } catch (_error) {
     res.status(401).json({ error: 'Invalid refresh token' });
   }
 });

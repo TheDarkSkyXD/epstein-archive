@@ -105,7 +105,10 @@ const SubjectCardV2: React.FC<SubjectCardV2Props> = React.memo(
                 <h3 className="text-sm font-bold text-slate-100 truncate group-hover:text-cyan-400 transition-colors">
                   {subject.name}
                 </h3>
-                <EvidenceBadge level={forensics.evidence_ladder as any} />
+                <EvidenceBadge
+                  level={forensics.evidence_ladder as any}
+                  rating={(forensics as any).red_flag_rating as number | undefined}
+                />
               </div>
               <div className="text-[10px] text-slate-500 uppercase tracking-wider truncate">
                 {subject.role}

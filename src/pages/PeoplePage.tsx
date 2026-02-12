@@ -192,6 +192,12 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
               forensics: {
                 risk_level: (e.likelihood_score || 'LOW').toString().toUpperCase(),
                 evidence_ladder: mediaCount > 0 ? 'L1' : (e.mentions || 0) > 50 ? 'L2' : 'L3',
+                red_flag_rating:
+                  typeof (e as any).red_flag_rating === 'number'
+                    ? (e as any).red_flag_rating
+                    : typeof (e as any).redFlagRating === 'number'
+                      ? (e as any).redFlagRating
+                      : undefined,
                 signal_strength: {
                   exposure: Math.min(
                     100,

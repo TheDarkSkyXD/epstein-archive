@@ -108,8 +108,8 @@ export const RedactedLogo: React.FC<RedactedLogoProps> = ({ text, className = ''
   const renderText = () => {
     let letterIndex = 0;
 
-    // Easter egg: swap "Epstein" for "Trump" on alt animation
-    const displayText = showAltText ? text.replace(/EPSTEIN/gi, 'Trump') : text;
+    // Easter egg: swap "EPSTEIN" for "TRUMP" on alt animation (all caps)
+    const displayText = showAltText ? text.replace(/EPSTEIN/gi, 'TRUMP') : text;
 
     return displayText.split('').map((char, i) => {
       if (char === ' ') {

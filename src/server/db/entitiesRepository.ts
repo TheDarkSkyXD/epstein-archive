@@ -130,10 +130,12 @@ export const entitiesRepository = {
       // VIP-only, person-only on front page
       whereConditions.push(`entity_type = 'Person'`);
       whereConditions.push(`is_vip = 1`);
+      whereConditions.push(`COALESCE(primary_role, '') NOT IN ('Unknown','UNK')`);
       whereConditions.push(`(
-        mentions >= 3
+        mentions >= 10
         OR bio IS NOT NULL
         OR (SELECT COUNT(*) FROM media_item_people WHERE entity_id = entities.id) > 0
+        OR (SELECT COUNT(*) FROM black_book_entries WHERE person_id = entities.id) > 0
       )`);
     }
 
@@ -264,6 +266,7 @@ export const entitiesRepository = {
         forensics: {
           risk_level: (e.risk_level as any) || 'LOW',
           evidence_ladder: ladder,
+          red_flag_rating: typeof e.red_flag_rating === 'number' ? e.red_flag_rating : undefined,
           signal_strength: {
             exposure: Math.round(exposure),
             connectivity: Math.round(connectivity),
@@ -276,8 +279,20 @@ export const entitiesRepository = {
       return dto;
     });
 
+    const seen = new Set<string>();
+    const normalizedSubjects = subjects.filter((s) => {
+      const norm = s.name
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '')
+        .replace(/\b(the|of|and|or|inc|llc|corp|ltd|group|trust)\b/g, '')
+        .trim();
+      if (seen.has(norm)) return false;
+      seen.add(norm);
+      return true;
+    });
+
     return {
-      subjects,
+      subjects: normalizedSubjects,
       total: totalResult.total,
     };
   },
@@ -385,8 +400,6 @@ export const entitiesRepository = {
       page === 1;
 
     if (isDefaultView) {
-      // Exclude suspected non-person entities from "People" tab
-      // These are often locations or organizations mislabeled as "Person"
       ENTITY_BLACKLIST_PATTERNS.forEach((pattern, i) => {
         const paramName = `junkPattern${i}`;
         params[paramName] = `%${pattern}%`;
@@ -404,14 +417,12 @@ export const entitiesRepository = {
       whereConditions.push(`full_name NOT LIKE 'http%'`);
       whereConditions.push(`full_name NOT LIKE 'www.%'`);
 
-      // Aggressively remove noise from featured results:
-      // 1. Must have at least 3 mentions
-      // 2. OR Must have a photo
-      // 3. OR Must have a bio (indicating manual verification or high-quality extraction)
+      whereConditions.push(`COALESCE(primary_role, '') NOT IN ('Unknown','UNK')`);
       whereConditions.push(`(
-        mentions >= 3
+        mentions >= 10
         OR bio IS NOT NULL
         OR (SELECT COUNT(*) FROM media_item_people WHERE entity_id = entities.id) > 0
+        OR (SELECT COUNT(*) FROM black_book_entries WHERE person_id = entities.id) > 0
       )`);
     }
 

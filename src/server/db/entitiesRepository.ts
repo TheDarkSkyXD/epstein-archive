@@ -360,14 +360,17 @@ export const entitiesRepository = {
     const sql = `
             SELECT 
               entities.*,
-              entities.mentions AS documentCount
+              entities.mentions AS documentCount,
+              EXISTS(SELECT 1 FROM black_book_entries WHERE person_id = entities.id) as hasBlackBook
             FROM ${sourceTable}
             ${whereClause}
             ${orderByClause}
             LIMIT @limit OFFSET @offset
         `;
 
-    const entities = db.prepare(sql).all({ ...params, limit, offset }) as Person[];
+    const entities = db.prepare(sql).all({ ...params, limit, offset }) as (Person & {
+      hasBlackBook: boolean;
+    })[];
 
     // Fetch photos for these entities
     if (entities.length > 0) {

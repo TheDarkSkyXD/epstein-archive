@@ -75,6 +75,8 @@ export interface Person {
     entry_category?: string;
     document_id?: number;
   }[];
+  hasBlackBook?: boolean;
+
   fileReferences: {
     id?: string;
     filename: string;

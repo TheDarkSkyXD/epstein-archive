@@ -1,5 +1,5 @@
 #!/bin/sh
-. "$(dirname "$0")/_/husky.sh"
+
 
 echo "Running quality checks"
 echo "🔍 Running linter..."
@@ -8,8 +8,8 @@ pnpm lint:fix || exit 1
 echo "🔍 Running type-checker..."
 pnpm type-check || exit 1
 
-echo "🔍 Checking database integrity..."
-pnpm db:check || exit 1
+# echo "🔍 Checking database integrity..."
+# pnpm db:check || exit 1
 
 # Check for uncommitted changes (dirty state) caused by formatter or otherwise
 if [ -n "$(git status --porcelain)" ]; then

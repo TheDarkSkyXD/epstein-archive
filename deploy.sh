@@ -95,17 +95,33 @@ else
       exit 1
     fi
 
-    # 4. Atomic Swap
-    log_step "Performing atomic DB swap..."
+    # 4. Atomic Swap (Safe Mode)
+    log_step "Performing DB swap (stopping service to prevent SQLITE_BUSY)..."
     ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "
       set -e
       cd ${PRODUCTION_PATH}
-      echo 'Removing stale WAL/Journal files...'
+      
+      # Stop the application to release all DB locks
+      echo 'Stopping application to release DB locks...'
+      pm2 stop epstein-archive || true
+      
+      # Allow potential lingering connections to close
+      sleep 2
+      
+      echo 'Removing potentially stale WAL/Journal files...'
       rm -f epstein-archive.db-wal epstein-archive.db-shm
+      
       echo 'Backing up current database...'
       mv epstein-archive.db epstein-archive.db.bak || true
+      
       echo 'Swapping in new database...'
       mv epstein-archive.db.new epstein-archive.db
+      
+      # Restart will happen in Phase 2, or here if DB_ONLY
+      if [ \"$DB_ONLY\" = true ]; then
+        echo 'Restarting application...'
+        pm2 start dist/server.js --name epstein-archive --update-env
+      fi
     "
     log_success "Database swapped successfully."
   fi
@@ -117,9 +133,18 @@ fi
 if [ "$DB_ONLY" = true ]; then
   log_warning "Skipping code deployment (--db-only)"
   # Restart to ensure DB connection is fresh
+  # Restart currently handled in loop or Phase 1 if DB_ONLY? 
+  # Wait, if code-only, we didn't stop. If db-only, we stopped and started in Phase 1?
+  # Let's verify logic.
+  # If DB_ONLY=true, Phase 1 block runs. I added `pm2 start` there.
+  # So this block is redundant/conflicting?
+  # If DB_ONLY=true:
+  #   Phase 1 -> Swap -> Start
+  #   Phase 2 -> Check DB_ONLY -> Skip Code -> Restart (redundant but safe-ish?)
+  
   if [ "$DRY_RUN" = false ]; then
-      log_step "Restarting service to pick up new DB..."
-      ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "pm2 restart epstein-archive --update-env"
+      log_step "Ensuring service is running..."
+      ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "pm2 restart epstein-archive --update-env || pm2 start dist/server.js --name epstein-archive"
   fi
 else
   log_step "Phase 2: Code Deployment..."

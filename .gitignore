@@ -203,3 +203,5 @@ lint_output_final.json
 lint_output.json
 
 pipeline_checkpoints/run_1770876572921.json
+
+epstein-archive.db.snapshot-journal

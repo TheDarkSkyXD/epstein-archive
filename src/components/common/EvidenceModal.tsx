@@ -4,7 +4,7 @@ import { X, Search, FileText, Activity, AlertTriangle, ExternalLink, Calendar } 
 import { motion, AnimatePresence } from 'framer-motion';
 import { FixedSizeList as List } from 'react-window';
 import { InfiniteLoader } from 'react-window-infinite-loader';
-import AutoSizer from 'react-virtualized-auto-sizer';
+import AutoSizer from 'react-virtualized-auto-sizer/dist/react-virtualized-auto-sizer.cjs';
 
 import { SignalPanel } from '../entities/cards/SignalPanel';
 import { DriverChips } from '../entities/cards/DriverChips';

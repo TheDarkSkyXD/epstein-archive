@@ -558,7 +558,6 @@ function App() {
     // Initialize optimized data service
     const initializeDataService = async () => {
       try {
-        const hadCachedPeople = !!sessionStorage.getItem('epstein_archive_people_page1_v5_3_4');
         setIsInitializing(true);
         setLoadingProgress('Connecting to database...');
         setLoadingProgressValue(10);

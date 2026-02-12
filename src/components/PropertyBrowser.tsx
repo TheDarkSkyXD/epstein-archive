@@ -68,13 +68,37 @@ const PropertyBrowser: React.FC = () => {
     return stats?.propertyTypes || [];
   }, [stats]);
 
+  const loadProperties = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (searchTerm) params.append('search', searchTerm);
+      if (propertyType) params.append('type', propertyType);
+      if (minValue) params.append('minValue', minValue);
+      if (maxValue) params.append('maxValue', maxValue);
+      if (showAssociatesOnly) params.append('associatesOnly', 'true');
+      params.append('page', page.toString());
+      params.append('limit', '50');
+
+      const res = await fetch(`/api/properties?${params}`);
+      const data = await res.json();
+
+      setProperties(data.properties || []);
+      setTotalPages(data.totalPages || 1);
+    } catch (error) {
+      console.error('Failed to load properties:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [searchTerm, propertyType, minValue, maxValue, showAssociatesOnly, page]);
+
   useEffect(() => {
     loadInitialData();
   }, []);
 
   useEffect(() => {
     loadProperties();
-  }, [searchTerm, propertyType, minValue, showAssociatesOnly, page]);
+  }, [loadProperties]);
 
   const loadInitialData = async () => {
     try {
@@ -120,30 +144,6 @@ const PropertyBrowser: React.FC = () => {
     } catch (error) {
       console.error('Failed to load property stats:', error);
       setDataUnavailable(true);
-    }
-  };
-
-  const loadProperties = async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (searchTerm) params.append('search', searchTerm);
-      if (propertyType) params.append('type', propertyType);
-      if (minValue) params.append('minValue', minValue);
-      if (maxValue) params.append('maxValue', maxValue);
-      if (showAssociatesOnly) params.append('associatesOnly', 'true');
-      params.append('page', page.toString());
-      params.append('limit', '50');
-
-      const res = await fetch(`/api/properties?${params}`);
-      const data = await res.json();
-
-      setProperties(data.properties || []);
-      setTotalPages(data.totalPages || 1);
-    } catch (error) {
-      console.error('Failed to load properties:', error);
-    } finally {
-      setLoading(false);
     }
   };
 

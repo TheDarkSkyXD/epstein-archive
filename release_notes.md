@@ -1,3 +1,11 @@
+## v13.1.5 — 2026-02-12
+
+### Patch Fix & Build Stabilization
+
+- **Critical Build Fix**: Resolved server build failure by explicitly including `src/types.ts` in the compilation process. This prevents the "Cannot find module" runtime error that was causing 502 Bad Gateway responses.
+- **Client Build Repair**: Fixed `react-virtualized-auto-sizer` import issues in `PeoplePage` and `EvidenceModal` by targeting the CommonJS build directly, ensuring successful client-side bundling.
+- **Codebase Hygiene**: Executed a comprehensive linting and formatting pass, removing unused variables and standardizing code style across the application.
+
 ## v13.1.4 — 2026-02-12
 
 ### Emergency Recovery Patch

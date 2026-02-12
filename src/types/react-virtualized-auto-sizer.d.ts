@@ -20,3 +20,8 @@ declare module 'react-virtualized-auto-sizer' {
 
   export default class AutoSizer extends PureComponent<AutoSizerProps> {}
 }
+
+declare module 'react-virtualized-auto-sizer/dist/react-virtualized-auto-sizer.cjs' {
+  import AutoSizer from 'react-virtualized-auto-sizer';
+  export default AutoSizer;
+}

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Shield,
-  HelpCircle,
+  // HelpCircle,
   User,
   Briefcase,
   Building,
@@ -46,7 +46,7 @@ export function RedactionPlaceholder({ type, role, confidence, kind }: Redaction
 
   // Color mapping based on type and confidence
   const getStyles = () => {
-    const opacity = Math.max(0.6, confidence); // Minimum opacity 0.6
+    // const opacity = Math.max(0.6, confidence); // Minimum opacity 0.6
 
     // Base colors
     let bg = 'bg-gray-200';

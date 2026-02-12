@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Icon from '../common/Icon';
-import { Link } from 'react-router-dom';
+// import { Link } from 'react-router-dom';
 
 interface ActivityItem {
   id: number;

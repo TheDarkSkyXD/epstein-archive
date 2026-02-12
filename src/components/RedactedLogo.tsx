@@ -77,7 +77,8 @@ export const RedactedLogo: React.FC<RedactedLogoProps> = ({ text, className = ''
         }
       }, fullRedactTime + holdTime);
 
-      // Phase 4: End animation
+      // Phase 4: End animation (add extra hold if alt text was shown)
+      const altHoldTime = isAltAnimation ? 1500 : 0;
       setTimeout(
         () => {
           setIsAnimating(false);
@@ -86,7 +87,7 @@ export const RedactedLogo: React.FC<RedactedLogoProps> = ({ text, className = ''
           setGlobalGlitch(false);
           setShowAltText(false);
         },
-        fullRedactTime + holdTime + letterCount * letterDelay + 100,
+        fullRedactTime + holdTime + letterCount * letterDelay + 100 + altHoldTime,
       );
     };
 
@@ -107,8 +108,8 @@ export const RedactedLogo: React.FC<RedactedLogoProps> = ({ text, className = ''
   const renderText = () => {
     let letterIndex = 0;
 
-    // Easter egg: swap "EPSTEIN" for "TRUMP" on every 4th animation
-    const displayText = showAltText ? text.replace(/EPSTEIN/gi, 'TRUMP  ') : text;
+    // Easter egg: swap "Epstein" for "Trump" on alt animation
+    const displayText = showAltText ? text.replace(/EPSTEIN/gi, 'Trump') : text;
 
     return displayText.split('').map((char, i) => {
       if (char === ' ') {

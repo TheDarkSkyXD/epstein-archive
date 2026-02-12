@@ -8,6 +8,7 @@ import { getEntityTypeIcon } from '../../utils/entityTypeIcons';
 import { SignalPanel } from './cards/SignalPanel';
 import { EvidenceBadge } from './cards/EvidenceBadge';
 import { DriverChips } from './cards/DriverChips';
+import Tooltip from '../common/Tooltip';
 
 interface SubjectCardV2Props {
   subject: SubjectCardDTO;
@@ -145,22 +146,28 @@ const SubjectCardV2: React.FC<SubjectCardV2Props> = React.memo(
 
           {/* 4. FOOTER */}
           <div className="mt-2 pt-2 border-t border-slate-800 flex items-center justify-between">
-            <AddToInvestigationButton
-              item={{
-                id: subject.id,
-                title: subject.name,
-                description: subject.role,
-                type: 'entity',
-                sourceId: subject.id,
-              }}
-              variant="icon"
-            />
-            <button
-              onClick={handleProfileClick}
-              className="text-[10px] font-bold uppercase tracking-wider text-cyan-500 hover:text-cyan-400 flex items-center gap-1"
-            >
-              View <Icon name="ArrowRight" size="xs" />
-            </button>
+            <Tooltip content="Add this entity to the current investigation" position="top-end">
+              <span>
+                <AddToInvestigationButton
+                  item={{
+                    id: subject.id,
+                    title: subject.name,
+                    description: subject.role,
+                    type: 'entity',
+                    sourceId: subject.id,
+                  }}
+                  variant="icon"
+                />
+              </span>
+            </Tooltip>
+            <Tooltip content="Open full profile for this entity" position="top-end">
+              <button
+                onClick={handleProfileClick}
+                className="text-[10px] font-bold uppercase tracking-wider text-cyan-500 hover:text-cyan-400 flex items-center gap-1"
+              >
+                View <Icon name="ArrowRight" size="xs" />
+              </button>
+            </Tooltip>
           </div>
         </div>
       </div>
@@ -177,13 +184,28 @@ const Metric = ({
   label: string;
   value: number;
   highlight?: boolean;
-}) => (
-  <div className="flex flex-col items-center">
-    <span className="text-[8px] uppercase text-slate-500 font-bold tracking-wider">{label}</span>
-    <span className={`text-[10px] font-mono ${highlight ? 'text-amber-400' : 'text-slate-300'}`}>
-      {formatNumber(value)}
-    </span>
-  </div>
-);
+}) => {
+  const descriptions: Record<string, string> = {
+    Mentions: 'Total mentions across documents. Higher implies broader exposure.',
+    Docs: 'Approximate count of documents mentioning this entity.',
+    Sources: 'Distinct evidence types associated with this entity.',
+    Media: 'Verified photos or media linked to this entity.',
+  };
+  const content = descriptions[label] || '';
+  return (
+    <Tooltip content={content} position="top">
+      <div className="flex flex-col items-center">
+        <span className="text-[8px] uppercase text-slate-500 font-bold tracking-wider">
+          {label}
+        </span>
+        <span
+          className={`text-[10px] font-mono ${highlight ? 'text-amber-400' : 'text-slate-300'}`}
+        >
+          {formatNumber(value)}
+        </span>
+      </div>
+    </Tooltip>
+  );
+};
 
 export default SubjectCardV2;

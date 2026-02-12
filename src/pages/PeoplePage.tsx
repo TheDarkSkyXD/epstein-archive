@@ -162,8 +162,22 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
             PAGE_SIZE,
           );
           const nextTotal = ents.total || 0;
-          const nextSubjects = (ents.data || []).map((e: any) => {
+          const data = ents.data || [];
+          // Compute max connection count across this page for relative network strength
+          const pageMaxConn = Math.max(
+            1,
+            ...data.map((e: any) => {
+              const connStr = String(e.connections_summary || e.connections || '');
+              if (/^\d+$/.test(connStr)) return parseInt(connStr, 10) || 0;
+              return (connStr.match(/,/g) || []).length;
+            }),
+          );
+          const nextSubjects = data.map((e: any) => {
             const mediaCount = Array.isArray(e.photos) ? e.photos.length : 0;
+            const connStr = String(e.connections_summary || e.connections || '');
+            let connCount = 0;
+            if (/^\d+$/.test(connStr)) connCount = parseInt(connStr, 10) || 0;
+            else connCount = (connStr.match(/,/g) || []).length;
             return {
               id: String(e.id),
               name: e.name || e.fullName || 'Unknown',
@@ -183,7 +197,7 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
                     100,
                     Math.round((Math.log10((e.mentions || 0) + 1) / 3) * 100),
                   ),
-                  connectivity: 0,
+                  connectivity: Math.min(100, Math.round((connCount / pageMaxConn) * 100)),
                   corroboration: Math.min(
                     100,
                     mediaCount * 20 +

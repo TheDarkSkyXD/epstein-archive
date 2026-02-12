@@ -177,6 +177,35 @@ export const entitiesRepository = {
 
     const rawEntities = db.prepare(sql).all({ ...params, limit, offset }) as any[];
 
+    // Compute global max connectivity from relationships to normalize the Network signal
+    let maxConnectivityCount = 1;
+    try {
+      const maxRow = db
+        .prepare(
+          `
+          SELECT MAX(cnt) as maxConn FROM (
+            SELECT source_entity_id, COUNT(*) as cnt 
+            FROM entity_relationships 
+            GROUP BY source_entity_id
+          )
+        `,
+        )
+        .get() as { maxConn?: number } | undefined;
+      if (maxRow && typeof maxRow.maxConn === 'number' && maxRow.maxConn > 0) {
+        maxConnectivityCount = maxRow.maxConn;
+      }
+    } catch {
+      // Fallback: estimate from current page's connections_summary strings
+      maxConnectivityCount = Math.max(
+        1,
+        ...rawEntities.map((e: any) => {
+          const connStr = String(e.connections || '');
+          if (/^\d+$/.test(connStr)) return parseInt(connStr, 10) || 0;
+          return (connStr.match(/,/g) || []).length;
+        }),
+      );
+    }
+
     // --- SERVER-SIDE PRECOMPUTATION of Signals & DTO Mapping ---
     const subjects: SubjectCardDTO[] = rawEntities.map((e) => {
       // 1. Evidence Ladder
@@ -205,10 +234,9 @@ export const entitiesRepository = {
 
       let connCount = 0;
       const connStr = String(e.connections || '');
-      // Try parsing number, else count commas
       if (/^\d+$/.test(connStr)) connCount = parseInt(connStr, 10);
       else connCount = (connStr.match(/,/g) || []).length;
-      const connectivity = Math.min(100, (connCount / 20) * 100);
+      const connectivity = Math.min(100, (connCount / maxConnectivityCount) * 100);
 
       // Simple corroboration proxy
       const corroboration = Math.min(100, e.media_count * 20 + eTypes.length * 15);

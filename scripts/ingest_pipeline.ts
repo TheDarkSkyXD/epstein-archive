@@ -1444,29 +1444,63 @@ async function processCollection(
 
   console.log(`   Found ${files.length} files`);
 
-  let processed = 0;
-  let skipped = 0;
-  let errors = 0;
+  // Concurrency control
+  const CONCURRENCY_LIMIT = 20;
+  let activePromises = 0;
+  const queue = [...files];
 
-  for (const file of files) {
-    const result = await processDocument(file, collection);
+  const results: { processed: number; skipped: number; errors: number } = {
+    processed: 0,
+    skipped: 0,
+    errors: 0,
+  };
 
-    if (result.success && result.documentId) {
-      processed++;
-      if (processed % 50 === 0) {
-        process.stdout.write(`   Progress: ${processed}/${files.length}...\r`);
+  const processNext = async (): Promise<void> => {
+    if (queue.length === 0) return;
+
+    const file = queue.shift()!;
+    activePromises++;
+
+    try {
+      const result = await processDocument(file, collection);
+      if (result.success && result.documentId) {
+        results.processed++;
+        if (results.processed % 50 === 0) {
+          process.stdout.write(
+            `   Progress: ${results.processed}/${files.length} (Active: ${activePromises})...\r`,
+          );
+        }
+      } else if (result.success) {
+        results.skipped++;
+      } else {
+        results.errors++;
+        console.error(`   ❌ Error processing ${basename(file)}: ${result.error}`);
       }
-    } else if (result.success) {
-      skipped++;
-    } else {
-      errors++;
-      console.error(`   ❌ Error processing ${basename(file)}: ${result.error}`);
+    } catch (err) {
+      results.errors++;
+      console.error(`   ❌ Unhandled error processing ${basename(file)}:`, err);
+    } finally {
+      activePromises--;
+      if (queue.length > 0) {
+        await processNext();
+      }
     }
+  };
+
+  // Start initial batch
+  const initialWorkers = Math.min(files.length, CONCURRENCY_LIMIT);
+  const workers = [];
+  for (let i = 0; i < initialWorkers; i++) {
+    workers.push(processNext());
   }
 
-  console.log(`   ✅ Complete: ${processed} processed, ${skipped} skipped, ${errors} errors`);
+  await Promise.all(workers);
 
-  return { processed, skipped, errors };
+  console.log(
+    `   ✅ Complete: ${results.processed} processed, ${results.skipped} skipped, ${results.errors} errors`,
+  );
+
+  return results;
 }
 
 // ============================================================================
@@ -1478,6 +1512,11 @@ async function main() {
   console.log('🚀 UNIFIED DATA INGESTION PIPELINE');
   console.log('='.repeat(80));
   console.log();
+
+  // Enforce Exo Cluster for Max Performance
+  process.env.AI_PROVIDER = 'exo_cluster';
+  process.env.ENABLE_AI_ENRICHMENT = 'true';
+  console.log('🚀 Configuring AI Provider: Exo Cluster (Concurrency Enabled)');
 
   // Initialize DB
   await initDb();
@@ -1548,43 +1587,91 @@ async function processQueue() {
   const jobManager = new JobManager();
   console.log('\n📬 Processing Queue with Robust Leasing (Phase 9)...');
 
+  // Enforce Exo cluster usage
+  process.env.AI_PROVIDER = 'exo_cluster';
+  process.env.ENABLE_AI_ENRICHMENT = 'true';
+  console.log('   🚀 Enforcing AI_PROVIDER=exo_cluster for maximum throughput');
+
+  const CONCURRENCY = 50; // High concurrency for cluster usage
+  const activePromises: Set<Promise<void>> = new Set();
   let processedCount = 0;
-  // Loop until queue is empty
   let hasMore = true;
-  while (hasMore) {
-    const doc = jobManager.acquireJob(600); // 10 minute lease
-    if (!doc) {
-      hasMore = false;
-      break;
+
+  console.log(`   ⚡️  Concurrency Level: ${CONCURRENCY} workers`);
+
+  // Loop until queue is empty and all workers are done
+  while (hasMore || activePromises.size > 0) {
+    // Fill the pool
+    while (hasMore && activePromises.size < CONCURRENCY) {
+      const doc = jobManager.acquireJob(600); // 10 minute lease
+
+      if (!doc) {
+        hasMore = false;
+        break;
+      }
+
+      // Create worker promise
+      const promise = (async () => {
+        try {
+          // Heartbeat
+          jobManager.renewLease(doc.id, 600);
+
+          // 1. Fetch full content
+          const fullDoc = await db.get(
+            'SELECT content, content_preview FROM documents WHERE id = ?',
+            doc.id,
+          );
+
+          if (fullDoc && fullDoc.content) {
+            // 2. Run AI Enrichment (Repair)
+            // Use a reasonable context window
+            const context = fullDoc.content.slice(0, 2000);
+            const refined = await AIEnrichmentService.repairMimeWildcards(fullDoc.content, context);
+
+            // 3. Update if changed
+            if (refined !== fullDoc.content) {
+              await db.run(
+                'UPDATE documents SET content = ?, content_refined = ?, last_processed_at = datetime("now") WHERE id = ?',
+                refined,
+                refined,
+                doc.id,
+              );
+            }
+          }
+
+          jobManager.completeJob(doc.id);
+          processedCount++;
+
+          if (processedCount % 10 === 0) {
+            process.stdout.write(
+              `\r   ✅ Processed ${processedCount} documents (Active: ${activePromises.size})`,
+            );
+          }
+        } catch (e) {
+          console.error(`\n      ❌ Job Failed (Doc ${doc.id}): ${(e as Error).message}`);
+          jobManager.failJob(doc.id, (e as Error).message);
+        }
+      })();
+
+      // Remove from set when done
+      promise.then(() => activePromises.delete(promise));
+
+      activePromises.add(promise);
     }
 
-    processedCount++;
-    console.log(
-      `   ⚙️  [Job ${processedCount}] Leased Document ${doc.id}: ${basename(doc.file_path)} (Attempt ${doc.processing_attempts})`,
-    );
-
-    try {
-      // Logic would go here to route the job based on pipeline_version or missing fields
-      // For now, we simulate the 'intelligence' step.
-
-      // Example: Heartbeat
-      jobManager.renewLease(doc.id, 600);
-
-      // Simulate processing
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      jobManager.completeJob(doc.id);
-      // console.log(`      ✅ Completed`);
-    } catch (e) {
-      console.error(`      ❌ Job Failed: ${(e as Error).message}`);
-      jobManager.failJob(doc.id, (e as Error).message);
+    // Wait for at least one to finish if we have active jobs
+    if (activePromises.size > 0) {
+      await Promise.race(activePromises);
+    } else if (!hasMore) {
+      // No more jobs and no active promises
+      break;
     }
   }
 
   if (processedCount === 0) {
-    console.log('   (No queued jobs found)');
+    console.log('\n   (No queued jobs found)');
   } else {
-    console.log(`\n   ✅ Processed ${processedCount} queued jobs reliably.`);
+    console.log(`\n\n   ✅ Processed ${processedCount} queued jobs reliably.`);
   }
 }
 

@@ -152,6 +152,19 @@ export const communicationsRepository = {
     };
   },
 
+  getThreadForDocument(documentId: string): ThreadDTO | null {
+    const db = getDb();
+    const row = db
+      .prepare(
+        `SELECT json_extract(metadata_json, '$.thread_id') as thread_id FROM documents WHERE id = ?`,
+      )
+      .get(documentId) as { thread_id?: string } | undefined;
+
+    if (!row) return null;
+    const threadId = row.thread_id || documentId;
+    return this.getThreadById(threadId);
+  },
+
   getMessageById(messageId: string): EmailDTO | null {
     const db = getDb();
     const row = db
@@ -215,7 +228,7 @@ export const communicationsRepository = {
   },
 
   // Legacy Adapter
-  getCommunicationsForEntity(entityId: string, filters: any): EmailDTO[] {
+  getCommunicationsForEntity(entityId: string, _filters: any): EmailDTO[] {
     const db = getDb();
     const sql = `
         SELECT d.* 

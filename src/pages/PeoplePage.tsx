@@ -7,7 +7,7 @@ import SortFilter from '../components/layout/SortFilter';
 import SubjectCardV2 from '../components/entities/SubjectCardV2';
 import PersonCardSkeleton from '../components/entities/PersonCardSkeleton';
 import { FixedSizeGrid as Grid } from 'react-window';
-import AutoSizer from 'react-virtualized-auto-sizer/dist/react-virtualized-auto-sizer.cjs';
+import { AutoSizer } from 'react-virtualized-auto-sizer/dist/react-virtualized-auto-sizer.cjs';
 import { Person, SubjectCardDTO } from '../types';
 import { apiClient } from '../services/apiClient';
 

@@ -1,5 +1,5 @@
-declare module 'react-virtualized-auto-sizer' {
-  import { PureComponent, ReactNode } from 'react';
+declare module 'react-virtualized-auto-sizer/dist/react-virtualized-auto-sizer.cjs' {
+  import { Component, ReactNode, CSSProperties } from 'react';
 
   export interface Size {
     height: number;
@@ -15,13 +15,9 @@ declare module 'react-virtualized-auto-sizer' {
     disableWidth?: boolean;
     nonce?: string;
     onResize?: (size: Size) => void;
-    style?: React.CSSProperties;
+    style?: CSSProperties;
+    tagName?: string;
   }
 
-  export default class AutoSizer extends PureComponent<AutoSizerProps> {}
-}
-
-declare module 'react-virtualized-auto-sizer/dist/react-virtualized-auto-sizer.cjs' {
-  import AutoSizer from 'react-virtualized-auto-sizer';
-  export default AutoSizer;
+  export class AutoSizer extends Component<AutoSizerProps> {}
 }

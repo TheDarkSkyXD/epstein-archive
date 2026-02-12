@@ -95,6 +95,17 @@ const PersonCard: React.FC<PersonCardProps> = ({ person, onClick, searchTerm }) 
             <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
               {role}
             </span>
+            {/* Black Book Badge */}
+            {(person.hasBlackBook ||
+              (person.blackBookEntries && person.blackBookEntries.length > 0)) && (
+              <div
+                className="flex items-center gap-1 px-1.5 py-0.5 bg-purple-950/40 border border-purple-800/40 rounded text-[9px] font-bold text-purple-300 uppercase tracking-wider"
+                title="Listed in Jeffrey Epstein's Black Book"
+              >
+                <Icon name="Book" size="xs" />
+                BB
+              </div>
+            )}
           </div>
         </div>
       </div>

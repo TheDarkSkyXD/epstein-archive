@@ -27,11 +27,18 @@ import {
   generateDriverChips,
 } from '../../utils/forensics';
 import { Skeleton } from './Skeleton';
+import Icon from './Icon';
 
 interface EvidenceModalProps {
   entityId: string;
   isOpen: boolean;
   onClose: () => void;
+}
+
+interface BlackBookEntry {
+  id: number;
+  phoneNumbers?: string[];
+  notes?: string;
 }
 
 interface EntityDetails {
@@ -47,6 +54,7 @@ interface EntityDetails {
   significant_passages: any[];
   photos: any[];
   evidenceTypes: string[];
+  blackBookEntries?: BlackBookEntry[];
 }
 
 export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, onClose }) => {
@@ -332,6 +340,51 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                               </div>
                             </div>
                           </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* BLACK BOOK ENTRY */}
+                {entity.blackBookEntries && entity.blackBookEntries.length > 0 && (
+                  <div className="bg-purple-950/20 border border-purple-900/30 rounded-xl p-5 mb-8">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-purple-400 font-semibold flex items-center gap-2">
+                        <Icon name="Book" size="sm" />
+                        Black Book Entry
+                      </h3>
+                      <a
+                        href={`/black-book?search=${encodeURIComponent(entity.fullName)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-purple-400 hover:text-purple-300 hover:underline flex items-center gap-1 transition-colors"
+                      >
+                        View in Black Book <ExternalLink size={12} />
+                      </a>
+                    </div>
+
+                    <div className="space-y-4">
+                      {entity.blackBookEntries.map((entry, idx) => (
+                        <div key={idx} className="space-y-3">
+                          {entry.phoneNumbers && entry.phoneNumbers.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {entry.phoneNumbers.map((phone: string, i: number) => (
+                                <span
+                                  key={i}
+                                  className="px-2 py-1 bg-purple-900/40 text-purple-200 text-xs rounded border border-purple-800/50 flex items-center gap-1"
+                                >
+                                  <Icon name="Phone" size="xs" /> {phone}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          {entry.notes && (
+                            <p className="text-slate-400 text-sm italic border-l-2 border-purple-800/50 pl-3">
+                              {entry.notes}
+                            </p>
+                          )}
                         </div>
                       ))}
                     </div>

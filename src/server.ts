@@ -222,6 +222,8 @@ const PUBLIC_ROUTES = [
   '/api/properties',
   '/api/emails',
   '/api/black-book',
+  '/api/subjects',
+  '/api/investigations',
 ];
 
 // Health Check Endpoint

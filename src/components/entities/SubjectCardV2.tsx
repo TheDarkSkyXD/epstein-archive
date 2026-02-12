@@ -18,6 +18,7 @@ interface SubjectCardV2Props {
 const SubjectCardV2: React.FC<SubjectCardV2Props> = React.memo(
   ({ subject, style, onClick }) => {
     const navigate = useNavigate();
+    const [avatarUrl, setAvatarUrl] = React.useState<string | null>(null);
 
     // Safety fallbacks
     const stats = subject.stats || {
@@ -43,11 +44,36 @@ const SubjectCardV2: React.FC<SubjectCardV2Props> = React.memo(
       navigate(`/entities/${subject.id}`);
     };
 
+    React.useEffect(() => {
+      let active = true;
+      const hasMedia = (subject.stats?.verified_media || 0) > 0;
+      if (!hasMedia) {
+        setAvatarUrl(null);
+        return;
+      }
+      (async () => {
+        try {
+          const res = await fetch(`/api/entities/${subject.id}/media`, { credentials: 'include' });
+          const data = await res.json();
+          const firstImage = Array.isArray(data)
+            ? data.find((m: any) => {
+                const t = String(m.file_type || m.type || '').toLowerCase();
+                return t.startsWith('image');
+              })
+            : null;
+          if (active && firstImage?.id) {
+            setAvatarUrl(`/api/media/images/${firstImage.id}/thumbnail`);
+          }
+        } catch {
+          // ignore
+        }
+      })();
+      return () => {
+        active = false;
+      };
+    }, [subject.id, subject.stats?.verified_media]);
     return (
-      <div
-        style={style}
-        className="p-2" // padding for gutter in grid
-      >
+      <div style={style}>
         <div
           onClick={handleCardClick}
           className="group relative bg-slate-900/90 backdrop-blur-sm border border-slate-800 hover:border-slate-600 rounded-xl p-4 cursor-pointer transition-all duration-300 hover:shadow-[0_0_20px_rgba(0,0,0,0.5)] flex flex-col h-full w-full"
@@ -56,18 +82,9 @@ const SubjectCardV2: React.FC<SubjectCardV2Props> = React.memo(
           <div className="flex items-start gap-3 mb-2">
             {/* Avatar / Icon */}
             <div className="flex-shrink-0 relative w-10 h-10 rounded-lg overflow-hidden border border-slate-700 bg-slate-950">
-              {stats.verified_media > 0 ? (
+              {avatarUrl ? (
                 <img
-                  src={`/api/media/images/${subject.id}/thumbnail`} // TODO: Verify thumbnail endpoint supports entity ID direct mapping or requires separate lookup.
-                  // Based on entitiesRepository, we don't have a photo ID in the DTO unless we add it.
-                  // For now, falling back to icon to prevent broken images until DTO is updated with photo ID.
-                  // Update: The previous logic injected `photos` array. DTO `verified_media` is just a count.
-                  // We need a photo ID in the DTO to render this efficiently.
-                  // For this iteration, I will check if we can add photo_id to DTO or just use icon.
-                  // ULTRATHINK rule: "Avatar (lazy-loaded)".
-                  // Let's use icon for now to ensure speed, unless `subject.top_preview` gives valid image linkage.
-                  // Actually, `entitiesRepository` doesn't currently inject a photo ID into the DTO.
-                  // I will stick to Icon to be safe and performant, or update DTO later.
+                  src={avatarUrl}
                   alt={subject.name}
                   className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
                   loading="lazy"
@@ -98,7 +115,7 @@ const SubjectCardV2: React.FC<SubjectCardV2Props> = React.memo(
           {/* 2. SIGNAL BLOCK */}
           <div className="mb-2 bg-slate-950/50 rounded-lg p-2 border border-slate-800/50">
             <SignalPanel metrics={forensics.signal_strength} />
-            <div className="mt-2 text-[10px] text-slate-500 flex flex-wrap gap-1 h-5 overflow-hidden">
+            <div className="mt-2 text-[10px] text-slate-500 flex flex-wrap gap-1">
               {/* Driver Chips Lite - we can use the component or just raw spans for max speed if component is heavy. Component is lean. */}
               <DriverChips
                 chips={forensics.driver_labels.map((label) => {

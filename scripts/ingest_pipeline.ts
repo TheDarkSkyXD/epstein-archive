@@ -145,19 +145,19 @@ const COLLECTIONS: CollectionConfig[] = [
     name: 'Evidence',
     rootPath: 'data/media/images/Evidence',
     description: 'Miscellaneous evidence images',
-    enabled: false,
+    enabled: true,
   },
   {
     name: 'Confirmed Fake',
     rootPath: 'data/media/images/Confirmed Fake',
     description: 'Images confirmed to be fake/AI generated',
-    enabled: false,
+    enabled: true,
   },
   {
     name: 'Unconfirmed Claims',
     rootPath: 'data/media/images/Unconfirmed Claims',
     description: 'Images with unverified claims',
-    enabled: false,
+    enabled: true,
   },
   {
     name: 'DOJ Data Set 9',

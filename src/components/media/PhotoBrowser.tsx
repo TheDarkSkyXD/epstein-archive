@@ -86,6 +86,11 @@ const GridCell = React.memo(
               key={img.id}
               src={`/api/media/images/${img.id}/thumbnail`}
               alt={img.title}
+              onError={(e) => {
+                const el = e.currentTarget as HTMLImageElement;
+                el.onerror = null;
+                el.src = `/api/media/images/${img.id}/file`;
+              }}
               className="w-full h-full object-contain bg-slate-900/50"
             />
           </SensitiveContent>
@@ -143,6 +148,11 @@ const ListRow = React.memo(({ index, style, data }: ListChildComponentProps<Item
               key={img.id}
               src={`/api/media/images/${img.id}/thumbnail`}
               alt={img.title}
+              onError={(e) => {
+                const el = e.currentTarget as HTMLImageElement;
+                el.onerror = null;
+                el.src = `/api/media/images/${img.id}/file`;
+              }}
               className="w-full h-full object-contain"
             />
           </SensitiveContent>

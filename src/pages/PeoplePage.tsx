@@ -7,7 +7,6 @@ import SortFilter from '../components/layout/SortFilter';
 import SubjectCardV2 from '../components/entities/SubjectCardV2';
 import PersonCardSkeleton from '../components/entities/PersonCardSkeleton';
 import { FixedSizeGrid as Grid } from 'react-window';
-import { AutoSizer } from 'react-virtualized-auto-sizer/dist/react-virtualized-auto-sizer.cjs';
 import { Person, SubjectCardDTO } from '../types';
 import { apiClient } from '../services/apiClient';
 
@@ -94,14 +93,117 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
 
         const res = await apiClient.getSubjects(filters, page, PAGE_SIZE);
         if (active) {
-          setSubjects(res.subjects);
-          setTotal(res.total);
+          let nextSubjects = res.subjects || [];
+          let nextTotal = res.total || 0;
+
+          if (nextSubjects.length === 0 && nextTotal > 0) {
+            const ents = await apiClient.getEntities(
+              {
+                searchTerm: searchTerm || undefined,
+                entityType: entityType === 'all' ? undefined : entityType,
+                sortBy: sortBy as any,
+                sortOrder,
+              },
+              page,
+              PAGE_SIZE,
+            );
+            nextTotal = ents.total || nextTotal;
+            nextSubjects = (ents.data || []).map((e: any) => {
+              const mediaCount = Array.isArray(e.photos) ? e.photos.length : 0;
+              return {
+                id: String(e.id),
+                name: e.name || e.fullName || 'Unknown',
+                role: e.primaryRole || e.title || 'Unknown',
+                short_bio: e.bio ? String(e.bio).slice(0, 150) : undefined,
+                stats: {
+                  mentions: e.mentions || 0,
+                  documents: e.files || e.documentCount || 0,
+                  distinct_sources: Array.isArray(e.evidence_types) ? e.evidence_types.length : 0,
+                  verified_media: mediaCount,
+                },
+                forensics: {
+                  risk_level: (e.likelihood_score || 'LOW').toString().toUpperCase(),
+                  evidence_ladder: mediaCount > 0 ? 'L1' : (e.mentions || 0) > 50 ? 'L2' : 'L3',
+                  signal_strength: {
+                    exposure: Math.min(
+                      100,
+                      Math.round((Math.log10((e.mentions || 0) + 1) / 3) * 100),
+                    ),
+                    connectivity: 0,
+                    corroboration: Math.min(
+                      100,
+                      mediaCount * 20 +
+                        (Array.isArray(e.evidence_types) ? e.evidence_types.length * 15 : 0),
+                    ),
+                  },
+                  driver_labels: [],
+                },
+                top_preview: undefined,
+              } as SubjectCardDTO;
+            });
+          }
+
+          setSubjects(nextSubjects);
+          setTotal(nextTotal);
           if (gridRef.current) {
             gridRef.current.scrollTo({ scrollTop: 0 });
           }
         }
-      } catch (e) {
-        console.error('Failed to fetch subjects', e);
+      } catch (_e) {
+        try {
+          const ents = await apiClient.getEntities(
+            {
+              searchTerm: searchTerm || undefined,
+              entityType: entityType === 'all' ? undefined : entityType,
+              sortBy: sortBy as any,
+              sortOrder,
+            },
+            page,
+            PAGE_SIZE,
+          );
+          const nextTotal = ents.total || 0;
+          const nextSubjects = (ents.data || []).map((e: any) => {
+            const mediaCount = Array.isArray(e.photos) ? e.photos.length : 0;
+            return {
+              id: String(e.id),
+              name: e.name || e.fullName || 'Unknown',
+              role: e.primaryRole || e.title || 'Unknown',
+              short_bio: e.bio ? String(e.bio).slice(0, 150) : undefined,
+              stats: {
+                mentions: e.mentions || 0,
+                documents: e.files || e.documentCount || 0,
+                distinct_sources: Array.isArray(e.evidence_types) ? e.evidence_types.length : 0,
+                verified_media: mediaCount,
+              },
+              forensics: {
+                risk_level: (e.likelihood_score || 'LOW').toString().toUpperCase(),
+                evidence_ladder: mediaCount > 0 ? 'L1' : (e.mentions || 0) > 50 ? 'L2' : 'L3',
+                signal_strength: {
+                  exposure: Math.min(
+                    100,
+                    Math.round((Math.log10((e.mentions || 0) + 1) / 3) * 100),
+                  ),
+                  connectivity: 0,
+                  corroboration: Math.min(
+                    100,
+                    mediaCount * 20 +
+                      (Array.isArray(e.evidence_types) ? e.evidence_types.length * 15 : 0),
+                  ),
+                },
+                driver_labels: [],
+              },
+              top_preview: undefined,
+            } as SubjectCardDTO;
+          });
+          if (active) {
+            setSubjects(nextSubjects);
+            setTotal(nextTotal);
+          }
+        } catch {
+          if (active) {
+            setSubjects([]);
+          }
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -238,32 +340,11 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
             <p className="text-slate-400">Try adjusting your search terms</p>
           </div>
         ) : (
-          <>
-            <AutoSizer>
-              {({ height, width }: { height: number; width: number }) => {
-                console.log('PeopleGrid AutoSizer:', { height, width, subjects: subjects.length });
-                const columnCount = Math.floor(width / COLUMN_WIDTH) || 1;
-                const rowCount = Math.ceil(subjects.length / columnCount);
-                // Calculate improved column width to fill space
-                const effectiveColWidth = width / columnCount;
-
-                return (
-                  <Grid
-                    ref={gridRef}
-                    columnCount={columnCount}
-                    columnWidth={effectiveColWidth}
-                    height={height}
-                    rowCount={rowCount}
-                    rowHeight={ROW_HEIGHT}
-                    width={width}
-                    itemData={{ items: subjects, columnCount }}
-                  >
-                    {Cell}
-                  </Grid>
-                );
-              }}
-            </AutoSizer>
-          </>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {subjects.map((subject) => (
+              <SubjectCardV2 key={subject.id} subject={subject} />
+            ))}
+          </div>
         )}
       </div>
 

@@ -776,7 +776,6 @@ app.get('/api/subjects', cacheMiddleware(300), (req, res) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 24;
 
-    // Parse filters ensuring arrays are handled correctly
     const likelihoodScore = req.query.likelihoodScore
       ? ((Array.isArray(req.query.likelihoodScore)
           ? req.query.likelihoodScore
@@ -793,6 +792,56 @@ app.get('/api/subjects', cacheMiddleware(300), (req, res) => {
     const sortBy = (req.query.sortBy as SortOption) || 'red_flag';
 
     const result = entitiesRepository.getSubjectCards(page, limit, filters, sortBy);
+    if (
+      result.total === 0 &&
+      !filters.searchTerm &&
+      !filters.role &&
+      !filters.entityType &&
+      !likelihoodScore &&
+      page === 1
+    ) {
+      const fallback = entitiesRepository.getEntities(2, limit, filters, sortBy);
+      const subjects = fallback.entities.map((e: any) => {
+        const mediaCount = Array.isArray(e.photos) ? e.photos.length : 0;
+        const connStr = String(e.connections_summary || e.connections || '');
+        const connCount = /^\d+$/.test(connStr)
+          ? parseInt(connStr, 10)
+          : (connStr.match(/,/g) || []).length;
+        return {
+          id: String(e.id),
+          name: e.full_name || e.fullName || 'Unknown',
+          role: e.primary_role || e.primaryRole || 'Unknown',
+          short_bio: e.bio ? e.bio.substring(0, 150) : undefined,
+          stats: {
+            mentions: e.mentions || e.documentCount || 0,
+            documents: e.mentions || e.documentCount || 0,
+            distinct_sources: Array.isArray(e.evidence_types) ? e.evidence_types.length : 0,
+            verified_media: mediaCount,
+          },
+          forensics: {
+            risk_level: (e.risk_level || 'LOW').toUpperCase(),
+            evidence_ladder:
+              mediaCount > 0 || (e.blackBookEntries && e.blackBookEntries.length > 0)
+                ? 'L1'
+                : (e.mentions || 0) > 50
+                  ? 'L2'
+                  : 'L3',
+            signal_strength: {
+              exposure: Math.min(100, Math.round((Math.log10((e.mentions || 0) + 1) / 3) * 100)),
+              connectivity: Math.min(100, Math.round((connCount / 20) * 100)),
+              corroboration: Math.min(
+                100,
+                mediaCount * 20 +
+                  (Array.isArray(e.evidence_types) ? e.evidence_types.length * 15 : 0),
+              ),
+            },
+            driver_labels: [],
+          },
+          top_preview: undefined,
+        };
+      });
+      return res.json({ subjects, total: subjects.length });
+    }
     res.json(result);
   } catch (error) {
     console.error('Error fetching subject cards:', error);
@@ -2279,20 +2328,21 @@ app.get('/api/media/images/:id/file', async (req, res, next) => {
     let absPath = p;
     const candidates: string[] = [];
     if (p.startsWith('/data/')) {
-      candidates.push(path.join(process.cwd(), p.substring(1)));
       candidates.push(path.join('/data', p.substring('/data/'.length)));
+      candidates.push(path.join(process.cwd(), p.substring(1)));
     } else if (p.startsWith('data/')) {
-      candidates.push(path.join(process.cwd(), p));
       candidates.push(path.join('/data', p.substring('data/'.length)));
+      candidates.push(path.join(process.cwd(), p));
     } else if (path.isAbsolute(p)) {
       candidates.push(p);
     } else {
-      candidates.push(path.join(process.cwd(), 'data', p));
       candidates.push(path.join('/data', p));
+      candidates.push(path.join(process.cwd(), 'data', p));
     }
     absPath = candidates.find((c) => fs.existsSync(c)) || candidates[0];
 
     if (!fs.existsSync(absPath)) {
+      console.error(`[Image file] Not found for image ${imageId}. Tried:`, candidates);
       return res.status(404).json({ error: 'Image file not found' });
     }
     res.sendFile(absPath);
@@ -2320,20 +2370,21 @@ app.get('/api/media/images/:id/raw', async (req, res, next) => {
     let absPath = p;
     const candidates: string[] = [];
     if (p.startsWith('/data/')) {
-      candidates.push(path.join(process.cwd(), p.substring(1)));
       candidates.push(path.join('/data', p.substring('/data/'.length)));
+      candidates.push(path.join(process.cwd(), p.substring(1)));
     } else if (p.startsWith('data/')) {
-      candidates.push(path.join(process.cwd(), p));
       candidates.push(path.join('/data', p.substring('data/'.length)));
+      candidates.push(path.join(process.cwd(), p));
     } else if (path.isAbsolute(p)) {
       candidates.push(p);
     } else {
-      candidates.push(path.join(process.cwd(), 'data', p));
       candidates.push(path.join('/data', p));
+      candidates.push(path.join(process.cwd(), 'data', p));
     }
     absPath = candidates.find((c) => fs.existsSync(c)) || candidates[0];
 
     if (!fs.existsSync(absPath)) {
+      console.error(`[Image raw] Not found for image ${imageId}. Tried:`, candidates);
       return res.status(404).json({ error: 'Image file not found' });
     }
     res.sendFile(absPath);
@@ -2362,47 +2413,76 @@ app.get('/api/media/images/:id/thumbnail', async (req, res, next) => {
       // Use the thumbnail
       const candidates: string[] = [];
       if (thumbnailPath.startsWith('/data/')) {
-        candidates.push(path.join(process.cwd(), thumbnailPath.substring(1)));
         candidates.push(path.join('/data', thumbnailPath.substring('/data/'.length)));
+        candidates.push(path.join(process.cwd(), thumbnailPath.substring(1)));
       } else if (thumbnailPath.startsWith('data/')) {
-        candidates.push(path.join(process.cwd(), thumbnailPath));
         candidates.push(path.join('/data', thumbnailPath.substring('data/'.length)));
+        candidates.push(path.join(process.cwd(), thumbnailPath));
       } else if (thumbnailPath.startsWith('/thumbnails/')) {
-        candidates.push(path.join(process.cwd(), 'data', thumbnailPath.substring(1)));
         candidates.push(path.join('/data', thumbnailPath.substring(1)));
+        candidates.push(path.join(process.cwd(), 'data', thumbnailPath.substring(1)));
       } else if (path.isAbsolute(thumbnailPath)) {
         candidates.push(thumbnailPath);
       } else {
-        candidates.push(path.join(process.cwd(), 'data', thumbnailPath));
         candidates.push(path.join('/data', thumbnailPath));
+        candidates.push(path.join(process.cwd(), 'data', thumbnailPath));
       }
       absPath = candidates.find((c) => fs.existsSync(c)) || candidates[0];
     }
 
-    // Fall back to original image if thumbnail doesn't exist
+    // Resolve original image path for potential fallback/generation
+    const p = (
+      (image as unknown as MediaImage).path ||
+      (image as unknown as MediaImage).file_path ||
+      ''
+    ).toString();
+    const originalCandidates: string[] = [];
+    if (p.startsWith('/data/')) {
+      originalCandidates.push(path.join('/data', p.substring('/data/'.length)));
+      originalCandidates.push(path.join(process.cwd(), p.substring(1)));
+    } else if (p.startsWith('data/')) {
+      originalCandidates.push(path.join('/data', p.substring('data/'.length)));
+      originalCandidates.push(path.join(process.cwd(), p));
+    } else if (path.isAbsolute(p)) {
+      originalCandidates.push(p);
+    } else {
+      originalCandidates.push(path.join('/data', p));
+      originalCandidates.push(path.join(process.cwd(), 'data', p));
+    }
+    const originalAbsPath =
+      originalCandidates.find((c) => fs.existsSync(c)) || originalCandidates[0];
+
+    // If thumbnail missing, try to generate it
     if (!absPath || !fs.existsSync(absPath)) {
-      const p = (
-        (image as unknown as MediaImage).path ||
-        (image as unknown as MediaImage).file_path ||
-        ''
-      ).toString();
-      const candidates: string[] = [];
-      if (p.startsWith('/data/')) {
-        candidates.push(path.join(process.cwd(), p.substring(1)));
-        candidates.push(path.join('/data', p.substring('/data/'.length)));
-      } else if (p.startsWith('data/')) {
-        candidates.push(path.join(process.cwd(), p));
-        candidates.push(path.join('/data', p.substring('data/'.length)));
-      } else if (path.isAbsolute(p)) {
-        candidates.push(p);
+      if (fs.existsSync(originalAbsPath)) {
+        try {
+          const thumbnailDir = path.join(path.dirname(originalAbsPath), 'thumbnails');
+          const generated = await mediaService.generateThumbnail(originalAbsPath, thumbnailDir, {
+            orientation: (image as any).orientation || 1,
+            force: true,
+          });
+          if (fs.existsSync(generated)) {
+            mediaService.updateImage(imageId, { thumbnailPath: generated });
+            absPath = generated;
+          } else {
+            absPath = originalAbsPath;
+          }
+        } catch (genErr) {
+          console.error(
+            `[Thumbnail] Generation failed for image ${imageId}:`,
+            (genErr as Error).message,
+          );
+          absPath = originalAbsPath;
+        }
       } else {
-        candidates.push(path.join(process.cwd(), 'data', p));
-        candidates.push(path.join('/data', p));
+        absPath = originalAbsPath;
       }
-      absPath = candidates.find((c) => fs.existsSync(c)) || candidates[0];
     }
 
     if (!absPath || !fs.existsSync(absPath)) {
+      console.error(
+        `[Thumbnail] Not found for image ${imageId}. thumbnailPath=${thumbnailPath} resolved=${absPath}`,
+      );
       return res.status(404).json({ error: 'Thumbnail not found' });
     }
 
@@ -2410,9 +2490,19 @@ app.get('/api/media/images/:id/thumbnail', async (req, res, next) => {
     const stat = fs.statSync(absPath);
     const etag = `"${imageId}-${stat.mtime.getTime()}"`;
 
+    const ext = path.extname(absPath).toLowerCase();
+    const contentType =
+      ext === '.png'
+        ? 'image/png'
+        : ext === '.webp'
+          ? 'image/webp'
+          : ext === '.gif'
+            ? 'image/gif'
+            : 'image/jpeg';
+
     res.set({
       'Cache-Control': 'public, max-age=31536000, immutable',
-      'Content-Type': 'image/jpeg',
+      'Content-Type': contentType,
       ETag: etag,
       'Last-Modified': stat.mtime.toUTCString(),
     });
@@ -2427,6 +2517,69 @@ app.get('/api/media/images/:id/thumbnail', async (req, res, next) => {
     next(error);
   }
 });
+
+app.post(
+  '/api/admin/media/ingest',
+  authenticateRequest,
+  requireRole('admin'),
+  async (req, res, next) => {
+    try {
+      const db = getDb();
+      const roots = [
+        path.join(process.cwd(), 'data', 'media', 'images'),
+        path.join(process.cwd(), 'data', 'originals'),
+      ];
+      const exts = ['.jpg', '.jpeg', '.png'];
+      const found: string[] = [];
+      for (const root of roots) {
+        if (!fs.existsSync(root)) continue;
+        const stack = [root];
+        while (stack.length > 0) {
+          const dir = stack.pop() as string;
+          const entries = fs.readdirSync(dir, { withFileTypes: true });
+          for (const ent of entries) {
+            const full = path.join(dir, ent.name);
+            if (ent.isDirectory()) {
+              if (ent.name.toLowerCase() === 'thumbnails') continue;
+              stack.push(full);
+            } else {
+              const ext = path.extname(ent.name).toLowerCase();
+              if (exts.includes(ext)) {
+                const rel = full.startsWith(process.cwd())
+                  ? full.substring(process.cwd().length + 1)
+                  : full;
+                found.push(rel);
+              }
+            }
+          }
+        }
+      }
+      let inserted = 0;
+      let skipped = 0;
+      const checkStmt = db.prepare('SELECT id FROM media_items WHERE file_path = ?');
+      const insertStmt = db.prepare(
+        `
+        INSERT INTO media_items (file_path, file_type, title, red_flag_rating, created_at)
+        VALUES (?, ?, ?, 0, datetime('now'))
+      `,
+      );
+      for (const p of found) {
+        const exists = checkStmt.get(p);
+        if (exists) {
+          skipped++;
+          continue;
+        }
+        const ext = path.extname(p).toLowerCase();
+        const type = ext === '.png' ? 'image/png' : 'image/jpeg';
+        insertStmt.run(p, type, path.basename(p));
+        inserted++;
+      }
+      res.json({ inserted, skipped, scanned: found.length });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 // Search images
 

@@ -1,6 +1,9 @@
 import { getDb } from './connection.js';
 import { Person, SearchFilters, SortOption, SubjectCardDTO } from '../../types.js';
-import { ENTITY_BLACKLIST_PATTERNS } from '../../config/entityBlacklist.js';
+import {
+  ENTITY_BLACKLIST_PATTERNS,
+  ENTITY_PARTIAL_BLOCKLIST,
+} from '../../config/entityBlacklist.js';
 
 export interface EntityRepositoryResult {
   entities: any[];
@@ -113,6 +116,20 @@ export const entitiesRepository = {
         params[paramName] = `%${pattern}%`;
         whereConditions.push(`full_name NOT LIKE @${paramName}`);
       });
+      // Additional partial blocklist phrases
+      ENTITY_PARTIAL_BLOCKLIST.forEach((pattern, i) => {
+        const paramName = `partialPattern${i}`;
+        params[paramName] = `%${pattern}%`;
+        whereConditions.push(`full_name NOT LIKE @${paramName}`);
+      });
+      // Name hygiene
+      whereConditions.push(`LENGTH(TRIM(full_name)) >= 3`);
+      whereConditions.push(`full_name NOT LIKE '%@%'`);
+      whereConditions.push(`full_name NOT LIKE 'http%'`);
+      whereConditions.push(`full_name NOT LIKE 'www.%'`);
+      // VIP-only, person-only on front page
+      whereConditions.push(`entity_type = 'Person'`);
+      whereConditions.push(`is_vip = 1`);
       whereConditions.push(`(
         mentions >= 3
         OR bio IS NOT NULL
@@ -142,6 +159,16 @@ export const entitiesRepository = {
               was_agentic,
               (SELECT COUNT(*) FROM media_item_people WHERE entity_id = entities.id) as media_count,
               (SELECT COUNT(*) FROM black_book_entries WHERE person_id = entities.id) as black_book_count
+              ,
+              (
+                SELECT mi.id
+                FROM media_item_people mip 
+                JOIN media_items mi ON mip.media_item_id = mi.id 
+                WHERE mip.entity_id = entities.id
+                AND (mi.file_type LIKE 'image/%' OR mi.file_type IS NULL)
+                ORDER BY mi.red_flag_rating DESC, mi.id DESC
+                LIMIT 1
+              ) as top_photo_id
             FROM entities
             ${whereClause}
             ${orderByClause}
@@ -195,7 +222,7 @@ export const entitiesRepository = {
       if (connCount > 10) drivers.push('Network Hub');
       if (drivers.length === 0 && e.was_agentic) drivers.push('AI Derived');
 
-      return {
+      const dto: SubjectCardDTO = {
         id: String(e.id),
         name: e.full_name || 'Unknown',
         role: e.primary_role || 'Unknown',
@@ -216,9 +243,9 @@ export const entitiesRepository = {
           },
           driver_labels: drivers.slice(0, 4),
         },
-        // Optional: Precomputing this would require a JOIN
         top_preview: undefined,
       };
+      return dto;
     });
 
     return {
@@ -337,6 +364,17 @@ export const entitiesRepository = {
         params[paramName] = `%${pattern}%`;
         whereConditions.push(`full_name NOT LIKE @${paramName}`);
       });
+      ENTITY_PARTIAL_BLOCKLIST.forEach((pattern, i) => {
+        const paramName = `partialPattern${i}`;
+        params[paramName] = `%${pattern}%`;
+        whereConditions.push(`full_name NOT LIKE @${paramName}`);
+      });
+      whereConditions.push(`entity_type = 'Person'`);
+      whereConditions.push(`is_vip = 1`);
+      whereConditions.push(`LENGTH(TRIM(full_name)) >= 3`);
+      whereConditions.push(`full_name NOT LIKE '%@%'`);
+      whereConditions.push(`full_name NOT LIKE 'http%'`);
+      whereConditions.push(`full_name NOT LIKE 'www.%'`);
 
       // Aggressively remove noise from featured results:
       // 1. Must have at least 3 mentions

@@ -189,12 +189,22 @@ export class MediaService {
         conditions.push('i.date_taken <= ?');
         params.push(filter.dateTo);
       }
-      if (filter.searchQuery && this.hasTable('media_items_fts')) {
-        conditions.push(`i.id IN (
-          SELECT rowid FROM media_items_fts 
-          WHERE media_items_fts MATCH ?
-        )`);
-        params.push(filter.searchQuery);
+      if (filter.searchQuery) {
+        try {
+          if (this.hasTable('media_items_fts')) {
+            conditions.push(`i.id IN (
+              SELECT rowid FROM media_items_fts 
+              WHERE media_items_fts MATCH ?
+            )`);
+            params.push(filter.searchQuery);
+          } else {
+            console.warn('MediaService: FTS table missing, falling back to LIKE');
+            conditions.push('(i.title LIKE ? OR i.description LIKE ?)');
+            params.push(`%${filter.searchQuery}%`, `%${filter.searchQuery}%`);
+          }
+        } catch (e) {
+          console.error('MediaService: Search failed:', e);
+        }
       }
     }
 
@@ -262,12 +272,21 @@ export class MediaService {
         conditions.push('i.date_taken <= ?');
         params.push(filter.dateTo);
       }
-      if (filter.searchQuery && this.hasTable('media_items_fts')) {
-        conditions.push(`i.id IN (
-          SELECT rowid FROM media_items_fts 
-          WHERE media_items_fts MATCH ?
-        )`);
-        params.push(filter.searchQuery);
+      if (filter.searchQuery) {
+        try {
+          if (this.hasTable('media_items_fts')) {
+            conditions.push(`i.id IN (
+              SELECT rowid FROM media_items_fts 
+              WHERE media_items_fts MATCH ?
+            )`);
+            params.push(filter.searchQuery);
+          } else {
+            conditions.push('(i.title LIKE ? OR i.description LIKE ?)');
+            params.push(`%${filter.searchQuery}%`, `%${filter.searchQuery}%`);
+          }
+        } catch (e) {
+          console.error('MediaService: Count search failed:', e);
+        }
       }
     }
 

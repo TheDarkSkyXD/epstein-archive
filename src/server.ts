@@ -205,6 +205,7 @@ const PUBLIC_ROUTES = [
   '/api/auth/login',
   '/api/auth/refresh',
   '/api/auth/logout',
+  '/api/auth/me',
   '/api/health',
   '/api/stats',
   '/api/entities',

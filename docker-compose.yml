@@ -8,13 +8,14 @@ services:
       - '3012:3012'
     volumes:
       - ./data:/data
+      - ./epstein-archive.db:/app/epstein-archive.db:ro
     environment:
       - NODE_ENV=production
       - API_PORT=3012
-      - DB_PATH=/data/epstein-archive.db
+      - DB_PATH=/app/epstein-archive.db
       - LOG_LEVEL=info
-      # - JWT_SECRET=your_jwt_secret_here
-      # - SESSION_SECRET=your_session_secret_here
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
+      - SESSION_SECRET=${SESSION_SECRET:?SESSION_SECRET must be set}
     healthcheck:
       test:
         ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3012/api/health']

@@ -1,3 +1,12 @@
+## v13.1.4 — 2026-02-12
+
+### Emergency Recovery Patch
+
+- **Auth Scoping**: Resolved 401 Unauthorized errors on `/api/auth/me` by exposing it as a public route. This fixes the immediate "no data" state where the frontend was blocked from checking session status.
+- **Media Reliability**: Hardened `MediaService` to prevent 500 crashes on the `/api/media/images` endpoint. Added robust fallback to `LIKE` search if FTS tables are missing or inaccessible.
+- **Schema Reconciliation**: Integrated Migration 033 to ensure database schema consistency for the `media_items` table across production and development environments.
+- **Production Stabilization**: Enhanced error logging and recovery patterns for high-concurrency database access.
+
 ## v13.1.3 — 2026-02-12
 
 ### Production Stabilization & Zero-Warning Cleanliness

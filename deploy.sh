@@ -191,6 +191,7 @@ else
       export PNPM_HOME=\"/home/deploy/.local/share/pnpm\"
       export PATH=\"\$PNPM_HOME:\$PATH\"
       export NODE_ENV=production
+      export RAW_CORPUS_BASE_PATH=\"./data\"
       
       pnpm install --frozen-lockfile
       

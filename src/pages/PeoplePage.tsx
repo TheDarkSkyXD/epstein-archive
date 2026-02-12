@@ -241,6 +241,7 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
           <>
             <AutoSizer>
               {({ height, width }: { height: number; width: number }) => {
+                console.log('PeopleGrid AutoSizer:', { height, width, subjects: subjects.length });
                 const columnCount = Math.floor(width / COLUMN_WIDTH) || 1;
                 const rowCount = Math.ceil(subjects.length / columnCount);
                 // Calculate improved column width to fill space

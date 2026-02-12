@@ -217,8 +217,11 @@ export class MediaService {
     // Default sort
     let orderBy = 'i.id DESC';
     if (sort && sort.field && sort.order) {
-      const field = sort.field === 'date_added' ? 'created_at' : sort.field;
-      orderBy = `i.${field} ${sort.order.toUpperCase()}`;
+      const fieldRaw = Array.isArray(sort.field) ? sort.field[0] : sort.field;
+      const orderRaw = Array.isArray(sort.order) ? sort.order[0] : sort.order;
+
+      const field = fieldRaw === 'date_added' ? 'created_at' : fieldRaw;
+      orderBy = `i.${field} ${String(orderRaw).toUpperCase()}`;
     } else {
       orderBy = 'i.created_at DESC';
     }

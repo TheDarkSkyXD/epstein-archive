@@ -544,13 +544,13 @@ export const entitiesRepository = {
         `
             SELECT 
                 em.mention_context as passage,
-                em.keyword,
+                em.surface_text as keyword,
                 d.file_name as filename,
                 d.evidence_type as source
             FROM entity_mentions em
             JOIN documents d ON em.document_id = d.id
             WHERE em.entity_id = ?
-            ORDER BY em.significance_score DESC, em.confidence_score DESC
+            ORDER BY em.confidence DESC
             LIMIT 5
         `,
       )

@@ -229,12 +229,12 @@ else
       git reset --hard origin/main
       
       echo 'Installing Dependencies...'
-      export PNPM_HOME="/home/deploy/.local/share/pnpm"
-      export PATH="$PNPM_HOME:$PATH"
+      export PNPM_HOME=\"/home/deploy/.local/share/pnpm\"
+      export PATH=\"\$PNPM_HOME:\$PATH\"
       export NODE_ENV=production
-      export JWT_SECRET="epstein-archive-prod-jwt-secret-2026"
-      export SESSION_SECRET="epstein-archive-prod-session-secret-2026"
-      export RAW_CORPUS_BASE_PATH="./data"
+      export JWT_SECRET=\"epstein-archive-prod-jwt-secret-2026\"
+      export SESSION_SECRET=\"epstein-archive-prod-session-secret-2026\"
+      export RAW_CORPUS_BASE_PATH=\"./data\"
       
       pnpm install --frozen-lockfile
       

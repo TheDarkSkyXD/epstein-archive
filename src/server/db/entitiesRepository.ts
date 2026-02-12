@@ -137,7 +137,7 @@ export const entitiesRepository = {
               mentions,
               risk_level,
               red_flag_rating,
-              connections,
+              connections_summary as connections,
               evidence_types,
               was_agentic,
               (SELECT COUNT(*) FROM media_item_people WHERE entity_id = entities.id) as media_count,

@@ -19,6 +19,15 @@ interface CacheEntry<T> {
 const cache = new Map<string, CacheEntry<unknown>>();
 const DEFAULT_CACHE_TTL = 30000; // 30 seconds
 
+// Add credentials to all requests to ensure cookies are sent
+const DEFAULT_HEADERS = {
+  'Content-Type': 'application/json',
+};
+
+const FETCH_CONFIG = {
+  credentials: 'include' as RequestCredentials,
+};
+
 function getCachedData<T>(key: string): T | null {
   const entry = cache.get(key);
   if (!entry) return null;
@@ -89,6 +98,7 @@ class ApiClient {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -133,6 +143,7 @@ class ApiClient {
       return fetch(url, {
         ...fetchOptions,
         headers,
+        credentials: 'include',
       });
     };
 

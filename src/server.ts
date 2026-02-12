@@ -225,6 +225,8 @@ const PUBLIC_ROUTES = [
   '/api/black-book',
   '/api/subjects',
   '/api/investigations',
+  '/api/admin/reclassify-junk',
+  '/api/admin/purge-cache',
 ];
 
 // Health Check Endpoint
@@ -232,6 +234,34 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+const isLocalRequest = (req: express.Request) => {
+  const ip = (req.ip || '').replace('::ffff:', '');
+  return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+};
+
+// Admin: Re-run junk classification and purge API cache (local-only)
+app.post('/api/admin/reclassify-junk', (req, res) => {
+  if (!isLocalRequest(req)) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+  try {
+    entitiesRepository.backfillJunkFlags();
+    apiCache.flushAll();
+    res.json({ ok: true, message: 'Junk reclassified and cache purged' });
+  } catch (e: any) {
+    console.error('Admin reclassify-junk failed:', e);
+    res.status(500).json({ error: 'failed', details: e?.message });
+  }
+});
+
+// Admin: Purge API cache (local-only)
+app.post('/api/admin/purge-cache', (req, res) => {
+  if (!isLocalRequest(req)) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+  apiCache.flushAll();
+  res.json({ ok: true, message: 'Cache purged' });
+});
 const RESEARCHER_READ_ONLY_PREFIXES = [
   '/api/entities',
   '/api/documents',
@@ -792,56 +822,6 @@ app.get('/api/subjects', cacheMiddleware(300), (req, res) => {
     const sortBy = (req.query.sortBy as SortOption) || 'red_flag';
 
     const result = entitiesRepository.getSubjectCards(page, limit, filters, sortBy);
-    if (
-      result.total === 0 &&
-      !filters.searchTerm &&
-      !filters.role &&
-      !filters.entityType &&
-      !likelihoodScore &&
-      page === 1
-    ) {
-      const fallback = entitiesRepository.getEntities(2, limit, filters, sortBy);
-      const subjects = fallback.entities.map((e: any) => {
-        const mediaCount = Array.isArray(e.photos) ? e.photos.length : 0;
-        const connStr = String(e.connections_summary || e.connections || '');
-        const connCount = /^\d+$/.test(connStr)
-          ? parseInt(connStr, 10)
-          : (connStr.match(/,/g) || []).length;
-        return {
-          id: String(e.id),
-          name: e.full_name || e.fullName || 'Unknown',
-          role: e.primary_role || e.primaryRole || 'Unknown',
-          short_bio: e.bio ? e.bio.substring(0, 150) : undefined,
-          stats: {
-            mentions: e.mentions || e.documentCount || 0,
-            documents: e.mentions || e.documentCount || 0,
-            distinct_sources: Array.isArray(e.evidence_types) ? e.evidence_types.length : 0,
-            verified_media: mediaCount,
-          },
-          forensics: {
-            risk_level: (e.risk_level || 'LOW').toUpperCase(),
-            evidence_ladder:
-              mediaCount > 0 || (e.blackBookEntries && e.blackBookEntries.length > 0)
-                ? 'L1'
-                : (e.mentions || 0) > 50
-                  ? 'L2'
-                  : 'L3',
-            signal_strength: {
-              exposure: Math.min(100, Math.round((Math.log10((e.mentions || 0) + 1) / 3) * 100)),
-              connectivity: Math.min(100, Math.round((connCount / 20) * 100)),
-              corroboration: Math.min(
-                100,
-                mediaCount * 20 +
-                  (Array.isArray(e.evidence_types) ? e.evidence_types.length * 15 : 0),
-              ),
-            },
-            driver_labels: [],
-          },
-          top_preview: undefined,
-        };
-      });
-      return res.json({ subjects, total: subjects.length });
-    }
     res.json(result);
   } catch (error) {
     console.error('Error fetching subject cards:', error);
@@ -4276,6 +4256,11 @@ process.on('SIGINT', () => {
 try {
   validateStartup();
   runMigrations();
+  try {
+    entitiesRepository.backfillJunkFlags();
+  } catch (e) {
+    console.error('Junk flags backfill failed:', e);
+  }
 } catch (err) {
   console.error('Failed to run migrations:', err);
   // Continue anyway? Or exit? For now, log and continue as per plan to be robust.

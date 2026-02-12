@@ -182,7 +182,8 @@ export interface SubjectCardDTO {
   forensics: {
     risk_level: 'HIGH' | 'MEDIUM' | 'LOW' | string;
     evidence_ladder: 'L1' | 'L2' | 'L3' | 'NONE';
-    red_flag_rating?: number;
+    red_flag_objective?: number;
+    red_flag_subjective?: number;
     signal_strength: {
       exposure: number;
       connectivity: number;

@@ -93,55 +93,8 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
 
         const res = await apiClient.getSubjects(filters, page, PAGE_SIZE);
         if (active) {
-          let nextSubjects = res.subjects || [];
-          let nextTotal = res.total || 0;
-
-          if (nextSubjects.length === 0 && nextTotal > 0) {
-            const ents = await apiClient.getEntities(
-              {
-                searchTerm: searchTerm || undefined,
-                entityType: entityType === 'all' ? undefined : entityType,
-                sortBy: sortBy as any,
-                sortOrder,
-              },
-              page,
-              PAGE_SIZE,
-            );
-            nextTotal = ents.total || nextTotal;
-            nextSubjects = (ents.data || []).map((e: any) => {
-              const mediaCount = Array.isArray(e.photos) ? e.photos.length : 0;
-              return {
-                id: String(e.id),
-                name: e.name || e.fullName || 'Unknown',
-                role: e.primaryRole || e.title || 'Unknown',
-                short_bio: e.bio ? String(e.bio).slice(0, 150) : undefined,
-                stats: {
-                  mentions: e.mentions || 0,
-                  documents: e.files || e.documentCount || 0,
-                  distinct_sources: Array.isArray(e.evidence_types) ? e.evidence_types.length : 0,
-                  verified_media: mediaCount,
-                },
-                forensics: {
-                  risk_level: (e.likelihood_score || 'LOW').toString().toUpperCase(),
-                  evidence_ladder: mediaCount > 0 ? 'L1' : (e.mentions || 0) > 50 ? 'L2' : 'L3',
-                  signal_strength: {
-                    exposure: Math.min(
-                      100,
-                      Math.round((Math.log10((e.mentions || 0) + 1) / 3) * 100),
-                    ),
-                    connectivity: 0,
-                    corroboration: Math.min(
-                      100,
-                      mediaCount * 20 +
-                        (Array.isArray(e.evidence_types) ? e.evidence_types.length * 15 : 0),
-                    ),
-                  },
-                  driver_labels: [],
-                },
-                top_preview: undefined,
-              } as SubjectCardDTO;
-            });
-          }
+          const nextSubjects = res.subjects || [];
+          const nextTotal = res.total || 0;
 
           setSubjects(nextSubjects);
           setTotal(nextTotal);
@@ -150,79 +103,9 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
           }
         }
       } catch (_e) {
-        try {
-          const ents = await apiClient.getEntities(
-            {
-              searchTerm: searchTerm || undefined,
-              entityType: entityType === 'all' ? undefined : entityType,
-              sortBy: sortBy as any,
-              sortOrder,
-            },
-            page,
-            PAGE_SIZE,
-          );
-          const nextTotal = ents.total || 0;
-          const data = ents.data || [];
-          // Compute max connection count across this page for relative network strength
-          const pageMaxConn = Math.max(
-            1,
-            ...data.map((e: any) => {
-              const connStr = String(e.connections_summary || e.connections || '');
-              if (/^\d+$/.test(connStr)) return parseInt(connStr, 10) || 0;
-              return (connStr.match(/,/g) || []).length;
-            }),
-          );
-          const nextSubjects = data.map((e: any) => {
-            const mediaCount = Array.isArray(e.photos) ? e.photos.length : 0;
-            const connStr = String(e.connections_summary || e.connections || '');
-            let connCount = 0;
-            if (/^\d+$/.test(connStr)) connCount = parseInt(connStr, 10) || 0;
-            else connCount = (connStr.match(/,/g) || []).length;
-            return {
-              id: String(e.id),
-              name: e.name || e.fullName || 'Unknown',
-              role: e.primaryRole || e.title || 'Unknown',
-              short_bio: e.bio ? String(e.bio).slice(0, 150) : undefined,
-              stats: {
-                mentions: e.mentions || 0,
-                documents: e.files || e.documentCount || 0,
-                distinct_sources: Array.isArray(e.evidence_types) ? e.evidence_types.length : 0,
-                verified_media: mediaCount,
-              },
-              forensics: {
-                risk_level: (e.likelihood_score || 'LOW').toString().toUpperCase(),
-                evidence_ladder: mediaCount > 0 ? 'L1' : (e.mentions || 0) > 50 ? 'L2' : 'L3',
-                red_flag_rating:
-                  typeof (e as any).red_flag_rating === 'number'
-                    ? (e as any).red_flag_rating
-                    : typeof (e as any).redFlagRating === 'number'
-                      ? (e as any).redFlagRating
-                      : undefined,
-                signal_strength: {
-                  exposure: Math.min(
-                    100,
-                    Math.round((Math.log10((e.mentions || 0) + 1) / 3) * 100),
-                  ),
-                  connectivity: Math.min(100, Math.round((connCount / pageMaxConn) * 100)),
-                  corroboration: Math.min(
-                    100,
-                    mediaCount * 20 +
-                      (Array.isArray(e.evidence_types) ? e.evidence_types.length * 15 : 0),
-                  ),
-                },
-                driver_labels: [],
-              },
-              top_preview: undefined,
-            } as SubjectCardDTO;
-          });
-          if (active) {
-            setSubjects(nextSubjects);
-            setTotal(nextTotal);
-          }
-        } catch {
-          if (active) {
-            setSubjects([]);
-          }
+        if (active) {
+          setSubjects([]);
+          setTotal(0);
         }
       } finally {
         if (active) setLoading(false);

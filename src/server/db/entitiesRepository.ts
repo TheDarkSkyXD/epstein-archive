@@ -3,6 +3,7 @@ import { Person, SearchFilters, SortOption, SubjectCardDTO } from '../../types.j
 import {
   ENTITY_BLACKLIST_PATTERNS,
   ENTITY_PARTIAL_BLOCKLIST,
+  ENTITY_BLACKLIST_REGEX,
 } from '../../config/entityBlacklist.js';
 
 export interface EntityRepositoryResult {
@@ -30,6 +31,16 @@ export const entitiesRepository = {
     const whereConditions: string[] = [];
     const params: any = {};
 
+    let hasJunkFlag = false;
+    try {
+      const cols = db.prepare(`PRAGMA table_info(entities)`).all() as Array<{ name: string }>;
+      hasJunkFlag = cols.some((c) => c.name === 'junk_flag');
+    } catch {
+      hasJunkFlag = false;
+    }
+    if (hasJunkFlag) {
+      whereConditions.push('COALESCE(junk_flag,0)=0');
+    }
     // --- REUSE EXISTING FILTER LOGIC (DRY) ---
     // 1. Term Search
     if (filters?.searchTerm) {
@@ -259,14 +270,16 @@ export const entitiesRepository = {
         short_bio: e.bio ? e.bio.substring(0, 150) : undefined,
         stats: {
           mentions: e.mentions || 0,
-          documents: e.mentions || 0, // Approx
+          documents: e.mentions || 0,
           distinct_sources: eTypes.length,
           verified_media: e.media_count || 0,
         },
         forensics: {
           risk_level: (e.risk_level as any) || 'LOW',
           evidence_ladder: ladder,
-          red_flag_rating: typeof e.red_flag_rating === 'number' ? e.red_flag_rating : undefined,
+          red_flag_objective: typeof e.red_flag_rating === 'number' ? e.red_flag_rating : undefined,
+          red_flag_subjective:
+            typeof (e as any).red_flag_score === 'number' ? (e as any).red_flag_score : undefined,
           signal_strength: {
             exposure: Math.round(exposure),
             connectivity: Math.round(connectivity),
@@ -291,10 +304,249 @@ export const entitiesRepository = {
       return true;
     });
 
+    const filteredSubjects = normalizedSubjects.filter((s) => {
+      const n = (s.name || '').toLowerCase();
+      if (n.length < 3) return false;
+      if (/[.@]/.test(n) || n.startsWith('http') || n.startsWith('www.')) return false;
+      if (ENTITY_BLACKLIST_REGEX.test(s.name)) return false as any;
+      for (const p of ENTITY_BLACKLIST_PATTERNS) {
+        if (n.includes(p.toLowerCase())) return false;
+      }
+      for (const p of ENTITY_PARTIAL_BLOCKLIST) {
+        if (n.includes(p.toLowerCase())) return false;
+      }
+      const lowSignals =
+        (s.stats?.mentions || 0) < 10 &&
+        (s.stats?.verified_media || 0) === 0 &&
+        (s.stats?.distinct_sources || 0) === 0;
+      if (lowSignals && (s.role || '').toLowerCase() === 'unknown') return false;
+      return true;
+    });
+
+    // Soft fallback: if strict default view returns zero, relax VIP/signal threshold but still enforce junk/pattern filters
+    if (isDefaultView && filteredSubjects.length === 0) {
+      const softWhere: string[] = [];
+      const softParams: any = {};
+      if (hasJunkFlag) softWhere.push('COALESCE(junk_flag,0)=0');
+      softWhere.push(`entity_type = 'Person'`);
+      softWhere.push(`LENGTH(TRIM(full_name)) >= 3`);
+      softWhere.push(`full_name NOT LIKE '%@%'`);
+      softWhere.push(`full_name NOT LIKE 'http%'`);
+      softWhere.push(`full_name NOT LIKE 'www.%'`);
+      ENTITY_BLACKLIST_PATTERNS.forEach((pattern, i) => {
+        const paramName = `softJunk${i}`;
+        softParams[paramName] = `%${pattern}%`;
+        softWhere.push(`full_name NOT LIKE @${paramName}`);
+      });
+      ENTITY_PARTIAL_BLOCKLIST.forEach((pattern, i) => {
+        const paramName = `softPartial${i}`;
+        softParams[paramName] = `%${pattern}%`;
+        softWhere.push(`full_name NOT LIKE @${paramName}`);
+      });
+      softWhere.push(`COALESCE(primary_role, '') NOT IN ('Unknown','UNK')`);
+      softWhere.push(`(
+        mentions >= 1
+        OR bio IS NOT NULL
+        OR (SELECT COUNT(*) FROM media_item_people WHERE entity_id = entities.id) > 0
+        OR (SELECT COUNT(*) FROM black_book_entries WHERE person_id = entities.id) > 0
+      )`);
+      const softWhereClause = softWhere.length > 0 ? `WHERE ${softWhere.join(' AND ')}` : '';
+      const softCount = db
+        .prepare(`SELECT COUNT(*) as total FROM entities ${softWhereClause}`)
+        .get(softParams) as { total: number };
+      const softSql = `
+            SELECT 
+              id,
+              full_name,
+              primary_role,
+              bio,
+              mentions,
+              risk_level,
+              red_flag_rating,
+              connections_summary as connections,
+              '' as evidence_types,
+              was_agentic,
+              (SELECT COUNT(*) FROM media_item_people WHERE entity_id = entities.id) as media_count,
+              (SELECT COUNT(*) FROM black_book_entries WHERE person_id = entities.id) as black_book_count
+            FROM entities
+            ${softWhereClause}
+            ${orderByClause}
+            LIMIT @limit OFFSET @offset
+        `;
+      const softEntities = db.prepare(softSql).all({ ...softParams, limit, offset }) as any[];
+      const softSubjects = softEntities.map((e: any) => {
+        const eTypes: string[] = Array.isArray(e.evidence_types) ? e.evidence_types : [];
+        const mediaCount = typeof e.media_count === 'number' ? e.media_count : 0;
+        const exposure = Math.min(100, Math.round((Math.log10((e.mentions || 0) + 1) / 3) * 100));
+        const connStr = String(e.connections || '');
+        let connCount = 0;
+        if (/^\d+$/.test(connStr)) connCount = parseInt(connStr, 10);
+        else connCount = (connStr.match(/,/g) || []).length;
+        const connectivity = Math.min(100, Math.round((connCount / 20) * 100));
+        const corroboration = Math.min(100, mediaCount * 20 + eTypes.length * 15);
+        const drivers: string[] = [];
+        if (mediaCount > 0) drivers.push('Verified Media');
+        if (e.black_book_count > 0) drivers.push('Black Book');
+        if ((e.mentions || 0) > 50) drivers.push('Document Volume');
+        const ladder =
+          mediaCount > 0 || e.black_book_count > 0 ? 'L1' : (e.mentions || 0) > 50 ? 'L2' : 'L3';
+        return {
+          id: String(e.id),
+          name: e.full_name || 'Unknown',
+          role: e.primary_role || 'Unknown',
+          short_bio: e.bio ? e.bio.substring(0, 150) : undefined,
+          stats: {
+            mentions: e.mentions || 0,
+            documents: e.mentions || 0,
+            distinct_sources: eTypes.length,
+            verified_media: mediaCount,
+          },
+          forensics: {
+            risk_level: (e.risk_level as any) || 'LOW',
+            evidence_ladder: ladder,
+            red_flag_objective:
+              typeof e.red_flag_rating === 'number' ? e.red_flag_rating : undefined,
+            red_flag_subjective:
+              typeof (e as any).red_flag_score === 'number' ? (e as any).red_flag_score : undefined,
+            signal_strength: {
+              exposure: Math.round(exposure),
+              connectivity: Math.round(connectivity),
+              corroboration: Math.round(corroboration),
+            },
+            driver_labels: drivers.slice(0, 4),
+          },
+          top_preview: undefined,
+        } as SubjectCardDTO;
+      });
+      const dedupSoft: SubjectCardDTO[] = [];
+      const seenSoft = new Set<string>();
+      for (const s of softSubjects) {
+        const norm = s.name
+          .toLowerCase()
+          .replace(/[^a-z0-9\s]/g, '')
+          .replace(/\b(the|of|and|or|inc|llc|corp|ltd|group|trust)\b/g, '')
+          .trim();
+        if (!seenSoft.has(norm)) {
+          seenSoft.add(norm);
+          dedupSoft.push(s);
+        }
+      }
+      const finalSoft = dedupSoft.filter((s) => {
+        const n = (s.name || '').toLowerCase();
+        if (n.length < 3) return false;
+        if (/[.@]/.test(n) || n.startsWith('http') || n.startsWith('www.')) return false;
+        if (ENTITY_BLACKLIST_REGEX.test(s.name)) return false as any;
+        for (const p of ENTITY_BLACKLIST_PATTERNS) {
+          if (n.includes(p.toLowerCase())) return false;
+        }
+        for (const p of ENTITY_PARTIAL_BLOCKLIST) {
+          if (n.includes(p.toLowerCase())) return false;
+        }
+        return true;
+      });
+      return {
+        subjects: finalSoft,
+        total: softCount.total,
+      };
+    }
+
     return {
-      subjects: normalizedSubjects,
+      subjects: filteredSubjects,
       total: totalResult.total,
     };
+  },
+
+  backfillJunkFlags: () => {
+    const db = getDb();
+    const rows = db
+      .prepare(
+        `
+        SELECT 
+          e.id, 
+          e.full_name, 
+          e.primary_role, 
+          e.entity_type, 
+          e.mentions, 
+          e.bio,
+          e.red_flag_rating,
+          e.risk_level,
+          (SELECT COUNT(*) FROM media_item_people mip WHERE mip.entity_id = e.id) as media_count,
+          (SELECT COUNT(*) FROM black_book_entries bb WHERE bb.person_id = e.id) as black_book_count,
+          (SELECT COUNT(DISTINCT et.type_name) 
+           FROM entity_evidence_types eet 
+           JOIN evidence_types et ON eet.evidence_type_id = et.id 
+           WHERE eet.entity_id = e.id) as source_count
+        FROM entities e
+        `,
+      )
+      .all() as Array<{
+      id: number;
+      full_name: string;
+      primary_role: string;
+      entity_type: string;
+      mentions: number;
+      bio?: string;
+      red_flag_rating?: number;
+      risk_level?: string;
+      media_count: number;
+      black_book_count: number;
+      source_count: number;
+    }>;
+    const stmt = db.prepare(
+      `UPDATE entities SET junk_flag=@junk_flag, junk_reason=@junk_reason, junk_probability=@junk_probability WHERE id=@id`,
+    );
+    const tx = db.transaction((items: typeof rows) => {
+      for (const r of items) {
+        const name = (r.full_name || '').toLowerCase();
+        let prob = 0;
+        let reason = '';
+        if (
+          name.length < 3 ||
+          /[.@]/.test(name) ||
+          name.startsWith('http') ||
+          name.startsWith('www.')
+        ) {
+          prob = Math.max(prob, 0.95);
+          reason = reason || 'name_hygiene';
+        }
+        if (ENTITY_BLACKLIST_REGEX.test(r.full_name || '')) {
+          prob = Math.max(prob, 0.9);
+          reason = reason || 'regex_blacklist';
+        }
+        for (const p of ENTITY_BLACKLIST_PATTERNS) {
+          if (p && name.includes(p.toLowerCase())) {
+            prob = Math.max(prob, 0.85);
+            reason = reason || 'pattern_blacklist';
+            break;
+          }
+        }
+        for (const p of ENTITY_PARTIAL_BLOCKLIST) {
+          if (p && name.includes(p.toLowerCase())) {
+            prob = Math.max(prob, 0.8);
+            reason = reason || 'partial_blacklist';
+            break;
+          }
+        }
+        const lowSignals =
+          (r.mentions || 0) < 10 &&
+          (r.media_count || 0) === 0 &&
+          (r.source_count || 0) === 0 &&
+          (r.black_book_count || 0) === 0 &&
+          (r.bio || '') === '';
+        if (lowSignals && (r.primary_role || '').toLowerCase() === 'unknown') {
+          prob = Math.max(prob, 0.55);
+          reason = reason || 'low_signals';
+        }
+        const junk = prob >= 0.6;
+        stmt.run({
+          id: r.id,
+          junk_flag: junk ? 1 : 0,
+          junk_reason: junk ? reason : null,
+          junk_probability: prob,
+        });
+      }
+    });
+    tx(rows);
   },
 
   /**
@@ -310,6 +562,16 @@ export const entitiesRepository = {
     const whereConditions: string[] = [];
     const params: any = {};
 
+    let hasJunkFlag = false;
+    try {
+      const cols = db.prepare(`PRAGMA table_info(entities)`).all() as Array<{ name: string }>;
+      hasJunkFlag = cols.some((c) => c.name === 'junk_flag');
+    } catch {
+      hasJunkFlag = false;
+    }
+    if (hasJunkFlag) {
+      whereConditions.push('COALESCE(junk_flag,0)=0');
+    }
     // 1. Term Search - Split into words for fuzzy matching
     if (filters?.searchTerm) {
       const searchWords = filters.searchTerm
@@ -437,7 +699,7 @@ export const entitiesRepository = {
     const sql = `
             SELECT 
               entities.*,
-              entities.mentions AS documentCount,
+              (SELECT COUNT(*) FROM entity_mentions em WHERE em.entity_id = entities.id) AS documentCount,
               EXISTS(SELECT 1 FROM black_book_entries WHERE person_id = entities.id) as hasBlackBook
             FROM ${sourceTable}
             ${whereClause}
@@ -522,8 +784,31 @@ export const entitiesRepository = {
       }
     }
 
+    const filtered = entities.filter((e) => {
+      const n = String(e.full_name || e.fullName || '').toLowerCase();
+      if (n.length < 3) return false;
+      if (/[.@]/.test(n) || n.startsWith('http') || n.startsWith('www.')) return false;
+      if (ENTITY_BLACKLIST_REGEX.test(e.full_name || '')) return false as any;
+      for (const p of ENTITY_BLACKLIST_PATTERNS) {
+        if (n.includes(p.toLowerCase())) return false;
+      }
+      for (const p of ENTITY_PARTIAL_BLOCKLIST) {
+        if (n.includes(p.toLowerCase())) return false;
+      }
+      const mediaCount = typeof (e as any).media_count === 'number' ? (e as any).media_count : 0;
+      const lowSignals =
+        (e.mentions || 0) < 10 &&
+        mediaCount === 0 &&
+        !(e as any).hasBlackBook &&
+        ((e as any).bio == null || (e as any).bio === '');
+      if (lowSignals) return false;
+      if ((e as any).entity_type && (e as any).entity_type !== 'Person') return false;
+      if (((e as any).primary_role || '').toLowerCase() === 'unknown') return false;
+      return true;
+    });
+
     return {
-      entities,
+      entities: filtered,
       total: totalResult.total,
     };
   },

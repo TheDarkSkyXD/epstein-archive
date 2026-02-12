@@ -86,7 +86,11 @@ const PersonCard: React.FC<PersonCardProps> = ({ person, onClick, searchTerm }) 
             <h3 className="text-base font-bold text-slate-100 truncate group-hover:text-cyan-400 transition-colors">
               {highlightText(person.name, searchTerm)}
             </h3>
-            <EvidenceBadge level={evidenceLevel.level} rating={rating} />
+            <EvidenceBadge
+              level={evidenceLevel.level}
+              ratingObjective={rating}
+              ratingSubjective={Number((person as any).red_flag_score ?? 0)}
+            />
           </div>
 
           <div className="flex items-center gap-2 mt-0.5">

@@ -211,9 +211,12 @@ class ApiClient {
         queryParams.append('likelihoodScore', filters.likelihood);
       }
     }
+    // Cache bust to avoid stale front-page results during development
+    queryParams.append('v', String(Date.now()));
 
     return this.fetchWithErrorHandling<{ subjects: any[]; total: number }>(
       `/api/subjects?${queryParams.toString()}`,
+      { useCache: false },
     );
   }
 

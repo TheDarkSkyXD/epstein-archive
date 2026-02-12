@@ -37,12 +37,12 @@ const SubjectCardV2: React.FC<SubjectCardV2Props> = React.memo(
 
     const handleCardClick = () => {
       if (onClick) onClick();
-      else navigate(`/entities/${subject.id}`);
+      else navigate(`/entity/${subject.id}`);
     };
 
     const handleProfileClick = (e: React.MouseEvent) => {
       e.stopPropagation();
-      navigate(`/entities/${subject.id}`);
+      navigate(`/entity/${subject.id}`);
     };
 
     React.useEffect(() => {
@@ -107,7 +107,8 @@ const SubjectCardV2: React.FC<SubjectCardV2Props> = React.memo(
                 </h3>
                 <EvidenceBadge
                   level={forensics.evidence_ladder as any}
-                  rating={(forensics as any).red_flag_rating as number | undefined}
+                  ratingObjective={(forensics as any).red_flag_objective as number | undefined}
+                  ratingSubjective={(forensics as any).red_flag_subjective as number | undefined}
                 />
               </div>
               <div className="text-[10px] text-slate-500 uppercase tracking-wider truncate">

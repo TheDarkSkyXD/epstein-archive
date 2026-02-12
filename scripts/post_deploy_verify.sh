@@ -3,7 +3,7 @@ set -e
 
 # Configuration
 URL="http://161.35.137.95:3012"
-EXPECTED_VERSION="13.1.3"
+EXPECTED_VERSION="13.1.4"
 
 # Colors
 GREEN='\033[0;32m'
@@ -25,16 +25,27 @@ else
     exit 1
 fi
 
-# 2. Check Deep Health (if available) - Assuming /api/health returns JSON with status: ok
-HEALTH_JSON=$(curl -s "$URL/api/health")
-if echo "$HEALTH_JSON" | grep -q '"status":"ok"'; then
-    log_success "Health JSON Status OK"
+# 2. Check Auth Scoping (/api/auth/me)
+echo "Checking /api/auth/me (Auth Scoping Fix)..."
+AUTH_ME_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/api/auth/me")
+if [ "$AUTH_ME_STATUS" == "200" ]; then
+    log_success "Auth Scoping Verified (200)"
 else
-    log_error "Health JSON Status FAILED: $HEALTH_JSON"
+    log_error "Auth Scoping FAILED ($AUTH_ME_STATUS) - Still blocked by middleware?"
     exit 1
 fi
 
-# 3. Check Stats (DB Connectivity)
+# 3. Check Media Access (/api/media/images)
+echo "Checking /api/media/images (Media Reliability Fix)..."
+MEDIA_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/api/media/images?limit=1&slim=true")
+if [ "$MEDIA_STATUS" == "200" ]; then
+    log_success "Media API Verified (200)"
+else
+    log_error "Media API FAILED ($MEDIA_STATUS) - Still returning 500?"
+    exit 1
+fi
+
+# 4. Check Stats (DB Connectivity)
 echo "Checking /api/stats (Database Connectivity)..."
 STATS_JSON=$(curl -s "$URL/api/stats")
 TOTAL_ENTITIES=$(echo "$STATS_JSON" | grep -o '"totalEntities":[0-9]*' | cut -d: -f2)
@@ -46,7 +57,7 @@ else
     exit 1
 fi
 
-# 4. Check Subject Listings (/api/subjects)
+# 5. Check Subject Listings (/api/subjects)
 echo "Checking /api/subjects (Data Retrieval)..."
 SUBJECTS_JSON=$(curl -s "$URL/api/subjects?limit=1")
 if echo "$SUBJECTS_JSON" | grep -q '"data":\['; then
@@ -56,8 +67,7 @@ else
    exit 1
 fi
 
-# 5. Check Content (Main Page for Version String if possible) - This is tricky if it's rendered by JS
-# But let's check if the main page loads successfully at least
+# 6. Check Main Page
 echo "Checking Main Page Load..."
 MAIN_PAGE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
 if [ "$MAIN_PAGE_STATUS" == "200" ]; then
@@ -68,5 +78,5 @@ else
 fi
 
 echo "---"
-echo -e "${GREEN}ALL CHECKS PASSED. DEPLOYMENT VERIFIED.${NC}"
+echo -e "${GREEN}ALL CHECKS PASSED. DEPLOYMENT v$EXPECTED_VERSION VERIFIED.${NC}"
 exit 0

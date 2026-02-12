@@ -221,24 +221,7 @@ function App() {
     | 'admin';
   const activeTab = getTabFromPath(location.pathname);
 
-  const [people, setPeople] = useState<Person[]>(() => {
-    // Try to load first page from cache for instant render
-    try {
-      // Clear old legacy keys
-      localStorage.removeItem('epstein_archive_people_page1');
-      localStorage.removeItem('epstein_archive_people_page1_v5_3_1');
-      localStorage.removeItem('epstein_archive_stats');
-      localStorage.removeItem('epstein_archive_stats_v5_3_1');
-
-      const cached = sessionStorage.getItem('epstein_archive_people_page1_v12_7_2');
-      if (cached) {
-        return JSON.parse(cached);
-      }
-    } catch (e) {
-      console.error('Error loading cached people:', e);
-    }
-    return [];
-  });
+  // people state removed - PeoplePage handles its own data fetching
 
   // UNUSED STATE REMOVED:  const [people, setPeople] = useState<Person[]>([]);
   // filteredPeople removed - unused
@@ -252,7 +235,6 @@ function App() {
   // Modal State
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
   const [previousPath, setPreviousPath] = useState<string>('/people');
-  const [searchTermForModal, setSearchTermForModal] = useState<string>('');
 
   // Document Viewing
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
@@ -613,11 +595,6 @@ function App() {
                 ? 'MEDIUM'
                 : 'LOW'),
         }));
-        setPeople(normalized);
-        setCurrentPage(result.page);
-        setTotalPages(result.totalPages);
-        setTotalPeople(result.total);
-
         // Cache first page for next load
         try {
           sessionStorage.setItem(
@@ -844,12 +821,7 @@ function App() {
     loadRealDocuments();
   }, [addToast]);
 
-  // Legacy search/filter logic removed - PeoplePage handles its own data fetching
-  const handleSearchAndFilter = useCallback(async () => {
-    // No-op
-  }, []);
-
-  // Handler for risk level chip clicks
+  // Handler for risk level click clicks
   const handleRiskLevelClick = useCallback((level: 'HIGH' | 'MEDIUM' | 'LOW') => {
     // Toggle: if clicking the same level, deselect it
     setSelectedRiskLevel((prev) => (prev === level ? null : level));
@@ -868,14 +840,8 @@ function App() {
   }, [setSelectedRiskLevel, setEntityType, setSearchTerm, setSortBy, setSortOrder, setCurrentPage]);
 
   useEffect(() => {
-    handleSearchAndFilter();
-  }, [handleSearchAndFilter]);
-
-  const handlePageChange = async (newPage: number) => {
-    if (newPage < 1 || newPage > totalPages) return;
-    setCurrentPage(newPage);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+    // No-op
+  }, []);
 
   const fetchAnalyticsData = useCallback(async () => {
     try {
@@ -906,14 +872,13 @@ function App() {
   // Prefetch effect removed
 
   const handlePersonClick = useCallback(
-    (person: Person, searchTerm?: string) => {
-      console.log('Person clicked:', person.name, 'Search term:', searchTerm);
+    (person: Person) => {
+      console.log('Person clicked:', person.name);
 
       // Save current path before opening modal so we can restore it on close
       setPreviousPath(location.pathname + location.search);
 
       setSelectedPerson(person);
-      setSearchTermForModal(searchTerm || '');
 
       // Update URL for shareable link
       if (person.id) {
@@ -931,42 +896,6 @@ function App() {
     },
     [location.pathname, location.search],
   );
-
-  const handleDocumentClick = useCallback((document: any, searchTerm?: string) => {
-    console.log('=== handleDocumentClick START ===');
-    console.log('Document clicked:', document);
-    console.log('document.id:', document?.id);
-    console.log('Search term:', searchTerm);
-
-    // Open inline document modal first; keep person modal to avoid race/unmount issues
-    const docId = document?.id?.toString() || '';
-    setDocumentModalId(docId);
-    setDocumentModalInitial(document || null);
-
-    // Set the search term for highlighting
-    console.log('Setting selectedDocumentSearchTerm to:', searchTerm);
-    if (searchTerm) {
-      setSelectedDocumentSearchTerm(searchTerm);
-      console.log('selectedDocumentSearchTerm set successfully');
-    } else {
-      console.log('No searchTerm provided, clearing selectedDocumentSearchTerm');
-      setSelectedDocumentSearchTerm('');
-    }
-
-    // Keep legacy path as fallback for browser tab
-    setSelectedDocumentId(docId);
-
-    // Announce navigation for screen readers
-    const announcement = document.createElement('div');
-    announcement.setAttribute('aria-live', 'polite');
-    announcement.setAttribute('aria-atomic', 'true');
-    announcement.className = 'sr-only';
-    announcement.textContent = `Opening document ${document?.title || 'untitled'}`;
-    document.body.appendChild(announcement);
-    setTimeout(() => document.body.removeChild(announcement), 1000);
-
-    console.log('=== handleDocumentClick END ===');
-  }, []);
 
   const { user: currentUser, isAdmin } = useAuth();
 
@@ -1194,7 +1123,7 @@ function App() {
                               <button
                                 key={`sugg-${p.id}-${i}`}
                                 className="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-800 flex items-center gap-2"
-                                onClick={() => handlePersonClick(p, searchTerm)}
+                                onClick={() => handlePersonClick(p)}
                               >
                                 <Icon name="User" size="sm" color="gray" />
                                 <span className="truncate flex-1">{p.name}</span>
@@ -1553,14 +1482,10 @@ function App() {
                   >
                     {activeTab === 'people' && (
                       <PeoplePage
-                        loading={loading}
                         dataStats={dataStats}
                         selectedRiskLevel={selectedRiskLevel}
                         onRiskLevelClick={handleRiskLevelClick}
                         onResetFilters={handleResetFilters}
-                        totalPeople={totalPeople}
-                        currentPage={currentPage}
-                        totalPages={totalPages}
                         isAdmin={isAdmin}
                         onAddSubject={() => setShowCreateEntityModal(true)}
                         entityType={entityType}
@@ -1570,19 +1495,7 @@ function App() {
                         sortOrder={sortOrder}
                         onSortOrderToggle={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
                         searchTerm={searchTerm}
-                        onPersonClick={(person) => {
-                          setSelectedPerson(person);
-                          setPreviousPath(location.pathname);
-                          navigate(`/entity/${person.id}`);
-                        }}
-                        onDocumentClick={(doc) => {
-                          setSelectedDocumentId(doc.id);
-                          setDocumentModalId(doc.id);
-                          setPreviousPath(location.pathname);
-                          navigate(`/documents/${doc.id}`);
-                        }}
-                        onPageChange={(p) => setCurrentPage(p)}
-                        navigate={navigate}
+                        onPersonClick={handlePersonClick}
                       />
                     )}
 
@@ -1594,7 +1507,6 @@ function App() {
                         onRetry={fetchAnalyticsData}
                         onPersonSelect={(person) => {
                           setSelectedPerson(person);
-                          setSearchTermForModal('');
                         }}
                       />
                     )}

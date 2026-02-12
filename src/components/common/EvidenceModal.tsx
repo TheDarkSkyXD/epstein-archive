@@ -1,18 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import {
-  X,
-  Search,
-  FileText,
-  Activity,
-  AlertTriangle,
-  ExternalLink,
-  Filter,
-  Calendar,
-} from 'lucide-react';
+import { X, Search, FileText, Activity, AlertTriangle, ExternalLink, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FixedSizeList as List } from 'react-window';
-import { InfiniteLoader } from 'react-window-infinite-loader';
+import InfiniteLoader from 'react-window-infinite-loader';
 import { AutoSizer } from 'react-virtualized-auto-sizer';
 
 import { SignalPanel } from '../entities/cards/SignalPanel';
@@ -50,13 +41,11 @@ interface EntityDetails {
 }
 
 export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, onClose }) => {
-  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'evidence' | 'media' | 'network'>(
     'overview',
   );
   const [entity, setEntity] = useState<EntityDetails | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   // Documents Pagination State
   const [documents, setDocuments] = useState<any[]>([]);
@@ -65,11 +54,72 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
   const [docsInitialized, setDocsInitialized] = useState(false);
   const [docFilters, setDocFilters] = useState({ search: '', source: 'all', sort: 'relevance' });
 
+  const fetchEntityDetails = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = (await apiClient.get(`/entities/${entityId}`)) as EntityDetails;
+      setEntity(data);
+    } catch (_err) {
+      console.error('Failed to load entity details');
+    } finally {
+      setLoading(false);
+    }
+  }, [entityId]);
+
+  const loadMoreDocuments = React.useCallback(
+    async (startIndex: number, stopIndex: number) => {
+      if (isDocsLoading) return;
+
+      // Check if we already have these items to prevent redundant fetches
+      const allLoaded = Array.from({ length: stopIndex - startIndex + 1 }).every(
+        (_, i) => !!documents[startIndex + i],
+      );
+      if (allLoaded && docsInitialized) return;
+
+      setIsDocsLoading(true);
+      try {
+        const limit = stopIndex - startIndex + 1;
+        const page = Math.floor(startIndex / limit) + 1;
+
+        const response = (await apiClient.get(`/entities/${entityId}/documents`, {
+          params: {
+            page,
+            limit,
+            ...docFilters,
+          },
+        } as any)) as any;
+
+        const newDocs = response.data;
+        const total = response.total;
+        setTotalDocs(total);
+
+        setDocuments((prev) => {
+          const next = [...prev];
+          // Ensure the array is at least as large as the total count
+          if (next.length < total) {
+            next.length = total;
+          }
+          // Fill the specific range
+          newDocs.forEach((doc: any, i: number) => {
+            next[startIndex + i] = doc;
+          });
+          return next;
+        });
+      } catch (err) {
+        console.error('Error loading docs', err);
+      } finally {
+        setIsDocsLoading(false);
+        setDocsInitialized(true);
+      }
+    },
+    [entityId, docFilters, isDocsLoading, documents, docsInitialized],
+  );
+
   useEffect(() => {
     if (isOpen && entityId) {
       fetchEntityDetails();
     }
-  }, [isOpen, entityId]);
+  }, [isOpen, entityId, fetchEntityDetails]);
 
   useEffect(() => {
     if (isOpen && entityId && activeTab === 'evidence') {
@@ -79,51 +129,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
       setDocsInitialized(false);
       loadMoreDocuments(0, 1); // Initial load (startIndex, stopIndex)
     }
-  }, [isOpen, entityId, activeTab, docFilters]);
-
-  const fetchEntityDetails = async () => {
-    setLoading(true);
-    try {
-      const data = (await apiClient.get(`/entities/${entityId}`)) as EntityDetails;
-      setEntity(data);
-    } catch (err) {
-      setError('Failed to load entity details');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadMoreDocuments = async (startIndex: number, stopIndex: number) => {
-    if (isDocsLoading) return;
-    setIsDocsLoading(true);
-    try {
-      // react-window-infinite-loader might request ranges.
-      // We map index to page.
-      const page = Math.floor(startIndex / 50) + 1;
-      // Use any for params to bypass strict type check on apiClient if needed, or fix apiClient type
-      const response = (await apiClient.get(`/entities/${entityId}/documents`, {
-        params: {
-          page,
-          limit: 50,
-          ...docFilters,
-        },
-      } as any)) as any;
-
-      const newDocs = response.data;
-      setTotalDocs(response.total);
-
-      setDocuments((prev) => {
-        // If it's the first page, just set it
-        if (page === 1) return newDocs;
-        return [...prev, ...newDocs];
-      });
-    } catch (err) {
-      console.error('Error loading docs', err);
-    } finally {
-      setIsDocsLoading(false);
-      setDocsInitialized(true);
-    }
-  };
+  }, [isOpen, entityId, activeTab, docFilters, loadMoreDocuments]);
 
   // Helper to check if item is loaded
   const isItemLoaded = (index: number) => !!documents[index];
@@ -131,10 +137,9 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
   // Forensic Calculations
   const forensicData = useMemo(() => {
     if (!entity) return null;
-    // Cast to any to satisfy Person interface for utils which expect a richer object
-    // The utils only need basic props which EntityDetails has (mentions, evidenceTypes mock)
     const personAdapter = {
       ...entity,
+      name: entity.fullName, // Required by PersonAdapter
       files: 0,
       contexts: [],
       evidence_types: entity.evidenceTypes || [],
@@ -350,7 +355,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
 
             {/* 2. EVIDENCE TAB (Virtualized) */}
             {activeTab === 'evidence' && (
-              <div className="h-full flex flex-col">
+              <div className="h-full flex flex-col min-h-0">
                 {/* FILTERS TOOLBAR */}
                 <div className="p-4 bg-slate-950/30 border-b border-slate-800 flex gap-4 shrink-0">
                   <div className="relative flex-1 max-w-md">
@@ -381,32 +386,34 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                 </div>
 
                 {/* VIRTUALIZED LIST */}
-                <div className="flex-1 min-h-0 relative">
-                  {docsInitialized && !isDocsLoading && documents.length === 0 && (
+                <div className="flex-1 min-h-0 relative bg-slate-900">
+                  {docsInitialized && !isDocsLoading && totalDocs === 0 && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500">
                       <FileText size={48} className="mb-4 opacity-20" />
                       <p>No documents found matching your criteria.</p>
                     </div>
                   )}
 
+                  {/* @ts-expect-error AutoSizer types are incompatible with React 18 */}
                   <AutoSizer>
-                    {({ height, width }) => (
+                    {({ height, width }: { height: number; width: number }) => (
+                      /* @ts-expect-error InfiniteLoader types are incompatible with React 18 */
                       <InfiniteLoader
                         isItemLoaded={isItemLoaded}
-                        itemCount={totalDocs || 50} // Fallback
-                        loadMoreItems={loadMoreDocuments}
+                        itemCount={totalDocs}
+                        loadMoreItems={loadMoreDocuments as any}
                       >
-                        {({ onItemsRendered, ref }) => (
+                        {({ onItemsRendered, ref }: any) => (
                           <List
-                            className="List"
                             height={height}
-                            itemCount={documents.length}
-                            itemSize={100}
+                            itemCount={totalDocs}
+                            itemSize={110}
                             onItemsRendered={onItemsRendered}
                             ref={ref}
                             width={width}
+                            className="custom-scrollbar"
                           >
-                            {({ index, style }) => {
+                            {({ index, style }: any) => {
                               const doc = documents[index];
                               if (!doc)
                                 return (

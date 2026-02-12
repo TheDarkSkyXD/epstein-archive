@@ -12,15 +12,10 @@ import { Person, SubjectCardDTO } from '../types';
 import { apiClient } from '../services/apiClient';
 
 interface PeoplePageProps {
-  loading?: boolean; // Legacy prop, we manage our own loading now
   dataStats: any;
   selectedRiskLevel: 'HIGH' | 'MEDIUM' | 'LOW' | null;
   onRiskLevelClick: (level: 'HIGH' | 'MEDIUM' | 'LOW') => void;
   onResetFilters: () => void;
-  // Legacy props we might ignore or sync with
-  totalPeople?: number;
-  currentPage?: number;
-  totalPages?: number;
   isAdmin: boolean;
   onAddSubject: () => void;
   entityType: string;
@@ -30,11 +25,7 @@ interface PeoplePageProps {
   sortOrder: 'asc' | 'desc';
   onSortOrderToggle: () => void;
   searchTerm: string;
-  // filteredPeople: Person[]; // Ignored, we fetch DTOs
   onPersonClick: (person: Person, searchTerm?: string) => void;
-  onDocumentClick: (doc: any, searchTerm?: string) => void;
-  onPageChange?: (page: number) => void;
-  navigate: (path: string) => void;
 }
 
 export const PeoplePage: React.FC<PeoplePageProps> = ({
@@ -52,7 +43,6 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
   onSortOrderToggle,
   searchTerm,
   onPersonClick,
-  // navigate unused
 }) => {
   // Local state for ULTRATHINK mode
   const [subjects, setSubjects] = useState<SubjectCardDTO[]>([]);

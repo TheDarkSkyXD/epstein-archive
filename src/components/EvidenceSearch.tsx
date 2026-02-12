@@ -120,17 +120,6 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
     sortBy,
   ]);
 
-  useEffect(() => {
-    loadPeopleData();
-  }, [loadPeopleData]); // Initial load and updates are handled by the debounced effect below? No, wait.
-  // Actually, we want one effect for initial load and one for updates?
-  // Or just one effect that depends on loadPeopleData?
-  // If we have just one effect:
-  // useEffect(() => { loadPeopleData(); }, [loadPeopleData]);
-  // Then every time loadPeopleData changes (which is on every state change), it runs immediately. No debounce.
-  // We want debounce.
-  // So we need a debounced effect.
-
   // Debounced effect for search/filters
   useEffect(() => {
     const timer = setTimeout(() => {

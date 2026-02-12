@@ -30,8 +30,8 @@ export const RedactedLogo: React.FC<RedactedLogoProps> = ({ text, className = ''
       const letterDelay = 55; // ms per letter
       animationCount.current += 1;
 
-      // Every 10th animation, show the alt text when unredacting
-      const isAltAnimation = animationCount.current % 10 === 0;
+      // Every 10th animation OR every 4th animation, show the alt text when unredacting
+      const isAltAnimation = animationCount.current % 10 === 0 || animationCount.current % 4 === 0;
 
       // Phase 1: Redact letters one by one with glitch
       setIsAnimating(true);
@@ -107,7 +107,7 @@ export const RedactedLogo: React.FC<RedactedLogoProps> = ({ text, className = ''
   const renderText = () => {
     let letterIndex = 0;
 
-    // Easter egg: swap "EPSTEIN" for "TRUMP" on every 10th animation
+    // Easter egg: swap "EPSTEIN" for "TRUMP" on every 4th animation
     const displayText = showAltText ? text.replace(/EPSTEIN/gi, 'TRUMP  ') : text;
 
     return displayText.split('').map((char, i) => {

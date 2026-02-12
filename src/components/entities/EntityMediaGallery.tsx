@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, ZoomIn, Play, Image as ImageIcon } from 'lucide-react';
+import { X, ZoomIn, Play } from 'lucide-react';
 import Icon from '../common/Icon';
 
 interface MediaItem {

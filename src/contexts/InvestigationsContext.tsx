@@ -271,6 +271,7 @@ export const InvestigationsProvider: React.FC<InvestigationsProviderProps> = ({ 
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useInvestigations = () => {
   const context = useContext(InvestigationsContext);
   if (context === undefined) {

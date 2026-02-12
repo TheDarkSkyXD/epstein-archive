@@ -18,7 +18,7 @@ class ResourcePreloader {
   /**
    * Pre-fetches a JSON resource and caches it
    */
-  async prefetchJson(url: string, options: PreloadOptions = {}) {
+  async prefetchJson(url: string, _options: PreloadOptions = {}) {
     if (this.preloadedUrls.has(url)) return;
 
     this.preloadedUrls.add(url);

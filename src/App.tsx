@@ -518,7 +518,16 @@ function App() {
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [navigate, selectedPerson, documentModalId, showReleaseNotes, showKeyboardShortcuts]);
+  }, [
+    navigate,
+    selectedPerson,
+    documentModalId,
+    showReleaseNotes,
+    showKeyboardShortcuts,
+    activeTab,
+    location.pathname,
+    previousPath,
+  ]);
   const [dataStats, setDataStats] = useState(() => {
     return {
       totalPeople: 0,
@@ -538,17 +547,9 @@ function App() {
   const [analyticsData, setAnalyticsData] = useState<any>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(() => {
-    // If we have cached people, don't show loading skeleton
-    const cached = sessionStorage.getItem('epstein_archive_people_page1_v5_3_4');
-    return !cached;
-  });
   const [isInitializing, setIsInitializing] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState<string>('Initializing...');
   const [, setLoadingProgressValue] = useState<number>(0);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(0);
-  const [totalPeople, setTotalPeople] = useState(0);
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -558,9 +559,6 @@ function App() {
     const initializeDataService = async () => {
       try {
         const hadCachedPeople = !!sessionStorage.getItem('epstein_archive_people_page1_v5_3_4');
-        if (!hadCachedPeople) {
-          setLoading(true);
-        }
         setIsInitializing(true);
         setLoadingProgress('Connecting to database...');
         setLoadingProgressValue(10);
@@ -614,7 +612,6 @@ function App() {
         console.error('Error initializing data service:', error);
         addToast({ text: 'Failed to load subjects', type: 'error' });
       } finally {
-        setLoading(false);
         setIsInitializing(false);
       }
     };
@@ -825,8 +822,6 @@ function App() {
   const handleRiskLevelClick = useCallback((level: 'HIGH' | 'MEDIUM' | 'LOW') => {
     // Toggle: if clicking the same level, deselect it
     setSelectedRiskLevel((prev) => (prev === level ? null : level));
-    // Reset to page 1 when filter changes
-    setCurrentPage(1);
   }, []);
 
   // Handler to reset all filters
@@ -836,8 +831,7 @@ function App() {
     setSearchTerm('');
     setSortBy('red_flag');
     setSortOrder('desc');
-    setCurrentPage(1);
-  }, [setSelectedRiskLevel, setEntityType, setSearchTerm, setSortBy, setSortOrder, setCurrentPage]);
+  }, [setSelectedRiskLevel, setEntityType, setSearchTerm, setSortBy, setSortOrder]);
 
   useEffect(() => {
     // No-op

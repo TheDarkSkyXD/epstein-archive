@@ -21,13 +21,6 @@ export const ArticlesTab: React.FC = () => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
 
-  useEffect(() => {
-    // Reset and fetch when filters change
-    setArticles([]);
-    setPage(1);
-    fetchArticles(1, true);
-  }, [searchTerm, selectedPublication, sortOrder]);
-
   const fetchArticles = useCallback(
     async (pageNum: number, isReset: boolean = false) => {
       try {
@@ -79,8 +72,15 @@ export const ArticlesTab: React.FC = () => {
         setLoading(false);
       }
     },
-    [page, searchTerm, selectedPublication, sortOrder],
+    [searchTerm, selectedPublication, sortOrder],
   );
+
+  useEffect(() => {
+    // Reset and fetch when filters change
+    setArticles([]);
+    setPage(1);
+    fetchArticles(1, true);
+  }, [searchTerm, selectedPublication, sortOrder, fetchArticles]);
 
   const handleLoadMore = () => {
     const nextPage = page + 1;

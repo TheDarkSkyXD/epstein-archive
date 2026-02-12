@@ -1,12 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { apiClient } from '../services/apiClient';
-
-export interface User {
-  id: string;
-  username: string;
-  role: string;
-  email?: string | null;
-}
+import { User } from '../types/auth';
 
 interface AuthContextType {
   user: User | null;
@@ -82,6 +76,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) throw new Error('useAuth must be used within AuthProvider');

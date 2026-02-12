@@ -3,8 +3,6 @@
  * CTO Priority: MEDIUM #8 - Auto-entity linking with confidence scores
  */
 
-import { AIEnrichmentService } from './AIEnrichmentService.js';
-
 // Use 'any' for the database instance type to avoid TypeScript namespace issues
 // with better-sqlite3 in this environment
 

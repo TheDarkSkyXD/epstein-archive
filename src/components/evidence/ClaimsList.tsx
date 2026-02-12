@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, ShieldAlert, BadgeCheck, ExternalLink, HelpCircle } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, BadgeCheck, HelpCircle } from 'lucide-react';
 
 interface Claim {
   id: number;

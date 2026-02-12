@@ -185,3 +185,21 @@ pipeline_results/
 
 # DB Snapshots
 *.snapshot
+
+lint_output_final_2.json
+
+lint_output_final_3.json
+
+lint_output_final_4.json
+
+lint_output_final_6.json
+
+lint_output_final_7.json
+
+lint_output_final_8.json
+
+lint_output_final.json
+
+lint_output.json
+
+pipeline_checkpoints/run_1770876572921.json

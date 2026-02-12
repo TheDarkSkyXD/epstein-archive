@@ -9,7 +9,6 @@ import AutoSizer from 'react-virtualized-auto-sizer';
 import { SignalPanel } from '../entities/cards/SignalPanel';
 import { DriverChips } from '../entities/cards/DriverChips';
 import { EvidenceBadge } from '../entities/cards/EvidenceBadge';
-import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../services/apiClient';
 import { cn } from '../../utils/cn';
 import {
@@ -447,7 +446,6 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                     </div>
                   )}
 
-                  {/* @ts-expect-error AutoSizer types are incompatible with React 18 */}
                   <AutoSizer>
                     {({ height, width }) => {
                       // Workaround for react-window-infinite-loader types incompatibility

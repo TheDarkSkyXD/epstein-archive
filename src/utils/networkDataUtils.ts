@@ -1,5 +1,5 @@
 import { Entity, Relationship } from '../components/entities/EntityRelationshipMapper';
-import { Investigation, EvidenceItem } from '../types/investigation';
+import { Investigation } from '../types/investigation';
 
 // Types for raw data input (mocking what we might get from the API/DB)
 export interface RawPerson {
@@ -23,7 +23,7 @@ export interface RawDocument {
 export const transformToNetwork = (
   people: RawPerson[],
   documents: RawDocument[],
-  investigation?: Investigation,
+  _investigation?: Investigation,
 ): { entities: Entity[]; relationships: Relationship[] } => {
   const entities: Entity[] = [];
   const relationships: Relationship[] = [];

@@ -59,7 +59,7 @@ const PropertyBrowser: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [propertyType, setPropertyType] = useState('');
   const [minValue, setMinValue] = useState('');
-  const [maxValue, setMaxValue] = useState('');
+  const maxValue = '';
   const [showAssociatesOnly, setShowAssociatesOnly] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -74,7 +74,7 @@ const PropertyBrowser: React.FC = () => {
 
   useEffect(() => {
     loadProperties();
-  }, [searchTerm, propertyType, minValue, maxValue, showAssociatesOnly, page]);
+  }, [searchTerm, propertyType, minValue, showAssociatesOnly, page]);
 
   const loadInitialData = async () => {
     try {

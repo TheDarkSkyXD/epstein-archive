@@ -1,13 +1,5 @@
 import React from 'react';
-import {
-  Shield,
-  Search,
-  Brain,
-  AlertCircle,
-  ChevronRight,
-  Database,
-  Fingerprint,
-} from 'lucide-react';
+import { Shield, Search, Brain, ChevronRight, Database, Fingerprint } from 'lucide-react';
 
 export interface EvidenceLadderProps {
   level: 1 | 2 | 3; // 1: Primary, 2: Derived, 3: Agentic

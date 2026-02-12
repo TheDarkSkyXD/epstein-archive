@@ -98,7 +98,7 @@ const FlightTracker: React.FC = () => {
     loadData();
   }, [loadData]);
 
-  const loadCoOccurrences = async () => {
+  const loadCoOccurrences = useCallback(async () => {
     setNetworkLoading(true);
     try {
       const res = await fetch('/api/flights/co-occurrences?minFlights=2&limit=100');
@@ -109,13 +109,13 @@ const FlightTracker: React.FC = () => {
     } finally {
       setNetworkLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (viewMode === 'network' && coOccurrences.length === 0) {
       loadCoOccurrences();
     }
-  }, [viewMode]);
+  }, [viewMode, coOccurrences.length, loadCoOccurrences]);
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -139,7 +139,7 @@ const FlightTracker: React.FC = () => {
         const [from, to] = key.split('-');
         return { from, to, count };
       });
-    }, [flights]);
+    }, []);
 
     // Convert lat/lng to SVG coordinates (simple Mercator-like projection)
     const toSvgCoords = (lat: number, lng: number) => {
@@ -335,12 +335,12 @@ const FlightTracker: React.FC = () => {
         nodeMap.get(co.passenger2)!.connections += co.flights_together;
       });
       return Array.from(nodeMap.values()).sort((a, b) => b.connections - a.connections);
-    }, [coOccurrences]);
+    }, []);
 
     // Top connections for the selected view
     const topConnections = useMemo(() => {
       return coOccurrences.slice(0, 30);
-    }, [coOccurrences]);
+    }, []);
 
     if (networkLoading) {
       return (

@@ -12,7 +12,6 @@ import {
   MessageCircle,
   Clock3,
   Fingerprint,
-  Info,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../services/apiClient';

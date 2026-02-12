@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Phone, Mail, MapPin, User, Book, Eye, FileText, ExternalLink } from 'lucide-react';
 import { extractCleanName, formatPhoneNumber } from '../utils/prettifyOCR';
 import { Link } from 'react-router-dom';
@@ -36,17 +36,7 @@ export const BlackBookViewer: React.FC = () => {
 
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
-  useEffect(() => {
-    fetchBlackBookEntries();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchBlackBookEntries is stable and defined below
-  }, []);
-
-  useEffect(() => {
-    fetchBlackBookEntries();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchBlackBookEntries is stable and defined below
-  }, [searchTerm, selectedLetter, hasPhone, hasEmail, hasAddress, selectedCategory]);
-
-  const fetchBlackBookEntries = async () => {
+  const fetchBlackBookEntries = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -107,20 +97,24 @@ export const BlackBookViewer: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchTerm, selectedLetter, hasPhone, hasEmail, hasAddress, selectedCategory]);
+
+  useEffect(() => {
+    fetchBlackBookEntries();
+  }, [fetchBlackBookEntries]);
 
   // Client-side fallback remains if needed
   useEffect(() => {
     setFilteredEntries(entries);
   }, [entries]);
 
-  const extractName = (entryText: string): string => {
+  const extractName = useCallback((entryText: string): string => {
     // Extract name from first line
     const lines = entryText.split('\n');
     return lines[0]?.trim() || 'Unknown';
-  };
+  }, []);
 
-  const handleEntityClick = async (personId: number, personName: string) => {
+  const handleEntityClick = useCallback(async (personId: number, personName: string) => {
     if (!personName) return; // Not a known entity
     try {
       setLoadingEntity(personId);
@@ -131,7 +125,7 @@ export const BlackBookViewer: React.FC = () => {
     } finally {
       setLoadingEntity(null);
     }
-  };
+  }, []);
 
   if (loading) {
     return (

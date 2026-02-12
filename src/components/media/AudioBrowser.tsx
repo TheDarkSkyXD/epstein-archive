@@ -60,7 +60,6 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const [_coverTick, setCoverTick] = useState(0);
   const [libraryTotalCount, setLibraryTotalCount] = useState(0);
   const [showAlbumDropdown, setShowAlbumDropdown] = useState(false);
   const [investigationId, setInvestigationId] = useState<number | null>(null);
@@ -138,13 +137,6 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
   useEffect(() => {
     loadAlbums();
     return () => abortControllerRef.current?.abort();
-  }, []);
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setCoverTick((t) => (t + 1) % 2);
-    }, 12000);
-    return () => clearInterval(id);
   }, []);
 
   useEffect(() => {

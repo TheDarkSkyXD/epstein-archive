@@ -1,5 +1,4 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Person } from '../../types';
 import { formatNumber } from '../../utils/search';
 import { AddToInvestigationButton } from '../common/AddToInvestigationButton';
@@ -22,7 +21,6 @@ interface PersonCardProps {
 }
 
 const PersonCard: React.FC<PersonCardProps> = ({ person, onClick, searchTerm }) => {
-  const navigate = useNavigate();
   const rating = Number((person as any).red_flag_rating ?? (person as any).redFlagRating ?? 0);
 
   // Forensic Calculations

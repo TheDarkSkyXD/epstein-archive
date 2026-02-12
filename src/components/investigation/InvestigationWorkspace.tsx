@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   Investigation,
@@ -153,11 +153,139 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
   const activeTab = getActiveTab();
 
   // Navigate to a tab
-  const navigateToTab = (tab: string) => {
-    const params = new URLSearchParams(location.search);
-    params.set('tab', tab);
-    navigate(`${location.pathname}?${params.toString()}`);
-  };
+  const navigateToTab = useCallback(
+    (tab: string) => {
+      const params = new URLSearchParams(location.search);
+      params.set('tab', tab);
+      navigate(`${location.pathname}?${params.toString()}`);
+    },
+    [location.pathname, location.search, navigate],
+  );
+
+  const loadInvestigations = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const resp = await fetch('/api/investigations');
+      if (resp.ok) {
+        const data = await resp.json();
+        setInvestigations(
+          (data.data || []).map((inv: any) => ({
+            id: String(inv.id),
+            title: inv.title,
+            description: inv.description || '',
+            hypothesis: inv.scope || '',
+            status:
+              inv.status === 'open'
+                ? 'active'
+                : inv.status === 'in_review'
+                  ? 'review'
+                  : inv.status === 'closed'
+                    ? 'published'
+                    : 'archived',
+            createdAt: new Date(inv.created_at),
+            updatedAt: new Date(inv.updated_at),
+            leadInvestigator: inv.owner_id,
+            uuid: inv.uuid,
+          })),
+        );
+      }
+    } catch (error) {
+      console.error('Error loading investigations:', error);
+      addToast({ text: 'Failed to load investigations', type: 'error' });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [addToast]);
+
+  const loadInvestigation = useCallback(
+    async (id: string) => {
+      setIsLoading(true);
+      try {
+        const resp = await fetch(`/api/investigations/${id}`);
+        if (resp.ok) {
+          const inv = await resp.json();
+          const investigation: Investigation = {
+            id: String(inv.id),
+            title: inv.title,
+            description: inv.description || '',
+            hypothesis: inv.scope || '',
+            status:
+              inv.status === 'open'
+                ? 'active'
+                : inv.status === 'in_review'
+                  ? 'review'
+                  : inv.status === 'closed'
+                    ? 'published'
+                    : 'archived',
+            createdAt: new Date(inv.created_at),
+            updatedAt: new Date(inv.updated_at),
+            team: [
+              {
+                id: inv.owner_id,
+                name: inv.owner_name || 'Investigation Creator',
+                email: inv.owner_email || '',
+                role: 'lead',
+                permissions: ['read', 'write', 'admin'],
+                joinedAt: new Date(inv.created_at),
+                organization: inv.owner_organization || '',
+                expertise: [],
+              },
+            ],
+            leadInvestigator: inv.owner_id,
+            permissions: [],
+            tags: [],
+            priority: 'medium',
+            uuid: inv.uuid,
+          } as Investigation & { uuid?: string };
+          setSelectedInvestigation(investigation);
+
+          // Update URL to shareable investigation path
+          const shareId = inv.uuid || inv.id;
+          navigate(`/investigations/${shareId}`, { replace: true });
+
+          // Fetch timeline events
+          try {
+            const timelineResp = await fetch(`/api/investigations/${id}/timeline-events`);
+            if (timelineResp.ok) {
+              const timelineData = await timelineResp.json();
+              const events = timelineData.map((e: any) => ({
+                id: String(e.id),
+                title: e.title,
+                date: e.start_date,
+                description: e.description || '',
+                type: e.type,
+                confidence: e.confidence || 'medium',
+                relatedEntities: (() => {
+                  try {
+                    return JSON.parse(e.entities_json || '[]');
+                  } catch {
+                    return [];
+                  }
+                })(),
+                relatedDocuments: (() => {
+                  try {
+                    return JSON.parse(e.documents_json || '[]');
+                  } catch {
+                    return [];
+                  }
+                })(),
+              }));
+              setTimelineEvents(events);
+            }
+          } catch (err) {
+            console.error('Error fetching timeline events:', err);
+          }
+
+          if (onInvestigationSelect) onInvestigationSelect(investigation);
+        }
+      } catch (error) {
+        console.error('Error loading investigation:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [navigate, onInvestigationSelect],
+  );
 
   // Copy shareable URL to clipboard
   const copyShareUrl = () => {
@@ -309,7 +437,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
 
   useEffect(() => {
     loadInvestigations();
-  }, []);
+  }, [loadInvestigations]);
 
   useEffect(() => {
     const fetchEvidence = async () => {
@@ -346,8 +474,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
     if (investigationId) {
       loadInvestigation(investigationId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadInvestigation is stable and defined below
-  }, [investigationId]);
+  }, [investigationId, loadInvestigation]);
 
   // Fetch real network data and database stats
   useEffect(() => {
@@ -423,7 +550,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                 },
               });
             }
-          } catch (e) {
+          } catch (_e) {
             console.warn('Could not fetch Epstein root node');
           }
         }
@@ -449,7 +576,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
             });
 
             // Merge edges
-            graphData.edges.forEach((ge: any, idx: number) => {
+            graphData.edges.forEach((ge: any, _idx: number) => {
               const edgeId = `graph-edge-${ge.source_id}-${ge.target_id}`;
               if (!edges.find((e) => e.id === edgeId)) {
                 edges.push({
@@ -494,140 +621,6 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
       fetchNetworkData();
     }
   }, [selectedInvestigation?.id, evidenceItems, useGlobalContext, selectedInvestigation]);
-
-  const loadInvestigations = async () => {
-    setIsLoading(true);
-    try {
-      const resp = await fetch('/api/investigations');
-      const data = await resp.json();
-      const mapped: Investigation[] = (data.data || []).map((inv: any) => ({
-        id: String(inv.id),
-        title: inv.title,
-        description: inv.description || '',
-        hypothesis: inv.scope || '',
-        status:
-          inv.status === 'open'
-            ? 'active'
-            : inv.status === 'in_review'
-              ? 'review'
-              : inv.status === 'closed'
-                ? 'published'
-                : 'archived',
-        createdAt: new Date(inv.created_at),
-        updatedAt: new Date(inv.updated_at),
-        team: inv.team || [
-          {
-            id: inv.owner_id,
-            name: inv.owner_name || 'Investigation Owner',
-            email: inv.owner_email || '',
-            role: 'lead',
-            permissions: ['read', 'write', 'admin'],
-            joinedAt: new Date(inv.created_at),
-            organization: inv.owner_organization || '',
-            expertise: [],
-          },
-        ],
-        leadInvestigator: inv.owner_id,
-        permissions: [],
-        tags: [],
-        priority: 'medium',
-        uuid: inv.uuid, // Include UUID for shareable links
-      }));
-      setInvestigations(mapped);
-    } catch (error) {
-      console.error('Error loading investigations:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadInvestigation = async (id: string) => {
-    setIsLoading(true);
-    try {
-      const resp = await fetch(`/api/investigations/${id}`);
-      if (resp.ok) {
-        const inv = await resp.json();
-        const investigation: Investigation = {
-          id: String(inv.id),
-          title: inv.title,
-          description: inv.description || '',
-          hypothesis: inv.scope || '',
-          status:
-            inv.status === 'open'
-              ? 'active'
-              : inv.status === 'in_review'
-                ? 'review'
-                : inv.status === 'closed'
-                  ? 'published'
-                  : 'archived',
-          createdAt: new Date(inv.created_at),
-          updatedAt: new Date(inv.updated_at),
-          team: [
-            {
-              id: inv.owner_id,
-              name: inv.owner_name || 'Investigation Creator',
-              email: inv.owner_email || '',
-              role: 'lead',
-              permissions: ['read', 'write', 'admin'],
-              joinedAt: new Date(inv.created_at),
-              organization: inv.owner_organization || '',
-              expertise: [],
-            },
-          ],
-          leadInvestigator: inv.owner_id,
-          permissions: [],
-          tags: [],
-          priority: 'medium',
-          uuid: inv.uuid, // Include UUID for shareable links
-        } as Investigation & { uuid?: string };
-        setSelectedInvestigation(investigation);
-
-        // Update URL to shareable investigation path
-        const shareId = inv.uuid || inv.id;
-        navigate(`/investigations/${shareId}`, { replace: true });
-
-        // Fetch timeline events
-        try {
-          const timelineResp = await fetch(`/api/investigations/${id}/timeline-events`);
-          if (timelineResp.ok) {
-            const timelineData = await timelineResp.json();
-            const events = timelineData.map((e: any) => ({
-              id: String(e.id),
-              title: e.title,
-              date: e.start_date, // Assuming backend returns start_date
-              description: e.description || '',
-              type: e.type,
-              confidence: e.confidence || 'medium', // Default to medium if not present
-              relatedEntities: (() => {
-                try {
-                  return JSON.parse(e.entities_json || '[]');
-                } catch {
-                  return [];
-                }
-              })(),
-              relatedDocuments: (() => {
-                try {
-                  return JSON.parse(e.documents_json || '[]');
-                } catch {
-                  return [];
-                }
-              })(),
-            }));
-            setTimelineEvents(events);
-          }
-        } catch (err) {
-          console.error('Error fetching timeline events:', err);
-        }
-
-        if (onInvestigationSelect) onInvestigationSelect(investigation);
-      }
-    } catch (error) {
-      console.error('Error loading investigation:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const createInvestigation = async () => {
     if (!newInvestigation.title || !newInvestigation.description) {
       return;

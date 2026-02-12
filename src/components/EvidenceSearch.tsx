@@ -49,7 +49,7 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
     if (queryParam && queryParam !== searchTerm) {
       setSearchTerm(queryParam);
     }
-  }, [queryParam, setSearchTerm]);
+  }, [queryParam, setSearchTerm, searchTerm]);
 
   const loadPeopleData = React.useCallback(async () => {
     try {

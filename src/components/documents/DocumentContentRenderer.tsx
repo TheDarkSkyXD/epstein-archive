@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Document } from '../../types/documents';
 import { DocumentAnnotationSystem } from './DocumentAnnotationSystem';
 import { prettifyOCRText } from '../../utils/prettifyOCR';
@@ -73,7 +73,7 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
   }, []);
 
   // Helper to highlight text
-  const highlightText = (text: string, term?: string) => {
+  const highlightText = useCallback((text: string, term?: string) => {
     if (!term || !text || typeof text !== 'string') return text;
 
     try {
@@ -99,51 +99,36 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
       console.warn('Error highlighting text:', e);
       return text;
     }
-  };
+  }, []);
 
-  const renderHighlightedText = (text: string, term?: string) => {
-    if (!term) return text;
-    return <span dangerouslySetInnerHTML={{ __html: highlightText(text, term) }} />;
-  };
+  const renderHighlightedText = useCallback(
+    (text: string, term?: string) => {
+      if (!term) return text;
+      return <span dangerouslySetInnerHTML={{ __html: highlightText(text, term) }} />;
+    },
+    [highlightText],
+  );
 
   // Optimized Helper function to link entities in text
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- entityRegexes/entityMap are stable across renders
-  const linkEntitiesInText = (text: string) => {
-    if (!text || entityRegexes.length === 0 || entityMap.size === 0) return text;
+  const linkEntitiesInText = useCallback(
+    (text: string) => {
+      if (!text || entityRegexes.length === 0 || entityMap.size === 0) return text;
 
-    let processedText = text;
-    // Apply each chunk sequentially
-    // Note: This could theoretically double-link if terms overlap in weird ways,
-    // but with \b boundary and replaced content being a <span>, it should be mostly safe
-    // providing we don't match inside the span tags.
-    // To be safer, we should use a placeholder approach, but for now let's try sequential.
-    // Actually, matching inside HTML tags is a risk.
-    // A better approach for massive entity lists is a customized scanner or finding positions first.
-    // Given the constraints, we will process chunks but strict word boundaries help.
+      let processedText = text;
+      // Apply each chunk sequentially
+      entityRegexes.forEach((regex) => {
+        processedText = processedText.replace(regex, (match) => {
+          const entity = entityMap.get(match.toLowerCase());
+          if (!entity) return match;
 
-    // HOWEVER, simpler fix for "Regular expression too large" is often just
-    // breaking it up. The risk of replacing inside tags exists if we just chain replace.
-    // A robust way: Tokenize text nodes, but that's expensive in React logic here.
-
-    // Let's stick to the current logic but iterating.
-    entityRegexes.forEach((regex) => {
-      processedText = processedText.replace(regex, (match) => {
-        // Check if we are inside a tag (rudimentary check)
-        // This is hard to do cleanly in regex replace callback without context.
-        // But since we are replacing plain text logic from the start...
-
-        const entity = entityMap.get(match.toLowerCase());
-        if (!entity) return match;
-
-        // To prevent recursive replacement of already linked items (if chunks overlap or we re-scan),
-        // we could check if match is wrapped. But here we are processing the string.
-        // We'll rely on the fact that terms are likely names.
-        return `<span class="entity-link" data-entity-id="${entity.id}" data-entity-name="${entity.full_name}" style="color: #60a5fa; text-decoration: underline; cursor: pointer; border-bottom: 1px dotted #60a5fa; padding: 0 1px;" title="Click to view entity details">${match}</span>`;
+          return `<span class="entity-link" data-entity-id="${entity.id}" data-entity-name="${entity.full_name}" style="color: #60a5fa; text-decoration: underline; cursor: pointer; border-bottom: 1px dotted #60a5fa; padding: 0 1px;" title="Click to view entity details">${match}</span>`;
+        });
       });
-    });
 
-    return processedText;
-  };
+      return processedText;
+    },
+    [entityRegexes, entityMap],
+  );
 
   // Add event listener for entity links
   useEffect(() => {
@@ -234,12 +219,14 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
     return searchTerm ? highlightText(contentWithEntities, searchTerm) : contentWithEntities;
   }, [
     doc.content,
+    doc.contentRefined,
     showRaw,
     searchTerm,
     doc.unredaction_metrics,
     showUnredactedHighlights,
     linkEntitiesInText,
     entityRegexes,
+    highlightText,
   ]);
 
   return (

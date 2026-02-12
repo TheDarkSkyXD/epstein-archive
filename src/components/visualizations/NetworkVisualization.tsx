@@ -94,7 +94,7 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   const [showSettings, setShowSettings] = useState(true);
   const [minStrength, setMinStrength] = useState(0);
   const [maxHops, setMaxHops] = useState(3);
-  const [rootNodeId, setRootNodeId] = useState<string | null>('1'); // Default to Jeffrey Epstein
+  const [rootNodeId, _setRootNodeId] = useState<string | null>('1'); // Default to Jeffrey Epstein
   const [selectedEdgeTypes, setSelectedEdgeTypes] = useState<Set<string>>(
     new Set([
       'connection',

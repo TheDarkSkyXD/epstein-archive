@@ -254,7 +254,7 @@ Output the repaired lines, preserving the [LINE_BREAK] markers between them. Out
       }
 
       return results;
-    } catch (error) {
+    } catch (_error) {
       return lines;
     }
   }
@@ -274,7 +274,7 @@ Output ONLY the repaired text. No quotes.`;
         return result;
       }
       return text;
-    } catch (error) {
+    } catch (_error) {
       return text;
     }
   }

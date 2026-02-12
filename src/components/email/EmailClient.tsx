@@ -16,13 +16,12 @@ import {
   Users,
   Bell,
   Tag,
-  Star,
   Link2,
   ExternalLink,
   Book, // Added Book icon for Black Book
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { apiClient } from '../../services/apiClient';
 import { Document } from '../../types/documents';
 import { AddToInvestigationButton } from '../common/AddToInvestigationButton';
@@ -95,19 +94,15 @@ export const EmailClient: React.FC = () => {
 
   // Entity Support
   const [selectedEntity, setSelectedEntity] = useState<any | null>(null);
-  const [loadingEntityId, setLoadingEntityId] = useState<number | null>(null);
 
-  const handleEntityClick = async (entityId: number, entityName: string) => {
+  const handleEntityClick = useCallback(async (entityId: number) => {
     try {
-      setLoadingEntityId(entityId);
       const entity = await apiClient.getEntity(String(entityId));
       setSelectedEntity(entity);
     } catch (error) {
       console.error('Error fetching entity:', error);
-    } finally {
-      setLoadingEntityId(null);
     }
-  };
+  }, []);
 
   // Mailbox definitions
   const mailboxes: Mailbox[] = useMemo(
@@ -136,34 +131,70 @@ export const EmailClient: React.FC = () => {
     if (q) setSearchTerm(q);
   }, [searchParams]);
 
-  useEffect(() => {
-    loadInitialEmails();
-    loadCategoryCounts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadInitialEmails is stable and only runs on mount
-  }, []);
+  function cleanSnippet(text: string): string {
+    return text
+      .replace(/From:.*?\n/gi, '')
+      .replace(/To:.*?\n/gi, '')
+      .replace(/Subject:.*?\n/gi, '')
+      .replace(/Date:.*?\n/gi, '')
+      .replace(/\n+/g, ' ')
+      .trim()
+      .slice(0, 150);
+  }
 
-  // Reload when category changes
-  useEffect(() => {
-    loadInitialEmails();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCategory]);
+  const processDocsToThreads = useCallback(
+    (docs: any[]) => {
+      const threadsMap = new Map<string, Thread>();
 
-  const loadCategoryCounts = async () => {
-    try {
-      const res = await fetch('/api/emails/categories');
-      if (res.ok) {
-        const counts = await res.json();
-        setCategoryCounts(counts);
+      for (const doc of docs) {
+        const threadId = doc.metadata?.thread_id || doc.id;
+        const sender = doc.metadata?.from || doc.metadata?.sender || 'Unknown Sender';
+        const recipient = doc.metadata?.to || doc.metadata?.recipient || '';
+        const subject = doc.metadata?.subject || doc.title || 'No Subject';
+        const snippet = cleanSnippet(doc.content || doc.summary || '');
+
+        const email: Email = {
+          ...doc,
+          sender,
+          recipient,
+          subject,
+          threadId,
+          date: doc.date || doc.created_at || new Date().toISOString(),
+          isRead: true,
+        };
+
+        if (threadsMap.has(threadId)) {
+          const thread = threadsMap.get(threadId)!;
+          thread.messages.push(email);
+          if (new Date(email.date) > new Date(thread.lastMessageDate)) {
+            thread.lastMessageDate = email.date;
+            thread.snippet = snippet;
+          }
+          if (!thread.participantNames.includes(sender)) {
+            thread.participantNames.push(sender);
+          }
+        } else {
+          threadsMap.set(threadId, {
+            id: threadId,
+            subject,
+            lastMessageDate: email.date,
+            messages: [email],
+            participantNames: [sender],
+            snippet,
+            hasAttachments: false,
+            unreadCount: 0,
+          });
+        }
       }
-    } catch (e) {
-      console.error('Failed to load category counts', e);
-    }
-  };
 
-  const loadInitialEmails = async () => {
+      setThreads(Array.from(threadsMap.values()));
+    },
+    [], // cleanSnippet is defined within the component and doesn't change
+  );
+
+  const loadInitialEmails = useCallback(async () => {
     setLoading(true);
     try {
-      // Use the new category-filtered endpoint
       const categoryParam = activeCategory !== 'all' ? `&category=${activeCategory}` : '';
       const res = await fetch(`/api/emails?page=1&limit=${PAGE_SIZE}${categoryParam}`);
       if (!res.ok) throw new Error('Failed to fetch');
@@ -179,7 +210,24 @@ export const EmailClient: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeCategory, processDocsToThreads]);
+
+  const loadCategoryCounts = useCallback(async () => {
+    try {
+      const res = await fetch('/api/emails/categories');
+      if (res.ok) {
+        const counts = await res.json();
+        setCategoryCounts(counts);
+      }
+    } catch (e) {
+      console.error('Failed to load category counts', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadInitialEmails();
+    loadCategoryCounts();
+  }, [loadInitialEmails, loadCategoryCounts]);
 
   const loadMoreEmails = useCallback(async () => {
     if (loadingMore || !hasMore) return;
@@ -205,65 +253,7 @@ export const EmailClient: React.FC = () => {
     } finally {
       setLoadingMore(false);
     }
-  }, [loadingMore, hasMore, currentPage, allDocs, activeCategory]);
-
-  const processDocsToThreads = (docs: any[]) => {
-    const threadsMap = new Map<string, Thread>();
-
-    for (const doc of docs) {
-      const threadId = doc.metadata?.thread_id || doc.id;
-      const sender = doc.metadata?.from || doc.metadata?.sender || 'Unknown Sender';
-      const recipient = doc.metadata?.to || doc.metadata?.recipient || '';
-      const subject = doc.metadata?.subject || doc.title || 'No Subject';
-      const snippet = cleanSnippet(doc.content || doc.summary || '');
-
-      const email: Email = {
-        ...doc,
-        sender,
-        recipient,
-        subject,
-        threadId,
-        date: doc.date || doc.created_at || new Date().toISOString(),
-        isRead: true,
-      };
-
-      if (threadsMap.has(threadId)) {
-        const thread = threadsMap.get(threadId)!;
-        thread.messages.push(email);
-        if (new Date(email.date) > new Date(thread.lastMessageDate)) {
-          thread.lastMessageDate = email.date;
-          thread.snippet = snippet;
-        }
-        if (!thread.participantNames.includes(sender)) {
-          thread.participantNames.push(sender);
-        }
-      } else {
-        threadsMap.set(threadId, {
-          id: threadId,
-          subject,
-          lastMessageDate: email.date,
-          messages: [email],
-          participantNames: [sender],
-          snippet,
-          hasAttachments: false,
-          unreadCount: 0,
-        });
-      }
-    }
-
-    setThreads(Array.from(threadsMap.values()));
-  };
-
-  function cleanSnippet(text: string): string {
-    return text
-      .replace(/From:.*?\n/gi, '')
-      .replace(/To:.*?\n/gi, '')
-      .replace(/Subject:.*?\n/gi, '')
-      .replace(/Date:.*?\n/gi, '')
-      .replace(/\n+/g, ' ')
-      .trim()
-      .slice(0, 150);
-  }
+  }, [loadingMore, hasMore, currentPage, allDocs, activeCategory, processDocsToThreads]);
 
   const handleScroll = useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
@@ -841,14 +831,7 @@ const IOSMessageBubble = ({
   const [loadingEntities, setLoadingEntities] = useState(false);
   const sender = email.sender || 'Unknown';
 
-  // Load entities when expanded
-  useEffect(() => {
-    if (isExpanded && linkedEntities.length === 0 && !loadingEntities) {
-      loadEmailEntities();
-    }
-  }, [isExpanded]);
-
-  const loadEmailEntities = async () => {
+  const loadEmailEntities = useCallback(async () => {
     setLoadingEntities(true);
     try {
       const res = await fetch(`/api/emails/${email.id}/entities`);
@@ -861,7 +844,14 @@ const IOSMessageBubble = ({
     } finally {
       setLoadingEntities(false);
     }
-  };
+  }, [email.id]);
+
+  // Load entities when expanded
+  useEffect(() => {
+    if (isExpanded && linkedEntities.length === 0 && !loadingEntities) {
+      loadEmailEntities();
+    }
+  }, [isExpanded, linkedEntities.length, loadingEntities, loadEmailEntities]);
 
   return (
     <div className="border-b border-slate-800 md:border-black/5 md:dark:border-white/5">

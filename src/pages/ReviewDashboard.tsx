@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Shield, Check, X, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -28,11 +28,7 @@ export function ReviewDashboard() {
   const [claims, setClaims] = useState<ClaimQueueItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchQueue();
-  }, [activeTab]);
-
-  const fetchQueue = async () => {
+  const fetchQueue = useCallback(async () => {
     setLoading(true);
     try {
       if (activeTab === 'mentions') {
@@ -47,7 +43,11 @@ export function ReviewDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab]);
+
+  useEffect(() => {
+    fetchQueue();
+  }, [fetchQueue]);
 
   const verifyItem = async (id: number, type: 'mentions' | 'claims') => {
     try {

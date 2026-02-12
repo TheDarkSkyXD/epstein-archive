@@ -63,7 +63,7 @@ export const WikiLink: React.FC<WikiLinkProps> = React.memo(({ text, entities })
           to={`/entities/${seg.entityId}`}
           className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline decoration-blue-400/30 underline-offset-4 font-medium transition-colors"
           title={`View profile for ${seg.content}`}
-          onClick={(e) => {
+          onClick={() => {
             // If this is inside a modal or special view, we might want to stop propagation
             // or handle it via a custom event.
             // For now, standard navigation.

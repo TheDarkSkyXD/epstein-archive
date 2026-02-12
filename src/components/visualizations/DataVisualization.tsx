@@ -17,7 +17,7 @@ import { TreeMap } from './TreeMap';
 import { filterPeopleOnly, isJunkEntity } from '../../utils/entityFilters';
 
 interface DataVisualizationProps {
-  people: Person[];
+  people?: Person[];
   analyticsData?: any;
   loading?: boolean;
   error?: string | null;
@@ -57,7 +57,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export const DataVisualization: React.FC<DataVisualizationProps> = ({
-  people,
+  people = [],
   analyticsData,
   loading,
   error,

@@ -11,6 +11,19 @@ import ToastProvider from './components/common/ToastProvider';
 
 import { SensitiveSettingsProvider } from './contexts/SensitiveSettingsContext';
 
+// Global error handlers for production debugging
+window.onerror = function (message, source, lineno, colno, error) {
+  console.error('Global Error Caught:', { message, source, lineno, colno, error });
+  // You could also send this to an endpoint if needed
+};
+
+window.onunhandledrejection = function (event) {
+  console.error('Unhandled Promise Rejection:', event.reason);
+  if (event.reason && event.reason.stack) {
+    console.error('Stack trace:', event.reason.stack);
+  }
+};
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ErrorBoundary>

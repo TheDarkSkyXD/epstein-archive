@@ -5,7 +5,7 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 // Icons imported as needed via Icon component
 import { Person } from './types';
 import { Document } from './types/documents';
-import { OptimizedDataService, SearchFilters } from './services/OptimizedDataService';
+import { SearchFilters } from './services/OptimizedDataService';
 import { useNavigation } from './services/ContentNavigationService.tsx';
 import { apiClient } from './services/apiClient';
 import { DocumentProcessor } from './services/documentProcessor';
@@ -580,7 +580,7 @@ function App() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [totalPeople, setTotalPeople] = useState(0);
-  const [dataService, setDataService] = useState<OptimizedDataService | null>(null);
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const { addToast } = useToasts();
@@ -595,15 +595,12 @@ function App() {
         setIsInitializing(true);
         setLoadingProgress('Connecting to database...');
         setLoadingProgressValue(10);
-        const service = OptimizedDataService.getInstance();
-        await service.initialize();
-        setDataService(service);
         setLoadingProgress('Loading subjects...');
         setLoadingProgressValue(30);
 
         // Load first page of data
         console.log('About to load first page...');
-        const result = await service.getPaginatedData({}, 1);
+        const result = await apiClient.getEntities({}, 1); // Use apiClient instead of OptimizedDataService
         console.log('Initial data load:', {
           dataLength: result.data.length,
           total: result.total,
@@ -666,9 +663,9 @@ function App() {
       try {
         setLoadingProgress('Loading statistics...');
         setLoadingProgressValue(80);
-        const service = OptimizedDataService.getInstance();
-        await service.initialize();
-        const stats = await service.getStatistics();
+        setLoadingProgress('Loading statistics...');
+        setLoadingProgressValue(80);
+        const stats = await apiClient.getStats();
         console.log('Global stats loaded:', stats);
         setLoadingProgress('Finalizing...');
         setLoadingProgressValue(90);
@@ -861,39 +858,10 @@ function App() {
     loadRealDocuments();
   }, [addToast]);
 
+  // Legacy search/filter logic removed - PeoplePage handles its own data fetching
   const handleSearchAndFilter = useCallback(async () => {
-    if (!dataService) return;
-
-    try {
-      const filters: SearchFilters = {
-        searchTerm: searchTerm.trim() || undefined,
-        sortBy,
-        sortOrder,
-        entityType: entityType !== 'all' ? entityType : undefined,
-        likelihoodScore: selectedRiskLevel ? [selectedRiskLevel] : undefined,
-      };
-
-      const result = await dataService.getPaginatedData(filters, currentPage);
-      setPeople(result.data);
-      setFilteredPeople(result.data);
-      setCurrentPage(result.page);
-      setTotalPages(result.totalPages);
-      setTotalPeople(result.total);
-
-      // Enable virtual scrolling for large filtered datasets (disabled for pagination)
-      // setUseVirtualScroll(result.total > 100);
-
-      // Only update totalPeople count from search results, keep other global stats
-      // unless we implement a specific filtered-stats endpoint
-      if (filters.searchTerm) {
-        // If searching, we might want to update stats to reflect search results
-        // But for now, let's keep global stats in the header to avoid "0 files" issues
-        // or just update the total count
-      }
-    } catch (error) {
-      console.error('Error searching and filtering:', error);
-    }
-  }, [dataService, searchTerm, sortBy, sortOrder, entityType, selectedRiskLevel, currentPage]);
+    // No-op
+  }, []);
 
   // Handler for risk level chip clicks
   const handleRiskLevelClick = useCallback((level: 'HIGH' | 'MEDIUM' | 'LOW') => {
@@ -920,38 +888,18 @@ function App() {
   const handlePageChange = async (newPage: number) => {
     if (newPage < 1 || newPage > totalPages) return;
     setCurrentPage(newPage);
-
-    // Prefetch next page for smoother experience
-    if (dataService && newPage < totalPages) {
-      const filters: SearchFilters = {
-        searchTerm: searchTerm.trim() || undefined,
-        sortBy,
-        sortOrder,
-        entityType: entityType !== 'all' ? entityType : undefined,
-        likelihoodScore: selectedRiskLevel ? [selectedRiskLevel] : undefined,
-      };
-
-      // Prefetch next page in background
-      dataService.prefetchNextPage(filters, newPage).catch((error) => {
-        console.warn('Failed to prefetch next page:', error);
-      });
-    }
-
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const fetchAnalyticsData = useCallback(async () => {
-    if (!dataService) return;
-
     try {
       setAnalyticsLoading(true);
       setAnalyticsError(null);
       console.log('Fetching analytics data...');
-      // Get statistics from the data service
-      const stats = await dataService.getStatistics();
+      // Get statistics from apiClient
+      const stats = await apiClient.getStats();
       console.log('Analytics stats:', stats);
 
-      // Set the analytics data directly - the stats already match what DataVisualization expects
       setAnalyticsData(stats);
     } catch (error) {
       console.error('Error fetching analytics data:', error);
@@ -959,7 +907,7 @@ function App() {
     } finally {
       setAnalyticsLoading(false);
     }
-  }, [dataService]);
+  }, []);
 
   // Effect for fetching analytics data when tab changes
   useEffect(() => {
@@ -969,31 +917,7 @@ function App() {
   }, [activeTab, fetchAnalyticsData]);
 
   // Effect to prefetch next page when current page loads
-  useEffect(() => {
-    if (dataService && currentPage < totalPages) {
-      const filters: SearchFilters = {
-        searchTerm: searchTerm.trim() || undefined,
-        sortBy,
-        sortOrder,
-        entityType: entityType !== 'all' ? entityType : undefined,
-        likelihoodScore: selectedRiskLevel ? [selectedRiskLevel] : undefined,
-      };
-
-      // Prefetch next page in background
-      dataService.prefetchNextPage(filters, currentPage).catch((error) => {
-        console.warn('Failed to prefetch next page:', error);
-      });
-    }
-  }, [
-    dataService,
-    currentPage,
-    totalPages,
-    searchTerm,
-    sortBy,
-    sortOrder,
-    entityType,
-    selectedRiskLevel,
-  ]);
+  // Prefetch effect removed
 
   const handlePersonClick = useCallback(
     (person: Person, searchTerm?: string) => {
@@ -1660,17 +1584,24 @@ function App() {
                         sortOrder={sortOrder}
                         onSortOrderToggle={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
                         searchTerm={searchTerm}
-                        filteredPeople={filteredPeople}
-                        onPersonClick={handlePersonClick}
-                        onDocumentClick={handleDocumentClick}
-                        onPageChange={handlePageChange}
+                        onPersonClick={(person) => {
+                          setSelectedPerson(person);
+                          setPreviousPath(location.pathname);
+                          navigate(`/entity/${person.id}`);
+                        }}
+                        onDocumentClick={(doc) => {
+                          setSelectedDocumentId(doc.id);
+                          setDocumentModalId(doc.id);
+                          setPreviousPath(location.pathname);
+                          navigate(`/documents/${doc.id}`);
+                        }}
+                        onPageChange={(p) => setCurrentPage(p)}
                         navigate={navigate}
                       />
                     )}
 
                     {activeTab === 'analytics' && (
                       <AnalyticsPage
-                        filteredPeople={filteredPeople}
                         analyticsData={analyticsData}
                         loading={analyticsLoading}
                         error={analyticsError}
@@ -1825,7 +1756,6 @@ function App() {
               />
             </Suspense>
 
-            {/* Keyboard Shortcuts Modal */}
             <KeyboardShortcutsModal
               isOpen={showKeyboardShortcuts}
               onClose={() => setShowKeyboardShortcuts(false)}
@@ -1835,26 +1765,7 @@ function App() {
               <CreateEntityModal
                 onClose={() => setShowCreateEntityModal(false)}
                 onSuccess={() => {
-                  // Refresh data
-                  if (dataService) {
-                    dataService
-                      .getPaginatedData(
-                        {
-                          searchTerm: searchTerm.trim() || undefined,
-                          sortBy,
-                          sortOrder,
-                          entityType: entityType !== 'all' ? entityType : undefined,
-                          likelihoodScore: selectedRiskLevel ? [selectedRiskLevel] : undefined,
-                        },
-                        currentPage,
-                      )
-                      .then((result) => {
-                        setPeople(result.data);
-                        setFilteredPeople(result.data);
-                        setTotalPages(result.totalPages);
-                        setTotalPeople(result.total);
-                      });
-                  }
+                  window.location.reload();
                 }}
               />
             )}

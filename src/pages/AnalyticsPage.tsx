@@ -4,7 +4,7 @@ import { DataVisualization } from '../components/visualizations/DataVisualizatio
 import ScopedErrorBoundary from '../components/common/ScopedErrorBoundary';
 
 interface AnalyticsPageProps {
-  filteredPeople: any[];
+  filteredPeople?: any[];
   analyticsData: any;
   loading: boolean;
   error: any;
@@ -13,7 +13,7 @@ interface AnalyticsPageProps {
 }
 
 export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
-  filteredPeople,
+  filteredPeople = [],
   analyticsData,
   loading,
   error,

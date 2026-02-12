@@ -135,16 +135,9 @@ else
 
     # Check for uncommitted changes after formatting
     if [ -n "$(git status --porcelain)" ]; then
-      log_warning "Format/Lint modified files. These changes must be committed before pushing."
+      log_warning "Format/Lint modified files. Automatically committing changes..."
       echo -e "${YELLOW}Uncommitted changes:${NC}"
       git status --short
-      
-      read -p "Do you want to commit these changes as 'chore: auto-format' and continue? (y/n) " -n 1 -r
-      echo
-      if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        log_error "Deployment aborted. Please commit changes and try again."
-        exit 1
-      fi
       
       git add .
       git commit -m "chore: auto-format [skip ci]"

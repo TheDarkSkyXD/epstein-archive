@@ -34,7 +34,7 @@ export class QueryCounter {
   /**
    * Wrap database to count queries
    */
-  wrapDatabase(db: Database.Database, requestId: string): Database.Database {
+  wrapDatabase(db: any, requestId: string): any {
     if (!this.enabled) return db;
 
     this.counts.set(requestId, 0);

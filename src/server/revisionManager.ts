@@ -22,12 +22,12 @@ interface RevisionToken {
 }
 
 export class DatasetRevisionManager {
-  private db: Database.Database;
+  private db: any;
   private cachedToken: RevisionToken | null = null;
   private cacheExpiry: number = 0;
   private readonly CACHE_TTL = 5000; // 5s cache to avoid DB hits
 
-  constructor(db: Database.Database) {
+  constructor(db: any) {
     this.db = db;
   }
 
@@ -141,7 +141,7 @@ export class DatasetRevisionManager {
 // Singleton instance (will be initialized with DB in server startup)
 let revisionManager: DatasetRevisionManager | null = null;
 
-export function initRevisionManager(db: Database.Database): void {
+export function initRevisionManager(db: any): void {
   revisionManager = new DatasetRevisionManager(db);
 }
 

@@ -127,6 +127,9 @@ function main(): void {
   }
 }
 
-if (require.main === module) {
+// ES module compatible main check
+const isMain = import.meta.url === `file://${process.argv[1]}`;
+
+if (isMain) {
   main();
 }

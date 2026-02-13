@@ -199,6 +199,66 @@ app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 import { inputValidationMiddleware } from './server/middleware/validation.js';
 app.use(inputValidationMiddleware);
 
+// Legacy justice.gov URL routing
+// Allows swapping justice.gov for epstein.academy to view documents in the app
+app.get('/epstein/files/*', async (req, res, next) => {
+  try {
+    const db = getDb();
+    // Extract suffix from originalUrl to preserve encoding (e.g., %20)
+    // originalUrl might be "/epstein/files/DataSet%209/EFTA..."
+    const match = req.originalUrl.match(/\/epstein\/files\/(.+)$/);
+    if (!match) {
+      return res.status(404).send('Invalid path');
+    }
+
+    const urlSuffix = match[1];
+    // Remove query string if present
+    const cleanSuffix = urlSuffix.split('?')[0];
+    const decodedSuffix = decodeURIComponent(cleanSuffix);
+
+    // Try to find the document
+    // 1. Exact suffix match (with %20)
+    // 2. Decoded suffix match (with spaces)
+    // 3. Filename match fallback
+    const doc = db
+      .prepare(
+        `
+      SELECT id 
+      FROM documents 
+      WHERE file_path LIKE ? 
+         OR file_path LIKE ?
+      LIMIT 1
+    `,
+      )
+      .get(`%/epstein/files/${cleanSuffix}`, `%/epstein/files/${decodedSuffix}`) as
+      | { id: string }
+      | undefined;
+
+    if (doc) {
+      return res.redirect(`/documents/${doc.id}`);
+    }
+
+    // Fallback: Try filename only
+    const filename = path.basename(decodedSuffix);
+    const docByFilename = db
+      .prepare(
+        `
+      SELECT id FROM documents WHERE file_name = ? LIMIT 1
+    `,
+      )
+      .get(filename) as { id: string } | undefined;
+
+    if (docByFilename) {
+      return res.redirect(`/documents/${docByFilename.id}`);
+    }
+
+    res.status(404).send('Document not found in Epstein Archive');
+  } catch (err) {
+    console.error('Error handling justice.gov redirect:', err);
+    next(err);
+  }
+});
+
 // --- RBAC and Deny-by-Default Configuration ---
 
 const PUBLIC_ROUTES = [

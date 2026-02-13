@@ -979,27 +979,36 @@ async function processDocument(
       (existingDoc as any).id,
     );
     if (!job) {
-      await jobsRepository.createJob({
-        run_id: currentRun.id,
-        step_name: 'ingestion',
-        target_type: 'document',
-        target_id: (existingDoc as any).id,
-        max_attempts: 5,
-      });
+      await db.run(
+        'INSERT INTO processing_jobs (run_id, step_name, target_type, target_id, max_attempts) VALUES (?, ?, ?, ?, ?)',
+        currentRun.id,
+        'ingestion',
+        'document',
+        (existingDoc as any).id,
+        5,
+      );
     }
 
-    // Attempt to lease
-    const leasedJob = await jobsRepository.leaseJob(currentRun.run_uuid);
-    if (!leasedJob || leasedJob.target_id !== (existingDoc as any).id) {
-      // Someone else is working on this or another job is prioritized
-      if (!leasedJob) {
-        console.log(`   ⏳ No job available or someone else locked ${basename(filePath)}`);
-        return { success: true }; // Skip for now
-      } else {
-        // We got a different job than expected? This shouldn't happen in this loop structure
-        // but let's be safe.
-      }
+    // Attempt to lease specifically for this document
+    const leaseResult = await db.run(
+      `UPDATE processing_jobs 
+       SET status = 'running', locked_by = ?, locked_at = CURRENT_TIMESTAMP, attempts = attempts + 1, updated_at = CURRENT_TIMESTAMP 
+       WHERE target_type = 'document' AND target_id = ? AND step_name = 'ingestion' 
+         AND (status = 'queued' OR (status = 'running' AND locked_at < datetime('now', '-10 minutes')))`,
+      currentRun.run_uuid,
+      (existingDoc as any).id,
+    );
+
+    if (leaseResult.changes === 0) {
+      console.log(`   ⏳ Could not lease job for ${basename(filePath)} (locked by another worker)`);
+      return { success: true };
     }
+
+    // We need the job object for later code that expects 'leasedJob.id'
+    const leasedJob = await db.get(
+      'SELECT id FROM processing_jobs WHERE target_type = "document" AND target_id = ? AND step_name = "ingestion"',
+      (existingDoc as any).id,
+    );
 
     // If we are here, we own the lease for (existingDoc as any).id
     documentId = (existingDoc as any).id;
@@ -1255,7 +1264,11 @@ async function processDocument(
 
     // Phase 9: Sync Job Completion
     if (leasedJob) {
-      await jobsRepository.updateJobStatus(leasedJob.id, 'succeeded');
+      await db.run(
+        'UPDATE processing_jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        'succeeded',
+        leasedJob.id,
+      );
     }
 
     // Cleanup temp OCR PDF if it was created
@@ -1352,10 +1365,11 @@ async function processDocument(
         const isRetryable =
           !(error as Error).message.includes('corrupt') &&
           !(error as Error).message.includes('encrypted');
-        await jobsRepository.updateJobStatus(
-          job.id,
+        await db.run(
+          'UPDATE processing_jobs SET status = ?, last_error = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
           isRetryable ? 'failed_retryable' : 'failed_permanent',
           (error as Error).message,
+          job.id,
         );
       }
     }
@@ -1585,6 +1599,7 @@ async function main() {
 
 async function processQueue() {
   const jobManager = new JobManager();
+  const dbSync = getDb(); // Use shared better-sqlite3 connection to avoid locking issues
   console.log('\n📬 Processing Queue with Robust Leasing (Phase 9)...');
 
   // Enforce Exo cluster usage
@@ -1616,26 +1631,24 @@ async function processQueue() {
           // Heartbeat
           jobManager.renewLease(doc.id, 600);
 
-          // 1. Fetch full content
-          const fullDoc = await db.get(
-            'SELECT content, content_preview FROM documents WHERE id = ?',
-            doc.id,
-          );
+          // 1. Fetch full content (Synchronous via better-sqlite3)
+          const fullDoc = dbSync
+            .prepare('SELECT content, content_preview FROM documents WHERE id = ?')
+            .get(doc.id) as any;
 
           if (fullDoc && fullDoc.content) {
-            // 2. Run AI Enrichment (Repair)
+            // 2. Run AI Enrichment (Repair) - Async
             // Use a reasonable context window
             const context = fullDoc.content.slice(0, 2000);
             const refined = await AIEnrichmentService.repairMimeWildcards(fullDoc.content, context);
 
-            // 3. Update if changed
+            // 3. Update if changed (Synchronous via better-sqlite3)
             if (refined !== fullDoc.content) {
-              await db.run(
-                'UPDATE documents SET content = ?, content_refined = ?, last_processed_at = datetime("now") WHERE id = ?',
-                refined,
-                refined,
-                doc.id,
-              );
+              dbSync
+                .prepare(
+                  'UPDATE documents SET content = ?, content_refined = ?, last_processed_at = datetime("now") WHERE id = ?',
+                )
+                .run(refined, refined, doc.id);
             }
           }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Profiler } from 'react';
 import Icon from '../components/common/Icon';
 import { StatsDisplay } from '../components/pages/StatsDisplay';
 import StatsSkeleton from '../components/pages/StatsSkeleton';
@@ -123,6 +123,26 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
     setPage(1);
   }, [searchTerm, entityType, sortBy, sortOrder, selectedRiskLevel]);
 
+  // Stabilize onClick callback to prevent re-renders
+  const handleSubjectClick = useCallback(
+    (subject: SubjectCardDTO) => {
+      // Map DTO to Person-like structure for the legacy callback
+      const personLike: Person = {
+        id: subject.id,
+        name: subject.name,
+        primaryRole: subject.role,
+        role: subject.role,
+        mentions: subject.stats.mentions,
+        files: subject.stats.documents,
+        evidence_types: [],
+        contexts: [],
+        red_flag_rating: 0,
+      } as any;
+      onPersonClick(personLike, searchTerm);
+    },
+    [onPersonClick, searchTerm],
+  );
+
   // Render Cell for Grid
   const Cell = ({ columnIndex, rowIndex, style, data }: any) => {
     const { items, columnCount } = data;
@@ -144,142 +164,143 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
       <SubjectCardV2
         subject={subject}
         style={gutterStyle}
-        onClick={() => {
-          // Map DTO to Person-like structure for the legacy callback
-          const personLike: Person = {
-            id: subject.id,
-            name: subject.name,
-            primaryRole: subject.role,
-            role: subject.role,
-            mentions: subject.stats.mentions,
-            files: subject.stats.documents,
-            // other fields missing, evidence modal might need fetch
-            evidence_types: [], // TODO: DTO inject
-            contexts: [],
-            red_flag_rating: 0, // TODO from forensics
-          } as any;
-          onPersonClick(personLike, searchTerm);
-        }}
+        onClick={() => handleSubjectClick(subject)}
       />
     );
   };
 
+  // Performance monitoring callback
+  const onRenderCallback = useCallback(
+    (id: string, phase: 'mount' | 'update', actualDuration: number) => {
+      if (typeof window !== 'undefined' && actualDuration > 16) {
+        import('../utils/performanceMonitor.js')
+          .then(({ PerformanceMonitor }) => {
+            PerformanceMonitor.logRender(`PeoplePage-${id}`, actualDuration, phase);
+          })
+          .catch(() => {});
+      }
+    },
+    [],
+  );
+
   const totalPagesLocal = Math.ceil(total / PAGE_SIZE);
 
   return (
-    <div className="space-y-6 h-full flex flex-col">
-      {/* Stats Overview */}
-      {loading && !dataStats.totalPeople ? (
-        <StatsSkeleton />
-      ) : (
-        <StatsDisplay
-          stats={dataStats}
-          selectedRiskLevel={selectedRiskLevel}
-          onRiskLevelClick={onRiskLevelClick}
-          onResetFilters={onResetFilters}
-        />
-      )}
-
-      {/* Filters and Controls */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-3 flex-shrink-0">
-        <div className="hidden md:flex items-center gap-2">
-          <Icon name="Users" size="md" color="info" className="flex-shrink-0" />
-          <p className="text-slate-400 text-sm">
-            {total.toLocaleString()} subjects • Page {page}/{totalPagesLocal || 1}
-          </p>
-        </div>
-
-        <div className="w-full md:w-auto grid grid-cols-[1fr_1fr_auto] gap-2 md:flex md:items-center font-sans">
-          {isAdmin && (
-            <button
-              onClick={onAddSubject}
-              className="hidden md:flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium shadow-lg shadow-blue-500/20"
-            >
-              <Icon name="Plus" size="sm" />
-              <span className="hidden sm:inline">Add Subject</span>
-            </button>
-          )}
-
-          <EntityTypeFilter
-            value={entityType}
-            onChange={onEntityTypeChange}
-            className="w-full md:w-auto"
-          />
-
-          <SortFilter
-            value={sortBy}
-            onChange={(val) => onSortByChange(val as any)}
-            options={[
-              { value: 'red_flag', label: 'Red Flag', icon: <span>🚩</span> },
-              { value: 'mentions', label: 'Mentions', icon: <span>📊</span> },
-              { value: 'risk', label: 'Risk', icon: <span>⚠️</span> },
-              { value: 'name', label: 'Name', icon: <span>👤</span> },
-            ]}
-            className="w-full md:w-auto"
-          />
-
-          <button
-            onClick={onSortOrderToggle}
-            className="h-10 w-10 flex items-center justify-center bg-slate-800 border border-slate-600 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors shrink-0"
-            title={`Sort ${sortOrder === 'asc' ? 'Descending' : 'Ascending'}`}
-          >
-            {sortOrder === 'asc' ? '↑' : '↓'}
-          </button>
-        </div>
-      </div>
-
-      {/* Grid Area */}
-      <div className="flex-1 min-h-[600px] w-full">
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <PersonCardSkeleton key={i} />
-            ))}
-          </div>
-        ) : subjects.length === 0 ? (
-          <div className="text-center py-12">
-            <Icon name="Users" size="xl" color="gray" className="mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-slate-300 mb-2">No results found</h3>
-            <p className="text-slate-400">Try adjusting your search terms</p>
-          </div>
+    <Profiler id="PeoplePage" onRender={onRenderCallback}>
+      <div className="space-y-6 h-full flex flex-col">
+        {/* Stats Overview */}
+        {loading && !dataStats.totalPeople ? (
+          <StatsSkeleton />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {subjects.map((subject) => (
-              <SubjectCardV2 key={subject.id} subject={subject} />
-            ))}
+          <StatsDisplay
+            stats={dataStats}
+            selectedRiskLevel={selectedRiskLevel}
+            onRiskLevelClick={onRiskLevelClick}
+            onResetFilters={onResetFilters}
+          />
+        )}
+
+        {/* Filters and Controls */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-3 flex-shrink-0">
+          <div className="hidden md:flex items-center gap-2">
+            <Icon name="Users" size="md" color="info" className="flex-shrink-0" />
+            <p className="text-slate-400 text-sm">
+              {total.toLocaleString()} subjects • Page {page}/{totalPagesLocal || 1}
+            </p>
+          </div>
+
+          <div className="w-full md:w-auto grid grid-cols-[1fr_1fr_auto] gap-2 md:flex md:items-center font-sans">
+            {isAdmin && (
+              <button
+                onClick={onAddSubject}
+                className="hidden md:flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium shadow-lg shadow-blue-500/20"
+              >
+                <Icon name="Plus" size="sm" />
+                <span className="hidden sm:inline">Add Subject</span>
+              </button>
+            )}
+
+            <EntityTypeFilter
+              value={entityType}
+              onChange={onEntityTypeChange}
+              className="w-full md:w-auto"
+            />
+
+            <SortFilter
+              value={sortBy}
+              onChange={(val) => onSortByChange(val as any)}
+              options={[
+                { value: 'red_flag', label: 'Red Flag', icon: <span>🚩</span> },
+                { value: 'mentions', label: 'Mentions', icon: <span>📊</span> },
+                { value: 'risk', label: 'Risk', icon: <span>⚠️</span> },
+                { value: 'name', label: 'Name', icon: <span>👤</span> },
+              ]}
+              className="w-full md:w-auto"
+            />
+
+            <button
+              onClick={onSortOrderToggle}
+              className="h-10 w-10 flex items-center justify-center bg-slate-800 border border-slate-600 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors shrink-0"
+              title={`Sort ${sortOrder === 'asc' ? 'Descending' : 'Ascending'}`}
+            >
+              {sortOrder === 'asc' ? '↑' : '↓'}
+            </button>
+          </div>
+        </div>
+
+        {/* Grid Area */}
+        <div className="flex-1 min-h-[600px] w-full">
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <PersonCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : subjects.length === 0 ? (
+            <div className="text-center py-12">
+              <Icon name="Users" size="xl" color="gray" className="mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-slate-300 mb-2">No results found</h3>
+              <p className="text-slate-400">Try adjusting your search terms</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {subjects.map((subject) => (
+                <SubjectCardV2 key={subject.id} subject={subject} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Pagination Controls - Local */}
+        {totalPagesLocal > 1 && (
+          <div className="flex items-center justify-center space-x-4 mt-4 flex-shrink-0 pb-4">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="flex items-center space-x-2 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 transition-colors btn-secondary"
+            >
+              <Icon name="ChevronLeft" size="sm" />
+              <span>Previous</span>
+            </button>
+
+            <div className="flex items-center space-x-2">
+              <span className="text-slate-400">Page</span>
+              <span className="text-white font-medium">{page}</span>
+              <span className="text-slate-400">of</span>
+              <span className="text-white font-medium">{totalPagesLocal}</span>
+            </div>
+
+            <button
+              onClick={() => setPage((p) => Math.min(totalPagesLocal, p + 1))}
+              disabled={page === totalPagesLocal}
+              className="flex items-center space-x-2 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 transition-colors btn-secondary"
+            >
+              <span>Next</span>
+              <Icon name="ChevronRight" size="sm" />
+            </button>
           </div>
         )}
       </div>
-
-      {/* Pagination Controls - Local */}
-      {totalPagesLocal > 1 && (
-        <div className="flex items-center justify-center space-x-4 mt-4 flex-shrink-0 pb-4">
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className="flex items-center space-x-2 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 transition-colors btn-secondary"
-          >
-            <Icon name="ChevronLeft" size="sm" />
-            <span>Previous</span>
-          </button>
-
-          <div className="flex items-center space-x-2">
-            <span className="text-slate-400">Page</span>
-            <span className="text-white font-medium">{page}</span>
-            <span className="text-slate-400">of</span>
-            <span className="text-white font-medium">{totalPagesLocal}</span>
-          </div>
-
-          <button
-            onClick={() => setPage((p) => Math.min(totalPagesLocal, p + 1))}
-            disabled={page === totalPagesLocal}
-            className="flex items-center space-x-2 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 transition-colors btn-secondary"
-          >
-            <span>Next</span>
-            <Icon name="ChevronRight" size="sm" />
-          </button>
-        </div>
-      )}
-    </div>
+    </Profiler>
   );
 };

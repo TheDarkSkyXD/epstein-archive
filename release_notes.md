@@ -97,7 +97,7 @@
 ### Entity Pipeline Hardening & Data Integrity
 
 - **Hardened Entity Pipeline**: Implemented aggressive junk filtering and strengthened classification heuristics in the intelligence engine.
-- **Retroactive Database Cleanup**: Successfully purged approximately17,000 junk entities and OCR artefacts from the live archive, reducing noise and improving search relevance.
+- **Retroactive Database Cleanup**: Successfully purged approximately 17,000 junk entities and OCR artefacts from the live archive, reducing noise and improving search relevance.
 - **Canonical Consolidation**: Merged numerous entity variants (e.g., Netanyahu, Epstein) into canonical profiles.
 - **Contextual Role Extraction**: The ingestion pipeline now automatically identifies roles (Pilot, Lawyer, Survivor, etc.) by analysing the context window around entity mentions.
 - **Risk Engine Recalibration**: Fixed schema-related bugs in the risk engine and updated threat levels for over 82,000 entities across the corpus.
@@ -236,7 +236,7 @@
 
 ### Massive Department of Justice (DOJ) Archive Consolidation
 
-- **Archive Expansion**: Successfully integrated and consolidated DOJ datasets 10, 11, and 12, adding tens of thousands of pages of previously fragmented evidence into the centralized corpus.
+- **Archive Expansion**: Successfully integrated and consolidated DOJ datasets 10, 11, and 12, adding tens of thousands of pages of previously fragmented evidence into the centralised corpus.
 - **Unified Discovery Structure**: Standardised the organisational structure for DOJ materials, ensuring seamless cross-referencing and data integrity across all discovery volumes.
 
 ### Advanced Forensic Analysis Workspace
@@ -382,7 +382,7 @@
 ### Entity Pipeline Hardening & Data Integrity
 
 - **Hardened Entity Pipeline**: Implemented aggressive junk filtering and strengthened classification heuristics in the intelligence engine.
-- **Retroactive Database Cleanup**: Successfully purged approximately17,000 junk entities and OCR artefacts from the live archive, reducing noise and improving search relevance.
+- **Retroactive Database Cleanup**: Successfully purged approximately 17,000 junk entities and OCR artefacts from the live archive, reducing noise and improving search relevance.
 - **Canonical Consolidation**: Merged numerous entity variants (e.g., Netanyahu, Epstein) into canonical profiles.
 - **Contextual Role Extraction**: The ingestion pipeline now automatically identifies roles (Pilot, Lawyer, Survivor, etc.) by analysing the context window around entity mentions.
 - **Risk Engine Recalibration**: Fixed schema-related bugs in the risk engine and updated threat levels for over 82,000 entities across the corpus.
@@ -521,7 +521,7 @@
 
 ### Massive Department of Justice (DOJ) Archive Consolidation
 
-- **Archive Expansion**: Successfully integrated and consolidated DOJ datasets 10, 11, and 12, adding tens of thousands of pages of previously fragmented evidence into the centralized corpus.
+- **Archive Expansion**: Successfully integrated and consolidated DOJ datasets 10, 11, and 12, adding tens of thousands of pages of previously fragmented evidence into the centralised corpus.
 - **Unified Discovery Structure**: Standardised the organisational structure for DOJ materials, ensuring seamless cross-referencing and data integrity across all discovery volumes.
 
 ### Advanced Forensic Analysis Workspace
@@ -574,7 +574,7 @@
 
 - **Critical Build Fix**: Resolved server build failure by explicitly including `src/types.ts` in the compilation process. This prevents the "Cannot find module" runtime error that was causing 502 Bad Gateway responses.
 - **Client Build Repair**: Fixed `react-virtualized-auto-sizer` import issues in `PeoplePage` and `EvidenceModal` by targeting the CommonJS build directly, ensuring successful client-side bundling.
-- **Codebase Hygiene**: Executed a comprehensive linting and formatting pass, removing unused variables and standardizing code style across the application.
+- **Codebase Hygiene**: Executed a comprehensive linting and formatting pass, removing unused variables and standardising code style across the application.
 
 ## v13.1.4 — 2026-02-12
 
@@ -599,7 +599,7 @@
 ### Forensic Transparency & Credibility
 
 - **Evidence Ladder & Pack Verification**: Launched a complete evidence ladder system with 100% provenance verification. For any "Direct" claim, the UI now surfaces at least one supporting document span and entity mention.
-- **Agentic Layer Fencing**: Implemented "Agentic Audit" system. Every LLM-assisted inference is now watermarked with `was_agentic=true` and possesses a corresponding forensic audit entry in the system logs.
+- **Agentic Layer Fencing**: Implemented an "Agentic Audit" system. Every LLM-assisted inference is now watermarked with `was_agentic=true` and possesses a corresponding forensic audit entry in the system logs.
 - **Evidence Integrity Suite**: New `credibility_tests` executable suite ensures 100% graph invariants, offset-bound validity, and confidence consistency across the entire 1.3M file archive.
 
 ### Operations & Observability Hardening
@@ -610,7 +610,7 @@
 
 ### Security Posture
 
-- **Deny-by-Default RBAC**: Strengthened security fencing with strict RBAC rules. Admin endpoints (backups, ingest-runs, audit-logs) are physically isolated and reject all unauthorized or non-admin requests.
+- **Deny-by-Default RBAC**: Strengthened security fencing with strict RBAC rules. Admin endpoints (backups, ingest-runs, audit-logs) are physically isolated and reject all unauthorised or non-admin requests.
 - **CSP & Refresh Rotation**: Implemented strict Content Security Policy (CSP) and refresh token rotation with in-memory access tokens to mitigate session hijacking risks.
 
 ## v12.16.0 — 2026-02-11
@@ -618,9 +618,9 @@
 ### Entity Pipeline Hardening & Data Integrity
 
 - **Hardened Entity Pipeline**: Implemented aggressive junk filtering and strengthened classification heuristics in the intelligence engine.
-- **Retroactive Database Cleanup**: Successfully purged **~17,000 junk entities** and OCR artifacts from the live archive, reducing noise and improving search relevance.
+- **Retroactive Database Cleanup**: Successfully purged~17,000 junk entities and OCR artefacts from the live archive, reducing noise and improving search relevance.
 - **Canonical Consolidation**: Merged numerous entity variants (e.g., Netanyahu, Epstein) into canonical profiles.
-- **Contextual Role Extraction**: The ingestion pipeline now automatically identifies roles (Pilot, Lawyer, Survivor, etc.) by analyzing the context window around entity mentions.
+- **Contextual Role Extraction**: The ingestion pipeline now automatically identifies roles (Pilot, Lawyer, Survivor, etc.) by analysing the context window around entity mentions.
 - **Risk Engine Recalibration**: Fixed schema-related bugs in the risk engine and updated threat levels for over 82,000 entities across the corpus.
 
 ## v12.15.0 — 2026-02-11
@@ -645,7 +645,7 @@
 
 ### Schema Unification & Mobile UX
 
-- **Consolidated media and evidence schemas**: unified investigative data models for consistent cross-referencing.
+- **Consolidated media and evidence schemas**: Unified investigative data models for consistent cross-referencing.
 - **WikiLink engine**: Launched automated auto-linking for document mentions across the platform.
 - **Mobile Refinement**: Updated `EvidenceModal` with sticky headers and glassmorphism for enhanced mobile navigation.
 
@@ -654,7 +654,7 @@
 ### Black Book Intelligence Expansion
 
 - **Automated Contact Harvesting**: The ingestion pipeline now extracts emails and phone numbers from document context and automatically links them to person entities via `person_id`.
-- **Dossier-Style Entity Modals**: Redesigned `EvidenceModal` to include comprehensive biographies, profile pictures, and categorized contact information (Verified Profile vs. Harvested Intelligence).
+- **Dossier-Style Entity Modals**: Redesigned `EvidenceModal` to include comprehensive biographies, profile pictures, and categorised contact information (Verified Profile vs. Harvested Intelligence).
 - **Proactive Source Linking**: All harvested intelligence now features direct "Source Document" links for immediate forensic verification.
 - **Enhanced Black Book UX**: Added category filtering (Original, Contact, Credential) to the Black Book viewer with visual highlighting (⭐) for AI-enriched data.
 
@@ -670,7 +670,7 @@
 
 ### AI Ingestion at Scale
 
-- **Full-Scale Ingestion Activation**: Launched 3-node localized AI cluster for high-speed processing.
+- **Full-Scale Ingestion Activation**: Launched a 3-node localised AI cluster for high-speed processing.
 - **Content Refinement**: Backfilled 228,000 documents with refined content and repaired 14,000 corrupted documents.
 
 ## v12.8.0 — 2026-02-06
@@ -685,7 +685,7 @@
 
 ### Lean Schema & Interactive Intelligence
 
-- **Lean Schema Consolidation**: Unified disparate risk and type columns into a high-performance standardized format.
+- **Lean Schema Consolidation**: Unified disparate risk and type columns into a high-performance standardised format.
 - **Interactive Metadata Chips**: Entity roles and titles are now actionable—click to instantly filter the entire archive.
 - **Evidence Modal Enrichment**: Restored rich bio data, high-resolution profile photos, and forensic "Spicy Passages" for VIP entities.
 - **Deployment Hardening**: Integrated auto-formatting and linting into the pre-push protocol to ensure continuous delivery health.
@@ -716,7 +716,7 @@
 ### Archival Intelligence & Real-Time Observability
 
 - **Archival Upgrade (Phase 11)**: Launched a massive metadata backfill script to upgrade the 119k+ legacy documents with advanced intelligence features (Signal Scoring, Boilerplate Filtering, and Redaction Detection) without re-ingestion.
-- **Dual-Progress Ingestion Dashboard**: Introduced a new granular tracking system on the `About` page, visualizing both "Download" and "Ingest" status for ongoing DOJ datasets.
+- **Dual-Progress Ingestion Dashboard**: Introduced a new granular tracking system on the `About` page, visualising both "Download" and "Ingest" status for ongoing DOJ datasets.
 - **Dynamic Ingestion ETA**: Implemented an automated ETA calculator based on live processing jobs, providing transparent feedback on massive dataset imports.
 - **Structured Redaction Discovery**: Enhanced the regex engine to identify and classify redaction markers (e.g., "Privileged - Redacted") across the entire archive history.
 - **Platform Stabilization**: Hardened database writing logic with `SQLITE_BUSY` retry mechanisms for high-concurrency ingestion environments.
@@ -726,10 +726,10 @@
 ### Advanced Security & UI Stabilization
 
 - **Refined Investigation Access**: Implemented shared deletion permission for investigations—both administrators and the original investigator (owner) can now manage and delete their cases.
-- **Investigation API Lockdown**: Hardened the investigation deletion endpoint with context-aware authorization, strictly validating that delete requests are authorized by either an admin or the case owner.
+- **Investigation API Lockdown**: Hardened the investigation deletion endpoint with context-aware authorization, strictly validating that delete requests are authorised by either an admin or the case owner.
 - **UI Interaction Fixes**:
   - Fixed a critical indexing bug in the investigation listing where the deletion API was occasionally targeting the incorrect ID.
-  - Corrected descending version ordering in the "What's New" panel to prioritize current releases.
+  - Corrected descending version ordering in the "What's New" panel to prioritise current releases.
   - Enforced admin-only controls for batch media editing and single-item metadata updates.
 
 ## v12.1.5 — 2026-02-03
@@ -739,8 +739,8 @@
 - **Deployment Hardening**: Updated deployment script to force code synchronization (fix for v12.1.2 persistence) and full process restart.
 - **Email Client UI**:
   - Removed "floating card" styling for a modern edge-to-edge layout.
-  - Standardized internal borders for visual consistency.
-  - Optimized pane layout for better reading experience.
+  - Standardised internal borders for visual consistency.
+  - Optimised pane layout for better reading experience.
 
 ## v12.1.4 — 2026-02-03
 
@@ -751,19 +751,19 @@
 - **DOJ Link Extraction Recovery**: Successfully bypassed Akamai 403 blocks on Dataset 9 and 12 via browser-level session recovery, restoring the link extraction pipeline for over 284,000 pending files.
 - **Improved Email Metadata Parsing**: Fixed a critical issue where emails were appearing as "Unknown Sender". The ingestion engine now correctly extracts sender and recipient data from `.eml.meta` JSON sidecar files.
 - **Hash-Based Conflict Detection**: Implemented a robust deduplication system that identifies files with identical names but different content (e.g., unredacted versions), preserving all unique evidence with `_conflict_hash` identifiers.
-- **VIP Consolidation (Sam Epstein)**: Integrated "Sam Epstein" as a verified alias for Jeffrey Epstein used with 23andme, ensuring all related records are consolidated into the canonical profile.
+- **VIP Consolidation (Sam Epstein)**: Integrated "Sam Epstein" as a verified alias for Jeffrey Epstein used with 23andMe, ensuring all related records are consolidated into the canonical profile.
 
 ## v12.0.0 — 2026-02-02
 
 ### Massive Department of Justice (DOJ) Archive Consolidation
 
-- **Archive Expansion**: Successfully integrated and consolidated DOJ datasets 10, 11, and 12, adding tens of thousands of pages of previously fragmented evidence into the centralized corpus.
-- **Unified Discovery Structure**: Standardized the organizational structure for DOJ materials, ensuring seamless cross-referencing and data integrity across all discovery volumes.
+- **Archive Expansion**: Successfully integrated and consolidated DOJ datasets 10, 11, and 12, adding tens of thousands of pages of previously fragmented evidence into the centralised corpus.
+- **Unified Discovery Structure**: Standardised the organisational structure for DOJ materials, ensuring seamless cross-referencing and data integrity across all discovery volumes.
 
 ### Advanced Forensic Analysis Workspace
 
 - **Forensic Investigation Suite**: Launched a full-spectrum analytical dashboard designed for complex investigative workflows:
-  - **Financial Transaction Mapper**: Visualizes financial flows between entities, highlighting offshore transfers, potential layering, and high-risk transactions.
+  - **Financial Transaction Mapper**: Visualises financial flows between entities, highlighting offshore transfers, potential layering, and high-risk transactions.
   - **Multi-Source Correlation Engine**: Cross-references entity mentions across the entire archive to verify facts and surface hidden connections.
   - **Forensic Report Generator**: Automated generation of comprehensive investigative summaries, supported by algorithmic authenticity scoring.
 - **Evidence Integrity & Chain of Custody**: Introduced a verifiable provenance tracking system. Documents now maintain cryptographic SHA-256 integrity hashes and chronological logs of every analytical action or validation step.
@@ -792,7 +792,7 @@
 
 ### Improvements
 
-- **Media Gallery Polish**: Fixed a visual flicker in the `PhotoBrowser` by optimizing the loading spinner logic. The full-screen overlay now only appears on initial load, using a discreet spinner for updates.
+- **Media Gallery Polish**: Fixed a visual flicker in the `PhotoBrowser` by optimising the loading spinner logic. The full-screen overlay now only appears on initial load, using a discreet spinner for updates.
 - **Mobile UX**: Refined `MobileMenu` with a premium glassmorphism design and improved touch targets.
 
 ## v11.5.0 (2025-01-23) - Ingestion Intelligence & VIP Consolidation
@@ -800,7 +800,7 @@
 ### Ingestion Pipeline Hardening
 
 - **Context-Aware Resolution ("The Riley Rule")**: Implemented a smart disambiguation engine that uses surrounding text context (e.g., "pilot", "investigator") to distinguish between entities with identical names like "Bill Riley".
-- **VIP Auto-Consolidation ("The Trump Rule")**: Added a strict, regex-backed consolidation layer for the Top 100 VIPs. Variations like "Jeffry Epstein", "Mr. Clinton", and "Prince Andrew" are now forced to their Canonical Entity IDs immediately during ingestion.
+- **VIP Auto-Consolidation ("The Trump Rule")**: Added a strict, regex-backed consolidation layer for the Top 100 VIPs. Variations like "Jeffrey Epstein", "Mr. Clinton", and "Prince Andrew" are now forced to their canonical entity IDs immediately during ingestion.
 - **One-Off Script Cleanup**: Fully migrated logic from independent cleanup scripts into the core `ingest_intelligence.ts` pipeline, ensuring a unified, maintainable codebase.
 - **Aggressive Junk Filtering**: Expanded the blocklist to catch 50+ new junk terms ("White House", "They Like", "Judge Printed") identified in recent reports.
 
@@ -836,7 +836,7 @@
 ### Bug Fixes
 
 - **Search Fix**: Resolved a crash when searching for documents with undefined titles.
-- **Media Performance**: Fixed severe image flickering in the Media Browser by optimizing thumbnail loading and caching logic.
+- **Media Performance**: Fixed severe image flickering in the Media Browser by optimising thumbnail loading and caching logic.
 
 ## v11.4.0 (2025-06-21) - Minor Update
 
@@ -853,7 +853,7 @@
 
 - **Search UI**:
   - Fixed input focus loss while typing.
-  - Resolves conflict between header search and page search.
+  - Resolved conflict between header search and page search.
   - Dropdown now correctly positioned below input.
 
 ## v11.3.9 (2025-06-21) - Search UI & Risk Fixes
@@ -868,9 +868,9 @@
 
 ### Bug Fixes
 
-- **Risk Assessment**: Fixed regression where high-risk entities (e.g. Jeffrey Epstein) were incorrectly labeled "Low Risk".
+- **Risk Assessment**: Fixed regression where high-risk entities (e.g. Jeffrey Epstein) were incorrectly labelled "Low Risk".
 - **Media Browser**: Reduced image flickering during loading.
-- **Data Quality**: Filtered junk terms (e.g. "All Rights Reserved") from top entities chart.
+- **Data Quality**: Filtered junk terms (e.g. "All Rights Reserved") from the top entities chart.
 
 # Release Notes
 
@@ -882,7 +882,7 @@
 - **Data Quality:**
   - Enhanced "Top Mentioned Individuals" filtering to exclude non-person entities and junk data.
 - **Flight Map:**
-  - Finalized the interactive flight route visualization.
+  - Finalized the interactive flight route visualisation.
 
 ## v11.3.6 (2026-01-22) - Property Linking & Flight Maps
 
@@ -897,7 +897,7 @@
 
 ### UI Improvements
 
-- **Archive Progress**: Added a real-time progress bar to the About page header, visualizing "Files Secured" (database count) vs. "Total Archive" (5.2M).
+- **Archive Progress**: Added a real-time progress bar to the About page header, visualising "Files Secured" (database count) vs. "Total Archive" (5.2M).
 
 ## v11.3.5 (2026-01-22) - Entity Categorization & Consolidation Fix
 
@@ -910,26 +910,26 @@
 
 ### UI Improvements
 
-- **Tablet Navigation Visibility**: The "Black Book" navigation label is now visible on tablet-sized screens (MD breakpoint), utilizing available navbar space.
+- **Tablet Navigation Visibility**: The "Black Book" navigation label is now visible on tablet-sized screens (MD breakpoint), utilising available navbar space.
 
 ## v11.3.0 (2026-01-21) - Properties Browser & Analytics Fixes
 
 ### Properties Browser Fix
 
-- **Fixed Field Name Mismatch**: PropertyBrowser now correctly maps API response fields (totalProperties, total_tax_value, owner_name_1, site_address, property_use) to display 9,535 Palm Beach properties
-- **Proper Stats Display**: Total Properties, Max Value, Average Value, and Known Associates now show correctly instead of NaN
-- **Epstein Property Badge**: Properties flagged as Epstein-owned now display a distinct badge
+- **Fixed Field Name Mismatch**: PropertyBrowser now correctly maps API response fields (totalProperties, total_tax_value, owner_name_1, site_address, property_use) to display 9,535 Palm Beach properties.
+- **Proper Stats Display**: Total Properties, Max Value, Average Value, and Known Associates now show correctly instead of NaN.
+- **Epstein Property Badge**: Properties flagged as Epstein-owned now display a distinct badge.
 
 ### Entity Consolidation Improvements
 
-- **Exact Name Matching**: Changed from fuzzy `%trump%` patterns to explicit exact matches for VIP consolidation (Donald Trump, President Trump, Mr Trump, etc.)
-- **Phrase-Based Junk Filtering**: Filters out non-person entities like "Trump And", "Trump Is", "With Trump", "Team Trump", "Trump Administration", "Trump Campaign", "Trump Tower"
-- **Extended VIP List**: Added Ivanka Trump and Melania Trump as separate consolidated entities
+- **Exact Name Matching**: Changed from fuzzy `%trump%` patterns to explicit exact matches for VIP consolidation (Donald Trump, President Trump, Mr Trump, etc.).
+- **Phrase-Based Junk Filtering**: Filters out non-person entities like "Trump And", "Trump Is", "With Trump", "Team Trump", "Trump Administration", "Trump Campaign", "Trump Tower".
+- **Extended VIP List**: Added Ivanka Trump and Melania Trump as separate consolidated entities.
 
 ### Navigation & UI
 
 - **Compact Nav Bar**: All 11 tabs now fit 100% width without scrolling - reduced spacing, shortened labels (Docs, Investigate, Book, Stats, Property), icons-only on md screens
-- **Junk Entity Filtering**: Added comprehensive filters for banking terms, auto companies, organizations, and truncated names in analytics charts
+- **Junk Entity Filtering**: Added comprehensive filters for banking terms, auto companies, organisations, and truncated names in analytics charts
 - **NetworkGraph Readability**: Reduced node sizes (2-8px), increased spacing for better default zoom visibility
 
 ### About Page Updates
@@ -945,53 +945,53 @@
 - **Deep Health Check Endpoint (`/api/health/deep`)**: Comprehensive deployment verification including database integrity check (PRAGMA integrity_check), critical table validation, query execution tests, WAL mode verification, and memory monitoring
 - **4-Phase Post-Deploy Verification**: Basic health (with retries), deep health, API smoke tests, and database query verification - all must pass or automatic rollback triggers
 - **Enhanced Automatic Rollback**: Now includes automatic backup discovery, stale WAL/SHM journal cleanup, and post-rollback health verification
-- **Pre-Deploy Runtime Tests**: `npm run verify` now executes 6 critical queries against the database and performs SQLite integrity checks before deployment
-- **PM2 Crash Loop Prevention**: 30s min_uptime, max 5 restarts with exponential backoff, 10s graceful shutdown for clean database closure
-- **Emergency Rollback Script**: `npm run rollback <timestamp>` for fast manual recovery
-- **Deployment Safety Documentation**: New `docs/DEPLOYMENT_SAFETY.md` with comprehensive recovery procedures
+- **Pre-Deploy Runtime Tests**: `npm run verify` now executes six critical queries against the database and performs SQLite integrity checks before deployment.
+- **PM2 Crash Loop Prevention**: 30s min_uptime, max five restarts with exponential backoff, 10s graceful shutdown for clean database closure.
+- **Emergency Rollback Script**: `npm run rollback <timestamp>` for fast manual recovery.
+- **Deployment Safety Documentation**: New `docs/DEPLOYMENT_SAFETY.md` with comprehensive recovery procedures.
 
 ### Gmail-Style Intelligent Email Filtering
 
-- **Email Classification Service**: Automatic categorization of 13,752 emails into Primary (real people), Updates (transactions), Promotions (newsletters), and Social categories
-- **Known Entity Detection**: Emails from Ehud Barak, Jeffrey Epstein, and other known entities are automatically tagged and prioritized
-- **Category Filter Tabs**: Gmail-style tabs showing email counts per category with badge indicators
-- **Entity Cross-Linking**: When viewing an email, linked entities mentioned in the content are displayed with clickable links to entity profiles
-- **Newsletter Detection**: Pattern matching for "unsubscribe", marketing domains (houzz.com, CNBC, etc.), and promotional subject lines
+- **Email Classification Service**: Automatic categorization of 13,752 emails into Primary (real people), Updates (transactions), Promotions (newsletters), and Social categories.
+- **Known Entity Detection**: Emails from Ehud Barak, Jeffrey Epstein, and other known entities are automatically tagged and prioritised.
+- **Category Filter Tabs**: Gmail-style tabs showing email counts per category with badge indicators.
+- **Entity Cross-Linking**: When viewing an email, linked entities mentioned in the content are displayed with clickable links to entity profiles.
+- **Newsletter Detection**: Pattern matching for "unsubscribe", marketing domains (houzz.com, CNBC, etc.), and promotional subject lines.
 
 ### New npm Scripts
 
-- `npm run verify:post-deploy` - Post-deployment verification with auto-rollback
-- `npm run rollback <timestamp>` - Emergency rollback to specific backup
+- `npm run verify:post-deploy` - Post-deployment verification with auto-rollback.
+- `npm run rollback <timestamp>` - Emergency rollback to specific backup.
 
 ## v11.1.0 (2026-01-21) - True Collaborative Investigations & UX Refinements
 
 ### Collaborative Investigation Platform
 
-- **Activity Feed Tab**: Real-time team activity tracking showing who added what evidence and when, with auto-refresh and time-ago formatting
-- **Case Folder Tab**: Unified evidence aggregation by type (entities, documents, flights, properties, emails) with search and relevance filtering
-- **Working Evidence Persistence**: Fixed `addToInvestigation` context to properly call the API and persist evidence with entity/document type mapping
-- **Activity Logging**: New `investigation_activity` table tracks all team actions with user attribution
+- **Activity Feed Tab**: Real-time team activity tracking showing who added what evidence and when, with auto-refresh and time-ago formatting.
+- **Case Folder Tab**: Unified evidence aggregation by type (entities, documents, flights, properties, emails) with search and relevance filtering.
+- **Working Evidence Persistence**: Fixed `addToInvestigation` context to properly call the API and persist evidence with entity/document type mapping.
+- **Activity Logging**: New `investigation_activity` table tracks all team actions with user attribution.
 
 ### Flight & Property Integration
 
-- **FlightTracker**: Added "Add to Investigation" button in flight details modal with flight metadata
-- **PropertyBrowser**: Added "Add to Investigation" button on property cards with owner/value metadata
+- **FlightTracker**: Added "Add to Investigation" button in flight details modal with flight metadata.
+- **PropertyBrowser**: Added "Add to Investigation" button on property cards with owner/value metadata.
 
 ### Analytics Enhancements
 
-- **Entity Count Slider**: Network graph now has 100-500 entity slider (default 100) for performance tuning
-- **Improved Clustering**: Better node spacing and cluster separation based on entity count
-- **VIP Entity Consolidation**: Top Mentioned Individuals now aggregates Trump/Epstein/Clinton/Maxwell variants via SQL CASE statements
-- **Person-Only Filter**: Top Mentioned now correctly filters to `entity_type = 'Person'`
+- **Entity Count Slider**: Network graph now has a 100-500 entity slider (default 100) for performance tuning.
+- **Improved Clustering**: Better node spacing and cluster separation based on entity count.
+- **VIP Entity Consolidation**: Top Mentioned Individuals now aggregates Trump/Epstein/Clinton/Maxwell variants via SQL CASE statements.
+- **Person-Only Filter**: Top Mentioned now correctly filters to `entity_type = 'Person'`.
 
 ### Navigation & UX
 
-- **Black Book Repositioned**: Moved between Emails and Analytics in main navigation
-- **Search Button Fix**: Header search button now navigates to search page even when empty
+- **Black Book Repositioned**: Moved between Emails and Analytics in the main navigation.
+- **Search Button Fix**: Header search button now navigates to the search page even when empty.
 
 ### Black Book OCR Corrections
 
-- **Trump Entry Fixed**: Corrected "Trump, Donaic" → "Trump, Donald" and "he Trump Organization" → "The Trump Organization"
+- **Trump Entry Fixed**: Corrected "Trump, Donaic" → "Trump, Donald" and "the Trump Organization" → "The Trump Organization"
 - **Runtime OCR Layer**: Added `blackBookRepository` correction system for common OCR errors (Milania→Melania, AcDonald→McDonald, etc.)
 - **Source Files Updated**: Fixed OCR errors in both source text files for database rebuilds
 
@@ -1006,37 +1006,37 @@
 
 - **110 Documented Flights**: Expanded from 29 to 110 flights spanning 1995-2005, with 305 passenger records (up from 85)
 - **Multi-Aircraft Support**: Added N212JE Gulfstream II alongside the N908JE Boeing 727 "Lolita Express"
-- **New Analytics Endpoints**: Added passenger co-occurrence analysis, frequent routes, passenger date ranges, and per-aircraft statistics
-- **Co-Passenger API**: Query who flew with whom and how often via `/api/flights/co-occurrences` and `/api/flights/co-passengers/:name`
+- **New Analytics Endpoints**: Added passenger co-occurrence analysis, frequent routes, passenger date ranges, and per-aircraft statistics.
+- **Co-Passenger API**: Query who flew with whom and how often via `/api/flights/co-occurrences` and `/api/flights/co-passengers/:name`.
 
 ### Palm Beach Property Browser
 
-- **9,535 Properties Ingested**: House Oversight Committee Palm Beach property records now searchable
-- **Known Associate Detection**: Automatically flags properties owned by Epstein network members (27 found including Trump, Wexner, Dubin)
-- **Property Stats API**: Value distributions, top owners, and property type breakdowns via `/api/properties/*`
-- **Cross-Reference Ready**: Owner names can be matched against entity database
+- **9,535 Properties Ingested**: House Oversight Committee Palm Beach property records now searchable.
+- **Known Associate Detection**: Automatically flags properties owned by Epstein network members (27 found, including Trump, Wexner, Dubin).
+- **Property Stats API**: Value distributions, top owners, and property type breakdowns via `/api/properties/*`.
+- **Cross-Reference Ready**: Owner names can be matched against the entity database.
 
 ### Open Graph Metadata
 
-- **Comprehensive Link Previews**: Every route now has informative OG tags for beautiful social media sharing
-- **Dynamic Entity Previews**: Links to entity profiles show name, role, and risk rating
-- **Search Query Context**: Shared search result links include the search term in the preview
+- **Comprehensive Link Previews**: Every route now has informative OG tags for beautiful social media sharing.
+- **Dynamic Entity Previews**: Links to entity profiles show name, role, and risk rating.
+- **Search Query Context**: Shared search result links include the search term in the preview.
 
 ### Articles Tab
 
-- **Substack Integration**: Added original investigative articles from generik.substack.com
-- **Tab Reordering**: Articles tab moved to end of Media sub-navigation
+- **Substack Integration**: Added original investigative articles from generik.substack.com.
+- **Tab Reordering**: Articles tab moved to the end of the Media sub-navigation.
 
 ## v10.12.1 (2026-01-20) - Communications Surfacing in UI
 
 - **Entity Communications Panel**: Embedded `EntityEvidencePanel` (including communications data) into the main person profile `EvidenceModal`, so each entity now shows relationship evidence and recent email communications directly alongside documents and spicy passages.
-- **Email Thread Context**: Extended `DocumentModal` with email thread context: a header bar summarizing thread size and participants, plus a right-hand sidebar listing all messages in the thread with subjects, dates, participants, and topics; clicking a message opens its email in the same viewer.
+- **Email Thread Context**: Extended `DocumentModal` with email thread context: a header bar summarising thread size and participants, plus a right-hand sidebar listing all messages in the thread with subjects, dates, participants, and topics; clicking a message opens its email in the same viewer.
 - **Investigation Communications Tab**: Added a dedicated **Communications** tab to `InvestigationWorkspace`, mounting `CommunicationAnalysis` to provide investigation-level communication pattern analysis next to the existing Evidence, Timeline, and Network views.
 - **CI/Deployment**: Ensured `npm run lint` (0 errors), `npm run type-check`, and `npm run build:prod` all succeed after the new UI wiring.
 
 ## v10.12.0 (2026-01-19) - Email Communications Intelligence Layer
 
-- **Communications Repository**: Added `communicationsRepository` to derive per-entity communication events from `entity_mentions` and `documents` with `evidence_type = 'email'`, normalizing `from`, `to`, `cc`, subject, date, and thread id.
+- **Communications Repository**: Added `communicationsRepository` to derive per-entity communication events from `entity_mentions` and `documents` with `evidence_type = 'email'`, normalising `from`, `to`, `cc`, subject, date, and thread id.
 - **New API Endpoints**: Introduced `/api/entities/:id/communications` for topic- and time-filtered views of who an entity is emailing, and `/api/documents/:id/thread` for full thread context around any email document.
 - **Topic Classification**: Implemented a rule-based topic classifier over email subjects and bodies (e.g. `flight_logistics`, `financial_transfers`, `legal_strategy`, `victims_handling`, `public_relations`, `scheduling`, `misc`) to power future analytics and UI overlays.
 - **CI Hardening**: Fixed TypeScript type errors in `AudioPlayer`, `DocumentBrowser`, and `InvestigationWorkspace` so `npm run type-check` is clean. Pointed API smoke tests at the real API port (`http://localhost:3012`).
@@ -1053,14 +1053,14 @@
 - **Live transcript highlighting**: Audio Player now highlights the active search term inline in both the sidebar transcript and the full-page transcript overlay, making it obvious exactly which words matched.
 - **Search-aware auto-scroll**: While a transcript search term is active, the player temporarily pauses automatic scroll-follow so you can read and navigate matches without the view jumping; auto-scroll resumes after the search is cleared.
 - **Aligned audio browser grid**: The Audio Browser now uses a 3-column grid by default on desktop (similar to Video), with taller cards that can show multiple transcript snippets, tags, and metadata without truncation.
-- **Transcript match previews**: Transcript snippets under each audio card highlight the query text inline and reserve space for at least 2–3 lines of context, aligning the browsing and in-player transcript experiences.
+- **Transcript match previews**: Transcript snippets under each audio card highlight the query text inline and reserve space for at least two to three lines of context, aligning the browsing and in-player transcript experiences.
 - **Entity evidence endpoints**: Backend now exposes `/api/entities/:id/evidence` and `/api/entities/:id/relations` backed by mention-level evidence and relation evidence, ready to power richer entity Evidence/Graph views.
 
 ## v10.9.0 (2026-01-17) - Unredact Integration & Timecoded Links
 
-- **Unredacted PDFs in ingest**: The core ingestion pipeline now calls `scripts/unredact.py` for PDFs before text extraction, stripping vector/image redaction overlays where possible while preserving originals and failing safely to the old behavior if Python dependencies are missing.
+- **Unredacted PDFs in ingest**: The core ingestion pipeline now calls `scripts/unredact.py` for PDFs before text extraction, stripping vector/image redaction overlays where possible while preserving originals and failing safely to the old behaviour if Python dependencies are missing.
 - **Transcript-first media search**: Audio transcript search now shows concrete transcript segments with timestamps under each result, making it obvious what text matched and letting investigators jump straight to that moment in the recording.
-- **Deep-linked timecodes**: Audio and Video players’ share buttons now copy URLs that include both media id and timecode (`?id=…&t=…`), so any quote in a transcript can be linked and shared at exact playback position.
+- **Deep-linked timecodes**: Audio and video players’ share buttons now copy URLs that include both media id and timecode (`?id=…&t=…`), so any quote in a transcript can be linked and shared at the exact playback position.
 - **Deployment hygiene**: Standardized `npm run deploy:prod` → `deploy-to-production.sh` and encoded the rule that version history must always be updated when shipping to production.
 
 ## v10.7.1 (2026-01-15) - Media Player UX Polish
@@ -1079,18 +1079,18 @@
 
 ### About Page Redactions
 
-- Corrected color coding: heavy redaction is red, moderate yellow, none green
+- Corrected colour coding: heavy redaction is red, moderate yellow, none green
 - Estimates now sourced from ingestion pipeline redaction metrics
 
 ### Video Browser
 
-- Adjusted grid sizing and row height for proper multi-column layout on production
-- Added header status and Reload control for resilience
+- Adjusted grid sizing and row height for proper multi-column layout on production.
+- Added header status and Reload control for resilience.
 
 ### Katie Johnson Ingestion
 
-- New ingestion script seeds videos under `data/media/videos/KatieJohnson`, extracts audio, runs Whisper, and stores transcripts
-- Items added to “Katie Johnson Complaint” album with verified status
+- New ingestion script seeds videos under `data/media/videos/KatieJohnson`, extracts audio, runs Whisper, and stores transcripts.
+- Items added to “Katie Johnson Complaint” album with verified status.
 
 ---
 
@@ -1148,7 +1148,7 @@
 ### ⚡ Performance Optimizations
 
 - **TensorFlow Removal**: Eliminated unused TensorFlow dependencies (271MB), reducing npm install time by 30-60 seconds.
-- **API Caching**: Implemented in-memory caching with 5-minute TTL for high-traffic endpoints (/api/entities, /api/stats, /api/black-book), reducing database load by 80-90%.
+- **API Caching**: Implemented in-memory caching with a 5-minute TTL for high-traffic endpoints (/api/entities, /api/stats, /api/black-book), reducing database load by 80-90%.
 - **Image Lazy Loading**: Added native lazy loading to article card author avatars, saving ~100KB per page load.
 - **Database Indexes**: Created composite indexes for entity sorting and mention lookups (50-70% faster queries):
   - idx_entities_rating_mentions_name
@@ -1160,7 +1160,7 @@
 
 - **React Router XSS**: Fixed vulnerability GHSA-2w69-qvjg-hvjx (updated to 6.30.3).
 - **qs DoS**: Fixed vulnerability GHSA-6rw7-vpxm-498p (updated to 6.14.1).
-- **Zero Vulnerabilities**: All 4 high severity npm vulnerabilities resolved.
+- **Zero Vulnerabilities**: All four high-severity npm vulnerabilities resolved.
 
 ### 🛠️ Technical Improvements
 
@@ -1182,12 +1182,12 @@
 - **Featured Investigation**: New homepage banner for "The Sascha Barros Testimony".
 - **Audio Experience**: Direct linking to albums (`?albumId=25`) and auto-play support.
 - **Transcript Access**: Direct linking to search (`?q=Sascha`) for transcripts.
-- **Junk Filtering**: Strict quality filters on homepage to hide low-relevance entities.
+- **Junk Filtering**: Strict quality filters on the homepage to hide low-relevance entities.
 
 ### 🐛 Fixes
 
 - Fixed `release_notes.md` duplicate history.
-- Fixed UI clipping on Media footer.
+- Fixed UI clipping on the Media footer.
 - Fixed Audio Browser icon rendering issues.
 
 ---
@@ -1220,7 +1220,7 @@
 
 ### 🎙️ Audio Experience Upgrade
 
-- **Sascha Barron Testimony**: Fully enriched the 6-part testimony with proper titles, chapter markers, and full credits to Sascha Barron and Lisa Noelle Voldeng.
+- **Sascha Barron Testimony**: Fully enriched the six-part testimony with proper titles, chapter markers, and full credits to Sascha Barron and Lisa Noelle Voldeng.
 - **Transcript Support**: Ensured timed transcripts are fully linked and searchable for all testimony files.
 - **Safety**: Applied sensitive content warnings to the album.
 
@@ -1230,8 +1230,8 @@
 
 ### 🔗 Stable Tag Recovery
 
-- **Media Tag Restoration**: Recovered and restored people tags for media items by analyzing file metadata and titles. Photos and videos are now correctly linked to key entities (Epstein, Maxwell, Trump, etc.) on the People Cards.
-- **Path Stability**: Finalized absolute-to-relative path conversion to ensure media loads reliably on all devices.
+- **Media Tag Restoration**: Recovered and restored people tags for media items by analysing file metadata and titles. Photos and videos are now correctly linked to key entities (Epstein, Maxwell, Trump, etc.) on the People Cards.
+- **Path Stability**: Finalised absolute-to-relative path conversion to ensure media loads reliably on all devices.
 
 ---
 
@@ -1239,7 +1239,7 @@
 
 ### 🛠️ Media Stability Fix
 
-- **Path Correction**: Standardized database file paths for audio and video files, resolving the "Failed to load content" errors on the production environment.
+- **Path Correction**: Standardised database file paths for audio and video files, resolving the "Failed to load content" errors on the production environment.
 - **Data Integrity**: Verified 447 media assets (Video/Audio) are correctly linked and accessible.
 
 ---
@@ -1266,8 +1266,8 @@
 
 ### 🚑 Emergency Data Quality Fix
 
-- **Junk Eradication**: Detected and removed **4,000+** junk entities including banking boilerplate ("Interest Checking", "Ending Balance"), search warrant artifacts ("Premises Known", "Seized File"), and OCR grammatical noise ("Of The", "To Be").
-- **Top 10 Cleanup**: The Entity Index is now purged of non-human artifacts, restoring key figures (Epstein, Trump, etc.) to the top of the analytics dashboard.
+- **Junk Eradication**: Detected and removed **4,000+** junk entities including banking boilerplate ("Interest Checking", "Ending Balance"), search warrant artefacts ("Premises Known", "Seized File"), and OCR grammatical noise ("Of The", "To Be").
+- **Top 10 Cleanup**: The Entity Index is now purged of non-human artefacts, restoring key figures (Epstein, Trump, etc.) to the top of the analytics dashboard.
 - **Variant Merging**: Further consolidated "Jeffrey Epstein" OCR variants.
 
 ---
@@ -1276,8 +1276,8 @@
 
 ### 🧠 Advanced Entity Consolidation
 
-- **Fuzzy Matching + Nicknames**: Implemented intelligent consolidation for Top 100 entities, capable of recognizing nicknames (e.g., "Bill" -> "William") and resolving typo-variations (e.g. "Jeffry" -> "Jeffrey").
-- **Top 100 Cleanup**: Merged **500** duplicate profiles and **14,241** mentions for the most prominent figures and organizations in the archive.
+- **Fuzzy Matching + Nicknames**: Implemented intelligent consolidation for Top 100 entities, capable of recognising nicknames (e.g., "Bill" -> "William") and resolving typo variations (e.g. "Jeffry" -> "Jeffrey").
+- **Top 100 Cleanup**: Merged **500** duplicate profiles and **14,241** mentions for the most prominent figures and organisations in the archive.
 - **Junk Filter**: Filtered out abstract noise entities (e.g. "In The", "Of The") from the top charts.
 
 ---
@@ -1286,8 +1286,8 @@
 
 ### 🧠 Intelligence Pipeline Restoration
 
-- **Restored Ultimate Pipeline**: Re-implemented the sophisticated `ingest_intelligence` module to handle entity extraction, normalization, and consolidation automatically.
-- **Entity Enrichment**: processed the entire document corpus to identify over **45,000 new entities** (Locations, Organizations, People) and map nearly **2 million co-occurrence relationships**.
+- **Restored Ultimate Pipeline**: Re-implemented the sophisticated `ingest_intelligence` module to handle entity extraction, normalisation, and consolidation automatically.
+- **Entity Enrichment**: Processed the entire document corpus to identify over **45,000 new entities** (Locations, Organisations, People) and map nearly **2 million co-occurrence relationships**.
 - **Junk Filtering**: Implemented strict OCR junk filtering to prevent "noise" entities.
 - **Consolidation**: Cleaned up duplicate "Jeffrey Epstein" entities and merged thousands of mentions.
 
@@ -1308,12 +1308,12 @@ _Released: Jan 13, 2026_
 
 - **Unified Tagging System**: You can now assign Tags and link People to **Audio** and **Video** files, just like you can with images.
 - **Batch Actions for All Media**: The powerful "Batch Select" toolbar has been ported to the Audio and Video browsers, allowing you to bulk-tag forensic evidence efficiently.
-- **"Images" Tab Renamed**: The "Media" tab is now correctly labeled "**Images**" to distinguish it from the specialized Audio and Video tabs.
+- **"Images" Tab Renamed**: The "Media" tab is now correctly labelled "**Images**" to distinguish it from the specialised Audio and Video tabs.
 - **Consistent UI**: Audio and Video cards now display their assigned tags and linked people directly on the card.
 
 ### 2. Audio Metadata Enrichment 🎵
 
-- **Smart Albums**: Audio files are now organized into logical albums (e.g., "Sascha Barros Interviews", "Ghislaine Maxwell Interviews") based on file paths and context.
+- **Smart Albums**: Audio files are now organised into logical albums (e.g., "Sascha Barros Interviews", "Ghislaine Maxwell Interviews") based on file paths and context.
 - **Transcript-Derived Titles**: Audio titles and descriptions are now automatically generated from their associated text transcripts, making them much easier to identify than raw filenames.
 - **Enriched Metadata**: Descriptions now include snippets of the transcript context for immediate relevance checking.
 
@@ -1327,7 +1327,7 @@ _Released: Jan 13, 2026_
 
 ### 1. Audio Intelligence & PDF Transcripts 🎧
 
-- **PDF-to-Text Integration**: Converted 6 PDF transcripts for SRTestimony files into searchable text.
+- **PDF-to-Text Integration**: Converted six PDF transcripts for SRTestimony files into searchable text.
 - **Smart Mapping**: Automatically linked `SRTestimony` audio files to their corresponding PDF transcripts.
 - **DOJ File Handling**: Mapped `DOJ-OGR-00030343.mp3` to its existing summary transcript.
 - **Whisper Optimization**: Transcription pipeline now intelligently skips Whisper processing when external text is found, saving significant compute time.
@@ -1336,7 +1336,7 @@ _Released: Jan 13, 2026_
 ### 2. Entity Separations & Data Quality 👥
 
 - **William Riley Separation**: Successfully separated "William H. Riley" (PI) from "William Kyle Riley" (Pilot) and other variants.
-  - Created distinct entity for William H. Riley (PI).
+  - Created a distinct entity for William H. Riley (PI).
   - Updated William Kyle Riley (Pilot) profile.
   - Re-assigned mentions based on contextual keywords ("Kiraly", "Sascha", etc.).
 - **John Podesta Update**: Enriched profile with specific roles and context from House Oversight documents.
@@ -1367,7 +1367,7 @@ _Released: Jan 12, 2026_
 
 ### 3. "Clean Sweep" Entity Hygiene 🧹
 
-- **Massive Junk Removal**: Eliminated phantom entities like "Because Epstein", "Beyond Clinton", and fragmented OCR artifacts.
+- **Massive Junk Removal**: Eliminated phantom entities like "Because Epstein", "Beyond Clinton", and fragmented OCR artefacts.
 - **Politician Consolidation**: Merged duplicate records for key figures (Jim Jordan, Andy Biggs, Clarence Thomas) into single, canonical profiles with updated bios and risk factors.
 - **William Kyle Riley**: Consolidated scattered aliases into a unified profile.
 
@@ -1386,7 +1386,7 @@ _Released: Jan 12, 2026_
 
 ### 1. Entity Cleanup 🧹
 
-- **749+ Junk Entities Removed**: Comprehensive cleanup of OCR artifacts, sentence fragments, and duplicate entity variants.
+- **749+ Junk Entities Removed**: Comprehensive cleanup of OCR artefacts, sentence fragments, and duplicate entity variants.
 - **Ghislaine Maxwell Fragments Purged**: Removed all "Ghislaine Maxwell From", "Dear Ghislaine", etc. variants - only the canonical entity remains.
 - **Final Entity Count**: 86,909 verified entities (down from 87,658).
 
@@ -1397,14 +1397,14 @@ _Released: Jan 12, 2026_
 
 ### 3. New Entity: William Kyle Riley 👤
 
-- **Canonical Profile Created**: Merged 3 variant entities ("Bill Riley", "William Riley On", "Mr. William Riley") into single "William Kyle Riley" profile.
+- **Canonical Profile Created**: Merged three variant entities ("Bill Riley", "William Riley On", "Mr. William Riley") into a single "William Kyle Riley" profile.
 - **Aliases Configured**: Searchable by "Bill Riley", "Will Riley", "Mr. William Riley".
-- **20 Document Mentions**: All mentions correctly attributed to unified profile.
+- **20 Document Mentions**: All mentions correctly attributed to the unified profile.
 
 ### 4. Server Maintenance 🔧
 
-- **Daily Cleanup Script Fixed**: `daily-cleanup.sh` now properly cleans deployment backup files (was only cleaning `backups/` subdirectory).
-- **8GB Disk Space Freed**: Removed old deployment backups on production server.
+- **Daily Cleanup Script Fixed**: `daily-cleanup.sh` now properly cleans deployment backup files (was only cleaning the `backups/` subdirectory).
+- **8GB Disk Space Freed**: Removed old deployment backups on the production server.
 
 ---
 
@@ -1444,12 +1444,12 @@ _Released: Jan 6, 2026_
 ### 2. Infinite Media Browsing 🖼️
 
 - **Server-Side Pagination**: Implemented `X-Total-Count` headers and limit/offset logic in the Media API.
-- **Infinite Scroll**: PhotoBrowser now seamlessly loads images as you scroll, utilizing `react-window` for optimal DOM performance.
+- **Infinite Scroll**: PhotoBrowser now seamlessly loads images as you scroll, utilising `react-window` for optimal DOM performance.
 
 ### 3. Document Virtualization 📄
 
 - **Optimized List View**: Re-enabled and fixed virtualization in `DocumentBrowser`, allowing smooth scrolling through 50,000+ documents without browser lag.
-- **Smart Append**: Modernized data fetching logic to support infinite append-on-scroll.
+- **Smart Append**: Modernised data fetching logic to support infinite append-on-scroll.
 
 ---
 
@@ -1461,14 +1461,14 @@ _Released: Jan 2, 2026_
 
 ### 1. Seventh Production Data 📂
 
-- **Massive Ingestion**: Successfully ingested and organized the entire "Seventh Production" document set.
+- **Massive Ingestion**: Successfully ingested and organised the entire "Seventh Production" document set.
 - **Data Consolidation**: Merged 19 numbered data folders into a single, unified collection for streamlined access.
-- **Optimized Storage**: Processed and structured thousands of new documents from the Epstein Estate.
+- **Optimised Storage**: Processed and structured thousands of new documents from the Epstein Estate.
 
 ### 2. Pipeline Enhancements ⚡
 
 - **Unified Ingestion**: Updated extraction pipeline to handle complex nested folder structures automatically.
-- **Enrichment**: Applied latest AI tagging and entity extraction to the new Seventh Production dataset.
+- **Enrichment**: Applied the latest AI tagging and entity extraction to the new Seventh Production dataset.
 
 ---
 
@@ -1478,8 +1478,8 @@ _Released: Dec 31, 2025_
 
 ## 🐛 Bug Fixes
 
-- **Modal Stacking Fix**: Resolved critical z-index regression where the **Document Viewer** and **Article Viewer** (`z-index: 10000`) were opening behind the Entity Modal (`z-index: 9999`).
-- **Maintenance**: Verified automated daily server cleanup script installation.
+- **Modal Stacking Fix**: Resolved a critical z-index regression where the **Document Viewer** and **Article Viewer** (`z-index: 10000`) were opening behind the Entity Modal (`z-index: 9999`).
+- **Maintenance**: Verified the automated daily server cleanup script installation.
 
 ---
 
@@ -1489,8 +1489,8 @@ _Released: Dec 31, 2025_
 
 ### 1. Direct Flight Tracker Route ✈️
 
-- **New `/flights` Route**: Navigate directly to the Flight Tracker without going through Timeline.
-- **Standalone Access**: FlightTracker component rendered as a dedicated page.
+- **New `/flights` Route**: Navigate directly to the Flight Tracker without going through the Timeline.
+- **Standalone Access**: The FlightTracker component is rendered as a dedicated page.
 
 ### 2. Modal Standardization 🎨
 
@@ -1527,15 +1527,15 @@ _Released: Dec 30, 2025_
 
 ### 2. Institutional Memory Suite 🧠
 
-- **The Archive Wiki (`docs/wiki.md`)**: A centralized source of truth for system architecture, logic, and roadmap.
+- **The Archive Wiki (`docs/wiki.md`)**: A centralised source of truth for system architecture, logic, and roadmap.
 - **Technical Reference Guide**: Deep dive into APIs, schema mapping, and deployment operations.
 - **User Journey Handbook**: Persona-based analysis (Journalist, Casual User, Developer) documenting mental models.
-- **Forensic Search Guide**: End-user documentation for maximizing the new Red Flag Index and Side-by-Side tools.
+- **Forensic Search Guide**: End-user documentation for maximising the new Red Flag Index and Side-by-Side tools.
 - **System Mental Model**: Narratives explaining the evolution from messy archival data to structured forensic insights.
 
 ### 3. Technical & Media Integrity 🛠️
 
-- **Zero 404s**: 100% resolution of missing media files and thumbnails through standardized path re-mapping.
+- **Zero 404s**: 100% resolution of missing media files and thumbnails through standardised path re-mapping.
 - **Photo Reliability**: Implemented strict filtering for "AI Generated" and "Confirmed Fake" tags in `PersonCard` components.
 - **`pdf-parse` Fix**: Migrated to new class-based `PDFParse` API for robust document extraction.
 
@@ -1546,7 +1546,7 @@ _Released: Dec 30, 2025_
 
 ### 4. Advanced Entity Integrity 🛡️
 
-- **Deep Cleanup**: Final removal of OCR artifacts (e.g. "Because Epstein", "Beyond Clinton") using aggressive pattern matching.
+- **Deep Cleanup**: Final removal of OCR artefacts (e.g. "Because Epstein", "Beyond Clinton") using aggressive pattern matching.
 - **Mention & Relationship Sync**: All entities now correctly reflect their true mention counts across the entire archive.
 
 ---
@@ -1572,7 +1572,7 @@ _Released: Dec 28, 2025_
 ### 3. Massive Entity Cleanup 🧹
 
 - **786+ Junk Entities Deleted**: OCR/NLP extraction errors like "Because Trump", "Beyond Clinton", "Actually Epstein" removed.
-- **Trump Family Cleaned**: Only 4 legitimate Trump entities remain (Donald, Fred C., Ivanka, Melania).
+- **Trump Family Cleaned**: Only four legitimate Trump entities remain (Donald, Fred C., Ivanka, Melania).
 - **Related References Cleaned**: 2,088 mentions, 2,870 relationships, 409 media_people tags cleaned.
 
 ### 4. UI/UX Improvements 🎨
@@ -1590,7 +1590,7 @@ _Released: Dec 26, 2025_
 
 ### 1. Document Metadata Enrichment 📊
 
-- **AI Red Flag Ratings**: All 100K+ documents analyzed with keyword-based risk scoring (1-5 scale).
+- **AI Red Flag Ratings**: All 100K+ documents analysed with keyword-based risk scoring (1-5 scale).
 - **High-Risk Detection**: 1,600+ documents flagged as high-risk (4-5) based on victim, trafficking, financial keywords.
 - **Content Hashes**: SHA-256 hash generated for each document for deduplication.
 - **Word Counts**: Accurate word counts for all text documents.
@@ -1626,22 +1626,22 @@ _Released: Dec 26, 2025_
 - **Complete Mobile Redesign**: Email client rebuilt from scratch with native iOS Mail appearance on mobile devices.
 - **Dark Mode Mobile UI**: Slate-950 dark backgrounds with proper contrast and readability.
 - **Mailbox Selection Drawer**: Bottom sheet drawer slides up to show all mailboxes with counts.
-- **iOS-Style Navigation**: Back button shows "< Mailbox Name", action bar at bottom with Archive, Delete, Reply, Forward.
-- **Sender Avatars**: Colorful gradient avatars with sender initials in the message list.
+- **iOS-Style Navigation**: Back button shows "< Mailbox Name", action bar at the bottom with Archive, Delete, Reply, Forward.
+- **Sender Avatars**: Colourful gradient avatars with sender initials in the message list.
 - **Preserved Desktop Experience**: Desktop layout remains unchanged with glass-morphism styling.
 
 ### 2. Performance Optimizations ⚡
 
 - **DocumentBrowser Virtualization**: Implemented `react-window` for grid/list views with memoized `DocumentGridCell` and `DocumentListRow` components.
 - **Timeline Virtualization**: Added `FixedSizeList` (220px rows) with memoized `TimelineEventRow` component.
-- **API Request Caching**: In-memory cache with 30-second TTL for all GET requests, reducing redundant API calls.
+- **API Request Caching**: In-memory cache with a 30-second TTL for all GET requests, reducing redundant API calls.
 - **EmailClient Search Debounce**: 300ms debounced search term to prevent filtering lag on large datasets.
 - **Component Memoization**: `GlassMessageItem` wrapped with `React.memo` for efficient re-renders.
 
 ### 3. Fake Image Ingestion 🖼️
 
 - **New Confirmed Fakes**: Ingested AI6.JPG and AI7.JPG with full watermarking and database entries.
-- **FAKE Watermark Applied**: Both images display "FAKE" overlay and warning banner in PhotoBrowser.
+- **FAKE Watermark Applied**: Both images display a "FAKE" overlay and warning banner in PhotoBrowser.
 
 ---
 
@@ -1677,22 +1677,22 @@ _Released: Dec 22, 2025_
 
 ### 1. Fool-Proof Deployment Pipeline
 
-- **Pre-Deployment Verification**: Schema, columns, ports, and config validated before any code ships
-- **Schema Sync**: Compares local vs production schemas, blocks deployment if mismatched
-- **Automatic Backup**: Creates timestamped backups of `dist/` and `epstein-archive.db` before every deploy
-- **Automatic Rollback**: If health checks fail post-deploy, system auto-restores previous version
-- **Multi-Endpoint Health Gates**: Tests `/api/health`, `/api/stats`, `/api/entities` - fails deployment if any return non-200
-- **Frontend Smoke Test**: Verifies production server loads expected content
+- **Pre-Deployment Verification**: Schema, columns, ports, and config validated before any code ships.
+- **Schema Sync**: Compares local vs production schemas, blocks deployment if mismatched.
+- **Automatic Backup**: Creates timestamped backups of `dist/` and `epstein-archive.db` before every deploy.
+- **Automatic Rollback**: If health checks fail post-deploy, the system auto-restores the previous version.
+- **Multi-Endpoint Health Gates**: Tests `/api/health`, `/api/stats`, `/api/entities` - fails deployment if any return non-200.
+- **Frontend Smoke Test**: Verifies production server loads expected content.
 
 ### 2. PM2 Hardening
 
-- **Restart Limits**: `max_restarts: 10`, `min_uptime: 10s` prevents infinite crash loops
-- **Restart Delay**: 5s backoff between restarts to prevent resource hammering
-- **Port Documentation**: Clear inline comments marking PORT=8080 as critical for Nginx
+- **Restart Limits**: `max_restarts: 10`, `min_uptime: 10s` prevents infinite crash loops.
+- **Restart Delay**: 5s backoff between restarts to prevent resource hammering.
+- **Port Documentation**: Clear inline comments marking PORT=8080 as critical for Nginx.
 
 ### 3. New Scripts
 
-- **`verify_deployment.ts`**: Pre-flight schema/config checker
+- **`verify_deployment.ts`**: Pre-flight schema/config checker.
 - **`sync_schema.sh`**: Local↔Production schema comparison
 - **`health_check_all_services.sh`**: Comprehensive monitoring script
 
@@ -1748,7 +1748,7 @@ _Released: Dec 21, 2025_
 
 ### 3. Redaction Improvements 🔓
 
-- **Global Redaction Reduction**: Average redaction rate across the archive dropped from 14% to 12.4% due to better processing of "visual redactions".
+- **Global Redaction Reduction**: The average redaction rate across the archive dropped from 14% to 12.4% due to better processing of "visual redactions".
 - **Estate Emails**: Now **88% Unredacted** (was 85%).
 - **FBI Files**: Redaction coverage reduced to **~35%** (from 40%) via better optical character recognition.
 
@@ -1769,8 +1769,8 @@ _Released: Dec 20, 2025_
 
 - **Physics-Based Network**: New interactive entity graph with force-directed layout
 - **Pan & Zoom**: Full navigation control for exploring complex entity relationships
-- **Risk Visualization**: Clear color coding for entity risk levels (Critical, High, Medium, Low)
-- **Draggable Nodes**: Organize clusters manually for better analysis
+- **Risk Visualization**: Clear colour coding for entity risk levels (Critical, High, Medium, Low)
+- **Draggable Nodes**: Organise clusters manually for better analysis
 
 ### 2. Enhanced Dashboard 📊
 
@@ -1782,13 +1782,13 @@ _Released: Dec 20, 2025_
 
 - **Case 1:20-cv-00484**: Ingested and indexed "Jeffrey-Epstein.pdf" (Jane Doe v. Trump)
 - **Full-Text Search**: Document is fully searchable (e.g., search for unique case citations)
-- **Entity Updates**: Created profile for "Bill Belichick" with 27 document mentions linked
+- **Entity Updates**: Created a profile for "Bill Belichick" with 27 document mentions linked.
 
 ### 4. Improvements & Fixes 🛠️
 
-- **Visual Stability**: Enhanced "Redacted" logo with glitch effects and fixed layout
-- **Performance**: Optimized API endpoints with smart caching
-- **Reliability**: Resolved server restart issues (PM2 config)
+- **Visual Stability**: Enhanced the "Redacted" logo with glitch effects and fixed the layout.
+- **Performance**: Optimized API endpoints with smart caching.
+- **Reliability**: Resolved server restart issues (PM2 config).
 
 ---
 
@@ -1800,27 +1800,27 @@ _Released: Dec 20, 2025_
 
 ### 1. DOJ Discovery VOL00001 📁
 
-- **FBI Evidence Ingestion**: Imported 3,158 FBI evidence items from the July 6, 2019 search of Epstein's New York mansion (9 East 71st Street)
-- **OCR Linking**: Linked 2,197 documents with their associated OCR text for full-text search
-- **Categorization**: Documents tagged with `DOJ Discovery VOL00001 (FBI 2019 Search)` source collection
+- **FBI Evidence Ingestion**: Imported 3,158 FBI evidence items from the July 6, 2019 search of Epstein's New York mansion (9 East 71st Street).
+- **OCR Linking**: Linked 2,197 documents with their associated OCR text for full-text search.
+- **Categorization**: Documents tagged with `DOJ Discovery VOL00001 (FBI 2019 Search)` source collection.
 
 ### 2. Production Hardening 🔒
 
-- **Improved Backup System**: Server now retains 48 hourly database backups (up from 1)
-- **Production-to-Local Sync**: Deployment now automatically syncs production data locally before updates
-- **Migration Stability**: Fixed FTS schema issues in `003_fts.sql` for reliable migrations
+- **Improved Backup System**: The server now retains 48 hourly database backups (up from 1).
+- **Production-to-Local Sync**: Deployment now automatically syncs production data locally before updates.
+- **Migration Stability**: Fixed FTS schema issues in `003_fts.sql` for reliable migrations.
 
 ### 3. About Page Updates 📊
 
-- **New Document Sources**: Added DOJ Discovery and USVI Property Evidence to source list
-- **Timeline Update**: Added December 20, 2025 DOJ release to key documents timeline
-- **Live Statistics**: Document count now dynamically reflects 51K+ total documents
+- **New Document Sources**: Added DOJ Discovery and USVI Property Evidence to the source list.
+- **Timeline Update**: Added December 20, 2025 DOJ release to the key documents timeline.
+- **Live Statistics**: Document count now dynamically reflects 51K+ total documents.
 
 ### 4. Data Integrity 🛡️
 
-- **Total Documents**: 51,378 (up from 48,220)
-- **Total Entities**: 45,974
-- **Evidence Types**: 8 distinct types (email, photo, Evidence, document, deposition, legal, financial, article)
+- **Total Documents**: 51,378 (up from 48,220).
+- **Total Entities**: 45,974.
+- **Evidence Types**: 8 distinct types (email, photo, Evidence, document, deposition, legal, financial, article).
 
 ---
 
@@ -1832,26 +1832,26 @@ _Released: Dec 17, 2025_
 
 ### 1. Shareable Entity URLs 🔗
 
-- **Direct Entity Links**: Share direct links to any entity profile (e.g., `epstein.academy/entity/2357`)
-- **URL Sync**: Opening an entity updates the browser URL for easy sharing
-- **Deep Linking**: Visiting a shared link opens the entity modal directly
+- **Direct Entity Links**: Share direct links to any entity profile (e.g., `epstein.academy/entity/2357`).
+- **URL Sync**: Opening an entity updates the browser URL for easy sharing.
+- **Deep Linking**: Visiting a shared link opens the entity modal directly.
 
 ### 2. Search Improvements 🔍
 
-- **API-Based Search**: Search suggestions now query the full database (45K+ entities) instead of filtering current page
-- **Debounced Requests**: 200ms debounce prevents excessive API calls while typing
-- **Loading Indicator**: Shows spinner while searching
+- **API-Based Search**: Search suggestions now query the full database (45K+ entities) instead of filtering the current page.
+- **Debounced Requests**: 200ms debounce prevents excessive API calls while typing.
+- **Loading Indicator**: Shows a spinner while searching.
 
 ### 3. Database Integrity Fixes 🛠️
 
-- **FTS Corruption Resolved**: Fixed corrupted Full-Text Search triggers that caused write failures
-- **Reid Hoffman Consolidated**: Merged duplicate entities into single profile with correct role
-- **Production Sync**: Fresh database uploaded with full write capability
+- **FTS Corruption Resolved**: Fixed corrupted Full-Text Search triggers that caused write failures.
+- **Reid Hoffman Consolidated**: Merged duplicate entities into a single profile with the correct role.
+- **Production Sync**: A fresh database was uploaded with full write capability.
 
 ### 4. Repository Cleanup 🧹
 
-- **10+ Unused Files Removed**: Deleted old/duplicate databases, backups, partial files
-- **Code Quality**: Removed tech debt (.backup, .part, .updated files)
+- **10+ Unused Files Removed**: Deleted old/duplicate databases, backups, and partial files.
+- **Code Quality**: Removed tech debt (.backup, .part, .updated files).
 
 ---
 
@@ -1869,9 +1869,9 @@ _Released: Dec 15, 2025_
 
 ### 2. Email Client Overhaul 📧
 
-A completely redesigned Email experience modelled after native desktop and iOS clients.
+A completely redesigned email experience modelled after native desktop and iOS clients.
 
-- **Classic "Outlook" Layout**: 3-pane view (Folders, Thread List, Reading Pane) for efficient browsing.
+- **Classic "Outlook" Layout**: A 3-pane view (Folders, Thread List, Reading Pane) for efficient browsing.
 - **Advanced Sorting**: Sort by **Sender**, **Subject**, and **Date** with ascending/descending toggles.
 - **Floating Window**: Multitask with a draggable, resizable pop-out window for reading emails while browsing other evidence.
 - **iOS Mobile Experience**: Native-feeling slide transitions on mobile devices for seamless navigation.
@@ -1894,7 +1894,7 @@ A completely redesigned Email experience modelled after native desktop and iOS c
 
 Batch Toolbar & Mobile UI Polish
 
-- **Improved Batch Toolbar**: Sticky bottom positioning, content-fit width, centered relative to images.
+- **Improved Batch Toolbar**: Sticky bottom positioning, content-fit width, centred relative to images.
 - **Mobile-Friendly Batch Mode**: On mobile, toolbar shows icons only (labels hidden), fits screen width with horizontal scroll.
 - **Backdrop Blur**: Batch toolbar uses translucent backdrop for premium feel.
 - **Photo Viewer Mobile Fix**: Sidebar now opens as full-width overlay (not squashing image), defaults to closed on mobile.
@@ -1906,8 +1906,8 @@ Batch Toolbar & Mobile UI Polish
 Physical Image Rotation & Bug Fixes
 
 - **Physical Image Rotation**: Images are now physically rotated on the server using Sharp. No more "double rotation" from EXIF vs CSS conflict.
-- **Cache Busting**: Rotated images immediately show the new orientation without hard refresh.
-- **Person Card Photo Fix**: Fixed bug where EntityCards showed all photos instead of photos specific to that person.
+- **Cache Busting**: Rotated images immediately show the new orientation without a hard refresh.
+- **Person Card Photo Fix**: Fixed a bug where EntityCards showed all photos instead of photos specific to that person.
 - **Tag/Person Filtering**: Fixed server-side filtering for `/api/media/images` by `tagId` and `personId`.
 
 ---
@@ -1922,10 +1922,10 @@ Media Browser Batch Editing & Enhanced Rotation
   - Batch tagging
   - Batch rating assignment
   - Batch metadata updates (titles/descriptions)
-- **Enhanced Rotation Persistence**: Fixed image rotation functionality to properly persist rotation values across navigation and sessions
-- **Batch Toolbar**: Added specialized toolbar for batch operations with intuitive controls
-- **Keyboard Shortcuts**: Added keyboard shortcuts for batch operations (Ctrl/Cmd+B to enter batch mode, Esc to exit, Ctrl/Cmd+A to select all)
-- **Visual Selection Indicators**: Added clear visual indicators for selected images in both grid and list views
+- **Enhanced Rotation Persistence**: Fixed image rotation functionality to properly persist rotation values across navigation and sessions.
+- **Batch Toolbar**: Added a specialised toolbar for batch operations with intuitive controls.
+- **Keyboard Shortcuts**: Added keyboard shortcuts for batch operations (Ctrl/Cmd+B to enter batch mode, Esc to exit, Ctrl/Cmd+A to select all).
+- **Visual Selection Indicators**: Added clear visual indicators for selected images in both grid and list views.
 
 ---
 
@@ -1933,7 +1933,7 @@ Media Browser Batch Editing & Enhanced Rotation
 
 Media Navigation & UX Improvements
 
-- **Advanced Media Filtering**: Users can now filter the media gallery by specific Tags or People.
+- **Advanced Media Filtering**: Users can now filter the media gallery by specific tags or people.
 - **Smart Navigation**: Clickable tags and person names in the Media Viewer now instantly filter the gallery.
 - **Entity Photo Integration**: Entity Cards now feature a "Photos" section displaying associated images.
 - **Image Rotation Fix**: Resolved orientation issues for specific images.
@@ -1946,7 +1946,7 @@ Media Navigation & UX Improvements
 Investigation Data & Admin Polish
 
 - **Real Investigation Data**: Replaced the "Example" placeholder with a fully seeded "Ghislaine Maxwell Recruitment Network" investigation, featuring real entities, timeline events, and hypothesis tracking.
-- **Admin Logout**: Added secure Logout functionality to the Admin Dashboard.
+- **Admin Logout**: Added secure logout functionality to the Admin Dashboard.
 - **Auth Fixes**: Fixed state persistence bug; admin UI elements now correctly vanish immediately upon logout.
 - **UI Improvements**: Fixed "View Original" tab overlay issues (z-index) and added "Click Outside to Close" for smoother document modal interactions.
 
@@ -1965,7 +1965,7 @@ Admin Dashboard & Image Rotation
 
 ## Version 6.3.1 (December 13, 2025)
 
-Entity cleanup, new Estate photos, and UI bug fixes.
+Entity cleanup, new estate photos, and UI bug fixes.
 
 **Data Updates**
 
@@ -1975,7 +1975,7 @@ Entity cleanup, new Estate photos, and UI bug fixes.
 
 **UI Fixes**
 
-- **Release Notes**: Fixed an issue where the "What's New" panel was truncating long entries (showing only the first 8 bullet points).
+- **Release Notes**: Fixed an issue where the "What's New" panel was truncating long entries (showing only the first eight bullet points).
 
 ---
 
@@ -1996,7 +1996,7 @@ Introduces comprehensive Admin Authentication and In-Place Media Editing capabil
 
 **Media Management**
 
-- **In-Place Editing**: Admins can now edit image Titles and Descriptions directly within the Media Viewer.
+- **In-Place Editing**: Admins can now edit image titles and descriptions directly within the Media Viewer.
 - **Improved Workflow**: Rapidly fix metadata errors or add context without leaving the application.
 
 ---
@@ -2036,20 +2036,20 @@ Navigation and Black Book improvements.
 
 **Navigation Menu**
 
-- Main menu buttons now fit their content with varying widths
-- Buttons still span edge-to-edge on desktop using flexbox layout
-- Increased padding for better readability
+- Main menu buttons now fit their content with varying widths.
+- Buttons still span edge-to-edge on desktop using a flexbox layout.
+- Increased padding for better readability.
 
 **Black Book Viewer**
 
-- Fix: Alphabet filter now works correctly like a real address book
-- Clicking a letter shows all entries whose names start with that letter
-- Improved sorting with case-insensitive ordering
+- Fix: Alphabet filter now works correctly like a real address book.
+- Clicking a letter shows all entries whose names start with that letter.
+- Improved sorting with case-insensitive ordering.
 
 **Data Normalization**
 
 - Fixed OCR typo: "Trump, Donaic" → "Trump, Donald"
-- Linked Trump's Black Book entry to correct entity profile
+- Linked Trump's Black Book entry to the correct entity profile.
 
 ---
 
@@ -2059,20 +2059,20 @@ Document viewer improvements and content cleanup.
 
 **Original File Links**
 
-- Linked 2,629 text documents to their original PDF files
-- "View Original" tab now displays the PDF for text documents
-- Birthday Book, Flight Logs, and all other extracted text files now show originals
+- Linked 2,629 text documents to their original PDF files.
+- "View Original" tab now displays the PDF for text documents.
+- Birthday Book, Flight Logs, and all other extracted text files now show originals.
 
 **Content Cleanup**
 
-- Stripped RTF formatting from 4 documents (EPSTEIN_INCRIMINATING_DOCUMENT, Katie Johnson Testimony, overview)
-- RTF control codes like \rtf1, \par, \fs24 removed from document content
-- Documents now display as clean, readable text
+- Stripped RTF formatting from 4 documents (EPSTEIN_INCRIMINATING_DOCUMENT, Katie Johnson Testimony, overview).
+- RTF control codes like \rtf1, \par, \fs24 removed from document content.
+- Documents now display as clean, readable text.
 
 **Database Fixes**
 
-- Resolved FTS trigger corruption causing database errors
-- Added original_file_path column with server-relative paths
+- Resolved FTS trigger corruption causing database errors.
+- Added original_file_path column with server-relative paths.
 
 ---
 
@@ -2082,8 +2082,8 @@ Black Book restoration, media enrichment, and bug fixes.
 
 **Black Book Viewer**
 
-- Fix: Black Book now loads all 1,101 contacts (was empty)
-- Fixed blackBookRepository to join with entities table instead of non-existent people table
+- Fix: Black Book now loads all 1,101 contacts (was empty).
+- Fixed BlackBookRepository to join with entities table instead of non-existent people table
 - Clickable known entities: Names with entity profiles now display as cyan links with external icon
 - Clicking opens EvidenceModal with full entity profile
 
@@ -2105,11 +2105,11 @@ Black Book restoration, media enrichment, and bug fixes.
 
 **December 11, 2025**
 
-Production readiness overhaul, containerization, and security hardening.
+Production readiness overhaul, containerisation, and security hardening.
 
 ## 🏭 Production Readiness
 
-- **Docker Support**: Added `Dockerfile` and `docker-compose.yml` for easy containerized deployment.
+- **Docker Support**: Added `Dockerfile` and `docker-compose.yml` for easy containerised deployment.
 - **Compression**: Enabled Gzip compression for all API responses to reduce bandwidth and improve load times.
 - **Process Management**: Added `ecosystem.config.cjs` for PM2 support, enabling process monitoring and auto-restart.
 - **Security Hardening**: Reinforced `helmet` policies and refined rate limiting configurations.
@@ -2124,7 +2124,7 @@ Production readiness overhaul, containerization, and security hardening.
 ## ♿ Accessibility & UX
 
 - **Accessible Network View**: Added a toggleable "Table View" for the Network Visualization, allowing screen reader users and those preferring data tables to access complex graph data.
-- **Alert Removal**: Verified removal of intrusive `alert()` dialogs in favor of non-blocking notifications.
+- **Alert Removal**: Verified removal of intrusive `alert()` dialogs in favour of non-blocking notifications.
 
 ---
 
@@ -2136,8 +2136,8 @@ Major architecture overhaul and enhanced investigative capabilities.
 
 ## 🏗️ Architecture Refactor
 
-- **Repository Pattern**: Migrated to modular Repository Pattern.
-- **Database Migrations**: Implemented formal schema migration system.
+- **Repository Pattern**: Migrated to a modular Repository Pattern.
+- **Database Migrations**: Implemented a formal schema migration system.
 - **Full Text Search (FTS5)**: Upgraded to SQLite FTS5 for faster search.
 
 ## 🕵️‍♂️ New Features
@@ -2224,11 +2224,11 @@ Forced cache invalidation to resolve production data display issues.
 
 **December 10, 2025**
 
-Codebase modernization and terminology standardization.
+Codebase modernisation and terminology standardization.
 
 ## 🧹 Refactoring
 
-- **Terminology Update**: Completely removed legacy `spice_rating` references from the codebase, replacing them with the standardized `red_flag_rating` (DB) and `redFlagIndex` (UI/Logic).
+- **Terminology Update**: Completely removed legacy `spice_rating` references from the codebase, replacing them with the standardised `red_flag_rating` (DB) and `redFlagIndex` (UI/Logic).
 - **Frontend Sync**: Updated `DataVisualization` components to use the new naming convention, ensuring data flows correctly from the API.
 - **Service Layer**: Refactored `DatabaseService` and `dataLoader` to align with the `red_flag` nomenclature.
 
@@ -2243,7 +2243,7 @@ Database schema integrity update and stability improvements.
 ## 🛠 Database & Backend
 
 - **Schema Migration**: Added missing `red_flag_rating` column to `media_items` table in the production database.
-- **Data Integrity**: Migrated existing `spice_rating` values to the standardized `red_flag_rating` column.
+- **Data Integrity**: Migrated existing `spice_rating` values to the standardised `red_flag_rating` column.
 - **Strict Validation**: Re-enabled strict schema validation on server startup to prevent future data inconsistencies.
 
 ---
@@ -2252,7 +2252,7 @@ Database schema integrity update and stability improvements.
 
 **December 10, 2025**
 
-Hotfix for data visualization and client-side caching issues.
+Hotfix for data visualisation and client-side caching issues.
 
 ## 🐛 Bug Fixes
 
@@ -2269,7 +2269,7 @@ Advanced investigative tools and network analysis enrichment.
 
 ## 🕵️‍♂️ Investigation & Network Tools
 
-- **Entity Creation UI**: Full interface to manually create new Subjects.
+- **Entity Creation UI**: Full interface to manually create new subjects.
 - **Relationship Editor**: "Create Connection" tool for entity linking.
 - **Rich Network Graph**: Detailed evidence data on connection lines.
 
@@ -2279,7 +2279,7 @@ Advanced investigative tools and network analysis enrichment.
 
 **December 10, 2025**
 
-Refining the mobile experience and standardizing "Red Flag" terminology for a consistent, professional investigative tool.
+Refining the mobile experience and standardising "Red Flag" terminology for a consistent, professional investigative tool.
 
 ## 🌟 Key Highlights
 
@@ -2291,7 +2291,7 @@ Refining the mobile experience and standardizing "Red Flag" terminology for a co
 ### 2. Red Flag Index Standardization
 
 - **Terminology Update**: Removed all remaining internal "Spice" references, replacing them with the professional "Red Flag Index" nomenclature.
-- **High-Risk Visualization**: Updated data visualization logic to ensure high-risk entities (like Jeffrey Epstein) are consistently represented with correct "Red Flag" color branding (Purple/Red).
+- **High-Risk Visualization**: Updated data visualisation logic to ensure high-risk entities (like Jeffrey Epstein) are consistently represented with correct "Red Flag" colour branding (Purple/Red).
 
 ---
 
@@ -2299,11 +2299,11 @@ Refining the mobile experience and standardizing "Red Flag" terminology for a co
 
 **December 10, 2025**
 
-Comprehensive UI modernization and critical database schema alignment. This release focuses on "making data beautiful" while ensuring absolute integrity in the production environment.
+Comprehensive UI modernisation and critical database schema alignment. This release focuses on "making data beautiful" while ensuring absolute integrity in the production environment.
 
 ## 🌟 Key Highlights
 
-### 1. Visual & UI Modernization
+### 1. Visual & UI Modernisation
 
 - **Glassmorphism Design**: Implemented a modern slate-glass aesthetic across dashboards and cards using backdrop blurs and subtle gradients.
 - **Enhanced Data Visualization**:
@@ -2386,7 +2386,7 @@ Hotfix release addressing UI regressions and critical build issues.
 ### 1. UI Restoration
 
 - **Menu Styling**: Reverted main menu to button style (fixed toolbar look).
-- **Chips Spacing**: Added gap between numbers and labels in header stats.
+- **Chips Spacing**: Added a gap between numbers and labels in header stats.
 
 ### 2. Stability Fixes
 
@@ -2444,7 +2444,7 @@ Investigation feature enhancements and UI polish.
 
 ### 3. Documentation
 
-- **Walkthrough Added**: Added comprehensive Investigation feature walkthrough explaining how to create investigations, add evidence, test hypotheses, and use all 9 workspace tabs.
+- **Walkthrough Added**: Added comprehensive Investigation feature walkthrough explaining how to create investigations, add evidence, test hypotheses, and use all nine workspace tabs.
 
 ---
 
@@ -2458,7 +2458,7 @@ Minor layout fix for document viewers.
 
 ### 1. Bug Fixes
 
-- **Document Viewer Alignment**: Fixed an issue where the document viewer modal could appear off-center or clipped. It is now properly centered to the screen viewport using React Portals.
+- **Document Viewer Alignment**: Fixed an issue where the document viewer modal could appear off-centre or clipped. It is now properly centred to the screen viewport using React Portals.
 
 ---
 
@@ -2472,7 +2472,7 @@ Fine-tuning responsive layout for search.
 
 ### 1. Visual Refinements
 
-- **Search Bar**: Optimized search input padding. Reduced excessive spacing on desktop while ensuring sufficient breathing room for the icon on mobile devices.
+- **Search Bar**: Optimised search input padding. Reduced excessive spacing on desktop while ensuring sufficient breathing room for the icon on mobile devices.
 
 ---
 
@@ -2501,7 +2501,7 @@ UI decluttering and refinement.
 ### 1. Evidence Search Polish
 
 - **Less Clutter**: Moved all descriptive help text into popover tooltips to clean up the search interface.
-- **Consistent Icons**: Standardized all help icons to use the application-standard info icon `(i)`.
+- **Consistent Icons**: Standardised all help icons to use the application-standard info icon `(i)`.
 
 ---
 
@@ -2561,7 +2561,7 @@ Enhanced the Entity details view with better filtering and sorting capabilities.
 
 ### 4. Navigation Sidebar Fixes
 
-- **Sidebar Icons**: Fixed issue where sidebar icons appeared too small when the sidebar was collapsed. Icons now maintain proper sizing and visibility in all states.
+- **Sidebar Icons**: Fixed the issue where sidebar icons appeared too small when the sidebar was collapsed. Icons now maintain proper sizing and visibility in all states.
 
 ---
 
@@ -2575,20 +2575,20 @@ We have deployed a comprehensive update focusing on entity type icon improvement
 
 ### 1. Entity Type Icon Improvements
 
-- **Differentiated Entity Icons**: Implemented distinct icons for each entity type (Person, Organization, Location, Document, etc.) to improve visual recognition
-- **Custom Dropdown Component**: Created a new EntityTypeFilter component with icon support for the entity type filter dropdown
-- **Centralized Icon Mapping**: Refactored PersonCard and PersonCardRefined components to use the centralized entityTypeIcons utility for consistency
+- **Differentiated Entity Icons**: Implemented distinct icons for each entity type (Person, Organization, Location, Document, etc.) to improve visual recognition.
+- **Custom Dropdown Component**: Created a new EntityTypeFilter component with icon support for the entity type filter dropdown.
+- **Centralized Icon Mapping**: Refactored PersonCard and PersonCardRefined components to use the centralized entityTypeIcons utility for consistency.
 
 ### 2. UI Enhancements
 
-- **Improved Visual Hierarchy**: Enhanced card layouts with better spacing and typography
-- **Consistent Iconography**: Standardized all icon usage through the Icon wrapper component
-- **Accessibility Improvements**: Added proper ARIA attributes and screen reader support
+- **Improved Visual Hierarchy**: Enhanced card layouts with better spacing and typography.
+- **Consistent Iconography**: Standardized all icon usage through the Icon wrapper component.
+- **Accessibility Improvements**: Added proper ARIA attributes and screen reader support.
 
 ### 3. Performance & Stability
 
-- **Optimized Rendering**: Improved component rendering performance with memoization
-- **Bug Fixes**: Resolved several minor UI bugs and edge cases
+- **Optimized Rendering**: Improved component rendering performance with memoization.
+- **Bug Fixes**: Resolved several minor UI bugs and edge cases.
 
 ## 📊 Technical Stats
 
@@ -2608,27 +2608,27 @@ We have deployed a comprehensive update focusing on performance improvements, na
 
 ### 1. Performance & Loading Improvements
 
-- **Single Chip Loading Indicator**: Consolidated loading indicators into a single compact chip with integrated progress bar for better UI clarity
-- **Optimized Data Fetching**: Improved database queries and caching mechanisms for faster data retrieval
-- **Virtualized Lists**: Implemented virtual scrolling for large datasets to reduce memory consumption
+- **Single Chip Loading Indicator**: Consolidated loading indicators into a single compact chip with an integrated progress bar for better UI clarity.
+- **Optimized Data Fetching**: Improved database queries and caching mechanisms for faster data retrieval.
+- **Virtualized Lists**: Implemented virtual scrolling for large datasets to reduce memory consumption.
 
 ### 2. Navigation & UI Enhancements
 
-- **Mobile Menu Verification**: Ensured all mobile menu buttons correctly navigate to their intended sections
-- **Database Schema Fixes**: Resolved issues with importance_score column and entity_summary view
-- **Provider Nesting Corrections**: Fixed component hierarchy issues in the main application structure
+- **Mobile Menu Verification**: Ensured all mobile menu buttons correctly navigate to their intended sections.
+- **Database Schema Fixes**: Resolved issues with the importance_score column and entity_summary view.
+- **Provider Nesting Corrections**: Fixed component hierarchy issues in the main application structure.
 
 ### 3. Component Improvements
 
-- **LoadingPill Component**: Redesigned with horizontal layout, compact progress bar, and improved accessibility
-- **AddToInvestigationButton**: Added quick-add functionality to Document and Media cards for streamlined workflow
-- **Error Boundary Implementation**: Enhanced error handling with scoped boundaries for critical components
+- **LoadingPill Component**: Redesigned with a horizontal layout, compact progress bar, and improved accessibility.
+- **AddToInvestigationButton**: Added quick-add functionality to Document and Media cards for streamlined workflow.
+- **Error Boundary Implementation**: Enhanced error handling with scoped boundaries for critical components.
 
 ### 4. Backend & Infrastructure
 
-- **Schema Validation**: Added comprehensive database schema validation and correction scripts
-- **Build Process Optimization**: Streamlined build process with improved error handling
-- **Dependency Updates**: Updated core dependencies for better stability and security
+- **Schema Validation**: Added comprehensive database schema validation and correction scripts.
+- **Build Process Optimization**: Streamlined build process with improved error handling.
+- **Dependency Updates**: Updated core dependencies for better stability and security.
 
 ## 📊 Technical Stats
 
@@ -2648,48 +2648,48 @@ We have deployed a comprehensive update focusing on navigation improvements, str
 
 ### 1. Navigation & Workflow Enhancements
 
-- **Contextual Deep Links**: Added direct "View related docs" and "Open network" links on cards and modals for faster navigation
-- **Consistent Breadcrumbs**: Implemented breadcrumbs across all pages for better orientation and quick context switching
-- **Unified Global Search**: Created sticky global search that filters current view with typed suggestions
-- **Streamlined Investigation Linking**: One-click "Quick Add" buttons on all card types (Person, Document, Media) to instantly add items to investigations
+- **Contextual Deep Links**: Added direct "View related docs" and "Open network" links on cards and modals for faster navigation.
+- **Consistent Breadcrumbs**: Implemented breadcrumbs across all pages for better orientation and quick context switching.
+- **Unified Global Search**: Created sticky global search that filters current view with typed suggestions.
+- **Streamlined Investigation Linking**: One-click "Quick Add" buttons on all card types (Person, Document, Media) to instantly add items to investigations.
 
 ### 2. Feedback & Loading Improvements
 
-- **Background Task Notifications**: Added lightweight toast notifications for background tasks (enrich/reindex/import) with start/success/failure states and retry options
-- **Optimistic UI Feedback**: Implemented spinners and disabled states for actions like "Open Document" and "Add to Investigation" during processing
-- **Progressive Loading**: Added virtual scrolling and page indicators for large lists (People/Media/Docs) to reduce perceived wait times
+- **Background Task Notifications**: Added lightweight toast notifications for background tasks (enrich/reindex/import) with start/success/failure states and retry options.
+- **Optimistic UI Feedback**: Implemented spinners and disabled states for actions like "Open Document" and "Add to Investigation" during processing.
+- **Progressive Loading**: Added virtual scrolling and page indicators for large lists (People/Media/Docs) to reduce perceived wait times.
 
 ### 3. Error Handling & Resilience
 
-- **Scoped Error Boundaries**: Implemented route-level error boundaries for Analytics, Media, and EvidenceModal components to localize failures
-- **Tailored Error Fallbacks**: Added specific fallbacks for common failure modes (no docs for entity, API unavailable) with helpful next steps and one-click retry
+- **Scoped Error Boundaries**: Implemented route-level error boundaries for Analytics, Media, and EvidenceModal components to localize failures.
+- **Tailored Error Fallbacks**: Added specific fallbacks for common failure modes (no docs for entity, API unavailable) with helpful next steps and one-click retry.
 
 ### 4. Consistency & Visual Improvements
 
-- **Icon Standardization**: Standardized all icon usage through the Icon wrapper component for consistency and easier theming
-- **Card Layout Unification**: Unified spacing, typography scales, and badge styles across Person, Document, and Media cards for cohesive experience
-- **Risk Badge Consolidation**: Consolidated risk badges and Red Flag Index into a single semantic component with consistent color scale and labels
+- **Icon Standardization**: Standardized all icon usage through the Icon wrapper component for consistency and easier theming.
+- **Card Layout Unification**: Unified spacing, typography scales, and badge styles across Person, Document, and Media cards for a cohesive experience.
+- **Risk Badge Consolidation**: Consolidated risk badges and Red Flag Index into a single semantic component with a consistent colour scale and labels.
 
 ### 5. Accessibility Enhancements
 
-- **Modal Focus Management**: Expanded focus management in modals with trap and restore focus functionality
-- **Color-Blind Friendly Risk States**: Replaced purely color-coded risk states with text labels and icons for better accessibility
-- **Improved Contrast**: Verified contrast ratios on dark backgrounds for better readability
+- **Modal Focus Management**: Expanded focus management in modals with trap and restore focus functionality.
+- **Color-Blind Friendly Risk States**: Replaced purely colour-coded risk states with text labels and icons for better accessibility.
+- **Improved Contrast**: Verified contrast ratios on dark backgrounds for better readability.
 
 ### 6. Discoverability & Onboarding
 
-- **First-Run Onboarding**: Implemented guided onboarding to highlight power features (filters, risk chips, adding evidence to investigations)
-- **Contextual Microcopy**: Added explanatory text under analytics charts and in Evidence modal sections to clarify what users are seeing
+- **First-Run Onboarding**: Implemented guided onboarding to highlight power features (filters, risk chips, adding evidence to investigations).
+- **Contextual Microcopy**: Added explanatory text under analytics charts and in Evidence modal sections to clarify what users are seeing.
 
 ### 7. Performance Optimizations
 
-- **Data Loading Strategies**: Implemented server-side streaming/pagination and client-side caching with prefetch for heavy endpoints
-- **Computation Optimization**: Added memoization for expensive list item computations and deferred parsing/highlighting to web workers
+- **Data Loading Strategies**: Implemented server-side streaming/pagination and client-side caching with prefetch for heavy endpoints.
+- **Computation Optimization**: Added memoization for expensive list item computations and deferred parsing/highlighting to web workers.
 
 ### 8. Information Architecture Improvements
 
-- **Media View Persistence**: Implemented localStorage persistence for media view settings, filters, and selections with quick reset option
-- **Investigation Linking Flow**: Simplified evidence linking from cards with direct one-click addition to investigations
+- **Media View Persistence**: Implemented localStorage persistence for media view settings, filters, and selections with a quick reset option.
+- **Investigation Linking Flow**: Simplified evidence linking from cards with direct one-click addition to investigations.
 
 ## 📊 Technical Stats
 
@@ -2709,24 +2709,24 @@ We have deployed a comprehensive update focusing on UI enhancements, improved ac
 
 ### 1. Enhanced Header Buttons
 
-- **Collapsible Icons**: Header buttons (What's New, Shortcuts, Verified Source) now collapse into round icons on desktop with smooth hover animations to show text labels
-- **Improved Accessibility**: Added proper `aria-label` attributes and screen reader announcements for all header interactions
-- **Smoother Animations**: Implemented transform-based transitions for better performance
+- **Collapsible Icons**: Header buttons (What's New, Shortcuts, Verified Source) now collapse into round icons on desktop with smooth hover animations to show text labels.
+- **Improved Accessibility**: Added proper `aria-label` attributes and screen reader announcements for all header interactions.
+- **Smoother Animations**: Implemented transform-based transitions for better performance.
 
 ### 2. Responsive Sort Label
 
-- **Mobile Optimization**: Removed the word "by" in "Sort by:" on mobile devices to prevent overflow and layout issues
-- **Consistent Experience**: Maintains clear functionality across all device sizes
+- **Mobile Optimization**: Removed the word "by" in "Sort by:" on mobile devices to prevent overflow and layout issues.
+- **Consistent Experience**: Maintains clear functionality across all device sizes.
 
 ### 3. Interactive Risk Filtering
 
-- **Enhanced Visual Feedback**: Risk level chips (High/Medium/Low Risk) now properly filter entities with improved visual feedback
-- **Active State Indicators**: Selected filters display with bright ring effects and enhanced shadows for clear identification
+- **Enhanced Visual Feedback**: Risk level chips (High/Medium/Low Risk) now properly filter entities with improved visual feedback.
+- **Active State Indicators**: Selected filters display with bright ring effects and enhanced shadows for clear identification.
 
 ### 4. General UI Improvements
 
-- **Search Icon**: Confirmed existing search icon implementation in the search box
-- **Tooltip Effects**: Enhanced fade effects on tooltips with transition-opacity for smoother user experience
+- **Search Icon**: Confirmed existing search icon implementation in the search box.
+- **Tooltip Effects**: Enhanced fade effects on tooltips with transition-opacity for smoother user experience.
 
 # 🚀 Epstein Archive: Production Release Notes (v2.4)
 
@@ -2736,8 +2736,8 @@ We have deployed a comprehensive update focusing on UI enhancements, improved ac
 
 ### 1. Full Data Verification & Enrichment
 
-- **Complete Entity Loading:** All entities load correctly with metadata
-- **Media Verification:** All images and documents are accessible and loading properly
+- **Complete Entity Loading:** All entities load correctly with metadata.
+- **Media Verification:** All images and documents are accessible and loading properly.
 - **Risk/Red Flag Analysis:** Complete risk scoring across all entities
 - **Relationship Mapping:** Enriched relationship data with connections between entities
 
@@ -2776,14 +2776,14 @@ We have deployed a comprehensive update focusing on UI enhancements, improved ac
 ### 1. Streamlined Navigation
 
 - **Removed Redundant Sidebar:** Eliminated the duplicate left navigation menu for a cleaner, more spacious layout.
-- **More Content Space:** Removal of the sidebar provides additional horizontal space for the main content area.
+- **More Content Space:** The removal of the sidebar provides additional horizontal space for the main content area.
 - **Simplified UX:** Users now have a single, clear navigation system via the top tabs.
 
 ### 2. Interactive Risk Level Filters
 
 - **Clickable Statistics Chips:** The High Risk, Medium Risk, and Low Risk statistics are now interactive filter buttons.
 - **Visual Feedback:** Active filters display with bright ring effects and enhanced shadows for clear indication.
-- **Toggle Behavior:** Click a chip to filter by that risk level; click again to deselect and return to unfiltered view.
+- **Toggle Behaviour:** Click a chip to filter by that risk level; click again to deselect and return to the unfiltered view.
 - **Seamless Integration:** Risk filters work in combination with existing search, entity type, and sort filters.
 - **Maintained Sort Order:** Filtering preserves the current sort order for consistent results.
 
@@ -2839,11 +2839,11 @@ We've cleaned up the database by merging duplicate and fragmented entities, resu
 
 ### 2. Advanced Relationship Mapping
 
-We've implemented a new engine to discover and visualize connections between entities.
+We've implemented a new engine to discover and visualise connections between entities.
 
 - **Co-occurrence Analysis:** Generated **208,207 relationship links** based on entities appearing in the same documents.
 - **Contextual Awareness:** Links are weighted by proximity and document relevance.
-- **Foundation for Network Graph:** This data powers the upcoming interactive network visualization.
+- **Foundation for Network Graph:** This data powers the upcoming interactive network visualisation.
 
 ### 3. Entity Importance Scoring
 
@@ -2854,13 +2854,13 @@ We've introduced a sophisticated scoring system to surface the most relevant fig
   - Network centrality (number of connections)
   - "Red Flag" rating
   - Presence in the Black Book
-- **Smart Sorting:** Default sorting now prioritizes high-importance entities, ensuring users see key figures first.
+- **Smart Sorting:** Default sorting now prioritises high-importance entities, ensuring users see key figures first.
 
 ### 4. Enhanced Filtering & UI
 
 We've refined the user interface to make data exploration more intuitive.
 
-- **Entity Type Filter:** New dropdown to filter by **Person (40,887)**, **Organization (4,351)**, **Location (1,448)**, etc.
+- **Entity Type Filter:** New dropdown to filter by **Person (40,887)**, **Organisation (4,351)**, **Location (1,448)**, etc.
 - **"Red Flag" Terminology:** Replaced all "Spice" references with professional "Red Flag" terminology (🚩) throughout the app.
 - **Improved Search:** Search results now leverage the consolidated data for better accuracy.
 
@@ -2880,6 +2880,6 @@ We've refined the user interface to make data exploration more intuitive.
 
 ## 🔜 What's Next
 
-- **Interactive Network Graph:** Visualizing the 208k relationships.
+- **Interactive Network Graph:** Visualising the 208k relationships.
 - **Timeline Analysis:** Deep dive into temporal connections.
 - **AI-Powered Summaries:** Auto-generating bios for key figures.

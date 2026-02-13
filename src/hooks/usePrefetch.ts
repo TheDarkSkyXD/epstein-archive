@@ -1,51 +1,34 @@
 /**
- * Custom hook for prefetching data on hover or viewport proximity
+ * React hooks for safe prefetching using PrefetchManager
  */
 
 import { useEffect, useRef } from 'react';
-import { apiClient } from '../services/apiClient';
+import { prefetchManager } from '../utils/prefetchManager';
 
 interface PrefetchOptions {
   enabled?: boolean;
-  delay?: number; // ms to wait before prefetching
+  delay?: number;
+  priority?: number;
 }
 
 /**
  * Prefetch entity data on hover
  */
 export function usePrefetchEntity(entityId: string | null, options: PrefetchOptions = {}) {
-  const { enabled = true, delay = 100 } = options;
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const prefetchedRef = useRef<Set<string>>(new Set());
+  const { enabled = true, delay = 200, priority = 0 } = options;
+  const timeoutRef = useRef<NodeJS.Timeout>();
 
   const prefetch = () => {
-    if (!enabled || !entityId || prefetchedRef.current.has(entityId)) return;
+    if (!enabled || !entityId) return;
 
     timeoutRef.current = setTimeout(() => {
-      // Prefetch entity overview
-      apiClient.get(`/entities/${entityId}`, { useCache: true, cacheTtl: 60000 }).catch(() => {
-        // Silently fail
-      });
-
-      // Prefetch first page of documents
-      apiClient
-        .get(`/entities/${entityId}/documents`, {
-          params: { offset: 0, limit: 20 },
-          useCache: true,
-          cacheTtl: 60000,
-        } as any)
-        .catch(() => {
-          // Silently fail
-        });
-
-      prefetchedRef.current.add(entityId);
+      prefetchManager.prefetch(entityId, priority);
     }, delay);
   };
 
   const cancel = () => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
     }
   };
 
@@ -57,46 +40,44 @@ export function usePrefetchEntity(entityId: string | null, options: PrefetchOpti
 }
 
 /**
- * Prefetch data when element enters viewport
+ * Prefetch entities when they enter the viewport
  */
 export function usePrefetchOnViewport(
-  callback: () => void,
-  options: IntersectionObserverInit & { enabled?: boolean } = {},
+  ref: React.RefObject<HTMLElement>,
+  entityId: string | null,
+  options: PrefetchOptions = {},
 ) {
-  const { enabled = true, ...observerOptions } = options;
-  const elementRef = useRef<HTMLElement | null>(null);
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const prefetchedRef = useRef(false);
+  const { enabled = true, priority = -1 } = options; // Lower priority for viewport prefetch
 
   useEffect(() => {
-    if (!enabled || prefetchedRef.current) return;
+    if (!enabled || !entityId || !ref.current) return;
 
-    const element = elementRef.current;
-    if (!element) return;
-
-    observerRef.current = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting && !prefetchedRef.current) {
-          prefetchedRef.current = true;
-
-          // Use requestIdleCallback if available, otherwise setTimeout
-          if ('requestIdleCallback' in window) {
-            requestIdleCallback(callback, { timeout: 2000 });
-          } else {
-            setTimeout(callback, 0);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            // Use requestIdleCallback for low-priority prefetch
+            if ('requestIdleCallback' in window) {
+              requestIdleCallback(() => {
+                prefetchManager.prefetch(entityId, priority);
+              });
+            } else {
+              setTimeout(() => {
+                prefetchManager.prefetch(entityId, priority);
+              }, 100);
+            }
           }
-        }
-      });
-    }, observerOptions);
+        });
+      },
+      {
+        rootMargin: '50px', // Prefetch when within 50px of viewport
+      },
+    );
 
-    observerRef.current.observe(element);
+    observer.observe(ref.current);
 
     return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-      }
+      observer.disconnect();
     };
-  }, [enabled, callback, observerOptions]);
-
-  return elementRef;
+  }, [ref, entityId, enabled, priority]);
 }

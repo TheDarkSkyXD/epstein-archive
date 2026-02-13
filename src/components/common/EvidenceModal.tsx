@@ -70,6 +70,13 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
   // Lazy load tabs - only fetch data when tab is activated
   const [tabsLoaded, setTabsLoaded] = useState<Set<string>>(new Set(['overview']));
 
+  // In-memory cache for tab data (prevents refetch on tab toggle)
+  const tabDataCache = React.useRef<{
+    documents?: any[];
+    relationships?: any[];
+    totalDocs?: number;
+  }>({});
+
   // Mark tab as loaded when activated
   const handleTabChange = useCallback((tab: 'overview' | 'evidence' | 'media' | 'network') => {
     setActiveTab(tab);
@@ -104,6 +111,14 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
     async (startIndex: number, stopIndex: number) => {
       if (isDocsLoading) return;
 
+      // Check cache first
+      if (tabDataCache.current.documents && tabDataCache.current.documents.length > 0) {
+        const allLoaded = Array.from({ length: stopIndex - startIndex + 1 }).every(
+          (_, i) => !!tabDataCache.current.documents![startIndex + i],
+        );
+        if (allLoaded) return;
+      }
+
       // Check if we already have these items to prevent redundant fetches
       const allLoaded = Array.from({ length: stopIndex - startIndex + 1 }).every(
         (_, i) => !!documents[startIndex + i],
@@ -137,6 +152,11 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
           newDocs.forEach((doc: any, i: number) => {
             next[startIndex + i] = doc;
           });
+
+          // Cache documents
+          tabDataCache.current.documents = next;
+          tabDataCache.current.totalDocs = total;
+
           return next;
         });
       } catch (err) {

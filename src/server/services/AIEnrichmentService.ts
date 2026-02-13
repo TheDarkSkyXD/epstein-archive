@@ -28,21 +28,29 @@ export class AIEnrichmentService {
 
   // Exo (distributed cluster) configuration
   private static EXO_HOST = process.env.EXO_HOST || 'http://127.0.0.1:52415';
-  private static discoveredExoModel: string | null = '8A6B3AA5';
+  private static discoveredExoModel: string | null = process.env.EXO_MODEL || null;
 
   /**
    * Automatically discovers the active model on the Exo cluster
    */
   private static async autoDiscoverExoModel(): Promise<string> {
+    // 1. If explicitly set via env var, use it (highest priority)
+    if (process.env.EXO_MODEL) return process.env.EXO_MODEL;
+
+    // 2. If already discovered, use cached
     if (this.discoveredExoModel) return this.discoveredExoModel;
 
     try {
-      console.error('🔍 Attempting Exo model discovery via:', `${this.EXO_HOST}/v1/models`);
+      console.log('🔍 Attempting Exo model discovery via:', `${this.EXO_HOST}/v1/models`);
       const response = await fetch(`${this.EXO_HOST}/v1/models`);
       if (!response.ok) throw new Error(`Exo discovery failed: ${response.status}`);
 
       const data = (await response.json()) as any;
       if (data.data && data.data.length > 0) {
+        // Log available models for debugging
+        const availableModels = data.data.map((m: any) => m.id).join(', ');
+        console.log(`📋 Available Exo models: ${availableModels}`);
+
         // 1. Try to find a Llama 3/3.1/3.2 model first
         const llama = data.data.find(
           (m: any) =>
@@ -56,18 +64,16 @@ export class AIEnrichmentService {
         // 3. Fallback to first available
         const selected = llama || anyInstruct || data.data[0];
 
-        // Strip mlx-community/ prefix if it helps, but actually standard OpenAI clients use the full ID.
-        // Exo often accepts either. We'll use the full ID to be safe, or local ID if it's a short hash.
         this.discoveredExoModel = selected.id;
-        console.error(`🤖 Auto-discovered Exo model: ${this.discoveredExoModel} (Priority match)`);
+        console.log(`🤖 Auto-discovered Exo model: ${this.discoveredExoModel}`);
         return this.discoveredExoModel!;
       }
     } catch (err: any) {
-      console.error('❌ Failed to discover Exo model:', err.message);
+      console.warn('⚠️ Failed to discover Exo model:', err.message);
     }
 
-    const fallback = process.env.EXO_MODEL || 'mlx-community/Llama-3.2-3B-Instruct-8bit';
-    console.error(`⚠️ Using fallback Exo model: ${fallback}`);
+    const fallback = 'mlx-community/Llama-3.2-3B-Instruct-8bit';
+    console.warn(`⚠️ Using fallback Exo model: ${fallback}`);
     return fallback;
   }
 
@@ -122,6 +128,9 @@ export class AIEnrichmentService {
           // OpenAI-compatible API (Exo)
           const url = `${this.EXO_HOST}/v1/chat/completions`;
           // console.log(`[AIEnrichment] Fetching from ${url} (Attempt ${attempt + 1})`);
+
+          // Use a custom agent with keepAlive to potentially reduce connection overhead,
+          // but for now, we'll just handle the ECONNRESET more gracefully in the catch block.
           const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -131,6 +140,8 @@ export class AIEnrichmentService {
               max_tokens: maxTokens,
               temperature,
             }),
+            // @ts-ignore - node-fetch/undici specific options might go here depending on version
+            // duplex: 'half' // sometimes helps with node 18+ fetch
           });
 
           if (!response.ok) {
@@ -159,14 +170,29 @@ export class AIEnrichmentService {
           const data = (await response.json()) as any;
           return data.response?.trim() || '';
         }
-      } catch (e) {
+      } catch (e: any) {
         attempt++;
+        const isNetworkError =
+          e.message.includes('fetch failed') ||
+          e.code === 'ECONNRESET' ||
+          e.cause?.code === 'ECONNRESET';
+
         if (attempt > retryCount) {
           console.error(`❌ AI Enrichment failed after ${retryCount + 1} attempts:`, e);
           return '';
         }
-        // Exponential backoff
-        await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 500));
+
+        // Exponential backoff with jitter
+        const baseDelay = isNetworkError ? 2000 : 500; // Longer wait for network errors
+        const delay = Math.pow(2, attempt) * baseDelay + Math.random() * 500;
+
+        if (isNetworkError) {
+          console.warn(
+            `⚠️ Network error (Exo/Ollama), retrying in ${Math.round(delay)}ms... (Attempt ${attempt}/${retryCount})`,
+          );
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
     return '';

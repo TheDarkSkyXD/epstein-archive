@@ -1459,7 +1459,7 @@ async function processCollection(
   console.log(`   Found ${files.length} files`);
 
   // Concurrency control
-  const CONCURRENCY_LIMIT = 20;
+  const CONCURRENCY_LIMIT = parseInt(process.env.INGEST_CONCURRENCY || '30', 10);
   let activePromises = 0;
   const queue = [...files];
 
@@ -1531,6 +1531,11 @@ async function main() {
   process.env.AI_PROVIDER = 'exo_cluster';
   process.env.ENABLE_AI_ENRICHMENT = 'true';
   console.log('🚀 Configuring AI Provider: Exo Cluster (Concurrency Enabled)');
+  if (process.env.EXO_MODEL) {
+    console.log(`   🎯 Targeting Exo Model: ${process.env.EXO_MODEL}`);
+  } else {
+    console.log('   💡 Hint: Set EXO_MODEL to target a specific model (e.g. EXO_MODEL=14BE042F)');
+  }
 
   // Initialize DB
   await initDb();
@@ -1607,7 +1612,7 @@ async function processQueue() {
   process.env.ENABLE_AI_ENRICHMENT = 'true';
   console.log('   🚀 Enforcing AI_PROVIDER=exo_cluster for maximum throughput');
 
-  const CONCURRENCY = 50; // High concurrency for cluster usage
+  const CONCURRENCY = parseInt(process.env.INGEST_CONCURRENCY || '30', 10); // Tuned for 3-node cluster
   const activePromises: Set<Promise<void>> = new Set();
   let processedCount = 0;
   let hasMore = true;
@@ -1627,14 +1632,15 @@ async function processQueue() {
 
       // Create worker promise
       const promise = (async () => {
+        const docId = Math.floor(doc.id);
         try {
           // Heartbeat
-          jobManager.renewLease(doc.id, 600);
+          jobManager.renewLease(docId, 600);
 
           // 1. Fetch full content (Synchronous via better-sqlite3)
           const fullDoc = dbSync
             .prepare('SELECT content, content_preview FROM documents WHERE id = ?')
-            .get(doc.id) as any;
+            .get(docId) as any;
 
           if (fullDoc && fullDoc.content) {
             // 2. Run AI Enrichment (Repair) - Async
@@ -1648,11 +1654,11 @@ async function processQueue() {
                 .prepare(
                   'UPDATE documents SET content = ?, content_refined = ?, last_processed_at = datetime("now") WHERE id = ?',
                 )
-                .run(refined, refined, doc.id);
+                .run(refined, refined, docId);
             }
           }
 
-          jobManager.completeJob(doc.id);
+          jobManager.completeJob(docId);
           processedCount++;
 
           if (processedCount % 10 === 0) {
@@ -1661,8 +1667,8 @@ async function processQueue() {
             );
           }
         } catch (e) {
-          console.error(`\n      ❌ Job Failed (Doc ${doc.id}): ${(e as Error).message}`);
-          jobManager.failJob(doc.id, (e as Error).message);
+          console.error(`\n      ❌ Job Failed (Doc ${docId}): ${(e as Error).message}`);
+          jobManager.failJob(docId, (e as Error).message);
         }
       })();
 

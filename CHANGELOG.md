@@ -1,5 +1,33 @@
 # Changelog
 
+## [13.2.0] - 2026-02-13
+
+### Performance
+
+- Optimized Analytics page load time by reducing subquery scans (8→3 table scans).
+- Implemented `node-cache` middleware for API response caching.
+- Integrated Exo cluster (3-node) for distributed AI enrichment.
+- Tuned ingest pipeline concurrency and batch processing for high-throughput cluster utilization.
+
+### UI/UX
+
+- Replaced "OBJ" text with color-coded badges and tooltips in flag ratings.
+- Corrected Epstein/Maxwell red flag ratings to 5 (High Risk).
+- Fixed `EvidenceModal` issues (empty documents tab, scroll locking, page reloads).
+- Implemented global scroll locking for all modals.
+- Prevented page reloads on internal links using React Router.
+
+### Data
+
+- Enriched VIP list with 59 entities (aliases, bios, Black Book links).
+- Updated database schema for better entity visibility (default view includes high-risk entities).
+- Created scripts for VIP list updates and alias population.
+
+### Reliability
+
+- Added robust error handling (exponential backoff) for AI service network errors (`ECONNRESET`).
+- Improved type safety in pipeline document ID handling.
+
 ## [13.1.7] - 2026-02-13
 
 ### Added

@@ -1,5 +1,12 @@
 # Changelog
 
+## [13.1.7] - 2026-02-13
+
+### Added
+
+- Implemented justice.gov URL routing to support legacy links (e.g., /epstein/files/\*).
+- Enhanced document path resolution with filename fallback.
+
 ## [13.1.6] - 2026-02-12
 
 ### Fixed

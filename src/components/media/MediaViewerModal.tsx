@@ -22,6 +22,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import LocationMap from '../visualizations/LocationMap';
 import TagSelector from '../common/TagSelector';
 import PeopleSelector from '../entities/PeopleSelector';
+import { useScrollLock } from '../../hooks/useScrollLock';
 
 interface MediaViewerModalProps {
   images: MediaImage[];
@@ -52,6 +53,8 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
   const [editTitle, setEditTitle] = useState('');
   const [editDesc, setEditDesc] = useState('');
   const [showCopied, setShowCopied] = useState(false);
+
+  useScrollLock(true);
 
   const currentImage = images[currentIndex];
 

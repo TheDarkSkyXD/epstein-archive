@@ -44,7 +44,6 @@ import { config } from './config/index.js';
 import { blackBookRepository } from './server/db/blackBookRepository.js';
 import { globalErrorHandler } from './server/utils/errorHandler.js';
 import { memoryRepository } from './server/db/memoryRepository.js';
-import NodeCache from 'node-cache';
 import { getDb } from './server/db/connection.js';
 import { FtsMaintenanceService } from './server/services/ftsMaintenance.js';
 import { validate, entitySchema, searchSchema } from './server/middleware/validate.js';
@@ -55,6 +54,7 @@ import relationshipsRoutes from './server/routes/relationships.js';
 import analyticsRoutes from './server/routes/analytics.js';
 import usersRoutes from './server/routes/users.js';
 import { reviewQueueRepository } from './server/db/reviewQueueRepository.js';
+import { apiCache, cacheMiddleware } from './server/middleware/cache.js';
 
 interface AuthenticatedRequest extends express.Request {
   user?: User;
@@ -62,40 +62,6 @@ interface AuthenticatedRequest extends express.Request {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-// API Response Cache - 5 minute TTL for high-traffic endpoints
-const apiCache = new NodeCache({
-  stdTTL: 300, // 5 minutes
-  checkperiod: 60, // Check for expired keys every 60s
-  useClones: false, // Don't clone objects (faster, but be careful with mutations)
-});
-
-// Cache middleware helper
-const cacheMiddleware = (ttl?: number) => {
-  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    // Generate cache key from URL + query params
-    const cacheKey = req.originalUrl || req.url;
-
-    // Try to get cached response
-    const cachedResponse = apiCache.get(cacheKey);
-    if (cachedResponse) {
-      // Send cached response
-      res.set('X-Cache', 'HIT');
-      return res.json(cachedResponse);
-    }
-
-    // Store original res.json to intercept response
-    const originalJson = res.json.bind(res);
-    res.json = function (body: any) {
-      // Cache the response
-      apiCache.set(cacheKey, body, ttl || 300);
-      res.set('X-Cache', 'MISS');
-      return originalJson(body);
-    };
-
-    next();
-  };
-};
 
 // Paths
 const CORPUS_BASE_PATH = process.env.RAW_CORPUS_BASE_PATH || '';
@@ -961,8 +927,12 @@ app.get('/api/entities/:id/documents', cacheMiddleware(30), async (req, res, nex
     const entityId = req.params.id;
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 50;
+    const offset =
+      req.query.offset !== undefined ? parseInt(req.query.offset as string) : undefined;
     const search = req.query.search as string;
-    const source = req.query.source as string;
+    // Treat 'all' as no source filter
+    const source =
+      req.query.source === 'all' || !req.query.source ? undefined : (req.query.source as string);
     const sort = req.query.sort as string;
 
     if (!/^\d+$/.test(entityId)) {
@@ -978,6 +948,7 @@ app.get('/api/entities/:id/documents', cacheMiddleware(30), async (req, res, nex
       page,
       limit,
       filters,
+      offset,
     );
 
     // Only get total count on first page or if explicitly requested

@@ -6,6 +6,7 @@ import FormField from '../common/FormField';
 import { useModalFocusTrap } from '../../hooks/useModalFocusTrap';
 import { useToasts } from '../common/ToastProvider';
 import { Person } from '../../types';
+import { useScrollLock } from '../../hooks/useScrollLock';
 
 interface CreateRelationshipModalProps {
   onClose: () => void;
@@ -21,6 +22,7 @@ export const CreateRelationshipModal: React.FC<CreateRelationshipModalProps> = (
   initialTargetId,
 }) => {
   const { modalRef } = useModalFocusTrap(true);
+  useScrollLock(true);
   const { addToast } = useToasts();
   const [loading, setLoading] = useState(false);
 

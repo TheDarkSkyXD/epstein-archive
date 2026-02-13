@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { Link } from 'react-router-dom';
 import { X, Search, FileText, Activity, AlertTriangle, ExternalLink, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FixedSizeList as List } from 'react-window';
@@ -17,7 +18,9 @@ import {
   generateDriverChips,
 } from '../../utils/forensics';
 import { Skeleton } from './Skeleton';
+import { NetworkGraph } from '../visualizations/NetworkGraph';
 import Icon from './Icon';
+import { useScrollLock } from '../../hooks/useScrollLock';
 
 interface EvidenceModalProps {
   entityId: string;
@@ -60,6 +63,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
   const [documents, setDocuments] = useState<any[]>([]);
   const [totalDocs, setTotalDocs] = useState(0);
   const [isDocsLoading, setIsDocsLoading] = useState(false);
+  const loadingCount = React.useRef(0);
   const [docsInitialized, setDocsInitialized] = useState(false);
   const [docFilters, setDocFilters] = useState({ search: '', source: 'all', sort: 'relevance' });
 
@@ -100,11 +104,11 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
       setIsDocsLoading(true);
       try {
         const limit = stopIndex - startIndex + 1;
-        const page = Math.floor(startIndex / limit) + 1;
+        const offset = startIndex;
 
         const response = (await apiClient.get(`/entities/${entityId}/documents`, {
           params: {
-            page,
+            offset,
             limit,
             ...docFilters,
           },
@@ -148,9 +152,9 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
       setDocuments([]);
       setTotalDocs(0);
       setDocsInitialized(false);
-      loadMoreDocuments(0, 1); // Initial load (startIndex, stopIndex)
+      // We rely on InfiniteLoader to trigger the initial load based on itemCount defaults
     }
-  }, [isOpen, entityId, activeTab, docFilters, loadMoreDocuments]);
+  }, [isOpen, entityId, activeTab, docFilters]);
 
   useEffect(() => {
     if (isOpen && entityId && activeTab === 'network') {
@@ -211,6 +215,45 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
     };
   }, [entity]);
 
+  // Network Graph Data
+  const graphData = useMemo(() => {
+    if (!entity) return { entities: [], relationships: [] };
+
+    const centralNode = {
+      id: entity.id,
+      name: entity.fullName,
+      role: entity.primaryRole,
+      type: 'Person',
+      connectionCount: relationships.length,
+      riskLevel: entity.redFlagRating || 0,
+      photoUrl: entity.photos?.[0]?.url,
+    };
+
+    const relatedNodes = relationships.map((r) => ({
+      id: r.entity_id,
+      name: r.name || r.entity_id,
+      role: 'Associate',
+      type: 'Person',
+      connectionCount: 1,
+      riskLevel: 0,
+    }));
+
+    const links = relationships.map((r) => ({
+      source: String(entity.id),
+      target: String(r.entity_id),
+      type: r.relationship_type,
+      weight: r.strength,
+    }));
+
+    return {
+      entities: [centralNode, ...relatedNodes],
+      relationships: links,
+    };
+  }, [entity, relationships]);
+
+  // Scroll Lock
+  useScrollLock(isOpen);
+
   if (!isOpen) return null;
 
   return createPortal(
@@ -228,14 +271,16 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
           initial={{ scale: 0.95, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.95, opacity: 0, y: 20 }}
-          className="relative w-full max-w-6xl max-h-[90vh] bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden flex flex-col"
+          className="relative w-full max-w-6xl h-[85vh] bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden flex flex-col"
         >
           {/* HEADER */}
           <div className="flex bg-slate-950 p-6 border-b border-slate-800 items-start gap-6 shrink-0">
             {/* Profile Photo */}
             <div className="relative shrink-0">
               <div className="w-24 h-24 rounded-lg bg-slate-800 border-2 border-slate-700 overflow-hidden shadow-inner">
-                {entity?.photos?.[0] ? (
+                {loading ? (
+                  <div className="w-full h-full animate-pulse bg-slate-800" />
+                ) : entity?.photos?.[0] ? (
                   <img
                     src={entity.photos[0].url}
                     alt={entity.fullName}
@@ -255,53 +300,67 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
             </div>
 
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-3 mb-1">
-                <h2 className="text-3xl font-bold text-slate-100 truncate">{entity?.fullName}</h2>
-                {entity?.likelihoodLevel === 'HIGH' && (
-                  <span className="px-2 py-0.5 rounded text-xs font-bold bg-red-500/20 text-red-500 border border-red-500/30">
-                    HIGH RISK
-                  </span>
-                )}
-              </div>
-              <div className="text-slate-400 text-lg mb-4">
-                <span>{entity?.primaryRole}</span>
-                {(entity?.birthDate || entity?.deathDate) && (
-                  <span className="ml-3 text-sm text-slate-500">
-                    {entity?.birthDate ? `b. ${entity.birthDate}` : ''}
-                    {entity?.deathDate ? ` • d. ${entity.deathDate}` : ''}
-                  </span>
-                )}
-              </div>
+              {loading ? (
+                <div className="space-y-3">
+                  <div className="h-8 w-64 bg-slate-800 rounded animate-pulse" />
+                  <div className="h-5 w-48 bg-slate-800 rounded animate-pulse" />
+                  <div className="flex gap-3 pt-1">
+                    <div className="h-4 w-20 bg-slate-800 rounded animate-pulse" />
+                    <div className="h-4 w-20 bg-slate-800 rounded animate-pulse" />
+                    <div className="h-4 w-20 bg-slate-800 rounded animate-pulse" />
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3 mb-1">
+                    <h2 className="text-3xl font-bold text-slate-100 truncate">
+                      {entity?.fullName}
+                    </h2>
+                    {entity?.likelihoodLevel === 'HIGH' && (
+                      <span className="px-2 py-0.5 rounded text-xs font-bold bg-red-500/20 text-red-500 border border-red-500/30">
+                        HIGH RISK
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-slate-400 text-lg mb-4">
+                    <span>{entity?.primaryRole}</span>
+                    {(entity?.birthDate || entity?.deathDate) && (
+                      <span className="ml-3 text-sm text-slate-500">
+                        {entity?.birthDate ? `b. ${entity.birthDate}` : ''}
+                        {entity?.deathDate ? ` • d. ${entity.deathDate}` : ''}
+                      </span>
+                    )}
+                  </div>
 
-              <div className="flex items-center gap-3 mb-4">
-                <a
-                  href={`/black-book?search=${encodeURIComponent(entity?.fullName || '')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-purple-400 hover:text-purple-300 hover:underline flex items-center gap-1 transition-colors"
-                >
-                  <Icon name="Book" size="xs" />
-                  Black Book
-                </a>
-                <a
-                  href={`/timeline?search=${encodeURIComponent(entity?.fullName || '')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-blue-400 hover:text-blue-300 hover:underline flex items-center gap-1 transition-colors"
-                >
-                  <Calendar size={12} />
-                  Timeline
-                </a>
-                <a
-                  href={`/search?q=${encodeURIComponent(entity?.fullName || '')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-cyan-400 hover:text-cyan-300 hover:underline flex items-center gap-1 transition-colors"
-                >
-                  <Icon name="Link" size="xs" />
-                  Search
-                </a>
-              </div>
+                  <div className="flex items-center gap-3 mb-4">
+                    <Link
+                      to={
+                        entity?.blackBookEntries?.[0]?.id
+                          ? `/black-book/${entity.blackBookEntries[0].id}`
+                          : `/black-book?search=${encodeURIComponent(entity?.fullName || '')}`
+                      }
+                      className="text-xs text-purple-400 hover:text-purple-300 hover:underline flex items-center gap-1 transition-colors"
+                    >
+                      <Icon name="Book" size="xs" />
+                      Black Book
+                    </Link>
+                    <Link
+                      to={`/timeline?search=${encodeURIComponent(entity?.fullName || '')}`}
+                      className="text-xs text-blue-400 hover:text-blue-300 hover:underline flex items-center gap-1 transition-colors"
+                    >
+                      <Calendar size={12} />
+                      Timeline
+                    </Link>
+                    <Link
+                      to={`/search?q=${encodeURIComponent(entity?.fullName || '')}`}
+                      className="text-xs text-cyan-400 hover:text-cyan-300 hover:underline flex items-center gap-1 transition-colors"
+                    >
+                      <Icon name="Link" size="xs" />
+                      Search
+                    </Link>
+                  </div>
+                </>
+              )}
 
               {/* ACTION TABS */}
               <div className="flex gap-1">
@@ -331,167 +390,191 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
           </div>
 
           {/* CONTENT AREA */}
-          <div className="flex-1 overflow-y-auto bg-slate-900 custom-scrollbar">
+          <div className="flex-1 min-h-0 relative bg-slate-900">
             {/* 1. OVERVIEW TAB */}
-            {loading && (
-              <div className="p-6 space-y-8">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <Skeleton className="h-48 w-full rounded-xl bg-slate-900" />
-                  <Skeleton className="h-48 w-full rounded-xl bg-slate-900" />
-                </div>
-                <div className="space-y-4">
-                  <Skeleton className="h-6 w-48 bg-slate-900" />
-                  <Skeleton className="h-24 w-full rounded-lg bg-slate-900" />
-                  <Skeleton className="h-24 w-full rounded-lg bg-slate-900" />
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'overview' && !loading && entity && forensicData && (
-              <div className="p-6 space-y-8">
-                {/* METRICS & SIGNAL PANEL */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* LEFT: CORE STATS */}
-                  <div className="bg-slate-950/50 rounded-xl p-5 border border-slate-800 flex flex-col justify-between">
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                      <div className="p-3 bg-slate-900 rounded-lg">
-                        <div className="text-2xl font-bold text-indigo-400">{entity.mentions}</div>
-                        <div className="text-xs text-slate-500 uppercase tracking-wider mt-1">
-                          Mentions
-                        </div>
-                      </div>
-                      <div className="p-3 bg-slate-900 rounded-lg">
-                        <div className="text-2xl font-bold text-sky-400">
-                          {totalDocs > 0 ? totalDocs : entity.mentions /* Fallback */}
-                        </div>
-                        <div className="text-xs text-slate-500 uppercase tracking-wider mt-1">
-                          Documents
-                        </div>
-                      </div>
-                      <div className="p-3 bg-slate-900 rounded-lg">
-                        <div className="text-2xl font-bold text-emerald-400">
-                          {entity.photos?.length || 0}
-                        </div>
-                        <div className="text-xs text-slate-500 uppercase tracking-wider mt-1">
-                          Media
-                        </div>
-                      </div>
+            {activeTab === 'overview' && (
+              <div className="absolute inset-0 overflow-y-auto custom-scrollbar">
+                {loading && (
+                  <div className="p-6 space-y-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <Skeleton className="h-48 w-full rounded-xl bg-slate-900" />
+                      <Skeleton className="h-48 w-full rounded-xl bg-slate-900" />
                     </div>
-                    <div className="mt-6 pt-6 border-t border-slate-800/50">
-                      <h4 className="text-sm font-semibold text-slate-400 mb-3 flex items-center gap-2">
-                        <Activity size={14} /> KEY DRIVERS
-                      </h4>
-                      <DriverChips chips={forensicData.drivers} />
+                    <div className="space-y-4">
+                      <Skeleton className="h-6 w-48 bg-slate-900" />
+                      <Skeleton className="h-24 w-full rounded-lg bg-slate-900" />
+                      <Skeleton className="h-24 w-full rounded-lg bg-slate-900" />
                     </div>
                   </div>
+                )}
 
-                  {/* RIGHT: SIGNAL ANALYSIS */}
-                  <div className="bg-slate-950/50 rounded-xl p-5 border border-slate-800">
-                    <h4 className="text-sm font-semibold text-slate-300 mb-4 flex items-center justify-between">
-                      <span>FORENSIC SIGNALS</span>
-                      <span className="text-xs font-mono text-slate-500">EXO-METRICS v2</span>
-                    </h4>
-                    <SignalPanel metrics={forensicData.signals} />
-
-                    <div className="mt-6 p-3 bg-slate-900/80 rounded-lg border border-slate-800/80">
-                      <div className="text-xs text-slate-400 leading-relaxed">
-                        <span className="text-indigo-400 font-medium">Analysis:</span>{' '}
-                        {forensicData.ladder.description}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* HIGH SIGNIFICANCE EVIDENCE (Formerly Spicy) */}
-                {entity.significant_passages && entity.significant_passages.length > 0 && (
-                  <div>
-                    <h3 className="text-slate-300 font-semibold flex items-center gap-2 font-mono uppercase tracking-widest text-xs mb-4">
-                      <AlertTriangle size={14} className="text-amber-500" /> High Significance
-                      Evidence
-                    </h3>
-                    <div className="grid gap-4">
-                      {entity.significant_passages.map((passage, idx) => (
-                        <div
-                          key={idx}
-                          className="bg-slate-950 border border-slate-800 rounded-lg p-4 hover:border-indigo-500/30 transition-colors"
-                        >
-                          <div className="flex items-start gap-4">
-                            <div className="mt-1 shrink-0 p-2 bg-slate-900 rounded text-slate-400">
-                              <FileText size={16} />
+                {!loading && entity && forensicData && (
+                  <div className="p-6 space-y-8">
+                    {/* METRICS & SIGNAL PANEL */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* LEFT: CORE STATS */}
+                      <div className="bg-slate-950/50 rounded-xl p-5 border border-slate-800 flex flex-col justify-between">
+                        <div className="grid grid-cols-3 gap-4 text-center">
+                          <div className="p-3 bg-slate-900 rounded-lg">
+                            <div className="text-2xl font-bold text-indigo-400">
+                              {entity.mentions}
                             </div>
-                            <div>
-                              <p className="text-slate-300 text-sm leading-relaxed font-serif italic border-l-2 border-indigo-500/50 pl-4 mb-3">
-                                "{passage.passage || passage.mention_context}"
-                              </p>
-                              <div className="flex items-center gap-3 text-xs text-slate-500">
-                                <span className="flex items-center gap-1">
-                                  <FileText size={10} /> {passage.filename}
-                                </span>
-                                <span className="w-1 h-1 rounded-full bg-slate-700" />
-                                <span className="text-indigo-400">
-                                  {passage.source || 'Document'}
-                                </span>
-                              </div>
+                            <div className="text-xs text-slate-500 uppercase tracking-wider mt-1">
+                              Mentions
+                            </div>
+                          </div>
+                          <div className="p-3 bg-slate-900 rounded-lg">
+                            <div className="text-2xl font-bold text-sky-400">
+                              {totalDocs > 0 ? totalDocs : entity.mentions /* Fallback */}
+                            </div>
+                            <div className="text-xs text-slate-500 uppercase tracking-wider mt-1">
+                              Documents
+                            </div>
+                          </div>
+                          <div className="p-3 bg-slate-900 rounded-lg">
+                            <div className="text-2xl font-bold text-emerald-400">
+                              {entity.photos?.length || 0}
+                            </div>
+                            <div className="text-xs text-slate-500 uppercase tracking-wider mt-1">
+                              Media
                             </div>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* BLACK BOOK ENTRY */}
-                {entity.blackBookEntries && entity.blackBookEntries.length > 0 && (
-                  <div className="bg-purple-950/20 border border-purple-900/30 rounded-xl p-5 mb-8">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-purple-400 font-semibold flex items-center gap-2">
-                        <Icon name="Book" size="sm" />
-                        Black Book Entry
-                      </h3>
-                      <a
-                        href={`/black-book?search=${encodeURIComponent(entity.fullName)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-purple-400 hover:text-purple-300 hover:underline flex items-center gap-1 transition-colors"
-                      >
-                        View in Black Book <ExternalLink size={12} />
-                      </a>
-                    </div>
-
-                    <div className="space-y-4">
-                      {entity.blackBookEntries.map((entry, idx) => (
-                        <div key={idx} className="space-y-3">
-                          {entry.phoneNumbers && entry.phoneNumbers.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                              {entry.phoneNumbers.map((phone: string, i: number) => (
-                                <span
-                                  key={i}
-                                  className="px-2 py-1 bg-purple-900/40 text-purple-200 text-xs rounded border border-purple-800/50 flex items-center gap-1"
-                                >
-                                  <Icon name="Phone" size="xs" /> {phone}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-
-                          {entry.notes && (
-                            <p className="text-slate-400 text-sm italic border-l-2 border-purple-800/50 pl-3">
-                              {entry.notes}
-                            </p>
-                          )}
+                        <div className="mt-6 pt-6 border-t border-slate-800/50">
+                          <h4 className="text-sm font-semibold text-slate-400 mb-3 flex items-center gap-2">
+                            <Activity size={14} /> KEY DRIVERS
+                          </h4>
+                          <DriverChips chips={forensicData.drivers} />
                         </div>
-                      ))}
+                      </div>
+
+                      {/* RIGHT: SIGNAL ANALYSIS */}
+                      <div className="bg-slate-950/50 rounded-xl p-5 border border-slate-800">
+                        <h4 className="text-sm font-semibold text-slate-300 mb-4 flex items-center justify-between">
+                          <span>FORENSIC SIGNALS</span>
+                          <span className="text-xs font-mono text-slate-500">EXO-METRICS v2</span>
+                        </h4>
+                        <SignalPanel metrics={forensicData.signals} />
+
+                        <div className="mt-6 p-3 bg-slate-900/80 rounded-lg border border-slate-800/80">
+                          <div className="text-xs text-slate-400 leading-relaxed">
+                            <span className="text-indigo-400 font-medium">Analysis:</span>{' '}
+                            {forensicData.ladder.description}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* HIGH SIGNIFICANCE EVIDENCE (Formerly Spicy) */}
+                    {entity.significant_passages && entity.significant_passages.length > 0 && (
+                      <div>
+                        <h3 className="text-slate-300 font-semibold flex items-center gap-2 font-mono uppercase tracking-widest text-xs mb-4">
+                          <AlertTriangle size={14} className="text-amber-500" /> High Significance
+                          Evidence
+                        </h3>
+                        <div className="grid gap-4">
+                          {entity.significant_passages.map((passage, idx) => (
+                            <div
+                              key={idx}
+                              className="bg-slate-950 border border-slate-800 rounded-lg p-4 hover:border-indigo-500/30 transition-colors cursor-pointer group"
+                              onClick={() =>
+                                passage.documentId &&
+                                window.open(`/documents/${passage.documentId}`, '_blank')
+                              }
+                            >
+                              <div className="flex items-start gap-4">
+                                <div className="mt-1 shrink-0 p-2 bg-slate-900 rounded text-slate-400 group-hover:text-indigo-400 transition-colors">
+                                  <FileText size={16} />
+                                </div>
+                                <div>
+                                  <p className="text-slate-300 text-sm leading-relaxed font-serif italic border-l-2 border-indigo-500/50 pl-4 mb-3">
+                                    "
+                                    {passage.passage ||
+                                      passage.mention_context ||
+                                      passage.contentSnippet ||
+                                      passage.text ||
+                                      passage.content ||
+                                      'No text available'}
+                                    "
+                                  </p>
+                                  <div className="flex items-center gap-3 text-xs text-slate-500">
+                                    <span className="flex items-center gap-1">
+                                      <FileText size={10} /> {passage.filename}
+                                    </span>
+                                    <span className="w-1 h-1 rounded-full bg-slate-700" />
+                                    <span className="text-indigo-400">
+                                      {passage.source || 'Document'}
+                                    </span>
+                                    {passage.documentId && (
+                                      <span className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-indigo-400">
+                                        Open Document <ExternalLink size={10} />
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* BLACK BOOK ENTRY */}
+                    {entity.blackBookEntries && entity.blackBookEntries.length > 0 && (
+                      <div className="bg-purple-950/20 border border-purple-900/30 rounded-xl p-5 mb-8">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-purple-400 font-semibold flex items-center gap-2">
+                            <Icon name="Book" size="sm" />
+                            Black Book Entry
+                          </h3>
+                          <Link
+                            to={
+                              entity.blackBookEntries?.[0]?.id
+                                ? `/black-book/${entity.blackBookEntries[0].id}`
+                                : `/black-book?search=${encodeURIComponent(entity.fullName)}`
+                            }
+                            className="text-xs text-purple-400 hover:text-purple-300 hover:underline flex items-center gap-1 transition-colors"
+                          >
+                            View in Black Book <ExternalLink size={12} />
+                          </Link>
+                        </div>
+
+                        <div className="space-y-4">
+                          {entity.blackBookEntries.map((entry, idx) => (
+                            <div key={idx} className="space-y-3">
+                              {entry.phoneNumbers && entry.phoneNumbers.length > 0 && (
+                                <div className="flex flex-wrap gap-2">
+                                  {entry.phoneNumbers.map((phone: string, i: number) => (
+                                    <span
+                                      key={i}
+                                      className="px-2 py-1 bg-purple-900/40 text-purple-200 text-xs rounded border border-purple-800/50 flex items-center gap-1"
+                                    >
+                                      <Icon name="Phone" size="xs" /> {phone}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+
+                              {entry.notes && (
+                                <p className="text-slate-400 text-sm italic border-l-2 border-purple-800/50 pl-3">
+                                  {entry.notes}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* BIO */}
+                    <div>
+                      <h3 className="text-slate-300 font-semibold mb-3">Biography</h3>
+                      <p className="text-slate-400 text-sm leading-relaxed max-w-4xl">
+                        {entity.bio || entity.description || 'No biographical data available.'}
+                      </p>
                     </div>
                   </div>
                 )}
-
-                {/* BIO */}
-                <div>
-                  <h3 className="text-slate-300 font-semibold mb-3">Biography</h3>
-                  <p className="text-slate-400 text-sm leading-relaxed max-w-4xl">
-                    {entity.bio || entity.description || 'No biographical data available.'}
-                  </p>
-                </div>
               </div>
             )}
 
@@ -543,14 +626,14 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                       return (
                         <InfiniteLoaderComponent
                           isItemLoaded={isItemLoaded}
-                          itemCount={totalDocs || 50} // Fallback
+                          itemCount={docsInitialized ? totalDocs : totalDocs || 50}
                           loadMoreItems={loadMoreDocuments}
                         >
                           {({ onRowsRendered, registerChild }) => (
                             <List
                               className="List"
                               height={height}
-                              itemCount={documents.length}
+                              itemCount={docsInitialized ? totalDocs : totalDocs || 50}
                               itemSize={100}
                               onItemsRendered={({ visibleStartIndex, visibleStopIndex }) => {
                                 onRowsRendered({
@@ -605,11 +688,11 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                                             ? (doc.fileSize / 1024).toFixed(1) + ' KB'
                                             : ''}
                                         </p>
-                                        {doc.contentPreview && (
-                                          <p className="text-slate-400 text-xs mt-2 line-clamp-1 italic opacity-70">
-                                            "...{doc.contentPreview}..."
-                                          </p>
-                                        )}
+                                        <p className="text-slate-400 text-xs mt-2 line-clamp-1 italic opacity-70">
+                                          {doc.contentPreview || doc.content?.substring(0, 100)
+                                            ? `"...${doc.contentPreview || doc.content?.substring(0, 100)}..."`
+                                            : '(No preview text available)'}
+                                        </p>
                                       </div>
 
                                       <div className="shrink-0 self-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -631,7 +714,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
 
             {/* 3. MEDIA TAB */}
             {activeTab === 'media' && entity && (
-              <div className="p-6">
+              <div className="absolute inset-0 overflow-y-auto custom-scrollbar p-6">
                 {entity.photos && entity.photos.length > 0 ? (
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {entity.photos.map((photo, i) => (
@@ -663,48 +746,28 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
 
             {/* 4. NETWORK TAB */}
             {activeTab === 'network' && (
-              <div className="p-6">
+              <div className="absolute inset-0 overflow-hidden bg-slate-900">
                 {networkLoading ? (
-                  <div className="text-center py-20 text-slate-500">
-                    <Search size={32} className="mx-auto mb-4 opacity-20" />
-                    <p>Loading relationships…</p>
+                  <div className="h-full flex flex-col items-center justify-center text-slate-500">
+                    <Search size={32} className="mx-auto mb-4 opacity-20 animate-pulse" />
+                    <p>Loading network graph...</p>
                   </div>
                 ) : relationships.length === 0 ? (
-                  <div className="text-center py-20 text-slate-500">
+                  <div className="h-full flex flex-col items-center justify-center text-slate-500">
                     <Search size={32} className="mx-auto mb-4 opacity-20" />
-                    <p>No relationships found.</p>
+                    <p>No connections found.</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {relationships.map((r, idx) => (
-                      <button
-                        key={`${r.entity_id}-${idx}`}
-                        type="button"
-                        onClick={() => window.open(`/entities/${r.entity_id}`, '_blank')}
-                        className="text-left p-4 bg-slate-950 border border-slate-800 rounded-lg hover:border-indigo-500/40 transition-colors"
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="text-sm font-semibold text-slate-100 truncate">
-                              {r.name || r.entity_id}
-                            </div>
-                            <div className="text-xs text-slate-400 mt-0.5">
-                              {r.relationship_type}
-                            </div>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <div className="text-xs text-slate-300">Strength</div>
-                            <div className="text-sm font-mono text-indigo-400">
-                              {Math.round((r.strength || 0) * 100) / 100}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="mt-3 text-[11px] text-slate-500">
-                          Confidence: {Math.round((r.confidence || 0) * 100)}%
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+                  <NetworkGraph
+                    entities={graphData.entities}
+                    relationships={graphData.relationships}
+                    onEntityClick={(node) => {
+                      if (String(node.id) !== String(entity?.id)) {
+                        window.open(`/entities/${node.id}`, '_blank');
+                      }
+                    }}
+                    maxNodes={50}
+                  />
                 )}
               </div>
             )}

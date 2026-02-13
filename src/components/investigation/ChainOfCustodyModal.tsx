@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useScrollLock } from '../../hooks/useScrollLock';
 
 interface Props {
   evidenceId: string;
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export const ChainOfCustodyModal: React.FC<Props> = ({ evidenceId, onClose }) => {
+  useScrollLock(true);
   const [events, setEvents] = useState<any[]>([]);
   const [actor, setActor] = useState('');
   const [action, setAction] = useState('analyzed');

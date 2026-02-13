@@ -193,21 +193,55 @@ export const statsRepository = {
 
     const pipelineProgress = statsRepository.getPipelineProgress();
 
-    // Aggregate stats query
-    const statsQuery = `
-      SELECT 
-        (SELECT COUNT(*) FROM entities) as totalEntities,
-        (SELECT COUNT(*) FROM documents) as totalDocuments,
-        (SELECT COALESCE(SUM(mentions), 0) FROM entities) as totalMentions,
-        (SELECT AVG(red_flag_rating) FROM entities) as averageRedFlagRating,
-        (SELECT COUNT(DISTINCT primary_role) FROM entities WHERE primary_role IS NOT NULL AND primary_role != '') as totalUniqueRoles,
-        (SELECT COUNT(*) FROM entities WHERE mentions > 0) as entitiesWithDocuments,
-        (SELECT COUNT(*) FROM documents WHERE metadata_json IS NOT NULL AND LENGTH(metadata_json) > 2) as documentsWithMetadata,
-        (SELECT COUNT(*) FROM documents WHERE content_refined IS NOT NULL) as documentsFixed,
-        ${hasInvestigations ? "(SELECT COUNT(*) FROM investigations WHERE status = 'active' OR status = 'open')" : '0'} as activeInvestigations
-    `;
+    // Aggregate stats - optimized to reduce table scans
+    // We combine subqueries into single passes over the tables
 
-    const stats = db.prepare(statsQuery).get() as any;
+    // 1. Entities Stats
+    const entitiesStats = db
+      .prepare(
+        `
+      SELECT 
+        COUNT(*) as totalEntities,
+        COALESCE(SUM(mentions), 0) as totalMentions,
+        AVG(red_flag_rating) as averageRedFlagRating,
+        COUNT(DISTINCT CASE WHEN primary_role IS NOT NULL AND primary_role != '' THEN primary_role END) as totalUniqueRoles,
+        COUNT(CASE WHEN mentions > 0 THEN 1 END) as entitiesWithDocuments
+      FROM entities
+    `,
+      )
+      .get() as any;
+
+    // 2. Documents Stats
+    const documentsStats = db
+      .prepare(
+        `
+      SELECT 
+        COUNT(*) as totalDocuments,
+        COUNT(CASE WHEN metadata_json IS NOT NULL AND LENGTH(metadata_json) > 2 THEN 1 END) as documentsWithMetadata,
+        COUNT(CASE WHEN content_refined IS NOT NULL THEN 1 END) as documentsFixed
+      FROM documents
+    `,
+      )
+      .get() as any;
+
+    // 3. Investigations Stats (if table exists)
+    let activeInvestigations = 0;
+    if (hasInvestigations) {
+      const invStats = db
+        .prepare(
+          `
+        SELECT COUNT(*) as count FROM investigations WHERE status = 'active' OR status = 'open'
+      `,
+        )
+        .get() as { count: number };
+      activeInvestigations = invStats.count;
+    }
+
+    const stats = {
+      ...entitiesStats,
+      ...documentsStats,
+      activeInvestigations,
+    };
 
     const topRoles = db
       .prepare(

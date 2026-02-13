@@ -36,14 +36,12 @@ export const EvidenceBadge: React.FC<EvidenceBadgeProps> = ({
     return (
       <div className="flex items-center gap-2 px-2 py-0.5 rounded border border-slate-700 bg-slate-800/40">
         {ratingObjective ? (
-          <div className="flex items-center gap-1">
-            <span className="text-[9px] uppercase text-slate-400">Obj</span>
+          <div className="flex items-center gap-1" title="Objective Risk Rating">
             <FlagStack count={ratingObjective} color={colorFor(ratingObjective)} />
           </div>
         ) : null}
         {ratingSubjective ? (
-          <div className="flex items-center gap-1">
-            <span className="text-[9px] uppercase text-slate-400">Subj</span>
+          <div className="flex items-center gap-1" title="Subjective Risk Rating">
             <FlagStack count={ratingSubjective} color={colorFor(ratingSubjective)} />
           </div>
         ) : null}

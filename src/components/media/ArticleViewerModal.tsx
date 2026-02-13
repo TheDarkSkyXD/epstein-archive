@@ -1,6 +1,7 @@
 import { createPortal } from 'react-dom';
 import { X, ExternalLink } from 'lucide-react';
 import { AddToInvestigationButton } from '../common/AddToInvestigationButton';
+import { useScrollLock } from '../../hooks/useScrollLock';
 
 interface ArticleContent {
   id: number;
@@ -31,6 +32,7 @@ function highlightText(text: string, term?: string) {
 }
 
 export const ArticleViewerModal: React.FC<Props> = ({ article, highlight, onClose }) => {
+  useScrollLock(!!article);
   if (!article) return null;
   const content = highlightText(article.content || article.summary || '', highlight);
 

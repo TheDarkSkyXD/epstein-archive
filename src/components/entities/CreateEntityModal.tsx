@@ -5,6 +5,7 @@ import { apiClient } from '../../services/apiClient';
 import FormField from '../common/FormField';
 import { useModalFocusTrap } from '../../hooks/useModalFocusTrap';
 import { useToasts } from '../common/ToastProvider';
+import { useScrollLock } from '../../hooks/useScrollLock';
 
 interface CreateEntityModalProps {
   onClose: () => void;
@@ -13,6 +14,7 @@ interface CreateEntityModalProps {
 
 export const CreateEntityModal: React.FC<CreateEntityModalProps> = ({ onClose, onSuccess }) => {
   const { modalRef } = useModalFocusTrap(true);
+  useScrollLock(true);
   const { addToast } = useToasts();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({

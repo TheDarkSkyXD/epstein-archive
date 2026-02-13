@@ -49,6 +49,8 @@ export interface Person {
     passage: string;
     filename: string;
     source?: string;
+    contentSnippet?: string;
+    documentId?: string;
   }>;
   likelihood_score?: 'HIGH' | 'MEDIUM' | 'LOW' | string;
   likelihood_level?: string;

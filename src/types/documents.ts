@@ -3,6 +3,7 @@ export interface Document {
   filename?: string;
   title: string;
   content: string;
+  contentPreview?: string;
   fileType: string;
   fileSize: number;
   dateCreated?: string;

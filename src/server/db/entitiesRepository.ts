@@ -144,6 +144,7 @@ export const entitiesRepository = {
       whereConditions.push(`COALESCE(primary_role, '') NOT IN ('Unknown','UNK')`);
       whereConditions.push(`(
         mentions >= 10
+        OR red_flag_rating >= 4
         OR bio IS NOT NULL
         OR (SELECT COUNT(*) FROM media_item_people WHERE entity_id = entities.id) > 0
         OR (SELECT COUNT(*) FROM black_book_entries WHERE person_id = entities.id) > 0
@@ -908,10 +909,12 @@ export const entitiesRepository = {
       .prepare(
         `
             SELECT 
-                em.mention_context as passage,
+                COALESCE(em.mention_context, substr(d.content, 1, 300)) as passage,
                 em.surface_text as keyword,
                 d.file_name as filename,
-                d.evidence_type as source
+                d.evidence_type as source,
+                d.id as documentId,
+                substr(d.content, 1, 300) as contentSnippet
             FROM entity_mentions em
             JOIN documents d ON em.document_id = d.id
             WHERE em.entity_id = ?
@@ -924,6 +927,8 @@ export const entitiesRepository = {
       keyword: string;
       filename: string;
       source: string;
+      documentId: string;
+      contentSnippet: string;
     }>;
 
     // Fetch photos for this specific entity
@@ -1161,7 +1166,6 @@ export const entitiesRepository = {
             d.date_created as dateCreated,
             substr(d.content, 1, 200) as contentPreview,
             d.evidence_type as evidenceType,
-            d.content,
             d.metadata_json as metadataJson,
             d.word_count as wordCount,
             d.red_flag_rating as redFlagRating,
@@ -1188,7 +1192,6 @@ export const entitiesRepository = {
       dateCreated: string;
       contentPreview: string;
       evidenceType: string;
-      content: string;
       metadataJson: string;
       wordCount: number;
       redFlagRating: number;
@@ -1269,9 +1272,10 @@ export const entitiesRepository = {
     page: number = 1,
     limit: number = 50,
     filters?: any,
+    explicitOffset?: number,
   ): any[] => {
     const db = getDb();
-    const offset = (page - 1) * limit;
+    const offset = explicitOffset !== undefined ? explicitOffset : (page - 1) * limit;
 
     // Base query
     let query = `
@@ -1289,7 +1293,7 @@ export const entitiesRepository = {
         d.red_flag_rating as redFlagRating,
         
         -- Join fields
-        em.significance_score,
+        em.confidence as significance_score,
         em.mention_context
       FROM documents d
       JOIN entity_mentions em ON d.id = em.document_id
@@ -1320,10 +1324,10 @@ export const entitiesRepository = {
     } else if (filters?.sort === 'date-desc') {
       query += ` ORDER BY d.date_created DESC`;
     } else if (filters?.sort === 'relevance') {
-      query += ` ORDER BY em.significance_score DESC, d.red_flag_rating DESC`;
+      query += ` ORDER BY em.confidence DESC, d.red_flag_rating DESC`;
     } else {
       // Default risk
-      query += ` ORDER BY d.red_flag_rating DESC, em.significance_score DESC`;
+      query += ` ORDER BY d.red_flag_rating DESC, em.confidence DESC`;
     }
 
     query += ` LIMIT ? OFFSET ?`;

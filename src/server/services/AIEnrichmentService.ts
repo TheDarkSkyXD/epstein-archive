@@ -27,7 +27,7 @@ export class AIEnrichmentService {
   private static OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3.2:1b';
 
   // Exo (distributed cluster) configuration
-  private static EXO_HOST = process.env.EXO_HOST || 'http://localhost:52415';
+  private static EXO_HOST = process.env.EXO_HOST || 'http://127.0.0.1:52415';
   private static discoveredExoModel: string | null = '8A6B3AA5';
 
   /**
@@ -120,7 +120,9 @@ export class AIEnrichmentService {
         const modelId = await this.getModelId();
         if (provider === 'exo_cluster') {
           // OpenAI-compatible API (Exo)
-          const response = await fetch(`${this.EXO_HOST}/v1/chat/completions`, {
+          const url = `${this.EXO_HOST}/v1/chat/completions`;
+          // console.log(`[AIEnrichment] Fetching from ${url} (Attempt ${attempt + 1})`);
+          const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

@@ -6,14 +6,13 @@ import fs from 'fs';
 import { ingestRunsRepository } from '../db/ingestRunsRepository.js';
 import { BackupService } from '../services/BackupService.js';
 import { FtsMaintenanceService } from '../services/ftsMaintenance.js';
+import { cacheMiddleware } from '../middleware/cache.js';
 
 const router = Router();
 
-// API Response Cache helper would normally be here if we wanted per-route caching,
-// but for simplicity we'll assume it's passed or handled by the requester.
-
 // Public Stats Endpoint (for About page)
-router.get('/', async (_req, res, next) => {
+// Cache for 5 minutes (300 seconds)
+router.get('/', cacheMiddleware(300), async (_req, res, next) => {
   try {
     const stats = statsRepository.getStatistics();
     res.json(stats);

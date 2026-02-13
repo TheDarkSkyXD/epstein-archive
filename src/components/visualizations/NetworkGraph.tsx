@@ -2,7 +2,7 @@ import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react'
 import { ZoomIn, ZoomOut, Move, RefreshCw, AlertTriangle, Link2, Filter } from 'lucide-react';
 
 interface EntityNode {
-  id: number;
+  id: string | number;
   name: string;
   role?: string;
   type?: string;
@@ -57,7 +57,10 @@ const getNodeSize = (connectionCount: number, maxConnections: number): number =>
 };
 
 // Simple collision resolution for main thread (small datasets)
-const applyCollisionResolution = (nodes: GraphNode[], draggedNode: number | null): GraphNode[] => {
+const applyCollisionResolution = (
+  nodes: GraphNode[],
+  draggedNode: string | number | null,
+): GraphNode[] => {
   const newNodes = nodes.map((n) => ({ ...n }));
 
   for (let i = 0; i < newNodes.length; i++) {
@@ -97,7 +100,7 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
   const [transform, setTransform] = useState({ x: 0, y: 0, k: 0.8 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<Point>({ x: 0, y: 0 });
-  const [draggedNode, setDraggedNode] = useState<number | null>(null);
+  const [draggedNode, setDraggedNode] = useState<string | number | null>(null);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const [modifierKeyPressed, setModifierKeyPressed] = useState(false);
   // TODO: Track space key for pan mode - see UNUSED_VARIABLES_RECOMMENDATIONS.md

@@ -2,6 +2,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useModalFocusTrap } from '../hooks/useModalFocusTrap';
+import { useScrollLock } from '../hooks/useScrollLock';
 
 interface KeyboardShortcutsModalProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface KeyboardShortcutsModalProps {
 
 const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ isOpen, onClose }) => {
   const { modalRef } = useModalFocusTrap(isOpen);
+  useScrollLock(isOpen);
 
   if (!isOpen) return null;
 

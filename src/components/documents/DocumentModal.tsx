@@ -8,6 +8,7 @@ import { MediaViewer } from '../media/MediaViewer';
 import { DocumentContentRenderer } from './DocumentContentRenderer';
 import { useModalFocusTrap } from '../../hooks/useModalFocusTrap';
 import { EvidenceModal } from '../common/EvidenceModal';
+import { useScrollLock } from '../../hooks/useScrollLock';
 
 interface Props {
   id: string;
@@ -47,6 +48,7 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
   const [thread, setThread] = useState<{ threadId: string; messages: any[] } | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const { modalRef } = useModalFocusTrap(true);
+  useScrollLock(true);
 
   useEffect(() => {
     let mounted = true;

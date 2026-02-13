@@ -231,6 +231,15 @@ else
       echo 'Installing Dependencies...'
       export PNPM_HOME=\"/home/deploy/.local/share/pnpm\"
       export PATH=\"\$PNPM_HOME:\$PATH\"
+      
+      echo 'Configuring Environment...'
+      echo \"NODE_ENV=production\" > .env
+      echo \"JWT_SECRET=epstein-archive-prod-jwt-secret-2026\" >> .env
+      echo \"SESSION_SECRET=epstein-archive-prod-session-secret-2026\" >> .env
+      echo \"RAW_CORPUS_BASE_PATH=./data\" >> .env
+      echo \"PORT=3012\" >> .env
+      
+      # Export for current session as well
       export NODE_ENV=production
       export JWT_SECRET=\"epstein-archive-prod-jwt-secret-2026\"
       export SESSION_SECRET=\"epstein-archive-prod-session-secret-2026\"

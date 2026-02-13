@@ -147,6 +147,9 @@ class ApiClient {
       });
     };
 
+    // Performance monitoring
+    const startTime = performance.now();
+
     try {
       let response = await executeRequest(this.accessToken);
 
@@ -169,12 +172,37 @@ class ApiClient {
 
       const data = await response.json();
 
+      // Log performance metrics
+      const duration = performance.now() - startTime;
+      const payloadSize = JSON.stringify(data).length;
+
+      // Import dynamically to avoid circular dependency
+      if (typeof window !== 'undefined') {
+        import('../utils/performanceMonitor.js')
+          .then(({ PerformanceMonitor }) => {
+            PerformanceMonitor.logAPICall(url, duration, payloadSize, response.status);
+          })
+          .catch(() => {
+            // Silently fail if performance monitor not available
+          });
+      }
+
       if (shouldCache) {
         setCachedData(url, data, cacheTtl);
       }
 
       return data;
     } catch (error) {
+      // Log failed API call
+      const duration = performance.now() - startTime;
+      if (typeof window !== 'undefined') {
+        import('../utils/performanceMonitor.js')
+          .then(({ PerformanceMonitor }) => {
+            PerformanceMonitor.logAPICall(url, duration, 0, 0);
+          })
+          .catch(() => {});
+      }
+
       if (error instanceof Error) throw error;
       throw new Error('Network error occurred');
     }

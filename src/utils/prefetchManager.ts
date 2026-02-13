@@ -1,12 +1,10 @@
 /**
- * PREFETCH MANAGER
+ * PREFETCH MANAGER V2
  *
- * Safe, rate-limited prefetching to prevent self-DDOS
- * - Max 3 concurrent requests
- * - Deduplication by entityId
- * - Cancels on fast scroll
- * - Respects Save-Data header
- * - Only prefetches lean DTOs
+ * Enhanced with:
+ * - TTL + LRU eviction (max 50 entities)
+ * - Metrics tracking (hit rate, wasted prefetches)
+ * - Memory leak prevention
  */
 
 interface PrefetchRequest {
@@ -16,12 +14,27 @@ interface PrefetchRequest {
   controller: AbortController;
 }
 
-class PrefetchManager {
+interface PrefetchMetrics {
+  totalPrefetches: number;
+  cacheHits: number;
+  wastedPrefetches: number; // Prefetched but never used
+  evictions: number;
+}
+
+interface CachedEntity {
+  data: any;
+  timestamp: number;
+  accessed: number; // Last access time for LRU
+  prefetched: boolean; // Was this prefetched or fetched normally?
+}
+
+class PrefetchManagerV2 {
   private queue: PrefetchRequest[] = [];
   private inFlight = new Map<string, AbortController>();
-  private cache = new Map<string, { data: any; timestamp: number }>();
+  private cache = new Map<string, CachedEntity>();
 
   private readonly MAX_CONCURRENT = 3;
+  private readonly MAX_CACHE_SIZE = 50; // LRU limit
   private readonly CACHE_TTL = 60000; // 60s
   private readonly SCROLL_VELOCITY_THRESHOLD = 500; // px/s
 
@@ -30,6 +43,13 @@ class PrefetchManager {
   private scrollVelocity = 0;
 
   private enabled = true;
+
+  private metrics: PrefetchMetrics = {
+    totalPrefetches: 0,
+    cacheHits: 0,
+    wastedPrefetches: 0,
+    evictions: 0,
+  };
 
   constructor() {
     // Disable on slow connection or Save-Data
@@ -51,6 +71,9 @@ class PrefetchManager {
     if (typeof window !== 'undefined') {
       window.addEventListener('scroll', this.handleScroll, { passive: true });
     }
+
+    // Periodic cleanup of expired entries
+    setInterval(() => this.cleanupExpired(), 30000); // Every 30s
   }
 
   private handleScroll = () => {
@@ -71,8 +94,52 @@ class PrefetchManager {
     this.lastScrollTime = now;
   };
 
+  private cleanupExpired(): void {
+    const now = Date.now();
+    const toDelete: string[] = [];
+
+    for (const [entityId, cached] of this.cache.entries()) {
+      if (now - cached.timestamp > this.CACHE_TTL) {
+        // Track wasted prefetches (prefetched but never accessed)
+        if (cached.prefetched && cached.accessed === cached.timestamp) {
+          this.metrics.wastedPrefetches++;
+        }
+        toDelete.push(entityId);
+      }
+    }
+
+    for (const entityId of toDelete) {
+      this.cache.delete(entityId);
+      this.metrics.evictions++;
+    }
+  }
+
+  private evictLRU(): void {
+    if (this.cache.size <= this.MAX_CACHE_SIZE) return;
+
+    // Find least recently accessed entry
+    let oldestEntityId: string | null = null;
+    let oldestAccess = Infinity;
+
+    for (const [entityId, cached] of this.cache.entries()) {
+      if (cached.accessed < oldestAccess) {
+        oldestAccess = cached.accessed;
+        oldestEntityId = entityId;
+      }
+    }
+
+    if (oldestEntityId) {
+      const cached = this.cache.get(oldestEntityId)!;
+      if (cached.prefetched && cached.accessed === cached.timestamp) {
+        this.metrics.wastedPrefetches++;
+      }
+      this.cache.delete(oldestEntityId);
+      this.metrics.evictions++;
+    }
+  }
+
   /**
-   * Prefetch entity overview DTO
+   * Prefetch entity overview DTO (lightweight only)
    */
   async prefetch(entityId: string, priority = 0): Promise<void> {
     if (!this.enabled) return;
@@ -116,9 +183,10 @@ class PrefetchManager {
       if (!request) break;
 
       this.inFlight.set(request.entityId, request.controller);
+      this.metrics.totalPrefetches++;
 
       try {
-        // Only fetch lean DTO (no heavy tabs)
+        // Only fetch lean overview DTO (no heavy tabs)
         const response = await fetch(`/api/entities/${request.entityId}`, {
           signal: request.controller.signal,
           headers: {
@@ -128,9 +196,16 @@ class PrefetchManager {
 
         if (response.ok) {
           const data = await response.json();
+          const now = Date.now();
+
+          // Evict LRU if needed
+          this.evictLRU();
+
           this.cache.set(request.entityId, {
             data,
-            timestamp: Date.now(),
+            timestamp: now,
+            accessed: now,
+            prefetched: true,
           });
         }
       } catch (error) {
@@ -150,11 +225,13 @@ class PrefetchManager {
   }
 
   /**
-   * Get cached data if available
+   * Get cached data if available (marks as accessed for LRU)
    */
   getCached(entityId: string): any | null {
     const cached = this.cache.get(entityId);
     if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+      cached.accessed = Date.now(); // Update LRU
+      this.metrics.cacheHits++;
       return cached.data;
     }
     return null;
@@ -185,21 +262,35 @@ class PrefetchManager {
   }
 
   /**
-   * Get stats for debugging
+   * Get metrics
    */
-  getStats() {
+  getMetrics() {
+    const hitRate =
+      this.metrics.totalPrefetches > 0 ? this.metrics.cacheHits / this.metrics.totalPrefetches : 0;
+
+    const wasteRate =
+      this.metrics.totalPrefetches > 0
+        ? this.metrics.wastedPrefetches / this.metrics.totalPrefetches
+        : 0;
+
     return {
       enabled: this.enabled,
       inFlight: this.inFlight.size,
       queued: this.queue.length,
       cached: this.cache.size,
       scrollVelocity: this.scrollVelocity.toFixed(2),
+      totalPrefetches: this.metrics.totalPrefetches,
+      cacheHits: this.metrics.cacheHits,
+      wastedPrefetches: this.metrics.wastedPrefetches,
+      evictions: this.metrics.evictions,
+      hitRate: (hitRate * 100).toFixed(1) + '%',
+      wasteRate: (wasteRate * 100).toFixed(1) + '%',
     };
   }
 }
 
 // Singleton instance
-export const prefetchManager = new PrefetchManager();
+export const prefetchManager = new PrefetchManagerV2();
 
 // Expose for debugging
 if (typeof window !== 'undefined') {

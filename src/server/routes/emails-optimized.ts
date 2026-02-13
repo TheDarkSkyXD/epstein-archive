@@ -36,7 +36,7 @@ interface EmailMetadata {
  */
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const db = (req as any).db as Database;
+    const db = (req as any).db as any;
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 500;
     const category = req.query.category as string;
@@ -99,7 +99,7 @@ router.get('/', async (req: Request, res: Response) => {
  */
 router.get('/:id/body', async (req: Request, res: Response) => {
   try {
-    const db = (req as any).db as Database;
+    const db = (req as any).db as any;
     const { id } = req.params;
 
     // Check cache
@@ -139,7 +139,7 @@ router.get('/:id/body', async (req: Request, res: Response) => {
  */
 router.get('/categories', async (req: Request, res: Response) => {
   try {
-    const db = (req as any).db as Database;
+    const db = (req as any).db as any;
 
     // Check cache
     const cached = performanceCache.get<Record<string, number>>('email:categories');

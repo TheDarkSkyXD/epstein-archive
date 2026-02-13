@@ -863,7 +863,7 @@ export const entitiesRepository = {
             FROM documents d
             JOIN entity_mentions em ON d.id = em.document_id
             WHERE em.entity_id = ?
-            ORDER BY d.red_flag_rating DESC, d.date_created DESC
+            ORDER BY em.doc_red_flag_rating DESC, em.doc_date_created DESC
             LIMIT 1000
         `,
       )
@@ -1179,7 +1179,7 @@ export const entitiesRepository = {
           FROM documents d
           JOIN entity_mentions em ON d.id = em.document_id
           WHERE em.entity_id = ?
-          ORDER BY d.red_flag_rating DESC, d.date_created DESC
+          ORDER BY em.doc_red_flag_rating DESC, em.doc_date_created DESC
           LIMIT 5000 -- Increased from 1000 for better document coverage
         `;
 

@@ -1,12 +1,10 @@
 /**
- * SERVER-SIDE CACHING LAYER
+ * CACHE CORRECTNESS + STAMPEDE CONTROL
  *
- * Short-TTL (30-60s) cache for hot paths:
- * - Top 250 entities
- * - Entity overview DTOs
- * - First page of entity documents
- *
- * Keyed by ingest_run_id + RULESET_VERSION for safe invalidation
+ * Enhanced performance cache with:
+ * - Revision awareness (ingest_run_id + RULESET_VERSION)
+ * - In-flight deduplication (stampede prevention)
+ * - Metrics tracking (hit/miss/compute duration)
  */
 
 import NodeCache from 'node-cache';
@@ -16,9 +14,30 @@ interface CacheOptions {
   checkperiod?: number; // seconds
 }
 
-class PerformanceCache {
+interface CacheMetrics {
+  hits: number;
+  misses: number;
+  computeDurations: number[];
+  evictions: number;
+  size: number;
+}
+
+interface InFlightRequest<T> {
+  promise: Promise<T>;
+  timestamp: number;
+}
+
+class PerformanceCacheV2 {
   private cache: NodeCache;
   private cacheVersion: string;
+  private inFlight = new Map<string, InFlightRequest<any>>();
+  private metrics: CacheMetrics = {
+    hits: 0,
+    misses: 0,
+    computeDurations: [],
+    evictions: 0,
+    size: 0,
+  };
 
   constructor(options: CacheOptions = {}) {
     this.cache = new NodeCache({
@@ -27,16 +46,22 @@ class PerformanceCache {
       useClones: false, // Don't clone objects (faster, but be careful with mutations)
     });
 
-    // Cache version = ingest_run_id + RULESET_VERSION
-    // This ensures cache is invalidated when data changes
+    // Cache version = ingest_run_id + RULESET_VERSION + CLEANER_VERSION
     this.cacheVersion = this.getCacheVersion();
+
+    // Track evictions
+    this.cache.on('del', () => {
+      this.metrics.evictions++;
+      this.metrics.size = this.cache.keys().length;
+    });
   }
 
   private getCacheVersion(): string {
-    // In production, this would come from environment or database
-    const ingestRunId = process.env.INGEST_RUN_ID || 'default';
+    // In production, these come from environment or database
+    const ingestRunId = process.env.LATEST_INGEST_RUN_ID || process.env.INGEST_RUN_ID || 'default';
     const rulesetVersion = process.env.RULESET_VERSION || 'v1';
-    return `${ingestRunId}:${rulesetVersion}`;
+    const cleanerVersion = process.env.CLEANER_VERSION || 'v1';
+    return `${ingestRunId}:${rulesetVersion}:${cleanerVersion}`;
   }
 
   private makeKey(key: string): string {
@@ -44,17 +69,76 @@ class PerformanceCache {
   }
 
   /**
-   * Get cached value
+   * Get cached value with stampede prevention
+   * If cache miss and computation in progress, await same promise
    */
-  get<T>(key: string): T | undefined {
-    return this.cache.get<T>(this.makeKey(key));
+  async getOrCompute<T>(key: string, computeFn: () => Promise<T>, ttl?: number): Promise<T> {
+    const fullKey = this.makeKey(key);
+
+    // Check cache first
+    const cached = this.cache.get<T>(fullKey);
+    if (cached !== undefined) {
+      this.metrics.hits++;
+      return cached;
+    }
+
+    // Check if computation in flight
+    const inFlight = this.inFlight.get(fullKey);
+    if (inFlight) {
+      // Await existing computation (stampede prevention)
+      return inFlight.promise;
+    }
+
+    // Start new computation
+    this.metrics.misses++;
+    const startTime = Date.now();
+
+    const promise = computeFn();
+    this.inFlight.set(fullKey, { promise, timestamp: startTime });
+
+    try {
+      const result = await promise;
+
+      // Track compute duration
+      const duration = Date.now() - startTime;
+      this.metrics.computeDurations.push(duration);
+
+      // Keep only last 100 durations for stats
+      if (this.metrics.computeDurations.length > 100) {
+        this.metrics.computeDurations.shift();
+      }
+
+      // Cache result
+      this.cache.set(fullKey, result, ttl || 0);
+      this.metrics.size = this.cache.keys().length;
+
+      return result;
+    } finally {
+      // Remove from in-flight
+      this.inFlight.delete(fullKey);
+    }
   }
 
   /**
-   * Set cached value
+   * Get cached value (synchronous)
+   */
+  get<T>(key: string): T | undefined {
+    const cached = this.cache.get<T>(this.makeKey(key));
+    if (cached !== undefined) {
+      this.metrics.hits++;
+    } else {
+      this.metrics.misses++;
+    }
+    return cached;
+  }
+
+  /**
+   * Set cached value (synchronous)
    */
   set<T>(key: string, value: T, ttl?: number): boolean {
-    return this.cache.set(this.makeKey(key), value, ttl || 0);
+    const result = this.cache.set(this.makeKey(key), value, ttl || 0);
+    this.metrics.size = this.cache.keys().length;
+    return result;
   }
 
   /**
@@ -69,68 +153,94 @@ class PerformanceCache {
    */
   flush(): void {
     this.cache.flushAll();
+    this.metrics.size = 0;
   }
 
   /**
-   * Get cache stats
+   * Get cache metrics
    */
-  getStats() {
-    return this.cache.getStats();
+  getMetrics(): CacheMetrics & {
+    hitRate: number;
+    avgComputeDuration: number;
+    p95ComputeDuration: number;
+  } {
+    const total = this.metrics.hits + this.metrics.misses;
+    const hitRate = total > 0 ? this.metrics.hits / total : 0;
+
+    const durations = [...this.metrics.computeDurations].sort((a, b) => a - b);
+    const avgComputeDuration =
+      durations.length > 0 ? durations.reduce((sum, d) => sum + d, 0) / durations.length : 0;
+    const p95Index = Math.floor(durations.length * 0.95);
+    const p95ComputeDuration = durations[p95Index] || 0;
+
+    return {
+      ...this.metrics,
+      hitRate,
+      avgComputeDuration,
+      p95ComputeDuration,
+    };
+  }
+
+  /**
+   * Reset metrics
+   */
+  resetMetrics(): void {
+    this.metrics = {
+      hits: 0,
+      misses: 0,
+      computeDurations: [],
+      evictions: 0,
+      size: this.cache.keys().length,
+    };
   }
 
   /**
    * Cache top entities (homepage)
    */
-  cacheTopEntities(entities: any[], ttl = 60): void {
-    this.set('top_entities', entities, ttl);
-  }
-
-  getTopEntities(): any[] | undefined {
-    return this.get<any[]>('top_entities');
+  async cacheTopEntities(computeFn: () => Promise<any[]>, ttl = 60): Promise<any[]> {
+    return this.getOrCompute('top_entities', computeFn, ttl);
   }
 
   /**
    * Cache entity overview DTO
    */
-  cacheEntityOverview(entityId: string, data: any, ttl = 60): void {
-    this.set(`entity:${entityId}:overview`, data, ttl);
-  }
-
-  getEntityOverview(entityId: string): any | undefined {
-    return this.get(`entity:${entityId}:overview`);
+  async cacheEntityOverview(
+    entityId: string,
+    computeFn: () => Promise<any>,
+    ttl = 60,
+  ): Promise<any> {
+    return this.getOrCompute(`entity:${entityId}:overview`, computeFn, ttl);
   }
 
   /**
    * Cache entity documents (first page)
    */
-  cacheEntityDocuments(entityId: string, documents: any[], ttl = 60): void {
-    this.set(`entity:${entityId}:documents:page1`, documents, ttl);
-  }
-
-  getEntityDocuments(entityId: string): any[] | undefined {
-    return this.get<any[]>(`entity:${entityId}:documents:page1`);
+  async cacheEntityDocuments(
+    entityId: string,
+    computeFn: () => Promise<any[]>,
+    ttl = 60,
+  ): Promise<any[]> {
+    return this.getOrCompute(`entity:${entityId}:documents:page1`, computeFn, ttl);
   }
 
   /**
    * Cache search results
    */
-  cacheSearchResults(query: string, results: any[], ttl = 30): void {
-    // Normalize query for cache key
+  async cacheSearchResults(
+    query: string,
+    computeFn: () => Promise<any[]>,
+    ttl = 30,
+  ): Promise<any[]> {
     const normalizedQuery = query.toLowerCase().trim();
-    this.set(`search:${normalizedQuery}`, results, ttl);
-  }
-
-  getSearchResults(query: string): any[] | undefined {
-    const normalizedQuery = query.toLowerCase().trim();
-    return this.get<any[]>(`search:${normalizedQuery}`);
+    return this.getOrCompute(`search:${normalizedQuery}`, computeFn, ttl);
   }
 }
 
 // Singleton instance
-export const performanceCache = new PerformanceCache({
+export const performanceCache = new PerformanceCacheV2({
   ttl: 60, // 60s default
   checkperiod: 120, // 2min cleanup
 });
 
 // Export class for testing
-export { PerformanceCache };
+export { PerformanceCacheV2 };

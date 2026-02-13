@@ -60,11 +60,11 @@ const HOT_QUERIES: HotQuery[] = [
       FROM documents d
       JOIN entity_mentions em ON d.id = em.document_id
       WHERE em.entity_id = 1
-      ORDER BY d.red_flag_rating DESC, d.date_created DESC
+      ORDER BY em.doc_red_flag_rating DESC, em.doc_date_created DESC
       LIMIT 50
     `,
     maxTempBtrees: 0,
-    requiredIndexes: ['idx_entity_mentions_entity', 'idx_documents_rating_date'],
+    requiredIndexes: ['idx_entity_mentions_entity_sorted'],
   },
   {
     name: 'Email Thread List',
@@ -118,6 +118,11 @@ const REQUIRED_INDEXES = [
     name: 'idx_entity_mentions_entity',
     table: 'entity_mentions',
     columns: 'entity_id, document_id',
+  },
+  {
+    name: 'idx_entity_mentions_entity_sorted',
+    table: 'entity_mentions',
+    columns: 'entity_id, doc_red_flag_rating DESC, doc_date_created DESC, document_id',
   },
   {
     name: 'idx_entity_relationships_strength',

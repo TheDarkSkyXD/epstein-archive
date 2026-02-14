@@ -46,7 +46,7 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [entityCount, setEntityCount] = useState(100); // Default to 100 entities
+  const [entityCount, setEntityCount] = useState<number>(100); // Default to 100 entities
 
   useEffect(() => {
     fetchAnalytics();
@@ -239,7 +239,7 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
             entities={topConnectedEntities}
             relationships={topRelationships}
             onEntityClick={(entity) => onEntitySelect?.(entity.id)}
-            maxNodes={entityCount}
+            maxNodes={Number(entityCount)}
           />
         </div>
 

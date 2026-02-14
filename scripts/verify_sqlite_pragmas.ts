@@ -66,8 +66,37 @@ export function verifyAndSetPragmas(db: Database.Database): { passed: boolean; i
 
     pragma.current = current;
 
+    // Normalize values for comparison
+    // SQLite returns numeric values for some PRAGMAs: synchronous (0=OFF, 1=NORMAL, 2=FULL), temp_store (0=DEFAULT, 1=FILE, 2=MEMORY), foreign_keys (0=OFF, 1=ON)
+    const normalizeValue = (val: any, pragmaName: string): string => {
+      if (val === null || val === undefined) return '';
+
+      // Handle PRAGMA-specific numeric mappings
+      if (pragmaName === 'synchronous') {
+        if (val === 0 || val === 'OFF') return 'OFF';
+        if (val === 1 || val === 'NORMAL') return 'NORMAL';
+        if (val === 2 || val === 'FULL') return 'FULL';
+      }
+      if (pragmaName === 'temp_store') {
+        if (val === 0 || val === 'DEFAULT') return 'DEFAULT';
+        if (val === 1 || val === 'FILE') return 'FILE';
+        if (val === 2 || val === 'MEMORY') return 'MEMORY';
+      }
+      if (pragmaName === 'foreign_keys') {
+        if (val === 0 || val === 'OFF') return 'OFF';
+        if (val === 1 || val === 'ON') return 'ON';
+      }
+
+      // Handle numeric PRAGMA values
+      if (typeof val === 'number') return val.toString();
+      return val.toString().toUpperCase();
+    };
+
+    const currentNorm = normalizeValue(current, pragma.name);
+    const expectedNorm = normalizeValue(pragma.expected, pragma.name);
+
     // Check if matches expected
-    const matches = current?.toString().toUpperCase() === pragma.expected.toString().toUpperCase();
+    const matches = currentNorm === expectedNorm;
 
     if (!matches) {
       console.log(`⚠️  ${pragma.name}: ${current} (expected: ${pragma.expected})`);
@@ -76,16 +105,21 @@ export function verifyAndSetPragmas(db: Database.Database): { passed: boolean; i
 
       // Set pragma
       try {
-        db.prepare(`PRAGMA ${pragma.name} = ${pragma.expected}`).run();
+        // Quote string values, leave numbers unquoted
+        const pragmaValue =
+          typeof pragma.expected === 'string' ? `'${pragma.expected}'` : pragma.expected;
+
+        db.prepare(`PRAGMA ${pragma.name} = ${pragmaValue}`).run();
 
         // Verify it was set
         const newResult = db.prepare(`PRAGMA ${pragma.name}`).get() as any;
         const newValue = newResult[pragma.name];
 
-        if (newValue?.toString().toUpperCase() === pragma.expected.toString().toUpperCase()) {
+        const newNorm = normalizeValue(newValue, pragma.name);
+        if (newNorm === expectedNorm) {
           console.log(`   ✅ Set successfully\n`);
         } else {
-          const issue = `Failed to set ${pragma.name} to ${pragma.expected}`;
+          const issue = `Failed to set ${pragma.name} to ${pragma.expected} (got ${newValue})`;
           console.log(`   ❌ ${issue}\n`);
           issues.push(issue);
         }

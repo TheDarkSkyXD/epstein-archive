@@ -122,7 +122,7 @@ class WebVitalsMonitor {
         }
       });
 
-      observer.observe({ type: 'event', buffered: true, durationThreshold: 16 });
+      observer.observe({ type: 'event', buffered: true });
     } catch (e) {
       // Fall back to FID
       try {

@@ -48,10 +48,8 @@ export function checkDenormSync(db?: Database.Database): {
       FROM entity_mentions em
       JOIN documents d ON em.document_id = d.id
       WHERE 
-        em.doc_red_flag_rating != d.red_flag_rating
-        OR em.doc_date_created != d.date_created
-        OR em.doc_red_flag_rating IS NULL
-        OR em.doc_date_created IS NULL
+        (em.doc_red_flag_rating IS NOT d.red_flag_rating)
+        OR (em.doc_date_created IS NOT d.date_created)
       LIMIT 100
     `,
       )
@@ -86,8 +84,7 @@ function main(): void {
     const samples = db
       .prepare(
         `
-      SELECT 
-        em.id as mention_id,
+      SELECT \n        em.id as mention_id,
         em.document_id,
         em.doc_red_flag_rating as em_rating,
         d.red_flag_rating as d_rating,
@@ -96,10 +93,8 @@ function main(): void {
       FROM entity_mentions em
       JOIN documents d ON em.document_id = d.id
       WHERE 
-        em.doc_red_flag_rating != d.red_flag_rating
-        OR em.doc_date_created != d.date_created
-        OR em.doc_red_flag_rating IS NULL
-        OR em.doc_date_created IS NULL
+        (em.doc_red_flag_rating IS NOT d.red_flag_rating)
+        OR (em.doc_date_created IS NOT d.date_created)
       LIMIT 10
     `,
       )

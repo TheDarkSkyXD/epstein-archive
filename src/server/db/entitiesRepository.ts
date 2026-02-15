@@ -30,6 +30,128 @@ const TITLE_PREFIX_FILTERS = [
   `full_name NOT LIKE 'Senator %'`,
 ];
 
+const VIP_DISPLAY_RULES = [
+  {
+    canonicalName: 'Jeffrey Epstein',
+    aliases: [
+      'Jeff Epstein',
+      'Jeffery Epstein',
+      'Jeffry Epstein',
+      'Sam Epstein',
+      'Epstein Jeffrey',
+    ],
+  },
+  {
+    canonicalName: 'Ghislaine Maxwell',
+    aliases: ['Ghislane Maxwell', 'Ghislaine Maxwel', 'Maxwell Ghislaine'],
+  },
+  {
+    canonicalName: 'Alan Dershowitz',
+    aliases: ['Alan M. Dershowitz', 'Alan M Dershowitz', 'Dershowitz Alan', 'Alan Dershowits'],
+  },
+  {
+    canonicalName: 'Virginia Giuffre',
+    aliases: ['Virginia Roberts', 'Virginia Roberts Giuffre', 'Virginia Roberts-Giuffre'],
+  },
+  {
+    canonicalName: 'Jean-Luc Brunel',
+    aliases: ['Jean Luc Brunel', 'Jean Luc Brunnel', 'Brunel Jean Luc'],
+  },
+  {
+    canonicalName: 'Bill Clinton',
+    aliases: ['William Clinton', 'William Jefferson Clinton', 'WJC', 'Clinton Bill'],
+  },
+  {
+    canonicalName: 'Hillary Clinton',
+    aliases: ['Hillary Rodham Clinton', 'Secretary Clinton', 'HRC', 'Clinton Hillary'],
+  },
+  {
+    canonicalName: 'Donald Trump',
+    aliases: ['Donald J Trump', 'Donald J. Trump', 'President Trump', 'DJT', 'DT', 'Trump Donald'],
+  },
+  {
+    canonicalName: 'Bill Barr',
+    aliases: ['William Barr', 'Barr Bill'],
+  },
+  {
+    canonicalName: "Victoria's Secret",
+    aliases: ['Victorias Secret', 'Victoria Secret'],
+  },
+  {
+    canonicalName: 'The Trump Organization',
+    aliases: ['Trump Org', 'Trump Organization'],
+  },
+];
+
+const VIP_TITLE_PREFIXES = [
+  'mr',
+  'mrs',
+  'ms',
+  'miss',
+  'dr',
+  'prof',
+  'professor',
+  'president',
+  'prime minister',
+  'governor',
+  'senator',
+  'judge',
+  'justice',
+  'secretary',
+];
+
+function normalizeVipDisplayName(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[.,'"`]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+const VIP_DISPLAY_LOOKUP = new Map<string, string>();
+for (const rule of VIP_DISPLAY_RULES) {
+  VIP_DISPLAY_LOOKUP.set(normalizeVipDisplayName(rule.canonicalName), rule.canonicalName);
+  for (const alias of rule.aliases) {
+    VIP_DISPLAY_LOOKUP.set(normalizeVipDisplayName(alias), rule.canonicalName);
+  }
+}
+
+function stripVipTitlePrefix(value: string): string {
+  let current = value;
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const prefix of VIP_TITLE_PREFIXES) {
+      if (current === prefix) continue;
+      if (current.startsWith(`${prefix} `)) {
+        current = current.slice(prefix.length + 1).trim();
+        changed = true;
+        break;
+      }
+    }
+  }
+  return current;
+}
+
+function resolveDisplayName(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) return name;
+
+  const normalized = normalizeVipDisplayName(trimmed);
+  const stripped = stripVipTitlePrefix(normalized);
+  const direct = VIP_DISPLAY_LOOKUP.get(normalized) || VIP_DISPLAY_LOOKUP.get(stripped);
+  if (direct) return direct;
+
+  const tokens = stripped.split(' ').filter(Boolean);
+  if (tokens.length === 2) {
+    const reversed = `${tokens[1]} ${tokens[0]}`;
+    const reverseHit = VIP_DISPLAY_LOOKUP.get(reversed);
+    if (reverseHit) return reverseHit;
+  }
+
+  return trimmed;
+}
+
 const DEFAULT_SIGNAL_CLAUSE = `(
   COALESCE(is_vip, 0) = 1
   OR (
@@ -299,7 +421,7 @@ export const entitiesRepository = {
 
       const dto: SubjectCardDTO = {
         id: String(e.id),
-        name: e.full_name || 'Unknown',
+        name: resolveDisplayName(e.full_name || 'Unknown'),
         role: e.primary_role || 'Unknown',
         short_bio: e.bio ? e.bio.substring(0, 150) : undefined,
         stats: {
@@ -432,7 +554,7 @@ export const entitiesRepository = {
           mediaCount > 0 || e.black_book_count > 0 ? 'L1' : (e.mentions || 0) > 50 ? 'L2' : 'L3';
         return {
           id: String(e.id),
-          name: e.full_name || 'Unknown',
+          name: resolveDisplayName(e.full_name || 'Unknown'),
           role: e.primary_role || 'Unknown',
           short_bio: e.bio ? e.bio.substring(0, 150) : undefined,
           stats: {

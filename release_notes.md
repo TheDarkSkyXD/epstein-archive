@@ -1,3 +1,11 @@
+## 13.6.1 - 2026-02-15
+
+### Canonical VIP Display Names
+
+- Added API-side canonical VIP display-name normalization for Subject cards so prominent variants (misspellings, reversed name forms, and known aliases) render consistently as canonical names.
+- Applied normalization before subject deduplication, improving consolidation quality and reducing visible duplicate VIP variants on the front page.
+- Included normalization coverage for high-visibility entities and organizations such as Trump-related entities and other core VIP names.
+
 ## 13.6.0 - 2026-02-15
 
 ### VIP Consolidation and Variant Quality

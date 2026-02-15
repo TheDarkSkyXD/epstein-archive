@@ -640,6 +640,9 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
     const [showRaw, setShowRaw] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [viewMode, setViewMode] = useState<'carousel' | 'list'>('carousel');
+    const [documentEntities, setDocumentEntities] = useState<any[]>(
+      document.entities || document.mentionedEntities || [],
+    );
     const contentRef = React.useRef<HTMLDivElement>(null);
 
     // Failed redactions state
@@ -656,6 +659,25 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
       setPages([]);
       setCurrentImageIndex(0);
     }, [document.id]);
+
+    // Always hydrate full entities for the selected document.
+    // The list endpoint is intentionally lightweight and may omit entity evidence.
+    useEffect(() => {
+      let mounted = true;
+      setDocumentEntities(document.entities || document.mentionedEntities || []);
+      apiClient
+        .getDocument(String(document.id))
+        .then((fullDoc) => {
+          if (!mounted) return;
+          setDocumentEntities(fullDoc.entities || fullDoc.mentionedEntities || []);
+        })
+        .catch(() => {
+          // Keep lightweight payload fallback if full document fetch fails
+        });
+      return () => {
+        mounted = false;
+      };
+    }, [document.id, document.entities, document.mentionedEntities]);
 
     // Fetch pages when tab is switched to original or document changes
     useEffect(() => {
@@ -889,7 +911,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                   : 'text-gray-400 hover:text-white hover:bg-gray-700'
               }`}
             >
-              Entities ({document.entities?.length || 0})
+              Entities ({documentEntities.length})
             </button>
             <button
               onClick={() => navigateToTab('related')}
@@ -1111,7 +1133,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                     Entities Found in Document
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {(document.entities || []).map((entity, index) => (
+                    {documentEntities.map((entity, index) => (
                       <div
                         key={index}
                         className="bg-gray-800 rounded-lg p-4 border border-gray-700"
@@ -1552,8 +1574,23 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                     setContextSearchTerm(newValue);
                   }
                 }}
-                className="w-full pl-10 pr-4 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500 min-h-[44px]"
+                className="w-full pl-10 pr-10 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500 min-h-[44px]"
               />
+              {effectiveSearchTerm && (
+                <button
+                  onClick={() => {
+                    if (onSearchTermChange) {
+                      onSearchTermChange('');
+                    } else {
+                      setContextSearchTerm('');
+                    }
+                  }}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 rounded-full hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
+                  title="Clear search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
             {hasHighlights && (
               <HighlightNavigationControls

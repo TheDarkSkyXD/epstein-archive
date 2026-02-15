@@ -141,6 +141,12 @@ const parseReleaseNotes = (markdown: string) => {
             title = candidate;
           }
         }
+        if (title === 'Maintenance Update') {
+          const sectionHeading = sectionLines.find((line) => line.startsWith('### '));
+          if (sectionHeading) {
+            title = sectionHeading.replace(/^###\s+/, '').trim();
+          }
+        }
 
         const notes: string[] = [];
         for (const line of sectionLines) {

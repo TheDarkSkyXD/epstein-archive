@@ -84,14 +84,19 @@ export const entitiesRepository = {
       params.role = filters.role;
     }
 
-    // 4b. Entity Type
+    // 4b. Entity Type / VIP view
     if (filters?.entityType && filters.entityType !== 'all') {
-      whereConditions.push('entity_type = @entityType');
-      params.entityType = filters.entityType;
+      if (filters.entityType === 'vip_only') {
+        whereConditions.push(`(COALESCE(is_vip,0) = 1 OR lower(full_name) = 'jeffrey epstein')`);
+      } else {
+        whereConditions.push('entity_type = @entityType');
+        params.entityType = filters.entityType;
+      }
     }
 
     // 5. Sorting (Deterministic)
     let orderByClause = '';
+    const vipOrder = 'COALESCE(is_vip, 0) DESC';
     const hasPhotoOrder =
       '(SELECT COUNT(*) FROM media_item_people WHERE entity_id = entities.id) > 0 DESC';
     const mentionsOrder = 'COALESCE(mentions, 0) DESC';
@@ -99,18 +104,18 @@ export const entitiesRepository = {
 
     switch (sortBy) {
       case 'name':
-        orderByClause = 'ORDER BY full_name ASC';
+        orderByClause = `ORDER BY ${vipOrder}, full_name ASC`;
         break;
       case 'recent':
-        orderByClause = 'ORDER BY id DESC';
+        orderByClause = `ORDER BY ${vipOrder}, id DESC`;
         break;
       case 'mentions':
-        orderByClause = `ORDER BY ${hasPhotoOrder}, mentions DESC, red_flag_rating DESC, full_name ASC`;
+        orderByClause = `ORDER BY ${vipOrder}, ${hasPhotoOrder}, mentions DESC, red_flag_rating DESC, full_name ASC`;
         break;
       case 'risk':
       case 'red_flag':
       default:
-        orderByClause = `ORDER BY ${hasPhotoOrder}, ${mentionsOrder}, ${safetyOrder}, full_name ASC`;
+        orderByClause = `ORDER BY ${vipOrder}, ${hasPhotoOrder}, ${mentionsOrder}, ${safetyOrder}, full_name ASC`;
         break;
     }
 
@@ -138,10 +143,9 @@ export const entitiesRepository = {
       whereConditions.push(`full_name NOT LIKE '%@%'`);
       whereConditions.push(`full_name NOT LIKE 'http%'`);
       whereConditions.push(`full_name NOT LIKE 'www.%'`);
-      // VIP-focused, person-only on front page.
-      // Keep Jeffrey Epstein visible even if is_vip is stale in the DB.
+      // Person-focused front page with quality thresholds.
+      // Ordering prioritizes VIPs while still surfacing the wider entity set.
       whereConditions.push(`entity_type = 'Person'`);
-      whereConditions.push(`(is_vip = 1 OR lower(full_name) = 'jeffrey epstein')`);
       whereConditions.push(`COALESCE(primary_role, '') NOT IN ('Unknown','UNK')`);
       whereConditions.push(`(
         mentions >= 10
@@ -618,10 +622,14 @@ export const entitiesRepository = {
       params.role = filters.role;
     }
 
-    // 4b. Entity Type filter (New)
+    // 4b. Entity Type / VIP view
     if (filters?.entityType && filters.entityType !== 'all') {
-      whereConditions.push('entity_type = @entityType');
-      params.entityType = filters.entityType;
+      if (filters.entityType === 'vip_only') {
+        whereConditions.push(`(COALESCE(is_vip,0) = 1 OR lower(full_name) = 'jeffrey epstein')`);
+      } else {
+        whereConditions.push('entity_type = @entityType');
+        params.entityType = filters.entityType;
+      }
     }
 
     // 5. Sorting
@@ -630,6 +638,7 @@ export const entitiesRepository = {
     dateLimit.setMonth(dateLimit.getMonth() - 24); // Focus on relatively recent prominence if needed, but here mentions are lifetime
 
     // Default sorting logic improvements
+    const vipOrder = 'COALESCE(is_vip, 0) DESC';
     const hasPhotoOrder =
       '(SELECT COUNT(*) FROM media_item_people WHERE entity_id = entities.id) > 0 DESC';
     const mentionsOrder = 'COALESCE(mentions, 0) DESC';
@@ -637,18 +646,18 @@ export const entitiesRepository = {
 
     switch (sortBy) {
       case 'name':
-        orderByClause = 'ORDER BY full_name ASC';
+        orderByClause = `ORDER BY ${vipOrder}, full_name ASC`;
         break;
       case 'recent':
-        orderByClause = 'ORDER BY id DESC';
+        orderByClause = `ORDER BY ${vipOrder}, id DESC`;
         break;
       case 'mentions':
-        orderByClause = `ORDER BY ${hasPhotoOrder}, mentions DESC, red_flag_rating DESC, full_name ASC`;
+        orderByClause = `ORDER BY ${vipOrder}, ${hasPhotoOrder}, mentions DESC, red_flag_rating DESC, full_name ASC`;
         break;
       case 'risk':
       case 'red_flag':
       default:
-        orderByClause = `ORDER BY ${hasPhotoOrder}, ${mentionsOrder}, ${safetyOrder}, full_name ASC`;
+        orderByClause = `ORDER BY ${vipOrder}, ${hasPhotoOrder}, ${mentionsOrder}, ${safetyOrder}, full_name ASC`;
         break;
     }
 
@@ -675,7 +684,6 @@ export const entitiesRepository = {
         whereConditions.push(`full_name NOT LIKE @${paramName}`);
       });
       whereConditions.push(`entity_type = 'Person'`);
-      whereConditions.push(`(is_vip = 1 OR lower(full_name) = 'jeffrey epstein')`);
       whereConditions.push(`LENGTH(TRIM(full_name)) >= 3`);
       whereConditions.push(`full_name NOT LIKE '%@%'`);
       whereConditions.push(`full_name NOT LIKE 'http%'`);

@@ -1,3 +1,23 @@
+## 13.5.0 - 2026-02-15
+
+### VIP Data Quality and Consolidation
+
+- Expanded the canonical VIP ruleset with additional high-prominence names surfaced in the corpus (including Hillary Clinton, Barack Obama, Joe Biden, Bill Barr, Warren Buffett, Vladimir Putin, Harvey Weinstein, and Larry Summers).
+- Hardened VIP name resolution for aliases, honorific prefixes, initials, and common variants while reducing false positives from contextual fragments.
+- Added explicit high-value short aliases for Donald Trump (`DJT`, `DT`, punctuation variants) and strengthened metadata coverage for VIP entities.
+- Updated ingestion VIP sync to persist `is_vip = 1` during canonical VIP updates/inserts so VIP status does not drift over time.
+
+### Front-Page Surfacing
+
+- Changed default Subjects behavior to prioritize VIP entities first but still include the wider high-signal entity set after VIPs.
+- Added a `VIP Only` filter option in the entity type selector while keeping the default view as `All Types (VIP First)`.
+- Preserved quality gates (junk suppression, role hygiene, and signal thresholds) for default front-page listing.
+
+### Backfill and Operational Consistency
+
+- Upgraded `scripts/backfill_vip_flags.ts` to resolve VIPs via canonical rules (not only exact canonical names) and backfill metadata (`risk_level`, `entity_category`, `red_flag_rating`, bio/date fields) for matched entities.
+- Improved backfill determinism and reduced over-tagging from noisy phrase matches.
+
 ## 13.4.0 - 2026-02-15
 
 ### Release Discipline

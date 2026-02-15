@@ -18,7 +18,8 @@ const EntityTypeFilter: React.FC<EntityTypeFilterProps> = ({ value, onChange, cl
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const options: EntityTypeOption[] = [
-    { value: 'all', label: 'All Types' },
+    { value: 'all', label: 'All Types (VIP First)' },
+    { value: 'vip_only', label: 'VIP Only' },
     { value: 'Person', label: 'Person' },
     { value: 'Organization', label: 'Organization' },
     { value: 'Location', label: 'Location' },

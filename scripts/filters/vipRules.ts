@@ -100,28 +100,135 @@ export const VIP_RULES: VipRule[] = [
     },
   },
   {
+    canonicalName: 'Hillary Clinton',
+    type: 'Person',
+    aliases: ['Hillary Rodham Clinton', 'Secretary Clinton', 'Mrs Clinton', 'HRC'],
+    patterns: [/Hillary\s+Clinton/i, /Hillary\s+Rodham\s+Clinton/i, /\bHRC\b/i],
+    metadata: {
+      category: 'Associate',
+      riskLevel: 'high',
+      birthDate: '1947-10-26',
+      bio: 'Former U.S. Secretary of State and First Lady. Appears in Epstein-linked correspondence and network context.',
+    },
+  },
+  {
+    canonicalName: 'Barack Obama',
+    type: 'Person',
+    aliases: ['President Obama', 'Barack H Obama', 'Barack Hussein Obama'],
+    patterns: [/Barack\s+Obama/i, /President\s+Obama/i],
+    metadata: {
+      category: 'Associate',
+      riskLevel: 'medium',
+      birthDate: '1961-08-04',
+      bio: '44th U.S. President. Referenced in multiple Epstein-related communications and context chains.',
+    },
+  },
+  {
+    canonicalName: 'Joe Biden',
+    type: 'Person',
+    aliases: ['President Biden', 'Joseph Biden', 'Joseph R Biden', 'Joseph Robinette Biden'],
+    patterns: [/Joe\s+Biden/i, /President\s+Joe\s+Biden/i, /President\s+Biden/i],
+    metadata: {
+      category: 'Associate',
+      riskLevel: 'medium',
+      birthDate: '1942-11-20',
+      bio: '46th U.S. President. Appears in network-adjacent references across case-related communications.',
+    },
+  },
+  {
     canonicalName: 'Donald Trump',
     type: 'Person',
     aliases: [
       'Donald J. Trump',
+      'Donald J Trump',
+      'Donald J. Trump Jr',
       'Mr. Trump',
       'President Trump',
       'The Donald',
       'Donald John Trump',
+      'Donald John Trump Sr',
       'Trump, Doinac',
       'President Donald Trump',
+      'President Donald J Trump',
+      'President Donald J. Trump',
+      'DJT',
+      'D.J.T.',
+      'DT',
+      'D.T.',
     ],
     patterns: [
       /Donald\s+Trump/i,
       /President\s+Trump/i,
       /Trump,\s+Doinac/i,
       /President\s+Donald\s+Trump/i,
+      /\bDJT\b/i,
+      /\bDT\b/i,
     ],
     metadata: {
       category: 'Associate',
       riskLevel: 'high',
       birthDate: '1946-06-14',
       bio: '45th U.S. President. Socialized with Epstein in Palm Beach and NYC in the 90s/00s. Quoted calling Epstein a "terrific guy".',
+    },
+  },
+  {
+    canonicalName: 'Bill Barr',
+    type: 'Person',
+    aliases: ['William Barr', 'Attorney General Barr', 'AG Barr'],
+    patterns: [/Bill\s+Barr/i, /William\s+Barr/i, /Attorney\s+General\s+Barr/i],
+    metadata: {
+      category: 'Associate',
+      riskLevel: 'medium',
+      birthDate: '1950-05-23',
+      bio: 'Former U.S. Attorney General. Frequently referenced in legal/procedural context around Epstein proceedings.',
+    },
+  },
+  {
+    canonicalName: 'Warren Buffett',
+    type: 'Person',
+    aliases: ['Warren E Buffett', 'Mr Buffett'],
+    patterns: [/Warren\s+Buffett/i],
+    metadata: {
+      category: 'Associate',
+      riskLevel: 'medium',
+      birthDate: '1930-08-30',
+      bio: 'Berkshire Hathaway chairman referenced in Epstein-adjacent financial and social context.',
+    },
+  },
+  {
+    canonicalName: 'Vladimir Putin',
+    type: 'Person',
+    aliases: ['President Putin', 'Vladimir Vladimirovich Putin'],
+    patterns: [/Vladimir\s+Putin/i, /President\s+Putin/i],
+    metadata: {
+      category: 'Associate',
+      riskLevel: 'medium',
+      birthDate: '1952-10-07',
+      bio: 'Russian president referenced in geopolitical and network context within related communications.',
+    },
+  },
+  {
+    canonicalName: 'Harvey Weinstein',
+    type: 'Person',
+    aliases: ['Harvey W Weinstein'],
+    patterns: [/Harvey\s+Weinstein/i],
+    metadata: {
+      category: 'Associate',
+      riskLevel: 'high',
+      birthDate: '1952-03-19',
+      bio: 'Disgraced film producer repeatedly co-mentioned in trafficking/abuse network context analyses.',
+    },
+  },
+  {
+    canonicalName: 'Larry Summers',
+    type: 'Person',
+    aliases: ['Lawrence Summers', 'Lawrence H Summers', 'Secretary Summers'],
+    patterns: [/Larry\s+Summers/i, /Lawrence\s+Summers/i],
+    metadata: {
+      category: 'Associate',
+      riskLevel: 'high',
+      birthDate: '1954-11-30',
+      bio: 'Former U.S. Treasury Secretary and Harvard president. Documented as part of Epstein’s elite contact network.',
     },
   },
   {
@@ -887,13 +994,120 @@ export const VIP_RULES: VipRule[] = [
   },
 ];
 
+const HONORIFIC_PREFIXES = [
+  'mr',
+  'mrs',
+  'ms',
+  'miss',
+  'dr',
+  'prof',
+  'president',
+  'prime minister',
+  'pm',
+  'governor',
+  'gov',
+  'senator',
+  'sen',
+  'rep',
+  'representative',
+  'judge',
+  'justice',
+];
+
+function normalizeVipToken(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[.,'"`]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function stripHonorificPrefix(value: string): string {
+  let current = normalizeVipToken(value);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const prefix of HONORIFIC_PREFIXES) {
+      if (current === prefix) continue;
+      if (current.startsWith(`${prefix} `)) {
+        current = current.slice(prefix.length + 1).trim();
+        changed = true;
+        break;
+      }
+    }
+  }
+  return current;
+}
+
+function buildGeneratedPersonAliases(canonicalName: string): string[] {
+  const clean = normalizeVipToken(canonicalName);
+  const parts = clean.split(' ').filter(Boolean);
+  if (parts.length < 2) return [];
+
+  const first = parts[0];
+  const last = parts[parts.length - 1];
+  const middle = parts.slice(1, -1);
+  const aliases = new Set<string>();
+
+  aliases.add(`${first} ${last}`);
+  aliases.add(`${last}, ${first}`);
+  aliases.add(`${first[0]} ${last}`);
+  aliases.add(`${first[0]}. ${last}`);
+
+  if (middle.length > 0) {
+    const middleInitials = middle.map((p) => p[0]).join('');
+    aliases.add(`${first} ${middleInitials} ${last}`);
+    aliases.add(`${first[0]}${middleInitials}${last[0]}`);
+    aliases.add(`${first[0]}.${middleInitials}.${last[0]}.`);
+  }
+
+  return Array.from(aliases).map((a) => normalizeVipToken(a));
+}
+
+function buildAliasSet(rule: VipRule): Set<string> {
+  const aliases = new Set<string>();
+  aliases.add(normalizeVipToken(rule.canonicalName));
+  aliases.add(stripHonorificPrefix(rule.canonicalName));
+
+  for (const alias of rule.aliases || []) {
+    const normalized = normalizeVipToken(alias);
+    aliases.add(normalized);
+    aliases.add(stripHonorificPrefix(normalized));
+  }
+
+  if (rule.type === 'Person') {
+    for (const generated of buildGeneratedPersonAliases(rule.canonicalName)) {
+      aliases.add(generated);
+      aliases.add(stripHonorificPrefix(generated));
+    }
+  }
+
+  return aliases;
+}
+
+const VIP_ALIAS_CACHE = new Map<string, Set<string>>(
+  VIP_RULES.map((rule) => [rule.canonicalName, buildAliasSet(rule)]),
+);
+
 export function resolveVip(name: string): string | null {
-  const normalized = name.trim();
+  const normalized = normalizeVipToken(name);
+  const stripped = stripHonorificPrefix(normalized);
+  if (!normalized) return null;
 
   for (const rule of VIP_RULES) {
-    if (rule.aliases.includes(normalized)) return rule.canonicalName;
+    const aliases = VIP_ALIAS_CACHE.get(rule.canonicalName);
+    if (aliases && (aliases.has(normalized) || aliases.has(stripped))) {
+      return rule.canonicalName;
+    }
     for (const pattern of rule.patterns) {
-      if (pattern.test(normalized)) return rule.canonicalName;
+      const normalizedMatch = normalized.match(pattern);
+      if (normalizedMatch && normalizedMatch[0].trim() === normalized) {
+        return rule.canonicalName;
+      }
+      const strippedMatch = stripped.match(pattern);
+      if (strippedMatch && strippedMatch[0].trim() === stripped) {
+        return rule.canonicalName;
+      }
     }
   }
 

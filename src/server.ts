@@ -3832,12 +3832,16 @@ function injectOgTags(
     <meta property="og:title" content="${safeTitle} | Epstein Files Archive" />
     <meta property="og:description" content="${safeDesc}" />
     <meta property="og:image" content="${ogData.imageUrl}" />
+    <meta property="og:image:secure_url" content="${ogData.imageUrl}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="${ogData.url}" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${safeTitle} | Epstein Files Archive" />
     <meta name="twitter:description" content="${safeDesc}" />
     <meta name="twitter:image" content="${ogData.imageUrl}" />
+    <meta name="twitter:image:alt" content="${safeTitle}" />
   `;
 
   // 1. Handle <title> tag replacement
@@ -3874,13 +3878,109 @@ function getArticleById(id: number | string) {
   }
 }
 
+function getPublicBaseUrl(req: express.Request): string {
+  const host = req.get('host') || 'epstein.academy';
+  const forwardedProtoRaw = String(req.headers['x-forwarded-proto'] || '')
+    .split(',')[0]
+    .trim();
+  const localHost = host.includes('localhost') || host.includes('127.0.0.1');
+  const protocol = localHost ? forwardedProtoRaw || req.protocol || 'http' : 'https';
+  return `${protocol}://${host}`;
+}
+
+function mediaItemTimestamp(item: any): number {
+  const ts = new Date(item?.date_modified || item?.dateModified || item?.created_at || 0).getTime();
+  return Number.isFinite(ts) ? ts : Date.now();
+}
+
+function getFirstImageIdForAlbum(albumId: number): number | null {
+  try {
+    const db = getDb();
+    const row = db
+      .prepare(
+        `
+        SELECT id
+        FROM media_items
+        WHERE album_id = ? AND file_type LIKE 'image/%'
+        ORDER BY COALESCE(red_flag_rating, 0) DESC, id ASC
+        LIMIT 1
+      `,
+      )
+      .get(albumId) as { id?: number } | undefined;
+    return row?.id || null;
+  } catch {
+    return null;
+  }
+}
+
+function getAlbumHeroImageUrl(albumId: number, baseUrl: string, fallbackUrl: string): string {
+  const firstImageId = getFirstImageIdForAlbum(albumId);
+  if (!firstImageId) return fallbackUrl;
+  return `${baseUrl}/api/media/images/${firstImageId}/raw`;
+}
+
+function getMediaItemPreviewImageUrl(item: any, baseUrl: string, fallbackUrl: string): string {
+  const fileType = String(item?.file_type || item?.fileType || '').toLowerCase();
+  const id = Number(item?.id);
+  if (!Number.isFinite(id) || id <= 0) return fallbackUrl;
+
+  if (fileType.startsWith('image/')) {
+    return `${baseUrl}/api/media/images/${id}/raw?v=${mediaItemTimestamp(item)}`;
+  }
+  if (fileType.includes('video')) {
+    return `${baseUrl}/api/media/video/${id}/thumbnail?v=${mediaItemTimestamp(item)}`;
+  }
+  if (fileType.includes('audio')) {
+    const albumId = Number(item?.album_id || item?.albumId);
+    if (Number.isFinite(albumId) && albumId > 0) {
+      return getAlbumHeroImageUrl(albumId, baseUrl, fallbackUrl);
+    }
+  }
+  return fallbackUrl;
+}
+
+function routeTitleFromPath(routePath: string): string {
+  if (routePath === '/' || routePath === '/people') return 'Subjects';
+
+  const segments = routePath
+    .split('/')
+    .filter(Boolean)
+    .filter((s) => !/^\d+$/.test(s))
+    .map((s) => s.replace(/[-_]+/g, ' '));
+
+  if (segments.length === 0) return 'Epstein Files Archive';
+  return segments.map((s) => s.replace(/\b\w/g, (c) => c.toUpperCase())).join(' - ');
+}
+
+function routeDescription(routePath: string): string {
+  if (routePath.startsWith('/documents')) {
+    return 'Browse primary source documents, filings, records, and extracted evidence from the Epstein Files Archive.';
+  }
+  if (routePath.startsWith('/media')) {
+    return 'Browse photos, audio, video, and curated media evidence in the Epstein Files Archive.';
+  }
+  if (routePath.startsWith('/entity') || routePath.startsWith('/entities')) {
+    return 'View entity profile, linked records, connections, and evidence context in the Epstein Files Archive.';
+  }
+  if (routePath.startsWith('/emails')) {
+    return 'Explore email threads, participants, and linked evidence in the Epstein Files Archive.';
+  }
+  if (routePath.startsWith('/properties')) {
+    return 'Track locations, holdings, and property-linked entities in the Epstein Files Archive.';
+  }
+  if (routePath.startsWith('/flights')) {
+    return 'Review flight manifests, routes, and co-passenger links in the Epstein Files Archive.';
+  }
+  return 'Investigate entities, records, and evidence in the Epstein Files Archive.';
+}
+
 // SPA fallback to index.html for non-API routes
 app.get('*', async (req, res, next) => {
   if (req.path.startsWith('/api/')) return next();
 
   const indexFile = path.join(distPath, 'index.html');
   if (fs.existsSync(indexFile)) {
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const baseUrl = getPublicBaseUrl(req);
     const defaultOgImage = `${baseUrl}/og-image.png`;
     let html = fs.readFileSync(indexFile, 'utf8');
     const routePath = req.path;
@@ -3889,6 +3989,31 @@ app.get('*', async (req, res, next) => {
       // =================================================================
       // SOCIAL PREVIEW: DEEP LINING LOGIC
       // =================================================================
+
+      // 0. Route-level media item deep links (path-based)
+      const mediaItemPathMatch = routePath.match(/^\/media\/(?:audio|video|items)\/(\d+)$/);
+      if (mediaItemPathMatch) {
+        const id = parseInt(mediaItemPathMatch[1], 10);
+        if (!isNaN(id)) {
+          const item = mediaRepository.getMediaItemById(id);
+          if (item) {
+            const fileType = String(item.file_type || '').toLowerCase();
+            const typeLabel = fileType.includes('audio')
+              ? 'Audio'
+              : fileType.includes('video')
+                ? 'Video'
+                : 'Media';
+            html = injectOgTags(html, {
+              title: item.title || `${typeLabel} Item`,
+              description:
+                item.description || `${typeLabel} evidence from the Epstein Files Archive.`,
+              imageUrl: getMediaItemPreviewImageUrl(item, baseUrl, defaultOgImage),
+              url: `${baseUrl}${req.originalUrl}`,
+            });
+            return res.send(html);
+          }
+        }
+      }
 
       // 1. Photos (Query param: ?photoId=123) - Existing
       const photoId = req.query.photoId;
@@ -3932,27 +4057,53 @@ app.get('*', async (req, res, next) => {
 
       // 3. Audio/Media Items (Query param: ?id=123 on /media/audio or Generic)
       // Note: AudioBrowser uses ?id= for deep linking
-      if (routePath.startsWith('/media/audio') || routePath.startsWith('/media/items')) {
-        const audioId = req.query.id || req.query.audioId;
-        if (audioId) {
-          const id = parseInt(audioId as string);
+      if (
+        routePath.startsWith('/media/audio') ||
+        routePath.startsWith('/media/video') ||
+        routePath.startsWith('/media/items')
+      ) {
+        const mediaItemId =
+          req.query.id || req.query.audioId || req.query.videoId || req.query.mediaId;
+        if (mediaItemId) {
+          const id = parseInt(mediaItemId as string, 10);
           if (!isNaN(id)) {
             const item = mediaRepository.getMediaItemById(id);
             if (item) {
-              // Use a generic audio placeholder or specific if available
-              const thumbnail =
-                item.metadata_json && JSON.parse(item.metadata_json)?.thumbnailPath
-                  ? `${baseUrl}/api/static?path=${encodeURIComponent(JSON.parse(item.metadata_json).thumbnailPath)}`
-                  : `${baseUrl}/og-image.png`; // Fallback
+              const fileType = String(item.file_type || '').toLowerCase();
+              const typeLabel = fileType.includes('audio')
+                ? 'Audio'
+                : fileType.includes('video')
+                  ? 'Video'
+                  : 'Media';
 
               html = injectOgTags(html, {
-                title: item.title || 'Audio Recording - Epstein Files Archive',
-                description: item.description || `Audio recording: ${item.title}`,
-                imageUrl: thumbnail,
+                title: item.title || `${typeLabel} Recording`,
+                description:
+                  item.description || `${typeLabel} evidence from the Epstein Files Archive.`,
+                imageUrl: getMediaItemPreviewImageUrl(item, baseUrl, defaultOgImage),
                 url: `${baseUrl}${req.originalUrl}`,
               });
               return res.send(html);
             }
+          }
+        }
+      }
+
+      // 3b. Album deep links (query: ?albumId=123) across all media tabs.
+      const albumIdQuery = req.query.albumId;
+      if (albumIdQuery && routePath.startsWith('/media')) {
+        const albumId = parseInt(albumIdQuery as string, 10);
+        if (!isNaN(albumId)) {
+          const album = mediaService.getAlbumById(albumId);
+          if (album) {
+            const imageUrl = getAlbumHeroImageUrl(albumId, baseUrl, defaultOgImage);
+            html = injectOgTags(html, {
+              title: `Album: ${album.name}`,
+              description: album.description || `Evidence album from the Epstein Files Archive.`,
+              imageUrl,
+              url: `${baseUrl}${req.originalUrl}`,
+            });
+            return res.send(html);
           }
         }
       }
@@ -4016,7 +4167,7 @@ app.get('*', async (req, res, next) => {
       }
 
       // Check for document deep links (e.g., /documents?doc=123)
-      const docId = req.query.doc || req.query.documentId;
+      const docId = req.query.doc || req.query.documentId || req.query.id;
       if (docId) {
         const doc = documentsRepository.getDocumentById(String(docId));
         if (doc) {
@@ -4078,6 +4229,18 @@ app.get('*', async (req, res, next) => {
 
       // Route-based OG tags for specific pages
       // Route-based OG tags for specific pages
+
+      // Properties
+      if (routePath === '/properties' || routePath.startsWith('/properties')) {
+        html = injectOgTags(html, {
+          title: 'Properties - Epstein Files Archive',
+          description:
+            'Investigate property records, locations, linked entities, and ownership patterns in the Epstein Files Archive.',
+          imageUrl: defaultOgImage,
+          url: `${baseUrl}${req.originalUrl}`,
+        });
+        return res.send(html);
+      }
 
       // Timeline
       if (routePath === '/timeline' || routePath.startsWith('/timeline')) {
@@ -4286,6 +4449,15 @@ app.get('*', async (req, res, next) => {
         });
         return res.send(html);
       }
+
+      // Final fallback: always inject a real route-specific title/description for share previews.
+      html = injectOgTags(html, {
+        title: routeTitleFromPath(routePath),
+        description: routeDescription(routePath),
+        imageUrl: defaultOgImage,
+        url: `${baseUrl}${req.originalUrl}`,
+      });
+      return res.send(html);
     } catch (err) {
       console.error('Error injecting OG tags:', err);
       // Fallback to sending file normally

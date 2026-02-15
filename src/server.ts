@@ -1288,10 +1288,21 @@ app.get('/api/documents/:id/lineage', async (req, res, next) => {
     const db = getDb();
     const docId = req.params.id;
 
+    const hasAuditLog = Boolean(
+      db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='audit_log'").get(),
+    );
+
     const doc = db
       .prepare(
         `
-      SELECT d.*, orig.file_name as original_file_name, orig.file_path as original_file_path
+      SELECT
+        d.id,
+        d.file_name,
+        d.source_collection,
+        d.original_file_id,
+        d.created_at,
+        orig.file_name as original_file_name,
+        orig.file_path as original_file_path
       FROM documents d
       LEFT JOIN documents orig ON d.original_file_id = orig.id
       WHERE d.id = ?
@@ -1301,11 +1312,7 @@ app.get('/api/documents/:id/lineage', async (req, res, next) => {
       id: string;
       file_name: string;
       source_collection: string;
-      source_original_url: string;
-      credibility_score: number;
-      ocr_engine: string;
-      ocr_quality_score: number;
-      ocr_processed_at: string;
+      created_at: string;
       original_file_id: string | null;
       original_file_name: string | null;
     };
@@ -1315,30 +1322,32 @@ app.get('/api/documents/:id/lineage', async (req, res, next) => {
     const children = db
       .prepare(
         `
-      SELECT id, file_name, page_number FROM documents WHERE parent_id = ? ORDER BY page_number ASC
+      SELECT id, file_name FROM documents WHERE parent_document_id = ? ORDER BY id ASC
     `,
       )
       .all(docId);
 
-    const auditEntries = db
-      .prepare(
-        `
-      SELECT timestamp, user_id, action, payload_json FROM audit_log
-      WHERE object_type = 'document' AND object_id = ? ORDER BY timestamp DESC LIMIT 20
-    `,
-      )
-      .all(String(docId));
+    const auditEntries = hasAuditLog
+      ? db
+          .prepare(
+            `
+        SELECT timestamp, user_id, action, payload_json FROM audit_log
+        WHERE object_type = 'document' AND object_id = ? ORDER BY timestamp DESC LIMIT 20
+      `,
+          )
+          .all(String(docId))
+      : [];
 
     res.json({
       document: {
         id: doc.id,
         fileName: doc.file_name,
         sourceCollection: doc.source_collection,
-        sourceOriginalUrl: doc.source_original_url,
-        credibilityScore: doc.credibility_score,
-        ocrEngine: doc.ocr_engine,
-        ocrQualityScore: doc.ocr_quality_score,
-        processedAt: doc.ocr_processed_at,
+        sourceOriginalUrl: null,
+        credibilityScore: null,
+        ocrEngine: null,
+        ocrQualityScore: null,
+        processedAt: doc.created_at || null,
       },
       originalDocument: doc.original_file_id
         ? { id: doc.original_file_id, fileName: doc.original_file_name }
@@ -1348,7 +1357,15 @@ app.get('/api/documents/:id/lineage', async (req, res, next) => {
         timestamp: e.timestamp,
         user: e.user_id,
         action: e.action,
-        details: e.payload_json ? JSON.parse(e.payload_json) : null,
+        details: e.payload_json
+          ? (() => {
+              try {
+                return JSON.parse(e.payload_json);
+              } catch {
+                return null;
+              }
+            })()
+          : null,
       })),
     });
   } catch (error) {

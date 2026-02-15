@@ -30,59 +30,6 @@ const TITLE_PREFIX_FILTERS = [
   `full_name NOT LIKE 'Senator %'`,
 ];
 
-const VIP_DISPLAY_RULES = [
-  {
-    canonicalName: 'Jeffrey Epstein',
-    aliases: [
-      'Jeff Epstein',
-      'Jeffery Epstein',
-      'Jeffry Epstein',
-      'Sam Epstein',
-      'Epstein Jeffrey',
-    ],
-  },
-  {
-    canonicalName: 'Ghislaine Maxwell',
-    aliases: ['Ghislane Maxwell', 'Ghislaine Maxwel', 'Maxwell Ghislaine'],
-  },
-  {
-    canonicalName: 'Alan Dershowitz',
-    aliases: ['Alan M. Dershowitz', 'Alan M Dershowitz', 'Dershowitz Alan', 'Alan Dershowits'],
-  },
-  {
-    canonicalName: 'Virginia Giuffre',
-    aliases: ['Virginia Roberts', 'Virginia Roberts Giuffre', 'Virginia Roberts-Giuffre'],
-  },
-  {
-    canonicalName: 'Jean-Luc Brunel',
-    aliases: ['Jean Luc Brunel', 'Jean Luc Brunnel', 'Brunel Jean Luc'],
-  },
-  {
-    canonicalName: 'Bill Clinton',
-    aliases: ['William Clinton', 'William Jefferson Clinton', 'WJC', 'Clinton Bill'],
-  },
-  {
-    canonicalName: 'Hillary Clinton',
-    aliases: ['Hillary Rodham Clinton', 'Secretary Clinton', 'HRC', 'Clinton Hillary'],
-  },
-  {
-    canonicalName: 'Donald Trump',
-    aliases: ['Donald J Trump', 'Donald J. Trump', 'President Trump', 'DJT', 'DT', 'Trump Donald'],
-  },
-  {
-    canonicalName: 'Bill Barr',
-    aliases: ['William Barr', 'Barr Bill'],
-  },
-  {
-    canonicalName: "Victoria's Secret",
-    aliases: ['Victorias Secret', 'Victoria Secret'],
-  },
-  {
-    canonicalName: 'The Trump Organization',
-    aliases: ['Trump Org', 'Trump Organization'],
-  },
-];
-
 const VIP_TITLE_PREFIXES = [
   'mr',
   'mrs',
@@ -100,6 +47,22 @@ const VIP_TITLE_PREFIXES = [
   'secretary',
 ];
 
+const VIP_DISPLAY_FALLBACKS = new Map<string, string>([
+  ['joseph biden', 'Joe Biden'],
+  ['joseph r biden', 'Joe Biden'],
+  ['president joseph biden', 'Joe Biden'],
+  ['president joe biden', 'Joe Biden'],
+  ['middleton mark', 'Mark Middleton'],
+  ['the donald', 'Donald Trump'],
+  ['global girl', 'Nadia Marcinkova'],
+  ['puff daddy', 'Sean "Diddy" Combs'],
+  ['sarah vickers', 'Sarah Kellen'],
+  ['melania knauss', 'Melania Trump'],
+  ['nadia marcinko', 'Nadia Marcinkova'],
+  ['allen dershowitz', 'Alan Dershowitz'],
+  ['sir mick jagger', 'Mick Jagger'],
+]);
+
 function normalizeVipDisplayName(value: string): string {
   return value
     .toLowerCase()
@@ -108,11 +71,22 @@ function normalizeVipDisplayName(value: string): string {
     .trim();
 }
 
-const VIP_DISPLAY_LOOKUP = new Map<string, string>();
-for (const rule of VIP_DISPLAY_RULES) {
-  VIP_DISPLAY_LOOKUP.set(normalizeVipDisplayName(rule.canonicalName), rule.canonicalName);
-  for (const alias of rule.aliases) {
-    VIP_DISPLAY_LOOKUP.set(normalizeVipDisplayName(alias), rule.canonicalName);
+function upsertVipAlias(
+  map: Map<string, { canonicalName: string; score: number }>,
+  alias: string,
+  canonicalName: string,
+  score: number,
+): void {
+  const key = normalizeVipDisplayName(alias);
+  if (!key) return;
+  const current = map.get(key);
+  const preferCandidateOnTie =
+    Boolean(current) &&
+    score === current.score &&
+    !canonicalName.includes(',') &&
+    current.canonicalName.includes(',');
+  if (!current || score > current.score || preferCandidateOnTie) {
+    map.set(key, { canonicalName, score });
   }
 }
 
@@ -133,19 +107,58 @@ function stripVipTitlePrefix(value: string): string {
   return current;
 }
 
-function resolveDisplayName(name: string): string {
+function buildVipDisplayLookup(db: any): Map<string, string> {
+  const raw = db
+    .prepare(
+      `
+      SELECT full_name, aliases, COALESCE(mentions,0) as mentions
+      FROM entities
+      WHERE COALESCE(is_vip,0)=1
+        AND full_name IS NOT NULL
+        AND TRIM(full_name) != ''
+    `,
+    )
+    .all() as Array<{ full_name: string; aliases?: string | null; mentions: number }>;
+
+  const bestByAlias = new Map<string, { canonicalName: string; score: number }>();
+  for (const row of raw) {
+    const canonicalName = row.full_name.trim();
+    const score = row.mentions || 0;
+    upsertVipAlias(bestByAlias, canonicalName, canonicalName, score);
+
+    const stripped = stripVipTitlePrefix(normalizeVipDisplayName(canonicalName));
+    if (stripped) upsertVipAlias(bestByAlias, stripped, canonicalName, score);
+
+    for (const alias of String(row.aliases || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)) {
+      upsertVipAlias(bestByAlias, alias, canonicalName, score);
+      const aliasStripped = stripVipTitlePrefix(normalizeVipDisplayName(alias));
+      if (aliasStripped) upsertVipAlias(bestByAlias, aliasStripped, canonicalName, score);
+    }
+  }
+
+  return new Map(Array.from(bestByAlias.entries()).map(([k, v]) => [k, v.canonicalName]));
+}
+
+function resolveDisplayName(name: string, lookup: Map<string, string>): string {
   const trimmed = name.trim();
   if (!trimmed) return name;
 
   const normalized = normalizeVipDisplayName(trimmed);
   const stripped = stripVipTitlePrefix(normalized);
-  const direct = VIP_DISPLAY_LOOKUP.get(normalized) || VIP_DISPLAY_LOOKUP.get(stripped);
+  const direct =
+    VIP_DISPLAY_FALLBACKS.get(normalized) ||
+    VIP_DISPLAY_FALLBACKS.get(stripped) ||
+    lookup.get(normalized) ||
+    lookup.get(stripped);
   if (direct) return direct;
 
   const tokens = stripped.split(' ').filter(Boolean);
   if (tokens.length === 2) {
     const reversed = `${tokens[1]} ${tokens[0]}`;
-    const reverseHit = VIP_DISPLAY_LOOKUP.get(reversed);
+    const reverseHit = VIP_DISPLAY_FALLBACKS.get(reversed) || lookup.get(reversed);
     if (reverseHit) return reverseHit;
   }
 
@@ -345,6 +358,7 @@ export const entitiesRepository = {
         `;
 
     const rawEntities = db.prepare(sql).all({ ...params, limit, offset }) as any[];
+    const vipDisplayLookup = buildVipDisplayLookup(db);
 
     // Compute global max connectivity from relationships to normalize the Network signal
     let maxConnectivityCount = 1;
@@ -421,7 +435,7 @@ export const entitiesRepository = {
 
       const dto: SubjectCardDTO = {
         id: String(e.id),
-        name: resolveDisplayName(e.full_name || 'Unknown'),
+        name: resolveDisplayName(e.full_name || 'Unknown', vipDisplayLookup),
         role: e.primary_role || 'Unknown',
         short_bio: e.bio ? e.bio.substring(0, 150) : undefined,
         stats: {
@@ -554,7 +568,7 @@ export const entitiesRepository = {
           mediaCount > 0 || e.black_book_count > 0 ? 'L1' : (e.mentions || 0) > 50 ? 'L2' : 'L3';
         return {
           id: String(e.id),
-          name: resolveDisplayName(e.full_name || 'Unknown'),
+          name: resolveDisplayName(e.full_name || 'Unknown', vipDisplayLookup),
           role: e.primary_role || 'Unknown',
           short_bio: e.bio ? e.bio.substring(0, 150) : undefined,
           stats: {

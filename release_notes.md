@@ -1,3 +1,11 @@
+## 13.6.2 - 2026-02-15
+
+### Canonical Name Stabilization
+
+- Replaced static VIP display alias rules with a dynamic API-side lookup built from live VIP entities and alias metadata in the database.
+- Added deterministic tie-breaking for conflicting VIP variants (for example, preferring `Mark Middleton` over comma-inverted variants when signals are equal).
+- Added a targeted fallback alias map for high-visibility legacy variants (`The Donald`, `Global Girl`, `Puff Daddy`, `Allen Dershowitz`, and Biden/Middleton variants) to ensure canonical display names are surfaced consistently.
+
 ## 13.6.1 - 2026-02-15
 
 ### Canonical VIP Display Names

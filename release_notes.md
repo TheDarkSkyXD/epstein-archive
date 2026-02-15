@@ -1,4 +1,12 @@
-## 13.6.2 - 2026-02-15
+## v13.6.3 - 2026-02-15
+
+### Version History Integrity
+
+- Fixed release note parsing in `/src/App.tsx` so version history now recognizes both `## vX.Y.Z` and `## X.Y.Z` heading styles (plus legacy announcement-style headings).
+- Normalized recent release headings to the canonical `## vX.Y.Z - YYYY-MM-DD` format to prevent future version-history visibility regressions.
+- Ensured all deploys from `v13.1.5` through `v13.6.3` are represented in a consistent, parseable version log.
+
+## v13.6.2 - 2026-02-15
 
 ### Canonical Name Stabilization
 
@@ -6,7 +14,7 @@
 - Added deterministic tie-breaking for conflicting VIP variants (for example, preferring `Mark Middleton` over comma-inverted variants when signals are equal).
 - Added a targeted fallback alias map for high-visibility legacy variants (`The Donald`, `Global Girl`, `Puff Daddy`, `Allen Dershowitz`, and Biden/Middleton variants) to ensure canonical display names are surfaced consistently.
 
-## 13.6.1 - 2026-02-15
+## v13.6.1 - 2026-02-15
 
 ### Canonical VIP Display Names
 
@@ -14,7 +22,7 @@
 - Applied normalization before subject deduplication, improving consolidation quality and reducing visible duplicate VIP variants on the front page.
 - Included normalization coverage for high-visibility entities and organizations such as Trump-related entities and other core VIP names.
 
-## 13.6.0 - 2026-02-15
+## v13.6.0 - 2026-02-15
 
 ### VIP Consolidation and Variant Quality
 
@@ -33,7 +41,7 @@
 - Refined default front-page signal thresholds and name hygiene to reduce obvious fragment/title artifacts while preserving high-signal non-VIP entities.
 - Preserved and strengthened role/title quality filters so low-quality title-prefixed fragments are less likely to leak into default entity listing.
 
-## 13.5.0 - 2026-02-15
+## v13.5.0 - 2026-02-15
 
 ### VIP Data Quality and Consolidation
 
@@ -53,7 +61,7 @@
 - Upgraded `scripts/backfill_vip_flags.ts` to resolve VIPs via canonical rules (not only exact canonical names) and backfill metadata (`risk_level`, `entity_category`, `red_flag_rating`, bio/date fields) for matched entities.
 - Improved backfill determinism and reduced over-tagging from noisy phrase matches.
 
-## 13.4.0 - 2026-02-15
+## v13.4.0 - 2026-02-15
 
 ### Release Discipline
 
@@ -71,7 +79,7 @@
 - Removed remaining Fast Refresh lint warnings by splitting hook/context exports from component files (Undo, Toast, Loading contexts/hooks).
 - Simplified and hardened key server/client paths (parameterized SQL in email routes, hook dependency fixes, dead-code cleanup in People page and telemetry modules).
 
-## 13.3.1 - 2026-02-15
+## v13.3.1 - 2026-02-15
 
 ### Production Blocker Fixes
 
@@ -86,7 +94,7 @@
 - ⚠️ TypeScript compilation warning (non-blocking for production build)
 - ⚠️ Bundle size exceeds 500KB budget (optimization task for future release)
 
-## 13.3.0 - 2026-02-13
+## v13.3.0 - 2026-02-13
 
 ### Forensic-Grade Hardening
 
@@ -109,7 +117,7 @@
 - **Admin Visibility**: New `/api/admin/revision` endpoint exposes canonical revision token and components for debugging.
 - **Vitals Aggregates**: `/api/vitals/aggregates?days=7` provides daily p75 metrics grouped by route.
 
-## 13.2.0 - 2026-02-13
+## v13.2.0 - 2026-02-13
 
 ### Performance
 
@@ -137,14 +145,14 @@
 - Added robust error handling (exponential backoff) for AI service network errors (`ECONNRESET`).
 - Improved type safety in pipeline document ID handling.
 
-## 13.1.7 - 2026-02-13
+## v13.1.7 - 2026-02-13
 
 ### Added
 
 - Implemented justice.gov URL routing to support legacy links (e.g., /epstein/files/\*).
 - Enhanced document path resolution with filename fallback.
 
-## 13.1.6 - 2026-02-12
+## v13.1.6 - 2026-02-12
 
 ### Fixed
 

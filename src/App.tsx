@@ -95,75 +95,63 @@ import releaseNotesRaw from '../release_notes.md?raw';
 // Helper to parse markdown release notes
 const parseReleaseNotes = (markdown: string) => {
   try {
-    // Split on ## Version headers, lowercase v, or the fancy header format
-    const sections = markdown
-      .split(/^## [Vv]ersion |^## v|^# 📣 Epstein Archive V/m)
-      .filter(Boolean);
+    const sections: string[] = [];
+    const lines = markdown.split('\n');
+    let current: string[] = [];
+
+    const isVersionHeading = (line: string): boolean =>
+      /^##\s+(?:[Vv]ersion\s+|[Vv])?\d+\.\d+\.\d+\b/.test(line) ||
+      /^#\s*📣\s*Epstein Archive\s+[Vv]\d+\.\d+\.\d+\b/.test(line);
+
+    for (const line of lines) {
+      if (isVersionHeading(line)) {
+        if (current.length > 0) {
+          sections.push(current.join('\n'));
+          current = [];
+        }
+      }
+      if (current.length > 0 || isVersionHeading(line)) {
+        current.push(line);
+      }
+    }
+    if (current.length > 0) {
+      sections.push(current.join('\n'));
+    }
 
     return sections
       .map((section) => {
-        const lines = section.split('\n').map((l) => l.trim());
-        if (lines.length === 0) return null;
+        const sectionLines = section.split('\n').map((l) => l.trim());
+        if (sectionLines.length === 0) return null;
 
-        // Line 0: "X.X.X (Date)" or "X.X.X - Title"
-        const headerLine = lines[0];
-        const versionMatch = headerLine.match(/^([\d\.]+)/);
+        const headerLine = sectionLines[0];
+        const versionMatch = headerLine.match(/(?:[Vv]ersion\s+|[Vv])?(\d+\.\d+\.\d+)/);
         const version = versionMatch ? `v${versionMatch[1]}` : 'Update';
 
-        const dateMatch = headerLine.match(/\(([^)]+)\)/);
-        let date = dateMatch ? dateMatch[1] : null;
+        let date = 'Recent';
+        const isoDate = headerLine.match(/(\d{4}-\d{2}-\d{2})/);
+        if (isoDate) date = isoDate[1];
+        const parenDate = headerLine.match(/\(([^)]+)\)/);
+        if (parenDate) date = parenDate[1];
 
-        // Fallback: look for *Released: Date*
-        if (!date) {
-          for (const line of lines) {
-            const releasedMatch = line.match(/^\*Released: (.+)\*$/);
-            if (releasedMatch) {
-              date = releasedMatch[1];
-              break;
-            }
-          }
-        }
-        if (!date) date = 'Recent';
-
-        // Find title - first try to extract from header line after " - "
         let title = 'Maintenance Update';
-        const titleInHeader = headerLine.match(/ - (.+)$/);
-        if (titleInHeader) {
-          title = titleInHeader[1];
-        } else {
-          // Fallback: look for title in subsequent lines (not starting with ** or --- or - or ###)
-          for (let i = 1; i < lines.length; i++) {
-            const line = lines[i];
-            if (
-              line &&
-              !line.startsWith('**') &&
-              !line.startsWith('---') &&
-              !line.startsWith('-') &&
-              !line.startsWith('###')
-            ) {
-              title = line;
-              break;
-            }
+        const dashTitle = headerLine.match(/[—-]\s*(.+)$/);
+        if (dashTitle) {
+          const candidate = dashTitle[1].trim();
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(candidate)) {
+            title = candidate;
           }
         }
 
-        // Find all bullet points and section headers
         const notes: string[] = [];
-        for (const line of lines) {
+        for (const line of sectionLines) {
           if (line.startsWith('- ') || line.startsWith('* ')) {
             notes.push(line.substring(2));
           } else if (line.startsWith('### ')) {
-            // Include markdown section headers
             notes.push(line);
           }
         }
 
-        return {
-          version,
-          date,
-          title,
-          notes: notes,
-        };
+        return { version, date, title, notes };
       })
       .filter(Boolean)
       .filter((r: any) => r.notes.length > 0 || r.title !== 'Maintenance Update')

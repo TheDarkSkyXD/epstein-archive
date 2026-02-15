@@ -28,14 +28,26 @@ import { InvestigationsProvider } from './contexts/InvestigationsContext';
 import { useAuth } from './contexts/AuthContext';
 import { LoginPage } from './pages/LoginPage';
 import { SEO } from './components/common/SEO';
-import { PeoplePage } from './pages/PeoplePage';
-import { DocumentsPage } from './pages/DocumentsPage';
-import { TimelinePage } from './pages/TimelinePage';
-import { FlightsPage } from './pages/FlightsPage';
-import { PropertyPage } from './pages/PropertyPage';
-import { EmailPage } from './pages/EmailPage';
-import { MediaPage } from './pages/MediaPage';
-import { AnalyticsPage } from './pages/AnalyticsPage';
+const PeoplePage = lazy(() =>
+  import('./pages/PeoplePage').then((m) => ({ default: m.PeoplePage })),
+);
+const DocumentsPage = lazy(() =>
+  import('./pages/DocumentsPage').then((m) => ({ default: m.DocumentsPage })),
+);
+const TimelinePage = lazy(() =>
+  import('./pages/TimelinePage').then((m) => ({ default: m.TimelinePage })),
+);
+const FlightsPage = lazy(() =>
+  import('./pages/FlightsPage').then((m) => ({ default: m.FlightsPage })),
+);
+const PropertyPage = lazy(() =>
+  import('./pages/PropertyPage').then((m) => ({ default: m.PropertyPage })),
+);
+const EmailPage = lazy(() => import('./pages/EmailPage').then((m) => ({ default: m.EmailPage })));
+const MediaPage = lazy(() => import('./pages/MediaPage').then((m) => ({ default: m.MediaPage })));
+const AnalyticsPage = lazy(() =>
+  import('./pages/AnalyticsPage').then((m) => ({ default: m.AnalyticsPage })),
+);
 const EvidenceModal = lazy(() =>
   import('./components/common/EvidenceModal').then((module) => ({ default: module.EvidenceModal })),
 );

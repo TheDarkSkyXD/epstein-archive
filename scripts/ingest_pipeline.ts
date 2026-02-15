@@ -927,15 +927,48 @@ async function processDocument(
   let existingDoc: any;
 
   try {
-    // Check if already processed using SHA-256
-    const buffer = readFileSync(filePath);
-    const sha256 = crypto.createHash('sha256').update(buffer).digest('hex');
+    // Fast-Skip: Check by path first to avoid rehashing files already in the database
+    const encodedPath = filePath
+      .split('/')
+      .map((p) => encodeURIComponent(p))
+      .join('/');
+    const spaceEncodedPath = filePath.replace(/ /g, '%20');
 
-    // Check by SHA-256 first
-    existingDoc = await db.get(
-      'SELECT id, processing_status FROM documents WHERE content_sha256 = ?',
-      sha256,
+    const pathCheck = await db.get(
+      `SELECT id, content_sha256, processing_status FROM documents 
+       WHERE (file_path = ? OR file_path = ? OR file_path = ?)`,
+      filePath,
+      encodedPath,
+      spaceEncodedPath,
     );
+
+    let sha256: string = '';
+
+    if (pathCheck && pathCheck.content_sha256) {
+      // Use existing hash and skip expensive readFileSync/sha256
+      sha256 = pathCheck.content_sha256;
+      existingDoc = pathCheck;
+
+      if (
+        pathCheck.processing_status === 'succeeded' ||
+        pathCheck.processing_status === 'completed'
+      ) {
+        console.log(`   ⏭️  Fast-Skipping (${pathCheck.processing_status}): ${basename(filePath)}`);
+        return { success: true, documentId: pathCheck.id };
+      }
+
+      console.log(`   ♻️  Resuming (existing hash): ${basename(filePath)}`);
+    } else {
+      // Hard path: Read and hash the file
+      const buffer = readFileSync(filePath);
+      sha256 = crypto.createHash('sha256').update(buffer).digest('hex');
+
+      // Check by SHA-256 for deduplication
+      existingDoc = await db.get(
+        'SELECT id, processing_status FROM documents WHERE content_sha256 = ?',
+        sha256,
+      );
+    }
 
     if (!existingDoc) {
       // Create skeleton document atomically
@@ -960,17 +993,28 @@ async function processDocument(
         );
         existingDoc = { id: result.lastID, processing_status: 'queued' };
       } catch (e) {
-        // Race condition: someone else inserted it between our check and insert
+        // Race condition or constraint: someone else inserted it OR path conflict
         existingDoc = await db.get(
-          'SELECT id, processing_status FROM documents WHERE content_sha256 = ?',
+          'SELECT id, processing_status FROM documents WHERE content_sha256 = ? OR file_path = ? OR file_path = ?',
           sha256,
+          filePath,
+          filePath.replace(/ /g, '%20'),
         );
+
+        if (!existingDoc) {
+          throw new Error(
+            `Critical: Failed to resolve document after insert failure for ${filePath}`,
+          );
+        }
       }
     }
 
-    if (existingDoc && (existingDoc as any).processing_status === 'succeeded') {
-      console.log(`   ⏭️  Skipping (already succeeded): ${basename(filePath)}`);
-      return { success: true, documentId: (existingDoc as any).id };
+    if (
+      existingDoc.processing_status === 'succeeded' ||
+      existingDoc.processing_status === 'completed'
+    ) {
+      console.log(`   ⏭️  Skipping (${existingDoc.processing_status}): ${basename(filePath)}`);
+      return { success: true, documentId: existingDoc.id };
     }
 
     // Ensure job exists and try to lease it

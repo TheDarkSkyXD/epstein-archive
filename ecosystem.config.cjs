@@ -66,6 +66,7 @@ module.exports = {
           'https://epstein.academy,https://www.epstein.academy,https://glasscode.academy,https://www.glasscode.academy',
         // Database safety settings
         SQLITE_BUSY_TIMEOUT: '30000', // 30s timeout for busy database
+        EXO_MODEL: 'mlx-community/Qwen3-30B-A3B-4bit',
       },
       env_production: {
         NODE_ENV: 'production',
@@ -73,6 +74,7 @@ module.exports = {
         DB_PATH: './epstein-archive.db',
         RAW_CORPUS_BASE_PATH: './data',
         SQLITE_BUSY_TIMEOUT: '30000',
+        EXO_MODEL: 'mlx-community/Qwen3-30B-A3B-4bit',
       },
     },
     {
@@ -88,6 +90,7 @@ module.exports = {
         NODE_ENV: 'production',
         DB_PATH: './epstein-archive.db',
         SQLITE_BUSY_TIMEOUT: '30000',
+        EXO_MODEL: 'mlx-community/Qwen3-30B-A3B-4bit',
       },
     },
   ],

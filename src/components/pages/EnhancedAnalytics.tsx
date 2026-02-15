@@ -238,7 +238,7 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
           <NetworkGraph
             entities={topConnectedEntities}
             relationships={topRelationships}
-            onEntityClick={(entity) => onEntitySelect?.(entity.id)}
+            onEntityClick={(entity) => onEntitySelect?.(Number(entity.id))}
             maxNodes={Number(entityCount)}
           />
         </div>

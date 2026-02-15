@@ -83,8 +83,8 @@ function RiskStat({
   onClick: () => void;
 }) {
   const toneClass = {
-    high: 'text-rose-300 border-rose-300/25',
-    medium: 'text-amber-200 border-amber-300/25',
+    high: 'risk-high',
+    medium: 'risk-medium',
   }[tone];
 
   return (

@@ -1,6 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Filter, Calendar, Eye, Download, ChevronDown, User, Building } from 'lucide-react';
+import {
+  Search,
+  Filter,
+  Calendar,
+  Eye,
+  Download,
+  ChevronDown,
+  User,
+  Building,
+  ShieldAlert,
+} from 'lucide-react';
 import { apiClient } from '../../services/apiClient';
 import { Person } from '../../types';
 
@@ -166,10 +176,19 @@ const GlobalSearch: React.FC = () => {
           <input
             type="text"
             placeholder="Search across all evidence files... (e.g., Trump, Clinton, Epstein, flight logs, emails)"
-            className="w-full pl-12 pr-4 py-4 bg-gray-900/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-lg"
+            className="w-full pl-12 pr-12 py-4 bg-gray-900/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-lg"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+          {searchTerm && !loading && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-4 top-1/2 transform -translate-y-1/2 p-1 rounded-full hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
+              title="Clear search"
+            >
+              <Search className="h-4 w-4" />
+            </button>
+          )}
           {loading && (
             <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-cyan-400"></div>
@@ -270,7 +289,10 @@ const GlobalSearch: React.FC = () => {
                         : 'bg-gray-600 text-gray-300'
                     }`}
                   >
-                    🚩 {entity.red_flag_rating || 0}
+                    <span className="inline-flex items-center gap-1">
+                      <ShieldAlert className="h-3 w-3" />
+                      {entity.red_flag_rating || 0}
+                    </span>
                   </div>
                 </div>
                 <div className="mt-3 flex items-center gap-4 text-xs text-gray-400">

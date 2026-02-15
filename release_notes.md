@@ -1,3 +1,29 @@
+## v13.8.0 - 2026-02-15 - Investigative Modal Clarity and Navigation Reliability
+
+### Entity modal clarity and evidence quality
+
+- Reworked `/src/components/common/EvidenceModal.tsx` to prioritize identity, risk, and evidence context with a stronger investigative hierarchy.
+- Replaced fragile high-significance snippets with safer excerpt normalization and targeted highlighting to prevent gibberish-first rendering.
+- Upgraded evidence tab loading states and empty states so the panel never appears blank during fetch or zero-result cases.
+
+### Routing and workflow reliability
+
+- Fixed modal tab synchronization with URL query state (`entityTab`) so URL changes and active tab state stay in lockstep.
+- Standardized in-modal navigation actions (Black Book, Timeline, Search) to close modal and navigate with preserved entity query context.
+- Added development guard logging for URL/tab mismatch detection to prevent silent routing regressions.
+
+### Network and media investigative affordances
+
+- Updated `/src/components/visualizations/NetworkGraph.tsx` to resolve floating-node behavior by normalizing edge lookups and rendering explicit linked edges.
+- Added relationship style encoding (direct/inferred/agentic), clearer legend semantics, and a node selection inspector for fast context.
+- Refined media presentation in `/src/components/common/EvidenceModal.tsx` to include title/date/source/tag signals with consistent actionable controls.
+
+### Semantic consistency and icon hygiene
+
+- Updated `/src/components/entities/cards/EvidenceBadge.tsx` to replace internal ladder labels (`L1/L2/L3`) with user-language evidence labels.
+- Added semantic risk/evidence/source tokens and chip styling in `/src/index.css` for consistent investigative color semantics.
+- Removed remaining emoji risk marker usage in `/src/components/layout/GlobalSearch.tsx` in favor of Lucide-based accessible iconography.
+
 ## v13.7.0 - 2026-02-15 - Mobile-First Investigative Interface Redesign
 
 ### Design System Foundation

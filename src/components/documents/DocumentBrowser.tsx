@@ -640,9 +640,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
     const [showRaw, setShowRaw] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [viewMode, setViewMode] = useState<'carousel' | 'list'>('carousel');
-    const [documentEntities, setDocumentEntities] = useState<any[]>(
-      document.entities || document.mentionedEntities || [],
-    );
+    const [documentEntities, setDocumentEntities] = useState<any[]>(document.entities || []);
     const contentRef = React.useRef<HTMLDivElement>(null);
 
     // Failed redactions state
@@ -664,12 +662,12 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
     // The list endpoint is intentionally lightweight and may omit entity evidence.
     useEffect(() => {
       let mounted = true;
-      setDocumentEntities(document.entities || document.mentionedEntities || []);
+      setDocumentEntities(document.entities || []);
       apiClient
         .getDocument(String(document.id))
         .then((fullDoc) => {
           if (!mounted) return;
-          setDocumentEntities(fullDoc.entities || fullDoc.mentionedEntities || []);
+          setDocumentEntities(fullDoc.entities || []);
         })
         .catch(() => {
           // Keep lightweight payload fallback if full document fetch fails
@@ -677,7 +675,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
       return () => {
         mounted = false;
       };
-    }, [document.id, document.entities, document.mentionedEntities]);
+    }, [document.id, document.entities]);
 
     // Fetch pages when tab is switched to original or document changes
     useEffect(() => {

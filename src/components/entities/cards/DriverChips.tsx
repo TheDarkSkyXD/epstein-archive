@@ -14,10 +14,12 @@ export const DriverChips: React.FC<DriverChipsProps> = ({ chips }) => {
       {chips.map((chip, idx) => {
         const style =
           chip.type === 'critical'
-            ? 'bg-red-950/40 text-red-200 border-red-500/20'
+            ? 'risk-critical'
             : chip.type === 'verified'
-              ? 'bg-cyan-950/40 text-cyan-200 border-cyan-500/20'
-              : 'bg-slate-800/60 text-slate-400 border-slate-700/50';
+              ? 'risk-minimal'
+              : chip.type === 'unverified'
+                ? 'risk-low'
+                : 'bg-slate-800/60 text-slate-400 border-slate-700/50';
         const descriptions: Record<string, string> = {
           critical: 'Direct evidence driver (e.g., Black Book, Flight Logs).',
           verified: 'Verified media driver (e.g., photos).',

@@ -634,6 +634,20 @@ export const investigationsRepository = {
       total: evidence.length,
     };
   },
+
+  getInvestigationsByEntityId: async (entityId: number | string) => {
+    const db = getDb();
+    const query = `
+      SELECT DISTINCT i.*
+      FROM investigations i
+      JOIN investigation_evidence ie ON i.id = ie.investigation_id
+      JOIN evidence_entity ee ON ie.evidence_id = ee.evidence_id
+      WHERE ee.entity_id = ?
+      ORDER BY i.updated_at DESC
+    `;
+    const rows = db.prepare(query).all(entityId) as any[];
+    return rows.map((row) => mapInvestigation(row));
+  },
 };
 
 function mapInvestigation(row: any): Investigation {

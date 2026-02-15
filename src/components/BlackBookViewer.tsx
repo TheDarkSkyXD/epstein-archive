@@ -3,8 +3,7 @@ import { Search, Phone, Mail, MapPin, User, Book, Eye, FileText, ExternalLink } 
 import { extractCleanName, formatPhoneNumber } from '../utils/prettifyOCR';
 import { Link } from 'react-router-dom';
 import { AddToInvestigationButton } from './common/AddToInvestigationButton';
-import { EvidenceModal } from './common/EvidenceModal';
-import { apiClient } from '../services/apiClient';
+import { useNavigate } from 'react-router-dom';
 
 interface BlackBookEntry {
   id: number;
@@ -30,9 +29,7 @@ export const BlackBookViewer: React.FC = () => {
   const [hasAddress, setHasAddress] = useState<boolean>(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [showRaw, setShowRaw] = useState<boolean>(false);
-
-  const [selectedEntity, setSelectedEntity] = useState<any | null>(null);
-  const [loadingEntity, setLoadingEntity] = useState<number | null>(null);
+  const navigate = useNavigate();
 
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
@@ -109,23 +106,17 @@ export const BlackBookViewer: React.FC = () => {
   }, [entries]);
 
   const extractName = useCallback((entryText: string): string => {
-    // Extract name from first line
     const lines = entryText.split('\n');
     return lines[0]?.trim() || 'Unknown';
   }, []);
 
-  const handleEntityClick = useCallback(async (personId: number, personName: string) => {
-    if (!personName) return; // Not a known entity
-    try {
-      setLoadingEntity(personId);
-      const entity = await apiClient.getEntity(String(personId));
-      setSelectedEntity(entity);
-    } catch (error) {
-      console.error('Error fetching entity:', error);
-    } finally {
-      setLoadingEntity(null);
-    }
-  }, []);
+  const handleEntityClick = useCallback(
+    (personId: number) => {
+      if (!personId) return;
+      navigate(`/entity/${personId}`);
+    },
+    [navigate],
+  );
 
   if (loading) {
     return (
@@ -268,19 +259,12 @@ export const BlackBookViewer: React.FC = () => {
                 <User className="w-5 h-5 text-cyan-400" />
                 {entry.person_name ? (
                   <button
-                    onClick={() => handleEntityClick(entry.person_id, entry.person_name!)}
+                    onClick={() => handleEntityClick(entry.person_id)}
                     className="text-lg font-semibold text-cyan-400 hover:text-cyan-300 hover:underline flex items-center gap-1 transition-colors text-left"
                     title="Click to view entity profile"
-                    disabled={loadingEntity === entry.person_id}
                   >
-                    {loadingEntity === entry.person_id ? (
-                      <span className="animate-pulse">Loading...</span>
-                    ) : (
-                      <>
-                        {displayName}
-                        <ExternalLink className="w-3 h-3 opacity-60" />
-                      </>
-                    )}
+                    {displayName}
+                    <ExternalLink className="w-3 h-3 opacity-60" />
                   </button>
                 ) : (
                   <h3 className="text-lg font-semibold text-white">{displayName}</h3>
@@ -414,15 +398,6 @@ export const BlackBookViewer: React.FC = () => {
           <p className="text-slate-400 text-lg">No contacts found</p>
           <p className="text-slate-500 text-sm mt-2">Try adjusting your search or filter</p>
         </div>
-      )}
-
-      {/* Entity Modal */}
-      {selectedEntity && (
-        <EvidenceModal
-          entityId={selectedEntity.id}
-          isOpen={true}
-          onClose={() => setSelectedEntity(null)}
-        />
       )}
     </div>
   );

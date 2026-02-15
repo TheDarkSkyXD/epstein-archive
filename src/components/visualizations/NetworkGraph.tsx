@@ -102,6 +102,7 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
   const [dragStart, setDragStart] = useState<Point>({ x: 0, y: 0 });
   const [draggedNode, setDraggedNode] = useState<string | number | null>(null);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | number | null>(null);
   const [modifierKeyPressed, setModifierKeyPressed] = useState(false);
   // TODO: Track space key for pan mode - see UNUSED_VARIABLES_RECOMMENDATIONS.md
   const [spacePressed, _setSpacePressed] = useState(false);
@@ -230,16 +231,20 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
   const links = useMemo(() => {
     if (filteredNodes.length === 0) return [];
 
-    const nodeMap = new Map(filteredNodes.map((n) => [n.name, n]));
+    const nodeMap = new Map<string, GraphNode>();
+    filteredNodes.forEach((n) => {
+      nodeMap.set(String(n.id), n);
+      nodeMap.set(String(n.name), n);
+    });
 
     // Normalize weights if available, otherwise default
     const maxWeight = Math.max(1, ...relationships.map((r) => r.weight || 1));
 
     return relationships
-      .filter((r) => nodeMap.has(r.source) && nodeMap.has(r.target))
+      .filter((r) => nodeMap.has(String(r.source)) && nodeMap.has(String(r.target)))
       .map((r) => ({
-        source: nodeMap.get(r.source)!,
-        target: nodeMap.get(r.target)!,
+        source: nodeMap.get(String(r.source))!,
+        target: nodeMap.get(String(r.target))!,
         type: r.type,
         weight: r.weight || 1,
         normalizedWeight: (r.weight || 1) / maxWeight,
@@ -438,9 +443,26 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
   const zoomOut = () => zoomFromCenter(1 / 1.2);
   const resetView = () => setTransform({ x: 0, y: 0, k: 1 });
 
+  const selectedNode = useMemo(
+    () =>
+      selectedNodeId !== null
+        ? filteredNodes.find((n) => String(n.id) === String(selectedNodeId)) || null
+        : null,
+    [filteredNodes, selectedNodeId],
+  );
+
+  const selectedNodeLinks = useMemo(() => {
+    if (!selectedNode) return [];
+    return links.filter(
+      (l) =>
+        String(l.source.id) === String(selectedNode.id) ||
+        String(l.target.id) === String(selectedNode.id),
+    );
+  }, [links, selectedNode]);
+
   return (
     <div
-      className={`relative w-full h-[600px] bg-slate-900/50 rounded-xl border border-slate-700/50 overflow-hidden select-none ${spacePressed ? 'cursor-grab active:cursor-grabbing' : ''}`}
+      className={`relative w-full h-full min-h-[420px] bg-slate-900/50 rounded-[var(--radius-lg)] border border-slate-700/50 overflow-hidden select-none ${spacePressed ? 'cursor-grab active:cursor-grabbing' : ''}`}
     >
       {/* Controls */}
       <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">
@@ -537,9 +559,7 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
 
       {/* Legend */}
       <div className="absolute top-4 left-4 z-20 bg-slate-800/90 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50 shadow-xl pointer-events-none sm:pointer-events-auto opacity-80 sm:opacity-100 hover:opacity-100 transition-opacity">
-        <p className="text-xs text-slate-400 mb-3 font-bold uppercase tracking-wider">
-          Risk Levels
-        </p>
+        <p className="text-xs text-slate-400 mb-3 font-bold uppercase tracking-wider">Node Risk</p>
         <div className="space-y-2">
           {[
             { level: 5, label: 'Critical Risk', color: '#a855f7' },
@@ -558,6 +578,43 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
           ))}
         </div>
         <div className="mt-4 pt-3 border-t border-slate-700/50">
+          <div className="text-[10px] text-slate-500 uppercase tracking-wide mb-2">Edge Style</div>
+          <div className="space-y-1 mb-3">
+            <div className="flex items-center gap-2 text-xs text-slate-300">
+              <svg width="18" height="6" viewBox="0 0 18 6" aria-hidden="true">
+                <line x1="0" y1="3" x2="18" y2="3" stroke="#60a5fa" strokeWidth="1.5" />
+              </svg>
+              Direct
+            </div>
+            <div className="flex items-center gap-2 text-xs text-slate-300">
+              <svg width="18" height="6" viewBox="0 0 18 6" aria-hidden="true">
+                <line
+                  x1="0"
+                  y1="3"
+                  x2="18"
+                  y2="3"
+                  stroke="#22d3ee"
+                  strokeWidth="1.5"
+                  strokeDasharray="3 2"
+                />
+              </svg>
+              Inferred
+            </div>
+            <div className="flex items-center gap-2 text-xs text-slate-300">
+              <svg width="18" height="6" viewBox="0 0 18 6" aria-hidden="true">
+                <line
+                  x1="0"
+                  y1="3"
+                  x2="18"
+                  y2="3"
+                  stroke="#a855f7"
+                  strokeWidth="1.5"
+                  strokeDasharray="1.5 2.5"
+                />
+              </svg>
+              Agentic
+            </div>
+          </div>
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <Move className="w-3 h-3" />
             <span>Drag Background to Pan</span>
@@ -627,6 +684,10 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
             {links.map((link, i) => {
               const isHighlight =
                 hoveredNode === link.source.name || hoveredNode === link.target.name;
+              const type = String(link.type || '').toLowerCase();
+              const isInferred = type.includes('infer');
+              const isAgentic = type.includes('agentic') || type.includes('derived');
+              const stroke = isAgentic ? '#a855f7' : isInferred ? '#22d3ee' : '#60a5fa';
               // Dynamic width based on weight (0.05 to 0.3 base)
               // @ts-ignore - normalizedWeight added in useMemo
               const weightBonus = (link.normalizedWeight || 0) * 0.15;
@@ -640,9 +701,10 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
                   y1={link.source.y}
                   x2={link.target.x}
                   y2={link.target.y}
-                  stroke={isHighlight ? '#bae6fd' : '#334155'}
+                  stroke={isHighlight ? '#e2e8f0' : stroke}
                   strokeWidth={isHighlight ? highlightWidth : baseWidth}
-                  strokeOpacity={isHighlight ? 0.8 : 0.2 + (link.normalizedWeight || 0) * 0.2}
+                  strokeOpacity={isHighlight ? 0.85 : 0.2 + (link.normalizedWeight || 0) * 0.28}
+                  strokeDasharray={isAgentic ? '0.8 1.6' : isInferred ? '1.6 1.2' : undefined}
                   className="transition-all duration-300"
                 />
               );
@@ -674,6 +736,7 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
                   onClick={(_e) => {
                     // Only trigger click if drag distance is small (was just a click)
                     if (totalDragDistance < 5) {
+                      setSelectedNodeId(node.id);
                       onEntityClick?.(node);
                     }
                   }}
@@ -729,6 +792,27 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
           </g>
         </g>
       </svg>
+
+      {/* Selection Inspector */}
+      {selectedNode && (
+        <div className="absolute left-4 right-4 bottom-4 z-20 bg-slate-900/90 backdrop-blur-sm border border-slate-700/60 rounded-[var(--radius-md)] p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold text-slate-100">{selectedNode.name}</div>
+              <div className="text-xs text-slate-400">
+                {selectedNode.role || selectedNode.type || 'Entity'} • {selectedNodeLinks.length}{' '}
+                connected links
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-xs text-slate-400">Connections</div>
+              <div className="text-sm font-semibold text-cyan-300">
+                {selectedNode.connectionCount}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

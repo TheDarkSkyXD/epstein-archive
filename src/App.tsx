@@ -326,6 +326,10 @@ function App() {
     if (entityMatch) {
       const entityId = parseInt(entityMatch[1], 10);
       if (!selectedPerson || selectedPerson.id !== entityId) {
+        // Clear conflicting modals
+        setDocumentModalId('');
+        setDocumentModalInitial(null);
+
         fetch(`/api/entities/${entityId}`)
           .then((res) => res.json())
           .then((data) => {
@@ -356,8 +360,12 @@ function App() {
           })
           .catch((err) => console.error('Error loading entity from URL:', err));
       }
+    } else if (selectedPerson && !location.pathname.startsWith('/blackbook')) {
+      // Clear selected person if we are not on an entity route anymore
+      // Exception for blackbook which might open a modal in-situ (though we're changing that)
+      setSelectedPerson(null);
     }
-  }, [location.pathname, selectedPerson]); // Correct dependency: we check selectedPerson logic inside
+  }, [location.pathname, selectedPerson, setDocumentModalId, setDocumentModalInitial]); // Added setters to dependencies
 
   // Handle global entity click events (e.g. from DocumentMetadataPanel or MediaViewerModal)
   useEffect(() => {
@@ -382,12 +390,21 @@ function App() {
   // Load document from URL on page load (for shareable links)
   useEffect(() => {
     const docMatch = location.pathname.match(/^\/documents\/(\d+)/);
-    if (docMatch && !documentModalId) {
+    if (docMatch) {
       const docId = docMatch[1];
-      setDocumentModalId(docId);
-      setSelectedDocumentId(docId);
+      if (documentModalId !== docId) {
+        // Clear conflicting modals
+        setSelectedPerson(null);
+
+        setDocumentModalId(docId);
+        setSelectedDocumentId(docId);
+      }
+    } else if (documentModalId) {
+      // Clear document modal if we are no longer on a document route
+      setDocumentModalId('');
+      setDocumentModalInitial(null);
     }
-  }, [location.pathname, documentModalId]);
+  }, [location.pathname, documentModalId, setSelectedPerson, setSelectedDocumentId]);
 
   // Keyboard shortcuts for power users
   useEffect(() => {
@@ -1074,40 +1091,42 @@ function App() {
                     </div>
 
                     {/* Search Bar */}
-                    <div className="relative flex-1 md:flex-none flex gap-2">
-                      <div className="relative flex-1">
-                        <Icon
-                          name="Search"
-                          size="sm"
-                          color="gray"
-                          className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none"
-                        />
-                        <input
-                          type="text"
-                          placeholder="Search evidence..."
-                          className="w-full md:w-64 pl-9 pr-4 py-2 bg-slate-800/80 border border-slate-600/50 rounded-l-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 text-sm transition-all focus:w-full md:focus:w-80"
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && searchTerm.trim()) {
+                    <div className="relative flex-1 md:flex-none max-w-md">
+                      <div className="flex items-stretch bg-slate-800/80 border border-slate-600/50 rounded-full overflow-hidden shadow-sm">
+                        <div className="relative flex-1">
+                          <Icon
+                            name="Search"
+                            size="sm"
+                            color="gray"
+                            className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Search evidence..."
+                            className="w-full pl-9 pr-4 py-2 bg-transparent text-white placeholder-slate-400 focus:outline-none focus:ring-0 focus:border-none text-sm"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && searchTerm.trim()) {
+                                navigate(`/search?q=${encodeURIComponent(searchTerm)}`);
+                              }
+                            }}
+                          />
+                        </div>
+                        <button
+                          onClick={() => {
+                            if (searchTerm.trim()) {
                               navigate(`/search?q=${encodeURIComponent(searchTerm)}`);
+                            } else {
+                              navigate('/search');
                             }
                           }}
-                        />
+                          className="h-9 px-4 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium flex items-center gap-1 transition-colors border-l border-slate-600/60"
+                        >
+                          <Icon name="Search" size="sm" />
+                          <span className="hidden md:inline">Search</span>
+                        </button>
                       </div>
-                      <button
-                        onClick={() => {
-                          if (searchTerm.trim()) {
-                            navigate(`/search?q=${encodeURIComponent(searchTerm)}`);
-                          } else {
-                            navigate('/search');
-                          }
-                        }}
-                        className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-r-lg transition-colors text-sm font-medium flex items-center gap-1"
-                      >
-                        <Icon name="Search" size="sm" />
-                        <span className="hidden md:inline">Search</span>
-                      </button>
                       {searchTerm.trim().length >= 2 && (
                         <div className="absolute top-full right-0 mt-1 w-full md:w-96 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
                           <div className="p-2 text-xs text-slate-400 border-b border-slate-700">

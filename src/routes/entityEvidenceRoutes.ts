@@ -70,4 +70,17 @@ router.get('/:entityId/documents', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/entities/:id/investigations
+router.get('/:entityId/investigations', async (req: Request, res: Response) => {
+  try {
+    const { entityId } = req.params as { entityId: string };
+    const { investigationsRepository } = await import('../server/db/investigationsRepository.js');
+    const result = await investigationsRepository.getInvestigationsByEntityId(entityId);
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching entity investigations:', error);
+    res.status(500).json({ error: 'Failed to fetch entity investigations' });
+  }
+});
+
 export default router;

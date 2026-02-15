@@ -1,11 +1,23 @@
 import React, { useState, useEffect, useMemo, useCallback, Profiler } from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
-import { X, Search, FileText, Activity, AlertTriangle, ExternalLink, Calendar } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import {
+  X,
+  Search,
+  FileText,
+  Activity,
+  AlertTriangle,
+  ExternalLink,
+  Calendar,
+  ShieldAlert,
+  Image as ImageIcon,
+  BookOpen,
+  Clock,
+  Sparkles,
+  Link2,
+  Briefcase,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FixedSizeList as List } from 'react-window';
-import { InfiniteLoader } from 'react-window-infinite-loader';
-import { AutoSizer } from 'react-virtualized-auto-sizer/dist/react-virtualized-auto-sizer.cjs';
 
 import { SignalPanel } from '../entities/cards/SignalPanel';
 import { DriverChips } from '../entities/cards/DriverChips';
@@ -52,10 +64,85 @@ interface EntityDetails {
   deathDate?: string | null;
 }
 
-export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'evidence' | 'media' | 'network'>(
-    'overview',
+const getRiskClass = (rating: number) => {
+  if (rating >= 5) return 'risk-critical';
+  if (rating >= 4) return 'risk-high';
+  if (rating >= 3) return 'risk-medium';
+  if (rating >= 2) return 'risk-low';
+  return 'risk-minimal';
+};
+
+const textLooksLikeGibberish = (text: string): boolean => {
+  if (!text) return true;
+  const t = text.trim();
+  if (t.length < 18) return true;
+  const symbolRatio = (t.match(/[^a-zA-Z0-9\s,.;:'"!?()-]/g)?.length || 0) / t.length;
+  const runCaps = /[A-Z]{8,}/.test(t);
+  return symbolRatio > 0.2 || runCaps;
+};
+
+const normalizeEvidenceSnippet = (raw: string, fallbackTitle: string): string => {
+  if (!raw) return fallbackTitle;
+  const cleaned = raw
+    .replace(/\s+/g, ' ')
+    .replace(/[_=]{3,}/g, ' ')
+    .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, '')
+    .trim();
+  if (textLooksLikeGibberish(cleaned)) return fallbackTitle;
+  return cleaned.slice(0, 460);
+};
+
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const highlightTerms = (text: string, terms: Array<string | undefined | null>) => {
+  const needles = Array.from(
+    new Set(terms.filter((t): t is string => Boolean(t && t.trim())).map((t) => t.trim())),
   );
+  if (needles.length === 0) return text;
+  const pattern = new RegExp(`(${needles.map((t) => escapeRegExp(t)).join('|')})`, 'ig');
+  return text.split(pattern).map((segment, idx) =>
+    needles.some((needle) => needle.toLowerCase() === segment.toLowerCase()) ? (
+      <mark key={`${segment}-${idx}`} className="bg-amber-400/35 text-amber-100 px-0.5 rounded">
+        {segment}
+      </mark>
+    ) : (
+      <React.Fragment key={`${segment}-${idx}`}>{segment}</React.Fragment>
+    ),
+  );
+};
+
+const formatMetaDate = (value?: string | null): string => {
+  if (!value) return 'Date unknown';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return 'Date unknown';
+  return parsed.toLocaleDateString();
+};
+
+export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, onClose }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const getTabFromUrl = useCallback(():
+    | 'overview'
+    | 'evidence'
+    | 'media'
+    | 'network'
+    | 'investigations' => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get('entityTab');
+    if (
+      tab === 'evidence' ||
+      tab === 'media' ||
+      tab === 'network' ||
+      tab === 'overview' ||
+      tab === 'investigations'
+    ) {
+      return tab;
+    }
+    return 'overview';
+  }, [location.search]);
+  const [activeTab, setActiveTab] = useState<
+    'overview' | 'evidence' | 'media' | 'network' | 'investigations'
+  >(getTabFromUrl());
   const [entity, setEntity] = useState<EntityDetails | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -66,21 +153,25 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
   const [docsInitialized, setDocsInitialized] = useState(false);
   const [docFilters, setDocFilters] = useState({ search: '', source: 'all', sort: 'relevance' });
 
+  // Investigations State
+  const [investigations, setInvestigations] = useState<any[]>([]);
+  const [isInvestigationsLoading, setIsInvestigationsLoading] = useState(false);
+  const [investigationsInitialized, setInvestigationsInitialized] = useState(false);
+
   // Lazy load tabs - only fetch data when tab is activated
   const [tabsLoaded, setTabsLoaded] = useState<Set<string>>(new Set(['overview']));
 
-  // In-memory cache for tab data (prevents refetch on tab toggle)
-  const tabDataCache = React.useRef<{
-    documents?: any[];
-    relationships?: any[];
-    totalDocs?: number;
-  }>({});
-
   // Mark tab as loaded when activated
-  const handleTabChange = useCallback((tab: 'overview' | 'evidence' | 'media' | 'network') => {
-    setActiveTab(tab);
-    setTabsLoaded((prev) => new Set(prev).add(tab));
-  }, []);
+  const handleTabChange = useCallback(
+    (tab: 'overview' | 'evidence' | 'media' | 'network' | 'investigations') => {
+      const params = new URLSearchParams(location.search);
+      params.set('entityTab', tab);
+      navigate(`${location.pathname}?${params.toString()}`, { replace: true });
+      setActiveTab(tab);
+      setTabsLoaded((prev) => new Set(prev).add(tab));
+    },
+    [location.pathname, location.search, navigate],
+  );
 
   // Relationships (Network) State
   const [relationships, setRelationships] = useState<
@@ -106,68 +197,6 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
     }
   }, [entityId]);
 
-  const loadMoreDocuments = React.useCallback(
-    async (startIndex: number, stopIndex: number) => {
-      if (isDocsLoading) return;
-
-      // Check cache first
-      if (tabDataCache.current.documents && tabDataCache.current.documents.length > 0) {
-        const allLoaded = Array.from({ length: stopIndex - startIndex + 1 }).every(
-          (_, i) => !!tabDataCache.current.documents![startIndex + i],
-        );
-        if (allLoaded) return;
-      }
-
-      // Check if we already have these items to prevent redundant fetches
-      const allLoaded = Array.from({ length: stopIndex - startIndex + 1 }).every(
-        (_, i) => !!documents[startIndex + i],
-      );
-      if (allLoaded && docsInitialized) return;
-
-      setIsDocsLoading(true);
-      try {
-        const limit = stopIndex - startIndex + 1;
-        const offset = startIndex;
-
-        const response = (await apiClient.get(`/entities/${entityId}/documents`, {
-          params: {
-            offset,
-            limit,
-            ...docFilters,
-          },
-        } as any)) as any;
-
-        const newDocs = response.data;
-        const total = response.total;
-        setTotalDocs(total);
-
-        setDocuments((prev) => {
-          const next = [...prev];
-          // Ensure the array is at least as large as the total count
-          if (next.length < total) {
-            next.length = total;
-          }
-          // Fill the specific range
-          newDocs.forEach((doc: any, i: number) => {
-            next[startIndex + i] = doc;
-          });
-
-          // Cache documents
-          tabDataCache.current.documents = next;
-          tabDataCache.current.totalDocs = total;
-
-          return next;
-        });
-      } catch (err) {
-        console.error('Error loading docs', err);
-      } finally {
-        setIsDocsLoading(false);
-        setDocsInitialized(true);
-      }
-    },
-    [entityId, docFilters, isDocsLoading, documents, docsInitialized],
-  );
-
   useEffect(() => {
     if (isOpen && entityId) {
       fetchEntityDetails();
@@ -175,15 +204,55 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
   }, [isOpen, entityId, fetchEntityDetails]);
 
   useEffect(() => {
-    // Only load documents if evidence tab has been activated
-    if (isOpen && entityId && activeTab === 'evidence' && tabsLoaded.has('evidence')) {
-      // Reset docs when tab or entity changes
-      setDocuments([]);
-      setTotalDocs(0);
-      setDocsInitialized(false);
-      // We rely on InfiniteLoader to trigger the initial load based on itemCount defaults
+    const urlTab = getTabFromUrl();
+    if (urlTab !== activeTab) {
+      if (import.meta.env.DEV) {
+        console.warn('[EvidenceModal] URL tab changed; syncing modal tab', {
+          urlTab,
+          activeTab,
+        });
+      }
+      setActiveTab(urlTab);
+      setTabsLoaded((prev) => new Set(prev).add(urlTab));
     }
-  }, [isOpen, entityId, activeTab, docFilters, tabsLoaded]);
+  }, [activeTab, getTabFromUrl]);
+
+  useEffect(() => {
+    if (!(isOpen && entityId && activeTab === 'evidence' && tabsLoaded.has('evidence'))) return;
+    let mounted = true;
+    const loadEvidenceDocs = async () => {
+      setIsDocsLoading(true);
+      try {
+        const qs = new URLSearchParams();
+        if (docFilters.search.trim()) qs.set('search', docFilters.search.trim());
+        const endpoint = `/entities/${entityId}/documents${qs.toString() ? `?${qs.toString()}` : ''}`;
+        const response = (await apiClient.get(endpoint)) as any;
+        const docs = Array.isArray(response)
+          ? response
+          : Array.isArray(response?.data)
+            ? response.data
+            : [];
+        if (!mounted) return;
+        setDocuments(docs);
+        setTotalDocs(docs.length);
+      } catch (error) {
+        console.error('Error loading entity evidence documents', error);
+        if (mounted) {
+          setDocuments([]);
+          setTotalDocs(0);
+        }
+      } finally {
+        if (mounted) {
+          setDocsInitialized(true);
+          setIsDocsLoading(false);
+        }
+      }
+    };
+    loadEvidenceDocs();
+    return () => {
+      mounted = false;
+    };
+  }, [activeTab, docFilters.search, entityId, isOpen, tabsLoaded]);
 
   useEffect(() => {
     // Only load relationships if network tab has been activated
@@ -224,8 +293,31 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
     }
   }, [isOpen, entityId, activeTab, tabsLoaded]);
 
-  // Helper to check if item is loaded
-  const isItemLoaded = (index: number) => !!documents[index];
+  useEffect(() => {
+    if (!(isOpen && entityId && activeTab === 'investigations' && tabsLoaded.has('investigations')))
+      return;
+    let mounted = true;
+    const loadInvestigations = async () => {
+      setIsInvestigationsLoading(true);
+      try {
+        const response = (await apiClient.get(`/entities/${entityId}/investigations`)) as any;
+        if (!mounted) return;
+        setInvestigations(Array.isArray(response) ? response : []);
+      } catch (error) {
+        console.error('Error loading entity investigations', error);
+        if (mounted) setInvestigations([]);
+      } finally {
+        if (mounted) {
+          setInvestigationsInitialized(true);
+          setIsInvestigationsLoading(false);
+        }
+      }
+    };
+    loadInvestigations();
+    return () => {
+      mounted = false;
+    };
+  }, [activeTab, entityId, isOpen, tabsLoaded]);
 
   // Forensic Calculations
   const forensicData = useMemo(() => {
@@ -280,6 +372,28 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
       relationships: links,
     };
   }, [entity, relationships]);
+
+  const navigateFromModal = useCallback(
+    (path: string) => {
+      onClose();
+      navigate(path);
+    },
+    [navigate, onClose],
+  );
+
+  const forensicSummary = useMemo(() => {
+    if (!entity || !forensicData) return '';
+    const docsCount = totalDocs > 0 ? totalDocs : documents.length;
+    const mediaCount = entity.photos?.length || 0;
+    const relationCount = relationships.length;
+    const riskDescriptor =
+      (entity.redFlagRating || 0) >= 4
+        ? 'high direct exposure'
+        : (entity.redFlagRating || 0) >= 2
+          ? 'moderate exposure'
+          : 'limited direct exposure';
+    return `${riskDescriptor} across ${docsCount.toLocaleString()} documents; appears in ${mediaCount.toLocaleString()} verified media items; connected to ${relationCount.toLocaleString()} relationship signals.`;
+  }, [documents.length, entity, forensicData, relationships.length, totalDocs]);
 
   // Scroll Lock
   useScrollLock(isOpen);
@@ -359,11 +473,10 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                       <h2 className="text-3xl font-bold text-slate-100 truncate">
                         {entity?.fullName}
                       </h2>
-                      {entity?.likelihoodLevel === 'HIGH' && (
-                        <span className="px-2 py-0.5 rounded text-xs font-bold bg-red-500/20 text-red-500 border border-red-500/30">
-                          HIGH RISK
-                        </span>
-                      )}
+                      <span className={`semantic-chip ${getRiskClass(entity?.redFlagRating || 0)}`}>
+                        <ShieldAlert size={12} />
+                        Risk {(entity?.redFlagRating || 0).toFixed(0)}/5
+                      </span>
                     </div>
                     <div className="text-slate-400 text-lg mb-4">
                       <span>{entity?.primaryRole}</span>
@@ -375,39 +488,52 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                       )}
                     </div>
 
+                    <p className="text-sm text-slate-300 leading-relaxed mb-4 max-w-4xl">
+                      <span className="font-semibold text-slate-100">Forensic Summary:</span>{' '}
+                      {forensicSummary}
+                    </p>
+
                     <div className="flex items-center gap-3 mb-4">
-                      <Link
-                        to={
-                          entity?.blackBookEntries?.[0]?.id
-                            ? `/black-book/${entity.blackBookEntries[0].id}`
-                            : `/black-book?search=${encodeURIComponent(entity?.fullName || '')}`
+                      <button
+                        onClick={() =>
+                          navigateFromModal(
+                            `/blackbook?search=${encodeURIComponent(entity?.fullName || '')}`,
+                          )
                         }
-                        className="text-xs text-purple-400 hover:text-purple-300 hover:underline flex items-center gap-1 transition-colors"
+                        className="text-xs text-purple-300 hover:text-purple-200 hover:underline flex items-center gap-1 transition-colors"
                       >
-                        <Icon name="Book" size="xs" />
+                        <BookOpen size={12} />
                         Black Book
-                      </Link>
-                      <Link
-                        to={`/timeline?search=${encodeURIComponent(entity?.fullName || '')}`}
-                        className="text-xs text-blue-400 hover:text-blue-300 hover:underline flex items-center gap-1 transition-colors"
+                      </button>
+                      <button
+                        onClick={() =>
+                          navigateFromModal(
+                            `/timeline?search=${encodeURIComponent(entity?.fullName || '')}`,
+                          )
+                        }
+                        className="text-xs text-blue-300 hover:text-blue-200 hover:underline flex items-center gap-1 transition-colors"
                       >
                         <Calendar size={12} />
                         Timeline
-                      </Link>
-                      <Link
-                        to={`/search?q=${encodeURIComponent(entity?.fullName || '')}`}
-                        className="text-xs text-cyan-400 hover:text-cyan-300 hover:underline flex items-center gap-1 transition-colors"
+                      </button>
+                      <button
+                        onClick={() =>
+                          navigateFromModal(
+                            `/search?q=${encodeURIComponent(entity?.fullName || '')}`,
+                          )
+                        }
+                        className="text-xs text-cyan-300 hover:text-cyan-200 hover:underline flex items-center gap-1 transition-colors"
                       >
-                        <Icon name="Link" size="xs" />
+                        <Search size={12} />
                         Search
-                      </Link>
+                      </button>
                     </div>
                   </>
                 )}
 
                 {/* ACTION TABS */}
                 <div className="flex gap-2 overflow-x-auto pb-1">
-                  {['overview', 'evidence', 'media', 'network'].map((tab) => (
+                  {['overview', 'evidence', 'investigations', 'media', 'network'].map((tab) => (
                     <button
                       key={tab}
                       onClick={() => handleTabChange(tab as any)}
@@ -456,32 +582,59 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                     <div className="p-6 space-y-8">
                       {/* METRICS & SIGNAL PANEL */}
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* LEFT: CORE STATS */}
-                        <div className="bg-slate-950/50 rounded-xl p-5 border border-slate-800 flex flex-col justify-between">
-                          <div className="grid grid-cols-3 gap-4 text-center">
-                            <div className="p-3 bg-slate-900 rounded-lg">
-                              <div className="text-2xl font-bold text-indigo-400">
+                        <div className="bg-slate-950/50 rounded-[var(--radius-lg)] p-5 border border-slate-800 flex flex-col justify-between">
+                          <div className="flex flex-wrap items-center gap-2 mb-4">
+                            <span
+                              className={`semantic-chip ${getRiskClass(entity.redFlagRating || 0)}`}
+                            >
+                              <ShieldAlert size={12} />
+                              Risk {(entity.redFlagRating || 0).toFixed(0)}/5
+                            </span>
+                            <span
+                              className={`semantic-chip ${
+                                forensicData.ladder.level === 'L1'
+                                  ? 'evidence-direct'
+                                  : forensicData.ladder.level === 'L2'
+                                    ? 'evidence-inferred'
+                                    : forensicData.ladder.level === 'L3'
+                                      ? 'evidence-agentic'
+                                      : 'text-slate-300 border-slate-700 bg-slate-800/60'
+                              }`}
+                            >
+                              <Sparkles size={12} />
+                              {forensicData.ladder.level === 'L1'
+                                ? 'Direct Evidence'
+                                : forensicData.ladder.level === 'L2'
+                                  ? 'Inferred Evidence'
+                                  : forensicData.ladder.level === 'L3'
+                                    ? 'Agentic Evidence'
+                                    : 'Evidence Unspecified'}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div className="p-3 bg-slate-900 rounded-[var(--radius-md)] border border-slate-800">
+                              <div className="text-xl font-bold text-cyan-300">
                                 {entity.mentions}
                               </div>
-                              <div className="text-xs text-slate-500 uppercase tracking-wider mt-1">
-                                Mentions
-                              </div>
+                              <div className="text-xs text-slate-500 mt-1">Mentions</div>
                             </div>
-                            <div className="p-3 bg-slate-900 rounded-lg">
-                              <div className="text-2xl font-bold text-sky-400">
-                                {totalDocs > 0 ? totalDocs : entity.mentions /* Fallback */}
+                            <div className="p-3 bg-slate-900 rounded-[var(--radius-md)] border border-slate-800">
+                              <div className="text-xl font-bold text-blue-300">
+                                {totalDocs > 0 ? totalDocs : entity.mentions}
                               </div>
-                              <div className="text-xs text-slate-500 uppercase tracking-wider mt-1">
-                                Documents
-                              </div>
+                              <div className="text-xs text-slate-500 mt-1">Documents</div>
                             </div>
-                            <div className="p-3 bg-slate-900 rounded-lg">
-                              <div className="text-2xl font-bold text-emerald-400">
+                            <div className="p-3 bg-slate-900 rounded-[var(--radius-md)] border border-slate-800">
+                              <div className="text-xl font-bold text-orange-300">
                                 {entity.photos?.length || 0}
                               </div>
-                              <div className="text-xs text-slate-500 uppercase tracking-wider mt-1">
-                                Media
+                              <div className="text-xs text-slate-500 mt-1">Media</div>
+                            </div>
+                            <div className="p-3 bg-slate-900 rounded-[var(--radius-md)] border border-slate-800">
+                              <div className="text-xl font-bold text-emerald-300">
+                                {entity.evidenceTypes?.length || 0}
                               </div>
+                              <div className="text-xs text-slate-500 mt-1">Source Types</div>
                             </div>
                           </div>
                           <div className="mt-6 pt-6 border-t border-slate-800/50">
@@ -492,8 +645,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                           </div>
                         </div>
 
-                        {/* RIGHT: SIGNAL ANALYSIS */}
-                        <div className="bg-slate-950/50 rounded-xl p-5 border border-slate-800">
+                        <div className="bg-slate-950/50 rounded-[var(--radius-lg)] p-5 border border-slate-800">
                           <h4 className="text-sm font-semibold text-slate-300 mb-4 flex items-center justify-between">
                             <span>FORENSIC SIGNALS</span>
                             <span className="text-xs font-mono text-slate-500">EXO-METRICS v2</span>
@@ -509,7 +661,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                         </div>
                       </div>
 
-                      {/* HIGH SIGNIFICANCE EVIDENCE (Formerly Spicy) */}
+                      {/* HIGH SIGNIFICANCE EVIDENCE */}
                       {entity.significant_passages && entity.significant_passages.length > 0 && (
                         <div>
                           <h3 className="text-slate-300 font-semibold flex items-center gap-2 font-mono uppercase tracking-widest text-xs mb-4">
@@ -518,46 +670,67 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                           </h3>
                           <div className="grid gap-4">
                             {entity.significant_passages.map((passage, idx) => (
-                              <div
+                              <article
                                 key={idx}
-                                className="bg-slate-950 border border-slate-800 rounded-lg p-4 hover:border-indigo-500/30 transition-colors cursor-pointer group"
-                                onClick={() =>
-                                  passage.documentId &&
-                                  window.open(`/documents/${passage.documentId}`, '_blank')
-                                }
+                                className="bg-slate-950 border border-slate-800 rounded-[var(--radius-md)] p-4 hover:border-indigo-500/30 transition-colors"
                               >
                                 <div className="flex items-start gap-4">
-                                  <div className="mt-1 shrink-0 p-2 bg-slate-900 rounded text-slate-400 group-hover:text-indigo-400 transition-colors">
+                                  <div className="mt-1 shrink-0 p-2 bg-slate-900 rounded-[var(--radius-sm)] text-slate-400 transition-colors">
                                     <FileText size={16} />
                                   </div>
-                                  <div>
-                                    <p className="text-slate-300 text-sm leading-relaxed font-serif italic border-l-2 border-indigo-500/50 pl-4 mb-3">
-                                      "
-                                      {passage.passage ||
-                                        passage.mention_context ||
-                                        passage.contentSnippet ||
-                                        passage.text ||
-                                        passage.content ||
-                                        'No text available'}
-                                      "
-                                    </p>
-                                    <div className="flex items-center gap-3 text-xs text-slate-500">
-                                      <span className="flex items-center gap-1">
-                                        <FileText size={10} /> {passage.filename}
-                                      </span>
-                                      <span className="w-1 h-1 rounded-full bg-slate-700" />
-                                      <span className="text-indigo-400">
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                                      <span className="semantic-chip text-[10px] px-2 h-6 border-slate-700/70 bg-slate-900/70 text-slate-300">
                                         {passage.source || 'Document'}
                                       </span>
+                                      <span className="text-xs font-mono text-slate-400">
+                                        #{passage.documentId || 'n/a'}
+                                      </span>
                                       {passage.documentId && (
-                                        <span className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-indigo-400">
-                                          Open Document <ExternalLink size={10} />
-                                        </span>
+                                        <button
+                                          onClick={() =>
+                                            window.open(
+                                              `/documents/${passage.documentId}`,
+                                              '_blank',
+                                            )
+                                          }
+                                          className="ml-auto text-xs text-indigo-300 hover:text-indigo-200 flex items-center gap-1"
+                                        >
+                                          Open source <ExternalLink size={11} />
+                                        </button>
                                       )}
+                                    </div>
+                                    <p className="text-slate-300 text-sm leading-relaxed border-l-2 border-indigo-500/50 pl-4 mb-3">
+                                      {highlightTerms(
+                                        normalizeEvidenceSnippet(
+                                          passage.passage ||
+                                            passage.mention_context ||
+                                            passage.contentSnippet ||
+                                            passage.text ||
+                                            passage.content ||
+                                            '',
+                                          passage.filename ||
+                                            `Document ${passage.documentId || ''}`,
+                                        ),
+                                        [entity.fullName, passage.keyword],
+                                      )}
+                                    </p>
+                                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                                      <span className="inline-flex items-center gap-1">
+                                        <FileText size={10} />{' '}
+                                        {passage.filename || 'Untitled source'}
+                                      </span>
+                                      <span className="inline-flex items-center gap-1 text-amber-300">
+                                        <AlertTriangle size={10} />
+                                        Why significant:{' '}
+                                        {passage.keyword
+                                          ? 'Matched high-risk phrase.'
+                                          : 'Direct mention context in high-signal evidence.'}
+                                      </span>
                                     </div>
                                   </div>
                                 </div>
-                              </div>
+                              </article>
                             ))}
                           </div>
                         </div>
@@ -571,16 +744,16 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                               <Icon name="Book" size="sm" />
                               Black Book Entry
                             </h3>
-                            <Link
-                              to={
-                                entity.blackBookEntries?.[0]?.id
-                                  ? `/black-book/${entity.blackBookEntries[0].id}`
-                                  : `/black-book?search=${encodeURIComponent(entity.fullName)}`
+                            <button
+                              onClick={() =>
+                                navigateFromModal(
+                                  `/blackbook?search=${encodeURIComponent(entity.fullName)}`,
+                                )
                               }
                               className="text-xs text-purple-400 hover:text-purple-300 hover:underline flex items-center gap-1 transition-colors"
                             >
                               View in Black Book <ExternalLink size={12} />
-                            </Link>
+                            </button>
                           </div>
 
                           <div className="space-y-4">
@@ -622,11 +795,11 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                 </div>
               )}
 
-              {/* 2. EVIDENCE TAB (Virtualized) */}
+              {/* 2. EVIDENCE TAB */}
               {activeTab === 'evidence' && (
                 <div className="h-full flex flex-col min-h-0">
                   {/* FILTERS TOOLBAR */}
-                  <div className="p-4 bg-slate-950/30 border-b border-slate-800 flex gap-4 shrink-0">
+                  <div className="p-4 bg-slate-950/30 border-b border-slate-800 flex flex-col md:flex-row gap-3 shrink-0">
                     <div className="relative flex-1 max-w-md">
                       <Search
                         className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
@@ -642,120 +815,103 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                         }
                       />
                     </div>
-                    <select
-                      className="bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
-                      value={docFilters.source}
-                      onChange={(e) =>
-                        setDocFilters((prev) => ({ ...prev, source: e.target.value }))
-                      }
-                    >
-                      <option value="all">All Sources</option>
-                      <option value="court">Court Logs</option>
-                      <option value="flight">Flight Logs</option>
-                      <option value="email">Emails</option>
-                    </select>
+                    <div className="text-xs text-slate-400 md:ml-auto self-center">
+                      {isDocsLoading
+                        ? 'Loading evidence...'
+                        : `${documents.length} evidence sources`}
+                    </div>
                   </div>
 
-                  {/* VIRTUALIZED LIST */}
-                  <div className="flex-1 min-h-0 relative bg-slate-900">
-                    {docsInitialized && !isDocsLoading && totalDocs === 0 && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500">
-                        <FileText size={48} className="mb-4 opacity-20" />
-                        <p>No documents found matching your criteria.</p>
+                  <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 bg-slate-900">
+                    {isDocsLoading && (
+                      <div className="space-y-3">
+                        {Array.from({ length: 6 }).map((_, i) => (
+                          <div
+                            key={i}
+                            className="h-24 bg-slate-950 border border-slate-800 rounded-[var(--radius-md)] p-3 flex gap-4 items-center animate-pulse"
+                          >
+                            <div className="w-12 h-12 rounded bg-slate-800" />
+                            <div className="flex-1 space-y-2">
+                              <div className="h-4 w-3/4 bg-slate-800 rounded" />
+                              <div className="h-3 w-1/2 bg-slate-800 rounded" />
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
 
-                    <AutoSizer>
-                      {({ height, width }) => {
-                        // Workaround for react-window-infinite-loader types incompatibility
-                        const InfiniteLoaderComponent = InfiniteLoader as any;
-                        return (
-                          <InfiniteLoaderComponent
-                            isItemLoaded={isItemLoaded}
-                            itemCount={docsInitialized ? totalDocs : totalDocs || 50}
-                            loadMoreItems={loadMoreDocuments}
-                          >
-                            {({ onRowsRendered, registerChild }) => (
-                              <List
-                                className="List"
-                                height={height}
-                                itemCount={docsInitialized ? totalDocs : totalDocs || 50}
-                                itemSize={100}
-                                onItemsRendered={({ visibleStartIndex, visibleStopIndex }) => {
-                                  onRowsRendered({
-                                    startIndex: visibleStartIndex,
-                                    stopIndex: visibleStopIndex,
-                                  });
-                                }}
-                                ref={registerChild}
-                                width={width}
-                              >
-                                {({ index, style }) => {
-                                  const doc = documents[index];
-                                  if (!doc)
-                                    return (
-                                      <div style={style} className="p-2">
-                                        <div className="h-full bg-slate-950 border border-slate-800 rounded-lg p-3 flex gap-4 items-center animate-pulse">
-                                          <div className="w-12 h-12 rounded bg-slate-800" />
-                                          <div className="flex-1 space-y-2">
-                                            <div className="h-4 w-3/4 bg-slate-800 rounded" />
-                                            <div className="h-3 w-1/2 bg-slate-800 rounded" />
-                                          </div>
-                                        </div>
-                                      </div>
-                                    );
+                    {!isDocsLoading && docsInitialized && documents.length === 0 && (
+                      <div className="h-full min-h-[260px] flex flex-col items-center justify-center text-slate-400 text-center px-6">
+                        <FileText size={44} className="mb-3 opacity-30" />
+                        <h4 className="text-slate-200 font-semibold mb-1">
+                          No Linked Evidence Yet
+                        </h4>
+                        <p className="text-sm text-slate-500 max-w-md">
+                          We could not find evidence items for this entity using current filters.
+                          Try clearing search, reviewing timeline, or opening related documents.
+                        </p>
+                      </div>
+                    )}
 
-                                  return (
-                                    <div style={style} className="p-2">
-                                      <div
-                                        className="h-full bg-slate-950 border border-slate-800 rounded-lg p-3 hover:border-slate-600 transition-colors flex gap-4 group cursor-pointer"
-                                        onClick={() =>
-                                          window.open(`/documents/${doc.id}`, '_blank')
-                                        }
-                                      >
-                                        {/* Icon Box */}
-                                        <div className="shrink-0 w-12 h-12 bg-slate-900 rounded flex items-center justify-center text-slate-500 group-hover:text-indigo-400 group-hover:bg-indigo-500/10 transition-colors">
-                                          <FileText size={20} />
-                                        </div>
-
-                                        <div className="flex-1 min-w-0">
-                                          <div className="flex justify-between items-start">
-                                            <h4 className="text-slate-200 font-medium text-sm truncate pr-4">
-                                              {doc.title || doc.fileName}
-                                            </h4>
-                                            <span className="text-xs text-slate-500 shrink-0 flex items-center gap-1">
-                                              <Calendar size={10} />
-                                              {doc.dateCreated
-                                                ? new Date(doc.dateCreated).toLocaleDateString()
-                                                : 'Unknown Date'}
-                                            </span>
-                                          </div>
-                                          <p className="text-slate-500 text-xs mt-1 truncate">
-                                            {doc.evidenceType || 'Unclassified Document'} •{' '}
-                                            {doc.fileSize
-                                              ? (doc.fileSize / 1024).toFixed(1) + ' KB'
-                                              : ''}
-                                          </p>
-                                          <p className="text-slate-400 text-xs mt-2 line-clamp-1 italic opacity-70">
-                                            {doc.contentPreview || doc.content?.substring(0, 100)
-                                              ? `"...${doc.contentPreview || doc.content?.substring(0, 100)}..."`
-                                              : '(No preview text available)'}
-                                          </p>
-                                        </div>
-
-                                        <div className="shrink-0 self-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                          <ExternalLink size={16} className="text-slate-400" />
-                                        </div>
-                                      </div>
-                                    </div>
-                                  );
-                                }}
-                              </List>
-                            )}
-                          </InfiniteLoaderComponent>
+                    {!isDocsLoading &&
+                      documents.map((doc, index) => {
+                        const excerpt = normalizeEvidenceSnippet(
+                          doc.contentPreview || doc.content || doc.title || '',
+                          doc.title || doc.fileName || `Document ${doc.id}`,
                         );
-                      }}
-                    </AutoSizer>
+                        const significanceReason =
+                          (doc.redFlagRating || 0) >= 4
+                            ? 'High risk score in source record.'
+                            : doc.evidenceType
+                              ? `Matched in ${doc.evidenceType} evidence.`
+                              : 'Directly linked through entity mention context.';
+
+                        return (
+                          <article
+                            key={doc.id || index}
+                            className="bg-slate-950 border border-slate-800 rounded-[var(--radius-md)] p-4 hover:border-slate-600 transition-colors"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
+                                  <span className="semantic-chip text-[10px] px-2 h-6 border-slate-700/70 bg-slate-900/70 text-slate-300">
+                                    {doc.evidenceType || 'Document'}
+                                  </span>
+                                  <span className="font-mono">#{doc.id}</span>
+                                </div>
+                                <h4 className="text-sm font-semibold text-slate-100 truncate">
+                                  {doc.title || doc.fileName || `Document ${doc.id}`}
+                                </h4>
+                              </div>
+                              <button
+                                onClick={() => window.open(`/documents/${doc.id}`, '_blank')}
+                                className="control h-9 px-3 text-xs text-slate-200 flex items-center gap-1"
+                              >
+                                Open <ExternalLink size={12} />
+                              </button>
+                            </div>
+                            <p className="text-sm text-slate-300 leading-relaxed mt-3 line-clamp-3">
+                              {highlightTerms(excerpt, [entity?.fullName, doc.keyword])}
+                            </p>
+                            <div className="mt-3 pt-3 border-t border-slate-800/70 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                              <span className="inline-flex items-center gap-1">
+                                <Clock size={12} />
+                                {doc.dateCreated
+                                  ? new Date(doc.dateCreated).toLocaleDateString()
+                                  : 'Date unknown'}
+                              </span>
+                              <span className="inline-flex items-center gap-1">
+                                <Link2 size={12} />
+                                Source: {doc.source_collection || 'Archive'}
+                              </span>
+                              <span className="inline-flex items-center gap-1 text-amber-300">
+                                <AlertTriangle size={12} />
+                                Why significant: {significanceReason}
+                              </span>
+                            </div>
+                          </article>
+                        );
+                      })}
                   </div>
                 </div>
               )}
@@ -764,24 +920,88 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
               {activeTab === 'media' && entity && (
                 <div className="absolute inset-0 overflow-y-auto custom-scrollbar p-6">
                   {entity.photos && entity.photos.length > 0 ? (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {entity.photos.map((photo, i) => (
-                        <div
-                          key={i}
-                          className="aspect-square rounded-lg bg-slate-800 overflow-hidden relative group"
-                        >
-                          <img
-                            src={photo.url}
-                            alt={photo.title}
-                            className="w-full h-full object-cover"
-                          />
-                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <button className="px-3 py-1 bg-white text-black text-xs font-bold rounded-full">
-                              VIEW
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                      {entity.photos.map((photo: any, i) => {
+                        const title =
+                          photo.title || photo.caption || photo.filename || `Media item ${i + 1}`;
+                        const sourceType = photo.sourceType || photo.type || 'Media';
+                        const date = formatMetaDate(
+                          photo.date || photo.createdAt || photo.timestamp,
+                        );
+                        const taggedPeople = Array.isArray(photo.taggedPeople)
+                          ? photo.taggedPeople
+                          : Array.isArray(photo.people)
+                            ? photo.people
+                            : Array.isArray(photo.entities)
+                              ? photo.entities
+                              : [];
+                        const riskRating = Number(photo.riskRating || photo.redFlagRating || 0);
+                        const hasDirectSignal = Boolean(photo.directEvidence || photo.verified);
+
+                        return (
+                          <article
+                            key={i}
+                            className="bg-slate-950 border border-slate-800 rounded-[var(--radius-md)] overflow-hidden"
+                          >
+                            <div className="aspect-video bg-slate-900 overflow-hidden">
+                              <img
+                                src={photo.url}
+                                alt={title}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div className="p-3">
+                              <div className="flex items-start gap-2 mb-2">
+                                <h4 className="text-sm font-semibold text-slate-100 line-clamp-2 flex-1">
+                                  {title}
+                                </h4>
+                                {riskRating > 0 && (
+                                  <span className={`semantic-chip ${getRiskClass(riskRating)}`}>
+                                    <ShieldAlert size={12} />
+                                    {riskRating.toFixed(0)}/5
+                                  </span>
+                                )}
+                                {hasDirectSignal && (
+                                  <span className="semantic-chip evidence-direct">
+                                    <Sparkles size={12} />
+                                    Direct
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="text-xs text-slate-400 flex flex-wrap items-center gap-3">
+                                <span className="inline-flex items-center gap-1">
+                                  <Calendar size={12} />
+                                  {date}
+                                </span>
+                                <span className="inline-flex items-center gap-1">
+                                  <ImageIcon size={12} />
+                                  {sourceType}
+                                </span>
+                              </div>
+
+                              {taggedPeople.length > 0 && (
+                                <div className="mt-3 text-xs text-slate-300">
+                                  <span className="text-slate-500">Tagged people:</span>{' '}
+                                  {taggedPeople.slice(0, 3).join(', ')}
+                                  {taggedPeople.length > 3 ? ` +${taggedPeople.length - 3}` : ''}
+                                </div>
+                              )}
+
+                              <div className="mt-3 pt-3 border-t border-slate-800 flex items-center justify-end">
+                                <button
+                                  onClick={() => window.open(photo.url, '_blank')}
+                                  className="control h-9 px-3 text-xs text-slate-200 flex items-center gap-1"
+                                  aria-label={`Open media item ${title}`}
+                                  title="Open media in new tab"
+                                >
+                                  View <ExternalLink size={12} />
+                                </button>
+                              </div>
+                            </div>
+                          </article>
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="text-center py-20 text-slate-500">
@@ -817,6 +1037,101 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                       maxNodes={50}
                     />
                   )}
+                </div>
+              )}
+
+              {/* 5. INVESTIGATIONS TAB */}
+              {activeTab === 'investigations' && (
+                <div className="h-full flex flex-col min-h-0">
+                  <div className="p-4 bg-slate-950/30 border-b border-slate-800 flex items-center justify-between shrink-0">
+                    <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                      <Briefcase size={16} className="text-indigo-400" />
+                      Linked Investigations
+                    </h3>
+                    <div className="text-xs text-slate-400">
+                      {isInvestigationsLoading
+                        ? 'Loading cases...'
+                        : `${investigations.length} open cases`}
+                    </div>
+                  </div>
+
+                  <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4 bg-slate-900 custom-scrollbar">
+                    {isInvestigationsLoading && (
+                      <div className="space-y-4">
+                        {Array.from({ length: 3 }).map((_, i) => (
+                          <div
+                            key={i}
+                            className="bg-slate-950/50 border border-slate-800 rounded-xl p-5 space-y-3 animate-pulse"
+                          >
+                            <div className="h-5 w-1/3 bg-slate-800 rounded" />
+                            <div className="h-4 w-2/3 bg-slate-800 rounded" />
+                            <div className="flex gap-3">
+                              <div className="h-6 w-20 bg-slate-800 rounded-full" />
+                              <div className="h-6 w-20 bg-slate-800 rounded-full" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {!isInvestigationsLoading &&
+                      investigationsInitialized &&
+                      investigations.length === 0 && (
+                        <div className="h-full min-h-[300px] flex flex-col items-center justify-center text-slate-400 text-center px-6">
+                          <Briefcase size={48} className="mb-4 opacity-20" />
+                          <h4 className="text-slate-200 font-semibold mb-2">
+                            No Active Investigations
+                          </h4>
+                          <p className="text-sm text-slate-500 max-w-sm">
+                            This entity is not currently linked as primary evidence in any open
+                            investigation workflows.
+                          </p>
+                        </div>
+                      )}
+
+                    {!isInvestigationsLoading &&
+                      investigations.map((inv) => (
+                        <div
+                          key={inv.id}
+                          className="group bg-slate-950 border border-slate-800 rounded-xl p-5 hover:border-indigo-500/50 transition-all duration-200"
+                        >
+                          <div className="flex items-start justify-between gap-4 mb-3">
+                            <div className="min-w-0">
+                              <h4 className="text-lg font-bold text-slate-100 group-hover:text-indigo-300 transition-colors truncate">
+                                {inv.title}
+                              </h4>
+                              <p className="text-sm text-slate-400 mt-1 line-clamp-2">
+                                {inv.description || 'No case description provided.'}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => navigateFromModal(`/investigations/${inv.uuid}`)}
+                              className="control flex h-10 px-4 items-center gap-2 text-sm font-medium whitespace-nowrap"
+                            >
+                              Open Case
+                              <ExternalLink size={14} />
+                            </button>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-slate-800/50">
+                            <span
+                              className={cn(
+                                'text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider border',
+                                inv.status === 'open'
+                                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                  : 'bg-slate-500/10 text-slate-400 border-slate-500/20',
+                              )}
+                            >
+                              {inv.status}
+                            </span>
+                            <span className="flex items-center gap-1.5 text-xs text-slate-500">
+                              <Clock size={12} />
+                              Updated {new Date(inv.updated_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
                 </div>
               )}
             </div>

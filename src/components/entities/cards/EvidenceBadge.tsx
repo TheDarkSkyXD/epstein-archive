@@ -9,10 +9,11 @@ interface EvidenceBadgeProps {
 }
 
 const colorFor = (r: number) => {
-  if (r >= 5) return 'text-purple-400';
-  if (r >= 4) return 'text-red-400';
-  if (r >= 2) return 'text-amber-300';
-  if (r >= 1) return 'text-emerald-300';
+  if (r >= 5) return 'text-[var(--risk-critical)]';
+  if (r >= 4) return 'text-[var(--risk-high)]';
+  if (r >= 3) return 'text-[var(--risk-medium)]';
+  if (r >= 2) return 'text-[var(--risk-low)]';
+  if (r >= 1) return 'text-[var(--risk-minimal)]';
   return 'text-slate-500';
 };
 
@@ -50,17 +51,17 @@ export const EvidenceBadge: React.FC<EvidenceBadgeProps> = ({
   }
 
   const ladderConfig = {
-    L1: { color: 'text-red-400', icon: 'AlertOctagon', label: 'L1 Direct' },
-    L2: { color: 'text-amber-300', icon: 'AlertTriangle', label: 'L2 Inferred' },
-    L3: { color: 'text-blue-300', icon: 'HelpCircle', label: 'L3 Derived' },
+    L1: { color: 'evidence-direct', icon: 'AlertOctagon', label: 'Direct Evidence' },
+    L2: { color: 'evidence-inferred', icon: 'AlertTriangle', label: 'Inferred Evidence' },
+    L3: { color: 'evidence-agentic', icon: 'HelpCircle', label: 'Agentic Evidence' },
     NONE: { color: 'text-slate-500', icon: 'Minus', label: 'No Signal' },
   } as const;
   const cfg = ladderConfig[level] || ladderConfig.NONE;
 
   return (
-    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded border border-slate-700 bg-slate-800/40">
-      <Icon name={cfg.icon as any} size="xs" className={`w-3 h-3 ${cfg.color}`} />
-      <span className="text-[9px] uppercase text-slate-400">{cfg.label}</span>
+    <div className={`semantic-chip ${cfg.color}`} title={`Evidence Level: ${cfg.label}`}>
+      <Icon name={cfg.icon as any} size="xs" className="w-3 h-3" />
+      <span className="text-[10px] uppercase tracking-wide">{cfg.label}</span>
     </div>
   );
 };

@@ -355,9 +355,18 @@ export const EvidenceSearch: React.FC<EvidenceSearchProps> = ({ onPersonClick })
               placeholder="Search names, contexts, or evidence..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 h-10 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 form-input"
+              className="w-full pl-10 pr-10 h-10 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 form-input"
               aria-label="Search for evidence by names, contexts, or keywords"
             />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 rounded-full hover:bg-gray-700 text-gray-400 hover:text-white transition-colors"
+                title="Clear search"
+              >
+                <Icon name="X" size="sm" />
+              </button>
+            )}
             <Icon
               name="Search"
               size="sm"

@@ -41,6 +41,26 @@
   --accent-strong: #2f96ee;
   --danger-soft: #ffb4ae;
   --success-soft: #8be7c1;
+
+  /* Semantic risk scale */
+  --risk-critical: #a855f7;
+  --risk-high: #ef4444;
+  --risk-medium: #f59e0b;
+  --risk-low: #3b82f6;
+  --risk-minimal: #10b981;
+
+  /* Evidence ladder */
+  --evidence-direct: #f97316;
+  --evidence-inferred: #06b6d4;
+  --evidence-agentic: #8b5cf6;
+
+  /* Source types */
+  --source-document: #60a5fa;
+  --source-email: #22d3ee;
+  --source-media: #f97316;
+  --source-blackbook: #a78bfa;
+  --source-flight: #38bdf8;
+  --source-property: #34d399;
 }
 
 html,
@@ -116,6 +136,66 @@ textarea {
   border-radius: 999px;
   border: 1px solid var(--border-1);
   background: rgba(24, 37, 61, 0.72);
+}
+
+.semantic-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 28px;
+  padding: 0 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-1);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.risk-critical {
+  color: #f3e8ff;
+  background: color-mix(in srgb, var(--risk-critical) 20%, transparent);
+  border-color: color-mix(in srgb, var(--risk-critical) 45%, transparent);
+}
+
+.risk-high {
+  color: #fee2e2;
+  background: color-mix(in srgb, var(--risk-high) 18%, transparent);
+  border-color: color-mix(in srgb, var(--risk-high) 45%, transparent);
+}
+
+.risk-medium {
+  color: #fef3c7;
+  background: color-mix(in srgb, var(--risk-medium) 18%, transparent);
+  border-color: color-mix(in srgb, var(--risk-medium) 45%, transparent);
+}
+
+.risk-low {
+  color: #dbeafe;
+  background: color-mix(in srgb, var(--risk-low) 18%, transparent);
+  border-color: color-mix(in srgb, var(--risk-low) 45%, transparent);
+}
+
+.risk-minimal {
+  color: #d1fae5;
+  background: color-mix(in srgb, var(--risk-minimal) 18%, transparent);
+  border-color: color-mix(in srgb, var(--risk-minimal) 45%, transparent);
+}
+
+.evidence-direct {
+  color: #ffedd5;
+  background: color-mix(in srgb, var(--evidence-direct) 22%, transparent);
+  border-color: color-mix(in srgb, var(--evidence-direct) 45%, transparent);
+}
+
+.evidence-inferred {
+  color: #cffafe;
+  background: color-mix(in srgb, var(--evidence-inferred) 22%, transparent);
+  border-color: color-mix(in srgb, var(--evidence-inferred) 45%, transparent);
+}
+
+.evidence-agentic {
+  color: #ede9fe;
+  background: color-mix(in srgb, var(--evidence-agentic) 22%, transparent);
+  border-color: color-mix(in srgb, var(--evidence-agentic) 45%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {

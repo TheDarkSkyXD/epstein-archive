@@ -1,5 +1,133 @@
 import { getDb } from './connection.js';
 
+const PREVIEW_MAX_CHARS = 320;
+
+const OCR_NOISE_PATTERNS = [
+  /textify-ocr/gi,
+  /temp[-_]/gi,
+  /\bEFTA\d{3,}\b/g,
+  /\b[A-Z]{2,}\d{4,}\b/g,
+  /[_]{2,}/g,
+];
+
+const deriveHumanTitle = (rawTitle: string): string => {
+  const stripped = rawTitle
+    .replace(/\.[a-z0-9]{2,5}$/i, '')
+    .replace(/textify-ocr/gi, ' ')
+    .replace(/temp[-_]/gi, ' ')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\d{6,}\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!stripped) return 'Untitled document';
+
+  const lower = stripped.toLowerCase();
+  if (lower.includes('deposition')) return 'Deposition transcript';
+  if (lower.includes('flight') && lower.includes('log')) return 'Flight log';
+  if (lower.includes('black') && lower.includes('book')) return 'Black book page';
+  if (lower.includes('email') || lower.includes('message')) return 'Email correspondence';
+  if (lower.includes('doj') || lower.includes('justice')) return 'DOJ filing';
+  return stripped.slice(0, 96);
+};
+
+const looksLikeJunk = (text: string): boolean => {
+  if (!text) return true;
+  const sample = text.trim().slice(0, 900);
+  if (sample.length < 28) return true;
+
+  const digits = (sample.match(/\d/g) || []).length;
+  const letters = (sample.match(/[a-z]/gi) || []).length;
+  const underscores = (sample.match(/_/g) || []).length;
+  const longRuns = (sample.match(/[A-Za-z0-9]{32,}/g) || []).length;
+  const idNoiseHits = OCR_NOISE_PATTERNS.reduce(
+    (acc, pattern) => acc + ((sample.match(pattern) || []).length > 0 ? 1 : 0),
+    0,
+  );
+  const words = sample.split(/\s+/).filter(Boolean);
+  const alphaWords = words.filter((w) => /[a-z]{3,}/i.test(w)).length;
+  const dictishRatio = words.length > 0 ? alphaWords / words.length : 0;
+  const symbolNoise = (sample.match(/[|~`^<>]{2,}/g) || []).length;
+
+  return (
+    underscores / sample.length > 0.035 ||
+    digits > letters * 1.1 ||
+    longRuns > 0 ||
+    idNoiseHits >= 2 ||
+    dictishRatio < 0.42 ||
+    symbolNoise > 0
+  );
+};
+
+const firstMeaningfulExcerpt = (text: string): string => {
+  const paragraphs = text
+    .replace(/\s+/g, ' ')
+    .split(/(?<=[.?!])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 35);
+
+  const candidate =
+    paragraphs.find((line) => !looksLikeJunk(line)) || text.slice(0, PREVIEW_MAX_CHARS);
+  return candidate.slice(0, PREVIEW_MAX_CHARS).trim();
+};
+
+const normalizeSourceType = (evidenceType?: string | null, fileType?: string | null): string => {
+  const value = (evidenceType || fileType || 'document').toLowerCase();
+  if (value.includes('email')) return 'Email';
+  if (value.includes('legal')) return 'Legal';
+  if (value.includes('deposition')) return 'Deposition';
+  if (value.includes('photo') || value.includes('image')) return 'Photo';
+  if (value.includes('financial')) return 'Financial';
+  if (value.includes('flight')) return 'Flight';
+  return 'Document';
+};
+
+const buildPreview = (doc: {
+  title?: string | null;
+  fileName?: string | null;
+  contentRefined?: string | null;
+  cleanedText?: string | null;
+  contentPreview?: string | null;
+  metadata?: Record<string, any>;
+}) => {
+  const curatedTitle =
+    typeof doc.title === 'string' && doc.title.trim() && doc.title !== doc.fileName
+      ? doc.title.trim()
+      : '';
+  const title = curatedTitle || deriveHumanTitle(doc.fileName || 'Untitled document');
+
+  const refined = (doc.contentRefined || '').trim();
+  const cleaned = (doc.cleanedText || '').trim();
+  const raw = (doc.contentPreview || '').trim();
+  const aiSummary =
+    (typeof doc.metadata?.ai_summary === 'string' && doc.metadata.ai_summary.trim()) ||
+    (typeof doc.metadata?.summary === 'string' && doc.metadata.summary.trim()) ||
+    '';
+
+  if (refined && !looksLikeJunk(refined)) {
+    return { title, previewText: firstMeaningfulExcerpt(refined), previewKind: 'excerpt' as const };
+  }
+  if (cleaned && !looksLikeJunk(cleaned)) {
+    return { title, previewText: firstMeaningfulExcerpt(cleaned), previewKind: 'excerpt' as const };
+  }
+  if (aiSummary) {
+    return {
+      title,
+      previewText: aiSummary.slice(0, PREVIEW_MAX_CHARS),
+      previewKind: 'ai_summary' as const,
+    };
+  }
+  if (raw && !looksLikeJunk(raw)) {
+    return { title, previewText: firstMeaningfulExcerpt(raw), previewKind: 'excerpt' as const };
+  }
+
+  return {
+    title,
+    previewText: 'OCR-heavy document; open to view extracted text.',
+    previewKind: 'fallback' as const,
+  };
+};
+
 export const documentsRepository = {
   getDocuments: (
     page: number = 1,
@@ -8,9 +136,14 @@ export const documentsRepository = {
       search?: string;
       fileType?: string;
       evidenceType?: string;
+      source?: string;
+      startDate?: string;
+      endDate?: string;
+      hasFailedRedactions?: boolean;
       minRedFlag?: number;
       maxRedFlag?: number;
       sortBy?: string;
+      sortOrder?: 'asc' | 'desc';
     } = {},
   ) => {
     const db = getDb();
@@ -43,6 +176,30 @@ export const documentsRepository = {
       params.push(filters.evidenceType);
     }
 
+    if (filters.source && filters.source !== 'all') {
+      const sources = filters.source
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (sources.length > 0) {
+        whereConditions.push(`source_collection IN (${sources.map(() => '?').join(',')})`);
+        params.push(...sources);
+      }
+    }
+
+    if (filters.startDate) {
+      whereConditions.push('date_created >= ?');
+      params.push(filters.startDate);
+    }
+    if (filters.endDate) {
+      whereConditions.push('date_created <= ?');
+      params.push(filters.endDate);
+    }
+
+    if (filters.hasFailedRedactions) {
+      whereConditions.push('has_failed_redactions = 1');
+    }
+
     if (filters.minRedFlag || filters.maxRedFlag) {
       const min = filters.minRedFlag || 0;
       const max = filters.maxRedFlag || 5;
@@ -61,17 +218,18 @@ export const documentsRepository = {
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
+    const sortOrder = filters.sortOrder === 'asc' ? 'ASC' : 'DESC';
     let orderByClause = 'ORDER BY ';
     switch (filters.sortBy) {
       case 'date':
-        orderByClause += 'date_created DESC';
+        orderByClause += `date_created ${sortOrder}`;
         break;
       case 'title':
         orderByClause += 'file_name ASC';
         break;
       case 'red_flag':
       default:
-        orderByClause += 'red_flag_rating DESC, date_created DESC';
+        orderByClause += `red_flag_rating DESC, date_created ${sortOrder}`;
         break;
     }
 
@@ -84,30 +242,67 @@ export const documentsRepository = {
       SELECT 
         id,
         file_name as fileName,
-        file_path as filePath,
         file_type as fileType,
         file_size as fileSize,
         date_created as dateCreated,
-        substr(content, 1, 300) as contentPreview,
+        substr(content, 1, 1800) as contentPreview,
         evidence_type as evidenceType,
-        0 as mentionsCount,
-        content,
         content_refined as contentRefined,
         metadata_json as metadata,
         word_count as wordCount,
         red_flag_rating as redFlagRating,
-        content_hash as contentHash,
-        file_name as title
+        COALESCE(NULLIF(title, ''), file_name) as title,
+        source_collection as sourceCollection,
+        (SELECT COUNT(DISTINCT em.entity_id) FROM entity_mentions em WHERE em.document_id = documents.id) as entitiesCount
       FROM documents
       ${whereClause}
       ${orderByClause}
       LIMIT ? OFFSET ?
     `;
 
-    const documents = db.prepare(sql).all(...params, limit, offset);
+    const rawDocuments = db.prepare(sql).all(...params, limit, offset) as Array<
+      Record<string, any>
+    >;
+
+    const docIds = rawDocuments.map((doc) => Number(doc.id)).filter((id) => Number.isFinite(id));
+    const entitiesByDoc = new Map<number, string[]>();
+
+    if (docIds.length > 0) {
+      const placeholders = docIds.map(() => '?').join(',');
+      const entityRows = db
+        .prepare(
+          `
+          WITH ranked_entities AS (
+            SELECT
+              em.document_id as documentId,
+              e.full_name as entityName,
+              COUNT(*) as mentionCount,
+              ROW_NUMBER() OVER (
+                PARTITION BY em.document_id
+                ORDER BY COUNT(*) DESC, e.full_name ASC
+              ) as rankWithinDoc
+            FROM entity_mentions em
+            JOIN entities e ON e.id = em.entity_id
+            WHERE em.document_id IN (${placeholders})
+            GROUP BY em.document_id, e.id, e.full_name
+          )
+          SELECT documentId, entityName
+          FROM ranked_entities
+          WHERE rankWithinDoc <= 3
+          ORDER BY documentId ASC, rankWithinDoc ASC
+        `,
+        )
+        .all(...docIds) as Array<{ documentId: number; entityName: string }>;
+
+      for (const row of entityRows) {
+        const existing = entitiesByDoc.get(row.documentId) || [];
+        existing.push(row.entityName);
+        entitiesByDoc.set(row.documentId, existing);
+      }
+    }
 
     return {
-      documents: documents.map((doc: any) => {
+      documents: rawDocuments.map((doc: any) => {
         let metadata = {};
         try {
           if (typeof doc.metadata === 'string') {
@@ -118,7 +313,46 @@ export const documentsRepository = {
         } catch (_e) {
           /* ignore */
         }
-        return { ...doc, metadata };
+        const preview = buildPreview({
+          title: doc.title,
+          fileName: doc.fileName,
+          contentRefined: doc.contentRefined,
+          contentPreview: doc.contentPreview,
+          metadata,
+        });
+        const entityCount = Number(doc.entitiesCount || 0);
+        const sourceType = normalizeSourceType(doc.evidenceType, doc.fileType);
+        const whyFlagged =
+          entityCount >= 8
+            ? `High significance from dense entity mentions (${entityCount}).`
+            : Number(doc.redFlagRating || 0) >= 4
+              ? 'High significance due to elevated risk scoring.'
+              : 'High significance due to risk scoring and entity density.';
+
+        return {
+          id: String(doc.id),
+          fileName: doc.fileName,
+          title: preview.title,
+          fileType: doc.fileType,
+          fileSize: doc.fileSize || 0,
+          dateCreated: doc.dateCreated,
+          evidenceType: doc.evidenceType || 'document',
+          metadata,
+          redFlagRating: doc.redFlagRating || 0,
+          wordCount: doc.wordCount || 0,
+          entitiesCount: entityCount,
+          keyEntities: entitiesByDoc.get(Number(doc.id)) || [],
+          sourceType,
+          previewText: preview.previewText,
+          previewKind: preview.previewKind,
+          whyFlagged,
+          entities_count: entityCount,
+          key_entities: entitiesByDoc.get(Number(doc.id)) || [],
+          source_type: sourceType,
+          preview_text: preview.previewText,
+          preview_kind: preview.previewKind,
+          why_flagged: whyFlagged,
+        };
       }),
       total: totalResult.total,
       page,

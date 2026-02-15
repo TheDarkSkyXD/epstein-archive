@@ -1439,77 +1439,29 @@ app.get('/api/documents', async (req, res, next) => {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(50000, Math.max(1, parseInt(req.query.limit as string) || 50));
     const sortBy = (req.query.sortBy as string) || 'red_flag';
+    const sortOrder = ((req.query.sortOrder as string) || 'desc').toLowerCase() as 'asc' | 'desc';
     const search = req.query.search as string;
     const fileType = req.query.fileType as string;
     const evidenceType = req.query.evidenceType as string;
+    const source = req.query.source as string;
+    const startDate = req.query.startDate as string;
+    const endDate = req.query.endDate as string;
+    const hasFailedRedactions = req.query.hasFailedRedactions === 'true';
     const minRedFlag = parseInt(req.query.minRedFlag as string) || 0;
     const maxRedFlag = parseInt(req.query.maxRedFlag as string) || 5;
 
-    // Build WHERE clause
-    const whereConditions: string[] = [];
-    const params: any[] = [];
-
-    if (search && search.trim()) {
-      whereConditions.push('(file_name LIKE ? OR content LIKE ?)');
-      const searchPattern = `%${search}%`;
-      params.push(searchPattern, searchPattern);
-    }
-
-    if (fileType && fileType !== 'all') {
-      const types = fileType.split(',');
-      whereConditions.push(`file_type IN (${types.map(() => '?').join(',')})`);
-      params.push(...types);
-    }
-
-    // Evidence type filter (category)
-    if (evidenceType && evidenceType !== 'all') {
-      whereConditions.push('evidence_type = ?');
-      params.push(evidenceType);
-    }
-
-    // Only apply Red Flag filter if explicitly requested (not default values)
-    if (req.query.minRedFlag || req.query.maxRedFlag) {
-      whereConditions.push(
-        '(red_flag_rating IS NULL OR (red_flag_rating >= ? AND red_flag_rating <= ?))',
-      );
-      params.push(minRedFlag, maxRedFlag);
-    }
-
-    // Filter for documents with failed redactions
-    if (req.query.hasFailedRedactions === 'true') {
-      whereConditions.push('has_failed_redactions = 1');
-    }
-
-    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
-
-    // Build ORDER BY clause (kept for future use; currently unused in query construction)
-    const _orderByClause = (() => {
-      switch (sortBy) {
-        case 'date':
-          return 'date_created DESC';
-        case 'title':
-          return 'file_name ASC';
-        case 'red_flag':
-        default:
-          return 'red_flag_rating DESC, date_created DESC';
-      }
-    })();
-
-    // Query documents from database
-    const offset = (page - 1) * limit;
-
-    // Use simple count
-    const countQuery = `SELECT COUNT(*) as total FROM documents ${whereClause}`;
-
-    params.push(limit, offset);
-    // Use try-catch for the query itself to catch column errors specifically
     const result = documentsRepository.getDocuments(page, limit, {
-      search: search,
-      fileType: fileType,
-      evidenceType: evidenceType,
-      minRedFlag: minRedFlag,
-      maxRedFlag: maxRedFlag,
-      sortBy: sortBy,
+      search,
+      fileType,
+      evidenceType,
+      source,
+      startDate,
+      endDate,
+      hasFailedRedactions,
+      minRedFlag,
+      maxRedFlag,
+      sortBy,
+      sortOrder,
     });
 
     // Map file paths to URLs
@@ -1520,18 +1472,12 @@ app.get('/api/documents', async (req, res, next) => {
       return doc;
     });
 
-    // Remove limit/offset for count query
-    const countParams = params.slice(0, -2);
-    const totalResult = getDb()
-      .prepare(countQuery)
-      .get(...countParams) as { total: number };
-
     res.json({
       data: mappedDocuments,
-      total: totalResult.total,
+      total: result.total,
       page,
       pageSize: limit,
-      totalPages: Math.ceil(totalResult.total / limit),
+      totalPages: Math.ceil(result.total / limit),
     });
   } catch (error) {
     console.error('Error fetching documents:', error);

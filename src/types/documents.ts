@@ -4,6 +4,12 @@ export interface Document {
   title: string;
   content: string;
   contentPreview?: string;
+  previewText?: string;
+  previewKind?: 'excerpt' | 'ai_summary' | 'fallback';
+  keyEntities?: string[];
+  entitiesCount?: number;
+  sourceType?: string;
+  whyFlagged?: string;
   fileType: string;
   fileSize: number;
   dateCreated?: string;

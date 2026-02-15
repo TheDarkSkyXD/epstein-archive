@@ -16,7 +16,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   EyeOff,
-  File,
   Search,
   Filter,
   FileText,
@@ -36,6 +35,10 @@ import {
   Download,
   Eye,
   X,
+  Sparkles,
+  Loader2,
+  LayoutGrid,
+  List as ListIcon,
 } from 'lucide-react';
 import { useNavigation } from '../../services/ContentNavigationService.tsx';
 import { apiClient } from '../../services/apiClient';
@@ -59,6 +62,8 @@ interface DocItemData {
   formatDate: (dateString?: string) => string;
   searchTerm?: string;
   columnCount?: number;
+  densityMode: 'compact' | 'comfortable';
+  highSignificanceActive: boolean;
 }
 
 // Helper to highlight search terms
@@ -81,6 +86,62 @@ const highlightSearchTerm = (text: string, term?: string): React.ReactNode => {
   }
 };
 
+const looksLikePreviewJunk = (text: string): boolean => {
+  if (!text) return true;
+  const sample = text.trim().slice(0, 900);
+  if (sample.length < 24) return true;
+  const digits = (sample.match(/\d/g) || []).length;
+  const letters = (sample.match(/[a-z]/gi) || []).length;
+  const underscores = (sample.match(/_/g) || []).length;
+  const longRuns = (sample.match(/[A-Za-z0-9]{30,}/g) || []).length;
+  const words = sample.split(/\s+/).filter(Boolean);
+  const alphaWords = words.filter((w) => /[a-z]{3,}/i.test(w)).length;
+  const wordRatio = words.length > 0 ? alphaWords / words.length : 0;
+  return (
+    underscores / sample.length > 0.03 || digits > letters * 1.1 || longRuns > 0 || wordRatio < 0.45
+  );
+};
+
+const getSafePreviewText = (doc: Document): string => {
+  const fromPreview = (doc.previewText || doc.contentPreview || '').trim();
+  if (fromPreview && !looksLikePreviewJunk(fromPreview)) return fromPreview;
+  if (doc.previewKind === 'ai_summary') {
+    return 'AI Summary available; open document for full contextual evidence.';
+  }
+  return 'OCR-heavy document; open to view extracted text.';
+};
+
+const getRiskLabel = (score: number): string => {
+  if (score >= 5) return 'Critical';
+  if (score >= 4) return 'High';
+  if (score >= 3) return 'Medium';
+  if (score >= 2) return 'Low';
+  return 'Minimal';
+};
+
+const getRiskClass = (score: number): string => {
+  if (score >= 5) return 'risk-critical';
+  if (score >= 4) return 'risk-high';
+  if (score >= 3) return 'risk-medium';
+  if (score >= 2) return 'risk-low';
+  return 'risk-minimal';
+};
+
+const renderTypeIcon = (doc: Document) => {
+  const t = (doc.evidenceType || doc.fileType || '').toLowerCase();
+  if (t.includes('email')) return <Mail className="w-4 h-4 text-cyan-300 shrink-0" />;
+  if (t.includes('legal')) return <Scale className="w-4 h-4 text-cyan-300 shrink-0" />;
+  if (t.includes('deposition')) return <ScrollText className="w-4 h-4 text-cyan-300 shrink-0" />;
+  if (t.includes('photo') || t.includes('image'))
+    return <ImageIcon className="w-4 h-4 text-cyan-300 shrink-0" />;
+  if (t.includes('financial')) return <Landmark className="w-4 h-4 text-cyan-300 shrink-0" />;
+  if (t.includes('article')) return <Newspaper className="w-4 h-4 text-cyan-300 shrink-0" />;
+  return <FileText className="w-4 h-4 text-cyan-300 shrink-0" />;
+};
+
+const getSourceLabel = (doc: Document): string =>
+  doc.sourceType || doc.metadata?.source_collection || doc.metadata?.source || 'Archive';
+
 // Memoized Grid Cell for document grid view
 const DocumentGridCell = React.memo(
   ({ columnIndex, rowIndex, style, data }: GridChildComponentProps<DocItemData>) => {
@@ -91,48 +152,93 @@ const DocumentGridCell = React.memo(
       formatDate,
       searchTerm,
       columnCount = 1,
+      densityMode,
+      highSignificanceActive,
     } = data;
     const index = rowIndex * columnCount + columnIndex;
 
     if (index >= documents.length) return null;
 
     const doc = documents[index];
-    const displayTitle =
-      doc.title && doc.title !== doc.filename
-        ? doc.title
-        : (doc.filename || '').replace(/\.[^/.]+$/, '').replace(/_/g, ' ');
-    const summary = (doc.content || '').substring(0, 200).trim();
+    const displayTitle = doc.title || doc.filename || 'Untitled document';
+    const previewText = getSafePreviewText(doc);
+    const risk = Number(doc.redFlagRating || 0);
+    const entitiesCount = doc.entitiesCount || doc.entities?.length || 0;
+    const dense = densityMode === 'compact';
 
     return (
-      <div style={{ ...style, padding: '8px' }}>
+      <div style={{ ...style, padding: dense ? '6px' : '8px' }}>
         <div
-          className="h-full bg-gray-900 border border-gray-700 rounded-lg p-4 hover:border-gray-500 transition-colors cursor-pointer flex flex-col"
+          className={`h-full bg-slate-950 border border-slate-800 rounded-[var(--radius-md)] ${
+            dense ? 'p-3' : 'p-4'
+          } hover:border-slate-600 transition-colors cursor-pointer flex flex-col gap-2`}
           onClick={() => onDocumentSelect(doc)}
         >
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex items-center space-x-2">
-              <FileText className="w-4 h-4 text-blue-400" />
-              <span className="text-xs text-gray-400 uppercase">{doc.fileType}</span>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              {renderTypeIcon(doc)}
+              <span className="text-[10px] uppercase tracking-wide text-slate-400 truncate">
+                {doc.sourceType || doc.evidenceType || doc.fileType}
+              </span>
             </div>
-            <div className="flex items-center space-x-1">
-              <span className="text-xs text-gray-400">{formatFileSize(doc.fileSize)}</span>
-              <span className="text-lg">{doc.redFlagPeppers}</span>
+            <div className={`semantic-chip ${getRiskClass(risk)}`}>
+              <Flag className="w-3 h-3" />
+              {getRiskLabel(risk)}
             </div>
           </div>
 
-          <h3 className="font-semibold text-white mb-1 line-clamp-2 text-sm">
+          <h3
+            className={`font-semibold text-slate-100 line-clamp-2 ${dense ? 'text-sm' : 'text-base'}`}
+          >
             {searchTerm ? highlightSearchTerm(displayTitle, searchTerm) : displayTitle}
           </h3>
 
-          {summary && (
-            <p className="text-xs text-gray-300 mb-2 line-clamp-2 flex-grow">
-              {searchTerm ? highlightSearchTerm(summary + '...', searchTerm) : summary + '...'}
+          <p
+            className={`text-slate-300 ${dense ? 'text-xs line-clamp-2' : 'text-sm line-clamp-3'}`}
+          >
+            {searchTerm ? highlightSearchTerm(previewText, searchTerm) : previewText}
+          </p>
+          {doc.keyEntities && doc.keyEntities.length > 0 && (
+            <p className="text-[11px] text-slate-400 line-clamp-1">
+              Key entities: {doc.keyEntities.join(', ')}
             </p>
           )}
 
-          <div className="flex items-center justify-between text-xs text-gray-400 mt-auto">
-            <span>{formatDate(doc.dateCreated)}</span>
-            <span>{doc.entities?.length || 0} entities</span>
+          {highSignificanceActive && (
+            <p className="text-[11px] text-amber-300 line-clamp-1">
+              Why flagged:{' '}
+              {doc.whyFlagged || 'High significance due to risk scoring and entity density.'}
+            </p>
+          )}
+
+          <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400 mt-auto">
+            <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
+              {formatDate(doc.dateCreated)}
+            </span>
+            <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
+              {entitiesCount} entities
+            </span>
+            <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
+              {formatFileSize(doc.fileSize)}
+            </span>
+            <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
+              {getSourceLabel(doc)}
+            </span>
+            {doc.previewKind === 'ai_summary' && (
+              <span className="semantic-chip evidence-agentic">
+                <Sparkles className="w-3 h-3" />
+                AI Summary
+              </span>
+            )}
+            <button
+              className="control h-8 px-3 ml-auto text-[11px]"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDocumentSelect(doc);
+              }}
+            >
+              Open
+            </button>
           </div>
         </div>
       </div>
@@ -144,36 +250,92 @@ const DocumentGridCell = React.memo(
 // Memoized List Row for document list view
 const DocumentListRow = React.memo(
   ({ index, style, data }: ListChildComponentProps<DocItemData>) => {
-    const { documents, onDocumentSelect, formatFileSize, formatDate, searchTerm } = data;
+    const {
+      documents,
+      onDocumentSelect,
+      formatFileSize,
+      formatDate,
+      searchTerm,
+      densityMode,
+      highSignificanceActive,
+    } = data;
     const doc = documents[index];
+    const previewText = getSafePreviewText(doc);
+    const risk = Number(doc.redFlagRating || 0);
+    const entitiesCount = doc.entitiesCount || doc.entities?.length || 0;
+    const dense = densityMode === 'compact';
 
     return (
       <div style={style}>
         <div
-          className="mx-2 bg-gray-900 border border-gray-700 rounded-lg p-4 hover:border-gray-500 transition-colors cursor-pointer"
+          className={`mx-2 bg-slate-950 border border-slate-800 rounded-[var(--radius-md)] ${
+            dense ? 'p-3' : 'p-4'
+          } hover:border-slate-600 transition-colors cursor-pointer`}
           onClick={() => onDocumentSelect(doc)}
         >
-          <div className="flex items-start justify-between">
+          <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center space-x-2 mb-2">
-                <FileText className="w-4 h-4 text-blue-400" />
-                <span className="text-xs text-gray-400 uppercase">{doc.fileType}</span>
-                <span className="text-lg">{doc.redFlagPeppers}</span>
+              <div className="flex items-center gap-2 mb-2">
+                {renderTypeIcon(doc)}
+                <span className="text-[10px] uppercase tracking-wide text-slate-400">
+                  {doc.sourceType || doc.evidenceType || doc.fileType}
+                </span>
+                <span className={`semantic-chip ${getRiskClass(risk)}`}>
+                  <Flag className="w-3 h-3" />
+                  {getRiskLabel(risk)}
+                </span>
+                {doc.previewKind === 'ai_summary' && (
+                  <span className="semantic-chip evidence-agentic">
+                    <Sparkles className="w-3 h-3" />
+                    AI Summary
+                  </span>
+                )}
               </div>
-              <h3 className="font-semibold text-white mb-2 truncate">
+              <h3
+                className={`font-semibold text-slate-100 mb-1 ${dense ? 'text-sm' : 'text-base'} truncate`}
+              >
                 {searchTerm ? highlightSearchTerm(doc.title || '', searchTerm) : doc.title}
               </h3>
-              <p className="text-sm text-gray-300 mb-3 line-clamp-2">
-                {searchTerm
-                  ? highlightSearchTerm((doc.content || '').substring(0, 200) + '...', searchTerm)
-                  : (doc.content || '').substring(0, 200) + '...'}
+              <p
+                className={`text-slate-300 ${dense ? 'text-xs line-clamp-2' : 'text-sm line-clamp-3'}`}
+              >
+                {searchTerm ? highlightSearchTerm(previewText, searchTerm) : previewText}
               </p>
-              <div className="flex items-center space-x-4 text-xs text-gray-400">
-                <span>{formatFileSize(doc.fileSize)}</span>
-                <span>{formatDate(doc.dateCreated)}</span>
-                <span>{doc.entities?.length || 0} entities</span>
+              {doc.keyEntities && doc.keyEntities.length > 0 && (
+                <p className="text-[11px] text-slate-400 line-clamp-1">
+                  Key entities: {doc.keyEntities.join(', ')}
+                </p>
+              )}
+              {highSignificanceActive && (
+                <p className="text-[11px] text-amber-300 line-clamp-1 mt-1">
+                  Why flagged:{' '}
+                  {doc.whyFlagged || 'High significance due to risk scoring and entity density.'}
+                </p>
+              )}
+              <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400 mt-2">
+                <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
+                  {formatDate(doc.dateCreated)}
+                </span>
+                <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
+                  {entitiesCount} entities
+                </span>
+                <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
+                  {formatFileSize(doc.fileSize)}
+                </span>
+                <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
+                  {getSourceLabel(doc)}
+                </span>
               </div>
             </div>
+            <button
+              className="control h-9 px-3 text-xs shrink-0"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDocumentSelect(doc);
+              }}
+            >
+              Open
+            </button>
           </div>
         </div>
       </div>
@@ -237,6 +399,14 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
   const [hideLowCredibility, setHideLowCredibility] = useState(false);
   const [itemsPerPage, setItemsPerPage] = useState(50);
   const [totalDocuments, setTotalDocuments] = useState(0);
+  const [densityMode, setDensityMode] = useState<'compact' | 'comfortable'>(() => {
+    if (typeof window === 'undefined') return 'compact';
+    const saved = window.localStorage.getItem('document-browser-density');
+    return saved === 'comfortable' ? 'comfortable' : 'compact';
+  });
+  const [searchInput, setSearchInput] = useState(effectiveSearchTerm || '');
+  const [isHeaderCondensed, setIsHeaderCondensed] = useState(false);
+  const [jumpToPage, setJumpToPage] = useState('');
 
   const [filters, setFilters] = useState<BrowseFilters>({
     fileType: [],
@@ -331,6 +501,38 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
   const [hasMore, setHasMore] = useState(true);
   const [isFetching, setIsFetching] = useState(false);
 
+  const isHighSignificanceActive =
+    (filters.redFlagLevel?.min || 0) >= 4 && (filters.redFlagLevel?.max || 5) >= 4;
+
+  useEffect(() => {
+    if (effectiveSearchTerm !== searchInput) {
+      setSearchInput(effectiveSearchTerm || '');
+    }
+  }, [effectiveSearchTerm, searchInput]); // keep input in sync on URL/nav changes
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (searchInput === effectiveSearchTerm) return;
+      if (onSearchTermChange) {
+        onSearchTermChange(searchInput);
+      } else {
+        setContextSearchTerm(searchInput);
+      }
+    }, 260);
+    return () => window.clearTimeout(timer);
+  }, [effectiveSearchTerm, onSearchTermChange, searchInput, setContextSearchTerm]);
+
+  useEffect(() => {
+    window.localStorage.setItem('document-browser-density', densityMode);
+  }, [densityMode]);
+
+  useEffect(() => {
+    const onScroll = () => setIsHeaderCondensed(window.scrollY > 24);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   // Fetch documents from API with pagination
   useEffect(() => {
     const fetchDocuments = async () => {
@@ -353,10 +555,24 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
         if (sortBy) {
           params.append('sortBy', sortBy);
         }
+        params.append('sortOrder', sortOrder);
 
         // Add evidence type filter from categories
         if (filters.categories && filters.categories.length > 0) {
           params.append('evidenceType', filters.categories[0]);
+        }
+        if (filters.source && filters.source.length > 0) {
+          params.append('source', filters.source.join(','));
+        }
+        if (filters.dateRange?.start) {
+          params.append('startDate', filters.dateRange.start);
+        }
+        if (filters.dateRange?.end) {
+          params.append('endDate', filters.dateRange.end);
+        }
+        if (filters.redFlagLevel) {
+          params.append('minRedFlag', String(filters.redFlagLevel.min));
+          params.append('maxRedFlag', String(filters.redFlagLevel.max));
         }
 
         const response = await fetch(`/api/documents?${params.toString()}`);
@@ -371,7 +587,17 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
           fileSize: doc.fileSize || 0,
           dateCreated: doc.dateCreated,
           dateModified: doc.dateModified,
-          content: doc.content || doc.contentPreview || '',
+          content: doc.previewText || doc.preview_text || doc.contentPreview || '',
+          previewText: doc.previewText || doc.preview_text || '',
+          previewKind: doc.previewKind || doc.preview_kind || 'fallback',
+          keyEntities: Array.isArray(doc.keyEntities)
+            ? doc.keyEntities
+            : Array.isArray(doc.key_entities)
+              ? doc.key_entities
+              : [],
+          entitiesCount: Number(doc.entitiesCount || doc.entities_count || 0),
+          sourceType: doc.sourceType || doc.source_type || '',
+          whyFlagged: doc.whyFlagged || doc.why_flagged || '',
           metadata: {
             source: 'Epstein Files',
             confidentiality: 'Public',
@@ -420,8 +646,10 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
     itemsPerPage,
     effectiveSearchTerm,
     sortBy,
+    sortOrder,
     filters.categories,
     filters.source,
+    filters.dateRange,
     filters.fileType,
     filters.redFlagLevel,
     hasMore,
@@ -432,16 +660,14 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
   useEffect(() => {
     setCurrentPage(1);
     setHasMore(true);
-    setDocuments([]);
-    // We don't need to trigger fetch explicitly here because changing dependencies of the effect above will triggers it.
-    // However, we need to ensure the effect recognizes it's a reset.
-    // The effect depends on 'currentPage'. If we set it to 1, it runs.
   }, [
     itemsPerPage,
     effectiveSearchTerm,
     sortBy,
+    sortOrder,
     filters.categories,
     filters.source,
+    filters.dateRange,
     filters.fileType,
     filters.redFlagLevel,
   ]);
@@ -1547,76 +1773,141 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
 
   return (
     <div className="min-h-screen text-white overflow-x-hidden">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-4">Document Browser</h1>
-          <p className="text-gray-400">Browse and search through the Epstein files collection</p>
-        </div>
+      <div className="container mx-auto px-4 py-4 md:py-6">
+        <div
+          className={`sticky top-0 z-30 bg-[color:var(--bg-1)]/95 backdrop-blur border border-slate-800 rounded-[var(--radius-lg)] px-3 md:px-4 transition-all ${
+            isHeaderCondensed ? 'py-2 mb-3' : 'py-3 mb-4'
+          }`}
+        >
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <div className="min-w-0">
+              <h1
+                className={`font-bold text-slate-100 ${isHeaderCondensed ? 'text-lg' : 'text-2xl'}`}
+              >
+                Document Browser
+              </h1>
+              {!isHeaderCondensed && (
+                <p className="text-sm text-slate-400">
+                  High-signal evidence previews, risk context, and fast navigation at scale
+                </p>
+              )}
+            </div>
+            <div className="text-xs text-slate-400 shrink-0">
+              Showing {filteredDocuments.length} of {totalDocuments.toLocaleString()}
+            </div>
+          </div>
 
-        {/* Search and Filters */}
-        <div className="mb-6 space-y-4">
-          {/* Search bar and filter button - stack on mobile */}
-          <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-            <div className="flex-1 relative">
+          {/* Unified control row */}
+          <div className="flex flex-col md:flex-row gap-2 md:items-center">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search documents, entities, or content..."
-                value={effectiveSearchTerm || ''}
-                onChange={(e) => {
-                  const newValue = e.target.value;
-                  // Update both external handler and context
-                  if (onSearchTermChange) {
-                    onSearchTermChange(newValue);
-                  } else {
-                    setContextSearchTerm(newValue);
-                  }
-                }}
-                className="w-full pl-10 pr-10 py-3 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500 min-h-[44px]"
+                placeholder="Search by name, document ID, phrase, or source…"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="w-full pl-10 pr-16 py-2.5 bg-slate-900 border border-slate-700 rounded-[var(--radius-md)] focus:outline-none focus:border-blue-500 min-h-[44px]"
               />
-              {effectiveSearchTerm && (
+              {isFetching && (
+                <Loader2 className="absolute right-10 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 animate-spin" />
+              )}
+              {searchInput && (
                 <button
-                  onClick={() => {
-                    if (onSearchTermChange) {
-                      onSearchTermChange('');
-                    } else {
-                      setContextSearchTerm('');
-                    }
-                  }}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 rounded-full hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
+                  onClick={() => setSearchInput('')}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 rounded-full hover:bg-slate-800 text-gray-400 hover:text-white transition-colors"
                   title="Clear search"
                 >
                   <X className="w-4 h-4" />
                 </button>
               )}
             </div>
-            {hasHighlights && (
-              <HighlightNavigationControls
-                currentHighlightIndex={currentHighlightIndex}
-                totalHighlights={totalHighlights}
-                onNext={nextHighlight}
-                onPrev={prevHighlight}
-                className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 shrink-0"
-              />
-            )}
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 min-h-[44px] shrink-0"
-            >
-              <Filter className="w-4 h-4" />
-              <span>Filters</span>
-              {showFilters ? (
-                <ChevronDown className="w-4 h-4" />
-              ) : (
-                <ChevronRight className="w-4 h-4" />
-              )}
-            </button>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="control h-10 px-3 text-xs bg-slate-900 border border-slate-700 rounded-[var(--radius-md)]"
+                aria-label="Sort field"
+              >
+                <option value="red_flag">Risk</option>
+                <option value="date">Date</option>
+                <option value="title">Title</option>
+                <option value="size">Size</option>
+              </select>
+              <button
+                onClick={() => setSortOrder((prev) => (prev === 'desc' ? 'asc' : 'desc'))}
+                className="control h-10 px-3 text-xs"
+              >
+                {sortOrder === 'desc' ? 'Desc' : 'Asc'}
+              </button>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="control h-10 px-3 text-xs bg-slate-900 border border-slate-700 rounded-[var(--radius-md)]"
+                aria-label="Results per page"
+              >
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+              <button
+                onClick={() =>
+                  setDensityMode((prev) => (prev === 'compact' ? 'comfortable' : 'compact'))
+                }
+                className="control h-10 px-3 text-xs"
+                aria-label="Toggle density mode"
+              >
+                {densityMode === 'compact' ? 'Compact' : 'Comfortable'}
+              </button>
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`control h-10 w-10 p-0 ${viewMode === 'grid' ? 'bg-blue-600/30 border-blue-500/60 text-blue-200' : ''}`}
+                aria-label="Grid view"
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`control h-10 w-10 p-0 ${viewMode === 'list' ? 'bg-blue-600/30 border-blue-500/60 text-blue-200' : ''}`}
+                aria-label="List view"
+              >
+                <ListIcon className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="control h-10 px-3 text-xs inline-flex items-center gap-1"
+              >
+                <Filter className="w-4 h-4" />
+                Filters
+                {showFilters ? (
+                  <ChevronDown className="w-3 h-3" />
+                ) : (
+                  <ChevronRight className="w-3 h-3" />
+                )}
+              </button>
+            </div>
           </div>
+        </div>
+
+        {/* Search and Filters */}
+        <div className="mb-4 space-y-3">
+          {hasHighlights && (
+            <HighlightNavigationControls
+              currentHighlightIndex={currentHighlightIndex}
+              totalHighlights={totalHighlights}
+              onNext={nextHighlight}
+              onPrev={prevHighlight}
+              className="bg-gray-800 border border-gray-700 rounded-[var(--radius-md)] px-3 py-2 shrink-0"
+            />
+          )}
 
           {/* Category Type Filter Buttons - Horizontal scroll on mobile */}
-          <div className="flex flex-wrap gap-2 items-center">
+          <div className="flex gap-2 items-center overflow-x-auto pb-1">
             {[
-              { type: 'all', label: 'All Documents', icon: <Folder className="w-3.5 h-3.5" /> },
+              { type: 'all', label: 'All', icon: <Folder className="w-3.5 h-3.5" /> },
               { type: 'legal', label: 'Legal', icon: <Scale className="w-3.5 h-3.5" /> },
               { type: 'email', label: 'Email', icon: <Mail className="w-3.5 h-3.5" /> },
               {
@@ -1624,10 +1915,8 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                 label: 'Deposition',
                 icon: <ScrollText className="w-3.5 h-3.5" />,
               },
-              { type: 'article', label: 'Article', icon: <Newspaper className="w-3.5 h-3.5" /> },
               { type: 'photo', label: 'Photo', icon: <ImageIcon className="w-3.5 h-3.5" /> },
               { type: 'financial', label: 'Financial', icon: <Landmark className="w-3.5 h-3.5" /> },
-              { type: 'document', label: 'Document', icon: <File className="w-3.5 h-3.5" /> },
             ].map(({ type, label, icon }) => (
               <button
                 key={type}
@@ -1689,41 +1978,6 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
               ></div>
               <span>Medium</span>
             </button>
-
-            {/* Sort Chip - Pushed to Right */}
-            <div className="ml-auto">
-              <button
-                onClick={() => {
-                  // Cycle sort: Date Desc -> Date Asc -> Red Flag Desc
-                  if (sortBy === 'date' && sortOrder === 'desc') {
-                    setSortBy('date');
-                    setSortOrder('asc');
-                  } else if (sortBy === 'date' && sortOrder === 'asc') {
-                    setSortBy('red_flag');
-                    setSortOrder('desc');
-                  } else {
-                    setSortBy('date');
-                    setSortOrder('desc');
-                  }
-                }}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium bg-slate-800 border border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700 transition-colors shadow-sm"
-              >
-                {sortOrder === 'desc' ? (
-                  <ChevronDown className="w-3 h-3" />
-                ) : (
-                  <ChevronRight className="w-3 h-3 -rotate-90" />
-                )}
-                <span>
-                  {sortBy === 'date' && sortOrder === 'desc'
-                    ? 'Newest First'
-                    : sortBy === 'date' && sortOrder === 'asc'
-                      ? 'Oldest First'
-                      : sortBy === 'red_flag'
-                        ? 'Highest Risk'
-                        : 'Sort'}
-                </span>
-              </button>
-            </div>
           </div>
 
           {/* Desktop inline filters (hidden on mobile) */}
@@ -1768,6 +2022,35 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                       </option>
                     ))}
                   </select>
+                </div>
+
+                {/* Date range */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">Date range</label>
+                  <div className="space-y-2">
+                    <input
+                      type="date"
+                      value={filters.dateRange?.start || ''}
+                      onChange={(e) =>
+                        handleFilterChange('dateRange', {
+                          ...(filters.dateRange || {}),
+                          start: e.target.value,
+                        })
+                      }
+                      className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm"
+                    />
+                    <input
+                      type="date"
+                      value={filters.dateRange?.end || ''}
+                      onChange={(e) =>
+                        handleFilterChange('dateRange', {
+                          ...(filters.dateRange || {}),
+                          end: e.target.value,
+                        })
+                      }
+                      className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm"
+                    />
+                  </div>
                 </div>
 
                 {/* Red Flag Index Filter */}
@@ -1956,6 +2239,37 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                       </div>
                     </div>
 
+                    {/* Date range */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-slate-300">
+                        Date range
+                      </label>
+                      <div className="space-y-2">
+                        <input
+                          type="date"
+                          value={filters.dateRange?.start || ''}
+                          onChange={(e) =>
+                            handleFilterChange('dateRange', {
+                              ...(filters.dateRange || {}),
+                              start: e.target.value,
+                            })
+                          }
+                          className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-3 text-sm text-white"
+                        />
+                        <input
+                          type="date"
+                          value={filters.dateRange?.end || ''}
+                          onChange={(e) =>
+                            handleFilterChange('dateRange', {
+                              ...(filters.dateRange || {}),
+                              end: e.target.value,
+                            })
+                          }
+                          className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-3 text-sm text-white"
+                        />
+                      </div>
+                    </div>
+
                     {/* Credibility Filter */}
                     <div>
                       <label className="flex items-center gap-3 p-4 bg-slate-800 rounded-lg border border-slate-700">
@@ -1985,46 +2299,41 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
           </AnimatePresence>
         </div>
 
-        {/* Results Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center space-x-4 flex-wrap gap-2">
-            <div className="text-gray-400">
-              Showing {filteredDocuments.length} of {totalDocuments.toLocaleString()} documents
-            </div>
-            {/* Page Size Selector */}
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-gray-500">Per page:</label>
-              <select
-                value={itemsPerPage}
-                onChange={(e) => {
-                  setItemsPerPage(Number(e.target.value));
-                  setCurrentPage(1); // Reset to first page
-                }}
-                className="bg-gray-800 border border-gray-600 rounded px-2 py-1 text-sm text-white"
-              >
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-                <option value={200}>200</option>
-              </select>
-            </div>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-2 rounded ${viewMode === 'grid' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
-              >
-                <FileText className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-2 rounded ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
-              >
-                <Search className="w-4 h-4" />
-              </button>
-            </div>
+        {/* Results status row */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4 text-sm text-slate-400">
+          <div className="flex flex-wrap items-center gap-2">
+            <span>
+              Showing {(currentPage - 1) * itemsPerPage + 1}-
+              {Math.min(currentPage * itemsPerPage, totalDocuments)} of{' '}
+              {totalDocuments.toLocaleString()}
+            </span>
+            {effectiveSearchTerm && (
+              <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
+                Query: "{effectiveSearchTerm}"
+              </span>
+            )}
           </div>
-          <div className="text-sm text-gray-500">
-            {effectiveSearchTerm && `Searching for: "${effectiveSearchTerm}"`}
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-slate-500">Jump to</label>
+            <input
+              type="number"
+              min={1}
+              max={Math.max(1, Math.ceil(totalDocuments / itemsPerPage))}
+              value={jumpToPage}
+              onChange={(e) => setJumpToPage(e.target.value)}
+              className="w-20 h-9 px-2 bg-slate-900 border border-slate-700 rounded-[var(--radius-md)] text-slate-100 text-xs"
+            />
+            <button
+              onClick={() => {
+                const page = Number(jumpToPage);
+                const maxPage = Math.max(1, Math.ceil(totalDocuments / itemsPerPage));
+                if (!Number.isFinite(page)) return;
+                setCurrentPage(Math.min(maxPage, Math.max(1, page)));
+              }}
+              className="control h-9 px-3 text-xs"
+            >
+              Go
+            </button>
           </div>
         </div>
 
@@ -2051,6 +2360,8 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                   formatDate,
                   searchTerm: effectiveSearchTerm,
                   columnCount,
+                  densityMode,
+                  highSignificanceActive: isHighSignificanceActive,
                 };
 
                 return (
@@ -2059,7 +2370,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                     columnWidth={columnWidth}
                     height={height}
                     rowCount={rowCount}
-                    rowHeight={rowHeight}
+                    rowHeight={densityMode === 'compact' ? 218 : rowHeight}
                     width={width}
                     itemData={itemData}
                     onItemsRendered={({ visibleRowStopIndex }) => {
@@ -2088,13 +2399,15 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                   formatFileSize,
                   formatDate,
                   searchTerm: effectiveSearchTerm,
+                  densityMode,
+                  highSignificanceActive: isHighSignificanceActive,
                 };
 
                 return (
                   <List
                     height={height}
                     itemCount={filteredDocuments.length}
-                    itemSize={160} // Height of list item
+                    itemSize={densityMode === 'compact' ? 130 : 170}
                     width={width}
                     itemData={itemData}
                     onItemsRendered={({ visibleStopIndex }) => {
@@ -2124,6 +2437,10 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                 ? `No documents match your search for "${effectiveSearchTerm}"`
                 : 'Try adjusting your filters or search query'}
             </p>
+            <div className="mt-4 text-xs text-slate-500 space-y-1">
+              <p>Search tips: try full names, aliases, document IDs, or quoted phrases.</p>
+              <p>Try removing strict filters or widening the date range.</p>
+            </div>
           </div>
         )}
 

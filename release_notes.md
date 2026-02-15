@@ -1,3 +1,28 @@
+## v13.9.0 - 2026-02-15 - Documents Browser Density and Trustworthy Preview Pipeline
+
+### Documents browser UX density and scannability
+
+- Refactored `/src/components/documents/DocumentBrowser.tsx` with a compact-first sticky control bar to reduce top-of-page overhead and improve result visibility.
+- Unified search, sort, order, page-size, view mode, density toggle, and filters into a single primary control row for faster triage.
+- Added `Compact / Comfortable` card density toggle (local state persistence only) and improved pagination ergonomics with explicit range display and jump-to-page.
+
+### Deterministic preview pipeline (no OCR gibberish as primary preview)
+
+- Implemented a robust server-side preview selection pipeline in `/src/server/db/documentsRepository.ts`:
+  - curated title -> safe filename-derived title fallback
+  - refined excerpt -> safe raw excerpt fallback
+  - AI summary (when present in metadata)
+  - deterministic OCR-heavy fallback label when content quality is low
+- Added junk-detection heuristics to suppress ID/OCR-noise preview output from list cards.
+- Added high-significance contextual line support (`whyFlagged`) for truthful, non-hallucinated relevance surfacing.
+
+### List payload performance and metadata enrichment
+
+- Slimmed `/api/documents` list response to avoid heavy document body payloads while adding preview-safe fields for card rendering.
+- Added enriched list metadata: preview kind, key entities (top 3), entity count, source type, and risk context.
+- Added additive filter support for source/date range/failed-redactions in list query flow without contract-breaking schema changes.
+- Verified 50-result list payload stays under the 100KB budget target for million-scale browsing ergonomics.
+
 ## v13.8.0 - 2026-02-15 - Investigative Modal Clarity and Navigation Reliability
 
 ### Entity modal clarity and evidence quality

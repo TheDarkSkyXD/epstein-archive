@@ -75,7 +75,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     // Return 204 No Content (fastest response)
     res.status(204).send();
-  } catch (_error: any) {
+  } catch (error: any) {
     console.error('Error collecting vitals:', error);
     // Silent fail - don't affect client
     res.status(204).send();

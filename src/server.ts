@@ -1331,8 +1331,8 @@ app.get('/api/documents/:id/lineage', async (req, res, next) => {
       ? db
           .prepare(
             `
-        SELECT timestamp, user_id, action, payload_json FROM audit_log
-        WHERE object_type = 'document' AND object_id = ? ORDER BY timestamp DESC LIMIT 20
+        SELECT timestamp, user_id, action, details_json FROM audit_log
+        WHERE entity_type = 'document' AND entity_id = ? ORDER BY timestamp DESC LIMIT 20
       `,
           )
           .all(String(docId))
@@ -1357,10 +1357,10 @@ app.get('/api/documents/:id/lineage', async (req, res, next) => {
         timestamp: e.timestamp,
         user: e.user_id,
         action: e.action,
-        details: e.payload_json
+        details: e.details_json
           ? (() => {
               try {
-                return JSON.parse(e.payload_json);
+                return JSON.parse(e.details_json);
               } catch {
                 return null;
               }

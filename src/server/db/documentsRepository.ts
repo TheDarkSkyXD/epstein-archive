@@ -174,6 +174,61 @@ export const documentsRepository = {
       }
     }
 
+    // Hydrate entity evidence for document viewers (entities tab / evidence context).
+    // This was dropped during schema transitions, causing empty evidence tabs.
+    const entityRows = db
+      .prepare(
+        `
+      SELECT
+        e.id as entityId,
+        e.full_name as name,
+        COALESCE(e.entity_type, e.type, 'unknown') as entityType,
+        COALESCE(e.red_flag_rating, 0) as redFlagRating,
+        COUNT(*) as mentions
+      FROM entity_mentions em
+      JOIN entities e ON e.id = em.entity_id
+      WHERE em.document_id = ?
+      GROUP BY e.id, e.full_name, e.entity_type, e.type, e.red_flag_rating
+      ORDER BY mentions DESC, redFlagRating DESC, e.full_name ASC
+      LIMIT 200
+    `,
+      )
+      .all(id) as Array<{
+      entityId: number;
+      name: string;
+      entityType: string;
+      redFlagRating: number;
+      mentions: number;
+    }>;
+
+    const entities = entityRows.map((row) => {
+      const contextRows = db
+        .prepare(
+          `
+        SELECT mention_context
+        FROM entity_mentions
+        WHERE document_id = ? AND entity_id = ? AND mention_context IS NOT NULL AND mention_context != ''
+        LIMIT 3
+      `,
+        )
+        .all(id, row.entityId) as Array<{ mention_context: string }>;
+
+      const significance =
+        row.mentions >= 20 ? 'high' : row.mentions >= 5 ? 'medium' : ('low' as const);
+
+      return {
+        id: row.entityId,
+        name: row.name,
+        type: row.entityType,
+        mentions: row.mentions,
+        significance,
+        contexts: contextRows.map((c) => ({
+          context: c.mention_context,
+          source: document.source_collection || 'Document',
+        })),
+      };
+    });
+
     // Transform original_file_path to URL
     if (document && document.original_file_path) {
       // Assume /data/ is mapped to /files/data/ or similar.
@@ -201,6 +256,8 @@ export const documentsRepository = {
     return {
       ...document,
       source_collection: 'Epstein Files',
+      entities,
+      mentionedEntities: entities,
       // Ensure top-level access to the URL
       original_file_path: document.source_original_url || document.original_file_path,
       redaction_spans: db

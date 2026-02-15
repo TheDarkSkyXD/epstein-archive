@@ -485,10 +485,10 @@ export const AboutPage: React.FC = () => {
           <h4 className="text-xl font-semibold text-white mt-4">DOJ Data Sets 9-12 (2026)</h4>
           <p>
             The latest release comprises over 1.3 million documents from the post-Maxwell trial era.
-            This massive tranche includes "Data Set 12" (DOJ VOL00012). Since Feb 2026, these
-            volumes are being processed through our <strong>Semantic Repair Pipeline</strong> and
-            <strong>Hardened Entity Engine</strong>, which fix corrupted OCR text, purge junk data,
-            and leverage context-aware role extraction for deep investigative accuracy.
+            This massive tranche includes "Data Set 12" (DOJ VOL00012). Ingestion for Data Sets 9-12
+            is complete, with ongoing reruns through our <strong>Semantic Repair Pipeline</strong>{' '}
+            and <strong>Hardened Entity Engine</strong> to improve OCR quality, purge junk data, and
+            strengthen entity-role extraction.
           </p>
 
           {/* Ingestion Progress Dashboard (Requested placement) */}
@@ -659,8 +659,8 @@ export const AboutPage: React.FC = () => {
             <div className="bg-slate-800/50 rounded-lg p-5 border border-slate-700/50">
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-lg font-semibold text-white">Dataset 12</h4>
-                <span className="text-xs font-mono text-yellow-400 bg-yellow-500/10 px-2 py-1 rounded border border-yellow-500/20">
-                  35% Redacted
+                <span className="text-xs font-mono text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20">
+                  Ingested + Enriched
                 </span>
               </div>
               <div className="space-y-2">
@@ -670,7 +670,8 @@ export const AboutPage: React.FC = () => {
                 </div>
                 <div className="text-sm text-slate-400 leading-relaxed">
                   Subject referrals including "Leon Black/Additional HT Subject Referral" and DOJ
-                  case correspondence. Substantive legal documents averaging 2,793 words.
+                  case correspondence. This smaller tranche is fully ingested and included in the
+                  current enrichment corpus.
                 </div>
               </div>
             </div>
@@ -944,11 +945,10 @@ export const AboutPage: React.FC = () => {
         </p>
         <div className="bg-blue-900/30 border border-blue-500/30 rounded-lg p-4 mt-4">
           <p className="text-blue-200 text-sm">
-            <strong>Latest Addition:</strong> February 3, 2026 - V12.1.2 DOJ Datasets 9-12 Fully
-            Ingested. Added 13,455 new documents including Deutsche Bank financial statements, video
-            evidence, and prosecutorial files. Archive now contains over 107,000 documents with
-            comprehensive financial transaction records, communications analysis, and location data
-            across all Epstein properties and associates.
+            <strong>Current Status:</strong> DOJ Data Sets 9-12 are in the archive, including the
+            fully ingested and enriched Dataset 12 referral tranche. Ongoing pipeline reruns focus
+            on quality gains: OCR cleanup, alias consolidation, and stronger role metadata across
+            entities and documents.
             <a
               href="https://github.com/ErikVeland/epstein-archive/tree/main/docs/data-governance-standards.md"
               target="_blank"

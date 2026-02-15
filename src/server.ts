@@ -3981,7 +3981,7 @@ app.get('*', async (req, res, next) => {
   const indexFile = path.join(distPath, 'index.html');
   if (fs.existsSync(indexFile)) {
     const baseUrl = getPublicBaseUrl(req);
-    const defaultOgImage = `${baseUrl}/og-image.png`;
+    const defaultOgImage = `${baseUrl}/epstein-files.jpg`;
     let html = fs.readFileSync(indexFile, 'utf8');
     const routePath = req.path;
 

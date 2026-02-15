@@ -10,6 +10,7 @@ import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import Database from 'better-sqlite3';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -176,22 +177,27 @@ function main(): void {
   runCheck('Denormalized columns backfilled', () => {
     const db = new Database(DB_PATH);
 
-    const nullCount = db
+    const mismatchCount = db
       .prepare(
         `
       SELECT COUNT(*) as count 
-      FROM entity_mentions 
-      WHERE doc_red_flag_rating IS NULL OR doc_date_created IS NULL
+      FROM entity_mentions em
+      JOIN documents d ON em.document_id = d.id
+      WHERE em.doc_red_flag_rating IS NOT d.red_flag_rating
+         OR em.doc_date_created IS NOT d.date_created
     `,
       )
       .get() as { count: number };
 
     db.close();
 
-    if (nullCount.count === 0) {
+    if (mismatchCount.count === 0) {
       return { passed: true, message: 'All rows backfilled' };
     } else {
-      return { passed: false, message: `${nullCount.count.toLocaleString()} rows not backfilled` };
+      return {
+        passed: false,
+        message: `${mismatchCount.count.toLocaleString()} rows out of sync`,
+      };
     }
   });
 
@@ -208,7 +214,6 @@ function main(): void {
   // 8. Bundle size check
   runCheck('Bundle size < 500KB gzipped', () => {
     try {
-      const fs = require('fs');
       const path = join(__dirname, '..', 'dist', 'assets');
 
       if (!fs.existsSync(path)) {

@@ -160,7 +160,7 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute z-50 mt-2 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden">
+        <div className="absolute z-50 mt-2 w-56 dropdown-surface overflow-hidden">
           {isAdmin && (
             <div className="p-2 border-b border-slate-700">
               <div className="relative">

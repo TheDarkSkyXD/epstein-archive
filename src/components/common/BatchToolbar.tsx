@@ -163,7 +163,7 @@ export const BatchToolbar: React.FC<BatchToolbarProps> = ({
           </button>
 
           {showRotateMenu && (
-            <div className="absolute bottom-full left-0 mb-2 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50">
+            <div className="absolute bottom-full left-0 mb-2 dropdown-surface z-50">
               <button
                 onClick={() => {
                   onRotate('left');
@@ -199,7 +199,7 @@ export const BatchToolbar: React.FC<BatchToolbarProps> = ({
           </button>
 
           {showTagsMenu && (
-            <div className="absolute bottom-full left-0 mb-2 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 w-80">
+            <div className="absolute bottom-full left-0 mb-2 dropdown-surface z-50 w-80">
               <div className="p-3 border-b border-slate-700">
                 <h3 className="text-sm font-medium text-white mb-2">Assign Tags</h3>
                 <p className="text-xs text-slate-400">
@@ -305,7 +305,7 @@ export const BatchToolbar: React.FC<BatchToolbarProps> = ({
           </button>
 
           {showPeopleMenu && (
-            <div className="absolute bottom-full left-0 mb-2 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 w-80">
+            <div className="absolute bottom-full left-0 mb-2 dropdown-surface z-50 w-80">
               <div className="p-3 border-b border-slate-700">
                 <h3 className="text-sm font-medium text-white mb-2">Assign People</h3>
                 <p className="text-xs text-slate-400 mb-2">
@@ -395,7 +395,7 @@ export const BatchToolbar: React.FC<BatchToolbarProps> = ({
           </button>
 
           {showRatingMenu && (
-            <div className="absolute bottom-full left-0 mb-2 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 w-48">
+            <div className="absolute bottom-full left-0 mb-2 dropdown-surface z-50 w-48">
               <div className="p-3">
                 <h3 className="text-sm font-medium text-white mb-2">Assign Rating</h3>
                 <div className="flex justify-center gap-1 mb-3">
@@ -428,7 +428,7 @@ export const BatchToolbar: React.FC<BatchToolbarProps> = ({
           </button>
 
           {showMetadataMenu && (
-            <div className="absolute bottom-full left-0 mb-2 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 w-80">
+            <div className="absolute bottom-full left-0 mb-2 dropdown-surface z-50 w-80">
               <div className="p-3 border-b border-slate-700">
                 <h3 className="text-sm font-medium text-white mb-2">Edit Metadata</h3>
                 <p className="text-xs text-slate-400">Apply changes to {selectedCount} images</p>

@@ -58,7 +58,7 @@ const EntityTypeFilter: React.FC<EntityTypeFilterProps> = ({ value, onChange, cl
       </button>
 
       {isOpen && (
-        <div className="absolute z-20 mt-1 w-full min-w-[220px] surface-glass p-1">
+        <div className="absolute z-20 mt-1 w-full min-w-[220px] dropdown-surface p-1">
           <ul role="listbox" className="py-1">
             {options.map((option) => (
               <li

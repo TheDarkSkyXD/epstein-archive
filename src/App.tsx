@@ -1092,8 +1092,8 @@ function App() {
 
                     {/* Search Bar */}
                     <div className="relative flex-1 md:flex-none max-w-md">
-                      <div className="flex items-stretch bg-slate-800/80 border border-slate-600/50 rounded-full overflow-hidden shadow-sm">
-                        <div className="relative flex-1">
+                      <div className="flex items-stretch bg-slate-800/80 border border-slate-600/50 rounded-full shadow-sm">
+                        <div className="relative flex-1 rounded-l-full rounded-r-none">
                           <Icon
                             name="Search"
                             size="sm"
@@ -1121,14 +1121,14 @@ function App() {
                               navigate('/search');
                             }
                           }}
-                          className="h-9 px-4 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium flex items-center gap-1 transition-colors border-l border-slate-600/60"
+                          className="h-9 px-4 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium flex items-center gap-1 transition-colors border-l border-slate-600/60 rounded-r-full rounded-l-none"
                         >
                           <Icon name="Search" size="sm" />
                           <span className="hidden md:inline">Search</span>
                         </button>
                       </div>
                       {searchTerm.trim().length >= 2 && (
-                        <div className="absolute top-full right-0 mt-1 w-full md:w-96 bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
+                        <div className="absolute top-full right-0 mt-2 w-full md:w-96 dropdown-surface z-50 max-h-96 overflow-y-auto">
                           <div className="p-2 text-xs text-slate-400 border-b border-slate-700">
                             Search results for "{searchTerm}"
                           </div>

@@ -158,7 +158,7 @@ export const PeopleSelector: React.FC<PeopleSelectorProps> = ({
 
           {/* Search Results Dropdown */}
           {showDropdown && (searchResults.length > 0 || isSearching) && (
-            <div className="absolute z-50 mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden">
+            <div className="absolute z-50 mt-1 w-full dropdown-surface overflow-hidden">
               {isSearching ? (
                 <div className="p-3 text-center text-sm text-slate-400">Searching...</div>
               ) : (

@@ -1,3 +1,22 @@
+## v13.9.1 - 2026-02-15 - UI Overlay Consistency and Deployment Readiness Hardening
+
+### Overlay readability and visual consistency
+
+- Standardized dropdown and popover overlays to a shared high-opacity `dropdown-surface` style in `/src/index.css` so menus remain readable over page content while preserving layered depth.
+- Applied the new overlay surface across global search suggestions, people/entity selectors, media dropdowns, and batch-action menus for consistent behavior and appearance.
+
+### Severity chip clarity standard
+
+- Strengthened shared `risk-*` semantic chip background tint levels in `/src/index.css` so severity chips now carry a subtle but clearer severity-colored fill across the app.
+- Ensured front-page risk cards and all reused risk chips inherit the same visual severity standard through shared token classes.
+
+### Stability and release guardrails
+
+- Repaired deployment checklist reliability in `/scripts/ship_checklist.ts` by:
+  - replacing CommonJS `require` usage with ESM-safe imports,
+  - switching denormalized mention checks from null-only heuristics to true document-sync mismatch validation.
+- Corrected invalid span offset outliers in `document_spans` to restore credibility test integrity for evidence span bounds.
+
 ## v13.9.0 - 2026-02-15 - Documents Browser Density and Trustworthy Preview Pipeline
 
 ### Documents browser UX density and scannability

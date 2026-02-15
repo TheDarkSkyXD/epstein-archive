@@ -2,14 +2,6 @@ import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
-import {
-  FixedSizeGrid as Grid,
-  FixedSizeList as List,
-  GridChildComponentProps,
-  ListChildComponentProps,
-  areEqual,
-} from 'react-window';
-import AutoSizer from '../common/AutoSizer';
 import { Document, BrowseFilters, DocumentCollection } from '../../types/documents';
 import { DocumentProcessor } from '../../services/documentProcessor';
 import {
@@ -36,7 +28,6 @@ import {
   Eye,
   X,
   Sparkles,
-  Loader2,
   LayoutGrid,
   List as ListIcon,
 } from 'lucide-react';
@@ -52,19 +43,6 @@ import { AddToInvestigationButton } from '../common/AddToInvestigationButton';
 import { DocumentContentRenderer } from './DocumentContentRenderer';
 import { useHighlightNavigation } from '../../hooks/useHighlightNavigation';
 import { HighlightNavigationControls } from './HighlightNavigationControls';
-
-// --- Virtualized Renderers for DocumentBrowser ---
-
-interface DocItemData {
-  documents: Document[];
-  onDocumentSelect: (doc: Document) => void;
-  formatFileSize: (bytes: number) => string;
-  formatDate: (dateString?: string) => string;
-  searchTerm?: string;
-  columnCount?: number;
-  densityMode: 'compact' | 'comfortable';
-  highSignificanceActive: boolean;
-}
 
 // Helper to highlight search terms
 const highlightSearchTerm = (text: string, term?: string): React.ReactNode => {
@@ -141,208 +119,6 @@ const renderTypeIcon = (doc: Document) => {
 
 const getSourceLabel = (doc: Document): string =>
   doc.sourceType || doc.metadata?.source_collection || doc.metadata?.source || 'Archive';
-
-// Memoized Grid Cell for document grid view
-const DocumentGridCell = React.memo(
-  ({ columnIndex, rowIndex, style, data }: GridChildComponentProps<DocItemData>) => {
-    const {
-      documents,
-      onDocumentSelect,
-      formatFileSize,
-      formatDate,
-      searchTerm,
-      columnCount = 1,
-      densityMode,
-      highSignificanceActive,
-    } = data;
-    const index = rowIndex * columnCount + columnIndex;
-
-    if (index >= documents.length) return null;
-
-    const doc = documents[index];
-    const displayTitle = doc.title || doc.filename || 'Untitled document';
-    const previewText = getSafePreviewText(doc);
-    const risk = Number(doc.redFlagRating || 0);
-    const entitiesCount = doc.entitiesCount || doc.entities?.length || 0;
-    const dense = densityMode === 'compact';
-
-    return (
-      <div style={{ ...style, padding: dense ? '6px' : '8px' }}>
-        <div
-          className={`h-full bg-slate-950 border border-slate-800 rounded-[var(--radius-md)] ${
-            dense ? 'p-3' : 'p-4'
-          } hover:border-slate-600 transition-colors cursor-pointer flex flex-col gap-2`}
-          onClick={() => onDocumentSelect(doc)}
-        >
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              {renderTypeIcon(doc)}
-              <span className="text-[10px] uppercase tracking-wide text-slate-400 truncate">
-                {doc.sourceType || doc.evidenceType || doc.fileType}
-              </span>
-            </div>
-            <div className={`semantic-chip ${getRiskClass(risk)}`}>
-              <Flag className="w-3 h-3" />
-              {getRiskLabel(risk)}
-            </div>
-          </div>
-
-          <h3
-            className={`font-semibold text-slate-100 line-clamp-2 ${dense ? 'text-sm' : 'text-base'}`}
-          >
-            {searchTerm ? highlightSearchTerm(displayTitle, searchTerm) : displayTitle}
-          </h3>
-
-          <p
-            className={`text-slate-300 ${dense ? 'text-xs line-clamp-2' : 'text-sm line-clamp-3'}`}
-          >
-            {searchTerm ? highlightSearchTerm(previewText, searchTerm) : previewText}
-          </p>
-          {doc.keyEntities && doc.keyEntities.length > 0 && (
-            <p className="text-[11px] text-slate-400 line-clamp-1">
-              Key entities: {doc.keyEntities.join(', ')}
-            </p>
-          )}
-
-          {highSignificanceActive && (
-            <p className="text-[11px] text-amber-300 line-clamp-1">
-              Why flagged:{' '}
-              {doc.whyFlagged || 'High significance due to risk scoring and entity density.'}
-            </p>
-          )}
-
-          <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400 mt-auto">
-            <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
-              {formatDate(doc.dateCreated)}
-            </span>
-            <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
-              {entitiesCount} entities
-            </span>
-            <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
-              {formatFileSize(doc.fileSize)}
-            </span>
-            <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
-              {getSourceLabel(doc)}
-            </span>
-            {doc.previewKind === 'ai_summary' && (
-              <span className="semantic-chip evidence-agentic">
-                <Sparkles className="w-3 h-3" />
-                AI Summary
-              </span>
-            )}
-            <button
-              className="control h-8 px-3 ml-auto text-[11px]"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDocumentSelect(doc);
-              }}
-            >
-              Open
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  },
-  areEqual,
-);
-
-// Memoized List Row for document list view
-const DocumentListRow = React.memo(
-  ({ index, style, data }: ListChildComponentProps<DocItemData>) => {
-    const {
-      documents,
-      onDocumentSelect,
-      formatFileSize,
-      formatDate,
-      searchTerm,
-      densityMode,
-      highSignificanceActive,
-    } = data;
-    const doc = documents[index];
-    const previewText = getSafePreviewText(doc);
-    const risk = Number(doc.redFlagRating || 0);
-    const entitiesCount = doc.entitiesCount || doc.entities?.length || 0;
-    const dense = densityMode === 'compact';
-
-    return (
-      <div style={style}>
-        <div
-          className={`mx-2 bg-slate-950 border border-slate-800 rounded-[var(--radius-md)] ${
-            dense ? 'p-3' : 'p-4'
-          } hover:border-slate-600 transition-colors cursor-pointer`}
-          onClick={() => onDocumentSelect(doc)}
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-2">
-                {renderTypeIcon(doc)}
-                <span className="text-[10px] uppercase tracking-wide text-slate-400">
-                  {doc.sourceType || doc.evidenceType || doc.fileType}
-                </span>
-                <span className={`semantic-chip ${getRiskClass(risk)}`}>
-                  <Flag className="w-3 h-3" />
-                  {getRiskLabel(risk)}
-                </span>
-                {doc.previewKind === 'ai_summary' && (
-                  <span className="semantic-chip evidence-agentic">
-                    <Sparkles className="w-3 h-3" />
-                    AI Summary
-                  </span>
-                )}
-              </div>
-              <h3
-                className={`font-semibold text-slate-100 mb-1 ${dense ? 'text-sm' : 'text-base'} truncate`}
-              >
-                {searchTerm ? highlightSearchTerm(doc.title || '', searchTerm) : doc.title}
-              </h3>
-              <p
-                className={`text-slate-300 ${dense ? 'text-xs line-clamp-2' : 'text-sm line-clamp-3'}`}
-              >
-                {searchTerm ? highlightSearchTerm(previewText, searchTerm) : previewText}
-              </p>
-              {doc.keyEntities && doc.keyEntities.length > 0 && (
-                <p className="text-[11px] text-slate-400 line-clamp-1">
-                  Key entities: {doc.keyEntities.join(', ')}
-                </p>
-              )}
-              {highSignificanceActive && (
-                <p className="text-[11px] text-amber-300 line-clamp-1 mt-1">
-                  Why flagged:{' '}
-                  {doc.whyFlagged || 'High significance due to risk scoring and entity density.'}
-                </p>
-              )}
-              <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400 mt-2">
-                <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
-                  {formatDate(doc.dateCreated)}
-                </span>
-                <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
-                  {entitiesCount} entities
-                </span>
-                <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
-                  {formatFileSize(doc.fileSize)}
-                </span>
-                <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
-                  {getSourceLabel(doc)}
-                </span>
-              </div>
-            </div>
-            <button
-              className="control h-9 px-3 text-xs shrink-0"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDocumentSelect(doc);
-              }}
-            >
-              Open
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  },
-  areEqual,
-);
 
 interface DocumentBrowserProps {
   processor: DocumentProcessor;
@@ -1773,7 +1549,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
 
   return (
     <div className="min-h-screen text-white overflow-x-hidden">
-      <div className="container mx-auto px-4 py-4 md:py-6">
+      <div className="w-full py-4 md:py-6">
         <div
           className={`sticky top-0 z-30 bg-[color:var(--bg-1)]/95 backdrop-blur border border-slate-800 rounded-[var(--radius-lg)] px-3 md:px-4 transition-all ${
             isHeaderCondensed ? 'py-2 mb-3' : 'py-3 mb-4'
@@ -1808,9 +1584,6 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                 onChange={(e) => setSearchInput(e.target.value)}
                 className="w-full pl-10 pr-16 py-2.5 bg-slate-900 border border-slate-700 rounded-[var(--radius-md)] focus:outline-none focus:border-blue-500 min-h-[44px]"
               />
-              {isFetching && (
-                <Loader2 className="absolute right-10 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 animate-spin" />
-              )}
               {searchInput && (
                 <button
                   onClick={() => setSearchInput('')}
@@ -1888,6 +1661,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                   <ChevronRight className="w-3 h-3" />
                 )}
               </button>
+              {isFetching && <span className="text-xs text-slate-400 px-2">Updating results…</span>}
             </div>
           </div>
         </div>
@@ -2337,94 +2111,190 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
           </div>
         </div>
 
-        {/* Document Grid/List - Virtualized */}
+        {/* Document Grid/List - Page flow (single scroll axis) */}
         {documents.length === 0 && filteredDocuments.length === 0 ? (
           <DocumentSkeleton count={12} />
         ) : filteredDocuments.length > 0 && viewMode === 'grid' ? (
-          // Virtualized grid view
           <div
             ref={documentContainerRef}
-            style={{ height: 'calc(100vh - 400px)', minHeight: '500px' }}
+            className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4"
           >
-            <AutoSizer>
-              {({ height, width }) => {
-                const columnCount = width >= 1024 ? 3 : width >= 768 ? 2 : 1;
-                const columnWidth = Math.floor(width / columnCount);
-                const rowHeight = 280;
-                const rowCount = Math.ceil(filteredDocuments.length / columnCount);
-
-                const itemData: DocItemData = {
-                  documents: filteredDocuments,
-                  onDocumentSelect: handleDocumentSelect,
-                  formatFileSize,
-                  formatDate,
-                  searchTerm: effectiveSearchTerm,
-                  columnCount,
-                  densityMode,
-                  highSignificanceActive: isHighSignificanceActive,
-                };
-
-                return (
-                  <Grid
-                    columnCount={columnCount}
-                    columnWidth={columnWidth}
-                    height={height}
-                    rowCount={rowCount}
-                    rowHeight={densityMode === 'compact' ? 218 : rowHeight}
-                    width={width}
-                    itemData={itemData}
-                    onItemsRendered={({ visibleRowStopIndex }) => {
-                      if (!isFetching && hasMore && visibleRowStopIndex >= rowCount - 3) {
-                        setCurrentPage((prev) => prev + 1);
-                      }
-                    }}
+            {filteredDocuments.map((doc) => {
+              const displayTitle = doc.title || doc.filename || 'Untitled document';
+              const previewText = getSafePreviewText(doc);
+              const risk = Number(doc.redFlagRating || 0);
+              const entitiesCount = doc.entitiesCount || doc.entities?.length || 0;
+              const dense = densityMode === 'compact';
+              return (
+                <article
+                  key={doc.id}
+                  className={`bg-slate-950 border border-slate-800 rounded-[var(--radius-md)] ${
+                    dense ? 'p-3' : 'p-4'
+                  } hover:border-slate-600 transition-colors cursor-pointer flex flex-col gap-2`}
+                  onClick={() => handleDocumentSelect(doc)}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {renderTypeIcon(doc)}
+                      <span className="text-[10px] uppercase tracking-wide text-slate-400 truncate">
+                        {doc.sourceType || doc.evidenceType || doc.fileType}
+                      </span>
+                    </div>
+                    <div className={`semantic-chip ${getRiskClass(risk)}`}>
+                      <Flag className="w-3 h-3" />
+                      {getRiskLabel(risk)}
+                    </div>
+                  </div>
+                  <h3
+                    className={`font-semibold text-slate-100 line-clamp-2 ${
+                      dense ? 'text-sm' : 'text-base'
+                    }`}
                   >
-                    {DocumentGridCell}
-                  </Grid>
-                );
-              }}
-            </AutoSizer>
+                    {effectiveSearchTerm
+                      ? highlightSearchTerm(displayTitle, effectiveSearchTerm)
+                      : displayTitle}
+                  </h3>
+                  <p
+                    className={`text-slate-300 ${dense ? 'text-xs line-clamp-2' : 'text-sm line-clamp-3'}`}
+                  >
+                    {effectiveSearchTerm
+                      ? highlightSearchTerm(previewText, effectiveSearchTerm)
+                      : previewText}
+                  </p>
+                  {doc.keyEntities && doc.keyEntities.length > 0 && (
+                    <p className="text-[11px] text-slate-400 line-clamp-1">
+                      Key entities: {doc.keyEntities.join(', ')}
+                    </p>
+                  )}
+                  {isHighSignificanceActive && (
+                    <p className="text-[11px] text-amber-300 line-clamp-1">
+                      Why flagged:{' '}
+                      {doc.whyFlagged ||
+                        'High significance due to risk scoring and entity density.'}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400 mt-auto">
+                    <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
+                      {formatDate(doc.dateCreated)}
+                    </span>
+                    <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
+                      {entitiesCount} entities
+                    </span>
+                    <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
+                      {formatFileSize(doc.fileSize)}
+                    </span>
+                    <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
+                      {getSourceLabel(doc)}
+                    </span>
+                    {doc.previewKind === 'ai_summary' && (
+                      <span className="semantic-chip evidence-agentic">
+                        <Sparkles className="w-3 h-3" />
+                        AI Summary
+                      </span>
+                    )}
+                    <button
+                      className="control h-8 px-3 ml-auto text-[11px]"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDocumentSelect(doc);
+                      }}
+                    >
+                      Open
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         ) : filteredDocuments.length > 0 ? (
-          // Virtualized list view
-          <div
-            ref={documentContainerRef}
-            style={{ height: 'calc(100vh - 400px)', minHeight: '500px' }}
-          >
-            <AutoSizer>
-              {({ height, width }) => {
-                const itemData: DocItemData = {
-                  documents: filteredDocuments,
-                  onDocumentSelect: handleDocumentSelect,
-                  formatFileSize,
-                  formatDate,
-                  searchTerm: effectiveSearchTerm,
-                  densityMode,
-                  highSignificanceActive: isHighSignificanceActive,
-                };
-
-                return (
-                  <List
-                    height={height}
-                    itemCount={filteredDocuments.length}
-                    itemSize={densityMode === 'compact' ? 130 : 170}
-                    width={width}
-                    itemData={itemData}
-                    onItemsRendered={({ visibleStopIndex }) => {
-                      if (
-                        !isFetching &&
-                        hasMore &&
-                        visibleStopIndex >= filteredDocuments.length - 5
-                      ) {
-                        setCurrentPage((prev) => prev + 1);
-                      }
-                    }}
-                  >
-                    {DocumentListRow}
-                  </List>
-                );
-              }}
-            </AutoSizer>
+          <div ref={documentContainerRef} className="space-y-3">
+            {filteredDocuments.map((doc) => {
+              const previewText = getSafePreviewText(doc);
+              const risk = Number(doc.redFlagRating || 0);
+              const entitiesCount = doc.entitiesCount || doc.entities?.length || 0;
+              const dense = densityMode === 'compact';
+              return (
+                <article
+                  key={doc.id}
+                  className={`bg-slate-950 border border-slate-800 rounded-[var(--radius-md)] ${
+                    dense ? 'p-3' : 'p-4'
+                  } hover:border-slate-600 transition-colors cursor-pointer`}
+                  onClick={() => handleDocumentSelect(doc)}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        {renderTypeIcon(doc)}
+                        <span className="text-[10px] uppercase tracking-wide text-slate-400">
+                          {doc.sourceType || doc.evidenceType || doc.fileType}
+                        </span>
+                        <span className={`semantic-chip ${getRiskClass(risk)}`}>
+                          <Flag className="w-3 h-3" />
+                          {getRiskLabel(risk)}
+                        </span>
+                        {doc.previewKind === 'ai_summary' && (
+                          <span className="semantic-chip evidence-agentic">
+                            <Sparkles className="w-3 h-3" />
+                            AI Summary
+                          </span>
+                        )}
+                      </div>
+                      <h3
+                        className={`font-semibold text-slate-100 mb-1 ${
+                          dense ? 'text-sm' : 'text-base'
+                        } truncate`}
+                      >
+                        {effectiveSearchTerm
+                          ? highlightSearchTerm(doc.title || '', effectiveSearchTerm)
+                          : doc.title}
+                      </h3>
+                      <p
+                        className={`text-slate-300 ${dense ? 'text-xs line-clamp-2' : 'text-sm line-clamp-3'}`}
+                      >
+                        {effectiveSearchTerm
+                          ? highlightSearchTerm(previewText, effectiveSearchTerm)
+                          : previewText}
+                      </p>
+                      {doc.keyEntities && doc.keyEntities.length > 0 && (
+                        <p className="text-[11px] text-slate-400 line-clamp-1">
+                          Key entities: {doc.keyEntities.join(', ')}
+                        </p>
+                      )}
+                      {isHighSignificanceActive && (
+                        <p className="text-[11px] text-amber-300 line-clamp-1 mt-1">
+                          Why flagged:{' '}
+                          {doc.whyFlagged ||
+                            'High significance due to risk scoring and entity density.'}
+                        </p>
+                      )}
+                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400 mt-2">
+                        <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
+                          {formatDate(doc.dateCreated)}
+                        </span>
+                        <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
+                          {entitiesCount} entities
+                        </span>
+                        <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
+                          {formatFileSize(doc.fileSize)}
+                        </span>
+                        <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
+                          {getSourceLabel(doc)}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      className="control h-9 px-3 text-xs shrink-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDocumentSelect(doc);
+                      }}
+                    >
+                      Open
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         ) : null}
 

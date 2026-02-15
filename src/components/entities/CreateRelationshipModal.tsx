@@ -177,7 +177,7 @@ export const CreateRelationshipModal: React.FC<CreateRelationshipModalProps> = (
                     />
                   </div>
                   {sourceResults.length > 0 && (
-                    <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-xl max-h-60 overflow-y-auto ring-1 ring-slate-700">
+                    <div className="absolute z-50 w-full mt-1 dropdown-surface max-h-60 overflow-y-auto">
                       {sourceResults.map((p) => (
                         <button
                           key={p.id}
@@ -232,7 +232,7 @@ export const CreateRelationshipModal: React.FC<CreateRelationshipModalProps> = (
                     />
                   </div>
                   {targetResults.length > 0 && (
-                    <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-xl max-h-60 overflow-y-auto ring-1 ring-slate-700">
+                    <div className="absolute z-50 w-full mt-1 dropdown-surface max-h-60 overflow-y-auto">
                       {targetResults.map((p) => (
                         <button
                           key={p.id}

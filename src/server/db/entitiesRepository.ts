@@ -143,6 +143,17 @@ export const entitiesRepository = {
       whereConditions.push(`full_name NOT LIKE '%@%'`);
       whereConditions.push(`full_name NOT LIKE 'http%'`);
       whereConditions.push(`full_name NOT LIKE 'www.%'`);
+      whereConditions.push(`full_name NOT LIKE 'Mr %'`);
+      whereConditions.push(`full_name NOT LIKE 'Mrs %'`);
+      whereConditions.push(`full_name NOT LIKE 'Ms %'`);
+      whereConditions.push(`full_name NOT LIKE 'Miss %'`);
+      whereConditions.push(`full_name NOT LIKE 'Dr %'`);
+      whereConditions.push(`full_name NOT LIKE 'Prof %'`);
+      whereConditions.push(`full_name NOT LIKE 'Professor %'`);
+      whereConditions.push(`full_name NOT LIKE 'President %'`);
+      whereConditions.push(`full_name NOT LIKE 'Prime Minister %'`);
+      whereConditions.push(`full_name NOT LIKE 'Governor %'`);
+      whereConditions.push(`full_name NOT LIKE 'Senator %'`);
       // Person-focused front page with quality thresholds.
       // Ordering prioritizes VIPs while still surfacing the wider entity set.
       whereConditions.push(`entity_type = 'Person'`);
@@ -688,6 +699,17 @@ export const entitiesRepository = {
       whereConditions.push(`full_name NOT LIKE '%@%'`);
       whereConditions.push(`full_name NOT LIKE 'http%'`);
       whereConditions.push(`full_name NOT LIKE 'www.%'`);
+      whereConditions.push(`full_name NOT LIKE 'Mr %'`);
+      whereConditions.push(`full_name NOT LIKE 'Mrs %'`);
+      whereConditions.push(`full_name NOT LIKE 'Ms %'`);
+      whereConditions.push(`full_name NOT LIKE 'Miss %'`);
+      whereConditions.push(`full_name NOT LIKE 'Dr %'`);
+      whereConditions.push(`full_name NOT LIKE 'Prof %'`);
+      whereConditions.push(`full_name NOT LIKE 'Professor %'`);
+      whereConditions.push(`full_name NOT LIKE 'President %'`);
+      whereConditions.push(`full_name NOT LIKE 'Prime Minister %'`);
+      whereConditions.push(`full_name NOT LIKE 'Governor %'`);
+      whereConditions.push(`full_name NOT LIKE 'Senator %'`);
 
       whereConditions.push(`COALESCE(primary_role, '') NOT IN ('Unknown','UNK')`);
       whereConditions.push(`(

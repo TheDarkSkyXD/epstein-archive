@@ -3,6 +3,56 @@ import { getDb } from '../src/server/db/connection.js';
 import { VIP_RULES } from './filters/vipRules.js';
 import { resolveVip } from './filters/vipRules.js';
 
+const HONORIFIC_PREFIXES = new Set([
+  'mr',
+  'mrs',
+  'ms',
+  'miss',
+  'dr',
+  'prof',
+  'professor',
+  'president',
+  'prime',
+  'minister',
+  'pm',
+  'governor',
+  'gov',
+  'senator',
+  'sen',
+  'rep',
+  'representative',
+  'judge',
+  'justice',
+  'attorney',
+]);
+
+function normalizeSurfaceName(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[.,'"`]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isHighQualityVipSurfaceName(value: string, canonical: string): boolean {
+  const normalized = normalizeSurfaceName(value);
+  const canonicalNormalized = normalizeSurfaceName(canonical);
+  if (!normalized) return false;
+  if (normalized === canonicalNormalized) return true;
+
+  const tokens = normalized.split(' ').filter(Boolean);
+  if (tokens.length < 2) return false;
+
+  // Drop obvious title-only variants like "Mr Epstein" / "President Obama"
+  if (HONORIFIC_PREFIXES.has(tokens[0])) return false;
+
+  // Drop connective/context fragments like "With Bill Clinton"
+  const stopwordLead = new Set(['with', 'for', 'by', 'from', 'about', 'and', 'of', 'to', 'in']);
+  if (stopwordLead.has(tokens[0])) return false;
+
+  return true;
+}
+
 function backfillVipFlags(): void {
   const db = getDb();
   const canonicalNames = Array.from(new Set(VIP_RULES.map((rule) => rule.canonicalName.trim())));
@@ -49,6 +99,7 @@ function backfillVipFlags(): void {
     for (const entity of entities) {
       const canonical = resolveVip(entity.full_name);
       if (!canonical) continue;
+      if (!isHighQualityVipSurfaceName(entity.full_name, canonical)) continue;
 
       markByIdStmt.run(entity.id);
       const rule = ruleByCanonical.get(canonical);

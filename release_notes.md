@@ -1,3 +1,22 @@
+## 13.6.0 - 2026-02-15
+
+### VIP Consolidation and Variant Quality
+
+- Expanded canonical VIP alias coverage for prominent names with practical variant support (initials, misspellings, punctuation variants, and honorific-based forms) to improve consolidation quality.
+- Removed duplicate canonical mapping for Donald Trump (`The Donald` as a separate canonical record) to prevent split identity behavior in VIP matching and metadata attachment.
+- Tightened VIP marking semantics so `is_vip` is now reserved for person/organization VIP entities, avoiding codeword terms being mixed into VIP surfaces.
+
+### Backfill and Environment Determinism
+
+- Hardened `scripts/backfill_vip_flags.ts` with deterministic DB-path visibility logging and clean-person VIP counts to make verification reproducible across environments.
+- Updated default DB resolution in server DB connection logic to avoid `process.cwd()` ambiguity and reduce accidental writes/reads against different database files.
+
+### Front-Page Prioritization and Data Quality
+
+- Kept front-page behavior VIP-first while still surfacing broader entities in `All Types`.
+- Refined default front-page signal thresholds and name hygiene to reduce obvious fragment/title artifacts while preserving high-signal non-VIP entities.
+- Preserved and strengthened role/title quality filters so low-quality title-prefixed fragments are less likely to leak into default entity listing.
+
 ## 13.5.0 - 2026-02-15
 
 ### VIP Data Quality and Consolidation

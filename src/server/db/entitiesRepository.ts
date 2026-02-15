@@ -16,6 +16,58 @@ export interface SubjectCardRepositoryResult {
   total: number;
 }
 
+const TITLE_PREFIX_FILTERS = [
+  `full_name NOT LIKE 'Mr %'`,
+  `full_name NOT LIKE 'Mrs %'`,
+  `full_name NOT LIKE 'Ms %'`,
+  `full_name NOT LIKE 'Miss %'`,
+  `full_name NOT LIKE 'Dr %'`,
+  `full_name NOT LIKE 'Prof %'`,
+  `full_name NOT LIKE 'Professor %'`,
+  `full_name NOT LIKE 'President %'`,
+  `full_name NOT LIKE 'Prime Minister %'`,
+  `full_name NOT LIKE 'Governor %'`,
+  `full_name NOT LIKE 'Senator %'`,
+];
+
+const DEFAULT_SIGNAL_CLAUSE = `(
+  COALESCE(is_vip, 0) = 1
+  OR (
+    (
+      (bio IS NOT NULL AND TRIM(bio) != '')
+      OR (SELECT COUNT(*) FROM media_item_people WHERE entity_id = entities.id) > 0
+      OR (SELECT COUNT(*) FROM black_book_entries WHERE person_id = entities.id) > 0
+      OR (
+        COALESCE(primary_role, '') NOT IN ('', 'Unknown', 'UNK')
+        AND (
+          mentions >= 50
+          OR red_flag_rating >= 4
+        )
+      )
+    )
+  )
+)`;
+
+function applyDefaultNameHygiene(whereConditions: string[], params: Record<string, unknown>): void {
+  ENTITY_BLACKLIST_PATTERNS.forEach((pattern, i) => {
+    const paramName = `junkPattern${i}`;
+    params[paramName] = `%${pattern}%`;
+    whereConditions.push(`full_name NOT LIKE @${paramName}`);
+  });
+
+  ENTITY_PARTIAL_BLOCKLIST.forEach((pattern, i) => {
+    const paramName = `partialPattern${i}`;
+    params[paramName] = `%${pattern}%`;
+    whereConditions.push(`full_name NOT LIKE @${paramName}`);
+  });
+
+  whereConditions.push(`LENGTH(TRIM(full_name)) >= 3`);
+  whereConditions.push(`full_name NOT LIKE '%@%'`);
+  whereConditions.push(`full_name NOT LIKE 'http%'`);
+  whereConditions.push(`full_name NOT LIKE 'www.%'`);
+  TITLE_PREFIX_FILTERS.forEach((clause) => whereConditions.push(clause));
+}
+
 export const entitiesRepository = {
   /**
    * ULTRATHINK: High-performance subject card fetching.
@@ -127,44 +179,9 @@ export const entitiesRepository = {
       page === 1;
 
     if (isDefaultView) {
-      ENTITY_BLACKLIST_PATTERNS.forEach((pattern, i) => {
-        const paramName = `junkPattern${i}`;
-        params[paramName] = `%${pattern}%`;
-        whereConditions.push(`full_name NOT LIKE @${paramName}`);
-      });
-      // Additional partial blocklist phrases
-      ENTITY_PARTIAL_BLOCKLIST.forEach((pattern, i) => {
-        const paramName = `partialPattern${i}`;
-        params[paramName] = `%${pattern}%`;
-        whereConditions.push(`full_name NOT LIKE @${paramName}`);
-      });
-      // Name hygiene
-      whereConditions.push(`LENGTH(TRIM(full_name)) >= 3`);
-      whereConditions.push(`full_name NOT LIKE '%@%'`);
-      whereConditions.push(`full_name NOT LIKE 'http%'`);
-      whereConditions.push(`full_name NOT LIKE 'www.%'`);
-      whereConditions.push(`full_name NOT LIKE 'Mr %'`);
-      whereConditions.push(`full_name NOT LIKE 'Mrs %'`);
-      whereConditions.push(`full_name NOT LIKE 'Ms %'`);
-      whereConditions.push(`full_name NOT LIKE 'Miss %'`);
-      whereConditions.push(`full_name NOT LIKE 'Dr %'`);
-      whereConditions.push(`full_name NOT LIKE 'Prof %'`);
-      whereConditions.push(`full_name NOT LIKE 'Professor %'`);
-      whereConditions.push(`full_name NOT LIKE 'President %'`);
-      whereConditions.push(`full_name NOT LIKE 'Prime Minister %'`);
-      whereConditions.push(`full_name NOT LIKE 'Governor %'`);
-      whereConditions.push(`full_name NOT LIKE 'Senator %'`);
-      // Person-focused front page with quality thresholds.
-      // Ordering prioritizes VIPs while still surfacing the wider entity set.
-      whereConditions.push(`entity_type = 'Person'`);
-      whereConditions.push(`COALESCE(primary_role, '') NOT IN ('Unknown','UNK')`);
-      whereConditions.push(`(
-        mentions >= 10
-        OR red_flag_rating >= 4
-        OR bio IS NOT NULL
-        OR (SELECT COUNT(*) FROM media_item_people WHERE entity_id = entities.id) > 0
-        OR (SELECT COUNT(*) FROM black_book_entries WHERE person_id = entities.id) > 0
-      )`);
+      applyDefaultNameHygiene(whereConditions, params);
+      // Front page: VIP first, but still surface non-VIP high-signal entities across all types.
+      whereConditions.push(DEFAULT_SIGNAL_CLAUSE);
     }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
@@ -336,7 +353,13 @@ export const entitiesRepository = {
         (s.stats?.mentions || 0) < 10 &&
         (s.stats?.verified_media || 0) === 0 &&
         (s.stats?.distinct_sources || 0) === 0;
-      if (lowSignals && (s.role || '').toLowerCase() === 'unknown') return false;
+      const role = (s.role || '').toLowerCase();
+      if (lowSignals && (role === '' || role === 'unknown' || role === 'unk')) return false;
+      const hasBio = Boolean(s.short_bio && s.short_bio.trim().length > 0);
+      const hasEvidenceSignals =
+        (s.stats?.verified_media || 0) > 0 || (s.stats?.distinct_sources || 0) > 0;
+      if ((role === '' || role === 'unknown' || role === 'unk') && !hasBio && !hasEvidenceSignals)
+        return false;
       return true;
     });
 
@@ -484,6 +507,7 @@ export const entitiesRepository = {
           e.primary_role, 
           e.entity_type, 
           e.mentions, 
+          e.is_vip,
           e.bio,
           e.red_flag_rating,
           e.risk_level,
@@ -502,6 +526,7 @@ export const entitiesRepository = {
       primary_role: string;
       entity_type: string;
       mentions: number;
+      is_vip?: number;
       bio?: string;
       red_flag_rating?: number;
       risk_level?: string;
@@ -553,6 +578,17 @@ export const entitiesRepository = {
         if (lowSignals && (r.primary_role || '').toLowerCase() === 'unknown') {
           prob = Math.max(prob, 0.55);
           reason = reason || 'low_signals';
+        }
+        const likelyRepeatArtifact =
+          (r.mentions || 0) >= 500 &&
+          (r.is_vip || 0) === 0 &&
+          (r.media_count || 0) === 0 &&
+          (r.source_count || 0) === 0 &&
+          (r.black_book_count || 0) === 0 &&
+          (r.bio || '').trim() === '';
+        if (likelyRepeatArtifact) {
+          prob = Math.max(prob, 0.8);
+          reason = reason || 'repeat_artifact';
         }
         const junk = prob >= 0.6;
         stmt.run({
@@ -684,40 +720,8 @@ export const entitiesRepository = {
       page === 1;
 
     if (isDefaultView) {
-      ENTITY_BLACKLIST_PATTERNS.forEach((pattern, i) => {
-        const paramName = `junkPattern${i}`;
-        params[paramName] = `%${pattern}%`;
-        whereConditions.push(`full_name NOT LIKE @${paramName}`);
-      });
-      ENTITY_PARTIAL_BLOCKLIST.forEach((pattern, i) => {
-        const paramName = `partialPattern${i}`;
-        params[paramName] = `%${pattern}%`;
-        whereConditions.push(`full_name NOT LIKE @${paramName}`);
-      });
-      whereConditions.push(`entity_type = 'Person'`);
-      whereConditions.push(`LENGTH(TRIM(full_name)) >= 3`);
-      whereConditions.push(`full_name NOT LIKE '%@%'`);
-      whereConditions.push(`full_name NOT LIKE 'http%'`);
-      whereConditions.push(`full_name NOT LIKE 'www.%'`);
-      whereConditions.push(`full_name NOT LIKE 'Mr %'`);
-      whereConditions.push(`full_name NOT LIKE 'Mrs %'`);
-      whereConditions.push(`full_name NOT LIKE 'Ms %'`);
-      whereConditions.push(`full_name NOT LIKE 'Miss %'`);
-      whereConditions.push(`full_name NOT LIKE 'Dr %'`);
-      whereConditions.push(`full_name NOT LIKE 'Prof %'`);
-      whereConditions.push(`full_name NOT LIKE 'Professor %'`);
-      whereConditions.push(`full_name NOT LIKE 'President %'`);
-      whereConditions.push(`full_name NOT LIKE 'Prime Minister %'`);
-      whereConditions.push(`full_name NOT LIKE 'Governor %'`);
-      whereConditions.push(`full_name NOT LIKE 'Senator %'`);
-
-      whereConditions.push(`COALESCE(primary_role, '') NOT IN ('Unknown','UNK')`);
-      whereConditions.push(`(
-        mentions >= 10
-        OR bio IS NOT NULL
-        OR (SELECT COUNT(*) FROM media_item_people WHERE entity_id = entities.id) > 0
-        OR (SELECT COUNT(*) FROM black_book_entries WHERE person_id = entities.id) > 0
-      )`);
+      applyDefaultNameHygiene(whereConditions, params);
+      whereConditions.push(DEFAULT_SIGNAL_CLAUSE);
     }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';

@@ -826,7 +826,7 @@ export async function runIntelligencePipeline() {
     // 2. Sync VIP Entities (Force Update/Insert)
     console.log('👑 Syncing VIP entities...');
     const updateEntity = db.prepare(
-      'UPDATE entities SET entity_category = ?, risk_level = ?, death_date = ?, notes = ?, red_flag_rating = ?, bio = ?, birth_date = ?, aliases = ?, is_vip = 1 WHERE id = ?',
+      'UPDATE entities SET entity_category = ?, risk_level = ?, death_date = ?, notes = ?, red_flag_rating = ?, bio = ?, birth_date = ?, aliases = ?, is_vip = ? WHERE id = ?',
     );
 
     let syncedVips = 0;
@@ -855,6 +855,7 @@ export async function runIntelligencePipeline() {
       }
 
       const aliasesStr = rule.aliases ? rule.aliases.join(',') : null;
+      const isVipFlag = rule.type === 'Person' || rule.type === 'Organization' ? 1 : 0;
 
       if (id) {
         // Update
@@ -867,6 +868,7 @@ export async function runIntelligencePipeline() {
           bio,
           birthDate,
           aliasesStr,
+          isVipFlag,
           id,
         );
       } else {
@@ -885,7 +887,7 @@ export async function runIntelligencePipeline() {
             aliasesStr,
           );
           id = Number(res.lastInsertRowid);
-          db.prepare('UPDATE entities SET is_vip = 1 WHERE id = ?').run(id);
+          db.prepare('UPDATE entities SET is_vip = ? WHERE id = ?').run(isVipFlag, id);
           entityCache.set(lower, id);
           // Also index aliases
           if (rule.aliases) {

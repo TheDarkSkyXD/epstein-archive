@@ -55,6 +55,8 @@ function isHighQualityVipSurfaceName(value: string, canonical: string): boolean 
 
 function backfillVipFlags(): void {
   const db = getDb();
+  const dbInfo = db.prepare(`PRAGMA database_list`).get() as { file?: string } | undefined;
+  const dbPath = dbInfo?.file || '(unknown)';
   const canonicalNames = Array.from(new Set(VIP_RULES.map((rule) => rule.canonicalName.trim())));
   const ruleByCanonical = new Map(VIP_RULES.map((rule) => [rule.canonicalName, rule]));
 
@@ -100,10 +102,12 @@ function backfillVipFlags(): void {
       const canonical = resolveVip(entity.full_name);
       if (!canonical) continue;
       if (!isHighQualityVipSurfaceName(entity.full_name, canonical)) continue;
-
-      markByIdStmt.run(entity.id);
       const rule = ruleByCanonical.get(canonical);
       if (!rule) continue;
+      const shouldMarkVip = rule.type === 'Person' || rule.type === 'Organization';
+      if (!shouldMarkVip) continue;
+
+      markByIdStmt.run(entity.id);
 
       const riskLevel = rule.metadata?.riskLevel || null;
       const redFlagRating = riskLevel === 'high' ? 5 : riskLevel === 'medium' ? 4 : 3;
@@ -124,8 +128,15 @@ function backfillVipFlags(): void {
   tx();
 
   const vipCount = (countStmt.get() as { count: number }).count;
+  const vipPersonCount = (
+    db
+      .prepare(
+        `SELECT COUNT(*) as count FROM entities WHERE is_vip = 1 AND entity_type = 'Person' AND COALESCE(junk_flag,0)=0`,
+      )
+      .get() as { count: number }
+  ).count;
   console.log(
-    `VIP backfill complete. Canonical names: ${canonicalNames.length}. Marked VIP rows: ${vipCount}.`,
+    `VIP backfill complete. DB: ${dbPath}. Canonical names: ${canonicalNames.length}. Marked VIP rows: ${vipCount}. Clean VIP people: ${vipPersonCount}.`,
   );
 }
 

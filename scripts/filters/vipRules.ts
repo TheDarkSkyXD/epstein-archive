@@ -35,6 +35,9 @@ export const VIP_RULES: VipRule[] = [
       'Mr. Epstein',
       'Jeffry Epstein',
       'Jeffrey E. Epstein',
+      'Jeff E Epstein',
+      'J E Epstein',
+      'J.E. Epstein',
       'J. Epstein',
       'Jeffery Epstein',
       'Sam Epstein',
@@ -52,8 +55,8 @@ export const VIP_RULES: VipRule[] = [
   {
     canonicalName: 'Ghislaine Maxwell',
     type: 'Person',
-    aliases: ['G. Maxwell', 'Ms. Maxwell', 'Miss Maxwell', 'Ghislane Maxwell'],
-    patterns: [/Ghislaine\s+Maxwell/i, /Ghislane\s+Maxwell/i],
+    aliases: ['G. Maxwell', 'Ms. Maxwell', 'Miss Maxwell', 'Ghislane Maxwell', 'Ghislaine Maxwel'],
+    patterns: [/Ghislaine\s+Maxwell/i, /Ghislane\s+Maxwell/i, /Ghislaine\s+Maxwel/i],
     metadata: {
       category: 'Perpetrator',
       riskLevel: 'high',
@@ -64,8 +67,14 @@ export const VIP_RULES: VipRule[] = [
   {
     canonicalName: 'Jean-Luc Brunel',
     type: 'Person',
-    aliases: ['Jean Luc Brunel', 'MC2 Model Management', 'J.L. Brunel'],
-    patterns: [/Jean\s+Luc\s+Brunel/i, /Jean-Luc\s+Brunel/i],
+    aliases: [
+      'Jean Luc Brunel',
+      'Jean Luc Brunnel',
+      'Jean-Luc Brunnel',
+      'MC2 Model Management',
+      'J.L. Brunel',
+    ],
+    patterns: [/Jean\s+Luc\s+Brunel/i, /Jean-Luc\s+Brunel/i, /Jean\s+Luc\s+Brunnel/i],
     metadata: {
       category: 'Perpetrator',
       riskLevel: 'high',
@@ -79,7 +88,7 @@ export const VIP_RULES: VipRule[] = [
     canonicalName: 'Prince Andrew',
     type: 'Person',
     aliases: ['Duke of York', 'Andrew Albert Christian Edward', 'HRH Prince Andrew'],
-    patterns: [/Prince\s+Andrew/i, /Duke\s+of\s+York/i],
+    patterns: [/Prince\s+Andrew/i, /Duke\s+of\s+York/i, /Andrew\s+Duke\s+of\s+York/i],
     metadata: {
       category: 'Perpetrator',
       riskLevel: 'high',
@@ -90,8 +99,15 @@ export const VIP_RULES: VipRule[] = [
   {
     canonicalName: 'Bill Clinton',
     type: 'Person',
-    aliases: ['William Jefferson Clinton', 'President Clinton', 'Mr. Clinton', 'William Clinton'],
-    patterns: [/Bill\s+Clinton/i, /President\s+Clinton/i, /William\s+Clinton/i],
+    aliases: [
+      'William Jefferson Clinton',
+      'President Clinton',
+      'Mr. Clinton',
+      'William Clinton',
+      'WJ Clinton',
+      'WJC',
+    ],
+    patterns: [/Bill\s+Clinton/i, /President\s+Clinton/i, /William\s+Clinton/i, /\bWJC\b/i],
     metadata: {
       category: 'Perpetrator',
       riskLevel: 'high',
@@ -289,8 +305,8 @@ export const VIP_RULES: VipRule[] = [
   {
     canonicalName: 'Ehud Barak',
     type: 'Person',
-    aliases: ['Prime Minister Barak', 'Mr. Barak'],
-    patterns: [/Ehud\s+Barak/i],
+    aliases: ['Prime Minister Barak', 'Mr. Barak', 'Ehud Barack'],
+    patterns: [/Ehud\s+Barak/i, /Ehud\s+Barack/i],
     metadata: {
       category: 'Complicit',
       riskLevel: 'high',
@@ -361,8 +377,15 @@ export const VIP_RULES: VipRule[] = [
   {
     canonicalName: 'Alan Dershowitz',
     type: 'Person',
-    aliases: ['Alan M. Dershowitz', 'Mr. Dershowitz', 'Professor Dershowitz'],
-    patterns: [/Alan\s+Dershowitz/i],
+    aliases: [
+      'Alan M. Dershowitz',
+      'Alan M Dershowitz',
+      'Mr. Dershowitz',
+      'Professor Dershowitz',
+      'Alan Dershowits',
+      'Allen Dershowitz',
+    ],
+    patterns: [/Alan\s+Dershowitz/i, /Alan\s+Dershowits/i],
     metadata: {
       category: 'Complicit',
       riskLevel: 'high',
@@ -399,8 +422,14 @@ export const VIP_RULES: VipRule[] = [
   {
     canonicalName: 'Virginia Giuffre',
     type: 'Person',
-    aliases: ['Virginia Roberts', 'Virginia Roberts Giuffre', 'Ms. Roberts'],
-    patterns: [/Virginia\s+Giuffre/i, /Virginia\s+Roberts/i],
+    aliases: [
+      'Virginia Roberts',
+      'Virginia Roberts Giuffre',
+      'Virginia Roberts-Giuffre',
+      'Ms. Roberts',
+      'V. Giuffre',
+    ],
+    patterns: [/Virginia\s+Giuffre/i, /Virginia\s+Roberts/i, /Virginia\s+Roberts[-\s]+Giuffre/i],
     metadata: {
       category: 'Survivor',
       riskLevel: 'low',
@@ -784,17 +813,6 @@ export const VIP_RULES: VipRule[] = [
   },
 
   // --- OTHERS ---
-  {
-    canonicalName: 'The Donald',
-    type: 'Person',
-    aliases: [],
-    patterns: [],
-    metadata: {
-      category: 'Associate',
-      riskLevel: 'high',
-      bio: 'Codename/nickname for Donald Trump.',
-    },
-  },
   {
     canonicalName: 'Melania Trump',
     type: 'Person',

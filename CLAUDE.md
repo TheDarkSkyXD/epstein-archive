@@ -1,6 +1,43 @@
 CLAUDE.md
 
-This file provides guidance to Antigravity / Claude Code (claude.ai/code) and human developers working on the Epstein Archive platform.
+This file provides guidance to Codex/ Antigravity / Claude Code (claude.ai/code) and human developers working on the Epstein Archive platform.
+
+OUR CORE DESIGN PRINCIPLES
+
+if everyone
+is busy making everything
+how can anyone perfect anything?
+
+we start to confuse convenience
+with joy
+abundance with choice.
+
+designing anything requires
+focus
+
+the first thing we ask is
+what do we want people to feel?
+
+delight
+surprise
+love
+connection
+
+then we begin to create around our intention
+it takes time
+
+there's a thousand no's
+for every yes.
+
+we simplify
+we perfect
+we start over
+
+until everything we touch
+enhances each life
+it touches.
+
+only then do we sign our work.
 
 SYSTEM ROLE & BEHAVIORAL PROTOCOLS
 

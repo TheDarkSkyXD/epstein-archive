@@ -1,5 +1,6 @@
 import React from 'react';
-import { Calendar, BookOpen } from 'lucide-react';
+import { Calendar, BookOpen, X, Circle } from 'lucide-react';
+import { useScrollLock } from '../hooks/useScrollLock';
 
 interface ReleaseNote {
   version: string;
@@ -25,24 +26,38 @@ export const ReleaseNotesPanel: React.FC<ReleaseNotesPanelProps> = ({
 }) => {
   // Use the passed releaseNotes prop directly as the single source of truth
   const allReleaseNotes = releaseNotes;
+  useScrollLock(isOpen);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50 p-0 md:p-4">
-      <div className="bg-slate-900 rounded-none md:rounded-2xl w-full max-w-md h-full md:h-auto md:max-h-[90vh] border-l md:border border-slate-700 flex flex-col shadow-2xl animate-in slide-in-from-right duration-200 overflow-hidden">
+    <div
+      className="fixed inset-0 bg-black/60 flex items-center justify-end z-50 p-0 md:p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="release-notes-title"
+      onClick={onClose}
+    >
+      <div
+        className="surface-glass rounded-none md:rounded-[var(--radius-lg)] w-full max-w-md h-full md:h-auto md:max-h-[90vh] md:border border-l border-slate-700 flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-700 bg-slate-900 sticky top-0 z-10 md:rounded-t-2xl">
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+        <div className="flex items-center justify-between p-4 border-b border-slate-700 bg-slate-900/80 sticky top-0 z-10">
+          <h2
+            id="release-notes-title"
+            className="text-xl font-bold text-white flex items-center gap-2"
+          >
             <BookOpen className="h-5 w-5 text-cyan-400" />
             What's New
           </h2>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white text-xl transition-colors"
-            aria-label="Close"
+            className="control h-10 w-10 p-0 flex items-center justify-center text-white"
+            aria-label="Close release notes"
+            title="Close release notes"
           >
-            ×
+            <X className="h-4 w-4" />
           </button>
         </div>
 
@@ -74,8 +89,10 @@ export const ReleaseNotesPanel: React.FC<ReleaseNotesPanelProps> = ({
                 >
                   {/* Timeline Dot */}
                   <div
-                    className={`absolute -left-[9px] top-0 w-4 h-4 rounded-full border-2 ${index === 0 ? 'bg-cyan-500 border-cyan-900 shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'bg-slate-800 border-slate-600'}`}
-                  ></div>
+                    className={`absolute -left-[10px] top-0 h-5 w-5 flex items-center justify-center ${index === 0 ? 'text-cyan-400' : 'text-slate-500'}`}
+                  >
+                    <Circle className="h-3.5 w-3.5 fill-current" />
+                  </div>
 
                   <div className="mb-4">
                     <div className="flex items-center gap-2 mb-1">
@@ -112,7 +129,9 @@ export const ReleaseNotesPanel: React.FC<ReleaseNotesPanelProps> = ({
                       // Regular bullet point
                       return (
                         <div key={noteIndex} className="flex items-start gap-3">
-                          <span className="text-cyan-500/70 mt-1.5 text-[10px]">●</span>
+                          <span className="text-cyan-400/80 mt-1.5 text-[10px]">
+                            <Circle className="h-2.5 w-2.5 fill-current" />
+                          </span>
                           <div className="text-sm text-slate-300 leading-relaxed">
                             {note.split(/(\*\*.*?\*\*)/).map((part, i) =>
                               part.startsWith('**') && part.endsWith('**') ? (
@@ -135,7 +154,7 @@ export const ReleaseNotesPanel: React.FC<ReleaseNotesPanelProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-800 bg-slate-900 text-center sticky bottom-0 z-10">
+        <div className="p-4 border-t border-slate-800 bg-slate-900/80 text-center sticky bottom-0 z-10">
           <p className="text-xs text-slate-500">Epstein Archive Investigation Tool</p>
         </div>
       </div>

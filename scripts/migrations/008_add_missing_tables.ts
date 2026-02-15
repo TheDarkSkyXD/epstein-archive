@@ -26,18 +26,19 @@ try {
     ).run();
     console.log('Created table: black_book_entries');
 
-    // 2. Create tags
+    // 2. Create media_tags
     db.prepare(
       `
-      CREATE TABLE IF NOT EXISTS tags (
+      CREATE TABLE IF NOT EXISTS media_tags (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT UNIQUE NOT NULL,
+        category TEXT,
         color TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `,
     ).run();
-    console.log('Created table: tags');
+    console.log('Created table: media_tags');
 
     // 3. Create document_tags
     db.prepare(
@@ -47,24 +48,25 @@ try {
         tag_id INTEGER,
         PRIMARY KEY (document_id, tag_id),
         FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE,
-        FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+        FOREIGN KEY (tag_id) REFERENCES media_tags(id) ON DELETE CASCADE
       )
     `,
     ).run();
     console.log('Created table: document_tags');
 
-    // 3b. Create image_tags (also needed by MediaService but maybe verified separately? tags API uses it)
+    // 3b. Create media_item_tags for media tagging
     db.prepare(
       `
-      CREATE TABLE IF NOT EXISTS image_tags (
-        image_id INTEGER,
+      CREATE TABLE IF NOT EXISTS media_item_tags (
+        media_item_id INTEGER,
         tag_id INTEGER,
-        PRIMARY KEY (image_id, tag_id),
-        FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+        PRIMARY KEY (media_item_id, tag_id),
+        FOREIGN KEY (media_item_id) REFERENCES media_items(id) ON DELETE CASCADE,
+        FOREIGN KEY (tag_id) REFERENCES media_tags(id) ON DELETE CASCADE
       )
     `,
     ).run();
-    console.log('Created table: image_tags');
+    console.log('Created table: media_item_tags');
 
     // 4. Create sessions
     db.prepare(

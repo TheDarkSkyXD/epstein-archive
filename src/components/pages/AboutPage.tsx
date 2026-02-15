@@ -5,14 +5,23 @@ import {
   Shield,
   FileText,
   Image as ImageIcon,
+  FolderOpen,
+  Phone,
+  Users,
   Network,
   AlertTriangle,
   Eye,
   Download,
+  Mail,
   Newspaper,
   Info,
   HelpCircle,
   ArrowRight,
+  Mic,
+  ClipboardList,
+  CheckCircle2,
+  BookOpen,
+  Scale,
   TrendingUp,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -179,7 +188,10 @@ export const AboutPage: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-slate-800/50 rounded-lg p-6">
-            <h3 className="text-xl font-semibold text-white mb-3">📄 Documents</h3>
+            <h3 className="text-xl font-semibold text-white mb-3 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-blue-400" />
+              Documents
+            </h3>
             <p className="text-3xl font-bold text-blue-400 mb-2">
               {stats.documents.toLocaleString()}
             </p>
@@ -198,7 +210,10 @@ export const AboutPage: React.FC = () => {
           </div>
 
           <div className="bg-slate-800/50 rounded-lg p-6">
-            <h3 className="text-xl font-semibold text-white mb-3">👥 Entities</h3>
+            <h3 className="text-xl font-semibold text-white mb-3 flex items-center gap-2">
+              <Users className="w-5 h-5 text-green-400" />
+              Entities
+            </h3>
             <p className="text-3xl font-bold text-green-400 mb-2">
               {stats.entities.toLocaleString()}
             </p>
@@ -208,7 +223,10 @@ export const AboutPage: React.FC = () => {
           </div>
 
           <div className="bg-slate-800/50 rounded-lg p-6">
-            <h3 className="text-xl font-semibold text-white mb-3">📞 Black Book</h3>
+            <h3 className="text-xl font-semibold text-white mb-3 flex items-center gap-2">
+              <Phone className="w-5 h-5 text-purple-400" />
+              Black Book
+            </h3>
             <p className="text-3xl font-bold text-purple-400 mb-2">
               {stats.blackBook.toLocaleString()}
             </p>
@@ -216,7 +234,10 @@ export const AboutPage: React.FC = () => {
           </div>
 
           <div className="bg-slate-800/50 rounded-lg p-6">
-            <h3 className="text-xl font-semibold text-white mb-3">🖼️ Media</h3>
+            <h3 className="text-xl font-semibold text-white mb-3 flex items-center gap-2">
+              <ImageIcon className="w-5 h-5 text-orange-400" />
+              Media
+            </h3>
             <p className="text-3xl font-bold text-orange-400 mb-2">
               {stats.media.toLocaleString()}
             </p>
@@ -814,35 +835,35 @@ export const AboutPage: React.FC = () => {
           <h3 className="text-xl font-semibold text-white">Key Features</h3>
           <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 text-slate-300">
             <li className="flex items-center gap-2">
-              <span className="text-green-400">✓</span>
+              <CheckCircle2 className="w-4 h-4 text-green-400" />
               Full-text search across all documents
             </li>
             <li className="flex items-center gap-2">
-              <span className="text-green-400">✓</span>
+              <CheckCircle2 className="w-4 h-4 text-green-400" />
               Entity relationship visualization
             </li>
             <li className="flex items-center gap-2">
-              <span className="text-green-400">✓</span>
+              <CheckCircle2 className="w-4 h-4 text-green-400" />
               Timeline of events and document releases
             </li>
             <li className="flex items-center gap-2">
-              <span className="text-green-400">✓</span>
+              <CheckCircle2 className="w-4 h-4 text-green-400" />
               Forensic document analysis
             </li>
             <li className="flex items-center gap-2 text-blue-300 font-semibold">
-              <span className="text-blue-400">✨</span>
+              <TrendingUp className="w-4 h-4 text-blue-400" />
               Integrated Side-by-Side PDF Viewer
             </li>
             <li className="flex items-center gap-2">
-              <span className="text-green-400">✓</span>
+              <CheckCircle2 className="w-4 h-4 text-green-400" />
               Investigation workspace with hypothesis tracking
             </li>
             <li className="flex items-center gap-2">
-              <span className="text-green-400">✓</span>
+              <CheckCircle2 className="w-4 h-4 text-green-400" />
               Categorised media library with {stats.media.toLocaleString()} images
             </li>
             <li className="flex items-center gap-2 text-blue-300 font-semibold">
-              <span className="text-blue-400">✨</span>
+              <TrendingUp className="w-4 h-4 text-blue-400" />
               Audio & Video with synchronized transcripts and chapter markers
             </li>
           </ul>
@@ -941,8 +962,8 @@ export const AboutPage: React.FC = () => {
         </div>
         <div className="bg-purple-900/30 border border-purple-500/30 rounded-lg p-4 mt-4">
           <p className="text-purple-200 text-sm">
-            <strong>🔥 Find High-Impact Documents:</strong> Use the Document Browser and filter by
-            "Red Flag Rating" (highest first) to discover the most significant documents. High-risk
+            <strong>Find High-Impact Documents:</strong> Use the Document Browser and filter by "Red
+            Flag Rating" (highest first) to discover the most significant documents. High-risk
             documents (4-5) contain keywords related to victims, trafficking, key figures, and
             financial transactions.
           </p>
@@ -967,7 +988,7 @@ export const AboutPage: React.FC = () => {
           >
             <div className="aspect-[16/9] bg-gradient-to-br from-orange-600/20 to-amber-600/10 relative overflow-hidden">
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-6xl font-bold text-orange-500/20">📂</div>
+                <FolderOpen className="w-16 h-16 text-orange-500/30" />
               </div>
               <div className="absolute top-3 left-3">
                 <span className="px-2 py-1 bg-orange-500 text-white text-xs font-bold rounded uppercase tracking-wide">
@@ -1009,7 +1030,7 @@ export const AboutPage: React.FC = () => {
           >
             <div className="aspect-[16/9] bg-gradient-to-br from-blue-600/20 to-indigo-600/10 relative overflow-hidden">
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-6xl font-bold text-blue-500/20">⚖️</div>
+                <Scale className="w-16 h-16 text-blue-500/30" />
               </div>
               <div className="absolute top-3 left-3">
                 <span className="px-2 py-1 bg-blue-500 text-white text-xs font-bold rounded uppercase tracking-wide">
@@ -1054,7 +1075,7 @@ export const AboutPage: React.FC = () => {
               className="flex gap-4 p-3 bg-slate-800/50 rounded-lg border border-slate-700/50 hover:bg-slate-700/50 hover:border-red-500/30 transition-all group"
             >
               <div className="w-16 h-16 rounded-lg bg-red-900/30 flex items-center justify-center shrink-0">
-                <span className="text-2xl">📰</span>
+                <Newspaper className="w-7 h-7 text-red-300" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-xs text-red-400 font-semibold mb-1">WIRED</div>
@@ -1070,7 +1091,7 @@ export const AboutPage: React.FC = () => {
               className="flex gap-4 p-3 bg-slate-800/50 rounded-lg border border-slate-700/50 hover:bg-slate-700/50 hover:border-pink-500/30 transition-all group"
             >
               <div className="w-16 h-16 rounded-lg bg-pink-900/30 flex items-center justify-center shrink-0">
-                <span className="text-2xl">👥</span>
+                <Users className="w-7 h-7 text-pink-300" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-xs text-pink-400 font-semibold mb-1">People</div>
@@ -1086,7 +1107,7 @@ export const AboutPage: React.FC = () => {
               className="flex gap-4 p-3 bg-slate-800/50 rounded-lg border border-slate-700/50 hover:bg-slate-700/50 hover:border-emerald-500/30 transition-all group"
             >
               <div className="w-16 h-16 rounded-lg bg-emerald-900/30 flex items-center justify-center shrink-0">
-                <span className="text-2xl">📧</span>
+                <Mail className="w-7 h-7 text-emerald-300" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-xs text-emerald-400 font-semibold mb-1">SF Standard</div>
@@ -1102,7 +1123,7 @@ export const AboutPage: React.FC = () => {
               className="flex gap-4 p-3 bg-slate-800/50 rounded-lg border border-slate-700/50 hover:bg-slate-700/50 hover:border-purple-500/30 transition-all group"
             >
               <div className="w-16 h-16 rounded-lg bg-purple-900/30 flex items-center justify-center shrink-0">
-                <span className="text-2xl">🎙️</span>
+                <Mic className="w-7 h-7 text-purple-300" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-xs text-purple-400 font-semibold mb-1">404 Media</div>
@@ -1118,7 +1139,7 @@ export const AboutPage: React.FC = () => {
               className="flex gap-4 p-3 bg-slate-800/50 rounded-lg border border-slate-700/50 hover:bg-slate-700/50 hover:border-cyan-500/30 transition-all group"
             >
               <div className="w-16 h-16 rounded-lg bg-cyan-900/30 flex items-center justify-center shrink-0">
-                <span className="text-2xl">📋</span>
+                <ClipboardList className="w-7 h-7 text-cyan-300" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-xs text-cyan-400 font-semibold mb-1">Axios</div>
@@ -1134,7 +1155,7 @@ export const AboutPage: React.FC = () => {
               className="flex gap-4 p-3 bg-slate-800/50 rounded-lg border border-slate-700/50 hover:bg-slate-700/50 hover:border-cyan-500/30 transition-all group"
             >
               <div className="w-16 h-16 rounded-lg bg-cyan-900/30 flex items-center justify-center shrink-0">
-                <span className="text-2xl">🗂️</span>
+                <BookOpen className="w-7 h-7 text-cyan-300" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-xs text-cyan-400 font-semibold mb-1">Axios</div>

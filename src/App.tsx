@@ -136,8 +136,8 @@ const parseReleaseNotes = (markdown: string) => {
         let title = 'Maintenance Update';
         const dashTitle = headerLine.match(/[—-]\s*(.+)$/);
         if (dashTitle) {
-          const candidate = dashTitle[1].trim();
-          if (!/^\d{4}-\d{2}-\d{2}$/.test(candidate)) {
+          const candidate = dashTitle[1].trim().replace(/^\d{4}-\d{2}-\d{2}\s*[—-]\s*/, '');
+          if (candidate.length > 0 && !/^\d{4}-\d{2}-\d{2}$/.test(candidate)) {
             title = candidate;
           }
         }

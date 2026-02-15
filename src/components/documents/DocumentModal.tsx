@@ -283,7 +283,7 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
               </div>
 
               {thread && thread.messages && thread.messages.length > 0 && (
-                <aside className="hidden lg:flex flex-col surface-quiet p-3 gap-2 max-h-[80vh] overflow-y-auto">
+                <aside className="hidden lg:flex flex-col surface-quiet p-3 gap-2">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-semibold text-slate-200 uppercase tracking-wide">
                       Thread Messages

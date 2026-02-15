@@ -203,6 +203,29 @@ function applyDefaultNameHygiene(whereConditions: string[], params: Record<strin
   TITLE_PREFIX_FILTERS.forEach((clause) => whereConditions.push(clause));
 }
 
+function pushRiskLevelFilter(
+  whereConditions: string[],
+  params: Record<string, unknown>,
+  levels: Array<'HIGH' | 'MEDIUM' | 'LOW'>,
+): void {
+  const levelConditions = levels.map((score, i) => {
+    const normalized = String(score).toUpperCase() as 'HIGH' | 'MEDIUM' | 'LOW';
+    params[`riskScore${i}`] = normalized;
+
+    if (normalized === 'HIGH') {
+      return `(UPPER(COALESCE(risk_level, '')) IN ('HIGH', 'CRITICAL') OR COALESCE(red_flag_rating, 0) >= 4)`;
+    }
+    if (normalized === 'MEDIUM') {
+      return `(UPPER(COALESCE(risk_level, '')) = 'MEDIUM' OR COALESCE(red_flag_rating, 0) BETWEEN 2 AND 3)`;
+    }
+    return `(UPPER(COALESCE(risk_level, '')) = 'LOW' OR COALESCE(red_flag_rating, 0) <= 1)`;
+  });
+
+  if (levelConditions.length > 0) {
+    whereConditions.push(`(${levelConditions.join(' OR ')})`);
+  }
+}
+
 export const entitiesRepository = {
   /**
    * ULTRATHINK: High-performance subject card fetching.
@@ -247,12 +270,7 @@ export const entitiesRepository = {
 
     // 2. Risk Level
     if (filters?.likelihoodScore && filters.likelihoodScore.length > 0) {
-      const riskConditions = filters.likelihoodScore.map((score, i) => {
-        const paramName = `riskScore${i}`;
-        params[paramName] = score.toUpperCase();
-        return `risk_level = @${paramName}`;
-      });
-      whereConditions.push(`(${riskConditions.join(' OR ')})`);
+      pushRiskLevelFilter(whereConditions, params, filters.likelihoodScore);
     }
 
     // 3. Red Flag Index
@@ -780,12 +798,7 @@ export const entitiesRepository = {
 
     // 2. Risk Level Filter (HIGH/MEDIUM/LOW)
     if (filters?.likelihoodScore && filters.likelihoodScore.length > 0) {
-      const riskConditions = filters.likelihoodScore.map((score, i) => {
-        const paramName = `riskScore${i}`;
-        params[paramName] = score.toUpperCase();
-        return `risk_level = @${paramName}`;
-      });
-      whereConditions.push(`(${riskConditions.join(' OR ')})`);
+      pushRiskLevelFilter(whereConditions, params, filters.likelihoodScore);
     }
 
     // 3. Red Flag Index explicit range

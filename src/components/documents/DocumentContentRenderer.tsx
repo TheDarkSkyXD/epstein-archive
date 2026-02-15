@@ -1,4 +1,15 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import {
+  Bot,
+  Calendar,
+  FileImage,
+  FileSpreadsheet,
+  Landmark,
+  Mail,
+  Newspaper,
+  Scale,
+  ScrollText,
+} from 'lucide-react';
 import { Document } from '../../types/documents';
 import { DocumentAnnotationSystem } from './DocumentAnnotationSystem';
 import { prettifyOCRText } from '../../utils/prettifyOCR';
@@ -121,7 +132,7 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
           const entity = entityMap.get(match.toLowerCase());
           if (!entity) return match;
 
-          return `<span class="entity-link" data-entity-id="${entity.id}" data-entity-name="${entity.full_name}" style="color: #60a5fa; text-decoration: underline; cursor: pointer; border-bottom: 1px dotted #60a5fa; padding: 0 1px;" title="Click to view entity details">${match}</span>`;
+          return `<span class="entity-link" data-entity-id="${entity.id}" data-entity-name="${entity.full_name}" style="color: var(--accent); text-decoration: underline; cursor: pointer; border-bottom: 1px dotted var(--accent); padding: 0 1px;" title="Click to view entity details">${match}</span>`;
         });
       });
 
@@ -233,24 +244,38 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
     <div className="prose prose-invert max-w-none">
       <div className="mb-1 flex items-center justify-between">
         <div className="text-sm text-gray-400 flex items-center gap-2">
-          <span>
+          <span className="inline-flex items-center gap-1.5">
+            {doc.evidenceType === 'email' ? (
+              <Mail className="w-4 h-4 text-cyan-400" />
+            ) : doc.evidenceType === 'legal' ? (
+              <Scale className="w-4 h-4 text-cyan-400" />
+            ) : doc.evidenceType === 'deposition' ? (
+              <ScrollText className="w-4 h-4 text-cyan-400" />
+            ) : doc.evidenceType === 'financial' ? (
+              <Landmark className="w-4 h-4 text-cyan-400" />
+            ) : doc.fileType?.match(/jpe?g|png|gif|bmp|webp/i) ? (
+              <FileImage className="w-4 h-4 text-cyan-400" />
+            ) : doc.fileType?.match(/csv|xls/i) ? (
+              <FileSpreadsheet className="w-4 h-4 text-cyan-400" />
+            ) : null}
             {doc.evidenceType === 'email'
-              ? '📧 Email Message'
+              ? 'Email Message'
               : doc.evidenceType === 'legal'
-                ? '⚖️ Legal Document'
+                ? 'Legal Document'
                 : doc.evidenceType === 'deposition'
-                  ? '📜 Deposition'
+                  ? 'Deposition'
                   : doc.evidenceType === 'financial'
-                    ? '💰 Financial Record'
+                    ? 'Financial Record'
                     : doc.fileType?.match(/jpe?g|png|gif|bmp|webp/i)
-                      ? '📷 Image'
+                      ? 'Image'
                       : doc.fileType?.match(/csv|xls/i)
-                        ? '📊 Spreadsheet'
+                        ? 'Spreadsheet'
                         : 'Select text to add annotations and evidence'}
           </span>
           {doc.contentRefined && !showRaw && (
             <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider bg-purple-900/40 text-purple-300 border border-purple-500/40">
-              🤖 AI Refined
+              <Bot className="w-3 h-3 inline mr-1" />
+              AI Refined
             </span>
           )}
         </div>
@@ -364,7 +389,7 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
                 <div className="bg-slate-800 rounded-lg border border-slate-600 mb-4 overflow-hidden">
                   {/* Email toolbar */}
                   <div className="flex items-center gap-2 px-4 py-2 bg-slate-700 border-b border-slate-600">
-                    <span className="text-cyan-400">📧</span>
+                    <Mail className="w-4 h-4 text-cyan-400" />
                     <span className="text-sm text-slate-300 font-medium">Email Message</span>
                   </div>
 
@@ -449,7 +474,7 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
                   {/* Court banner */}
                   <div className="bg-gradient-to-r from-amber-900/50 to-slate-800 px-4 py-3 border-b border-amber-700/30">
                     <div className="flex items-start gap-3">
-                      <span className="text-2xl shrink-0">⚖️</span>
+                      <Scale className="w-6 h-6 shrink-0 text-amber-300" />
                       <div className="min-w-0 flex-1">
                         <div className="text-amber-200 font-semibold text-sm break-words">
                           {courtMatch?.[0]?.trim() || 'Legal Document'}
@@ -560,7 +585,7 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
               <div className="bg-slate-800 rounded-lg border border-purple-700/50 mb-4 overflow-hidden">
                 <div className="bg-gradient-to-r from-purple-900/50 to-slate-800 px-4 py-3 border-b border-purple-700/30">
                   <div className="flex items-center gap-2">
-                    <span className="text-2xl">📜</span>
+                    <ScrollText className="w-6 h-6 text-purple-300" />
                     <div>
                       <div className="text-purple-200 font-semibold text-sm">
                         {witnessMatch
@@ -577,7 +602,10 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
                 </div>
 
                 {dateMatch && (
-                  <div className="px-4 py-2 text-xs text-slate-400">📅 {dateMatch[1]}</div>
+                  <div className="px-4 py-2 text-xs text-slate-400 inline-flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5" />
+                    {dateMatch[1]}
+                  </div>
                 )}
               </div>
 
@@ -652,7 +680,7 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
               <div className="bg-slate-800 rounded-lg border border-cyan-700/50 mb-4 overflow-hidden">
                 {/* Source bar */}
                 <div className="bg-gradient-to-r from-cyan-900/50 to-slate-800 px-4 py-2 border-b border-cyan-700/30 flex items-center gap-3">
-                  <span className="text-xl">📰</span>
+                  <Newspaper className="w-5 h-5 text-cyan-300" />
                   {sourceMatch && (
                     <span className="text-cyan-300 font-medium text-sm">{sourceMatch[1]}</span>
                   )}
@@ -709,7 +737,7 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
             <div className="mt-4 w-full">
               <details className="bg-gray-800 rounded-lg p-4 border border-gray-700">
                 <summary className="cursor-pointer text-sm text-gray-400 hover:text-white">
-                  📝 OCR Extracted Text ({doc.content.split(/\s+/).length} words)
+                  OCR Extracted Text ({doc.content.split(/\s+/).length} words)
                 </summary>
                 <pre className="mt-4 whitespace-pre-wrap text-xs text-gray-400 font-mono leading-relaxed max-h-48 overflow-y-auto break-words">
                   {showRaw ? doc.content : prettifyOCRText(doc.content)}
@@ -723,7 +751,7 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
         <div className="overflow-x-auto">
           <div className="bg-gray-800 rounded-lg p-4 border border-gray-700 mb-4">
             <div className="flex items-center gap-2 text-sm text-gray-400">
-              <span>💰</span>
+              <Landmark className="w-4 h-4" />
               <span>Financial Data / Spreadsheet</span>
             </div>
           </div>

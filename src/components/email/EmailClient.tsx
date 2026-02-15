@@ -556,13 +556,25 @@ export const EmailClient: React.FC = () => {
                     <span className="text-sm">{currentMailbox.label}</span>
                   </button>
                   <div className="flex items-center gap-4">
-                    <button className="text-blue-400 md:text-slate-500 md:dark:text-white/50">
+                    <button
+                      className="text-blue-400 md:text-slate-500 md:dark:text-white/50"
+                      aria-label="Archive thread"
+                      title="Archive thread"
+                    >
                       <Archive className="w-5 h-5" />
                     </button>
-                    <button className="text-blue-400 md:text-slate-500 md:dark:text-white/50">
+                    <button
+                      className="text-blue-400 md:text-slate-500 md:dark:text-white/50"
+                      aria-label="Delete thread"
+                      title="Delete thread"
+                    >
                       <Trash2 className="w-5 h-5" />
                     </button>
-                    <button className="text-blue-400 md:text-slate-500 md:dark:text-white/50">
+                    <button
+                      className="text-blue-400 md:text-slate-500 md:dark:text-white/50"
+                      aria-label="Reply to thread"
+                      title="Reply to thread"
+                    >
                       <Reply className="w-5 h-5" />
                     </button>
                     {/* Add to Investigation */}

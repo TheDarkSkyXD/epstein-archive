@@ -392,7 +392,7 @@ CREATE INDEX IF NOT EXISTS idx_media_items_album ON media_items(album_id);
 CREATE INDEX IF NOT EXISTS idx_media_items_red_flag ON media_items(red_flag_rating DESC);
 
 -- Media FTS
-CREATE VIRTUAL TABLE IF NOT EXISTS media_images_fts USING fts5(
+CREATE VIRTUAL TABLE IF NOT EXISTS media_items_fts USING fts5(
   title,
   description,
   tags,

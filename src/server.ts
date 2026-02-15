@@ -77,6 +77,43 @@ app.set('trust proxy', 1);
 // databaseService is already initialized at module level in its file, but let's make sure we use the same connection
 const mediaService = new MediaService(getDb());
 
+const INVESTIGATION_MEDIA_TAG_SEED: Array<{ name: string; category: string; color: string }> = [
+  { name: 'Perpetrator', category: 'role', color: '#dc2626' },
+  { name: 'Co-conspirator', category: 'role', color: '#f97316' },
+  { name: 'Person of Interest', category: 'role', color: '#f59e0b' },
+  { name: 'Survivor', category: 'role', color: '#22c55e' },
+  { name: 'Witness', category: 'role', color: '#0ea5e9' },
+  { name: 'Facilitator', category: 'role', color: '#fb7185' },
+  { name: 'Recruiter', category: 'role', color: '#f43f5e' },
+  { name: 'Financier', category: 'role', color: '#eab308' },
+  { name: 'Legal Counsel', category: 'role', color: '#8b5cf6' },
+  { name: 'Little St James', category: 'location', color: '#0891b2' },
+  { name: 'Great St James', category: 'location', color: '#06b6d4' },
+  { name: 'Palm Beach', category: 'location', color: '#14b8a6' },
+  { name: 'Manhattan Townhouse', category: 'location', color: '#6366f1' },
+  { name: 'Teterboro', category: 'location', color: '#3b82f6' },
+  { name: 'Evidence Item', category: 'classification', color: '#64748b' },
+  { name: 'Corroborated', category: 'verification', color: '#22c55e' },
+  { name: 'Unverified', category: 'verification', color: '#f59e0b' },
+];
+
+function seedInvestigationMediaTags(): void {
+  try {
+    const db = getDb();
+    const insert = db.prepare(
+      'INSERT OR IGNORE INTO media_tags (name, category, color) VALUES (?, ?, ?)',
+    );
+    const tx = db.transaction((rows: typeof INVESTIGATION_MEDIA_TAG_SEED) => {
+      for (const row of rows) {
+        insert.run(row.name, row.category, row.color);
+      }
+    });
+    tx(INVESTIGATION_MEDIA_TAG_SEED);
+  } catch (error) {
+    console.error('Failed to seed investigation media tags:', error);
+  }
+}
+
 // Request logging - AT THE VERY TOP
 app.use((req, res, next) => {
   const start = Date.now();
@@ -2674,7 +2711,7 @@ app.put(
         return res.status(400).json({ error: 'Invalid image IDs' });
       }
 
-      if (typeof rating !== 'number' || rating < 1 || rating > 5) {
+      if (typeof rating !== 'number' || rating < 0 || rating > 5) {
         return res.status(400).json({ error: 'Invalid rating value' });
       }
 
@@ -2686,9 +2723,13 @@ app.put(
           const id = parseInt(imageId.toString());
           if (isNaN(id)) continue;
 
-          // Update rating in database
+          // Unified schema: media_items.red_flag_rating
           const db = getDb();
-          const result = db.prepare('UPDATE images SET rating = ? WHERE id = ?').run(rating, id);
+          const result = db
+            .prepare(
+              "UPDATE media_items SET red_flag_rating = ?, date_modified = datetime('now') WHERE id = ?",
+            )
+            .run(rating, id);
 
           if (result.changes === 0) {
             results.push({ id, success: false, error: 'Image not found' });
@@ -2731,7 +2772,6 @@ app.put(
       }
 
       const results = [];
-      const db = getDb();
 
       // Process each image
       for (const imageId of imageIds) {
@@ -2745,14 +2785,9 @@ app.put(
             if (isNaN(tid)) continue;
 
             if (action === 'add') {
-              // Add tag to image
-              db.prepare('INSERT OR IGNORE INTO image_tags (image_id, tag_id) VALUES (?, ?)').run(
-                id,
-                tid,
-              );
+              mediaService.addTagToImage(id, tid);
             } else {
-              // Remove tag from image
-              db.prepare('DELETE FROM image_tags WHERE image_id = ? AND tag_id = ?').run(id, tid);
+              mediaService.removeTagFromImage(id, tid);
             }
           }
 
@@ -2880,23 +2915,7 @@ app.put(
       }
 
       const results = [];
-      const db = getDb();
-
-      // Build update query dynamically based on provided fields
-      const fields = [];
-      const values = [];
-
-      if (updates.title !== undefined) {
-        fields.push('title = ?');
-        values.push(updates.title);
-      }
-
-      if (updates.description !== undefined) {
-        fields.push('description = ?');
-        values.push(updates.description);
-      }
-
-      if (fields.length === 0) {
+      if (updates.title === undefined && updates.description === undefined) {
         return res.status(400).json({ error: 'No valid fields to update' });
       }
 
@@ -2906,13 +2925,14 @@ app.put(
           const id = parseInt(imageId.toString());
           if (isNaN(id)) continue;
 
-          // Update image metadata
-          const stmt = db.prepare(`UPDATE images SET ${fields.join(', ')} WHERE id = ?`);
-          const result = stmt.run(...values, id);
-
-          if (result.changes === 0) {
+          const image = mediaService.getImageById(id);
+          if (!image) {
             results.push({ id, success: false, error: 'Image not found' });
           } else {
+            mediaService.updateImage(id, {
+              ...(updates.title !== undefined ? { title: updates.title } : {}),
+              ...(updates.description !== undefined ? { description: updates.description } : {}),
+            });
             results.push({ id, success: true });
           }
         } catch (err) {
@@ -3110,6 +3130,7 @@ app.get('/api/media/search', async (req, res, next) => {
 // Get all media tags
 app.get('/api/media/tags', async (_req, res, next) => {
   try {
+    seedInvestigationMediaTags();
     const tags = mediaService.getAllTags();
     res.json(tags);
   } catch (error) {
@@ -3136,8 +3157,9 @@ app.get('/api/media/stats', async (_req, res, next) => {
 // Get all tags
 app.get('/api/tags', async (_req, res, next) => {
   try {
+    seedInvestigationMediaTags();
     const db = getDb();
-    const tags = db.prepare('SELECT * FROM tags ORDER BY name ASC').all();
+    const tags = db.prepare('SELECT * FROM media_tags ORDER BY name ASC').all();
     res.json(tags);
   } catch (error) {
     console.error('Error fetching tags:', error);
@@ -3155,7 +3177,7 @@ app.post('/api/tags', authenticateRequest, async (req, res, next) => {
 
     const db = getDb();
     const result = db
-      .prepare('INSERT INTO tags (name, color) VALUES (?, ?)')
+      .prepare('INSERT INTO media_tags (name, color) VALUES (?, ?)')
       .run(name.trim(), color || '#6366f1');
 
     res
@@ -3177,7 +3199,7 @@ app.delete('/api/tags/:id', authenticateRequest, requireRole('admin'), async (re
     if (isNaN(tagId)) return res.status(400).json({ error: 'Invalid tag ID' });
 
     const db = getDb();
-    const result = db.prepare('DELETE FROM tags WHERE id = ?').run(tagId);
+    const result = db.prepare('DELETE FROM media_tags WHERE id = ?').run(tagId);
 
     if (result.changes === 0) return res.status(404).json({ error: 'Tag not found' });
     res.json({ success: true });
@@ -3201,9 +3223,9 @@ app.get('/api/media/images/:id/tags', async (req, res, next) => {
     const tags = db
       .prepare(
         `
-      SELECT t.* FROM tags t
-      JOIN image_tags it ON t.id = it.tag_id
-      WHERE it.image_id = ?
+      SELECT t.* FROM media_tags t
+      JOIN media_item_tags it ON t.id = it.tag_id
+      WHERE it.media_item_id = ?
       ORDER BY t.name ASC
     `,
       )
@@ -3225,7 +3247,7 @@ app.post('/api/media/images/:id/tags', authenticateRequest, async (req, res, nex
     if (isNaN(imageId) || !tagId) return res.status(400).json({ error: 'Invalid image or tag ID' });
 
     const db = getDb();
-    db.prepare('INSERT OR IGNORE INTO image_tags (image_id, tag_id) VALUES (?, ?)').run(
+    db.prepare('INSERT OR IGNORE INTO media_item_tags (media_item_id, tag_id) VALUES (?, ?)').run(
       imageId,
       tagId,
     );
@@ -3246,7 +3268,10 @@ app.delete('/api/media/images/:id/tags/:tagId', authenticateRequest, async (req,
     if (isNaN(imageId) || isNaN(tagId)) return res.status(400).json({ error: 'Invalid IDs' });
 
     const db = getDb();
-    db.prepare('DELETE FROM image_tags WHERE image_id = ? AND tag_id = ?').run(imageId, tagId);
+    db.prepare('DELETE FROM media_item_tags WHERE media_item_id = ? AND tag_id = ?').run(
+      imageId,
+      tagId,
+    );
 
     res.json({ success: true });
   } catch (error) {
@@ -4288,6 +4313,7 @@ process.on('SIGINT', () => {
 try {
   validateStartup();
   runMigrations();
+  seedInvestigationMediaTags();
   try {
     entitiesRepository.backfillJunkFlags();
   } catch (e) {

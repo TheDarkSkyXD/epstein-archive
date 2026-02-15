@@ -132,15 +132,10 @@ const SubjectCardV2: React.FC<SubjectCardV2Props> = React.memo(
             </div>
           </div>
 
-          <div className="grid grid-cols-4 gap-1 py-2 border-t border-slate-700/50 mb-auto">
+          <div className="grid grid-cols-3 gap-1 py-2 border-t border-slate-700/50 mb-auto">
             <Metric label="Mentions" value={stats.mentions} />
             <Metric label="Docs" value={stats.documents} />
             <Metric label="Sources" value={stats.distinct_sources} />
-            <Metric
-              label="Media"
-              value={stats.verified_media}
-              highlight={stats.verified_media > 0}
-            />
           </div>
 
           <div className="mt-2 pt-2 border-t border-slate-700/50 flex items-center justify-between">

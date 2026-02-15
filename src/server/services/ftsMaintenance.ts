@@ -16,7 +16,7 @@ export class FtsMaintenanceService {
     const tables = [
       { name: 'entities', fts: 'entities_fts' },
       // { name: 'documents', fts: 'documents_fts' },
-      // { name: 'media_items', fts: 'media_images_fts' },
+      // { name: 'media_items', fts: 'media_items_fts' },
     ];
 
     const results: FtsStatus[] = [];
@@ -47,7 +47,7 @@ export class FtsMaintenanceService {
    */
   static async rebuildFts(tableName: 'entities' | 'documents' | 'media_items'): Promise<void> {
     const db = getDb();
-    const ftsName = tableName === 'media_items' ? 'media_images_fts' : `${tableName}_fts`;
+    const ftsName = tableName === 'media_items' ? 'media_items_fts' : `${tableName}_fts`;
 
     console.time(`Rebuilding ${ftsName}`);
 
@@ -74,7 +74,7 @@ export class FtsMaintenanceService {
       } else if (tableName === 'media_items') {
         db.prepare(
           `
-          INSERT INTO media_images_fts (rowid, title, description)
+          INSERT INTO media_items_fts (rowid, title, description)
           SELECT id, title, description FROM media_items
         `,
         ).run();

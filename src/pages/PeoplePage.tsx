@@ -190,6 +190,9 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
               {sortOrder === 'asc' ? '↑' : '↓'}
             </button>
           </div>
+          <div className="text-xs text-slate-400 uppercase tracking-[0.12em]">
+            Sort: {sortBy.replace('_', ' ')} ({sortOrder})
+          </div>
         </div>
 
         <div className="flex-1 min-h-[600px] w-full">

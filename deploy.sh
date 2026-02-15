@@ -209,20 +209,23 @@ else
   else
     # 0. Pre-flight QA
     log_step "Running pre-flight QA (Format & Lint)..."
-    # Make sure we don't proceed if these fail
-    pnpm format || { log_error "Formatting failed! Run 'pnpm format' locally."; exit 1; }
-    pnpm lint:fix || { log_error "Linting failed! Run 'pnpm lint:fix' locally."; exit 1; }
+    # Non-mutating checks only. Deployment must not create surprise commits.
+    pnpm format:check || {
+      log_error "Format check failed. Run 'pnpm format' and commit intentionally.";
+      exit 1;
+    }
+    pnpm lint || {
+      log_error "Lint failed. Fix issues locally and commit intentionally.";
+      exit 1;
+    }
     verify_release_notes_version
 
-    # Check for uncommitted changes after formatting
+    # Deployment should only ship intentional, reviewed commits.
     if [ -n "$(git status --porcelain)" ]; then
-      log_warning "Format/Lint modified files. Automatically committing changes..."
-      echo -e "${YELLOW}Uncommitted changes:${NC}"
+      log_error "Working tree is dirty. Commit or stash changes before deploy."
+      echo -e "${RED}Uncommitted changes:${NC}"
       git status --short
-      
-      git add .
-      git commit -m "chore: auto-format [skip ci]"
-      log_success "Changes committed."
+      exit 1
     fi
 
     # 1. Build Local (Verify)

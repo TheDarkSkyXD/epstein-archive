@@ -50,17 +50,6 @@ CREATE TABLE IF NOT EXISTS media_items (
   CONSTRAINT fk_album FOREIGN KEY (album_id) REFERENCES media_albums(id) ON DELETE SET NULL
 );
 
--- Backward compatibility view if any old code still uses media_images
-CREATE VIEW IF NOT EXISTS media_images AS SELECT 
-  id, entity_id, document_id, album_id, file_path as path, file_type as format,
-  filename, original_filename, file_size, width, height, date_taken,
-  camera_make, camera_model, lens, focal_length, aperture, shutter_speed, iso,
-  latitude, longitude, orientation, color_profile, thumbnail_path,
-  title, description, verification_status,
-  red_flag_rating, metadata_json, created_at as date_added, 
-  date_modified, is_sensitive
-FROM media_items;
-
 -- Document sources view for About page and analytics
 CREATE VIEW IF NOT EXISTS document_sources AS 
 SELECT 
@@ -95,7 +84,7 @@ CREATE INDEX IF NOT EXISTS idx_media_items_album ON media_items(album_id);
 CREATE INDEX IF NOT EXISTS idx_media_items_red_flag ON media_items(red_flag_rating DESC);
 
 -- Media FTS
-CREATE VIRTUAL TABLE IF NOT EXISTS media_images_fts USING fts5(
+CREATE VIRTUAL TABLE IF NOT EXISTS media_items_fts USING fts5(
   title,
   description,
   tags,
@@ -105,6 +94,6 @@ CREATE VIRTUAL TABLE IF NOT EXISTS media_images_fts USING fts5(
 
 -- Re-sync triggers for media FTS if needed (conceptual)
 CREATE TRIGGER IF NOT EXISTS media_items_fts_insert AFTER INSERT ON media_items BEGIN
-  INSERT INTO media_images_fts(rowid, title, description)
+  INSERT INTO media_items_fts(rowid, title, description)
   VALUES (NEW.id, NEW.title, NEW.description);
 END;

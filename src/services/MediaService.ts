@@ -177,6 +177,15 @@ export class MediaService {
         );
         params.push(filter.personId);
       }
+      if (filter.tagId) {
+        conditions.push('i.id IN (SELECT media_item_id FROM media_item_tags WHERE tag_id = ?)');
+        params.push(filter.tagId);
+      }
+      if (filter.hasPeople) {
+        conditions.push(
+          'EXISTS (SELECT 1 FROM media_item_people mp WHERE mp.media_item_id = i.id)',
+        );
+      }
       if (filter.format) {
         conditions.push('i.file_type = ?');
         params.push(`image/${filter.format}`);
@@ -262,6 +271,15 @@ export class MediaService {
           'i.id IN (SELECT media_item_id FROM media_item_people WHERE entity_id = ?)',
         );
         params.push(filter.personId);
+      }
+      if (filter.tagId) {
+        conditions.push('i.id IN (SELECT media_item_id FROM media_item_tags WHERE tag_id = ?)');
+        params.push(filter.tagId);
+      }
+      if (filter.hasPeople) {
+        conditions.push(
+          'EXISTS (SELECT 1 FROM media_item_people mp WHERE mp.media_item_id = i.id)',
+        );
       }
       if (filter.format) {
         conditions.push('i.file_type = ?');
@@ -443,7 +461,8 @@ export class MediaService {
     }
 
     const totalRotation = (cssRotation + degrees) % 360;
-    const tempPath = imagePath + '.tmp';
+    const imageExt = path.extname(imagePath) || '.jpg';
+    const tempPath = `${imagePath}.tmp${imageExt}`;
 
     // Process image: Auto-orient -> Apply Total Rotation -> Save
     // This normalizes the file to match the user's visual expectation (WYSIWYG)
@@ -508,7 +527,7 @@ export class MediaService {
 
   addTagToImage(imageId: number, tagId: number): void {
     const stmt = this.db.prepare(`
-      INSERT OR IGNORE INTO media_image_tags (image_id, tag_id)
+      INSERT OR IGNORE INTO media_item_tags (media_item_id, tag_id)
       VALUES (?, ?)
     `);
     stmt.run(imageId, tagId);
@@ -516,8 +535,8 @@ export class MediaService {
 
   removeTagFromImage(imageId: number, tagId: number): void {
     const stmt = this.db.prepare(`
-      DELETE FROM media_image_tags
-      WHERE image_id = ? AND tag_id = ?
+      DELETE FROM media_item_tags
+      WHERE media_item_id = ? AND tag_id = ?
     `);
     stmt.run(imageId, tagId);
   }
@@ -526,8 +545,8 @@ export class MediaService {
     const stmt = this.db.prepare(`
       SELECT t.*
       FROM media_tags t
-      JOIN media_image_tags it ON t.id = it.tag_id
-      WHERE it.image_id = ?
+      JOIN media_item_tags it ON t.id = it.tag_id
+      WHERE it.media_item_id = ?
       ORDER BY t.name
     `);
     return stmt.all(imageId) as MediaTag[];
@@ -813,7 +832,7 @@ export class MediaService {
   }
 
   batchDelete(ids: number[]): void {
-    const deleteTags = this.db.prepare('DELETE FROM media_image_tags WHERE image_id = ?');
+    const deleteTags = this.db.prepare('DELETE FROM media_item_tags WHERE media_item_id = ?');
     const deleteImage = this.db.prepare('DELETE FROM media_items WHERE id = ?');
     const getImage = this.db.prepare('SELECT file_path as path FROM media_items WHERE id = ?');
 

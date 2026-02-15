@@ -13,9 +13,21 @@ import AutoSizer from '../common/AutoSizer';
 import { Document, BrowseFilters, DocumentCollection } from '../../types/documents';
 import { DocumentProcessor } from '../../services/documentProcessor';
 import {
+  AlertTriangle,
+  CheckCircle2,
+  EyeOff,
+  File,
   Search,
   Filter,
   FileText,
+  Flag,
+  Folder,
+  Image as ImageIcon,
+  Landmark,
+  Mail,
+  Newspaper,
+  Scale,
+  ScrollText,
   Users,
   Tag,
   ChevronDown,
@@ -23,6 +35,7 @@ import {
   Network,
   Download,
   Eye,
+  X,
 } from 'lucide-react';
 import { useNavigation } from '../../services/ContentNavigationService.tsx';
 import { apiClient } from '../../services/apiClient';
@@ -370,7 +383,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
           passages: [],
           redFlagScore: doc.redFlagRating || 0,
           redFlagRating: doc.redFlagRating || 1,
-          redFlagPeppers: '🚩'.repeat(doc.redFlagRating || 1),
+          redFlagPeppers: '',
           redFlagDescription: `Red Flag Index ${doc.redFlagRating || 1}`,
           evidenceType: doc.evidenceType || doc.evidence_type || 'document',
           parentDocumentId: doc.parentDocumentId || doc.parent_document_id,
@@ -513,7 +526,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
               passages: [],
               redFlagScore: docData.redFlagRating || 0,
               redFlagRating: docData.redFlagRating || 1,
-              redFlagPeppers: '🚩'.repeat(docData.redFlagRating || 1),
+              redFlagPeppers: '',
               redFlagDescription: `Red Flag Index ${docData.redFlagRating || 1}`,
             };
 
@@ -840,7 +853,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                   }}
                   className="p-2 text-gray-400 hover:text-white"
                 >
-                  ✕
+                  <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -909,7 +922,9 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                     : 'text-gray-500 hover:text-gray-400 hover:bg-gray-700'
               }`}
             >
-              {redactionData?.hasFailedRedactions && <span className="text-lg">🔓</span>}
+              {redactionData?.hasFailedRedactions && (
+                <EyeOff className="w-5 h-5 text-amber-300" aria-label="Failed redactions present" />
+              )}
               {loadingRedactions
                 ? '...'
                 : redactionData?.hasFailedRedactions
@@ -969,7 +984,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                       onClick={() => setSnippetText('')}
                       className="px-2 py-1.5 text-xs rounded bg-gray-700 text-gray-300"
                     >
-                      ✕
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -1216,7 +1231,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                 <div className="space-y-6">
                   <div className="flex items-center justify-between">
                     <h3 className="text-2xl font-bold text-red-400 flex items-center gap-3">
-                      <span className="text-3xl">🔓</span>
+                      <EyeOff className="w-8 h-8 text-amber-300" />
                       Failed Redactions Detected
                     </h3>
                     <div className="text-sm text-gray-400">
@@ -1233,7 +1248,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                       {/* Warning banner */}
                       <div className="bg-red-900/30 border border-red-700/50 rounded-lg p-4 text-red-200">
                         <div className="flex items-start gap-3">
-                          <span className="text-2xl">⚠️</span>
+                          <AlertTriangle className="w-7 h-7 text-amber-400" />
                           <div>
                             <h4 className="font-semibold">Improperly Redacted Document</h4>
                             <p className="text-sm text-red-300/80 mt-1">
@@ -1258,7 +1273,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                           }}
                           className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
                         >
-                          <span>👁️</span> Reveal All Hidden Text
+                          <Eye className="w-4 h-4" /> Reveal All Hidden Text
                         </button>
                       </div>
 
@@ -1291,7 +1306,9 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                                     className="absolute inset-0 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 animate-pulse rounded"
                                     style={{ filter: 'blur(8px)' }}
                                   />
-                                  <div className="relative z-10 text-6xl mb-3 opacity-80">🔒</div>
+                                  <div className="relative z-10 mb-3 opacity-80 flex justify-center">
+                                    <EyeOff className="w-12 h-12 text-white/70" />
+                                  </div>
                                 </div>
                                 <p className="text-gray-400 text-sm mb-2">
                                   Hidden text detected under redaction
@@ -1304,7 +1321,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                               /* Revealed state */
                               <div className="p-6">
                                 <div className="flex items-start gap-3">
-                                  <span className="text-2xl">📝</span>
+                                  <FileText className="w-6 h-6" />
                                   <div className="flex-1">
                                     <div className="text-xs text-red-400 uppercase tracking-wide mb-2 font-semibold">
                                       Hidden Text Revealed
@@ -1322,7 +1339,9 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                     </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center h-64 text-gray-400">
-                      <div className="text-6xl mb-4 opacity-50">✓</div>
+                      <div className="mb-4 opacity-50 flex justify-center">
+                        <CheckCircle2 className="w-12 h-12 text-emerald-300" />
+                      </div>
                       <h4 className="text-xl font-medium text-gray-300 mb-2">
                         No Failed Redactions Found
                       </h4>
@@ -1355,7 +1374,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                   onClick={() => setShowMetadata(false)}
                   className="text-gray-400 hover:text-white"
                 >
-                  ✕
+                  <X className="w-4 h-4" />
                 </button>
               </div>
               <div className="space-y-6">
@@ -1489,12 +1508,10 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                     <span className="text-slate-400">Red Flag Index:</span>
                     <div className="flex space-x-1">
                       {Array.from({ length: 5 }).map((_, i) => (
-                        <span
+                        <Flag
                           key={i}
-                          className={i < document.redFlagRating ? 'text-red-500' : 'text-slate-600'}
-                        >
-                          🚩
-                        </span>
+                          className={`w-3 h-3 ${i < document.redFlagRating ? 'text-red-500' : 'text-slate-600'}`}
+                        />
                       ))}
                     </div>
                   </div>
@@ -1564,14 +1581,18 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
           {/* Category Type Filter Buttons - Horizontal scroll on mobile */}
           <div className="flex flex-wrap gap-2 items-center">
             {[
-              { type: 'all', label: 'All Documents', icon: '📁' },
-              { type: 'legal', label: 'Legal', icon: '⚖️' },
-              { type: 'email', label: 'Email', icon: '📧' },
-              { type: 'deposition', label: 'Deposition', icon: '📜' },
-              { type: 'article', label: 'Article', icon: '📰' },
-              { type: 'photo', label: 'Photo', icon: '📷' },
-              { type: 'financial', label: 'Financial', icon: '💰' },
-              { type: 'document', label: 'Document', icon: '📄' },
+              { type: 'all', label: 'All Documents', icon: <Folder className="w-3.5 h-3.5" /> },
+              { type: 'legal', label: 'Legal', icon: <Scale className="w-3.5 h-3.5" /> },
+              { type: 'email', label: 'Email', icon: <Mail className="w-3.5 h-3.5" /> },
+              {
+                type: 'deposition',
+                label: 'Deposition',
+                icon: <ScrollText className="w-3.5 h-3.5" />,
+              },
+              { type: 'article', label: 'Article', icon: <Newspaper className="w-3.5 h-3.5" /> },
+              { type: 'photo', label: 'Photo', icon: <ImageIcon className="w-3.5 h-3.5" /> },
+              { type: 'financial', label: 'Financial', icon: <Landmark className="w-3.5 h-3.5" /> },
+              { type: 'document', label: 'Document', icon: <File className="w-3.5 h-3.5" /> },
             ].map(({ type, label, icon }) => (
               <button
                 key={type}
@@ -1719,7 +1740,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                   <label className="block text-sm font-medium mb-2">Red Flag Index</label>
                   <div className="space-y-2">
                     <div className="flex items-center space-x-2">
-                      <span className="text-xs text-gray-400">🚩</span>
+                      <Flag className="w-3 h-3 text-gray-400" />
                       <input
                         type="range"
                         min="1"
@@ -1733,7 +1754,10 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                         }
                         className="flex-1"
                       />
-                      <span className="text-xs text-gray-400">🚩🚩🚩🚩🚩</span>
+                      <span className="text-xs text-gray-400 inline-flex items-center gap-1">
+                        <Flag className="w-3 h-3" />
+                        <span>5</span>
+                      </span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <span className="text-xs text-gray-400">
@@ -1816,7 +1840,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                       onClick={() => setShowFilters(false)}
                       className="p-2 text-slate-400 hover:text-white"
                     >
-                      ✕
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
                   <div className="overflow-y-auto pb-8 px-4 space-y-6 max-h-[calc(80vh-80px)]">
@@ -1872,11 +1896,14 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                       </label>
                       <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
                         <div className="flex items-center justify-between mb-3">
-                          <span className="text-2xl">🚩</span>
+                          <Flag className="w-7 h-7 text-rose-400" />
                           <span className="text-slate-300 text-sm">
                             {filters.redFlagLevel?.min || 0} - {filters.redFlagLevel?.max || 5}
                           </span>
-                          <span className="text-2xl">🚩🚩🚩🚩🚩</span>
+                          <span className="inline-flex items-center gap-1 text-rose-300">
+                            <Flag className="w-7 h-7" />
+                            <span className="text-sm font-medium">5</span>
+                          </span>
                         </div>
                         <input
                           type="range"

@@ -80,6 +80,19 @@ function main(): void {
   });
 
   // 3. Hot path validation (zero temp B-trees)
+  runCheck('Design token compliance (enforced surfaces)', () => {
+    try {
+      execSync('npx tsx scripts/token_compliance.ts', {
+        stdio: 'pipe',
+        cwd: join(__dirname, '..'),
+      });
+      return { passed: true, message: 'Token compliance passed' };
+    } catch (_error) {
+      return { passed: false, message: 'Token compliance violations detected' };
+    }
+  });
+
+  // 4. Hot path validation (zero temp B-trees)
   runCheck('Hot paths: zero temp B-trees', () => {
     const db = new Database(DB_PATH);
 
@@ -127,7 +140,7 @@ function main(): void {
     }
   });
 
-  // 4. Index coverage
+  // 5. Index coverage
   runCheck('Required indexes exist', () => {
     const db = new Database(DB_PATH);
 
@@ -159,7 +172,7 @@ function main(): void {
     }
   });
 
-  // 5. Denormalized columns backfilled
+  // 6. Denormalized columns backfilled
   runCheck('Denormalized columns backfilled', () => {
     const db = new Database(DB_PATH);
 
@@ -182,7 +195,7 @@ function main(): void {
     }
   });
 
-  // 6. Build succeeds
+  // 7. Build succeeds
   runCheck('Production build succeeds', () => {
     try {
       execSync('npm run build', { stdio: 'pipe', cwd: join(__dirname, '..') });
@@ -192,7 +205,7 @@ function main(): void {
     }
   });
 
-  // 7. Bundle size check
+  // 8. Bundle size check
   runCheck('Bundle size < 500KB gzipped', () => {
     try {
       const fs = require('fs');

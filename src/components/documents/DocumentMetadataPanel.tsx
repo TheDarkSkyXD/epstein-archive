@@ -1,5 +1,5 @@
 import React from 'react';
-import { Database, Tag, Shield, AlertTriangle, Globe, File, Eye } from 'lucide-react';
+import { Database, Tag, Shield, AlertTriangle, Globe, File, Eye, Bot, Flag } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface DocumentMetadataPanelProps {
@@ -44,7 +44,7 @@ export const DocumentMetadataPanel: React.FC<DocumentMetadataPanelProps> = ({
       {metadata.ai_summary && (
         <section className="bg-gradient-to-br from-purple-900/20 to-blue-900/20 rounded-lg p-4 border border-purple-500/30">
           <h3 className="text-sm font-semibold text-purple-300 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <span className="text-lg">🤖</span>
+            <Bot className="w-4 h-4" />
             AI Analysis
           </h3>
           <div className="space-y-3">
@@ -230,12 +230,10 @@ export const DocumentMetadataPanel: React.FC<DocumentMetadataPanelProps> = ({
             </div>
             <div className="flex mt-1">
               {[...Array(5)].map((_, i) => (
-                <span
+                <Flag
                   key={i}
-                  className={`text-xs ${i < (document.redFlagRating || 0) ? 'text-red-500' : 'text-slate-700'}`}
-                >
-                  🚩
-                </span>
+                  className={`w-3 h-3 ${i < (document.redFlagRating || 0) ? 'text-red-500' : 'text-slate-700'}`}
+                />
               ))}
             </div>
           </div>

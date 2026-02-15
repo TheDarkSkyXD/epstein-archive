@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Tag, Download, Eye } from 'lucide-react';
+import { FileText, Tag, Download, Eye, X, Flag } from 'lucide-react';
 import { apiClient } from '../../services/apiClient';
 import { DocumentMetadataPanel } from './DocumentMetadataPanel';
 import { MediaViewer } from '../media/MediaViewer';
@@ -125,15 +125,12 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
   if (!doc)
     return createPortal(
       <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[1050] flex items-center justify-center p-4">
-        <div className="bg-slate-900 rounded-lg p-6 border border-slate-700 pointer-events-auto">
+        <div className="surface-glass p-6 pointer-events-auto">
           <div className="text-white font-semibold mb-2">Unable to load document</div>
           <div className="text-slate-400 mb-4">
             Please try again or open in the Document Browser.
           </div>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white"
-          >
+          <button onClick={onClose} className="control px-4 text-white">
             Close
           </button>
         </div>
@@ -162,21 +159,26 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
       onClick={onClose}
     >
       <div
-        className="bg-slate-900 rounded-none md:rounded-lg w-full h-full md:max-w-6xl md:max-h-[95vh] overflow-hidden flex flex-col border-0 md:border border-slate-700 pointer-events-auto"
+        className="surface-glass rounded-none md:rounded-[var(--radius-lg)] w-full h-full md:max-w-6xl md:max-h-[95vh] overflow-hidden flex flex-col border-0 md:border pointer-events-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-4 border-b border-slate-700 bg-slate-800">
+        <div className="flex items-center justify-between p-4 border-b border-slate-700/60 bg-slate-900/75">
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
               <FileText className="w-5 h-5 text-cyan-400" />
               <h2 id="document-modal-title" className="text-lg font-semibold text-white">
                 {doc.title || doc.fileName}
               </h2>
-              <span className="text-lg">{'🚩'.repeat(doc.redFlagRating || 0)}</span>
+              {doc.redFlagRating > 0 && (
+                <span className="chip h-7 px-2 text-rose-300 text-xs flex items-center gap-1">
+                  <Flag className="w-3.5 h-3.5" />
+                  <span>{doc.redFlagRating}</span>
+                </span>
+              )}
             </div>
             {thread && thread.messages && thread.messages.length > 0 && (
               <div className="flex items-center gap-2 text-xs text-slate-300 mt-1">
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-700/70 border border-slate-600/60">
+                <span className="chip inline-flex items-center px-2 py-0.5">
                   <span className="font-mono text-[11px] uppercase tracking-wide text-slate-200">
                     Thread
                   </span>
@@ -201,46 +203,50 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
           <div className="flex items-center gap-2">
             <button
               onClick={() => navigateToTab('metadata')}
-              className="p-2 text-slate-300 hover:text-white"
+              className="control h-10 w-10 p-0 flex items-center justify-center text-slate-300 hover:text-white"
               title="Metadata"
             >
               <Tag className="w-4 h-4" />
             </button>
             <button
               onClick={() => setShowRaw(!showRaw)}
-              className={`p-2 hover:text-white ${showRaw ? 'text-slate-500' : 'text-cyan-400'}`}
+              className={`control h-10 w-10 p-0 flex items-center justify-center hover:text-white ${showRaw ? 'text-slate-500' : 'text-cyan-400'}`}
               title={showRaw ? 'Showing raw OCR text' : 'Showing cleaned text'}
             >
               {showRaw ? <FileText className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
             <button
               onClick={downloadText}
-              className="p-2 text-slate-300 hover:text-white"
+              className="control h-10 w-10 p-0 flex items-center justify-center text-slate-300 hover:text-white"
               title="Download Text"
             >
               <Download className="w-4 h-4" />
             </button>
-            <button onClick={onClose} className="p-2 text-slate-300 hover:text-white">
-              ✕
+            <button
+              onClick={onClose}
+              className="control h-10 w-10 p-0 flex items-center justify-center text-slate-300 hover:text-white"
+              aria-label="Close document"
+            >
+              <X className="w-4 h-4" />
             </button>
           </div>
         </div>
-        <div className="flex border-b border-slate-700 bg-slate-800 overflow-x-auto">
+        <div className="flex border-b border-slate-700/60 bg-slate-900/65 overflow-x-auto px-3 py-2 gap-2">
           <button
             onClick={() => navigateToTab('content')}
-            className={`px-4 py-3 text-sm ${activeTab === 'content' ? 'text-cyan-400 border-b-2 border-cyan-400 bg-slate-700' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
+            className={`h-10 px-4 text-sm chip ${activeTab === 'content' ? 'text-cyan-200 border-cyan-300/45 bg-slate-700/70' : 'text-slate-300 hover:text-white hover:bg-slate-700/60'}`}
           >
             Text Content
           </button>
           <button
             onClick={() => navigateToTab('original')}
-            className={`px-4 py-3 text-sm ${activeTab === 'original' ? 'text-cyan-400 border-b-2 border-cyan-400 bg-slate-700' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
+            className={`h-10 px-4 text-sm chip ${activeTab === 'original' ? 'text-cyan-200 border-cyan-300/45 bg-slate-700/70' : 'text-slate-300 hover:text-white hover:bg-slate-700/60'}`}
           >
             View Original
           </button>
           <button
             onClick={() => navigateToTab('metadata')}
-            className={`px-4 py-3 text-sm ${activeTab === 'metadata' ? 'text-cyan-400 border-b-2 border-cyan-400 bg-slate-700' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
+            className={`h-10 px-4 text-sm chip ${activeTab === 'metadata' ? 'text-cyan-200 border-cyan-300/45 bg-slate-700/70' : 'text-slate-300 hover:text-white hover:bg-slate-700/60'}`}
           >
             Metadata
           </button>
@@ -277,7 +283,7 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
               </div>
 
               {thread && thread.messages && thread.messages.length > 0 && (
-                <aside className="hidden lg:flex flex-col bg-slate-900/60 border border-slate-700/70 rounded-lg p-3 gap-2 max-h-[80vh] overflow-y-auto">
+                <aside className="hidden lg:flex flex-col surface-quiet p-3 gap-2 max-h-[80vh] overflow-y-auto">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-semibold text-slate-200 uppercase tracking-wide">
                       Thread Messages

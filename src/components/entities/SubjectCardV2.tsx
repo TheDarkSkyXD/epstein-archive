@@ -77,12 +77,10 @@ const SubjectCardV2: React.FC<SubjectCardV2Props> = React.memo(
       <div style={style}>
         <div
           onClick={handleCardClick}
-          className="group relative bg-slate-900/90 backdrop-blur-sm border border-slate-800 hover:border-slate-600 rounded-xl p-4 cursor-pointer transition-all duration-300 hover:shadow-[0_0_20px_rgba(0,0,0,0.5)] flex flex-col h-full w-full"
+          className="group relative surface-glass p-4 cursor-pointer transition-all duration-300 hover:border-slate-400/30 flex flex-col h-full w-full"
         >
-          {/* 1. IDENTITY HEADER */}
           <div className="flex items-start gap-3 mb-2">
-            {/* Avatar / Icon */}
-            <div className="flex-shrink-0 relative w-10 h-10 rounded-lg overflow-hidden border border-slate-700 bg-slate-950">
+            <div className="flex-shrink-0 relative w-10 h-10 rounded-[var(--radius-md)] overflow-hidden border border-slate-700 bg-slate-950">
               {avatarUrl ? (
                 <img
                   src={avatarUrl}
@@ -117,11 +115,9 @@ const SubjectCardV2: React.FC<SubjectCardV2Props> = React.memo(
             </div>
           </div>
 
-          {/* 2. SIGNAL BLOCK */}
-          <div className="mb-2 bg-slate-950/50 rounded-lg p-2 border border-slate-800/50">
+          <div className="mb-2">
             <SignalPanel metrics={forensics.signal_strength} />
             <div className="mt-2 text-[10px] text-slate-500 flex flex-wrap gap-1">
-              {/* Driver Chips Lite - we can use the component or just raw spans for max speed if component is heavy. Component is lean. */}
               <DriverChips
                 chips={forensics.driver_labels.map((label) => {
                   let type: 'critical' | 'verified' | 'context' | 'unverified' = 'context';
@@ -136,8 +132,7 @@ const SubjectCardV2: React.FC<SubjectCardV2Props> = React.memo(
             </div>
           </div>
 
-          {/* 3. METRICS GRID */}
-          <div className="grid grid-cols-4 gap-1 py-2 border-t border-slate-800/50 mb-auto">
+          <div className="grid grid-cols-4 gap-1 py-2 border-t border-slate-700/50 mb-auto">
             <Metric label="Mentions" value={stats.mentions} />
             <Metric label="Docs" value={stats.documents} />
             <Metric label="Sources" value={stats.distinct_sources} />
@@ -148,8 +143,7 @@ const SubjectCardV2: React.FC<SubjectCardV2Props> = React.memo(
             />
           </div>
 
-          {/* 4. FOOTER */}
-          <div className="mt-2 pt-2 border-t border-slate-800 flex items-center justify-between">
+          <div className="mt-2 pt-2 border-t border-slate-700/50 flex items-center justify-between">
             <Tooltip content="Add this entity to the current investigation" position="top-end">
               <span>
                 <AddToInvestigationButton

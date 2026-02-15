@@ -68,8 +68,15 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
   };
 
   const copyText = () => {
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    navigator.clipboard
+      .writeText(evidence.contentRefined || evidence.extractedText || '')
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() => {
+        setCopied(false);
+      });
   };
 
   const renderWithRedactions = (highlightedText: React.ReactNode) => {
@@ -167,8 +174,7 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
   };
 
   return (
-    <div className="p-6">
-      {/* Toolbar */}
+    <div className="p-4 md:p-6 surface-glass">
       <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
         <div className="flex-1 min-w-[200px] max-w-md">
           <div className="relative">
@@ -178,7 +184,7 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
               placeholder="Search in document..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="control w-full pl-10 pr-4 py-2"
             />
           </div>
         </div>
@@ -190,7 +196,7 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
               download
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              className="control px-4 text-sm font-medium text-slate-100 hover:bg-slate-700/80 flex items-center"
               title="Download original document"
             >
               <Download className="h-4 w-4 mr-2" />
@@ -201,7 +207,7 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
           {evidence.metadata?.unredacted_version_id && (
             <a
               href={`/document/${evidence.metadata.unredacted_version_id}`}
-              className="flex items-center px-4 py-2 text-sm font-medium text-white bg-purple-600 border border-purple-600 rounded-lg hover:bg-purple-700 shadow-sm"
+              className="control px-4 text-sm font-medium text-white bg-cyan-700 border-cyan-500 hover:bg-cyan-600 flex items-center"
               title="View the unredacted version of this document"
             >
               <Eye className="h-4 w-4 mr-2" />
@@ -213,10 +219,10 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
           {hasSentences && !showRaw && (
             <button
               onClick={() => setHideBoilerplate(!hideBoilerplate)}
-              className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
+              className={`control px-3 text-sm font-medium flex items-center gap-2 transition-colors ${
                 hideBoilerplate
-                  ? 'bg-orange-100 text-orange-800 border-orange-200'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  ? 'bg-amber-700/35 text-amber-100 border-amber-500/40'
+                  : 'text-slate-200 hover:bg-slate-700/80'
               }`}
               title="Hide legal boilerplate and noise"
             >
@@ -230,10 +236,10 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
           {/* Pretty/Raw Toggle */}
           <button
             onClick={() => setShowRaw(!showRaw)}
-            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
+            className={`control px-3 text-sm font-medium flex items-center gap-2 transition-colors ${
               showRaw
-                ? 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
-                : 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700 shadow-sm'
+                ? 'text-slate-200 hover:bg-slate-700/80'
+                : 'bg-cyan-700 text-white border-cyan-500 hover:bg-cyan-600'
             }`}
             title={showRaw ? 'Showing raw OCR text' : 'Showing cleaned text'}
           >
@@ -243,7 +249,7 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
 
           <button
             onClick={copyText}
-            className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+            className="control px-4 text-sm font-medium text-slate-100 hover:bg-slate-700/80 flex items-center"
           >
             {copied ? (
               <>

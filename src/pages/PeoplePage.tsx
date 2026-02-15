@@ -45,18 +45,19 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
   const [subjects, setSubjects] = useState<SubjectCardDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
-
   const [page, setPage] = useState(1);
+
   const PAGE_SIZE = 24;
 
   useEffect(() => {
     let active = true;
+
     const fetchData = async () => {
       setLoading(true);
       try {
         const filters = {
           search: searchTerm,
-          role: undefined, // Add role filter UI later if needed
+          role: undefined,
           entityType: entityType === 'all' ? undefined : entityType,
           sortBy,
           likelihood: selectedRiskLevel,
@@ -65,13 +66,10 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
 
         const res = await apiClient.getSubjects(filters, page, PAGE_SIZE);
         if (active) {
-          const nextSubjects = res.subjects || [];
-          const nextTotal = res.total || 0;
-
-          setSubjects(nextSubjects);
-          setTotal(nextTotal);
+          setSubjects(res.subjects || []);
+          setTotal(res.total || 0);
         }
-      } catch (_e) {
+      } catch {
         if (active) {
           setSubjects([]);
           setTotal(0);
@@ -87,12 +85,10 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
     };
   }, [page, searchTerm, entityType, sortBy, sortOrder, selectedRiskLevel]);
 
-  // Reset page when filters change
   useEffect(() => {
     setPage(1);
   }, [searchTerm, entityType, sortBy, sortOrder, selectedRiskLevel]);
 
-  // Stabilize onClick callback to prevent re-renders
   const handleSubjectClick = useCallback(
     (subject: SubjectCardDTO) => {
       const personLike: Person = {
@@ -128,8 +124,7 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
 
   return (
     <Profiler id="PeoplePage" onRender={onRenderCallback}>
-      <div className="space-y-6 h-full flex flex-col">
-        {/* Stats Overview */}
+      <div className="space-y-5 h-full flex flex-col">
         {loading && !dataStats.totalPeople ? (
           <StatsSkeleton />
         ) : (
@@ -141,20 +136,19 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
           />
         )}
 
-        {/* Filters and Controls */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-3 flex-shrink-0">
-          <div className="hidden md:flex items-center gap-2">
-            <Icon name="Users" size="md" color="info" className="flex-shrink-0" />
-            <p className="text-slate-400 text-sm">
+        <div className="surface-glass p-3 md:p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <Icon name="Users" size="sm" color="info" className="flex-shrink-0" />
+            <p className="text-slate-300 text-sm">
               {total.toLocaleString()} subjects • Page {page}/{totalPagesLocal || 1}
             </p>
           </div>
 
-          <div className="w-full md:w-auto grid grid-cols-[1fr_1fr_auto] gap-2 md:flex md:items-center font-sans">
+          <div className="w-full md:w-auto grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 md:flex md:items-center font-sans">
             {isAdmin && (
               <button
                 onClick={onAddSubject}
-                className="hidden md:flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium shadow-lg shadow-blue-500/20"
+                className="control px-3 text-sm font-medium text-slate-100 hover:bg-slate-700/80 hidden md:flex items-center gap-2"
               >
                 <Icon name="Plus" size="sm" />
                 <span className="hidden sm:inline">Add Subject</span>
@@ -171,40 +165,48 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
               value={sortBy}
               onChange={(val) => onSortByChange(val as any)}
               options={[
-                { value: 'red_flag', label: 'Red Flag', icon: <span>🚩</span> },
-                { value: 'mentions', label: 'Mentions', icon: <span>📊</span> },
-                { value: 'risk', label: 'Risk', icon: <span>⚠️</span> },
-                { value: 'name', label: 'Name', icon: <span>👤</span> },
+                { value: 'red_flag', label: 'Red Flag', icon: <Icon name="Flag" size="sm" /> },
+                {
+                  value: 'mentions',
+                  label: 'Mentions',
+                  icon: <Icon name="BarChart3" size="sm" />,
+                },
+                {
+                  value: 'risk',
+                  label: 'Risk',
+                  icon: <Icon name="AlertTriangle" size="sm" />,
+                },
+                { value: 'name', label: 'Name', icon: <Icon name="User" size="sm" /> },
               ]}
               className="w-full md:w-auto"
             />
 
             <button
               onClick={onSortOrderToggle}
-              className="h-10 w-10 flex items-center justify-center bg-slate-800 border border-slate-600 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors shrink-0"
+              className="control h-11 w-11 flex items-center justify-center text-slate-300 hover:text-white transition-colors shrink-0"
               title={`Sort ${sortOrder === 'asc' ? 'Descending' : 'Ascending'}`}
+              aria-label={`Sort ${sortOrder === 'asc' ? 'Descending' : 'Ascending'}`}
             >
               {sortOrder === 'asc' ? '↑' : '↓'}
             </button>
           </div>
         </div>
 
-        {/* Grid Area */}
         <div className="flex-1 min-h-[600px] w-full">
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {[...Array(6)].map((_, i) => (
                 <PersonCardSkeleton key={i} />
               ))}
             </div>
           ) : subjects.length === 0 ? (
-            <div className="text-center py-12">
+            <div className="surface-glass text-center py-12 px-4">
               <Icon name="Users" size="xl" color="gray" className="mx-auto mb-4" />
               <h3 className="text-lg font-medium text-slate-300 mb-2">No results found</h3>
-              <p className="text-slate-400">Try adjusting your search terms</p>
+              <p className="text-slate-400">Try adjusting search or entity filters.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4">
               {subjects.map((subject) => (
                 <SubjectCardV2
                   key={subject.id}
@@ -217,17 +219,17 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
         </div>
 
         {totalPagesLocal > 1 && (
-          <div className="flex items-center justify-center space-x-4 mt-4 flex-shrink-0 pb-4">
+          <div className="flex items-center justify-center gap-3 mt-4 flex-shrink-0 pb-4">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="flex items-center space-x-2 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 transition-colors btn-secondary"
+              className="control px-4 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700/80 flex items-center gap-2"
             >
               <Icon name="ChevronLeft" size="sm" />
               <span>Previous</span>
             </button>
 
-            <div className="flex items-center space-x-2">
+            <div className="chip px-4 h-11 flex items-center gap-2">
               <span className="text-slate-400">Page</span>
               <span className="text-white font-medium">{page}</span>
               <span className="text-slate-400">of</span>
@@ -237,7 +239,7 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
             <button
               onClick={() => setPage((p) => Math.min(totalPagesLocal, p + 1))}
               disabled={page === totalPagesLocal}
-              className="flex items-center space-x-2 px-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 transition-colors btn-secondary"
+              className="control px-4 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700/80 flex items-center gap-2"
             >
               <span>Next</span>
               <Icon name="ChevronRight" size="sm" />

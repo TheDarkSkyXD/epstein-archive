@@ -18,11 +18,11 @@ export const colors = {
 
   // Accent colors
   accent: {
-    primary: '#3b82f6', // Primary blue accent
-    secondary: '#8b5cf6', // Secondary purple accent
-    danger: '#ef4444', // Danger/red accent
-    warning: '#f59e0b', // Warning/orange accent
-    success: '#10b981', // Success/green accent
+    primary: '#2f96ee', // Primary action accent
+    secondary: '#5fb8ff', // Secondary action accent
+    danger: '#ff6b6b', // Danger accent
+    warning: '#f4b549', // Warning accent
+    success: '#2dcf96', // Success accent
   },
 
   // Soft accent variations
@@ -79,11 +79,9 @@ export const spacing = {
 
 // Border Radius
 export const radii = {
-  sm: '0.25rem', // 4px
-  md: '0.5rem', // 8px
-  lg: '0.75rem', // 12px
-  xl: '1rem', // 16px
-  full: '9999px', // Fully rounded
+  sm: '0.5rem', // 8px
+  md: '0.75rem', // 12px
+  lg: '1rem', // 16px
 };
 
 // Shadows
@@ -173,8 +171,6 @@ export const cssVariables = `
     --radius-sm: ${radii.sm};
     --radius-md: ${radii.md};
     --radius-lg: ${radii.lg};
-    --radius-xl: ${radii.xl};
-    --radius-full: ${radii.full};
     
     /* Shadows */
     --shadow-sm: ${shadows.sm};

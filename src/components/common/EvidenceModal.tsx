@@ -316,13 +316,11 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
             initial={{ scale: 0.95, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 20 }}
-            className="relative w-full max-w-6xl h-[85vh] bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden flex flex-col"
+            className="relative w-full max-w-6xl h-[85vh] surface-glass overflow-hidden flex flex-col"
           >
-            {/* HEADER */}
-            <div className="flex bg-slate-950 p-6 border-b border-slate-800 items-start gap-6 shrink-0">
-              {/* Profile Photo */}
+            <div className="flex bg-slate-950/70 p-4 md:p-6 border-b border-slate-800 items-start gap-4 md:gap-6 shrink-0">
               <div className="relative shrink-0">
-                <div className="w-24 h-24 rounded-lg bg-slate-800 border-2 border-slate-700 overflow-hidden shadow-inner">
+                <div className="w-20 h-20 md:w-24 md:h-24 rounded-[var(--radius-md)] bg-slate-800 border-2 border-slate-700 overflow-hidden shadow-inner">
                   {loading ? (
                     <div className="w-full h-full animate-pulse bg-slate-800" />
                   ) : entity?.photos?.[0] ? (
@@ -408,16 +406,16 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                 )}
 
                 {/* ACTION TABS */}
-                <div className="flex gap-1">
+                <div className="flex gap-2 overflow-x-auto pb-1">
                   {['overview', 'evidence', 'media', 'network'].map((tab) => (
                     <button
                       key={tab}
                       onClick={() => handleTabChange(tab as any)}
                       className={cn(
-                        'px-4 py-2 rounded-lg text-sm font-medium transition-colors border',
+                        'chip h-10 px-4 text-sm font-medium transition-colors',
                         activeTab === tab
-                          ? 'bg-indigo-600 text-white border-indigo-500'
-                          : 'bg-slate-800/50 text-slate-400 border-transparent hover:bg-slate-800 hover:text-slate-200',
+                          ? 'text-cyan-100 border-cyan-300/45 bg-slate-700/70'
+                          : 'text-slate-300 hover:bg-slate-700/65 hover:text-white',
                       )}
                     >
                       {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -428,7 +426,8 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
 
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-slate-800 rounded-full text-slate-500 hover:text-slate-300 transition-colors"
+                className="control h-10 w-10 p-0 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+                aria-label="Close entity profile"
               >
                 <X size={24} />
               </button>

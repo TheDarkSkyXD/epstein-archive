@@ -369,9 +369,9 @@ export const EmailClient: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] bg-slate-950 md:bg-gradient-to-br md:from-slate-100 md:via-blue-50/30 md:to-purple-50/20 md:dark:from-slate-950 md:dark:via-slate-900 md:dark:to-slate-950 overflow-hidden">
+    <div className="flex flex-col h-[calc(100vh-64px)] bg-transparent overflow-hidden">
       {/* Mobile Header - iOS Style */}
-      <div className="md:hidden flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800">
+      <div className="md:hidden flex items-center justify-between px-4 py-3 bg-slate-900/80 border-b border-slate-800">
         <button
           onClick={() => setShowMailboxDrawer(true)}
           className="flex items-center gap-2 text-blue-400 font-semibold"
@@ -382,10 +382,8 @@ export const EmailClient: React.FC = () => {
         <div className="text-slate-400 text-sm">{filteredThreads.length.toLocaleString()}</div>
       </div>
 
-      {/* Desktop Sidebar - Hidden on Mobile */}
-      {/* Desktop Sidebar - Hidden on Mobile */}
       <div className="flex flex-1 overflow-hidden">
-        <aside className="hidden md:flex w-60 flex-col m-3 mr-0 rounded-2xl bg-slate-950/50 backdrop-blur-2xl border border-slate-800 shadow-xl">
+        <aside className="hidden md:flex w-60 flex-col m-3 mr-0 surface-glass">
           <div className="p-5 pb-3">
             <h2 className="text-[11px] font-bold text-slate-500/80 dark:text-white/40 uppercase tracking-widest">
               Mailboxes
@@ -416,7 +414,7 @@ export const EmailClient: React.FC = () => {
         <div className="flex-1 flex flex-col md:flex-row md:p-3 md:gap-3 min-w-0">
           {/* Message List */}
           <div
-            className={`w-full md:w-[400px] flex flex-col md:rounded-2xl bg-slate-950 md:bg-white/5 md:dark:bg-white/5 md:backdrop-blur-2xl md:border md:border-slate-800 overflow-hidden ${isMobileDetail ? 'hidden md:flex' : 'flex'}`}
+            className={`w-full md:w-[400px] flex flex-col bg-slate-950 md:surface-glass overflow-hidden ${isMobileDetail ? 'hidden md:flex' : 'flex'}`}
           >
             {/* Search Bar - iOS Style */}
             <div className="p-3 bg-slate-900 md:bg-transparent md:p-4 md:border-b md:border-slate-800">
@@ -425,7 +423,7 @@ export const EmailClient: React.FC = () => {
                 <input
                   type="text"
                   placeholder="Search"
-                  className="w-full pl-10 pr-4 py-2 bg-slate-800 md:bg-black/20 md:dark:bg-white/5 rounded-lg text-sm text-white md:text-slate-200 md:dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder-slate-500 md:placeholder-slate-400 md:dark:placeholder-white/30"
+                  className="control w-full pl-10 pr-4 py-2 text-sm text-white placeholder-slate-500"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -544,7 +542,7 @@ export const EmailClient: React.FC = () => {
 
           {/* Thread Detail View */}
           <div
-            className={`flex-1 flex flex-col bg-slate-950 md:rounded-2xl md:bg-white/5 md:dark:bg-white/5 md:backdrop-blur-2xl md:border md:border-slate-800 overflow-hidden ${!selectedThreadId ? 'hidden md:flex' : 'flex'}`}
+            className={`flex-1 flex flex-col bg-slate-950 md:surface-glass overflow-hidden ${!selectedThreadId ? 'hidden md:flex' : 'flex'}`}
           >
             {selectedThread ? (
               <>
@@ -634,7 +632,7 @@ export const EmailClient: React.FC = () => {
                 </div>
               </>
             ) : (
-              <div className="hidden md:flex flex-1 items-center justify-center bg-gradient-to-b from-slate-50/30 to-transparent dark:from-transparent">
+              <div className="hidden md:flex flex-1 items-center justify-center">
                 <div className="text-center text-slate-400 dark:text-white/20">
                   <Mail className="w-20 h-20 mx-auto mb-5 opacity-15" />
                   <p className="text-lg font-semibold">Select a message to read</p>
@@ -661,7 +659,7 @@ export const EmailClient: React.FC = () => {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 bg-slate-900 rounded-t-3xl z-50 md:hidden max-h-[70vh] overflow-hidden"
+              className="fixed bottom-0 left-0 right-0 bg-slate-900 rounded-t-[var(--radius-lg)] z-50 md:hidden max-h-[70vh] overflow-hidden"
             >
               <div className="flex justify-center py-3">
                 <div className="w-10 h-1 bg-slate-700 rounded-full" />

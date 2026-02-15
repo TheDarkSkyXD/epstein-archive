@@ -18,7 +18,6 @@ const SortFilter: React.FC<SortFilterProps> = ({ value, onChange, options, class
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -38,12 +37,12 @@ const SortFilter: React.FC<SortFilterProps> = ({ value, onChange, options, class
     <div className={`relative ${className}`} ref={dropdownRef}>
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className={`bg-slate-800 border border-slate-600 rounded-lg px-3 h-10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 flex items-center gap-2 justify-between w-full min-w-[120px]`}
+        onClick={() => setIsOpen((open) => !open)}
+        className="control px-3 text-sm flex items-center gap-2 justify-between w-full min-w-[140px]"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 truncate">
           {selectedOption.icon}
           <span>{selectedOption.label}</span>
         </div>
@@ -51,15 +50,15 @@ const SortFilter: React.FC<SortFilterProps> = ({ value, onChange, options, class
       </button>
 
       {isOpen && (
-        <div className="absolute z-10 mt-1 w-full bg-slate-800 border border-slate-600 rounded-lg shadow-lg min-w-[140px] right-0 md:left-0 md:right-auto">
+        <div className="absolute z-20 mt-1 w-full min-w-[160px] right-0 md:left-0 md:right-auto surface-glass p-1">
           <ul role="listbox" className="py-1">
             {options.map((option) => (
               <li
                 key={option.value}
                 role="option"
                 aria-selected={option.value === value}
-                className={`px-3 py-2 text-sm cursor-pointer flex items-center gap-2 hover:bg-slate-700 ${
-                  option.value === value ? 'bg-slate-700 text-white' : 'text-slate-300'
+                className={`px-3 h-10 text-sm cursor-pointer flex items-center gap-2 rounded-[var(--radius-sm)] hover:bg-slate-700/55 ${
+                  option.value === value ? 'bg-slate-700/65 text-white' : 'text-slate-300'
                 }`}
                 onClick={() => {
                   onChange(option.value);

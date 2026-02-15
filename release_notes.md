@@ -1,3 +1,29 @@
+## v13.7.0 - 2026-02-15 - Mobile-First Investigative Interface Redesign
+
+### Design System Foundation
+
+- Added a unified tokenized UI foundation in `/src/index.css` with a strict three-level corner-radius system (`sm`, `md`, `lg`), standardized spacing scale, typography tokens, and dark-first high-contrast color variables.
+- Introduced reusable surface and control primitives (`surface-glass`, `surface-quiet`, `control`, `chip`) to reduce ad-hoc styling and eliminate sharp-corner drift.
+- Updated `/src/designTokens.ts` to align radius tokens and accent usage with the new system.
+
+### Homepage and People Experience
+
+- Refactored `/src/pages/PeoplePage.tsx` to a cleaner mobile-first flow with simpler controls, stronger hierarchy, and improved tap-target sizing.
+- Replaced emoji-based sort affordances with consistent iconography in People controls.
+- Kept front-page behavior aligned with investigative priority: VIP-first ordering remains in place while preserving full-entity surfacing through `All Types (VIP First)`.
+
+### Entity and Evidence Surfaces
+
+- Refined `/src/components/common/EvidenceModal.tsx` with calmer identity-first header hierarchy, consistent tab treatment, and tokenized controls.
+- Refactored `/src/components/documents/DocumentModal.tsx` for a cleaner tab bar, improved action controls, and icon-based red-flag indicators (emoji removed).
+- Updated `/src/components/evidence/DocumentViewer.tsx` to use shared control styling and fixed clipboard copy behavior for text export workflows.
+
+### Email Client and Document Metadata
+
+- Refined `/src/components/email/EmailClient.tsx` to use the shared glass surface model and a calmer dark-first baseline across list/detail panes.
+- Removed duplicate desktop-side comments and visual clutter while preserving existing email functionality and data flow.
+- Replaced emoji iconography in `/src/components/documents/DocumentMetadataPanel.tsx` (`🤖`, `🚩`) with Lucide icons for consistency and accessibility.
+
 ## v13.6.4 - 2026-02-15 - Release Notes Format Standardization
 
 ### Structured Version History

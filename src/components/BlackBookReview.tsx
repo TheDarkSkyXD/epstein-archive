@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, SkipForward, AlertCircle } from 'lucide-react';
-import { useToasts } from './common/ToastProvider';
+import { useToasts } from './common/useToasts';
 
 interface ReviewEntry {
   id: number;

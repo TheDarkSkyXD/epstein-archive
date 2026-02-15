@@ -23,7 +23,7 @@ import {
   Microscope,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { useToasts } from '../common/ToastProvider';
+import { useToasts } from '../common/useToasts';
 
 interface ExportToolsProps {
   investigation: Investigation;

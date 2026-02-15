@@ -4,7 +4,7 @@ import { X, Network, Save, Search } from 'lucide-react';
 import { apiClient } from '../../services/apiClient';
 import FormField from '../common/FormField';
 import { useModalFocusTrap } from '../../hooks/useModalFocusTrap';
-import { useToasts } from '../common/ToastProvider';
+import { useToasts } from '../common/useToasts';
 import { Person } from '../../types';
 import { useScrollLock } from '../../hooks/useScrollLock';
 

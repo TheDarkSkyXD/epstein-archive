@@ -13,7 +13,8 @@ import { DocumentProcessor } from './services/documentProcessor';
 import { useCountUp } from './hooks/useCountUp';
 import MobileMenu from './components/layout/MobileMenu';
 import UndoProvider from './components/UndoManager';
-import ToastProvider, { useToasts } from './components/common/ToastProvider';
+import ToastProvider from './components/common/ToastProvider';
+import { useToasts } from './components/common/useToasts';
 import ScopedErrorBoundary from './components/common/ScopedErrorBoundary';
 // ProgressBar available but not currently used
 import LoadingIndicator from './components/common/LoadingIndicator';

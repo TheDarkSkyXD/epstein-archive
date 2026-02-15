@@ -87,7 +87,7 @@ class WebVitalsMonitor {
       });
 
       observer.observe({ type: 'layout-shift', buffered: true });
-    } catch (e) {
+    } catch (_error) {
       // PerformanceObserver not supported
     }
   }
@@ -103,7 +103,7 @@ class WebVitalsMonitor {
       });
 
       observer.observe({ type: 'largest-contentful-paint', buffered: true });
-    } catch (e) {
+    } catch (_error) {
       // PerformanceObserver not supported
     }
   }
@@ -123,7 +123,7 @@ class WebVitalsMonitor {
       });
 
       observer.observe({ type: 'event', buffered: true });
-    } catch (e) {
+    } catch (_error) {
       // Fall back to FID
       try {
         const observer = new PerformanceObserver((list) => {
@@ -133,7 +133,7 @@ class WebVitalsMonitor {
         });
 
         observer.observe({ type: 'first-input', buffered: true });
-      } catch (e2) {
+      } catch (_fallbackError) {
         // Neither supported
       }
     }
@@ -157,7 +157,7 @@ class WebVitalsMonitor {
       });
 
       observer.observe({ type: 'longtask', buffered: true });
-    } catch (e) {
+    } catch (_error) {
       // PerformanceObserver not supported
     }
   }

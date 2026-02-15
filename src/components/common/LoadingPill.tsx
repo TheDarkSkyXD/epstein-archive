@@ -1,34 +1,5 @@
-import React, { useState, createContext, useContext, useCallback, ReactNode } from 'react';
-
-interface LoadingTask {
-  id: string;
-  label: string;
-  progress?: number;
-  startTime: number;
-}
-
-interface LoadingContextType {
-  addTask: (id: string, label: string) => void;
-  updateTask: (id: string, progress: number) => void;
-  removeTask: (id: string) => void;
-  tasks: LoadingTask[];
-}
-
-const LoadingContext = createContext<LoadingContextType | null>(null);
-
-export const useLoading = () => {
-  const ctx = useContext(LoadingContext);
-  if (!ctx) {
-    // Fallback for components not wrapped in provider
-    return {
-      addTask: () => {},
-      updateTask: () => {},
-      removeTask: () => {},
-      tasks: [],
-    };
-  }
-  return ctx;
-};
+import React, { useState, useCallback, ReactNode } from 'react';
+import { LoadingContext, LoadingTask } from './loadingContext';
 
 interface LoadingProviderProps {
   children: ReactNode;

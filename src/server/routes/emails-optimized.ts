@@ -11,7 +11,6 @@
  */
 
 import { Router, Request, Response } from 'express';
-import Database from 'better-sqlite3';
 import { performanceCache } from '../performanceCache';
 
 const router = Router();
@@ -50,14 +49,17 @@ router.get('/', async (req: Request, res: Response) => {
     }
 
     // Build query
-    let whereClause = "WHERE type = 'email'";
+    const whereParts = ["type = 'email'"];
+    const queryParams: Array<string | number> = [];
     if (category && category !== 'all') {
-      whereClause += ` AND json_extract(metadata_json, '$.category') = '${category}'`;
+      whereParts.push("json_extract(metadata_json, '$.category') = ?");
+      queryParams.push(category);
     }
+    const whereClause = `WHERE ${whereParts.join(' AND ')}`;
 
     // Get total count
     const countQuery = `SELECT COUNT(*) as count FROM documents ${whereClause}`;
-    const { count: total } = db.prepare(countQuery).get() as { count: number };
+    const { count: total } = db.prepare(countQuery).get(...queryParams) as { count: number };
 
     // Get emails with metadata only (NO body_raw, NO content)
     const query = `
@@ -77,7 +79,7 @@ router.get('/', async (req: Request, res: Response) => {
       LIMIT ? OFFSET ?
     `;
 
-    const emails = db.prepare(query).all(limit, offset) as EmailMetadata[];
+    const emails = db.prepare(query).all(...queryParams, limit, offset) as EmailMetadata[];
 
     const result = { data: emails, total };
 

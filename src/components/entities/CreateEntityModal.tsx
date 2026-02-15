@@ -4,7 +4,7 @@ import { X, User, Save } from 'lucide-react';
 import { apiClient } from '../../services/apiClient';
 import FormField from '../common/FormField';
 import { useModalFocusTrap } from '../../hooks/useModalFocusTrap';
-import { useToasts } from '../common/ToastProvider';
+import { useToasts } from '../common/useToasts';
 import { useScrollLock } from '../../hooks/useScrollLock';
 
 interface CreateEntityModalProps {

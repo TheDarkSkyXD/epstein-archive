@@ -138,9 +138,10 @@ export const entitiesRepository = {
       whereConditions.push(`full_name NOT LIKE '%@%'`);
       whereConditions.push(`full_name NOT LIKE 'http%'`);
       whereConditions.push(`full_name NOT LIKE 'www.%'`);
-      // VIP-only, person-only on front page
+      // VIP-focused, person-only on front page.
+      // Keep Jeffrey Epstein visible even if is_vip is stale in the DB.
       whereConditions.push(`entity_type = 'Person'`);
-      whereConditions.push(`is_vip = 1`);
+      whereConditions.push(`(is_vip = 1 OR lower(full_name) = 'jeffrey epstein')`);
       whereConditions.push(`COALESCE(primary_role, '') NOT IN ('Unknown','UNK')`);
       whereConditions.push(`(
         mentions >= 10
@@ -674,7 +675,7 @@ export const entitiesRepository = {
         whereConditions.push(`full_name NOT LIKE @${paramName}`);
       });
       whereConditions.push(`entity_type = 'Person'`);
-      whereConditions.push(`is_vip = 1`);
+      whereConditions.push(`(is_vip = 1 OR lower(full_name) = 'jeffrey epstein')`);
       whereConditions.push(`LENGTH(TRIM(full_name)) >= 3`);
       whereConditions.push(`full_name NOT LIKE '%@%'`);
       whereConditions.push(`full_name NOT LIKE 'http%'`);

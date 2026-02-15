@@ -5,8 +5,6 @@
  * Fails CI if budgets exceeded (prevents N+1 forever)
  */
 
-import Database from 'better-sqlite3';
-
 interface QueryBudget {
   endpoint: string;
   maxQueries: number;

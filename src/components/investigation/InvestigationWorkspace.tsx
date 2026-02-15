@@ -50,7 +50,7 @@ import { HypothesisTestingFramework } from './HypothesisTestingFramework';
 import { InvestigationTeamManagement } from './InvestigationTeamManagement';
 import { AddToInvestigationButton } from '../common/AddToInvestigationButton';
 import { InvestigationBoard } from './InvestigationBoard';
-import { useToasts } from '../common/ToastProvider';
+import { useToasts } from '../common/useToasts';
 import { CreateRelationshipModal } from '../entities/CreateRelationshipModal';
 import { CommunicationAnalysis } from './CommunicationAnalysis';
 import { InvestigationActivityFeed } from './InvestigationActivityFeed';

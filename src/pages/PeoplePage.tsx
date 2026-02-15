@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, Profiler } from 'react';
+import React, { useState, useEffect, useCallback, Profiler } from 'react';
 import Icon from '../components/common/Icon';
 import { StatsDisplay } from '../components/pages/StatsDisplay';
 import StatsSkeleton from '../components/pages/StatsSkeleton';
@@ -6,7 +6,6 @@ import EntityTypeFilter from '../components/entities/EntityTypeFilter';
 import SortFilter from '../components/layout/SortFilter';
 import SubjectCardV2 from '../components/entities/SubjectCardV2';
 import PersonCardSkeleton from '../components/entities/PersonCardSkeleton';
-import { FixedSizeGrid as Grid } from 'react-window';
 import { Person, SubjectCardDTO } from '../types';
 import { apiClient } from '../services/apiClient';
 
@@ -43,36 +42,9 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
   searchTerm,
   onPersonClick,
 }) => {
-  // Local state for ULTRATHINK mode
   const [subjects, setSubjects] = useState<SubjectCardDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
-  // Grid state
-  const COLUMN_WIDTH = 340; // Approximate card width + gap
-  const ROW_HEIGHT = 380; // Card height + gap
-  const gridRef = useRef<Grid>(null);
-
-  // We use infinite scrolling logic, but effectively we just load a massive page or handle pages?
-  // ULTRATHINK says: "Server-Side Truth". We should filter on server.
-  // For virtualization, we need random access.
-  // Best pattern: "Infinite Loader" feeding the Grid.
-  // Unsimplification: Just fetch the first 1000 items (or sensible limit) for now, or true infinite.
-  // 1 Million scale requires TRUE infinite.
-  // Let's implement a simple paged fetch for now, but display in a grid.
-  // Actually, let's stick to the props-based pagination control for compatibility with the layout,
-  // BUT fetch DTOs instead of full Person objects.
-
-  // Wait, the requirement is "Refactor PeoplePage with react-window Grid".
-  // And "Remove Legacy Heavy Logic".
-
-  // Let's start by fetching the CURRENT page of DTOs.
-  // We can't use `filteredPeople` (Person[]) because it's heavy.
-  // We will re-use `currentPage` state if possible, but we don't own it (passed from App).
-  // `App.tsx` owns `currentPage`.
-  // If we want to be independent, we should own current page.
-  // But the pagination controls are at the bottom.
-  // Let's implement a local page state for now to prove the DTO fetch,
-  // and ignore the passed page unless we sync it.
 
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 24;
@@ -98,9 +70,6 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
 
           setSubjects(nextSubjects);
           setTotal(nextTotal);
-          if (gridRef.current) {
-            gridRef.current.scrollTo({ scrollTop: 0 });
-          }
         }
       } catch (_e) {
         if (active) {
@@ -126,7 +95,6 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
   // Stabilize onClick callback to prevent re-renders
   const handleSubjectClick = useCallback(
     (subject: SubjectCardDTO) => {
-      // Map DTO to Person-like structure for the legacy callback
       const personLike: Person = {
         id: subject.id,
         name: subject.name,
@@ -143,33 +111,6 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
     [onPersonClick, searchTerm],
   );
 
-  // Render Cell for Grid
-  const Cell = ({ columnIndex, rowIndex, style, data }: any) => {
-    const { items, columnCount } = data;
-    const index = rowIndex * columnCount + columnIndex;
-    const subject = items[index];
-
-    if (!subject) return null;
-
-    // Adjust style for gutter
-    const gutterStyle = {
-      ...style,
-      left: Number(style.left) + 8,
-      top: Number(style.top) + 8,
-      width: Number(style.width) - 16,
-      height: Number(style.height) - 16,
-    };
-
-    return (
-      <SubjectCardV2
-        subject={subject}
-        style={gutterStyle}
-        onClick={() => handleSubjectClick(subject)}
-      />
-    );
-  };
-
-  // Performance monitoring callback
   const onRenderCallback = useCallback(
     (id: string, phase: 'mount' | 'update', actualDuration: number) => {
       if (typeof window !== 'undefined' && actualDuration > 16) {
@@ -265,13 +206,16 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {subjects.map((subject) => (
-                <SubjectCardV2 key={subject.id} subject={subject} />
+                <SubjectCardV2
+                  key={subject.id}
+                  subject={subject}
+                  onClick={() => handleSubjectClick(subject)}
+                />
               ))}
             </div>
           )}
         </div>
 
-        {/* Pagination Controls - Local */}
         {totalPagesLocal > 1 && (
           <div className="flex items-center justify-center space-x-4 mt-4 flex-shrink-0 pb-4">
             <button

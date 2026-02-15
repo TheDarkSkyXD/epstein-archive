@@ -4,7 +4,7 @@ import { optimizedDataService } from '../services/OptimizedDataService';
 import { Person } from '../types';
 import { useNavigation } from '../services/ContentNavigationService.tsx';
 import { RedFlagIndex } from './visualizations/RedFlagIndex';
-import { useUndo } from './UndoManager';
+import { useUndo } from './useUndo';
 import FormField from './common/FormField';
 import Tooltip from './common/Tooltip';
 // TODO: Add help text for search features

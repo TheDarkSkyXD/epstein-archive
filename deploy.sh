@@ -29,6 +29,24 @@ log_success() { echo -e "${GREEN}✅ $1${NC}"; }
 log_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 log_error() { echo -e "${RED}❌ $1${NC}"; }
 
+verify_release_notes_version() {
+  local current_version
+  current_version=$(sed -n 's/.*"version":[[:space:]]*"\([^"]*\)".*/\1/p' package.json | head -n 1)
+
+  if [ -z "$current_version" ]; then
+    log_error "Could not read version from package.json"
+    exit 1
+  fi
+
+  if ! head -n 20 release_notes.md | grep -Eq "^##[[:space:]]+v?${current_version}([[:space:]]+-|[[:space:]]+—)"; then
+    log_error "release_notes.md must be updated for v${current_version} before deploy."
+    log_error "Expected top section heading like: ## ${current_version} - YYYY-MM-DD"
+    exit 1
+  fi
+
+  log_success "Release notes include v${current_version}."
+}
+
 # Parse Args
 CODE_ONLY=false
 DB_ONLY=false
@@ -194,6 +212,7 @@ else
     # Make sure we don't proceed if these fail
     pnpm format || { log_error "Formatting failed! Run 'pnpm format' locally."; exit 1; }
     pnpm lint:fix || { log_error "Linting failed! Run 'pnpm lint:fix' locally."; exit 1; }
+    verify_release_notes_version
 
     # Check for uncommitted changes after formatting
     if [ -n "$(git status --porcelain)" ]; then

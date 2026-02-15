@@ -15,16 +15,6 @@ interface VitalsPayload {
   timestamp: number;
 }
 
-interface DailyAggregate {
-  date: string;
-  route: string;
-  p75_cls: number;
-  p75_lcp: number;
-  p75_inp: number;
-  avg_long_tasks: number;
-  sample_count: number;
-}
-
 class ProductionVitalsCollector {
   private enabled: boolean;
   private sampleRate: number;
@@ -81,7 +71,7 @@ class ProductionVitalsCollector {
           keepalive: true,
         }).catch(() => {}); // Silent fail
       }
-    } catch (error) {
+    } catch (_error) {
       // Silent fail - vitals collection must not affect app
     }
   }

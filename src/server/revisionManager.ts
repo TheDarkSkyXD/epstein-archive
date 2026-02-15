@@ -5,7 +5,6 @@
  * Used by all caches, prefetch, and invalidation logic
  */
 
-import Database from 'better-sqlite3';
 import crypto from 'crypto';
 
 interface RevisionComponents {

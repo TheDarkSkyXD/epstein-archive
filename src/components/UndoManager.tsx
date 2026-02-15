@@ -1,28 +1,5 @@
-import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
-
-// Define types for our undo system
-interface UndoAction {
-  id: string;
-  description: string;
-  timestamp: number;
-  undo: () => Promise<void> | void;
-}
-
-interface UndoState {
-  actions: UndoAction[];
-  notification: {
-    message: string;
-    visible: boolean;
-    action?: UndoAction;
-  } | null;
-}
-
-type UndoActionType =
-  | { type: 'ADD_ACTION'; payload: UndoAction }
-  | { type: 'REMOVE_ACTION'; payload: string }
-  | { type: 'SHOW_NOTIFICATION'; payload: { message: string; action?: UndoAction } }
-  | { type: 'HIDE_NOTIFICATION' }
-  | { type: 'CLEAR_ALL' };
+import React, { useReducer, useCallback, useEffect } from 'react';
+import { UndoAction, UndoActionType, UndoContext, UndoState } from './undoContext';
 
 // Create reducer for undo state
 const undoReducer = (state: UndoState, action: UndoActionType): UndoState => {
@@ -60,19 +37,6 @@ const undoReducer = (state: UndoState, action: UndoActionType): UndoState => {
       return state;
   }
 };
-
-// Create context
-const UndoContext = createContext<
-  | {
-      state: UndoState;
-      dispatch: React.Dispatch<UndoActionType>;
-      addUndoAction: (action: Omit<UndoAction, 'id' | 'timestamp'>) => void;
-      performUndo: (actionId: string) => Promise<void>;
-      showNotification: (message: string, action?: UndoAction) => void;
-      hideNotification: () => void;
-    }
-  | undefined
->(undefined);
 
 // Provider component
 export const UndoProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -168,15 +132,6 @@ export const UndoProvider: React.FC<{ children: React.ReactNode }> = ({ children
       )}
     </UndoContext.Provider>
   );
-};
-
-// Hook to use undo functionality
-export const useUndo = () => {
-  const context = useContext(UndoContext);
-  if (!context) {
-    throw new Error('useUndo must be used within an UndoProvider');
-  }
-  return context;
 };
 
 export default UndoProvider;

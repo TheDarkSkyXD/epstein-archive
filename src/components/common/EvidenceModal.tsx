@@ -63,7 +63,6 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
   const [documents, setDocuments] = useState<any[]>([]);
   const [totalDocs, setTotalDocs] = useState(0);
   const [isDocsLoading, setIsDocsLoading] = useState(false);
-  const loadingCount = React.useRef(0);
   const [docsInitialized, setDocsInitialized] = useState(false);
   const [docFilters, setDocFilters] = useState({ search: '', source: 'all', sort: 'relevance' });
 
@@ -223,7 +222,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
       };
       fetchRelationships();
     }
-  }, [isOpen, entityId, activeTab]);
+  }, [isOpen, entityId, activeTab, tabsLoaded]);
 
   // Helper to check if item is loaded
   const isItemLoaded = (index: number) => !!documents[index];

@@ -1,26 +1,5 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useCallback,
-  ReactNode,
-  useEffect,
-} from 'react';
-
-type Toast = {
-  id: string;
-  text: string;
-  type?: 'info' | 'success' | 'error' | 'warning' | 'loading';
-  action?: { label: string; onClick: () => void };
-};
-
-const ToastCtx = createContext<{ addToast: (t: Omit<Toast, 'id'>) => void } | null>(null);
-
-export function useToasts() {
-  const ctx = useContext(ToastCtx);
-  if (!ctx) throw new Error('ToastProvider missing');
-  return ctx;
-}
+import React, { useState, useCallback, ReactNode, useEffect } from 'react';
+import { ToastCtx, Toast } from './toastContext';
 
 export default function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);

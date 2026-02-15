@@ -6,7 +6,6 @@
  */
 
 import { Router, Request, Response } from 'express';
-import Database from 'better-sqlite3';
 
 const router = Router();
 
@@ -76,7 +75,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     // Return 204 No Content (fastest response)
     res.status(204).send();
-  } catch (error: any) {
+  } catch (_error: any) {
     console.error('Error collecting vitals:', error);
     // Silent fail - don't affect client
     res.status(204).send();
@@ -113,7 +112,7 @@ router.get('/aggregates', async (req: Request, res: Response) => {
       .all(days);
 
     res.json({ aggregates });
-  } catch (error: any) {
+  } catch (_error: any) {
     // Fallback if PERCENTILE_CONT not supported
     try {
       const db = (req as any).db as any;
@@ -140,8 +139,8 @@ router.get('/aggregates', async (req: Request, res: Response) => {
         .all(days);
 
       res.json({ aggregates, note: 'Using averages (PERCENTILE_CONT not supported)' });
-    } catch (error2: any) {
-      res.status(500).json({ error: error2.message });
+    } catch (fallbackError: any) {
+      res.status(500).json({ error: fallbackError.message });
     }
   }
 });

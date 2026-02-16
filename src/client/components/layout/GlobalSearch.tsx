@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { apiClient } from '../../services/apiClient';
 import { Person } from '../../types';
+import { CloseButton } from '../common/CloseButton';
 
 interface SearchResult {
   file: string;
@@ -457,12 +458,12 @@ const GlobalSearch: React.FC = () => {
                     </span>
                     <h3 className="text-xl font-semibold text-white">{selectedResult.filename}</h3>
                   </div>
-                  <button
+                  <CloseButton
                     onClick={() => setSelectedResult(null)}
-                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white text-xl transition-colors"
-                  >
-                    ×
-                  </button>
+                    size="sm"
+                    label="Close search result"
+                    className="border-slate-600 bg-slate-900/70 text-white"
+                  />
                 </div>
               </div>
 

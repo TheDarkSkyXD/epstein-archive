@@ -1,5 +1,6 @@
 import React, { useState, useCallback, ReactNode, useEffect } from 'react';
 import { ToastCtx, Toast } from './toastContext';
+import { CloseButton } from './CloseButton';
 
 export default function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -49,12 +50,12 @@ export default function ToastProvider({ children }: { children: ReactNode }) {
               </button>
             )}
             {t.type !== 'loading' && (
-              <button
+              <CloseButton
                 onClick={() => removeToast(t.id)}
-                className="ml-2 text-xs hover:text-white/80"
-              >
-                ×
-              </button>
+                size="sm"
+                label="Dismiss notification"
+                className="ml-2 h-6 w-6 border-transparent bg-transparent text-current hover:bg-white/10"
+              />
             )}
           </div>
         ))}

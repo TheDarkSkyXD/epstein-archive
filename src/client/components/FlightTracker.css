@@ -594,22 +594,13 @@
   position: relative;
 }
 
-.modal-close {
+.modal-close-btn {
   position: absolute;
   top: 1rem;
   right: 1rem;
-  width: 32px;
-  height: 32px;
-  border: none;
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-  font-size: 1.5rem;
-  border-radius: 50%;
-  cursor: pointer;
-  line-height: 1;
 }
 
-.modal-close:hover {
+.modal-close-btn:hover {
   background: rgba(255, 255, 255, 0.2);
 }
 

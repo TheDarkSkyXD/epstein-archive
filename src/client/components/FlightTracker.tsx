@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import Icon from './common/Icon';
 import { Link } from 'react-router-dom';
 import { AddToInvestigationButton } from './common/AddToInvestigationButton';
+import { CloseButton } from './common/CloseButton';
 
 import { RouteMap } from './visualizations/RouteMap';
 import { Select } from './common/Select';
@@ -617,9 +618,12 @@ const FlightTracker: React.FC = () => {
     return createPortal(
       <div className="flight-modal-overlay" onClick={() => setSelectedFlight(null)}>
         <div className="flight-modal" onClick={(e) => e.stopPropagation()}>
-          <button className="modal-close" onClick={() => setSelectedFlight(null)}>
-            ×
-          </button>
+          <CloseButton
+            onClick={() => setSelectedFlight(null)}
+            size="sm"
+            label="Close flight details"
+            className="modal-close-btn border-slate-500/70 bg-slate-900/80 text-white"
+          />
 
           <div className="modal-header" style={{ paddingRight: '3rem' }}>
             <h2>Flight Details</h2>

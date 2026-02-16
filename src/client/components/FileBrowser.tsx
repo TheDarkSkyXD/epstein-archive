@@ -12,6 +12,7 @@ import {
   Image,
   FileSpreadsheet,
 } from 'lucide-react';
+import { CloseButton } from './common/CloseButton';
 
 interface FileItem {
   name: string;
@@ -346,12 +347,12 @@ const FileBrowser: React.FC = () => {
                       <Download className="h-4 w-4" />
                       <span>Download</span>
                     </button>
-                    <button
+                    <CloseButton
                       onClick={() => setSelectedFile(null)}
-                      className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white text-xl transition-colors"
-                    >
-                      ×
-                    </button>
+                      size="sm"
+                      label="Close file preview"
+                      className="border-slate-600 bg-slate-900/70 text-white"
+                    />
                   </div>
                 </div>
               </div>

@@ -269,6 +269,7 @@ function App() {
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
   const navTrackRef = useRef<HTMLDivElement | null>(null);
   const [navEdgeFade, setNavEdgeFade] = useState({ left: false, right: false });
+  const [navLayoutMode, setNavLayoutMode] = useState<'normal' | 'compact' | 'icons'>('normal');
 
   // Use navigation context for shared state
   const navigation = useNavigation();
@@ -930,24 +931,42 @@ function App() {
   );
 
   const { user: currentUser, isAdmin } = useAuth();
-  const navSegmentBaseClass =
-    'flex items-center justify-center gap-1.5 h-11 px-5 rounded-none transition-all duration-200 whitespace-nowrap border-0 bg-transparent';
+  const navSegmentBaseClass = `flex items-center justify-center ${
+    navLayoutMode === 'icons'
+      ? 'gap-0 h-9 px-1.5'
+      : navLayoutMode === 'compact'
+        ? 'gap-1.5 h-10 px-2 md:px-2.5'
+        : 'gap-1.5 h-11 px-3 lg:px-4'
+  } rounded-none transition-all duration-200 whitespace-nowrap border-0 bg-transparent min-w-0 w-full`;
   const getNavSegmentClass = (isActive: boolean, activeClass: string, extraClass: string = '') =>
     `${navSegmentBaseClass} ${
       isActive
         ? `${activeClass} text-white`
         : 'text-slate-300 hover:text-white hover:bg-slate-800/55'
     } ${extraClass}`.trim();
+  const navItemClass = navLayoutMode === 'icons' ? 'shrink-0' : 'min-w-0 flex-1';
+  const navLabelClass =
+    navLayoutMode === 'icons'
+      ? 'hidden'
+      : navLayoutMode === 'compact'
+        ? 'inline min-w-0 max-w-[7rem] lg:max-w-[8rem] truncate'
+        : 'inline min-w-0 max-w-[8rem] lg:max-w-[10rem] truncate';
 
   useEffect(() => {
     const track = navTrackRef.current;
     if (!track) return;
 
     const updateEdgeFade = () => {
-      const maxScroll = Math.max(0, track.scrollWidth - track.clientWidth);
-      const hasOverflow = maxScroll > 2;
-      const left = hasOverflow && track.scrollLeft > 2;
-      const right = hasOverflow && track.scrollLeft < maxScroll - 2;
+      const width = track.clientWidth;
+      const mode: 'normal' | 'compact' | 'icons' =
+        width < 920 ? 'icons' : width < 1480 ? 'compact' : 'normal';
+      setNavLayoutMode((prev) => (prev === mode ? prev : mode));
+
+      const overflowPx = track.scrollWidth - track.clientWidth;
+      // Suppress fades for tiny rounding overflow; show only when true horizontal scrolling is needed.
+      const hasOverflow = overflowPx > 12;
+      const left = hasOverflow && track.scrollLeft > 6;
+      const right = hasOverflow && track.scrollLeft + track.clientWidth < track.scrollWidth - 6;
       setNavEdgeFade((prev) =>
         prev.left === left && prev.right === right ? prev : { left, right },
       );
@@ -1149,7 +1168,7 @@ function App() {
 
                     {/* Search Bar */}
                     <div className="relative flex-1 md:flex-none max-w-md">
-                      <div className="flex items-center gap-1.5 h-11 px-2 bg-slate-800/80 border border-slate-600/50 rounded-full shadow-sm">
+                      <div className="flex items-center h-11 pl-2 bg-slate-800/80 border border-slate-600/50 rounded-full shadow-sm overflow-hidden">
                         <div className="relative flex-1 min-w-0">
                           <Icon
                             name="Search"
@@ -1189,7 +1208,7 @@ function App() {
                             }
                           }}
                           aria-label="Run search"
-                          className="h-9 w-9 shrink-0 bg-cyan-600 hover:bg-cyan-500 text-white flex items-center justify-center transition-colors rounded-full"
+                          className="h-11 w-11 shrink-0 bg-cyan-600 hover:bg-cyan-500 text-white flex items-center justify-center transition-colors rounded-r-full"
                         >
                           <Icon name="Search" size="sm" />
                         </button>
@@ -1314,8 +1333,8 @@ function App() {
                     ref={navTrackRef}
                     className="w-full overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                   >
-                    <div className="inline-flex min-w-max items-center rounded-full border border-slate-700/80 bg-slate-900/75 backdrop-blur-md overflow-hidden divide-x divide-slate-700/80">
-                      <div className="relative group shrink-0">
+                    <div className="flex w-full items-center rounded-full border border-slate-700/80 bg-slate-900/75 backdrop-blur-md overflow-hidden divide-x divide-slate-700/80">
+                      <div className={`relative group ${navItemClass}`}>
                         <button
                           onClick={() => navigate('/people')}
                           className={getNavSegmentClass(
@@ -1324,7 +1343,7 @@ function App() {
                           )}
                         >
                           <Icon name="Users" size="sm" />
-                          <span className="hidden xl:inline">Subjects</span>
+                          <span className={navLabelClass}>Subjects</span>
                         </button>
                         {/* Help Tooltip */}
                         <div className="absolute hidden group-hover:block z-50 left-0 top-full mt-2 w-80 bg-slate-900 border border-slate-700 rounded-lg p-4 shadow-xl">
@@ -1358,7 +1377,7 @@ function App() {
                           </div>
                         </div>
                       </div>
-                      <div className="shrink-0">
+                      <div className={navItemClass}>
                         <button
                           onClick={() => navigate('/documents')}
                           className={getNavSegmentClass(
@@ -1367,10 +1386,10 @@ function App() {
                           )}
                         >
                           <Icon name="FileText" size="sm" />
-                          <span className="hidden xl:inline">Docs</span>
+                          <span className={navLabelClass}>Docs</span>
                         </button>
                       </div>
-                      <div className="relative shrink-0">
+                      <div className={`relative ${navItemClass}`}>
                         <button
                           onClick={() => {
                             try {
@@ -1396,7 +1415,7 @@ function App() {
                           data-investigation-nav-top
                         >
                           <Icon name="Target" size="sm" />
-                          <span className="hidden xl:inline">Investigate</span>
+                          <span className={navLabelClass}>Investigate</span>
                         </button>
                         {investigatePopoverOpen &&
                           activeTab !== 'investigations' &&
@@ -1457,7 +1476,7 @@ function App() {
                             document.body,
                           )}
                       </div>
-                      <div className="shrink-0">
+                      <div className={navItemClass}>
                         <button
                           onClick={() => navigate('/timeline')}
                           onMouseEnter={() => preloader.prefetchJson('/api/timeline')}
@@ -1467,10 +1486,10 @@ function App() {
                           )}
                         >
                           <Icon name="Clock" size="sm" />
-                          <span className="hidden xl:inline">Timeline</span>
+                          <span className={navLabelClass}>Timeline</span>
                         </button>
                       </div>
-                      <div className="shrink-0">
+                      <div className={navItemClass}>
                         <button
                           onClick={() => navigate('/flights')}
                           onMouseEnter={() => preloader.prefetchJson('/api/flights')}
@@ -1480,10 +1499,10 @@ function App() {
                           )}
                         >
                           <Icon name="Navigation" size="sm" />
-                          <span className="hidden xl:inline">Flights</span>
+                          <span className={navLabelClass}>Flights</span>
                         </button>
                       </div>
-                      <div className="shrink-0">
+                      <div className={navItemClass}>
                         <button
                           onClick={() => navigate('/properties')}
                           onMouseEnter={() => preloader.prefetchJson('/api/properties/stats')}
@@ -1493,10 +1512,10 @@ function App() {
                           )}
                         >
                           <Icon name="Building" size="sm" />
-                          <span className="hidden xl:inline">Property</span>
+                          <span className={navLabelClass}>Property</span>
                         </button>
                       </div>
-                      <div className="shrink-0">
+                      <div className={navItemClass}>
                         <button
                           onClick={() => navigate('/media')}
                           onMouseEnter={() => {
@@ -1509,10 +1528,10 @@ function App() {
                           )}
                         >
                           <Icon name="Newspaper" size="sm" />
-                          <span className="hidden xl:inline">Media</span>
+                          <span className={navLabelClass}>Media</span>
                         </button>
                       </div>
-                      <div className="shrink-0">
+                      <div className={navItemClass}>
                         <button
                           onClick={() => navigate('/emails')}
                           onMouseEnter={() => preloader.prefetchJson('/api/emails')}
@@ -1522,10 +1541,10 @@ function App() {
                           )}
                         >
                           <Icon name="Mail" size="sm" />
-                          <span className="hidden xl:inline">Emails</span>
+                          <span className={navLabelClass}>Emails</span>
                         </button>
                       </div>
-                      <div className="shrink-0">
+                      <div className={navItemClass}>
                         <button
                           onClick={() => navigate('/blackbook')}
                           onMouseEnter={() => preloader.prefetchJson('/api/media/albums')}
@@ -1535,10 +1554,10 @@ function App() {
                           )}
                         >
                           <Icon name="BookOpen" size="sm" />
-                          <span>Black Book</span>
+                          <span className={navLabelClass}>Black Book</span>
                         </button>
                       </div>
-                      <div className="shrink-0">
+                      <div className={navItemClass}>
                         <button
                           onClick={() => navigate('/analytics')}
                           className={getNavSegmentClass(
@@ -1547,10 +1566,10 @@ function App() {
                           )}
                         >
                           <Icon name="BarChart3" size="sm" />
-                          <span className="hidden xl:inline">Stats</span>
+                          <span className={navLabelClass}>Stats</span>
                         </button>
                       </div>
-                      <div className="shrink-0">
+                      <div className={navItemClass}>
                         <button
                           onClick={() => navigate('/about')}
                           className={getNavSegmentClass(
@@ -1559,7 +1578,7 @@ function App() {
                           )}
                         >
                           <Icon name="Shield" size="sm" />
-                          <span className="hidden xl:inline">About</span>
+                          <span className={navLabelClass}>About</span>
                         </button>
                       </div>
                     </div>

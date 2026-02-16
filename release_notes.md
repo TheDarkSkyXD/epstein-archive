@@ -1,3 +1,20 @@
+## v13.12.1 - 2026-02-16 - UI Consistency and Production Stability Patch
+
+### Close control standardization
+
+- Standardized modal and overlay close affordances to the circular icon close pattern for more consistent behavior and visual clarity.
+- Replaced lingering text-style close controls in key dialogs with the shared close component.
+
+### Navigation and layout corrections
+
+- Restored bounded desktop page width to prevent edge-to-edge stretching and keep content aligned to the intended grid.
+- Corrected segmented navigation pill sizing so menu items no longer stretch unnaturally.
+
+### Production responsiveness hardening
+
+- Fixed a document browser refetch loop that was overloading API endpoints and causing intermittent unknown errors.
+- Added safer subject-list query behavior for faster initial page responses under heavy dataset load.
+
 ## v13.12.0 - 2026-02-16 - Liquid Glass UX Restoration and Viewer Stability
 
 ### Visual hierarchy and polish restoration

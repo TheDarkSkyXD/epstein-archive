@@ -665,6 +665,128 @@ class ApiClient {
     );
   }
 
+  async getInvestigativeTasksByInvestigation(
+    investigationId: string,
+  ): Promise<{ data: any[]; total: number }> {
+    const url = `${API_BASE_URL}/investigative-tasks/investigation/${investigationId}`;
+    const tasks = await this.fetchWithErrorHandling<any[]>(url, { useCache: false });
+    return { data: tasks, total: tasks.length };
+  }
+
+  async getInvestigativeTaskSummary(investigationId: string): Promise<{
+    statusBreakdown: Record<string, number>;
+    priorityBreakdown: Record<string, number>;
+    overdueTasks: number;
+    averageProgress: number;
+    assignmentBreakdown: { assigned_to: string; count: number }[];
+  }> {
+    const url = `${API_BASE_URL}/investigative-tasks/summary/${investigationId}`;
+    return this.fetchWithErrorHandling(url, { useCache: false });
+  }
+
+  async createInvestigativeTask(body: {
+    investigationId: number;
+    title: string;
+    description?: string;
+    priority?: string;
+    assignedTo?: string;
+    dueDate?: string;
+    evidenceIds?: number[];
+    relatedEntities?: number[];
+  }): Promise<any> {
+    return this.fetchWithErrorHandling<any>(`${API_BASE_URL}/investigative-tasks`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+      useCache: false,
+    });
+  }
+
+  async updateInvestigativeTask(id: number, updates: any): Promise<any> {
+    return this.fetchWithErrorHandling<any>(`${API_BASE_URL}/investigative-tasks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+      useCache: false,
+    });
+  }
+
+  async updateInvestigativeTaskProgress(id: number, progress: number): Promise<any> {
+    return this.fetchWithErrorHandling<any>(`${API_BASE_URL}/investigative-tasks/${id}/progress`, {
+      method: 'PATCH',
+      body: JSON.stringify({ progress }),
+      useCache: false,
+    });
+  }
+
+  async getInvestigationMemoryEntries(params: {
+    investigationId: number;
+    page?: number;
+    limit?: number;
+    searchQuery?: string;
+  }): Promise<import('../types/memory').MemorySearchResult> {
+    const usp = new URLSearchParams();
+    if (params.page) usp.append('page', String(params.page));
+    if (params.limit) usp.append('limit', String(params.limit));
+    if (params.searchQuery) usp.append('q', params.searchQuery);
+    usp.append('memoryType', 'episodic');
+    const url = `${API_BASE_URL}/memory${usp.toString() ? `?${usp.toString()}` : ''}`;
+    const result =
+      await this.fetchWithErrorHandling<import('../types/memory').MemorySearchResult>(url);
+    const filtered = result.data.filter(
+      (entry) => entry.sourceType === 'investigation' && entry.sourceId === params.investigationId,
+    );
+    return { ...result, data: filtered, total: filtered.length };
+  }
+
+  async createInvestigationMemoryEntry(body: {
+    investigationId: number;
+    content: string;
+    importanceScore?: number;
+    contextTags?: string[];
+    metadata?: Record<string, any>;
+  }): Promise<import('../types/memory').MemoryEntry> {
+    const payload: import('../types/memory').CreateMemoryEntryInput = {
+      memoryType: 'episodic',
+      content: body.content,
+      importanceScore: body.importanceScore,
+      contextTags: body.contextTags ?? [],
+      metadata: {
+        ...(body.metadata || {}),
+        investigationId: body.investigationId,
+      },
+      sourceId: body.investigationId,
+      sourceType: 'investigation',
+    };
+    return this.fetchWithErrorHandling<import('../types/memory').MemoryEntry>(
+      `${API_BASE_URL}/memory`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+        useCache: false,
+      },
+    );
+  }
+
+  async updateMemoryEntry(
+    id: number,
+    updates: import('../types/memory').UpdateMemoryEntryInput,
+  ): Promise<import('../types/memory').MemoryEntry> {
+    return this.fetchWithErrorHandling<import('../types/memory').MemoryEntry>(
+      `${API_BASE_URL}/memory/${id}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+        useCache: false,
+      },
+    );
+  }
+
+  async deleteMemoryEntry(id: number): Promise<{ success: boolean }> {
+    return this.fetchWithErrorHandling<{ success: boolean }>(`${API_BASE_URL}/memory/${id}`, {
+      method: 'DELETE',
+      useCache: false,
+    });
+  }
+
   async createInvestigation(body: {
     title: string;
     description?: string;

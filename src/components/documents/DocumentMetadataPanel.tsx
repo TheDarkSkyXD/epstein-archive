@@ -1,16 +1,5 @@
 import React from 'react';
-import {
-  Database,
-  Tag,
-  Shield,
-  AlertTriangle,
-  Globe,
-  File,
-  Eye,
-  Bot,
-  Flag,
-  Sparkles,
-} from 'lucide-react';
+import { Database, Shield, AlertTriangle, Globe, Bot, Flag, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface DocumentMetadataPanelProps {
@@ -23,15 +12,15 @@ interface DocumentMetadataPanelProps {
 export const DocumentMetadataPanel: React.FC<DocumentMetadataPanelProps> = ({
   document,
   className = '',
-  entities = [],
+  entities: _entities = [],
 }) => {
   if (!document) return null;
 
   const metadata = document.metadata || {};
-  const technical = metadata.technical || {};
-  const structural = metadata.structure || {};
+  const _technical = metadata.technical || {};
+  const _structural = metadata.structure || {};
   const linguistics = metadata.linguistics || {};
-  const network = metadata.network || {};
+  const _network = metadata.network || {};
 
   const formatDate = (dateString: string) => {
     if (!dateString) return 'Unknown';

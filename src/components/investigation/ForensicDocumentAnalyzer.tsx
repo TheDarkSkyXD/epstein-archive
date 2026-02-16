@@ -34,7 +34,7 @@ import {
   Cell,
 } from 'recharts';
 import { DocumentMetadataPanel } from '../documents/DocumentMetadataPanel';
-import { Tabs, TabItem } from '../common/Tabs';
+import { Tabs } from '../common/Tabs';
 
 // Set up PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;

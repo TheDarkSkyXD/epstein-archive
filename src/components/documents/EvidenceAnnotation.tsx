@@ -15,7 +15,7 @@ import {
   Flag,
 } from 'lucide-react';
 import { CloseButton } from '../common/CloseButton';
-import { Tabs, TabItem } from '../common/Tabs';
+import { Tabs } from '../common/Tabs';
 
 export interface EvidenceAnnotation {
   id: string;

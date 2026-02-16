@@ -5,18 +5,9 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  Search,
-  Copy,
-  Check,
-  Eye,
-  Download,
-  FileText,
-  ChevronLeft,
-  ChevronRight,
-  Bookmark,
-} from 'lucide-react';
+import { Search, Copy, Check, Download, ChevronLeft, ChevronRight, Bookmark } from 'lucide-react';
 import { prettifyOCRText } from '../../utils/prettifyOCR';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { RedactionPlaceholder } from './RedactionPlaceholder';
 import { WikiLink } from '../common/WikiLink';
 import { apiClient } from '../../services/apiClient';
@@ -44,7 +35,7 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [copied, setCopied] = useState(false);
   const [showRaw, setShowRaw] = useState(false);
-  const [hideBoilerplate, setHideBoilerplate] = useState(false);
+  const [hideBoilerplate, _setHideBoilerplate] = useState(false);
   const [currentMatch, setCurrentMatch] = useState(0);
   const [totalMatches, setTotalMatches] = useState(0);
   const [entities, setEntities] = useState<Array<{ id: string; name: string }>>(

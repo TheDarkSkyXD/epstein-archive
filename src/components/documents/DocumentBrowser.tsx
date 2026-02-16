@@ -16,7 +16,6 @@ import {
   Image as ImageIcon,
   Landmark,
   Mail,
-  Newspaper,
   Scale,
   ScrollText,
   Users,
@@ -29,9 +28,9 @@ import {
   Eye,
   X,
   HelpCircle,
-  Sparkles,
   LayoutGrid,
   List as ListIcon,
+  ShieldCheck,
 } from 'lucide-react';
 import { useNavigation } from '../../services/ContentNavigationService.tsx';
 import { apiClient } from '../../services/apiClient';
@@ -45,88 +44,16 @@ import { AddToInvestigationButton } from '../common/AddToInvestigationButton';
 import { DocumentContentRenderer } from './DocumentContentRenderer';
 import { useHighlightNavigation } from '../../hooks/useHighlightNavigation';
 import { HighlightNavigationControls } from './HighlightNavigationControls';
+import { DocumentCard } from './DocumentCard';
+import {
+  getSafePreviewText,
+  renderHighlightedText,
+  getSourceLabel,
+  formatDate,
+} from '../../utils/documentUtils';
 
 // Helper to highlight search terms
-const highlightSearchTerm = (text: string, term?: string): React.ReactNode => {
-  if (!term || !text || typeof text !== 'string') return text;
-  try {
-    const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const terms = term.split(/\s+/).filter((t) => t.length > 2);
-    if (terms.length === 0) return text;
-    const pattern = `(${terms.map(escapeRegExp).join('|')})`;
-    const regex = new RegExp(pattern, 'gi');
-    const highlighted = text.replace(
-      regex,
-      '<mark class="bg-yellow-500 text-black px-1 rounded">$1</mark>',
-    );
-    if (highlighted === text) return text;
-    return <span dangerouslySetInnerHTML={{ __html: highlighted }} />;
-  } catch {
-    return text;
-  }
-};
-
-const looksLikePreviewJunk = (text: string): boolean => {
-  if (!text) return true;
-  const sample = text.trim().slice(0, 900);
-  if (sample.length < 24) return true;
-  const digits = (sample.match(/\d/g) || []).length;
-  const letters = (sample.match(/[a-z]/gi) || []).length;
-  const underscores = (sample.match(/_/g) || []).length;
-  const longRuns = (sample.match(/[A-Za-z0-9]{30,}/g) || []).length;
-  const words = sample.split(/\s+/).filter(Boolean);
-  const alphaWords = words.filter((w) => /[a-z]{3,}/i.test(w)).length;
-  const wordRatio = words.length > 0 ? alphaWords / words.length : 0;
-  return (
-    underscores / sample.length > 0.03 || digits > letters * 1.1 || longRuns > 0 || wordRatio < 0.45
-  );
-};
-
-const getSafePreviewText = (doc: Document): string => {
-  // If backend marked this as AI summary, use that summary preview directly when present.
-  if (doc.previewKind === 'ai_summary') {
-    const aiPreview = (doc.previewText || doc.contentPreview || '').trim();
-    if (aiPreview) return aiPreview;
-  }
-
-  const fromPreview = (doc.previewText || doc.contentPreview || '').trim();
-  if (fromPreview && !looksLikePreviewJunk(fromPreview)) return fromPreview;
-  if (doc.previewKind === 'ai_summary') {
-    return 'AI Summary available; open document for full contextual evidence.';
-  }
-  return 'OCR-heavy document; open to view extracted text.';
-};
-
-const getRiskLabel = (score: number): string => {
-  if (score >= 5) return 'Critical';
-  if (score >= 4) return 'High';
-  if (score >= 3) return 'Medium';
-  if (score >= 2) return 'Low';
-  return 'Minimal';
-};
-
-const getRiskClass = (score: number): string => {
-  if (score >= 5) return 'risk-critical';
-  if (score >= 4) return 'risk-high';
-  if (score >= 3) return 'risk-medium';
-  if (score >= 2) return 'risk-low';
-  return 'risk-minimal';
-};
-
-const renderTypeIcon = (doc: Document) => {
-  const t = (doc.evidenceType || doc.fileType || '').toLowerCase();
-  if (t.includes('email')) return <Mail className="w-4 h-4 text-cyan-300 shrink-0" />;
-  if (t.includes('legal')) return <Scale className="w-4 h-4 text-cyan-300 shrink-0" />;
-  if (t.includes('deposition')) return <ScrollText className="w-4 h-4 text-cyan-300 shrink-0" />;
-  if (t.includes('photo') || t.includes('image'))
-    return <ImageIcon className="w-4 h-4 text-cyan-300 shrink-0" />;
-  if (t.includes('financial')) return <Landmark className="w-4 h-4 text-cyan-300 shrink-0" />;
-  if (t.includes('article')) return <Newspaper className="w-4 h-4 text-cyan-300 shrink-0" />;
-  return <FileText className="w-4 h-4 text-cyan-300 shrink-0" />;
-};
-
-const getSourceLabel = (doc: Document): string =>
-  doc.sourceType || doc.metadata?.source_collection || doc.metadata?.source || 'Archive';
+// centralizing tranches
 
 const DOJ_TRANCHE_OPTIONS: Array<{ value: string; label: string; sources: string[] }> = [
   { value: 'all', label: 'All tranches', sources: [] },
@@ -193,6 +120,70 @@ const DOJ_TRANCHE_OPTIONS: Array<{ value: string; label: string; sources: string
   { value: 'evidence-images', label: 'Evidence Images', sources: ['Evidence Images'] },
   { value: 'doj-phase-1', label: 'DOJ Phase 1', sources: ['DOJ Phase 1'] },
 ];
+
+const HoverPreview = ({ doc, rect }: { doc: Document; rect: DOMRect }) => {
+  const displayTitle = doc.title || doc.filename || 'Untitled document';
+  const previewText = getSafePreviewText(doc);
+
+  // Calculate position
+  const x = rect.right + 20 + 420 > window.innerWidth ? rect.left - 420 - 20 : rect.right + 20;
+  // Center vertically relative to the card if possible
+  const y = Math.max(20, Math.min(window.innerHeight - 500, rect.top + rect.height / 2 - 200));
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95, x: x < rect.left ? 10 : -10 }}
+      animate={{ opacity: 1, scale: 1, x: 0 }}
+      exit={{ opacity: 0, scale: 0.95, x: x < rect.left ? 10 : -10 }}
+      style={{ left: x, top: y }}
+      className="hover-preview-overlay"
+    >
+      <div className="preview-glow" />
+      <div className="preview-content">
+        <div className="flex items-center gap-2 mb-4">
+          <ShieldCheck className="w-5 h-5 text-cyan-400" />
+          <span className="text-[10px] font-black uppercase tracking-widest text-cyan-500/80">
+            Forensic Triage Preview
+          </span>
+        </div>
+
+        <h3 className="text-xl font-bold text-white mb-3 leading-tight">{displayTitle}</h3>
+
+        <div className="flex flex-wrap gap-2 mb-6">
+          <span className="semantic-chip border-slate-700 bg-slate-800/50 text-slate-300">
+            {doc.evidenceType || doc.fileType}
+          </span>
+          <span className="semantic-chip border-slate-700 bg-slate-800/50 text-slate-300">
+            {formatDate(doc.dateCreated)}
+          </span>
+          <span className="semantic-chip border-slate-700 bg-slate-800/50 text-slate-300">
+            {getSourceLabel(doc)}
+          </span>
+        </div>
+
+        <div className="preview-ocr-snippet">{previewText}</div>
+
+        {doc.keyEntities && doc.keyEntities.length > 0 && (
+          <div className="mt-6">
+            <div className="text-[10px] font-bold uppercase text-slate-500 mb-2 tracking-widest">
+              Key Detected Entities
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {doc.keyEntities.slice(0, 8).map((entity, i) => (
+                <span
+                  key={i}
+                  className="px-2 py-1 bg-cyan-500/10 border border-cyan-500/20 rounded text-[11px] text-cyan-300"
+                >
+                  {entity}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+};
 
 interface DocumentBrowserProps {
   processor: DocumentProcessor;
@@ -276,73 +267,24 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
   const { currentHighlightIndex, totalHighlights, nextHighlight, prevHighlight, hasHighlights } =
     useHighlightNavigation(effectiveSearchTerm, documentContainerRef);
 
-  // Function to highlight search terms in text
-  const highlightText = (text: string, term?: string) => {
-    if (!term || !text || typeof text !== 'string') return text;
+  // hover triage state
+  const [hoveredDoc, setHoveredDoc] = useState<Document | null>(null);
+  const [hoverRect, setHoverRect] = useState<DOMRect | null>(null);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    try {
-      // Escape special regex characters
-      const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const handleHoverStart = useCallback((doc: Document, rect: DOMRect) => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    hoverTimeoutRef.current = setTimeout(() => {
+      setHoveredDoc(doc);
+      setHoverRect(rect);
+    }, 250);
+  }, []);
 
-      // Split term into words and filter out short words to avoid noise
-      const terms = term.split(/\s+/).filter((t) => t.length > 2);
-
-      if (terms.length === 0) {
-        // If no valid terms after filtering, try the full term if it's short but not empty
-        if (term.trim().length > 0) {
-          const regex = new RegExp(`(${escapeRegExp(term)})`, 'gi');
-          return text.replace(
-            regex,
-            '<mark class="bg-yellow-500 text-black px-1 rounded">$1</mark>',
-          );
-        }
-        return text;
-      }
-
-      // Create pattern to match any of the terms
-      const pattern = `(${terms.map(escapeRegExp).join('|')})`;
-      const regex = new RegExp(pattern, 'gi');
-
-      return text.replace(regex, '<mark class="bg-yellow-500 text-black px-1 rounded">$1</mark>');
-    } catch (e) {
-      console.warn('Error highlighting text:', e);
-      return text;
-    }
-  };
-
-  // Function to safely render highlighted text
-  const renderHighlightedText = (text: string, term?: string) => {
-    if (!term || !text || typeof text !== 'string') return text;
-
-    try {
-      const highlighted = highlightText(text, term);
-      if (highlighted === text) return text;
-
-      return <span dangerouslySetInnerHTML={{ __html: highlighted }} />;
-    } catch (e) {
-      console.warn('Error rendering highlighted text:', e);
-      return text;
-    }
-  };
-
-  // Helper to format date
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return 'Unknown Date';
-    try {
-      const date = new Date(dateString);
-      // Check if valid date
-      if (isNaN(date.getTime())) return dateString;
-
-      // Format: Jan 1, 2000
-      return new Intl.DateTimeFormat('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      }).format(date);
-    } catch (_e) {
-      return dateString;
-    }
-  };
+  const handleHoverEnd = useCallback(() => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    setHoveredDoc(null);
+    setHoverRect(null);
+  }, []);
 
   // Enable virtual scrolling for large datasets
   useEffect(() => {
@@ -351,9 +293,6 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
 
   const [hasMore, setHasMore] = useState(true);
   const [isFetching, setIsFetching] = useState(false);
-
-  const isHighSignificanceActive =
-    (filters.redFlagLevel?.min || 0) >= 4 && (filters.redFlagLevel?.max || 5) >= 4;
 
   useEffect(() => {
     if (effectiveSearchTerm !== searchInput) {
@@ -2278,182 +2217,31 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
             ref={documentContainerRef}
             className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4"
           >
-            {filteredDocuments.map((doc) => {
-              const displayTitle = doc.title || doc.filename || 'Untitled document';
-              const previewText = getSafePreviewText(doc);
-              const risk = Number(doc.redFlagRating || 0);
-              const entitiesCount = doc.entitiesCount || doc.entities?.length || 0;
-              const dense = densityMode === 'compact';
-              return (
-                <article
-                  key={doc.id}
-                  className={`bg-slate-950 border border-slate-800 rounded-[var(--radius-md)] ${
-                    dense ? 'p-3' : 'p-4'
-                  } hover:border-slate-600 transition-colors cursor-pointer flex flex-col gap-2`}
-                  onClick={() => handleDocumentSelect(doc)}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      {renderTypeIcon(doc)}
-                      <span className="text-[10px] uppercase tracking-wide text-slate-400 truncate">
-                        {doc.sourceType || doc.evidenceType || doc.fileType}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      {doc.previewKind === 'ai_summary' && (
-                        <span
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-violet-500/45 bg-violet-900/35 text-violet-200"
-                          title="AI summary available"
-                          aria-label="AI summary available"
-                        >
-                          <Sparkles className="w-3.5 h-3.5" />
-                        </span>
-                      )}
-                      <span
-                        className={`semantic-chip ${getRiskClass(risk)} px-2`}
-                        title={`Risk rating ${risk}/5 (${getRiskLabel(risk)})`}
-                        aria-label={`Risk rating ${risk} out of 5, ${getRiskLabel(risk)}`}
-                      >
-                        <Flag className="w-3 h-3" />
-                      </span>
-                    </div>
-                  </div>
-                  <h3
-                    className={`font-semibold text-slate-100 line-clamp-2 ${
-                      dense ? 'text-sm' : 'text-base'
-                    }`}
-                  >
-                    {effectiveSearchTerm
-                      ? highlightSearchTerm(displayTitle, effectiveSearchTerm)
-                      : displayTitle}
-                  </h3>
-                  <p
-                    className={`text-slate-300 ${dense ? 'text-xs line-clamp-2' : 'text-sm line-clamp-3'}`}
-                  >
-                    {effectiveSearchTerm
-                      ? highlightSearchTerm(previewText, effectiveSearchTerm)
-                      : previewText}
-                  </p>
-                  {doc.keyEntities && doc.keyEntities.length > 0 && (
-                    <p className="text-[11px] text-slate-400 line-clamp-1">
-                      Key entities: {doc.keyEntities.join(', ')}
-                    </p>
-                  )}
-                  {isHighSignificanceActive && (
-                    <p className="text-[11px] text-amber-300 line-clamp-1">
-                      Why flagged:{' '}
-                      {doc.whyFlagged ||
-                        'High significance due to risk scoring and entity density.'}
-                    </p>
-                  )}
-                  <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400 mt-auto">
-                    <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
-                      {formatDate(doc.dateCreated)}
-                    </span>
-                    <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
-                      {entitiesCount} entities
-                    </span>
-                    <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
-                      {formatFileSize(doc.fileSize)}
-                    </span>
-                    <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
-                      {getSourceLabel(doc)}
-                    </span>
-                  </div>
-                </article>
-              );
-            })}
+            {filteredDocuments.map((doc) => (
+              <DocumentCard
+                key={doc.id}
+                document={doc}
+                searchTerm={effectiveSearchTerm}
+                dense={densityMode === 'compact'}
+                onClick={handleDocumentSelect}
+                onHoverStart={handleHoverStart}
+                onHoverEnd={handleHoverEnd}
+              />
+            ))}
           </div>
         ) : filteredDocuments.length > 0 ? (
           <div ref={documentContainerRef} className="space-y-3">
-            {filteredDocuments.map((doc) => {
-              const previewText = getSafePreviewText(doc);
-              const risk = Number(doc.redFlagRating || 0);
-              const entitiesCount = doc.entitiesCount || doc.entities?.length || 0;
-              const dense = densityMode === 'compact';
-              return (
-                <article
-                  key={doc.id}
-                  className={`bg-slate-950 border border-slate-800 rounded-[var(--radius-md)] ${
-                    dense ? 'p-3' : 'p-4'
-                  } hover:border-slate-600 transition-colors cursor-pointer`}
-                  onClick={() => handleDocumentSelect(doc)}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          {renderTypeIcon(doc)}
-                          <span className="text-[10px] uppercase tracking-wide text-slate-400 truncate">
-                            {doc.sourceType || doc.evidenceType || doc.fileType}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          {doc.previewKind === 'ai_summary' && (
-                            <span
-                              className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-violet-500/45 bg-violet-900/35 text-violet-200"
-                              title="AI summary available"
-                              aria-label="AI summary available"
-                            >
-                              <Sparkles className="w-3.5 h-3.5" />
-                            </span>
-                          )}
-                          <span
-                            className={`semantic-chip ${getRiskClass(risk)} px-2`}
-                            title={`Risk rating ${risk}/5 (${getRiskLabel(risk)})`}
-                            aria-label={`Risk rating ${risk} out of 5, ${getRiskLabel(risk)}`}
-                          >
-                            <Flag className="w-3 h-3" />
-                          </span>
-                        </div>
-                      </div>
-                      <h3
-                        className={`font-semibold text-slate-100 mb-1 ${
-                          dense ? 'text-sm' : 'text-base'
-                        } truncate`}
-                      >
-                        {effectiveSearchTerm
-                          ? highlightSearchTerm(doc.title || '', effectiveSearchTerm)
-                          : doc.title}
-                      </h3>
-                      <p
-                        className={`text-slate-300 ${dense ? 'text-xs line-clamp-2' : 'text-sm line-clamp-3'}`}
-                      >
-                        {effectiveSearchTerm
-                          ? highlightSearchTerm(previewText, effectiveSearchTerm)
-                          : previewText}
-                      </p>
-                      {doc.keyEntities && doc.keyEntities.length > 0 && (
-                        <p className="text-[11px] text-slate-400 line-clamp-1">
-                          Key entities: {doc.keyEntities.join(', ')}
-                        </p>
-                      )}
-                      {isHighSignificanceActive && (
-                        <p className="text-[11px] text-amber-300 line-clamp-1 mt-1">
-                          Why flagged:{' '}
-                          {doc.whyFlagged ||
-                            'High significance due to risk scoring and entity density.'}
-                        </p>
-                      )}
-                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400 mt-2">
-                        <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
-                          {formatDate(doc.dateCreated)}
-                        </span>
-                        <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
-                          {entitiesCount} entities
-                        </span>
-                        <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
-                          {formatFileSize(doc.fileSize)}
-                        </span>
-                        <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
-                          {getSourceLabel(doc)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
+            {filteredDocuments.map((doc) => (
+              <DocumentCard
+                key={doc.id}
+                document={doc}
+                searchTerm={effectiveSearchTerm}
+                dense={densityMode === 'compact'}
+                onClick={handleDocumentSelect}
+                onHoverStart={handleHoverStart}
+                onHoverEnd={handleHoverEnd}
+              />
+            ))}
           </div>
         ) : null}
 
@@ -2507,11 +2295,13 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
 
         {/* Document Viewer Modal */}
         {selectedDocument && (
-          <>
-            {console.log('Rendering DocumentViewer with searchTerm:', effectiveSearchTerm)}
-            <DocumentViewer document={selectedDocument} searchTerm={effectiveSearchTerm} />
-          </>
+          <DocumentViewer document={selectedDocument} searchTerm={effectiveSearchTerm} />
         )}
+
+        {/* Hover Preview Overlay */}
+        <AnimatePresence>
+          {hoveredDoc && hoverRect && <HoverPreview doc={hoveredDoc} rect={hoverRect} />}
+        </AnimatePresence>
       </div>
     </div>
   );

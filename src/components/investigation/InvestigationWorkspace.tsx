@@ -28,6 +28,8 @@ import {
   LayoutDashboard,
   Activity,
   FolderOpen,
+  Flag,
+  BookOpen,
 } from 'lucide-react';
 import FinancialTransactionMapper from '../visualizations/FinancialTransactionMapper';
 // Removed unused ChainOfCustodyModal import
@@ -44,6 +46,8 @@ import { InvestigationOnboarding } from './InvestigationOnboarding';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { DataIntegrityPanel } from '../visualizations/DataIntegrityPanel';
 import { EvidencePacketExporter } from './EvidencePacketExporter';
+import { InvestigationTasksPanel } from './InvestigationTasksPanel';
+import { InvestigationMemoryPanel } from './InvestigationMemoryPanel';
 import { InvestigationEvidencePanel } from './InvestigationEvidencePanel';
 import { EvidenceNotebook } from './EvidenceNotebook';
 import { HypothesisTestingFramework } from './HypothesisTestingFramework';
@@ -143,6 +147,8 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
     strongestConnections: [],
     citedDocuments: [],
   });
+  const [showTasksPanel, setShowTasksPanel] = useState(false);
+  const [showMemoryPanel, setShowMemoryPanel] = useState(false);
 
   // Determine active tab from URL
   type ActiveTab =
@@ -1312,28 +1318,44 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
 
           <div className="flex items-center gap-3 shrink-0">
             {selectedInvestigation && (
-              <div className="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700">
+              <>
+                <div className="hidden sm:flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700">
+                  <button
+                    onClick={() => setUseGlobalContext(false)}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                      !useGlobalContext
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Investigation Scope
+                  </button>
+                  <button
+                    onClick={() => setUseGlobalContext(true)}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                      useGlobalContext
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Global Context
+                  </button>
+                </div>
                 <button
-                  onClick={() => setUseGlobalContext(false)}
-                  className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-                    !useGlobalContext
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
+                  onClick={() => setShowTasksPanel(true)}
+                  className="hidden md:inline-flex items-center px-3 py-2 rounded-md text-xs font-medium bg-slate-800 border border-slate-700 text-slate-100 hover:bg-slate-700 hover:border-slate-500 transition-colors"
                 >
-                  Investigation Scope
+                  <Flag className="w-3.5 h-3.5 mr-1.5 text-amber-400" />
+                  Tasks
                 </button>
                 <button
-                  onClick={() => setUseGlobalContext(true)}
-                  className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
-                    useGlobalContext
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
+                  onClick={() => setShowMemoryPanel(true)}
+                  className="hidden md:inline-flex items-center px-3 py-2 rounded-md text-xs font-medium bg-slate-800 border border-slate-700 text-slate-100 hover:bg-slate-700 hover:border-slate-500 transition-colors"
                 >
-                  Global Context
+                  <BookOpen className="w-3.5 h-3.5 mr-1.5 text-blue-400" />
+                  Memory
                 </button>
-              </div>
+              </>
             )}
 
             {!selectedInvestigation && (
@@ -2196,14 +2218,20 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
       {showCreateRelationshipModal && (
         <CreateRelationshipModal
           onClose={() => setShowCreateRelationshipModal(false)}
-          onSuccess={() => {
-            // Refresh network data logic would go here
-            // Since we use useEffect based on selectedInvestigation, we might need to force a refresh
-            // But for now, user can manually refresh or navigate back/forth
-            // A better way would be to expose a refresh function from the effect
-            // or toggle a version counter
-          }}
+          onSuccess={() => {}}
           initialSourceId={selectedNetworkNode?.id}
+        />
+      )}
+      {selectedInvestigation && showTasksPanel && (
+        <InvestigationTasksPanel
+          investigationId={selectedInvestigation.id}
+          onClose={() => setShowTasksPanel(false)}
+        />
+      )}
+      {selectedInvestigation && showMemoryPanel && (
+        <InvestigationMemoryPanel
+          investigationId={selectedInvestigation.id}
+          onClose={() => setShowMemoryPanel(false)}
         />
       )}
       {caseFolderEntityId && (

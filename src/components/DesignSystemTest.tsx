@@ -31,12 +31,15 @@ const mockDocument = {
   id: '1',
   title: 'Financial Audit Report',
   filename: 'audit_2023.pdf',
-  source: 'Seventh Production' as const,
-  spiceRating: 3,
-  mentions: 12,
-  date: '2023-05-15',
-  fileSize: '2.4 MB',
+  content: 'Summary findings from the 2023 forensic financial audit.',
+  sourceType: 'Seventh Production' as const,
+  previewText: 'Summary findings from the 2023 forensic financial audit.',
+  previewKind: 'excerpt' as const,
+  keyEntities: ['John Doe', 'Acme Corp'],
+  entitiesCount: 3,
   fileType: 'PDF',
+  fileSize: 2.4 * 1024 * 1024,
+  dateCreated: '2023-05-15',
 };
 
 const mockMedia = {

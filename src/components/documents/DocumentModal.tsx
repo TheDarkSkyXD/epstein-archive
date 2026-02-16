@@ -7,9 +7,7 @@ import {
   ChevronDown,
   Download,
   FileText,
-  Flag,
   Link2,
-  PlusCircle,
   Sparkles,
   Users,
   X,
@@ -60,28 +58,6 @@ const VIEWER_TABS: Array<{
   { key: 'annotations', label: 'Annotations' },
   { key: 'provenance', label: 'Provenance' },
 ];
-
-const normalizeScore = (doc: any): number => {
-  const raw =
-    typeof doc?.redFlagScore === 'number'
-      ? doc.redFlagScore
-      : typeof doc?.red_flag_score === 'number'
-        ? doc.red_flag_score
-        : typeof doc?.redFlagRating === 'number'
-          ? doc.redFlagRating
-          : Number(doc?.red_flag_rating || 0);
-
-  if (!Number.isFinite(raw)) return 0;
-  if (raw <= 5) return Math.max(0, raw);
-  if (raw <= 100) return Math.max(0, Math.min(5, raw / 20));
-  return 5;
-};
-
-const severityLabel = (score: number): 'Low' | 'Medium' | 'High' => {
-  if (score >= 3.5) return 'High';
-  if (score >= 2.0) return 'Medium';
-  return 'Low';
-};
 
 const formatDate = (value: string | null | undefined): string => {
   if (!value) return 'N/A';
@@ -201,12 +177,12 @@ export const DocumentModal: React.FC<Props> = ({
   const [selectedEntity, setSelectedEntity] = useState<any | null>(null);
   const [entityModalId, setEntityModalId] = useState<string | null>(null);
   const [showRecoveryHighlights, setShowRecoveryHighlights] = useState(true);
-  const [showRiskDetails, setShowRiskDetails] = useState(false);
   const [expandedEntities, setExpandedEntities] = useState(false);
   const [rightPaneCollapsed, setRightPaneCollapsed] = useState(false);
   const [rightPaneWidth, setRightPaneWidth] = useState(320);
   const [localSearchTerm, setLocalSearchTerm] = useState(initialSearchTerm || '');
   const [isLoadingRelated, setIsLoadingRelated] = useState(false);
+  const [isReadingMode, setIsReadingMode] = useState(false);
 
   const { modalRef } = useModalFocusTrap(true);
   useScrollLock(true);
@@ -333,36 +309,6 @@ export const DocumentModal: React.FC<Props> = ({
 
   const summary = useMemo(() => deriveSummary(doc || {}), [doc]);
 
-  const riskScore = useMemo(() => normalizeScore(doc || {}), [doc]);
-  const riskSeverity = severityLabel(riskScore);
-
-  const riskDrivers = useMemo(() => {
-    const metadata = doc?.metadata || {};
-    const candidates = [
-      ...(Array.isArray(doc?.redFlagIndicators) ? doc.redFlagIndicators : []),
-      ...(Array.isArray(metadata?.red_flag_drivers) ? metadata.red_flag_drivers : []),
-      ...(Array.isArray(metadata?.sensitivity_flags) ? metadata.sensitivity_flags : []),
-    ];
-
-    const sanitized = candidates
-      .map((driver) => String(driver || '').trim())
-      .filter((driver) => driver.length > 0);
-
-    if (sanitized.length > 0) return sanitized;
-
-    const fallback: string[] = [];
-    if (entities.length >= 10) fallback.push('High entity density in document text');
-    if (summary.sourceLabel === 'AI summary')
-      fallback.push('AI summary detected material findings');
-    if (doc?.evidenceType === 'email') fallback.push('Communication evidence category');
-    if (doc?.unredaction_metrics?.unredactedTextGain) {
-      fallback.push(
-        `Recovered text gain: ${Math.round((doc.unredaction_metrics.unredactedTextGain || 0) * 100)}%`,
-      );
-    }
-    return fallback.length > 0 ? fallback : ['No explicit driver metadata available.'];
-  }, [doc, entities.length, summary.sourceLabel]);
-
   if (!doc) {
     return createPortal(
       <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[1050] flex items-center justify-center p-4">
@@ -425,6 +371,8 @@ export const DocumentModal: React.FC<Props> = ({
               mode="clean"
               searchTerm={localSearchTerm}
               showRecoveryHighlights={showRecoveryHighlights}
+              isReadingMode={isReadingMode}
+              onToggleReadingMode={() => setIsReadingMode(!isReadingMode)}
               onToggleRecoveryHighlights={setShowRecoveryHighlights}
               onEntitySelect={(entity) => setSelectedEntity(entity)}
             />
@@ -437,6 +385,8 @@ export const DocumentModal: React.FC<Props> = ({
             mode="clean"
             searchTerm={localSearchTerm}
             showRecoveryHighlights={showRecoveryHighlights}
+            isReadingMode={isReadingMode}
+            onToggleReadingMode={() => setIsReadingMode(!isReadingMode)}
             onToggleRecoveryHighlights={setShowRecoveryHighlights}
             onEntitySelect={(entity) => setSelectedEntity(entity)}
           />
@@ -448,6 +398,8 @@ export const DocumentModal: React.FC<Props> = ({
             mode="ocr"
             searchTerm={localSearchTerm}
             showRecoveryHighlights={false}
+            isReadingMode={isReadingMode}
+            onToggleReadingMode={() => setIsReadingMode(!isReadingMode)}
             onToggleRecoveryHighlights={setShowRecoveryHighlights}
             onEntitySelect={(entity) => setSelectedEntity(entity)}
           />

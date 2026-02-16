@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Sparkles, AlertCircle, Bookmark, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Sparkles, AlertCircle, ChevronRight, ChevronLeft, FileText } from 'lucide-react';
 import { prettifyOCRText } from '../../utils/prettifyOCR';
 
 interface InvestigationTextRendererProps {
@@ -7,6 +7,8 @@ interface InvestigationTextRendererProps {
   mode: 'clean' | 'ocr';
   searchTerm?: string;
   showRecoveryHighlights: boolean;
+  isReadingMode: boolean;
+  onToggleReadingMode: () => void;
   onToggleRecoveryHighlights: (next: boolean) => void;
   onEntitySelect?: (entity: any) => void;
 }
@@ -34,7 +36,7 @@ const applySearchHighlight = (html: string, term?: string): string => {
   const regex = new RegExp(`(${tokens.join('|')})`, 'gi');
   return html.replace(
     regex,
-    '<mark class="search-match bg-amber-500/40 text-slate-50 px-0.5 rounded border-b border-amber-400/50">$1</mark>',
+    '<mark class="search-match bg-cyan-400/20 text-cyan-50 px-0.5 rounded border-b-2 border-cyan-400/80 shadow-[0_0_15px_rgba(34,211,238,0.2)]">$1</mark>',
   );
 };
 
@@ -94,8 +96,10 @@ export const InvestigationTextRenderer: React.FC<InvestigationTextRendererProps>
   document,
   mode,
   searchTerm,
-  showRecoveryHighlights,
-  onToggleRecoveryHighlights,
+  showRecoveryHighlights: _showRecoveryHighlights,
+  isReadingMode,
+  onToggleReadingMode,
+  onToggleRecoveryHighlights: _onToggleRecoveryHighlights,
   onEntitySelect,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -174,11 +178,12 @@ export const InvestigationTextRenderer: React.FC<InvestigationTextRendererProps>
         html = html.replace(/([A-Za-z0-9']+)/g, (token) => {
           const normalized = token.toLowerCase();
           if (baselineTokens.has(normalized)) return token;
+
           const style =
             highlightDensity === 'strong'
-              ? 'bg-emerald-500/10 border-b border-emerald-500/60'
+              ? 'bg-emerald-500/10 border-b border-emerald-500/60 shadow-[0_0_8px_rgba(16,185,129,0.1)]'
               : 'border-b border-emerald-500/30';
-          return `<span class="${style}" data-recovery="true">${token}</span>`;
+          return `<span class="${style} rounded-sm transition-all duration-300" data-recovery="true">${token}</span>`;
         });
       }
 
@@ -302,21 +307,26 @@ export const InvestigationTextRenderer: React.FC<InvestigationTextRendererProps>
       )}
 
       {excerpts.length > 0 && (
-        <section className="bg-violet-500/5 border border-violet-500/20 rounded-xl overflow-hidden">
-          <div className="bg-violet-500/10 px-4 py-2 border-b border-violet-500/20 flex items-center gap-2">
-            <Bookmark className="w-4 h-4 text-violet-400" />
-            <span className="text-[10px] font-black uppercase tracking-wider text-violet-300">
-              High Significance Excerpts
-            </span>
+        <section className="glass-surface border-violet-500/20 rounded-2xl overflow-hidden shadow-lg shadow-violet-950/20">
+          <div className="bg-violet-500/10 px-6 py-3 border-b border-violet-500/20 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-violet-400" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-300">
+                AI Intelligence: Key Excerpts
+              </span>
+            </div>
           </div>
-          <div className="p-4 space-y-4">
+          <div className="p-6 space-y-6">
             {excerpts.map((excerpt, i) => (
-              <blockquote
+              <div
                 key={i}
-                className="border-l-2 border-violet-500/30 pl-4 py-1 italic text-sm text-slate-300"
+                className="group relative pl-6 border-l-2 border-violet-500/30 hover:border-violet-400 transition-colors"
               >
-                "{excerpt}"
-              </blockquote>
+                <div className="absolute -left-1 top-0 w-2 h-2 rounded-full bg-violet-500/40 scale-0 group-hover:scale-100 transition-transform" />
+                <blockquote className="italic text-base md:text-lg text-slate-200 leading-relaxed font-serif selection:bg-violet-500/30">
+                  "{excerpt}"
+                </blockquote>
+              </div>
             ))}
           </div>
         </section>
@@ -324,8 +334,19 @@ export const InvestigationTextRenderer: React.FC<InvestigationTextRendererProps>
 
       <div className="flex items-center justify-between gap-4 py-2 border-b border-white/5">
         <div className="flex items-center gap-4">
-          <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+          <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 flex items-center gap-3">
             {mode === 'clean' ? 'Refined Content' : 'Original OCR Stream'}
+            <button
+              onClick={onToggleReadingMode}
+              className={`p-1 rounded-md transition-all ${
+                isReadingMode
+                  ? 'bg-cyan-500/20 text-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.2)]'
+                  : 'text-slate-600 hover:text-slate-400'
+              }`}
+              title={isReadingMode ? 'Disable Reading Mode' : 'Enable Reading Mode'}
+            >
+              <FileText className="w-3.5 h-3.5" />
+            </button>
           </div>
           {searchTerm && matchCount > 0 && (
             <div className="flex items-center gap-2 bg-amber-500/10 px-2 py-1 rounded text-[10px] font-bold text-amber-300 border border-amber-500/20">
@@ -376,10 +397,14 @@ export const InvestigationTextRenderer: React.FC<InvestigationTextRendererProps>
 
       <div
         ref={containerRef}
-        className="text-slate-200 font-sans leading-relaxed text-sm lg:text-base"
+        className={`text-slate-200 selection:bg-cyan-500/30 transition-all duration-500 ${
+          isReadingMode
+            ? 'font-serif text-xl lg:text-2xl leading-[2] max-w-3xl mx-auto'
+            : 'font-sans text-base lg:text-lg leading-[1.8] tracking-tight'
+        }`}
       >
         <div className="space-y-8">
-          {processedSections.map((section, index) => (
+          {processedSections.map((section) => (
             <div key={section.id} className="group relative">
               {section.id !== 'full' && (
                 <div className="flex items-center gap-4 mb-4">

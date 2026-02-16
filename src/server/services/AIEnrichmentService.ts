@@ -35,7 +35,10 @@ export class AIEnrichmentService {
    */
   private static async autoDiscoverExoModel(): Promise<string> {
     // 1. If explicitly set via env var, use it (highest priority)
-    if (process.env.EXO_MODEL) return process.env.EXO_MODEL;
+    if (process.env.EXO_MODEL) {
+      console.log(`🤖 Using EXO_MODEL from environment: ${process.env.EXO_MODEL}`);
+      return process.env.EXO_MODEL;
+    }
 
     // 2. If already discovered, use cached
     if (this.discoveredExoModel) return this.discoveredExoModel;
@@ -51,18 +54,21 @@ export class AIEnrichmentService {
         const availableModels = data.data.map((m: any) => m.id).join(', ');
         console.log(`📋 Available Exo models: ${availableModels}`);
 
-        // 1. Try to find a Llama 3/3.1/3.2 model first
-        const llama = data.data.find(
+        // 1. Try to find the specific active instance ID from the screenshot first
+        const activeInstance = data.data.find((m: any) => m.id === '306A62B7');
+
+        // 2. Try to find a Qwen/Gwen model (Speed focus)
+        const gwen = data.data.find(
           (m: any) =>
-            (m.id.toLowerCase().includes('llama-3') || m.id.toLowerCase().includes('llama-3.1')) &&
-            m.id.toLowerCase().includes('instruct'),
+            (m.id.toLowerCase().includes('qwen') || m.id.toLowerCase().includes('gwen')) &&
+            (m.id.includes('0.6B') || m.id.toLowerCase().includes('instruct')),
         );
 
-        // 2. Fallback to any "Instruct" model
+        // 3. Fallback to any Instruct model
         const anyInstruct = data.data.find((m: any) => m.id.toLowerCase().includes('instruct'));
 
-        // 3. Fallback to first available
-        const selected = llama || anyInstruct || data.data[0];
+        // 4. Fallback to first available
+        const selected = activeInstance || gwen || anyInstruct || data.data[0];
 
         this.discoveredExoModel = selected.id;
         console.log(`🤖 Auto-discovered Exo model: ${this.discoveredExoModel}`);
@@ -72,7 +78,7 @@ export class AIEnrichmentService {
       console.warn('⚠️ Failed to discover Exo model:', err.message);
     }
 
-    const fallback = 'mlx-community/Llama-3.2-3B-Instruct-8bit';
+    const fallback = '306A62B7'; // Confirmed active instance ID
     console.warn(`⚠️ Using fallback Exo model: ${fallback}`);
     return fallback;
   }
@@ -127,10 +133,9 @@ export class AIEnrichmentService {
         if (provider === 'exo_cluster') {
           // OpenAI-compatible API (Exo)
           const url = `${this.EXO_HOST}/v1/chat/completions`;
-          // console.log(`[AIEnrichment] Fetching from ${url} (Attempt ${attempt + 1})`);
+          console.log(`[AIEnrichment] Calling Exo LLM: ${modelId} at ${url}`);
 
           // Use a custom agent with keepAlive to potentially reduce connection overhead,
-          // but for now, we'll just handle the ECONNRESET more gracefully in the catch block.
           const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -140,8 +145,6 @@ export class AIEnrichmentService {
               max_tokens: maxTokens,
               temperature,
             }),
-            // @ts-ignore - node-fetch/undici specific options might go here depending on version
-            // duplex: 'half' // sometimes helps with node 18+ fetch
           });
 
           if (!response.ok) {

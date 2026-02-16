@@ -26,7 +26,7 @@ import { TableViewer } from '../components/evidence/TableViewer';
 import { ImageViewer } from '../components/evidence/ImageViewer';
 import { DocumentViewer } from '../components/evidence/DocumentViewer';
 import { ContactListViewer } from '../components/evidence/ContactListViewer';
-import { getEntityCategoryIcon } from '../config/entityIcons';
+import { getEntityCategoryIcon } from '../../config/entityIcons';
 import { ClaimsList } from '../components/evidence/ClaimsList';
 import { SEO } from '../components/common/SEO';
 

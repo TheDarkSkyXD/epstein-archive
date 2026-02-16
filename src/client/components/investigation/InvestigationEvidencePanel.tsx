@@ -14,7 +14,7 @@ import {
   BarChart3,
   MessageSquare,
 } from 'lucide-react';
-import { ENTITY_CATEGORY_ICONS } from '../../config/entityIcons';
+import { ENTITY_CATEGORY_ICONS } from '../../../config/entityIcons';
 import { EvidenceAnnotationPanel, EvidenceAnnotation } from '../documents/EvidenceAnnotation';
 import { CloseButton } from '../common/CloseButton';
 import { apiClient } from '../../services/apiClient';

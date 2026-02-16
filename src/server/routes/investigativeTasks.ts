@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authenticateRequest, requireRole } from '../auth/middleware.js';
-import { InvestigativeTaskService } from '../../services/InvestigativeTaskService.js';
+import { InvestigativeTaskService } from '../services/InvestigativeTaskService.js';
 
 const router = Router();
 const taskService = new InvestigativeTaskService();

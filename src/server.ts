@@ -22,12 +22,12 @@ import { authenticateRequest, requireRole } from './server/auth/middleware.js';
 import authRoutes from './server/auth/routes.js';
 import { logAudit } from './server/utils/auditLogger.js';
 // getEnv removed - not currently used, but available in ./server/utils/envValidator.js if needed
-import { MediaService } from './services/MediaService.js';
-import investigationEvidenceRoutes from './routes/investigationEvidenceRoutes.js';
+import { MediaService } from './server/services/MediaService.js';
+import investigationEvidenceRoutes from './server/routes/investigationEvidenceRoutes.js';
 import investigationsRouter from './server/routes/investigations.js';
-import evidenceRoutes from './routes/evidenceRoutes.js';
+import evidenceRoutes from './server/routes/evidenceRoutes.js';
 import advancedAnalyticsRoutes from './server/routes/advancedAnalytics.js';
-import entityEvidenceRoutes from './routes/entityEvidenceRoutes.js';
+import entityEvidenceRoutes from './server/routes/entityEvidenceRoutes.js';
 import investigativeTasksRoutes from './server/routes/investigativeTasks.js';
 import articlesRoutes from './server/routes/articlesRoutes.js';
 import emailRoutes from './server/routes/emailRoutes.js';

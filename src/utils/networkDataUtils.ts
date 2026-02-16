@@ -1,4 +1,4 @@
-import { Entity, Relationship } from '../components/entities/EntityRelationshipMapper';
+import { Entity, Relationship } from '../client/components/entities/EntityRelationshipMapper';
 import { Investigation } from '../types/investigation';
 
 // Types for raw data input (mocking what we might get from the API/DB)

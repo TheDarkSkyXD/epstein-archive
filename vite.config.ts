@@ -2,11 +2,19 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { readFileSync } from 'fs';
 import { visualizer } from 'rollup-plugin-visualizer';
+import path from 'path';
 
 const packageJson = JSON.parse(readFileSync('./package.json', 'utf-8'));
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@client': path.resolve(__dirname, 'src/client'),
+      '@server': path.resolve(__dirname, 'src/server'),
+      '@shared': path.resolve(__dirname, 'src/shared'),
+    },
+  },
   define: {
     __APP_VERSION__: JSON.stringify(packageJson.version),
     __BUILD_DATE__: JSON.stringify(
@@ -38,19 +46,22 @@ export default defineConfig({
           }
 
           // Feature-based grouping for our own source code
-          if (id.includes('src/components/Investigation')) {
+          if (id.includes('src/client/components/Investigation')) {
             return 'feature-investigation';
           }
-          if (id.includes('src/components/Media') || id.includes('src/components/Photo')) {
+          if (
+            id.includes('src/client/components/Media') ||
+            id.includes('src/client/components/Photo')
+          ) {
             return 'feature-media';
           }
-          if (id.includes('src/components/email')) {
+          if (id.includes('src/client/components/email')) {
             return 'feature-email';
           }
-          if (id.includes('src/components/Document')) {
+          if (id.includes('src/client/components/Document')) {
             return 'feature-documents';
           }
-          if (id.includes('src/components/NetworkVisualization')) {
+          if (id.includes('src/client/components/NetworkVisualization')) {
             return 'feature-network';
           }
         },

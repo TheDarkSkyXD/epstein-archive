@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import { authenticateRequest } from '../auth/middleware.js';
-import { AdvancedAnalyticsService } from '../../services/AdvancedAnalyticsService.js';
-import { VisualizationService } from '../../services/VisualizationService.js';
-import { PredictiveAnalyticsService } from '../../services/PredictiveAnalyticsService.js';
+import { AdvancedAnalyticsService } from '../services/AdvancedAnalyticsService.js';
+import { VisualizationService } from '../services/VisualizationService.js';
+import { PredictiveAnalyticsService } from '../services/PredictiveAnalyticsService.js';
 
 const router = Router();
 const advancedAnalyticsService = new AdvancedAnalyticsService();

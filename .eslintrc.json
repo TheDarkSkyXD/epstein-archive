@@ -16,6 +16,25 @@
     "sourceType": "module"
   },
   "plugins": ["react-refresh", "prettier"],
+  "overrides": [
+    {
+      "files": ["src/client/**/*.{ts,tsx,js,jsx}"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              "@server/*",
+              "../server/*",
+              "../../server/*",
+              "../../../server/*",
+              "src/server/*"
+            ]
+          }
+        ]
+      }
+    }
+  ],
   "rules": {
     "react-refresh/only-export-components": "warn",
     "@typescript-eslint/no-explicit-any": "off",

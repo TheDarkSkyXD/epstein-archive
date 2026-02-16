@@ -4,7 +4,7 @@
  * Provides consistent icon mapping for different entity types across the application.
  */
 
-import Icon from '../components/common/Icon';
+import Icon from '../client/components/common/Icon';
 import React from 'react';
 
 // Define the entity types

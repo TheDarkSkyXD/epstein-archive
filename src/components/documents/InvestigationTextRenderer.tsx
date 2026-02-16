@@ -96,10 +96,10 @@ export const InvestigationTextRenderer: React.FC<InvestigationTextRendererProps>
   document,
   mode,
   searchTerm,
-  showRecoveryHighlights: _showRecoveryHighlights,
+  showRecoveryHighlights,
   isReadingMode,
   onToggleReadingMode,
-  onToggleRecoveryHighlights: _onToggleRecoveryHighlights,
+  onToggleRecoveryHighlights,
   onEntitySelect,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -174,7 +174,12 @@ export const InvestigationTextRenderer: React.FC<InvestigationTextRendererProps>
     (line: string): string => {
       let html = escapeHtml(line);
 
-      if (mode === 'clean' && highlightDensity !== 'off' && baselineTokens) {
+      if (
+        mode === 'clean' &&
+        highlightDensity !== 'off' &&
+        baselineTokens &&
+        showRecoveryHighlights
+      ) {
         html = html.replace(/([A-Za-z0-9']+)/g, (token) => {
           const normalized = token.toLowerCase();
           if (baselineTokens.has(normalized)) return token;
@@ -200,7 +205,15 @@ export const InvestigationTextRenderer: React.FC<InvestigationTextRendererProps>
       html = applySearchHighlight(html, searchTerm);
       return html;
     },
-    [baselineTokens, entityByName, entityRegex, mode, searchTerm, highlightDensity],
+    [
+      baselineTokens,
+      entityByName,
+      entityRegex,
+      mode,
+      searchTerm,
+      highlightDensity,
+      showRecoveryHighlights,
+    ],
   );
 
   const processedSections = useMemo(
@@ -391,6 +404,17 @@ export const InvestigationTextRenderer: React.FC<InvestigationTextRendererProps>
                 </button>
               ))}
             </div>
+            <button
+              type="button"
+              onClick={() => onToggleRecoveryHighlights(!showRecoveryHighlights)}
+              className={`px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest border transition-all ${
+                showRecoveryHighlights
+                  ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-300'
+                  : 'border-slate-700 text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              {showRecoveryHighlights ? 'Recovery On' : 'Recovery Off'}
+            </button>
           </div>
         )}
       </div>

@@ -6,21 +6,16 @@ interface DocumentMetadataPanelProps {
   document: any;
   analysis?: any;
   className?: string;
-  entities?: any[]; // Array of { name, role, id }
 }
 
 export const DocumentMetadataPanel: React.FC<DocumentMetadataPanelProps> = ({
   document,
   className = '',
-  entities: _entities = [],
 }) => {
   if (!document) return null;
 
   const metadata = document.metadata || {};
-  const _technical = metadata.technical || {};
-  const _structural = metadata.structure || {};
   const linguistics = metadata.linguistics || {};
-  const _network = metadata.network || {};
 
   const formatDate = (dateString: string) => {
     if (!dateString) return 'Unknown';

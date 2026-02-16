@@ -340,11 +340,6 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
   }, [containerWidth]);
 
   const rowCount = Math.ceil(items.length / columns);
-  // Items are always considered loadable while hasMore is true; InfiniteLoader only
-  // cares that loadMoreItems resolves when there's nothing left to fetch.
-  // InfiniteLoader compatibility helper; kept for clarity even if not currently wired
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const isItemLoaded = (_index: number) => _index < rowCount;
   const loadMoreItems = useCallback(
     (_startIndex: number, _stopIndex: number) => {
       if (!loading && hasMore) {

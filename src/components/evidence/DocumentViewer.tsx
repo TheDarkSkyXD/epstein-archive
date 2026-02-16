@@ -7,7 +7,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Copy, Check, Download, ChevronLeft, ChevronRight, Bookmark } from 'lucide-react';
 import { prettifyOCRText } from '../../utils/prettifyOCR';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { RedactionPlaceholder } from './RedactionPlaceholder';
 import { WikiLink } from '../common/WikiLink';
 import { apiClient } from '../../services/apiClient';
@@ -35,7 +34,7 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [copied, setCopied] = useState(false);
   const [showRaw, setShowRaw] = useState(false);
-  const [hideBoilerplate, _setHideBoilerplate] = useState(false);
+  const [hideBoilerplate, setHideBoilerplate] = useState(false);
   const [currentMatch, setCurrentMatch] = useState(0);
   const [totalMatches, setTotalMatches] = useState(0);
   const [entities, setEntities] = useState<Array<{ id: string; name: string }>>(
@@ -43,6 +42,34 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
   );
 
   const contentRef = useRef<HTMLDivElement>(null);
+
+  const redactionSummary = React.useMemo(() => {
+    const spans = evidence.redaction_spans || [];
+    const byKey = new Map<
+      string,
+      {
+        type: string;
+        role?: string;
+        confidence: number;
+        kind: 'pdf_overlay' | 'removed_text' | 'image_box' | 'unknown';
+      }
+    >();
+    spans.forEach((span) => {
+      const type = span.inferred_class || 'unknown';
+      const role = span.inferred_role;
+      const key = `${type}|${role || ''}`;
+      const existing = byKey.get(key);
+      if (!existing || span.confidence > existing.confidence) {
+        byKey.set(key, {
+          type,
+          role,
+          confidence: span.confidence,
+          kind: span.redaction_kind,
+        });
+      }
+    });
+    return Array.from(byKey.values());
+  }, [evidence.redaction_spans]);
 
   // Fetch all entities for linking if not provided
   useEffect(() => {
@@ -219,6 +246,19 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
             </button>
           </div>
 
+          {hasSentences && !showRaw && (
+            <button
+              onClick={() => setHideBoilerplate(!hideBoilerplate)}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${
+                hideBoilerplate
+                  ? 'bg-slate-700/60 border-slate-500 text-slate-200'
+                  : 'border-slate-700 text-slate-500 hover:text-slate-200'
+              }`}
+            >
+              {hideBoilerplate ? 'Show Boilerplate' : 'Hide Boilerplate'}
+            </button>
+          )}
+
           <button
             onClick={copyText}
             className="control !h-10 px-4 flex items-center gap-2 text-xs font-bold border-white/5 bg-slate-900/60"
@@ -242,6 +282,23 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
             >
               <Download className="w-4 h-4" />
             </a>
+          )}
+
+          {redactionSummary.length > 0 && (
+            <div className="flex items-center gap-2 pl-3 border-l border-white/10">
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+                Contains Redactions
+              </span>
+              {redactionSummary.slice(0, 3).map((item) => (
+                <RedactionPlaceholder
+                  key={`${item.type}-${item.role || 'unknown'}`}
+                  type={item.type}
+                  role={item.role}
+                  confidence={item.confidence}
+                  kind={item.kind}
+                />
+              ))}
+            </div>
           )}
         </div>
       </div>

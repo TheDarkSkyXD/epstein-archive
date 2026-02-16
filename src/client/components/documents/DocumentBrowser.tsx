@@ -294,6 +294,16 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
 
   const [hasMore, setHasMore] = useState(true);
   const [isFetching, setIsFetching] = useState(false);
+  const hasMoreRef = useRef(true);
+  const isFetchingRef = useRef(false);
+
+  useEffect(() => {
+    hasMoreRef.current = hasMore;
+  }, [hasMore]);
+
+  useEffect(() => {
+    isFetchingRef.current = isFetching;
+  }, [isFetching]);
 
   useEffect(() => {
     if (effectiveSearchTerm !== searchInput) {
@@ -328,9 +338,10 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
   useEffect(() => {
     const fetchDocuments = async () => {
       // Prevent duplicate fetches or fetching when no more data
-      if (isFetching || (currentPage > 1 && !hasMore)) return;
+      if (isFetchingRef.current || (currentPage > 1 && !hasMoreRef.current)) return;
 
       try {
+        isFetchingRef.current = true;
         setIsFetching(true);
         console.log(`DocumentBrowser: Fetching page ${currentPage}...`);
 
@@ -418,7 +429,9 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
         if (result.total !== undefined) {
           setTotalDocuments(result.total);
           // If we received fewer items than requested, we've reached the end
-          setHasMore(newDocs.length === itemsPerPage);
+          const nextHasMore = newDocs.length === itemsPerPage;
+          hasMoreRef.current = nextHasMore;
+          setHasMore(nextHasMore);
         }
       } catch (error) {
         console.error('DocumentBrowser: Error fetching documents:', error);
@@ -427,6 +440,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
           setFilteredDocuments([]);
         }
       } finally {
+        isFetchingRef.current = false;
         setIsFetching(false);
       }
     };
@@ -443,8 +457,6 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
     filters.dateRange,
     filters.fileType,
     filters.redFlagLevel,
-    hasMore,
-    isFetching,
   ]);
 
   // Reset pagination when filters change

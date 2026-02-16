@@ -924,13 +924,19 @@ router.get('/known-senders', async (_req, res) => {
 
 // Legacy aliases to avoid contract breakage
 router.get('/thread/:id', async (req, res, next) => {
-  req.url = `/threads/${req.params.id}`;
-  return router.handle(req, res, next);
+  try {
+    return res.redirect(307, `/api/emails/threads/${encodeURIComponent(req.params.id)}`);
+  } catch (error) {
+    return next(error);
+  }
 });
 
 router.get('/message/:id', async (req, res, next) => {
-  req.url = `/messages/${req.params.id}/body`;
-  return router.handle(req, res, next);
+  try {
+    return res.redirect(307, `/api/emails/messages/${encodeURIComponent(req.params.id)}/body`);
+  } catch (error) {
+    return next(error);
+  }
 });
 
 // Legacy root endpoint maps to thread metadata list
@@ -946,8 +952,12 @@ router.get('/', async (req, res, next) => {
   const limit = typeof req.query.limit === 'string' ? req.query.limit : String(DEFAULT_LIMIT);
   const cursor = typeof req.query.cursor === 'string' ? req.query.cursor : undefined;
 
-  req.url = `/threads?mailboxId=${encodeURIComponent(mailboxId)}&q=${encodeURIComponent(q)}&tab=${encodeURIComponent(tab)}&limit=${encodeURIComponent(limit)}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`;
-  return router.handle(req, res, next);
+  try {
+    const target = `/api/emails/threads?mailboxId=${encodeURIComponent(mailboxId)}&q=${encodeURIComponent(q)}&tab=${encodeURIComponent(tab)}&limit=${encodeURIComponent(limit)}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`;
+    return res.redirect(307, target);
+  } catch (error) {
+    return next(error);
+  }
 });
 
 export default router;

@@ -32,8 +32,7 @@ router.get('/:entityId/relations', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/entities/:id/graph
-router.get('/:entityId/graph', async (req: Request, res: Response) => {
+const getEntityGraph = async (req: Request, res: Response) => {
   try {
     const { entityId } = req.params as { entityId: string };
     const dbEntityId = parseInt(entityId, 10);
@@ -53,7 +52,13 @@ router.get('/:entityId/graph', async (req: Request, res: Response) => {
     console.error('Error fetching entity graph:', error);
     res.status(500).json({ error: 'Failed to fetch entity graph' });
   }
-});
+};
+
+// Canonical entity analytics route
+router.get('/:entityId/analytics/graph', getEntityGraph);
+
+// Legacy route alias (backward compatibility)
+router.get('/:entityId/graph', getEntityGraph);
 
 // GET /api/entities/:id/documents
 router.get('/:entityId/documents', async (req: Request, res: Response) => {

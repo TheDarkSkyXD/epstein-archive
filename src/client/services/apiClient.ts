@@ -1,75 +1,25 @@
 /// <reference types="vite/client" />
 import { Person } from '../types';
-import { PaginatedResponse, SearchFilters } from './optimizedDataLoader';
+import type { SearchFilters, PaginatedResponse } from './optimizedDataLoader';
+import type {
+  EmailMailboxesResponseDto,
+  EmailMessageBodyDto,
+  EmailRawMessageDto,
+  EmailSearchResponseDto,
+  EmailThreadDetailsDto,
+  EmailThreadForMessageDto,
+  EmailThreadsResponseDto,
+} from '@shared/dto/emails';
+import type { DocumentsListResponseDto } from '@shared/dto/documents';
+import type { EntityListResponseDto, SubjectsListResponseDto } from '@shared/dto/entities';
+import type { InvestigationEvidenceListResponseDto } from '@shared/dto/investigations';
 
-export interface EmailMailboxDTO {
-  mailboxId: string;
-  entityId: number | null;
-  displayName: string;
-  totalThreads: number;
-  totalMessages: number;
-  lastActivityAt: string | null;
-  riskSummary: 'minimal' | 'low' | 'medium' | 'high' | null;
-  isJunkSuppressed: boolean;
-}
-
-export interface EmailThreadDTO {
-  threadId: string;
-  subject: string;
-  participants: string[];
-  participantCount: number;
-  lastMessageAt: string;
-  snippet: string;
-  messageCount: number;
-  hasAttachments: boolean;
-  linkedEntityIds: number[];
-  risk: number | null;
-  ladder: string | null;
-  confidence: number | null;
-}
-
-export interface EmailThreadDetailsDTO {
-  threadId: string;
-  subject: string;
-  messages: Array<{
-    messageId: string;
-    threadId: string;
-    subject: string;
-    from: string;
-    to: string[];
-    cc: string[];
-    date: string;
-    snippet: string;
-    flags: { hasAttachments: boolean };
-    attachmentsMeta: Array<{
-      filename?: string;
-      mimeType?: string;
-      size?: number;
-      linkedDocumentId?: string | number;
-    }>;
-    linkedEntities: Array<{ entityId: number; name: string; role: string | null }>;
-    ingestRunId: number | null;
-    pipelineVersion: string | null;
-    confidence: number | null;
-    ladder: string | null;
-    wasAgentic: boolean;
-    redFlagRating: number | null;
-  }>;
-}
-
-export interface EmailMessageBodyDTO {
-  messageId: string;
-  cleanedText: string;
-  cleanedHtml: string;
-  extractedLinks: string[];
-  extractedEntities: string[];
-  mimeWarnings: string[];
-  parseStatus: 'success' | 'partial' | 'failed';
-  ingestRunId: number | null;
-  pipelineVersion: string | null;
-  sourceFile: { fileName: string | null; filePath: string | null };
-  rawAvailable: boolean;
-}
+export type {
+  EmailMailboxDto as EmailMailboxDTO,
+  EmailMessageBodyDto as EmailMessageBodyDTO,
+  EmailThreadDetailsDto as EmailThreadDetailsDTO,
+  EmailThreadListItemDto as EmailThreadDTO,
+} from '@shared/dto/emails';
 
 const API_BASE_URL =
   (typeof window !== 'undefined' &&
@@ -268,6 +218,25 @@ class ApiClient {
     }
   }
 
+  private isNotFoundError(error: unknown): error is Error {
+    return error instanceof Error && /HTTP 404\b/.test(error.message);
+  }
+
+  private async fetchWithLegacyFallback<T>(
+    canonicalUrl: string,
+    legacyUrl: string,
+    options?: RequestInit & { useCache?: boolean; cacheTtl?: number },
+  ): Promise<T> {
+    try {
+      return await this.fetchWithErrorHandling<T>(canonicalUrl, options);
+    } catch (error) {
+      if (this.isNotFoundError(error)) {
+        return this.fetchWithErrorHandling<T>(legacyUrl, options);
+      }
+      throw error;
+    }
+  }
+
   async get<T>(endpoint: string, options?: { useCache?: boolean; cacheTtl?: number }): Promise<T> {
     const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
     return this.fetchWithErrorHandling<T>(url, options);
@@ -308,7 +277,7 @@ class ApiClient {
     filters: Record<string, any> = {},
     page = 1,
     limit = 24,
-  ): Promise<{ subjects: any[]; total: number }> {
+  ): Promise<SubjectsListResponseDto> {
     const queryParams = new URLSearchParams({
       page: page.toString(),
       limit: limit.toString(),
@@ -328,7 +297,7 @@ class ApiClient {
     // Cache bust to avoid stale front-page results during development
     queryParams.append('v', String(Date.now()));
 
-    return this.fetchWithErrorHandling<{ subjects: any[]; total: number }>(
+    return this.fetchWithErrorHandling<SubjectsListResponseDto>(
       `/api/subjects?${queryParams.toString()}`,
       { useCache: false },
     );
@@ -363,7 +332,7 @@ class ApiClient {
     if (limit !== 24) params.append('limit', limit.toString());
 
     const url = `${API_BASE_URL}/entities${params.toString() ? `?${params.toString()}` : ''}`;
-    const resp = await this.fetchWithErrorHandling<PaginatedResponse>(url);
+    const resp = await this.fetchWithErrorHandling<EntityListResponseDto>(url);
     const data = Array.isArray((resp as any).data) ? (resp as any).data : [];
     const normalized = data.map((e: any) => ({
       ...e,
@@ -373,7 +342,7 @@ class ApiClient {
       files: e.files ?? e.documentCount ?? 0,
       blackBookEntry: e.blackBookEntry || null,
     }));
-    return { ...(resp as any), data: normalized };
+    return { ...(resp as any), data: normalized } as PaginatedResponse;
   }
 
   async getEntity(id: string): Promise<Person> {
@@ -408,8 +377,11 @@ class ApiClient {
     if (options?.limit != null) params.append('limit', String(options.limit));
 
     const query = params.toString();
-    const url = `${API_BASE_URL}/entities/${id}/communications${query ? `?${query}` : ''}`;
-    return this.fetchWithErrorHandling<{ data: any[]; total: number }>(url, { useCache: true });
+    const canonicalUrl = `${API_BASE_URL}/entities/${id}/analytics/communications${query ? `?${query}` : ''}`;
+    const legacyUrl = `${API_BASE_URL}/entities/${id}/communications${query ? `?${query}` : ''}`;
+    return this.fetchWithLegacyFallback<{ data: any[]; total: number }>(canonicalUrl, legacyUrl, {
+      useCache: true,
+    });
   }
 
   async getDocumentThread(id: string): Promise<{ threadId: string; messages: any[] }> {
@@ -421,11 +393,11 @@ class ApiClient {
 
   async getEmailMailboxes(
     params: { showSuppressedJunk?: boolean } = {},
-  ): Promise<{ revisionKey: string; data: EmailMailboxDTO[] }> {
+  ): Promise<EmailMailboxesResponseDto> {
     const usp = new URLSearchParams();
     if (params.showSuppressedJunk) usp.append('showSuppressedJunk', '1');
     const url = `${API_BASE_URL}/emails/mailboxes${usp.toString() ? `?${usp.toString()}` : ''}`;
-    return this.fetchWithErrorHandling<{ revisionKey: string; data: EmailMailboxDTO[] }>(url, {
+    return this.fetchWithErrorHandling<EmailMailboxesResponseDto>(url, {
       useCache: true,
       cacheTtl: 30000,
     });
@@ -444,10 +416,7 @@ class ApiClient {
     cursor?: string | null;
     limit?: number;
     showSuppressedJunk?: boolean;
-  }): Promise<{
-    data: EmailThreadDTO[];
-    meta: { total: number; limit: number; hasMore: boolean; nextCursor: string | null };
-  }> {
+  }): Promise<EmailThreadsResponseDto> {
     const usp = new URLSearchParams();
     if (params.mailboxId) usp.append('mailboxId', params.mailboxId);
     if (params.q) usp.append('q', params.q);
@@ -465,9 +434,9 @@ class ApiClient {
     return this.fetchWithErrorHandling(url, { useCache: true, cacheTtl: 30000 });
   }
 
-  async getEmailThread(threadId: string): Promise<EmailThreadDetailsDTO> {
+  async getEmailThread(threadId: string): Promise<EmailThreadDetailsDto> {
     const url = `${API_BASE_URL}/emails/threads/${encodeURIComponent(threadId)}`;
-    return this.fetchWithErrorHandling<EmailThreadDetailsDTO>(url, {
+    return this.fetchWithErrorHandling<EmailThreadDetailsDto>(url, {
       useCache: true,
       cacheTtl: 30000,
     });
@@ -476,11 +445,11 @@ class ApiClient {
   async getEmailMessageBody(
     messageId: string,
     options: { showQuoted?: boolean } = {},
-  ): Promise<EmailMessageBodyDTO> {
+  ): Promise<EmailMessageBodyDto> {
     const usp = new URLSearchParams();
     if (options.showQuoted) usp.append('showQuoted', '1');
     const url = `${API_BASE_URL}/emails/messages/${encodeURIComponent(messageId)}/body${usp.toString() ? `?${usp.toString()}` : ''}`;
-    return this.fetchWithErrorHandling<EmailMessageBodyDTO>(url, {
+    return this.fetchWithErrorHandling<EmailMessageBodyDto>(url, {
       useCache: true,
       cacheTtl: 60000,
     });
@@ -493,14 +462,18 @@ class ApiClient {
     determinism: string;
   }> {
     const url = `${API_BASE_URL}/emails/messages/${encodeURIComponent(messageId)}/raw`;
-    return this.fetchWithErrorHandling(url, { useCache: true, cacheTtl: 60000 });
+    return this.fetchWithErrorHandling<EmailRawMessageDto>(url, {
+      useCache: true,
+      cacheTtl: 60000,
+    });
   }
 
-  async getEmailThreadForMessage(
-    messageId: string,
-  ): Promise<{ messageId: string; threadId: string }> {
+  async getEmailThreadForMessage(messageId: string): Promise<EmailThreadForMessageDto> {
     const url = `${API_BASE_URL}/emails/messages/${encodeURIComponent(messageId)}/thread`;
-    return this.fetchWithErrorHandling(url, { useCache: true, cacheTtl: 60000 });
+    return this.fetchWithErrorHandling<EmailThreadForMessageDto>(url, {
+      useCache: true,
+      cacheTtl: 60000,
+    });
   }
 
   async searchEmails(params: {
@@ -508,25 +481,13 @@ class ApiClient {
     scope?: 'global' | 'mailbox';
     mailboxId?: string;
     limit?: number;
-  }): Promise<{
-    scope: 'global' | 'mailbox';
-    q: string;
-    data: Array<{
-      threadId: string;
-      messageId: string;
-      subject: string;
-      from: string;
-      date: string;
-      snippet: string;
-      highlights: Array<{ start: number; end: number }>;
-    }>;
-  }> {
+  }): Promise<EmailSearchResponseDto> {
     const usp = new URLSearchParams({ q: params.q });
     if (params.scope) usp.append('scope', params.scope);
     if (params.mailboxId) usp.append('mailboxId', params.mailboxId);
     if (params.limit) usp.append('limit', String(params.limit));
     const url = `${API_BASE_URL}/emails/search?${usp.toString()}`;
-    return this.fetchWithErrorHandling(url, { useCache: false });
+    return this.fetchWithErrorHandling<EmailSearchResponseDto>(url, { useCache: false });
   }
 
   async search(
@@ -587,8 +548,9 @@ class ApiClient {
   }
 
   async getEntityGraph(entityId: string, depth: number = 2): Promise<any> {
-    const url = `${API_BASE_URL}/entities/${entityId}/graph?depth=${depth}`;
-    return this.fetchWithErrorHandling<any>(url);
+    const canonicalUrl = `${API_BASE_URL}/entities/${entityId}/analytics/graph?depth=${depth}`;
+    const legacyUrl = `${API_BASE_URL}/entities/${entityId}/graph?depth=${depth}`;
+    return this.fetchWithLegacyFallback<any>(canonicalUrl, legacyUrl);
   }
 
   async getEntityDocuments(entityId: string): Promise<any[]> {
@@ -611,18 +573,47 @@ class ApiClient {
   }
 
   async analyzeDocument(documentId: string): Promise<any> {
-    const url = `${API_BASE_URL}/evidence/${documentId}/analyze`;
-    return this.fetchWithErrorHandling<any>(url, { method: 'POST' });
+    const canonicalUrl = `${API_BASE_URL}/documents/${documentId}/analytics/analyze`;
+    const legacyUrl = `${API_BASE_URL}/evidence/${documentId}/analyze`;
+    return this.fetchWithLegacyFallback<any>(canonicalUrl, legacyUrl, { method: 'POST' });
   }
 
   async getEvidenceMetrics(documentId: string): Promise<any> {
-    const url = `${API_BASE_URL}/evidence/${documentId}/metrics`;
-    return this.fetchWithErrorHandling<any>(url);
+    const canonicalUrl = `${API_BASE_URL}/documents/${documentId}/analytics/metrics`;
+    const legacyUrl = `${API_BASE_URL}/evidence/${documentId}/metrics`;
+    return this.fetchWithLegacyFallback<any>(canonicalUrl, legacyUrl);
   }
 
   async getChainOfCustody(documentId: string): Promise<any> {
-    const url = `${API_BASE_URL}/evidence/${documentId}/custody`;
-    return this.fetchWithErrorHandling<any>(url);
+    const canonicalUrl = `${API_BASE_URL}/documents/${documentId}/analytics/custody`;
+    const legacyUrl = `${API_BASE_URL}/evidence/${documentId}/custody`;
+    return this.fetchWithLegacyFallback<any>(canonicalUrl, legacyUrl);
+  }
+
+  async getInvestigationEvidenceSummary(investigationId: string): Promise<any> {
+    const canonicalUrl = `${API_BASE_URL}/investigations/${investigationId}/analytics/evidence-summary`;
+    const legacyPluralUrl = `${API_BASE_URL}/investigations/${investigationId}/evidence-summary`;
+    const legacySingularUrl = `${API_BASE_URL}/investigation/${investigationId}/evidence-summary`;
+
+    try {
+      return await this.fetchWithErrorHandling<any>(canonicalUrl, { useCache: false });
+    } catch (error) {
+      if (!this.isNotFoundError(error)) throw error;
+    }
+
+    try {
+      return await this.fetchWithErrorHandling<any>(legacyPluralUrl, { useCache: false });
+    } catch (error) {
+      if (!this.isNotFoundError(error)) throw error;
+    }
+
+    return this.fetchWithErrorHandling<any>(legacySingularUrl, { useCache: false });
+  }
+
+  async getEntityConfidence(entityId: string | number): Promise<any> {
+    const canonicalUrl = `${API_BASE_URL}/entities/${entityId}/analytics/confidence`;
+    const legacyUrl = `${API_BASE_URL}/entities/${entityId}/confidence`;
+    return this.fetchWithLegacyFallback<any>(canonicalUrl, legacyUrl, { useCache: true });
   }
 
   async getDocument(id: string): Promise<any> {
@@ -811,17 +802,15 @@ class ApiClient {
   async getInvestigationEvidencePage(
     id: string,
     params: { limit: number; offset: number },
-  ): Promise<{ data: any[]; total: number; limit: number; offset: number }> {
+  ): Promise<InvestigationEvidenceListResponseDto> {
     const usp = new URLSearchParams({
       limit: String(params.limit),
       offset: String(params.offset),
     });
-    return this.fetchWithErrorHandling<{
-      data: any[];
-      total: number;
-      limit: number;
-      offset: number;
-    }>(`${API_BASE_URL}/investigations/${id}/evidence?${usp.toString()}`, { useCache: false });
+    return this.fetchWithErrorHandling<InvestigationEvidenceListResponseDto>(
+      `${API_BASE_URL}/investigations/${id}/evidence?${usp.toString()}`,
+      { useCache: false },
+    );
   }
 
   async getInvestigationNotebook(id: string): Promise<any> {
@@ -841,7 +830,11 @@ class ApiClient {
     });
   }
 
-  async getDocuments(filters: any = {}, page: number = 1, limit: number = 50): Promise<any> {
+  async getDocuments(
+    filters: any = {},
+    page: number = 1,
+    limit: number = 50,
+  ): Promise<DocumentsListResponseDto> {
     const params = new URLSearchParams();
     if (page > 1) params.append('page', page.toString());
     if (limit !== 50) params.append('limit', limit.toString());
@@ -853,7 +846,7 @@ class ApiClient {
     if (filters.evidenceType) params.append('evidenceType', filters.evidenceType);
 
     const url = `${API_BASE_URL}/documents?${params.toString()}`;
-    return this.fetchWithErrorHandling<any>(url);
+    return this.fetchWithErrorHandling<DocumentsListResponseDto>(url);
   }
 
   async healthCheck(): Promise<{ status: string; timestamp: string; database: string }> {

@@ -7,6 +7,7 @@ import { SensitiveContent } from '../common/SensitiveContent';
 import BatchToolbar from '../common/BatchToolbar';
 import { SensitiveWarningBanner } from '../shared/SensitiveWarningBanner';
 import Icon from '../common/Icon';
+import { apiClient } from '../../services/apiClient';
 
 interface AudioItem {
   id: number;
@@ -176,11 +177,8 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
         if (resp.ok) {
           const inv = await resp.json();
           setInvestigationId(inv.id);
-          const sumResp = await fetch(`/api/investigation/${inv.id}/evidence-summary`);
-          if (sumResp.ok) {
-            const summary = await sumResp.json();
-            setInvestigationSummary(summary);
-          }
+          const summary = await apiClient.getInvestigationEvidenceSummary(String(inv.id));
+          setInvestigationSummary(summary);
         }
       } catch {
         void 0;

@@ -1,20 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-
-// Define the shape of our navigation context
-interface NavigationContextType {
-  searchTerm: string;
-  setSearchTerm: (term: string) => void;
-  filters: Record<string, any>;
-  setFilters: (filters: Record<string, any>) => void;
-  selectedEntity: string | null;
-  setSelectedEntity: (entity: string | null) => void;
-  selectedDocument: string | null;
-  setSelectedDocument: (document: string | null) => void;
-  clearNavigation: () => void;
-}
-
-// Create the context with a default value
-const NavigationContext = createContext<NavigationContextType | undefined>(undefined);
+import { useState, useEffect, ReactNode } from 'react';
+import { NavigationContext } from './NavigationContext';
 
 // Internal provider implementation
 const NavigationProviderImpl = ({ children }: { children: ReactNode }) => {
@@ -91,19 +76,8 @@ const NavigationProviderImpl = ({ children }: { children: ReactNode }) => {
   );
 };
 
-// Create a provider component that is safe for fast refresh
 export const NavigationProvider: React.FC<{ children: ReactNode }> = ({ children }) => (
   <NavigationProviderImpl>{children}</NavigationProviderImpl>
 );
 
-// Create a custom hook to use the navigation context
-export const useNavigation = (): NavigationContextType => {
-  const context = useContext(NavigationContext);
-  if (context === undefined) {
-    throw new Error('useNavigation must be used within a NavigationProvider');
-  }
-  return context;
-};
-
-// Export a provider component as the default export for fast refresh compatibility
 export default NavigationProvider;

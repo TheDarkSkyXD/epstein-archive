@@ -61,6 +61,18 @@ import { InvestigationActivityFeed } from './InvestigationActivityFeed';
 import { InvestigationCaseFolder } from './InvestigationCaseFolder';
 import { DocumentModal } from '../documents/DocumentModal';
 import { EvidenceModal } from '../common/EvidenceModal';
+import type {
+  InvestigationCaseEvidenceItemDto,
+  InvestigationEvidenceByTypeResponseDto,
+} from '@shared/dto/investigations';
+import {
+  investigationActions,
+  investigationsApi,
+  normalizeEvidenceListItem,
+  useCaseFolder,
+  useEvidenceNavigation,
+  useInvestigationList,
+} from '../../domains/investigations';
 
 interface InvestigationWorkspaceProps {
   investigationId?: string;
@@ -78,9 +90,19 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
   const navigate = useNavigate();
   const { addToast } = useToasts();
 
-  const [investigations, setInvestigations] = useState<Investigation[]>([]);
-  const [selectedInvestigation, setSelectedInvestigation] = useState<Investigation | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const {
+    investigations,
+    setInvestigations,
+    selectedInvestigation,
+    setSelectedInvestigation,
+    isLoading,
+    loadInvestigations,
+    loadInvestigation: loadInvestigationFromDomain,
+    createInvestigation: createInvestigationFromDomain,
+  } = useInvestigationList({
+    currentUser,
+    onError: (message) => addToast({ text: message, type: 'error' }),
+  });
   const [showNewInvestigationModal, setShowNewInvestigationModal] = useState(false);
   const [showCreateRelationshipModal, setShowCreateRelationshipModal] = useState(false);
   const [newInvestigation, setNewInvestigation] = useState({
@@ -112,7 +134,6 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
   const [caseFolderDocumentId, setCaseFolderDocumentId] = useState<string | null>(null);
   const [caseFolderEntityId, setCaseFolderEntityId] = useState<string | null>(null);
   const [caseFolderFocusReturnEl, setCaseFolderFocusReturnEl] = useState<HTMLElement | null>(null);
-  const [deepLinkedEvidenceId, setDeepLinkedEvidenceId] = useState<string | null>(null);
   const [analyticsRange, setAnalyticsRange] = useState<'30d' | '90d' | 'all'>('90d');
   const [analyticsSourceType, setAnalyticsSourceType] = useState<
     'all' | 'document' | 'entity' | 'media'
@@ -198,6 +219,13 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
   };
 
   const activeTab = getActiveTab();
+  const {
+    caseFolder,
+    loading: caseFolderLoading,
+    error: caseFolderError,
+    reload: reloadCaseFolder,
+  } = useCaseFolder(selectedInvestigation?.id, { enabled: !!selectedInvestigation });
+
   const mobileTabs = [
     { id: 'overview', label: 'Overview' },
     { id: 'activity', label: 'Activity' },
@@ -241,138 +269,62 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
     [location.pathname, location.search, navigate],
   );
 
-  const loadInvestigations = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const resp = await fetch('/api/investigations');
-      if (resp.ok) {
-        const data = await resp.json();
-        setInvestigations(
-          (data.data || []).map((inv: any) => ({
-            id: String(inv.id),
-            title: inv.title,
-            description: inv.description || '',
-            hypothesis: inv.scope || '',
-            status:
-              inv.status === 'open'
-                ? 'active'
-                : inv.status === 'in_review'
-                  ? 'review'
-                  : inv.status === 'closed'
-                    ? 'published'
-                    : 'archived',
-            createdAt: new Date(inv.created_at),
-            updatedAt: new Date(inv.updated_at),
-            leadInvestigator: inv.owner_id,
-            uuid: inv.uuid,
-          })),
-        );
-      }
-    } catch (error) {
-      console.error('Error loading investigations:', error);
-      addToast({ text: 'Failed to load investigations', type: 'error' });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [addToast]);
-
   const loadInvestigation = useCallback(
     async (id: string) => {
-      setIsLoading(true);
       try {
-        const resp = await fetch(`/api/investigations/${id}`);
-        if (resp.ok) {
-          const inv = await resp.json();
-          const investigation: Investigation = {
-            id: String(inv.id),
-            title: inv.title,
-            description: inv.description || '',
-            hypothesis: inv.scope || '',
-            status:
-              inv.status === 'open'
-                ? 'active'
-                : inv.status === 'in_review'
-                  ? 'review'
-                  : inv.status === 'closed'
-                    ? 'published'
-                    : 'archived',
-            createdAt: new Date(inv.created_at),
-            updatedAt: new Date(inv.updated_at),
-            team: [
-              {
-                id: inv.owner_id,
-                name: inv.owner_name || 'Investigation Creator',
-                email: inv.owner_email || '',
-                role: 'lead',
-                permissions: ['read', 'write', 'admin'],
-                joinedAt: new Date(inv.created_at),
-                organization: inv.owner_organization || '',
-                expertise: [],
-              },
-            ],
-            leadInvestigator: inv.owner_id,
-            permissions: [],
+        const loaded = await loadInvestigationFromDomain(id);
+        if (!loaded) return;
+        const { investigation, raw: inv } = loaded;
+
+        // Update URL to shareable investigation path
+        const shareId = inv.uuid || inv.id;
+        navigate(`/investigations/${shareId}`, { replace: true });
+
+        // Fetch timeline events
+        try {
+          const timelineData = await investigationsApi.getTimelineEvents(String(id));
+          const events = (timelineData || []).map((e: any) => ({
+            id: String(e.id),
+            title: e.title,
+            startDate: new Date(e.start_date),
+            description: e.description || '',
+            type: e.type,
+            confidence: Number(e.confidence || 80),
+            entities: (() => {
+              try {
+                return JSON.parse(e.entities_json || '[]');
+              } catch {
+                return [];
+              }
+            })(),
+            documents: (() => {
+              try {
+                return JSON.parse(e.documents_json || '[]');
+              } catch {
+                return [];
+              }
+            })(),
+            hypothesisIds: [],
+            evidence: [],
+            importance: 'medium' as const,
             tags: [],
-            priority: 'medium',
-            uuid: inv.uuid,
-          } as Investigation & { uuid?: string };
-          setSelectedInvestigation(investigation);
-
-          // Update URL to shareable investigation path
-          const shareId = inv.uuid || inv.id;
-          navigate(`/investigations/${shareId}`, { replace: true });
-
-          // Fetch timeline events
-          try {
-            const timelineResp = await fetch(`/api/investigations/${id}/timeline-events`);
-            if (timelineResp.ok) {
-              const timelineData = await timelineResp.json();
-              const events = timelineData.map((e: any) => ({
-                id: String(e.id),
-                title: e.title,
-                startDate: new Date(e.start_date),
-                description: e.description || '',
-                type: e.type,
-                confidence: Number(e.confidence || 80),
-                entities: (() => {
-                  try {
-                    return JSON.parse(e.entities_json || '[]');
-                  } catch {
-                    return [];
-                  }
-                })(),
-                documents: (() => {
-                  try {
-                    return JSON.parse(e.documents_json || '[]');
-                  } catch {
-                    return [];
-                  }
-                })(),
-                hypothesisIds: [],
-                evidence: [],
-                importance: 'medium',
-                tags: [],
-                sources: [],
-                createdBy: 'system',
-                createdAt: new Date(e.created_at || e.start_date || Date.now()),
-                updatedAt: new Date(e.updated_at || e.start_date || Date.now()),
-                layerId: 'default',
-              }));
-              setTimelineEvents(events);
-            }
-          } catch (err) {
-            console.error('Error fetching timeline events:', err);
-          }
-
-          if (onInvestigationSelect) onInvestigationSelect(investigation);
+            sources: [],
+            createdBy: 'system',
+            createdAt: new Date(e.created_at || e.start_date || Date.now()),
+            updatedAt: new Date(e.updated_at || e.start_date || Date.now()),
+            layerId: 'default',
+          }));
+          setTimelineEvents(events);
+        } catch (err) {
+          console.error('Error fetching timeline events:', err);
         }
+
+        if (onInvestigationSelect) onInvestigationSelect(investigation);
       } catch (error) {
         console.error('Error loading investigation:', error);
-      } finally {
-        setIsLoading(false);
       }
     },
-    [navigate, onInvestigationSelect],
+    [loadInvestigationFromDomain, navigate, onInvestigationSelect],
   );
 
   // Copy shareable URL to clipboard
@@ -467,47 +419,28 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
       }
 
       try {
-        const response = await fetch(`/api/investigations/${targetInvestigationId}/evidence`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: item.title,
-            description: item.description,
-            type: item.type,
-            sourceId: item.sourceId,
-            documentId: item.sourceId, // Assuming sourceId is documentId for documents
-            relevance: relevance || 'high',
-          }),
+        await investigationActions.addEvidence(String(targetInvestigationId), {
+          title: item.title,
+          description: item.description,
+          type: item.type,
+          sourceId: item.sourceId,
+          documentId: item.sourceId,
+          relevance: relevance || 'high',
         });
 
-        if (response.ok) {
-          // If we are currently viewing this investigation, refresh evidence
-          if (selectedInvestigation?.id === targetInvestigationId) {
-            const ev = await fetch(`/api/investigations/${targetInvestigationId}/evidence`).then(
-              (r) => r.json(),
-            );
-            setEvidenceItems(
-              ev.map((row: any) => ({
-                id: String(row.id),
-                title: row.title,
-                description: row.description || '',
-                type: 'document',
-                sourceId: String(row.document_id || ''),
-                source: '',
-                relevance: row.relevance || 'high',
-                credibility: row.credibility || 'verified',
-                extractedAt: new Date(row.extracted_at),
-                extractedBy: row.extracted_by || 'system',
-              })),
-            );
-            addToast({ text: 'Item added to investigation successfully.', type: 'success' });
-          } else {
-            addToast({ text: 'Item added to investigation successfully.', type: 'success' });
-          }
-        } else {
-          console.error('Failed to add item to investigation');
-          addToast({ text: 'Failed to add item to investigation.', type: 'error' });
+        // If we are currently viewing this investigation, refresh evidence + case folder
+        if (selectedInvestigation?.id === String(targetInvestigationId)) {
+          const evidencePage = await investigationsApi.getEvidencePage(
+            String(targetInvestigationId),
+            {
+              limit: 250,
+              offset: 0,
+            },
+          );
+          setEvidenceItems((evidencePage.data || []).map(normalizeEvidenceListItem));
+          await reloadCaseFolder();
         }
+        addToast({ text: 'Item added to investigation successfully.', type: 'success' });
       } catch (error) {
         console.error('Error adding to investigation:', error);
         addToast({ text: 'Error adding item to investigation.', type: 'error' });
@@ -518,7 +451,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
     return () => {
       window.removeEventListener('add-to-investigation' as any, handleAddToInvestigation as any);
     };
-  }, [addToast, selectedInvestigation]);
+  }, [addToast, reloadCaseFolder, selectedInvestigation]);
 
   // Investigation onboarding hook
   const { hasSeenOnboarding, markOnboardingAsSeen } = useInvestigationOnboarding();
@@ -532,23 +465,11 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
       if (!selectedInvestigation) return;
       try {
         setEvidenceLoading(true);
-        const ev = await fetch(`/api/investigations/${selectedInvestigation.id}/evidence`).then(
-          (r) => r.json(),
-        );
-        setEvidenceItems(
-          ev.map((row: any) => ({
-            id: String(row.id),
-            title: row.title,
-            description: row.description || '',
-            type: 'document',
-            sourceId: String(row.document_id || ''),
-            source: '',
-            relevance: row.relevance || 'high',
-            credibility: row.credibility || 'verified',
-            extractedAt: new Date(row.extracted_at),
-            extractedBy: row.extracted_by || 'system',
-          })),
-        );
+        const page = await investigationsApi.getEvidencePage(String(selectedInvestigation.id), {
+          limit: 250,
+          offset: 0,
+        });
+        setEvidenceItems((page.data || []).map(normalizeEvidenceListItem));
       } catch (error) {
         console.error('Error fetching evidence:', error);
       } finally {
@@ -556,7 +477,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
       }
     };
     fetchEvidence();
-  }, [selectedInvestigation, selectedInvestigation?.id]);
+  }, [selectedInvestigation]);
 
   const closeCaseFolderDocumentModal = useCallback(() => {
     setCaseFolderDocumentId(null);
@@ -573,102 +494,41 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
   }, [caseFolderFocusReturnEl]);
 
   const handleCaseFolderEvidenceClick = useCallback(
-    async (item: any, triggerEl?: HTMLElement | null) => {
+    async (item: InvestigationCaseEvidenceItemDto, triggerEl?: HTMLElement | null) => {
       if (!selectedInvestigation) return;
-      setCaseFolderFocusReturnEl(triggerEl || null);
-
-      const targetType = item?.target_type || null;
-      const targetId = item?.target_id || null;
-      const metadata = (() => {
-        try {
-          return item?.metadata_json ? JSON.parse(item.metadata_json) : {};
-        } catch (_error) {
-          return {};
-        }
-      })();
-
-      const evidenceLinkId = item?.investigation_evidence_id;
-
-      const showMissingSourceToast = () => {
-        addToast({
-          text: 'Source missing for this evidence link.',
-          type: 'warning',
-          action:
-            isAdmin && evidenceLinkId
-              ? {
-                  label: 'Remove link',
-                  onClick: async () => {
-                    try {
-                      await fetch(`/api/investigation/remove-evidence/${evidenceLinkId}`, {
-                        method: 'DELETE',
-                      });
-                      addToast({ text: 'Broken evidence link removed.', type: 'success' });
-                    } catch (_error) {
-                      addToast({ text: 'Failed to remove broken evidence link.', type: 'error' });
-                    }
-                  },
-                }
-              : undefined,
-        });
-      };
-
-      const resolvedType =
-        targetType ||
-        (() => {
-          const sourcePath = String(item?.source_path || '');
-          if (sourcePath.startsWith('entity:')) return 'entity';
-          if (
-            sourcePath.startsWith('document:') ||
-            sourcePath.startsWith('doc:') ||
-            metadata.document_id
-          ) {
-            return 'document';
+      return investigationActions.openEvidence(item, {
+        navigate,
+        setDocumentId: (id) => setCaseFolderDocumentId(String(id)),
+        setEntityId: (id) => setCaseFolderEntityId(String(id)),
+        setFocusReturnEl: setCaseFolderFocusReturnEl,
+        triggerEl,
+        addToast,
+        isAdmin,
+        onRemoveBrokenLink: async (investigationEvidenceId: number) => {
+          try {
+            await investigationsApi.removeEvidenceLink(investigationEvidenceId);
+            await reloadCaseFolder();
+            addToast({ text: 'Broken evidence link removed.', type: 'success' });
+          } catch (error) {
+            console.error('Failed to remove broken evidence link:', error);
+            addToast({ text: 'Failed to remove broken evidence link.', type: 'error' });
           }
-          if (
-            sourcePath.startsWith('media:') ||
-            sourcePath.startsWith('audio:') ||
-            sourcePath.startsWith('video:')
-          ) {
-            return 'media';
-          }
-          if (metadata.media_item_id) return 'media';
-          return null;
-        })();
-      const resolvedId =
-        targetId || metadata.document_id || metadata.entity_id || metadata.media_item_id || null;
-
-      if (resolvedType === 'document' && resolvedId) {
-        setCaseFolderDocumentId(String(resolvedId));
-        return;
-      }
-
-      if (resolvedType === 'entity' && resolvedId) {
-        setCaseFolderEntityId(String(resolvedId));
-        return;
-      }
-
-      if (resolvedType === 'media' && resolvedId) {
-        const evidenceType = String(item?.type || '');
-        if (metadata.document_id) {
-          setCaseFolderDocumentId(String(metadata.document_id));
-          return;
-        }
-        if (evidenceType === 'audio') {
-          navigate(`/media/audio?id=${resolvedId}`);
-          return;
-        }
-        if (evidenceType === 'video') {
-          navigate(`/media/video?id=${resolvedId}`);
-          return;
-        }
-        navigate(`/media/photos?photoId=${resolvedId}`);
-        return;
-      }
-
-      showMissingSourceToast();
+        },
+      });
     },
-    [addToast, isAdmin, navigate, selectedInvestigation],
+    [addToast, isAdmin, navigate, reloadCaseFolder, selectedInvestigation],
   );
+
+  const { deepLinkedEvidenceId } = useEvidenceNavigation({
+    selectedInvestigationId: selectedInvestigation ? String(selectedInvestigation.id) : null,
+    location,
+    activeTab,
+    navigateToTab,
+    loadCaseFolder: reloadCaseFolder,
+    openEvidence: (item, triggerEl) =>
+      handleCaseFolderEvidenceClick(item as InvestigationCaseEvidenceItemDto, triggerEl),
+    addToast: ({ text, type }) => addToast({ text, type }),
+  });
 
   const handleTimelineOpenSource = useCallback(
     (event: TimelineEvent) => {
@@ -697,63 +557,6 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
     },
     [addToast, evidenceItems],
   );
-
-  useEffect(() => {
-    if (!selectedInvestigation) return;
-    const pathMatch =
-      location.pathname.match(/^\/investigate\/case\/([^/]+)\/evidence\/([^/?#]+)/) ||
-      location.pathname.match(/^\/investigations\/([^/]+)\/evidence\/([^/?#]+)/);
-    const queryEvidenceId = new URLSearchParams(location.search).get('evidenceId');
-    if (!pathMatch && !queryEvidenceId) {
-      setDeepLinkedEvidenceId(null);
-      return;
-    }
-    const routeInvestigationId = pathMatch?.[1] || String(selectedInvestigation.id);
-    const routeEvidenceId = pathMatch?.[2] || queryEvidenceId;
-    if (!routeEvidenceId) return;
-    if (String(routeInvestigationId) !== String(selectedInvestigation.id)) return;
-    setDeepLinkedEvidenceId(String(routeEvidenceId));
-
-    const openEvidenceFromRoute = async () => {
-      if (activeTab !== 'casefolder') navigateToTab('casefolder');
-      try {
-        const response = await fetch(
-          `/api/investigations/${selectedInvestigation.id}/evidence-by-type`,
-        );
-        if (!response.ok) return;
-        const payload = await response.json();
-        const allItems = Array.isArray(payload?.all) ? payload.all : [];
-        const match = allItems.find(
-          (item: any) =>
-            String(item.id) === String(routeEvidenceId) ||
-            String(item.investigation_evidence_id) === String(routeEvidenceId),
-        );
-        if (match) {
-          handleCaseFolderEvidenceClick(match, null);
-        } else {
-          addToast({
-            text: 'Evidence deep link not found in this case.',
-            type: 'warning',
-          });
-        }
-      } catch (_error) {
-        addToast({
-          text: 'Failed to resolve evidence deep link.',
-          type: 'error',
-        });
-      }
-    };
-
-    openEvidenceFromRoute();
-  }, [
-    activeTab,
-    addToast,
-    handleCaseFolderEvidenceClick,
-    location.pathname,
-    location.search,
-    navigateToTab,
-    selectedInvestigation,
-  ]);
 
   useEffect(() => {
     if (import.meta.env.PROD) return;
@@ -963,9 +766,9 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
         const evidenceByTypeResp = await fetch(
           `/api/investigations/${selectedInvestigation.id}/evidence-by-type`,
         );
-        const evidenceByType = evidenceByTypeResp.ok
-          ? await evidenceByTypeResp.json()
-          : { all: [] };
+        const evidenceByType: InvestigationEvidenceByTypeResponseDto = evidenceByTypeResp.ok
+          ? ((await evidenceByTypeResp.json()) as InvestigationEvidenceByTypeResponseDto)
+          : { all: [], byType: {}, counts: {}, total: 0 };
         const allEvidence = Array.isArray(evidenceByType?.all) ? evidenceByType.all : [];
         const rangeDays = analyticsRange === '30d' ? 30 : analyticsRange === '90d' ? 90 : null;
         const rangeStart = rangeDays ? Date.now() - rangeDays * 24 * 60 * 60 * 1000 : null;
@@ -1107,53 +910,21 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
       return;
     }
 
-    setIsLoading(true);
     try {
-      const resp = await fetch('/api/investigations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: newInvestigation.title,
-          description: newInvestigation.description,
-          ownerId: currentUser.id,
-          scope: newInvestigation.hypothesis,
-        }),
+      const created = await createInvestigationFromDomain({
+        title: newInvestigation.title,
+        description: newInvestigation.description,
+        hypothesis: newInvestigation.hypothesis,
       });
-      const inv = await resp.json();
+      setSelectedInvestigation(created.investigation);
+      if (onInvestigationSelect) {
+        onInvestigationSelect(created.investigation);
+      }
+      const shareId = (created.raw as any)?.uuid || (created.raw as any)?.id;
+      if (shareId) {
+        navigate(`/investigations/${shareId}`, { replace: true });
+      }
       await loadInvestigations();
-      setSelectedInvestigation({
-        id: String(inv.id),
-        title: inv.title,
-        description: inv.description || '',
-        hypothesis: inv.scope || '',
-        status:
-          inv.status === 'open'
-            ? 'active'
-            : inv.status === 'in_review'
-              ? 'review'
-              : inv.status === 'closed'
-                ? 'published'
-                : 'archived',
-        createdAt: new Date(inv.created_at),
-        updatedAt: new Date(inv.updated_at),
-        team: [
-          {
-            id: currentUser.id,
-            name: currentUser.name || 'Current User',
-            email: currentUser.email || '',
-            role: 'lead',
-            permissions: ['read', 'write', 'admin'],
-            joinedAt: new Date(inv.created_at),
-            organization: currentUser.organization || '',
-            expertise: currentUser.expertise || [],
-            status: 'active',
-          },
-        ],
-        leadInvestigator: currentUser.id,
-        permissions: [],
-        tags: [],
-        priority: 'medium',
-      });
       setShowNewInvestigationModal(false);
       setNewInvestigation({
         title: '',
@@ -1164,8 +935,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
       });
     } catch (error) {
       console.error('Error creating investigation:', error);
-    } finally {
-      setIsLoading(false);
+      addToast({ text: 'Failed to create investigation.', type: 'error' });
     }
   };
 
@@ -1222,7 +992,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
           hypothesisIds: [], // Add if schema supports
           entities: JSON.parse(e.entities_json || '[]'),
           evidence: [],
-          importance: 'medium',
+          importance: 'medium' as const,
           tags: [],
           sources: [],
           createdBy: 'system',
@@ -1276,7 +1046,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
           hypothesisIds: [],
           entities: JSON.parse(e.entities_json || '[]'),
           evidence: [],
-          importance: 'medium',
+          importance: 'medium' as const,
           tags: [],
           sources: [],
           createdBy: 'system',
@@ -1721,6 +1491,10 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                 investigationId={selectedInvestigation.id}
                 onEvidenceClick={handleCaseFolderEvidenceClick}
                 deepLinkedEvidenceId={deepLinkedEvidenceId}
+                caseFolderData={caseFolder || undefined}
+                caseFolderLoading={caseFolderLoading}
+                caseFolderError={caseFolderError}
+                onReloadCaseFolder={reloadCaseFolder}
               />
             )}
 

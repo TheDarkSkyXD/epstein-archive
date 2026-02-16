@@ -100,6 +100,7 @@ router.post('/add-snippet', async (req: Request, res: Response) => {
 });
 /**
  * GET /api/investigation/:investigationId/evidence-summary
+ * Legacy route alias (backward compatibility) for /api/investigations/:id/analytics/evidence-summary
  * Get evidence summary for an investigation
  */
 router.get('/:investigationId/evidence-summary', async (req: Request, res: Response) => {

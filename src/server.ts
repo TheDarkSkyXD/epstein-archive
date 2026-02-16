@@ -16,6 +16,7 @@ import { mediaRepository } from './server/db/mediaRepository.js';
 import { investigationsRepository } from './server/db/investigationsRepository.js';
 import { searchRepository } from './server/db/searchRepository.js';
 import { timelineRepository } from './server/db/timelineRepository.js';
+import { forensicRepository } from './server/db/forensicRepository.js';
 import { runMigrations } from './server/db/migrator.js';
 import { validateStartup } from './server/utils/startupValidation.js';
 import { authenticateRequest, requireRole } from './server/auth/middleware.js';
@@ -55,6 +56,11 @@ import analyticsRoutes from './server/routes/analytics.js';
 import usersRoutes from './server/routes/users.js';
 import { reviewQueueRepository } from './server/db/reviewQueueRepository.js';
 import { apiCache, cacheMiddleware } from './server/middleware/cache.js';
+import {
+  mapEntityListResponseDto,
+  mapSubjectsListResponseDto,
+} from './server/mappers/entitiesDtoMapper.js';
+import { mapDocumentsListResponseDto } from './server/mappers/documentsDtoMapper.js';
 
 interface AuthenticatedRequest extends express.Request {
   user?: User;
@@ -754,33 +760,13 @@ app.get('/api/entities', cacheMiddleware(300), async (req, res, next) => {
       }
     }
 
-    // Transform the result to match the expected format
-    const transformedData = result.entities.map((entity: any) => ({
-      id: entity.id,
-      name: entity.full_name || entity.fullName,
-      fullName: entity.full_name || entity.fullName,
-      bio: entity.bio,
-      entity_type: entity.entity_type || entity.entityType || 'Person',
-      primaryRole: entity.primary_role || entity.primaryRole || 'Person of Interest',
-      secondaryRoles: entity.secondary_roles || entity.secondaryRoles || [],
-      mentions: entity.mentions,
-      files: entity.document_count || entity.files || entity.documentCount || 0,
-      contexts: entity.contexts || [],
-      evidence_types: entity.evidence_types || entity.evidenceTypes || [],
-      evidenceTypes: entity.evidence_types || entity.evidenceTypes || [],
-      photos: photosByEntity[entity.id] || [],
-      significant_passages: entity.red_flag_passages || entity.significantPassages || [],
-      likelihood_score: (entity.risk_level || entity.riskLevel || 'LOW').toUpperCase(),
-      red_flag_score: entity.red_flag_score !== undefined ? entity.red_flag_score : 0,
-      red_flag_rating: entity.red_flag_rating !== undefined ? entity.red_flag_rating : 0,
-      red_flag_peppers:
-        entity.red_flag_rating !== undefined ? '🚩'.repeat(entity.red_flag_rating) : '🏳️',
-      red_flag_description:
-        entity.red_flag_description ||
-        entity.redFlagDescription ||
-        `Red Flag Index ${entity.red_flag_rating || entity.redFlagRating || 0}`,
-      connectionsToEpstein: entity.connections_summary || entity.connectionsSummary || '',
-    }));
+    const dto = mapEntityListResponseDto({
+      entities: result.entities,
+      total: result.total,
+      page,
+      pageSize: limit,
+      photosByEntity,
+    });
 
     // Add cache headers for performance
     res.set({
@@ -791,13 +777,7 @@ app.get('/api/entities', cacheMiddleware(300), async (req, res, next) => {
       'X-Total-Pages': Math.ceil(result.total / limit).toString(),
     });
 
-    res.json({
-      data: transformedData,
-      total: result.total,
-      page: page,
-      pageSize: limit,
-      totalPages: Math.ceil(result.total / limit),
-    });
+    res.json(dto);
   } catch (error) {
     console.error('Error fetching entities:', error);
     next(error);
@@ -899,7 +879,7 @@ app.get('/api/subjects', cacheMiddleware(300), (req, res) => {
     const sortBy = (req.query.sortBy as SortOption) || 'red_flag';
 
     const result = entitiesRepository.getSubjectCards(page, limit, filters, sortBy);
-    res.json(result);
+    res.json(mapSubjectsListResponseDto(result));
   } catch (error) {
     console.error('Error fetching subject cards:', error);
     res.status(500).json({ error: 'Failed to fetch subjects' });
@@ -1025,8 +1005,7 @@ app.get('/api/entities/:id/documents', cacheMiddleware(30), async (req, res, nex
   }
 });
 
-// Communications for an entity (email-based)
-app.get('/api/entities/:id/communications', async (req, res, next) => {
+const getEntityCommunications = async (req: express.Request, res: express.Response, next: any) => {
   try {
     const entityId = req.params.id;
     if (!/^\d+$/.test(entityId)) {
@@ -1054,7 +1033,13 @@ app.get('/api/entities/:id/communications', async (req, res, next) => {
     console.error('Error fetching entity communications:', error);
     next(error);
   }
-});
+};
+
+// Canonical entity analytics route
+app.get('/api/entities/:id/analytics/communications', getEntityCommunications);
+
+// Legacy route alias (backward compatibility)
+app.get('/api/entities/:id/communications', getEntityCommunications);
 
 // Mount Articles Routes
 app.use('/api/articles', articlesRoutes);
@@ -1387,8 +1372,7 @@ app.get('/api/documents/:id/lineage', async (req, res, next) => {
   }
 });
 
-// Get entity confidence scoring
-app.get('/api/entities/:id/confidence', async (req, res, next) => {
+const getEntityConfidence = async (req: express.Request, res: express.Response, next: any) => {
   try {
     const db = getDb();
     const entityId = req.params.id;
@@ -1439,7 +1423,13 @@ app.get('/api/entities/:id/confidence', async (req, res, next) => {
     console.error('Error calculating entity confidence:', error);
     next(error);
   }
-});
+};
+
+// Canonical entity analytics route
+app.get('/api/entities/:id/analytics/confidence', getEntityConfidence);
+
+// Legacy route alias (backward compatibility)
+app.get('/api/entities/:id/confidence', getEntityConfidence);
 
 // Enhanced Analytics API - Aggregated data for visualizations
 // Forensic Metrics Summary (Tier 3 - Advanced Analytics)
@@ -1485,18 +1475,129 @@ app.get('/api/documents', async (req, res, next) => {
       return doc;
     });
 
-    res.json({
-      data: mappedDocuments,
-      total: result.total,
-      page,
-      pageSize: limit,
-      totalPages: Math.ceil(result.total / limit),
-    });
+    res.json(
+      mapDocumentsListResponseDto({
+        data: mappedDocuments,
+        total: result.total,
+        page,
+        pageSize: limit,
+        totalPages: Math.ceil(result.total / limit),
+      }),
+    );
   } catch (error) {
     console.error('Error fetching documents:', error);
     next(error);
   }
 });
+
+const analyzeDocumentAnalytics = async (
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction,
+) => {
+  try {
+    const { id } = req.params as { id: string };
+    const doc = (await documentsRepository.getDocumentById(id)) as any;
+    if (!doc) return res.status(404).json({ error: 'Document not found' });
+
+    const content = (doc.content || '').toLowerCase();
+    const metadata = doc.metadata_json ? JSON.parse(doc.metadata_json) : {};
+    const suspiciousKeywords = [
+      'epstein',
+      'maxwell',
+      'payment',
+      'transfer',
+      'wire',
+      'confidential',
+      'secret',
+      'bank',
+      'trust',
+      'llc',
+      'offshore',
+    ];
+
+    let suspiciousMatches = 0;
+    suspiciousKeywords.forEach((kw) => {
+      if (content.includes(kw)) suspiciousMatches++;
+    });
+
+    const metrics = {
+      readability: {
+        fleschKincaid: 100 - Math.min(100, (doc.word_count || 100) / 10),
+        gradeLevel: Math.min(12, Math.floor((doc.word_count || 500) / 50)),
+      },
+      sentiment: {
+        score: content.includes('urgent') || content.includes('payment') ? -0.2 : 0.1,
+        magnitude: Math.min(1.0, (doc.word_count || 0) / 1000),
+      },
+      metadataAnalysis: {
+        hasGPS: !!metadata.location,
+        creationDateMatches: true,
+        author: metadata.author || metadata.uploadedBy || 'Unknown',
+        fileIntegrity: 'verified',
+      },
+      keywordAnalysis: {
+        totalSuspiciousWords: suspiciousMatches,
+        matches: suspiciousKeywords.filter((kw) => content.includes(kw)),
+      },
+    };
+
+    let baseScore = 0.75;
+    if (suspiciousMatches > 5) baseScore += 0.15;
+    if (metadata.originalName) baseScore += 0.05;
+    if (doc.red_flag_rating >= 4) baseScore += 0.05;
+
+    const authenticityScore = Math.min(1.0, baseScore);
+
+    forensicRepository.saveMetrics(id as string, metrics, authenticityScore);
+    forensicRepository.addCustodyEvent({
+      evidenceId: id as string,
+      actor: (req as any).user?.name || 'System',
+      action: 'Automated Forensic Analysis',
+      notes: `Content-aware analysis detected ${suspiciousMatches} suspicious keywords. Base authenticity: ${authenticityScore.toFixed(2)}`,
+    });
+
+    res.json({ success: true, metrics, authenticityScore });
+  } catch (error) {
+    console.error('Analysis error:', error);
+    next(error);
+  }
+};
+
+const getDocumentAnalyticsMetrics = async (
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction,
+) => {
+  try {
+    const { id } = req.params as { id: string };
+    const metrics = forensicRepository.getMetrics(id);
+    res.json(metrics || { metrics_json: '{}', authenticity_score: 0 });
+  } catch (error) {
+    console.error('Metrics error:', error);
+    next(error);
+  }
+};
+
+const getDocumentAnalyticsCustody = async (
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction,
+) => {
+  try {
+    const { id } = req.params as { id: string };
+    const chain = forensicRepository.getChainOfCustody(id);
+    res.json(chain || []);
+  } catch (error) {
+    console.error('Custody error:', error);
+    next(error);
+  }
+};
+
+// Canonical document analytics routes
+app.get('/api/documents/:id/analytics/metrics', getDocumentAnalyticsMetrics);
+app.get('/api/documents/:id/analytics/custody', getDocumentAnalyticsCustody);
+app.post('/api/documents/:id/analytics/analyze', analyzeDocumentAnalytics);
 
 // Get single document by ID
 app.get('/api/documents/:id', async (req, res, next) => {

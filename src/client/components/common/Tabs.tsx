@@ -13,7 +13,7 @@ interface TabsProps {
   activeTab: string;
   onChange: (key: string) => void;
   className?: string;
-  variant?: 'default' | 'compact';
+  variant?: 'default' | 'compact' | 'viewer';
 }
 
 export const Tabs: React.FC<TabsProps> = ({
@@ -38,14 +38,16 @@ export const Tabs: React.FC<TabsProps> = ({
         transform: `translateX(${tabRect.left - containerRect.left}px)`,
       });
 
-      // Scroll into view if needed
-      activeTabElement.scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest',
-        inline: 'center',
-      });
+      if (variant !== 'viewer') {
+        // Scroll into view only for overflow-style tabs.
+        activeTabElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+          inline: 'center',
+        });
+      }
     }
-  }, [activeTab, tabs]);
+  }, [activeTab, tabs, variant]);
 
   const handleKeyDown = (e: React.KeyboardEvent, index: number) => {
     if (e.key === 'ArrowRight') {

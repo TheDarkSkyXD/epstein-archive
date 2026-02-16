@@ -1,5 +1,10 @@
 import { useEffect } from 'react';
 
+let lockCount = 0;
+let previousBodyOverflow = '';
+let previousBodyPaddingRight = '';
+let previousHtmlOverflow = '';
+
 /**
  * Hook to lock body scroll when a modal is open.
  * Handles multiple nested modals correctly by maintaining a lock count (conceptually,
@@ -11,14 +16,29 @@ export const useScrollLock = (isOpen: boolean) => {
   useEffect(() => {
     if (!isOpen) return;
 
-    // Get original overflow style
-    const originalStyle = window.getComputedStyle(document.body).overflow;
+    lockCount += 1;
+    if (lockCount === 1) {
+      const bodyStyle = window.getComputedStyle(document.body);
+      const htmlStyle = window.getComputedStyle(document.documentElement);
+      previousBodyOverflow = bodyStyle.overflow;
+      previousBodyPaddingRight = document.body.style.paddingRight;
+      previousHtmlOverflow = htmlStyle.overflow;
 
-    // Prevent scrolling
-    document.body.style.overflow = 'hidden';
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+      if (scrollbarWidth > 0) {
+        document.body.style.paddingRight = `${scrollbarWidth}px`;
+      }
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+    }
 
     return () => {
-      document.body.style.overflow = originalStyle;
+      lockCount = Math.max(0, lockCount - 1);
+      if (lockCount === 0) {
+        document.body.style.overflow = previousBodyOverflow;
+        document.body.style.paddingRight = previousBodyPaddingRight;
+        document.documentElement.style.overflow = previousHtmlOverflow;
+      }
     };
   }, [isOpen]);
 };

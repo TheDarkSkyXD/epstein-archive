@@ -6,6 +6,14 @@ import {
   getKnownEntitySenders,
 } from '../services/emailClassificationService.js';
 import { performanceCache } from '../performanceCache.js';
+import {
+  mapEmailMailboxesResponseDto,
+  mapEmailMessageBodyDto,
+  mapEmailRawMessageDto,
+  mapEmailSearchResponseDto,
+  mapEmailThreadDetailsDto,
+  mapEmailThreadsResponseDto,
+} from '../mappers/emailsDtoMapper.js';
 
 const router = express.Router();
 
@@ -339,8 +347,9 @@ router.get('/mailboxes', async (req, res, next) => {
       ],
     };
 
-    performanceCache.set(cacheKey, payload, LIST_TTL_SECONDS);
-    res.json(payload);
+    const dto = mapEmailMailboxesResponseDto(payload);
+    performanceCache.set(cacheKey, dto, LIST_TTL_SECONDS);
+    res.json(dto);
   } catch (error) {
     next(error);
   }
@@ -484,7 +493,7 @@ router.get('/threads', async (req, res, next) => {
       },
     };
 
-    res.json(payload);
+    res.json(mapEmailThreadsResponseDto(payload));
   } catch (error) {
     next(error);
   }
@@ -602,11 +611,13 @@ router.get('/threads/:threadId', async (req, res, next) => {
       redFlagRating: row.redFlagRating,
     }));
 
-    return res.json({
-      threadId,
-      subject: rows[rows.length - 1].subject,
-      messages,
-    });
+    return res.json(
+      mapEmailThreadDetailsDto({
+        threadId,
+        subject: rows[rows.length - 1].subject,
+        messages,
+      }),
+    );
   } catch (error) {
     next(error);
   }
@@ -703,8 +714,9 @@ router.get('/messages/:messageId/body', async (req, res, next) => {
       rawAvailable: source.length > 0,
     };
 
-    performanceCache.set(cacheKey, payload, BODY_TTL_SECONDS);
-    res.json(payload);
+    const dto = mapEmailMessageBodyDto(payload);
+    performanceCache.set(cacheKey, dto, BODY_TTL_SECONDS);
+    res.json(dto);
   } catch (error) {
     next(error);
   }
@@ -762,13 +774,15 @@ router.get('/messages/:messageId/raw', async (req, res, next) => {
     const metadata = safeJsonParse<Record<string, any>>(row.metadata_json, {});
     const raw = String(metadata.body_raw || metadata.raw || row.content || '');
 
-    res.json({
-      messageId: req.params.messageId,
-      raw,
-      warning: 'Raw MIME content can include malformed or unsafe markup. Inspect with caution.',
-      determinism:
-        'Raw view is a direct source payload and is not transformed except transport encoding.',
-    });
+    res.json(
+      mapEmailRawMessageDto({
+        messageId: req.params.messageId,
+        raw,
+        warning: 'Raw MIME content can include malformed or unsafe markup. Inspect with caution.',
+        determinism:
+          'Raw view is a direct source payload and is not transformed except transport encoding.',
+      }),
+    );
   } catch (error) {
     next(error);
   }
@@ -859,7 +873,7 @@ router.get('/search', async (req, res, next) => {
       }),
     };
 
-    res.json(payload);
+    res.json(mapEmailSearchResponseDto(payload));
   } catch (error) {
     next(error);
   }

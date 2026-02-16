@@ -9,6 +9,7 @@ import { SignalPanel } from './cards/SignalPanel';
 import { EvidenceBadge } from './cards/EvidenceBadge';
 import { DriverChips } from './cards/DriverChips';
 import Tooltip from '../common/Tooltip';
+import { riskToneFromRating } from '../../utils/riskSemantics';
 
 interface SubjectCardV2Props {
   subject: SubjectCardDTO;
@@ -34,6 +35,13 @@ const SubjectCardV2: React.FC<SubjectCardV2Props> = React.memo(
       signal_strength: { exposure: 0, connectivity: 0, corroboration: 0 },
       driver_labels: [],
     };
+    const riskRating = Number(
+      (forensics as any).red_flag_objective ||
+        (forensics as any).red_flag_subjective ||
+        (subject as any).red_flag_rating ||
+        0,
+    );
+    const riskTone = riskToneFromRating(riskRating);
 
     const handleCardClick = () => {
       if (onClick) onClick();
@@ -77,7 +85,10 @@ const SubjectCardV2: React.FC<SubjectCardV2Props> = React.memo(
       <div style={style}>
         <div
           onClick={handleCardClick}
-          className="group relative surface-glass p-4 cursor-pointer transition-all duration-300 hover:border-slate-400/30 flex flex-col h-full w-full"
+          className="group relative surface-glass-card p-4 cursor-pointer transition-all duration-300 hover:border-slate-300/35 flex flex-col h-full w-full"
+          style={{
+            boxShadow: `inset 0 1px 0 rgba(248,250,252,0.05), 0 12px 26px rgba(2,6,23,0.36), 0 0 0 1px color-mix(in srgb, ${riskTone.cssVar} 22%, transparent)`,
+          }}
         >
           <div className="flex items-start gap-3 mb-2">
             <div className="flex-shrink-0 relative w-10 h-10 rounded-[var(--radius-md)] overflow-hidden border border-slate-700 bg-slate-950">

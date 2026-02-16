@@ -152,6 +152,9 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
   const [activeTab, setActiveTab] = useState<
     'overview' | 'evidence' | 'media' | 'network' | 'investigations'
   >(getTabFromUrl());
+  const [activeQuickAction, setActiveQuickAction] = useState<
+    'blackbook' | 'timeline' | 'search' | null
+  >(null);
   const [entity, setEntity] = useState<EntityDetails | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -193,6 +196,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
     }>
   >([]);
   const [networkLoading, setNetworkLoading] = useState(false);
+  const blackBookSectionRef = React.useRef<HTMLDivElement | null>(null);
 
   const fetchEntityDetails = React.useCallback(async () => {
     setLoading(true);
@@ -225,6 +229,46 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
       setTabsLoaded((prev) => new Set(prev).add(urlTab));
     }
   }, [activeTab, getTabFromUrl]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const quickAction = params.get('entityAction');
+    if (!quickAction) return;
+
+    if (quickAction === 'timeline') {
+      setActiveQuickAction('timeline');
+      setActiveTab('network');
+      setTabsLoaded((prev) => new Set(prev).add('network'));
+      return;
+    }
+
+    if (quickAction === 'search') {
+      setActiveQuickAction('search');
+      setActiveTab('evidence');
+      setTabsLoaded((prev) => new Set(prev).add('evidence'));
+      const query = params.get('entitySearch');
+      if (query) {
+        setDocFilters((prev) => ({ ...prev, search: query }));
+      }
+      return;
+    }
+
+    if (quickAction === 'blackbook') {
+      setActiveQuickAction('blackbook');
+      setActiveTab('overview');
+      setTabsLoaded((prev) => new Set(prev).add('overview'));
+    }
+  }, [location.search]);
+
+  useEffect(() => {
+    if (
+      activeQuickAction === 'blackbook' &&
+      activeTab === 'overview' &&
+      blackBookSectionRef.current
+    ) {
+      blackBookSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [activeQuickAction, activeTab]);
 
   useEffect(() => {
     if (!(isOpen && entityId && activeTab === 'evidence' && tabsLoaded.has('evidence'))) return;
@@ -390,6 +434,33 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
     [navigate, onClose],
   );
 
+  const handleQuickAction = useCallback(
+    (action: 'blackbook' | 'timeline' | 'search') => {
+      if (!entity?.fullName) return;
+
+      const params = new URLSearchParams(location.search);
+      params.set('entityAction', action);
+
+      if (action === 'blackbook') {
+        params.set('entityTab', 'overview');
+      } else if (action === 'timeline') {
+        params.set('entityTab', 'network');
+      } else {
+        params.set('entityTab', 'evidence');
+        params.set('entitySearch', entity.fullName);
+        setDocFilters((prev) => ({ ...prev, search: entity.fullName }));
+      }
+
+      navigate(`${location.pathname}?${params.toString()}`, { replace: true });
+      setActiveQuickAction(action);
+      const nextTab =
+        action === 'timeline' ? 'network' : action === 'search' ? 'evidence' : 'overview';
+      setActiveTab(nextTab);
+      setTabsLoaded((prev) => new Set(prev).add(nextTab));
+    },
+    [entity?.fullName, location.pathname, location.search, navigate],
+  );
+
   const forensicSummary = useMemo(() => {
     if (!entity || !forensicData) return '';
     const docsCount = totalDocs > 0 ? totalDocs : documents.length;
@@ -504,39 +575,43 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
 
                     <div className="flex items-center gap-3 mb-4">
                       <button
-                        onClick={() =>
-                          navigateFromModal(
-                            `/blackbook?search=${encodeURIComponent(entity?.fullName || '')}`,
-                          )
-                        }
+                        onClick={() => handleQuickAction('blackbook')}
+                        data-testid="entity-modal-action-blackbook"
                         className="text-xs text-purple-300 hover:text-purple-200 hover:underline flex items-center gap-1 transition-colors"
                       >
                         <BookOpen size={12} />
                         Black Book
                       </button>
                       <button
-                        onClick={() =>
-                          navigateFromModal(
-                            `/timeline?search=${encodeURIComponent(entity?.fullName || '')}`,
-                          )
-                        }
+                        onClick={() => handleQuickAction('timeline')}
+                        data-testid="entity-modal-action-timeline"
                         className="text-xs text-blue-300 hover:text-blue-200 hover:underline flex items-center gap-1 transition-colors"
                       >
                         <Calendar size={12} />
                         Timeline
                       </button>
                       <button
-                        onClick={() =>
-                          navigateFromModal(
-                            `/search?q=${encodeURIComponent(entity?.fullName || '')}`,
-                          )
-                        }
+                        onClick={() => handleQuickAction('search')}
+                        data-testid="entity-modal-action-search"
                         className="text-xs text-cyan-300 hover:text-cyan-200 hover:underline flex items-center gap-1 transition-colors"
                       >
                         <Search size={12} />
                         Search
                       </button>
                     </div>
+                    {activeQuickAction && (
+                      <p
+                        data-testid="entity-modal-context"
+                        className="text-[11px] text-slate-500 mb-2"
+                      >
+                        Context:{' '}
+                        {activeQuickAction === 'blackbook'
+                          ? 'Black Book'
+                          : activeQuickAction === 'timeline'
+                            ? 'Timeline'
+                            : 'Search'}
+                      </p>
+                    )}
                   </>
                 )}
 
@@ -561,7 +636,10 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
             <div className="flex-1 min-h-0 relative bg-slate-900">
               {/* 1. OVERVIEW TAB */}
               {activeTab === 'overview' && (
-                <div className="absolute inset-0 overflow-y-auto custom-scrollbar">
+                <div
+                  className="absolute inset-0 overflow-y-auto custom-scrollbar"
+                  data-testid="entity-modal-tab-overview"
+                >
                   {loading && (
                     <div className="p-6 space-y-8">
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -736,7 +814,10 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
 
                       {/* BLACK BOOK ENTRY */}
                       {entity.blackBookEntries && entity.blackBookEntries.length > 0 && (
-                        <div className="bg-purple-950/20 border border-purple-900/30 rounded-xl p-5 mb-8">
+                        <div
+                          ref={blackBookSectionRef}
+                          className="bg-purple-950/20 border border-purple-900/30 rounded-xl p-5 mb-8"
+                        >
                           <div className="flex items-center justify-between mb-4">
                             <h3 className="text-purple-400 font-semibold flex items-center gap-2">
                               <Icon name="Book" size="sm" />
@@ -795,7 +876,10 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
 
               {/* 2. EVIDENCE TAB */}
               {activeTab === 'evidence' && (
-                <div className="h-full flex flex-col min-h-0">
+                <div
+                  className="h-full flex flex-col min-h-0"
+                  data-testid="entity-modal-tab-evidence"
+                >
                   {/* FILTERS TOOLBAR */}
                   <div className="p-4 bg-slate-950/30 border-b border-slate-800 flex flex-col md:flex-row gap-3 shrink-0">
                     <div className="relative flex-1 max-w-md">
@@ -1012,7 +1096,10 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
 
               {/* 4. NETWORK TAB */}
               {activeTab === 'network' && (
-                <div className="absolute inset-0 overflow-hidden bg-slate-900">
+                <div
+                  className="absolute inset-0 overflow-hidden bg-slate-900"
+                  data-testid="entity-modal-tab-network"
+                >
                   {networkLoading ? (
                     <div className="h-full flex flex-col items-center justify-center text-slate-500">
                       <Search size={32} className="mx-auto mb-4 opacity-20 animate-pulse" />

@@ -1,3 +1,26 @@
+## v13.12.0 - 2026-02-16 - Liquid Glass UX Restoration and Viewer Stability
+
+### Visual hierarchy and polish restoration
+
+- Restored the liquid-glass visual style across core surfaces with better depth, blur, highlights, and elevation so the interface no longer appears flat or cramped.
+- Rebalanced top navigation spacing and responsive behavior to reduce bunching, improve alignment, and remove awkward trailing dead space.
+- Refined motion and interaction feedback with smoother hover, press, and focus states while maintaining accessibility and touch target size.
+
+### Header and search usability improvements
+
+- Reworked the global header into a unified translucent glass surface with cleaner hierarchy and improved readability.
+- Rebuilt search into a single unified pill with embedded action button, removing the harsh divider seam and improving focus behavior.
+
+### Semantic risk color consistency
+
+- Standardized risk color mapping (critical/high/medium/low/minimal/unknown) and applied it consistently across key indicators and chips.
+- Improved subject and evidence card signal readability so high-priority items stand out clearly without visual noise.
+
+### Document and email viewer reliability upgrades
+
+- Standardized viewer shell behavior with fixed chrome and a single primary scroll region to eliminate multi-scroll confusion and layout jumping.
+- Improved document significance excerpts to better explain why content is important, including clearer reason tags and more readable fallback excerpts.
+
 ## v13.11.0 - 2026-02-16 - Navigation and Investigation UX Reliability Upgrade
 
 ### Unified close controls and modal polish

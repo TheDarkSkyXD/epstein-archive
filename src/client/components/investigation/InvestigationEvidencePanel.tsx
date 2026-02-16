@@ -17,6 +17,7 @@ import {
 import { ENTITY_CATEGORY_ICONS } from '../../config/entityIcons';
 import { EvidenceAnnotationPanel, EvidenceAnnotation } from '../documents/EvidenceAnnotation';
 import { CloseButton } from '../common/CloseButton';
+import { apiClient } from '../../services/apiClient';
 
 interface Evidence {
   id: number;
@@ -72,8 +73,7 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
   const loadEvidenceSummary = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/investigation/${investigationId}/evidence-summary`);
-      const data = await response.json();
+      const data = await apiClient.getInvestigationEvidenceSummary(String(investigationId));
       setEvidence(data.evidence || []);
       setEntityCoverage(data.entityCoverage || []);
       setTypeBreakdown(data.typeBreakdown || {});

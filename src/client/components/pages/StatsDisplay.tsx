@@ -1,5 +1,6 @@
 import Icon from '../common/Icon';
 import { useCountUp } from '../../hooks/useCountUp';
+import { riskToneFromRating } from '../../utils/riskSemantics';
 
 interface StatsDisplayProps {
   stats: {
@@ -31,7 +32,7 @@ export function StatsDisplay({
       <RiskStat
         label="High Risk"
         icon="AlertTriangle"
-        tone="high"
+        rating={4}
         value={highRiskCount}
         active={selectedRiskLevel === 'HIGH'}
         onClick={() => onRiskLevelClick?.('HIGH')}
@@ -39,7 +40,7 @@ export function StatsDisplay({
       <RiskStat
         label="Medium Risk"
         icon="ShieldAlert"
-        tone="medium"
+        rating={3}
         value={mediumRiskCount}
         active={selectedRiskLevel === 'MEDIUM'}
         onClick={() => onRiskLevelClick?.('MEDIUM')}
@@ -70,22 +71,19 @@ export function StatsDisplay({
 function RiskStat({
   label,
   icon,
-  tone,
+  rating,
   value,
   active,
   onClick,
 }: {
   label: string;
   icon: string;
-  tone: 'high' | 'medium';
+  rating: number;
   value: number;
   active?: boolean;
   onClick: () => void;
 }) {
-  const toneClass = {
-    high: 'risk-high',
-    medium: 'risk-medium',
-  }[tone];
+  const tone = riskToneFromRating(rating);
 
   return (
     <button
@@ -95,7 +93,7 @@ function RiskStat({
     >
       <div className="flex items-center justify-between mb-2">
         <span className="text-[11px] tracking-[0.12em] uppercase text-slate-400">{label}</span>
-        <span className={`chip h-6 px-2 flex items-center ${toneClass}`}>
+        <span className={`chip h-6 px-2 flex items-center ${tone.className}`}>
           <Icon name={icon as any} size="xs" />
         </span>
       </div>
@@ -103,7 +101,7 @@ function RiskStat({
         {value.toLocaleString()}
       </div>
       <div className="mt-1 text-[11px] text-slate-400 uppercase tracking-[0.1em]">
-        {tone === 'high' ? 'Priority One' : 'Monitor'}
+        {label === 'High Risk' ? 'Priority One' : 'Monitor'}
       </div>
     </button>
   );

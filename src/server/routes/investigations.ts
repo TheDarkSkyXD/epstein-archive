@@ -1,6 +1,11 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { investigationsRepository } from '../db/investigationsRepository.js';
 import { authenticateRequest } from '../auth/middleware.js';
+import {
+  mapInvestigationEvidenceListItemDto,
+  mapInvestigationEvidenceByTypeResponseDto,
+  mapInvestigationEvidenceListResponseDto,
+} from '../mappers/investigationsDtoMapper.js';
 
 const router = Router();
 
@@ -190,7 +195,10 @@ router.get('/:id/evidence', async (req, res, next) => {
       limit,
       offset,
     });
-    res.json(evidence);
+    if (Array.isArray(evidence)) {
+      return res.json(evidence.map(mapInvestigationEvidenceListItemDto));
+    }
+    res.json(mapInvestigationEvidenceListResponseDto(evidence));
   } catch (error) {
     next(error);
   }
@@ -206,7 +214,11 @@ router.post('/:id/evidence', authenticateRequest, async (req, res, next) => {
   }
 });
 
-router.get('/:id/evidence-summary', async (req, res, next) => {
+const getInvestigationEvidenceSummary = async (
+  req: Request<{ id: string }>,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const { id } = req.params;
     const repoModule = await import('../db/evidenceRepository.js');
@@ -215,7 +227,13 @@ router.get('/:id/evidence-summary', async (req, res, next) => {
   } catch (error) {
     next(error);
   }
-});
+};
+
+// Canonical case analytics route
+router.get('/:id/analytics/evidence-summary', getInvestigationEvidenceSummary);
+
+// Legacy route alias (backward compatibility)
+router.get('/:id/evidence-summary', getInvestigationEvidenceSummary);
 
 // --- Hypotheses ---
 
@@ -322,7 +340,7 @@ router.get('/:id/evidence-by-type', async (req, res, next) => {
   try {
     const { id } = req.params;
     const evidence = await investigationsRepository.getEvidenceByType(parseInt(id));
-    res.json(evidence);
+    res.json(mapInvestigationEvidenceByTypeResponseDto(evidence));
   } catch (error) {
     next(error);
   }

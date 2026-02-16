@@ -27,6 +27,8 @@ import {
 } from '../../services/apiClient';
 import { AddToInvestigationButton } from '../common/AddToInvestigationButton';
 import { EvidenceModal } from '../common/EvidenceModal';
+import { ViewerShell } from '../viewer/ViewerShell';
+import { riskToneFromRating } from '../../utils/riskSemantics';
 
 const THREAD_PAGE_SIZE = 50;
 type EmailDensity = 'comfortable' | 'compact';
@@ -56,10 +58,7 @@ const ladderTone = (ladder: string | null): string => {
 };
 
 const riskTone = (risk: number | null): string => {
-  if ((risk || 0) >= 4) return 'text-red-300 border-red-500/60 bg-red-600/15';
-  if ((risk || 0) >= 2) return 'text-amber-300 border-amber-500/60 bg-amber-600/15';
-  if ((risk || 0) > 0) return 'text-cyan-300 border-cyan-500/60 bg-cyan-600/15';
-  return 'text-emerald-300 border-emerald-500/60 bg-emerald-600/15';
+  return riskToneFromRating(risk).className;
 };
 
 const formatTime = (value: string | null): string => {
@@ -932,252 +931,252 @@ export const EmailClient: React.FC = () => {
             ) : threadError ? (
               <div className="p-4 text-sm text-red-300">{threadError}</div>
             ) : selectedThread ? (
-              <>
-                <div className="px-4 py-3 border-b border-slate-800/80 bg-slate-950/70">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-lg font-semibold text-white truncate">
-                        {selectedThread.subject}
-                      </div>
-                      <div className="text-xs text-slate-400 mt-1">
-                        {selectedThread.messages.length.toLocaleString()} messages · mailbox{' '}
-                        {selectedMailbox?.displayName || 'All'}
-                      </div>
+              <ViewerShell
+                header={
+                  <div className="min-w-0">
+                    <div className="text-lg font-semibold text-white truncate">
+                      {selectedThread.subject}
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        onClick={() => {
-                          if (window.innerWidth < 768) {
-                            setMobilePane('threads');
-                          } else {
-                            setSelectedThreadId(null);
-                            updateUrlState({ threadId: null, messageId: null });
-                          }
-                        }}
-                        className="h-9 px-3 rounded-full border border-slate-700 bg-slate-900 text-sm text-slate-200"
-                      >
-                        <ArrowLeft className="w-4 h-4" />
-                      </button>
-                      <AddToInvestigationButton
-                        item={{
-                          id: selectedThread.threadId,
-                          type: 'evidence',
-                          title: selectedThread.subject,
-                          description: `Email thread with ${selectedThread.messages.length} messages`,
-                          sourceId: selectedThread.threadId,
-                          metadata: {
-                            sourceType: 'email_thread',
-                            threadId: selectedThread.threadId,
-                            messageCount: selectedThread.messages.length,
-                          },
-                        }}
-                        variant="quick"
-                        className="h-9"
-                      />
+                    <div className="text-xs text-slate-400 mt-1">
+                      {selectedThread.messages.length.toLocaleString()} messages · mailbox{' '}
+                      {selectedMailbox?.displayName || 'All'}
                     </div>
                   </div>
-                </div>
+                }
+                actions={
+                  <>
+                    <button
+                      onClick={() => {
+                        if (window.innerWidth < 768) {
+                          setMobilePane('threads');
+                        } else {
+                          setSelectedThreadId(null);
+                          updateUrlState({ threadId: null, messageId: null });
+                        }
+                      }}
+                      className="h-9 px-3 rounded-full border border-slate-700 bg-slate-900 text-sm text-slate-200"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                    </button>
+                    <AddToInvestigationButton
+                      item={{
+                        id: selectedThread.threadId,
+                        type: 'evidence',
+                        title: selectedThread.subject,
+                        description: `Email thread with ${selectedThread.messages.length} messages`,
+                        sourceId: selectedThread.threadId,
+                        metadata: {
+                          sourceType: 'email_thread',
+                          threadId: selectedThread.threadId,
+                          messageCount: selectedThread.messages.length,
+                        },
+                      }}
+                      variant="quick"
+                      className="h-9"
+                    />
+                  </>
+                }
+                headerClassName="px-4 py-3"
+                bodyClassName="bg-slate-900/10"
+              >
+                <div className="message-thread">
+                  {selectedThread.messages.map((message) => {
+                    const expanded = Boolean(expandedMessages[message.messageId]);
+                    const body = bodyState[message.messageId];
+                    const citation = `message_id=${message.messageId}; date=${message.date}; mailbox=${selectedMailbox?.displayName || 'All'}; ingest_run_id=${message.ingestRunId ?? 'unknown'}`;
 
-                <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-900/10">
-                  <div className="message-thread">
-                    {selectedThread.messages.map((message) => {
-                      const expanded = Boolean(expandedMessages[message.messageId]);
-                      const body = bodyState[message.messageId];
-                      const citation = `message_id=${message.messageId}; date=${message.date}; mailbox=${selectedMailbox?.displayName || 'All'}; ingest_run_id=${message.ingestRunId ?? 'unknown'}`;
-
-                      return (
-                        <article
-                          key={message.messageId}
-                          className={`message-card ${expanded ? 'expanded' : ''}`}
-                          data-message-id={message.messageId}
+                    return (
+                      <article
+                        key={message.messageId}
+                        className={`message-card ${expanded ? 'expanded' : ''}`}
+                        data-message-id={message.messageId}
+                      >
+                        <button
+                          onClick={() => handleToggleMessage(message.messageId, !expanded)}
+                          className="w-full text-left"
                         >
-                          <button
-                            onClick={() => handleToggleMessage(message.messageId, !expanded)}
-                            className="w-full text-left"
-                          >
-                            <div className="message-header">
-                              <div className="w-10 h-10 rounded-full bg-slate-800/50 flex items-center justify-center shrink-0 border border-white/5">
-                                <User className="w-5 h-5 text-slate-400" />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center justify-between gap-3">
-                                  <div className="text-sm font-bold text-slate-100 truncate">
-                                    {message.from || 'Unknown Sender'}
-                                  </div>
-                                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                                    {formatTime(message.date)}
-                                  </div>
+                          <div className="message-header">
+                            <div className="w-10 h-10 rounded-full bg-slate-800/50 flex items-center justify-center shrink-0 border border-white/5">
+                              <User className="w-5 h-5 text-slate-400" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="text-sm font-bold text-slate-100 truncate">
+                                  {message.from || 'Unknown Sender'}
                                 </div>
-                                <div className="text-[11px] text-slate-500 truncate mt-0.5">
-                                  To: {message.to.join(' · ') || 'Unknown recipient'}
+                                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                                  {formatTime(message.date)}
                                 </div>
                               </div>
-                              <ChevronRight
-                                className={`w-4 h-4 text-slate-500 transition-transform duration-300 ${expanded ? 'rotate-90' : ''}`}
+                              <div className="text-[11px] text-slate-500 truncate mt-0.5">
+                                To: {message.to.join(' · ') || 'Unknown recipient'}
+                              </div>
+                            </div>
+                            <ChevronRight
+                              className={`w-4 h-4 text-slate-500 transition-transform duration-300 ${expanded ? 'rotate-90' : ''}`}
+                            />
+                          </div>
+                        </button>
+
+                        {expanded && (
+                          <div className="message-body space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className="flex flex-wrap items-center gap-3">
+                              <div
+                                className={`px-2.5 py-1 rounded-md border text-[9px] font-black uppercase tracking-wider ${ladderTone(message.ladder)}`}
+                              >
+                                LADDER: {message.ladder || 'N/A'}
+                              </div>
+                              <div className="px-2.5 py-1 rounded-md border border-white/5 bg-white/5 text-[9px] font-black text-slate-400 uppercase tracking-wider">
+                                CONFIDENCE:{' '}
+                                {typeof message.confidence === 'number'
+                                  ? (message.confidence * 100).toFixed(0)
+                                  : '0'}
+                                %
+                              </div>
+                              <div className="px-2.5 py-1 rounded-md border border-white/5 bg-white/5 text-[9px] font-black text-slate-500 uppercase tracking-wider">
+                                ID: {message.ingestRunId || 'RAW_INGEST'}
+                              </div>
+                              {message.wasAgentic && (
+                                <div className="px-2.5 py-1 rounded-md border border-fuchsia-500/30 bg-fuchsia-500/10 text-[9px] font-black text-fuchsia-400 uppercase tracking-wider flex items-center gap-1.5">
+                                  <Sparkles className="w-3 h-3" />
+                                  Agentic Highlighting
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                              <button
+                                onClick={() => void copyText(citation)}
+                                className="h-8 px-4 rounded-full border border-white/5 bg-white/5 text-[10px] font-bold text-slate-300 hover:bg-white/10 transition-colors uppercase tracking-wide"
+                              >
+                                Copy Citation
+                              </button>
+                              <button
+                                onClick={() => handleToggleRaw(message.messageId)}
+                                className="h-8 px-4 rounded-full border border-white/5 bg-white/5 text-[10px] font-bold text-slate-300 hover:bg-white/10 transition-colors uppercase tracking-wide"
+                              >
+                                {body?.showRaw ? 'Show Cleaned' : 'View MIME'}
+                              </button>
+                              <button
+                                onClick={() => handleToggleQuoted(message.messageId)}
+                                className="h-8 px-4 rounded-full border border-white/5 bg-white/5 text-[10px] font-bold text-slate-300 hover:bg-white/10 transition-colors uppercase tracking-wide"
+                              >
+                                {body?.showQuoted ? 'Hide History' : 'Show History'}
+                              </button>
+                              <AddToInvestigationButton
+                                item={{
+                                  id: message.messageId,
+                                  type: 'evidence',
+                                  title: message.subject || selectedThread.subject,
+                                  description: `Email message from ${message.from}`,
+                                  sourceId: message.messageId,
+                                  metadata: {
+                                    sourceType: 'email_message',
+                                    threadId: selectedThread.threadId,
+                                    messageId: message.messageId,
+                                    ingestRunId: message.ingestRunId,
+                                  },
+                                }}
+                                variant="quick"
+                                className="h-8"
                               />
                             </div>
-                          </button>
 
-                          {expanded && (
-                            <div className="message-body space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                              <div className="flex flex-wrap items-center gap-3">
-                                <div
-                                  className={`px-2.5 py-1 rounded-md border text-[9px] font-black uppercase tracking-wider ${ladderTone(message.ladder)}`}
-                                >
-                                  LADDER: {message.ladder || 'N/A'}
+                            <div className="mime-content glass-surface p-6 rounded-2xl border-white/5">
+                              {body?.loading ? (
+                                <div className="py-12 flex flex-col items-center justify-center text-slate-500 gap-3">
+                                  <Loader2 className="w-6 h-6 animate-spin text-cyan-500/50" />
+                                  <span className="text-[10px] font-black uppercase tracking-widest">
+                                    Decompressing MIME Stream
+                                  </span>
                                 </div>
-                                <div className="px-2.5 py-1 rounded-md border border-white/5 bg-white/5 text-[9px] font-black text-slate-400 uppercase tracking-wider">
-                                  CONFIDENCE:{' '}
-                                  {typeof message.confidence === 'number'
-                                    ? (message.confidence * 100).toFixed(0)
-                                    : '0'}
-                                  %
+                              ) : body?.error ? (
+                                <div className="p-4 text-xs text-rose-400 font-bold bg-rose-500/10 rounded-lg border border-rose-500/20">
+                                  {body.error}
                                 </div>
-                                <div className="px-2.5 py-1 rounded-md border border-white/5 bg-white/5 text-[9px] font-black text-slate-500 uppercase tracking-wider">
-                                  ID: {message.ingestRunId || 'RAW_INGEST'}
-                                </div>
-                                {message.wasAgentic && (
-                                  <div className="px-2.5 py-1 rounded-md border border-fuchsia-500/30 bg-fuchsia-500/10 text-[9px] font-black text-fuchsia-400 uppercase tracking-wider flex items-center gap-1.5">
-                                    <Sparkles className="w-3 h-3" />
-                                    Agentic Highlighting
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="flex flex-wrap items-center gap-2">
-                                <button
-                                  onClick={() => void copyText(citation)}
-                                  className="h-8 px-4 rounded-full border border-white/5 bg-white/5 text-[10px] font-bold text-slate-300 hover:bg-white/10 transition-colors uppercase tracking-wide"
-                                >
-                                  Copy Citation
-                                </button>
-                                <button
-                                  onClick={() => handleToggleRaw(message.messageId)}
-                                  className="h-8 px-4 rounded-full border border-white/5 bg-white/5 text-[10px] font-bold text-slate-300 hover:bg-white/10 transition-colors uppercase tracking-wide"
-                                >
-                                  {body?.showRaw ? 'Show Cleaned' : 'View MIME'}
-                                </button>
-                                <button
-                                  onClick={() => handleToggleQuoted(message.messageId)}
-                                  className="h-8 px-4 rounded-full border border-white/5 bg-white/5 text-[10px] font-bold text-slate-300 hover:bg-white/10 transition-colors uppercase tracking-wide"
-                                >
-                                  {body?.showQuoted ? 'Hide History' : 'Show History'}
-                                </button>
-                                <AddToInvestigationButton
-                                  item={{
-                                    id: message.messageId,
-                                    type: 'evidence',
-                                    title: message.subject || selectedThread.subject,
-                                    description: `Email message from ${message.from}`,
-                                    sourceId: message.messageId,
-                                    metadata: {
-                                      sourceType: 'email_message',
-                                      threadId: selectedThread.threadId,
-                                      messageId: message.messageId,
-                                      ingestRunId: message.ingestRunId,
-                                    },
-                                  }}
-                                  variant="quick"
-                                  className="h-8"
-                                />
-                              </div>
-
-                              <div className="mime-content glass-surface p-6 rounded-2xl border-white/5">
-                                {body?.loading ? (
-                                  <div className="py-12 flex flex-col items-center justify-center text-slate-500 gap-3">
-                                    <Loader2 className="w-6 h-6 animate-spin text-cyan-500/50" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest">
-                                      Decompressing MIME Stream
-                                    </span>
-                                  </div>
-                                ) : body?.error ? (
-                                  <div className="p-4 text-xs text-rose-400 font-bold bg-rose-500/10 rounded-lg border border-rose-500/20">
-                                    {body.error}
-                                  </div>
-                                ) : body?.showRaw ? (
-                                  <pre className="text-[11px] font-mono text-slate-400 whitespace-pre-wrap break-words max-h-96 overflow-auto custom-scrollbar">
-                                    {body.raw || 'No raw content available.'}
-                                  </pre>
-                                ) : (
-                                  <div className="whitespace-pre-wrap selection:bg-cyan-500/30">
-                                    {body?.data?.cleanedText || 'No readable body available.'}
-                                  </div>
-                                )}
-                              </div>
-
-                              {(message.linkedEntities || []).length > 0 && (
-                                <div className="flex flex-wrap gap-2 px-1">
-                                  {(message.linkedEntities || []).map((entity) => (
-                                    <button
-                                      key={`${message.messageId}-${entity.entityId}`}
-                                      onClick={() => setSelectedEntityId(String(entity.entityId))}
-                                      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full border border-cyan-500/20 bg-cyan-500/5 text-[10px] font-bold text-cyan-200 hover:bg-cyan-500/10 transition-colors"
-                                      title={`Open entity ${entity.name}`}
-                                    >
-                                      <User className="w-3 h-3" />
-                                      {entity.name}
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-
-                              {(message.attachmentsMeta || []).length > 0 && (
-                                <div className="space-y-2 px-1">
-                                  <div className="text-[10px] font-black font-mono text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                                    <Paperclip className="w-3 h-3" />
-                                    Forensic Attachments ({(message.attachmentsMeta || []).length})
-                                  </div>
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                    {(message.attachmentsMeta || []).map((attachment, index) => {
-                                      const linkedDocumentId =
-                                        attachment.linkedDocumentId ||
-                                        (attachment as any).documentId ||
-                                        (attachment as any).docId;
-                                      const canOpen = Boolean(linkedDocumentId);
-                                      return (
-                                        <div
-                                          key={`${message.messageId}-attachment-${index}`}
-                                          className="flex items-center justify-between gap-3 p-2 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 transition-all cursor-default group"
-                                        >
-                                          <div className="min-w-0 flex-1">
-                                            <div className="text-[11px] font-bold text-slate-300 truncate">
-                                              {attachment.filename || `Attachment ${index + 1}`}
-                                            </div>
-                                            <div className="text-[9px] text-slate-500 font-mono mt-0.5">
-                                              {attachment.mimeType || 'UNKNOWN_MIME'} ·{' '}
-                                              {attachment.size
-                                                ? `${(attachment.size / 1024).toFixed(1)}KB`
-                                                : 'SIZE_UNKNOWN'}
-                                            </div>
-                                          </div>
-                                          {canOpen ? (
-                                            <button
-                                              onClick={() =>
-                                                navigate(`/documents/${linkedDocumentId}`)
-                                              }
-                                              className="h-7 px-3 rounded-lg border border-cyan-500/20 bg-cyan-500/10 text-[10px] font-black text-cyan-400 hover:bg-cyan-500/20 transition-colors uppercase tracking-widest"
-                                            >
-                                              Open
-                                            </button>
-                                          ) : (
-                                            <span className="text-[9px] text-slate-600 font-bold uppercase tracking-tighter px-2">
-                                              Not Ingested
-                                            </span>
-                                          )}
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
+                              ) : body?.showRaw ? (
+                                <pre className="text-[11px] font-mono text-slate-400 whitespace-pre-wrap break-words">
+                                  {body.raw || 'No raw content available.'}
+                                </pre>
+                              ) : (
+                                <div className="whitespace-pre-wrap selection:bg-cyan-500/30">
+                                  {body?.data?.cleanedText || 'No readable body available.'}
                                 </div>
                               )}
                             </div>
-                          )}
-                        </article>
-                      );
-                    })}
-                  </div>
+
+                            {(message.linkedEntities || []).length > 0 && (
+                              <div className="flex flex-wrap gap-2 px-1">
+                                {(message.linkedEntities || []).map((entity) => (
+                                  <button
+                                    key={`${message.messageId}-${entity.entityId}`}
+                                    onClick={() => setSelectedEntityId(String(entity.entityId))}
+                                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full border border-cyan-500/20 bg-cyan-500/5 text-[10px] font-bold text-cyan-200 hover:bg-cyan-500/10 transition-colors"
+                                    title={`Open entity ${entity.name}`}
+                                  >
+                                    <User className="w-3 h-3" />
+                                    {entity.name}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+
+                            {(message.attachmentsMeta || []).length > 0 && (
+                              <div className="space-y-2 px-1">
+                                <div className="text-[10px] font-black font-mono text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                                  <Paperclip className="w-3 h-3" />
+                                  Forensic Attachments ({(message.attachmentsMeta || []).length})
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                  {(message.attachmentsMeta || []).map((attachment, index) => {
+                                    const linkedDocumentId =
+                                      attachment.linkedDocumentId ||
+                                      (attachment as any).documentId ||
+                                      (attachment as any).docId;
+                                    const canOpen = Boolean(linkedDocumentId);
+                                    return (
+                                      <div
+                                        key={`${message.messageId}-attachment-${index}`}
+                                        className="flex items-center justify-between gap-3 p-2 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 transition-all cursor-default group"
+                                      >
+                                        <div className="min-w-0 flex-1">
+                                          <div className="text-[11px] font-bold text-slate-300 truncate">
+                                            {attachment.filename || `Attachment ${index + 1}`}
+                                          </div>
+                                          <div className="text-[9px] text-slate-500 font-mono mt-0.5">
+                                            {attachment.mimeType || 'UNKNOWN_MIME'} ·{' '}
+                                            {attachment.size
+                                              ? `${(attachment.size / 1024).toFixed(1)}KB`
+                                              : 'SIZE_UNKNOWN'}
+                                          </div>
+                                        </div>
+                                        {canOpen ? (
+                                          <button
+                                            onClick={() =>
+                                              navigate(`/documents/${linkedDocumentId}`)
+                                            }
+                                            className="h-7 px-3 rounded-lg border border-cyan-500/20 bg-cyan-500/10 text-[10px] font-black text-cyan-400 hover:bg-cyan-500/20 transition-colors uppercase tracking-widest"
+                                          >
+                                            Open
+                                          </button>
+                                        ) : (
+                                          <span className="text-[9px] text-slate-600 font-bold uppercase tracking-tighter px-2">
+                                            Not Ingested
+                                          </span>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </article>
+                    );
+                  })}
                 </div>
-              </>
+              </ViewerShell>
             ) : (
               <div className="h-full flex items-center justify-center text-slate-400 text-sm">
                 Thread not found.

@@ -7,7 +7,6 @@
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
-  --radius-xl: 24px;
 
   /* Spacing */
   --space-1: 4px;
@@ -34,25 +33,39 @@
   /* Color Palette - Liquid Dark */
   --bg-dark: #020617;
   --bg-surface: #0f172a;
-  --glass-border: linear-gradient(
-    to bottom right,
-    rgba(255, 255, 255, 0.12),
-    rgba(255, 255, 255, 0.04)
+  --glass-bg: rgba(15, 23, 42, 0.56);
+  --glass-bg-strong: rgba(15, 23, 42, 0.74);
+  --glass-border: rgba(148, 163, 184, 0.22);
+  --glass-highlight: rgba(248, 250, 252, 0.2);
+  --glass-shadow: 0 10px 32px rgba(2, 6, 23, 0.45);
+  --glass-shadow-soft: 0 5px 20px rgba(2, 6, 23, 0.25);
+  --glass-blur: 18px;
+  --glass-shine: linear-gradient(
+    165deg,
+    rgba(248, 250, 252, 0.07) 0%,
+    rgba(15, 23, 42, 0.06) 42%,
+    rgba(2, 6, 23, 0.02) 100%
   );
-  --glass-shine: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 100%);
 
   --text-strong: #f8fafc;
   --text-default: #e2e8f0;
   --text-muted: #94a3b8;
   --text-dim: #64748b;
 
-  --accent: #3b82f6;
+  --accent: #33a8ff;
   --accent-glow: rgba(59, 130, 246, 0.5);
+  --accent-docs: #ef4444;
+  --accent-emails: #3b82f6;
+  --accent-investigate: #ec4899;
+  --accent-evidence: #06b6d4;
 
   /* Semantic Scale */
+  --risk-critical: #fb4b5f;
   --risk-high: #ef4444;
   --risk-medium: #f59e0b;
-  --risk-low: #10b981;
+  --risk-low: #14b8a6;
+  --risk-minimal: #22c55e;
+  --risk-unknown: #94a3b8;
   --confidence-high: #8b5cf6;
 }
 
@@ -73,12 +86,12 @@ body {
 /* Liquid Glass Utilities */
 
 .glass-panel {
-  background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid transparent;
-  background-clip: padding-box;
+  background: var(--glass-shine), var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid color-mix(in srgb, var(--glass-border) 80%, transparent);
   position: relative;
+  box-shadow: var(--glass-shadow-soft);
 }
 
 .glass-panel::before {
@@ -89,38 +102,32 @@ body {
   right: 0;
   bottom: 0;
   border-radius: inherit;
-  padding: 1px;
-  background: var(--glass-border);
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: destination-out;
-  mask-composite: exclude;
+  border-top: 1px solid color-mix(in srgb, var(--glass-highlight) 75%, transparent);
   pointer-events: none;
+  opacity: 0.65;
 }
 
 .glass-surface {
-  background: var(--glass-shine), rgba(30, 41, 59, 0.4);
-  backdrop-filter: blur(8px);
+  background: var(--glass-shine), color-mix(in srgb, var(--glass-bg) 88%, transparent);
+  backdrop-filter: blur(calc(var(--glass-blur) * 0.8));
   border-radius: var(--radius-lg);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid color-mix(in srgb, var(--glass-border) 75%, transparent);
+  box-shadow: var(--glass-shadow-soft);
 }
 
 .glass-card {
-  background: rgba(30, 41, 59, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--glass-shine), color-mix(in srgb, var(--glass-bg) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--glass-border) 85%, transparent);
   border-radius: var(--radius-lg);
   transition: all var(--duration-normal) var(--easing-liquid);
+  box-shadow: var(--glass-shadow-soft);
 }
 
 .glass-card:hover {
-  background: rgba(30, 41, 59, 0.45);
-  border-color: rgba(255, 255, 255, 0.15);
+  background: var(--glass-shine), color-mix(in srgb, var(--glass-bg-strong) 92%, transparent);
+  border-color: color-mix(in srgb, var(--glass-highlight) 50%, var(--glass-border));
   transform: translateY(-2px);
-  box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--glass-shadow);
 }
 
 /* Scrollbar Overhaul: Invisible unless active */
@@ -163,15 +170,166 @@ body {
 
 /* Maintain compatibility for existing classes during transition */
 .surface-glass {
-  @apply glass-panel rounded-2xl;
+  @apply glass-panel rounded-[var(--radius-lg)];
+}
+
+.surface-glass-header {
+  @apply glass-panel rounded-[var(--radius-lg)];
+  background:
+    linear-gradient(to bottom, rgba(248, 250, 252, 0.07), rgba(148, 163, 184, 0.02)),
+    var(--glass-bg-strong);
+  box-shadow: var(--glass-shadow);
+}
+
+.surface-glass-strong {
+  @apply glass-panel rounded-[var(--radius-lg)];
+  background: var(--glass-shine), var(--glass-bg-strong);
+  box-shadow: var(--glass-shadow);
+}
+
+.surface-glass-card {
+  @apply glass-card rounded-[var(--radius-lg)];
 }
 .surface-quiet {
   @apply glass-surface;
 }
 .control {
-  @apply glass-panel rounded-xl px-4 py-2 transition-all;
-  min-height: 40px;
+  @apply glass-panel rounded-[var(--radius-md)] px-4 py-2 transition-all;
+  min-height: 44px;
+  box-shadow: var(--glass-shadow-soft);
+  will-change: transform, box-shadow, background-color;
 }
 .control:hover {
-  background: rgba(30, 41, 59, 0.8);
+  background: var(--glass-shine), color-mix(in srgb, var(--glass-bg-strong) 92%, transparent);
+  box-shadow: var(--glass-shadow);
+  transform: translateY(-1px);
+}
+
+.control:active {
+  transform: translateY(0);
+  box-shadow: var(--glass-shadow-soft);
+}
+
+.control:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 80%, #fff 20%);
+  outline-offset: 2px;
+}
+
+.chip,
+.semantic-chip {
+  @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold;
+  min-height: 24px;
+  backdrop-filter: blur(6px);
+}
+
+.risk-critical {
+  color: color-mix(in srgb, var(--risk-critical) 72%, #fff 28%);
+  border-color: color-mix(in srgb, var(--risk-critical) 42%, transparent);
+  background: color-mix(in srgb, var(--risk-critical) 18%, transparent);
+}
+
+.risk-high {
+  color: color-mix(in srgb, var(--risk-high) 72%, #fff 28%);
+  border-color: color-mix(in srgb, var(--risk-high) 40%, transparent);
+  background: color-mix(in srgb, var(--risk-high) 16%, transparent);
+}
+
+.risk-medium {
+  color: color-mix(in srgb, var(--risk-medium) 78%, #fff 22%);
+  border-color: color-mix(in srgb, var(--risk-medium) 42%, transparent);
+  background: color-mix(in srgb, var(--risk-medium) 18%, transparent);
+}
+
+.risk-low {
+  color: color-mix(in srgb, var(--risk-low) 78%, #fff 22%);
+  border-color: color-mix(in srgb, var(--risk-low) 40%, transparent);
+  background: color-mix(in srgb, var(--risk-low) 16%, transparent);
+}
+
+.risk-minimal {
+  color: color-mix(in srgb, var(--risk-minimal) 78%, #fff 22%);
+  border-color: color-mix(in srgb, var(--risk-minimal) 42%, transparent);
+  background: color-mix(in srgb, var(--risk-minimal) 16%, transparent);
+}
+
+.risk-unknown {
+  color: color-mix(in srgb, var(--risk-unknown) 70%, #fff 30%);
+  border-color: color-mix(in srgb, var(--risk-unknown) 40%, transparent);
+  background: color-mix(in srgb, var(--risk-unknown) 10%, transparent);
+}
+
+.app-header-glass {
+  @apply sticky top-0 z-40;
+  background:
+    linear-gradient(to bottom, rgba(248, 250, 252, 0.08), rgba(15, 23, 42, 0.05)),
+    color-mix(in srgb, var(--glass-bg-strong) 96%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--glass-border) 85%, transparent);
+  box-shadow: 0 12px 30px rgba(2, 6, 23, 0.35);
+  backdrop-filter: blur(calc(var(--glass-blur) * 1.1));
+}
+
+.header-search-pill {
+  @apply relative flex items-center rounded-full overflow-hidden;
+  min-height: 44px;
+  background:
+    linear-gradient(to bottom, rgba(248, 250, 252, 0.06), rgba(15, 23, 42, 0.02)),
+    color-mix(in srgb, var(--glass-bg-strong) 94%, transparent);
+  border: 1px solid color-mix(in srgb, var(--glass-border) 85%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 8px 20px rgba(2, 6, 23, 0.3);
+  transition: box-shadow var(--duration-fast) var(--easing-swift);
+}
+
+.header-search-pill:focus-within {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent),
+    0 12px 24px rgba(2, 6, 23, 0.38);
+}
+
+.header-search-button {
+  @apply inline-flex items-center justify-center rounded-full text-white transition-all;
+  width: 38px;
+  height: 38px;
+  margin: 3px;
+  background: linear-gradient(145deg, #2ec5ff, #0ea5e9);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 6px 12px rgba(14, 165, 233, 0.25);
+}
+
+.header-search-button:hover {
+  filter: brightness(1.08);
+}
+
+.main-nav-track {
+  @apply w-full pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
+  overflow-x: auto;
+}
+
+.main-nav-pill {
+  @apply rounded-full border overflow-hidden;
+  border-color: color-mix(in srgb, var(--glass-border) 82%, transparent);
+  background:
+    linear-gradient(to bottom, rgba(248, 250, 252, 0.05), rgba(15, 23, 42, 0.02)),
+    color-mix(in srgb, var(--glass-bg-strong) 94%, transparent);
+  box-shadow: var(--glass-shadow-soft);
+}
+
+.main-nav-pill > * {
+  min-height: 44px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .surface-glass-card,
+  .control,
+  .main-nav-pill button {
+    transition:
+      background-color var(--duration-fast) var(--easing-swift),
+      box-shadow var(--duration-fast) var(--easing-swift),
+      transform var(--duration-fast) var(--easing-swift),
+      border-color var(--duration-fast) var(--easing-swift),
+      color var(--duration-fast) var(--easing-swift);
+  }
 }

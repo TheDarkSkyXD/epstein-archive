@@ -24,7 +24,7 @@ import { DocumentAnnotationSystem } from './DocumentAnnotationSystem';
 import { InvestigationTextRenderer } from './InvestigationTextRenderer';
 import { DocumentDiffView } from './DocumentDiffView';
 import { ProvenancePanel } from './ProvenancePanel';
-import { Tabs } from '../common/Tabs';
+import { ViewerShell } from '../viewer/ViewerShell';
 
 interface Props {
   id: string;
@@ -245,6 +245,17 @@ export const DocumentModal: React.FC<Props> = ({
     }, 120);
     return () => clearTimeout(timeout);
   }, [activeTab, localSearchTerm, doc?.content, doc?.contentRefined]);
+
+  useEffect(() => {
+    const syncPaneMode = () => {
+      if (window.innerWidth < 1024) {
+        setRightPaneCollapsed(true);
+      }
+    };
+    syncPaneMode();
+    window.addEventListener('resize', syncPaneMode);
+    return () => window.removeEventListener('resize', syncPaneMode);
+  }, []);
 
   const entities = useMemo(() => {
     const fromDoc = Array.isArray(doc?.entities) ? doc.entities : [];
@@ -535,7 +546,7 @@ export const DocumentModal: React.FC<Props> = ({
                       </div>
 
                       <div className="flex flex-col items-end gap-2 shrink-0">
-                        <div className="flex gap-1.5 overflow-x-auto no-scrollbar max-w-xs justify-end">
+                        <div className="flex flex-wrap gap-1.5 max-w-xs justify-end">
                           {relatedDoc.sharedEntities?.map((ent: string, idx: number) => (
                             <span
                               key={idx}
@@ -626,7 +637,7 @@ export const DocumentModal: React.FC<Props> = ({
           />
         </button>
         {expandedEntities && (
-          <div className="mt-4 space-y-1.5 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+          <div className="mt-4 space-y-1.5">
             {entities.length === 0 && (
               <p className="text-xs text-slate-600 italic">No entities flagged in this record.</p>
             )}
@@ -806,10 +817,9 @@ export const DocumentModal: React.FC<Props> = ({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header - Forensic Grade */}
-        <header className="shrink-0 flex items-center justify-between px-8 py-6 border-b border-white/5 bg-slate-900/20 gap-8">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-4 mb-3">
+        <ViewerShell
+          header={
+            <div className="flex items-center gap-4 py-6 px-8 min-w-0">
               <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center shrink-0 shadow-lg shadow-cyan-900/20">
                 <FileText className="w-6 h-6 text-cyan-400" />
               </div>
@@ -837,78 +847,67 @@ export const DocumentModal: React.FC<Props> = ({
                 </div>
               </div>
             </div>
-          </div>
-
-          <div className="flex items-center gap-4 shrink-0">
-            <div className="relative group lg:w-72">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
-              <input
-                type="text"
-                placeholder="Find in record..."
-                className="control !h-12 w-full pl-10 pr-4 !bg-slate-950/40 border-white/5 focus:!border-cyan-500/50 transition-all text-sm"
-                value={localSearchTerm}
-                onChange={(e) => setLocalSearchTerm(e.target.value)}
-              />
-            </div>
-
-            <div className="h-8 w-px bg-white/5 mx-1 md:block hidden" />
-
-            {canReturnToCase && (
+          }
+          actions={
+            <>
+              <div className="relative group lg:w-72">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
+                <input
+                  type="text"
+                  placeholder="Find in record..."
+                  className="control !h-12 w-full pl-10 pr-4 !bg-slate-950/40 border-white/5 focus:!border-cyan-500/50 transition-all text-sm"
+                  value={localSearchTerm}
+                  onChange={(e) => setLocalSearchTerm(e.target.value)}
+                />
+              </div>
+              <div className="h-8 w-px bg-white/5 mx-1 md:block hidden" />
+              {canReturnToCase && (
+                <button
+                  onClick={handleBackToCase}
+                  className="control !h-12 px-5 flex items-center gap-2 text-slate-300 hover:text-white group"
+                >
+                  <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Case</span>
+                </button>
+              )}
               <button
-                onClick={handleBackToCase}
-                className="control !h-12 px-5 flex items-center gap-2 text-slate-300 hover:text-white group"
+                onClick={downloadText}
+                className="control !h-12 w-12 flex items-center justify-center text-slate-400 hover:text-cyan-400"
+                title="Download Document"
               >
-                <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                <span className="text-[10px] font-black uppercase tracking-widest">Case</span>
+                <Download className="w-5 h-5" />
               </button>
-            )}
-
-            <button
-              onClick={downloadText}
-              className="control !h-12 w-12 flex items-center justify-center text-slate-400 hover:text-cyan-400"
-              title="Download Document"
-            >
-              <Download className="w-5 h-5" />
-            </button>
-
-            <CloseButton
-              onClick={onClose}
-              size="md"
-              label="Close"
-              className="control !h-12 !w-12 text-slate-400 hover:text-rose-400 hover:border-rose-500/30"
-            />
-          </div>
-        </header>
-
-        {/* Tab List - Calm Segmented Control */}
-        <div className="shrink-0 bg-slate-900/10 border-b border-white/5 px-8 py-2">
-          <Tabs
-            tabs={VIEWER_TABS}
-            activeTab={activeTab}
-            onChange={(key) => setActiveTab(key as ViewerTab)}
-            variant="compact"
-          />
-        </div>
-
-        {/* Content Area - One Scroll Feel Region */}
-        <div className="flex-1 min-h-0 relative">
+              <CloseButton
+                onClick={onClose}
+                size="md"
+                label="Close"
+                className="control !h-12 !w-12 text-slate-400 hover:text-rose-400 hover:border-rose-500/30"
+              />
+            </>
+          }
+          tabs={VIEWER_TABS}
+          activeTab={activeTab}
+          onTabChange={(key) => setActiveTab(key as ViewerTab)}
+          tabsClassName="px-4 md:px-8"
+          bodyRef={contentRef}
+          bodyClassName="selection:bg-cyan-500/30"
+          bodyTestId="document-modal-scroll-region"
+        >
           <CollapsibleSplitPane
             left={
               <div
-                ref={contentRef}
-                className="h-full overflow-y-auto custom-scrollbar selection:bg-cyan-500/30 px-12 py-10"
+                className="h-full px-5 md:px-12 py-8 md:py-10"
                 role="tabpanel"
                 id={`panel-${activeTab}`}
                 aria-labelledby={`tab-${activeTab}`}
+                data-testid={`document-modal-tabpanel-${activeTab}`}
               >
                 <div className="max-w-4xl mx-auto">{mainPanel()}</div>
               </div>
             }
             right={
               <aside className="h-full bg-slate-950/10">
-                <div className="h-full overflow-y-auto px-8 py-10 custom-scrollbar">
-                  {rightPaneContent}
-                </div>
+                <div className="h-full px-6 md:px-8 py-8 md:py-10">{rightPaneContent}</div>
               </aside>
             }
             collapsedRight={
@@ -935,7 +934,7 @@ export const DocumentModal: React.FC<Props> = ({
             onRightCollapsedChange={setRightPaneCollapsed}
             onRightWidthChange={setRightPaneWidth}
           />
-        </div>
+        </ViewerShell>
 
         {/* Sub-modals - Layers */}
         {entityModalId && (

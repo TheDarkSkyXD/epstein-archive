@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useMemo, Suspense, lazy, useRef } from 'react';
 import { preloader } from './utils/ResourcePreloader';
+import { runDevAffordanceAudit } from './utils/devAffordanceAudit';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 // Icons imported as needed via Icon component
 import { Person } from './types';
 import { Document } from './types/documents';
 
-import { useNavigation } from './services/ContentNavigationService.tsx';
+import { useNavigation } from './services/NavigationContext';
 import { apiClient } from './services/apiClient';
 import { DocumentProcessor } from './services/documentProcessor';
 // SECURITY: Removed synthetic sample documents import - never fall back to fake data
@@ -261,6 +262,14 @@ function App() {
     x: 0,
     y: 0,
   });
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    const handle = window.requestAnimationFrame(() => {
+      runDevAffordanceAudit(document);
+    });
+    return () => window.cancelAnimationFrame(handle);
+  }, [location.pathname, location.search]);
   const [investigateArrowLeft, setInvestigateArrowLeft] = useState<number>(16);
 
   const [showReleaseNotes, setShowReleaseNotes] = useState(false);
@@ -972,12 +981,12 @@ function App() {
   const { user: currentUser, isAdmin } = useAuth();
   const navSegmentBaseClass = `flex items-center justify-center ${
     navLayoutMode === 'icons'
-      ? 'gap-0 h-9 px-1.5'
+      ? 'gap-0 h-11 px-2'
       : navLayoutMode === 'compact'
-        ? 'gap-1.5 h-10 px-2 md:px-2.5'
+        ? 'gap-1.5 h-10 px-2.5'
         : 'gap-1.5 h-11 px-3 lg:px-4'
   } rounded-none transition-all duration-200 whitespace-nowrap border-0 bg-transparent ${
-    navLayoutMode === 'icons' ? 'w-9' : 'w-auto'
+    navLayoutMode === 'icons' ? 'w-11' : 'w-auto'
   }`;
   const getNavSegmentClass = (isActive: boolean, activeClass: string, extraClass: string = '') =>
     `${navSegmentBaseClass} ${
@@ -987,6 +996,10 @@ function App() {
     } ${extraClass}`.trim();
   const navItemClass = 'shrink-0';
   const navLabelClass = navLayoutMode === 'icons' ? 'hidden' : 'inline';
+  const navPillClass =
+    navLayoutMode === 'normal'
+      ? 'flex w-full items-center justify-between rounded-full border overflow-hidden divide-x divide-slate-700/80'
+      : 'inline-flex min-w-max items-center rounded-full border overflow-hidden divide-x divide-slate-700/80';
 
   useEffect(() => {
     const track = navTrackRef.current;
@@ -995,7 +1008,7 @@ function App() {
     const updateEdgeFade = () => {
       const width = track.clientWidth;
       const mode: 'normal' | 'compact' | 'icons' =
-        width < 920 ? 'icons' : width < 1480 ? 'compact' : 'normal';
+        width < 1080 ? 'icons' : width < 1440 ? 'compact' : 'normal';
       setNavLayoutMode((prev) => (prev === mode ? prev : mode));
 
       const overflowPx = track.scrollWidth - track.clientWidth;
@@ -1060,9 +1073,9 @@ function App() {
             </div>
 
             {/* Header */}
-            <header className="bg-slate-900/80 backdrop-blur-sm border-b border-slate-700 sticky top-0 z-40 transition-all duration-300">
+            <header className="app-header-glass transition-all duration-300">
               <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex flex-col md:flex-row items-center justify-between py-2 min-h-[64px] gap-4">
+                <div className="flex flex-col md:flex-row items-center justify-between py-2.5 min-h-[68px] gap-4">
                   {/* LEFT: Logo and Stats */}
                   <div className="flex items-center gap-6">
                     {/* Logo */}
@@ -1112,7 +1125,7 @@ function App() {
                       {/* New Investigation */}
                       <button
                         onClick={() => navigate('/investigations')}
-                        className="group flex items-center bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 rounded-full h-10 pl-2.5 pr-2.5 hover:pr-4 transition-all duration-300"
+                        className="group control flex items-center rounded-full h-11 pl-2.5 pr-2.5 hover:pr-4 transition-all duration-300"
                         title="New Investigation"
                       >
                         <Icon name="Plus" size="sm" color="white" />
@@ -1124,7 +1137,7 @@ function App() {
                       {/* Shortcuts */}
                       <button
                         onClick={() => setShowKeyboardShortcuts(true)}
-                        className="group flex items-center bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 rounded-full h-10 pl-2.5 pr-2.5 hover:pr-4 transition-all duration-300"
+                        className="group control flex items-center rounded-full h-11 pl-2.5 pr-2.5 hover:pr-4 transition-all duration-300"
                         title="Keyboard Shortcuts"
                       >
                         <Icon name="Command" size="sm" color="info" />
@@ -1137,7 +1150,7 @@ function App() {
                       <div className="group relative">
                         <button
                           onClick={() => navigate('/about')}
-                          className="group flex items-center bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 rounded-full h-10 pl-2.5 pr-2.5 hover:pr-4 transition-all duration-300"
+                          className="group control flex items-center rounded-full h-11 pl-2.5 pr-2.5 hover:pr-4 transition-all duration-300"
                           title="Verified Sources"
                         >
                           <Icon name="Shield" size="sm" color="success" />
@@ -1178,7 +1191,7 @@ function App() {
                       {/* What's New */}
                       <button
                         onClick={() => setShowReleaseNotes(true)}
-                        className="group flex items-center bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 rounded-full h-10 pl-2.5 pr-2.5 hover:pr-4 transition-all duration-300"
+                        className="group control flex items-center rounded-full h-11 pl-2.5 pr-2.5 hover:pr-4 transition-all duration-300"
                         title="What's New"
                       >
                         <Icon name="Book" size="sm" color="info" />
@@ -1191,7 +1204,7 @@ function App() {
                       {isAdmin && (
                         <button
                           onClick={() => navigate('/admin')}
-                          className="group flex items-center bg-blue-900/40 hover:bg-blue-800/40 border border-blue-700/50 rounded-full h-10 pl-2.5 pr-2.5 hover:pr-4 transition-all duration-300"
+                          className="group control flex items-center rounded-full h-11 pl-2.5 pr-2.5 hover:pr-4 transition-all duration-300"
                           title="Admin Dashboard"
                         >
                           <Icon name="Shield" size="sm" className="text-blue-400" />
@@ -1204,8 +1217,8 @@ function App() {
 
                     {/* Search Bar */}
                     <div className="relative flex-1 md:flex-none max-w-md">
-                      <div className="flex items-center h-11 pl-2 bg-slate-800/80 border border-slate-600/50 rounded-full shadow-sm overflow-hidden">
-                        <div className="relative flex-1 min-w-0">
+                      <div className="header-search-pill">
+                        <div className="relative flex-1 min-w-0 pl-2">
                           <Icon
                             name="Search"
                             size="sm"
@@ -1215,7 +1228,7 @@ function App() {
                           <input
                             type="text"
                             placeholder="Search evidence..."
-                            className="w-full h-9 pl-9 pr-8 bg-transparent text-white placeholder-slate-400 focus:outline-none focus:ring-0 focus:border-none text-sm"
+                            className="w-full h-11 pl-9 pr-9 bg-transparent text-white placeholder-slate-400 focus:outline-none focus:ring-0 focus:border-none text-sm"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             onKeyDown={(e) => {
@@ -1244,7 +1257,7 @@ function App() {
                             }
                           }}
                           aria-label="Run search"
-                          className="h-11 w-11 shrink-0 bg-cyan-600 hover:bg-cyan-500 text-white flex items-center justify-center transition-colors rounded-r-full"
+                          className="header-search-button shrink-0"
                         >
                           <Icon name="Search" size="sm" />
                         </button>
@@ -1316,7 +1329,7 @@ function App() {
               </div>
             </header>
 
-            <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8 relative z-10 flex-grow">
+            <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8 relative z-10 flex-grow">
               {/* Mobile Stats Row */}
               <div className="md:hidden grid grid-cols-3 gap-2 mb-6 text-center">
                 <button
@@ -1365,11 +1378,8 @@ function App() {
               {/* Navigation Tabs - segmented pill with responsive horizontal track */}
               <div id="navigation" className="hidden md:block mb-6 text-sm font-medium">
                 <div className="relative">
-                  <div
-                    ref={navTrackRef}
-                    className="w-full overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-                  >
-                    <div className="flex w-full items-center rounded-full border border-slate-700/80 bg-slate-900/75 backdrop-blur-md overflow-hidden divide-x divide-slate-700/80">
+                  <div ref={navTrackRef} className="main-nav-track">
+                    <div className={`main-nav-pill ${navPillClass}`}>
                       <div className={`relative group ${navItemClass}`}>
                         <button
                           onClick={() => navigate('/people')}

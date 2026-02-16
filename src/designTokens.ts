@@ -20,6 +20,10 @@ export const colors = {
   accent: {
     primary: '#2f96ee', // Primary action accent
     secondary: '#5fb8ff', // Secondary action accent
+    docs: '#ef4444',
+    emails: '#3b82f6',
+    investigate: '#ec4899',
+    evidence: '#06b6d4',
     danger: '#ff6b6b', // Danger accent
     warning: '#f4b549', // Warning accent
     success: '#2dcf96', // Success accent
@@ -43,9 +47,12 @@ export const colors = {
   // Semantic mappings
   semantic: {
     risk: {
+      critical: '#fb4b5f',
       high: '#ff4d4d',
       medium: '#fbbf24',
-      low: '#10b981',
+      low: '#14b8a6',
+      minimal: '#22c55e',
+      unknown: '#94a3b8',
     },
     confidence: {
       high: '#8b5cf6',
@@ -129,7 +136,7 @@ export const elevation = {
   glass: {
     border: 'linear-gradient(to bottom right, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))',
     shine: 'linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 100%)',
-    blur: '12px',
+    blur: '18px',
   },
 };
 
@@ -167,6 +174,10 @@ export const cssVariables = `
     
     --accent-primary: ${colors.accent.primary};
     --accent-secondary: ${colors.accent.secondary};
+    --accent-docs: ${colors.accent.docs};
+    --accent-emails: ${colors.accent.emails};
+    --accent-investigate: ${colors.accent.investigate};
+    --accent-evidence: ${colors.accent.evidence};
     --accent-danger: ${colors.accent.danger};
     --accent-warning: ${colors.accent.warning};
     --accent-success: ${colors.accent.success};
@@ -233,9 +244,12 @@ export const cssVariables = `
     --glass-blur: ${elevation.glass.blur};
 
     /* Semantic */
+    --risk-critical: ${colors.semantic.risk.critical};
     --risk-high: ${colors.semantic.risk.high};
     --risk-medium: ${colors.semantic.risk.medium};
     --risk-low: ${colors.semantic.risk.low};
+    --risk-minimal: ${colors.semantic.risk.minimal};
+    --risk-unknown: ${colors.semantic.risk.unknown};
     --confidence-high: ${colors.semantic.confidence.high};
     --confidence-subtle: ${colors.semantic.confidence.subtle};
     --provenance-direct: ${colors.semantic.provenance.direct};

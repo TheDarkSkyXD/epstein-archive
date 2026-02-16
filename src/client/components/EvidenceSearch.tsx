@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { optimizedDataService } from '../services/OptimizedDataService';
 import { Person } from '../types';
-import { useNavigation } from '../services/ContentNavigationService.tsx';
+import { useNavigation } from '../services/NavigationContext';
 import { RedFlagIndex } from './visualizations/RedFlagIndex';
 import { useUndo } from './useUndo';
 import FormField from './common/FormField';

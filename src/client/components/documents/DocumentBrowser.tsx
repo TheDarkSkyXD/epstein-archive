@@ -32,8 +32,9 @@ import {
   List as ListIcon,
   ShieldCheck,
 } from 'lucide-react';
-import { useNavigation } from '../../services/ContentNavigationService.tsx';
+import { useNavigation } from '../../services/NavigationContext';
 import { apiClient } from '../../services/apiClient';
+import type { DocumentsListResponseDto } from '@shared/dto/documents';
 import { DocumentAnnotationSystem } from './DocumentAnnotationSystem';
 import { Breadcrumb } from '../layout/Breadcrumb';
 import { SourceBadge } from '../common/SourceBadge';
@@ -366,7 +367,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
         }
 
         const response = await fetch(`/api/documents?${params.toString()}`);
-        const result = await response.json();
+        const result = (await response.json()) as DocumentsListResponseDto;
 
         // Map API response to Document type
         const newDocs: Document[] = (result.data || []).map((doc: any) => ({

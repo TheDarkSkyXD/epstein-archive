@@ -1,7 +1,7 @@
 {
   "name": "epstein-archive",
   "private": true,
-  "version": "13.11.0",
+  "version": "13.12.0",
   "description": "Epstein Archive Analyzer",
   "type": "module",
   "engines": {
@@ -40,6 +40,8 @@
     "token:check": "tsx scripts/token_compliance.ts",
     "test:smoke": "tsx scripts/smoke-tests.ts",
     "test:email:smoke": "tsx scripts/email_smoke.ts",
+    "test:contracts": "playwright test tests/api-dto-contract.spec.ts --project=chromium --workers=1",
+    "test:route-sync": "playwright test tests/route-ui-sync.spec.ts --project=chromium --workers=1",
     "test:e2e": "playwright test",
     "deploy:prod": "./deploy.sh",
     "db:check": "sqlite3 epstein-archive.db 'PRAGMA quick_check;' | grep -q 'ok' && echo '✅ Database integrity OK' || (echo '❌ Database corruption detected'; exit 1)",

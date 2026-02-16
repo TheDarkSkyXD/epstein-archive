@@ -366,7 +366,7 @@ export const EvidenceNotebook: React.FC<NotebookProps> = ({ investigationId }) =
       setLoading(true);
       try {
         const [evidenceSummary, notebook] = await Promise.all([
-          apiClient.get(`/investigations/${investigationId}/evidence-summary`, { useCache: false }),
+          apiClient.getInvestigationEvidenceSummary(String(investigationId)),
           apiClient.getInvestigationNotebook(String(investigationId)),
         ]);
 

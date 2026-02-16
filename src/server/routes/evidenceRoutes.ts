@@ -200,6 +200,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
 /**
  * GET /api/evidence/:id/metrics
+ * Legacy route alias (backward compatibility) for /api/documents/:id/analytics/metrics
  * Get forensic metrics
  */
 router.get('/:id/metrics', async (req: Request, res: Response) => {
@@ -215,6 +216,7 @@ router.get('/:id/metrics', async (req: Request, res: Response) => {
 
 /**
  * GET /api/evidence/:id/custody
+ * Legacy route alias (backward compatibility) for /api/documents/:id/analytics/custody
  * Get chain of custody
  */
 router.get('/:id/custody', async (req: Request, res: Response) => {
@@ -230,6 +232,7 @@ router.get('/:id/custody', async (req: Request, res: Response) => {
 
 /**
  * POST /api/evidence/:id/analyze
+ * Legacy route alias (backward compatibility) for /api/documents/:id/analytics/analyze
  * Trigger forensic analysis
  */
 router.post('/:id/analyze', async (req: Request, res: Response) => {

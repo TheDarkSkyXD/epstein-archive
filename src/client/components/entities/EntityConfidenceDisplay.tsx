@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Icon from '../common/Icon';
+import { apiClient } from '../../services/apiClient';
 
 interface EntityConfidence {
   entityId: string | number;
@@ -28,8 +29,8 @@ export const EntityConfidenceDisplay: React.FC<EntityConfidenceDisplayProps> = (
   useEffect(() => {
     if (!entityId) return;
 
-    fetch(`/api/entities/${entityId}/confidence`)
-      .then((res) => (res.ok ? res.json() : Promise.reject('Failed')))
+    apiClient
+      .getEntityConfidence(entityId)
       .then(setConfidence)
       .catch(() => setConfidence(null))
       .finally(() => setLoading(false));

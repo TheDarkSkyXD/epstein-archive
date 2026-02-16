@@ -1,41 +1,20 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '../common/Icon';
 import { Link } from 'react-router-dom';
-
-interface EvidenceItem {
-  id: number;
-  investigation_evidence_id?: number;
-  type: string;
-  title: string;
-  description: string;
-  source_path: string;
-  metadata_json?: string;
-  target_type?: 'document' | 'entity' | 'media' | null;
-  target_id?: number | null;
-  red_flag_rating: number;
-  relevance: string;
-  added_at: string;
-  added_by: string;
-  notes: string;
-  ingest_run_id?: string | null;
-  evidence_ladder?: string | null;
-  pipeline_version?: string | null;
-  evidence_pack?: any;
-  confidence_definition?: string | null;
-  was_agentic?: boolean | null;
-}
-
-interface EvidenceByType {
-  all: EvidenceItem[];
-  byType: Record<string, EvidenceItem[]>;
-  counts: Record<string, number>;
-  total: number;
-}
+import type {
+  InvestigationCaseEvidenceItemDto as EvidenceItem,
+  InvestigationEvidenceByTypeResponseDto as EvidenceByType,
+} from '@shared/dto/investigations';
+import { useCaseFolder } from '../../domains/investigations';
 
 interface InvestigationCaseFolderProps {
   investigationId: number | string;
   onEvidenceClick?: (evidence: EvidenceItem, triggerEl?: HTMLElement | null) => void;
   deepLinkedEvidenceId?: string | null;
+  caseFolderData?: EvidenceByType | null;
+  caseFolderLoading?: boolean;
+  caseFolderError?: string | null;
+  onReloadCaseFolder?: () => Promise<EvidenceByType | null> | void;
 }
 
 const typeConfig: Record<string, { icon: string; label: string; color: string }> = {
@@ -61,10 +40,17 @@ export const InvestigationCaseFolder: React.FC<InvestigationCaseFolderProps> = (
   investigationId,
   onEvidenceClick,
   deepLinkedEvidenceId = null,
+  caseFolderData = null,
+  caseFolderLoading,
+  caseFolderError,
+  onReloadCaseFolder,
 }) => {
-  const [evidence, setEvidence] = useState<EvidenceByType | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const domainCaseFolder = useCaseFolder(String(investigationId), {
+    enabled: !caseFolderData,
+  });
+  const evidence = caseFolderData || domainCaseFolder.caseFolder;
+  const loading = caseFolderLoading ?? domainCaseFolder.loading;
+  const error = caseFolderError ?? domainCaseFolder.error;
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [relevanceFilter, setRelevanceFilter] = useState<string | null>(null);
@@ -72,28 +58,19 @@ export const InvestigationCaseFolder: React.FC<InvestigationCaseFolderProps> = (
   const evidenceButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
   useEffect(() => {
-    const fetchEvidence = async () => {
-      try {
-        setLoading(true);
-        const res = await fetch(`/api/investigations/${investigationId}/evidence-by-type`);
-        if (!res.ok) throw new Error('Failed to fetch evidence');
-        const data = await res.json();
-        setEvidence(data);
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load evidence');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchEvidence();
-
     // Listen for new items
-    const handleItemAdded = () => setTimeout(fetchEvidence, 500);
+    const handleItemAdded = () => {
+      setTimeout(() => {
+        if (onReloadCaseFolder) {
+          void onReloadCaseFolder();
+        } else {
+          void domainCaseFolder.reload();
+        }
+      }, 500);
+    };
     window.addEventListener('investigation-item-added', handleItemAdded);
     return () => window.removeEventListener('investigation-item-added', handleItemAdded);
-  }, [investigationId]);
+  }, [domainCaseFolder, onReloadCaseFolder]);
 
   const filteredEvidence = useMemo(() => {
     if (!evidence) return [];

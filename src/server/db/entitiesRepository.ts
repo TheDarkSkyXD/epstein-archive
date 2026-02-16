@@ -1,5 +1,6 @@
 import { getDb } from './connection.js';
-import { Person, SearchFilters, SortOption, SubjectCardDTO } from '../../types.js';
+import { Person, SearchFilters, SortOption } from '../../types.js';
+import type { SubjectCardListItemDto } from '@shared/dto/entities';
 import {
   ENTITY_BLACKLIST_PATTERNS,
   ENTITY_PARTIAL_BLOCKLIST,
@@ -12,7 +13,7 @@ export interface EntityRepositoryResult {
 }
 
 export interface SubjectCardRepositoryResult {
-  subjects: SubjectCardDTO[];
+  subjects: SubjectCardListItemDto[];
   total: number;
 }
 
@@ -432,7 +433,7 @@ export const entitiesRepository = {
     }
 
     // --- SERVER-SIDE PRECOMPUTATION of Signals & DTO Mapping ---
-    const subjects: SubjectCardDTO[] = rawEntities.map((e) => {
+    const subjects: SubjectCardListItemDto[] = rawEntities.map((e) => {
       // 1. Evidence Ladder
       // Replicating logic cheaply: L1 if black book or photos or flight logs
       // Note: we need evidence_types parsed
@@ -482,7 +483,7 @@ export const entitiesRepository = {
       const subjectiveRatingRaw =
         typeof (e as any).red_flag_score === 'number' ? (e as any).red_flag_score : undefined;
 
-      const dto: SubjectCardDTO = {
+      const dto: SubjectCardListItemDto = {
         id: String(e.id),
         name: displayName,
         role: e.primary_role || 'Unknown',
@@ -634,9 +635,9 @@ export const entitiesRepository = {
             driver_labels: drivers.slice(0, 4),
           },
           top_preview: undefined,
-        } as SubjectCardDTO;
+        } as SubjectCardListItemDto;
       });
-      const dedupSoft: SubjectCardDTO[] = [];
+      const dedupSoft: SubjectCardListItemDto[] = [];
       const seenSoft = new Set<string>();
       for (const s of softSubjects) {
         const norm = s.name

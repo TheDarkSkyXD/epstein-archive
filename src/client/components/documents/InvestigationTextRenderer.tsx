@@ -19,6 +19,11 @@ interface ParsedSection {
   body: string;
 }
 
+interface SignificanceExcerpt {
+  text: string;
+  reasons: string[];
+}
+
 const escapeHtml = (value: string): string =>
   value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -92,6 +97,85 @@ const getEntityList = (document: any): any[] => {
   return Array.from(byName.values());
 };
 
+const hasLegibleSignal = (value: string): boolean => {
+  const text = value.trim();
+  if (text.length < 25) return false;
+  const alphaNumeric = (text.match(/[a-z0-9]/gi) || []).length;
+  return alphaNumeric / text.length > 0.5;
+};
+
+const inferReasonTags = (value: string): string[] => {
+  const reasons = new Set<string>();
+  const lower = value.toLowerCase();
+  if (/\$\s?\d|usd|payment|wire|transfer|bank|account/.test(lower)) reasons.add('financial');
+  if (/email|message|call|thread|phone/.test(lower)) reasons.add('communications');
+  if (/flight|airport|schedule|trip|manifest/.test(lower)) reasons.add('travel');
+  if (/meeting|arranged|introduced|contact/.test(lower)) reasons.add('coordination');
+  if (/epstein|maxwell|trump|clinton|wexner|dershowitz/.test(lower)) reasons.add('key-person');
+  if (/address|location|island|palm beach|new york/.test(lower)) reasons.add('location');
+  if (reasons.size === 0) reasons.add('context');
+  return Array.from(reasons).slice(0, 3);
+};
+
+const deriveSignificanceExcerpts = (
+  document: any,
+  cleanText: string,
+  entityNames: string[],
+): SignificanceExcerpt[] => {
+  const metadataExcerpts =
+    document?.metadata?.high_significance_evidence || document?.metadata?.key_excerpts || [];
+
+  const normalized = Array.isArray(metadataExcerpts)
+    ? metadataExcerpts
+        .map((item: any) => {
+          if (typeof item === 'string') {
+            const text = item.trim();
+            return text ? { text, reasons: inferReasonTags(text) } : null;
+          }
+          const text = String(item?.excerpt || item?.text || item?.passage || '').trim();
+          if (!text) return null;
+          const reasons = Array.isArray(item?.reasons)
+            ? item.reasons.map((r: unknown) => String(r)).filter(Boolean)
+            : inferReasonTags(text);
+          return { text, reasons };
+        })
+        .filter((entry): entry is SignificanceExcerpt =>
+          Boolean(entry && hasLegibleSignal(entry.text)),
+        )
+    : [];
+
+  if (normalized.length > 0) return normalized.slice(0, 8);
+
+  const sampleText = cleanText.slice(0, 24000);
+  const sentences = sampleText
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => sentence.length > 45 && hasLegibleSignal(sentence));
+
+  const entityTokens = entityNames.map((name) => name.toLowerCase());
+  const scored = sentences.map((sentence) => {
+    const lower = sentence.toLowerCase();
+    let score = 0;
+    if (/\$\s?\d|usd|payment|wire|transfer|bank|account/.test(lower)) score += 4;
+    if (/email|message|call|thread/.test(lower)) score += 3;
+    if (/flight|manifest|trip|meeting|arranged/.test(lower)) score += 2;
+    if (/confidential|urgent|secret/.test(lower)) score += 2;
+    if (entityTokens.some((token) => token && lower.includes(token))) score += 3;
+    if (sentence.length > 240) score -= 1;
+    return {
+      text: sentence,
+      score,
+      reasons: inferReasonTags(sentence),
+    };
+  });
+
+  return scored
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 8)
+    .map((entry) => ({ text: entry.text, reasons: entry.reasons }));
+};
+
 export const InvestigationTextRenderer: React.FC<InvestigationTextRendererProps> = ({
   document,
   mode,
@@ -103,10 +187,12 @@ export const InvestigationTextRenderer: React.FC<InvestigationTextRendererProps>
   onEntitySelect,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const [hover, setHover] = useState<{ x: number; y: number; entity: any } | null>(null);
   const [highlightDensity, setHighlightDensity] = useState<'off' | 'subtle' | 'strong'>('subtle');
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const [matchCount, setMatchCount] = useState(0);
+  const [lineLimit, setLineLimit] = useState(1400);
 
   const entityList = useMemo(() => getEntityList(document), [document]);
 
@@ -120,6 +206,18 @@ export const InvestigationTextRenderer: React.FC<InvestigationTextRendererProps>
   }, [document, mode]);
 
   const sections = useMemo(() => parseSections(baseText), [baseText]);
+  const sectionLinesRaw = useMemo(
+    () =>
+      sections.map((section) => ({
+        ...section,
+        lines: section.body.split('\n'),
+      })),
+    [sections],
+  );
+  const totalLineCount = useMemo(
+    () => sectionLinesRaw.reduce((sum, section) => sum + section.lines.length, 0),
+    [sectionLinesRaw],
+  );
 
   const baselineTokens = useMemo(() => {
     const raw = document?.unredaction_metrics?.baselineVocab;
@@ -132,12 +230,15 @@ export const InvestigationTextRenderer: React.FC<InvestigationTextRendererProps>
     return set;
   }, [document]);
 
-  const excerpts = useMemo(() => {
-    const fromMetadata =
-      document?.metadata?.high_significance_evidence || document?.metadata?.key_excerpts;
-    if (Array.isArray(fromMetadata)) return fromMetadata;
-    return [];
-  }, [document]);
+  const excerpts = useMemo(
+    () =>
+      deriveSignificanceExcerpts(
+        document,
+        String(document?.contentRefined || document?.content || ''),
+        entityList.map((entity) => String(entity?.name || '')),
+      ),
+    [document, entityList],
+  );
 
   const lowLegibility = useMemo(() => {
     const ocrConf = document?.metadata?.ocr_confidence;
@@ -216,14 +317,40 @@ export const InvestigationTextRenderer: React.FC<InvestigationTextRendererProps>
     ],
   );
 
-  const processedSections = useMemo(
-    () =>
-      sections.map((section) => ({
-        ...section,
-        lines: section.body.split('\n').map((line) => renderLineHtml(line)),
-      })),
-    [renderLineHtml, sections],
-  );
+  const processedSections = useMemo(() => {
+    let remaining = lineLimit;
+    return sectionLinesRaw
+      .map((section) => {
+        if (remaining <= 0) return null;
+        const take = Math.min(section.lines.length, remaining);
+        remaining -= take;
+        return {
+          ...section,
+          lines: section.lines.slice(0, take).map((line) => renderLineHtml(line)),
+        };
+      })
+      .filter((section): section is ParsedSection & { lines: string[] } => Boolean(section));
+  }, [lineLimit, renderLineHtml, sectionLinesRaw]);
+
+  const hasMoreLines = lineLimit < totalLineCount;
+
+  useEffect(() => {
+    setLineLimit(1400);
+  }, [baseText]);
+
+  useEffect(() => {
+    if (!hasMoreLines || !loadMoreRef.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setLineLimit((prev) => Math.min(totalLineCount, prev + 900));
+        }
+      },
+      { rootMargin: '220px 0px' },
+    );
+    observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  }, [hasMoreLines, totalLineCount]);
 
   useEffect(() => {
     if (!searchTerm) {
@@ -337,8 +464,18 @@ export const InvestigationTextRenderer: React.FC<InvestigationTextRendererProps>
               >
                 <div className="absolute -left-1 top-0 w-2 h-2 rounded-full bg-violet-500/40 scale-0 group-hover:scale-100 transition-transform" />
                 <blockquote className="italic text-base md:text-lg text-slate-200 leading-relaxed font-serif selection:bg-violet-500/30">
-                  "{excerpt}"
+                  "{excerpt.text}"
                 </blockquote>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {excerpt.reasons.map((reason) => (
+                    <span
+                      key={`${i}-${reason}`}
+                      className="px-2 py-0.5 rounded-full border border-violet-500/30 bg-violet-500/10 text-[10px] uppercase tracking-wide text-violet-200"
+                    >
+                      {reason}
+                    </span>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
@@ -450,6 +587,18 @@ export const InvestigationTextRenderer: React.FC<InvestigationTextRendererProps>
             </div>
           ))}
         </div>
+        {hasMoreLines && (
+          <div className="mt-8 border-t border-white/5 pt-6">
+            <button
+              type="button"
+              onClick={() => setLineLimit((prev) => Math.min(totalLineCount, prev + 1200))}
+              className="control h-10 px-4 text-xs font-semibold"
+            >
+              Load more text ({(totalLineCount - lineLimit).toLocaleString()} lines remaining)
+            </button>
+            <div ref={loadMoreRef} className="h-1 w-full" aria-hidden="true" />
+          </div>
+        )}
       </div>
 
       {hover && (

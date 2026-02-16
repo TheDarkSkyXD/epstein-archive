@@ -1,4 +1,4 @@
-import React, { Profiler, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Profiler, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Target, FileText, BookOpen, GripVertical, Plus } from 'lucide-react';
 import { EvidenceItem, Hypothesis } from '../../types/investigation';
@@ -6,14 +6,11 @@ import { apiClient } from '../../services/apiClient';
 import { PerformanceMonitor } from '../../utils/performanceMonitor';
 import { DocumentModal } from '../documents/DocumentModal';
 import { BoardOnboarding } from './BoardOnboarding';
+import { useInvestigationBoard } from '../../domains/investigations';
 
 interface InvestigationBoardProps {
   investigationId: string;
 }
-
-const PAGE_SIZE = 120;
-
-const ensureArray = <T,>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
 
 const useVirtualWindow = (itemCount: number, rowHeight: number, overscan = 6) => {
   const [containerHeight, setContainerHeight] = useState(520);
@@ -33,26 +30,23 @@ const useVirtualWindow = (itemCount: number, rowHeight: number, overscan = 6) =>
   };
 };
 
-const invokeIdle = (cb: () => void) => {
-  if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-    (window as any).requestIdleCallback(cb, { timeout: 300 });
-    return;
-  }
-  setTimeout(cb, 0);
-};
-
 export const InvestigationBoard: React.FC<InvestigationBoardProps> = ({ investigationId }) => {
-  const [hypotheses, setHypotheses] = useState<Hypothesis[]>([]);
-  const [evidence, setEvidence] = useState<EvidenceItem[]>([]);
-  const [notebook, setNotebook] = useState<number[]>([]);
-  const [evidenceTotal, setEvidenceTotal] = useState(0);
-  const [draggedEvidence, setDraggedEvidence] = useState<EvidenceItem | null>(null);
-  const [loadingShell, setLoadingShell] = useState(true);
-  const [loadingDetails, setLoadingDetails] = useState(false);
-  const [hasLoadedDetails, setHasLoadedDetails] = useState(false);
-  const [isLoadingMoreEvidence, setIsLoadingMoreEvidence] = useState(false);
-  const [evidenceOffset, setEvidenceOffset] = useState(0);
+  const {
+    hypotheses,
+    setHypotheses,
+    evidence,
+    notebook,
+    setNotebook,
+    evidenceTotal,
+    loadingShell,
+    loadingDetails,
+    hasLoadedDetails,
+    isLoadingMoreEvidence,
+    evidenceOffset,
+    loadEvidencePage,
+  } = useInvestigationBoard(investigationId);
 
+  const [draggedEvidence, setDraggedEvidence] = useState<EvidenceItem | null>(null);
   const [viewingEvidence, setViewingEvidence] = useState<EvidenceItem | null>(null);
   const [showHypothesisModal, setShowHypothesisModal] = useState(false);
   const [newHypothesisTitle, setNewHypothesisTitle] = useState('');
@@ -74,151 +68,6 @@ export const InvestigationBoard: React.FC<InvestigationBoardProps> = ({ investig
     setShowOnboarding(false);
     localStorage.setItem('board_onboarding_seen', 'true');
   };
-
-  const loadEvidencePage = useCallback(
-    async (offset: number, reset = false) => {
-      setIsLoadingMoreEvidence(true);
-      try {
-        const page = await apiClient.getInvestigationEvidencePage(investigationId, {
-          limit: PAGE_SIZE,
-          offset,
-        });
-        const nextRows = ensureArray<any>(page?.data);
-        const normalized = nextRows.map((row: any) => ({
-          id: String(row.id),
-          title: row.title || 'Untitled evidence',
-          description: row.description || '',
-          type: (row.type || 'document') as EvidenceItem['type'],
-          sourceId: String(row.source_id || row.sourceId || row.id || ''),
-          source: row.source_path || row.source || '',
-          relevance: (row.relevance || 'medium') as EvidenceItem['relevance'],
-          credibility: 'verified' as const,
-          extractedAt: new Date(row.extracted_at || Date.now()),
-          extractedBy: row.extracted_by || 'system',
-        }));
-
-        setEvidence((prev) => (reset ? normalized : [...prev, ...normalized]));
-        setEvidenceOffset(offset + normalized.length);
-        setEvidenceTotal(Number(page?.total || normalized.length));
-      } finally {
-        setIsLoadingMoreEvidence(false);
-      }
-    },
-    [investigationId],
-  );
-
-  useEffect(() => {
-    let mounted = true;
-
-    const hydrateBoard = async () => {
-      PerformanceMonitor.mark('investigation-board-fetch-start');
-      setLoadingShell(true);
-      setHasLoadedDetails(false);
-      setEvidence([]);
-      setEvidenceOffset(0);
-
-      try {
-        const snapshot = await apiClient.getInvestigationBoard(investigationId, {
-          evidenceLimit: 80,
-          hypothesisLimit: 24,
-        });
-
-        if (!mounted) return;
-
-        const previewEvidence = ensureArray<any>(snapshot?.evidencePreview).map((row: any) => ({
-          id: String(row.id),
-          title: row.title || 'Untitled evidence',
-          description: row.description || '',
-          type: (row.type || 'document') as EvidenceItem['type'],
-          sourceId: String(row.source_id || row.sourceId || row.id || ''),
-          source: row.source_path || row.source || '',
-          relevance: (row.relevance || 'medium') as EvidenceItem['relevance'],
-          credibility: 'verified' as const,
-          extractedAt: new Date(row.extracted_at || Date.now()),
-          extractedBy: row.extracted_by || 'system',
-        }));
-
-        const previewHypotheses = ensureArray<any>(snapshot?.hypothesesPreview).map((h: any) => ({
-          id: String(h.id),
-          investigationId,
-          title: h.title || 'Untitled hypothesis',
-          description: h.description || '',
-          status: h.status || 'proposed',
-          evidence: [],
-          confidence: Number(h.confidence || 0),
-          createdBy: 'system',
-          createdAt: new Date(),
-          relatedHypotheses: [],
-        }));
-
-        setHypotheses(previewHypotheses as Hypothesis[]);
-        setEvidence(previewEvidence as EvidenceItem[]);
-        setEvidenceOffset(previewEvidence.length);
-        setEvidenceTotal(Number(snapshot?.evidenceCount || previewEvidence.length));
-
-        const initialOrder = ensureArray<number>(snapshot?.notebookOrder || []);
-        setNotebook(initialOrder);
-
-        PerformanceMonitor.mark('investigation-board-shell-visible');
-        PerformanceMonitor.measure(
-          'investigation-board-shell-visible-duration',
-          'investigation-board-fetch-start',
-          'investigation-board-shell-visible',
-        );
-      } finally {
-        if (mounted) setLoadingShell(false);
-      }
-
-      invokeIdle(async () => {
-        if (!mounted) return;
-        setLoadingDetails(true);
-        PerformanceMonitor.mark('investigation-board-hydration-start');
-        try {
-          const [hypRes, nbRes] = await Promise.all([
-            apiClient.get(`/investigations/${investigationId}/hypotheses`, { useCache: false }),
-            apiClient.getInvestigationNotebook(investigationId),
-          ]);
-
-          if (!mounted) return;
-
-          const fullHypotheses = ensureArray<any>(hypRes).map((h: any) => ({
-            ...h,
-            id: String(h.id),
-            investigationId,
-            evidence: ensureArray(h.evidence),
-            relatedHypotheses: ensureArray(h.relatedHypotheses),
-            createdAt: new Date(h.created_at || Date.now()),
-            createdBy: h.created_by || 'system',
-            confidence: Number(h.confidence || 0),
-            status: h.status || 'proposed',
-          }));
-          setHypotheses(fullHypotheses as Hypothesis[]);
-
-          if (Array.isArray(nbRes?.order)) setNotebook(nbRes.order);
-
-          await loadEvidencePage(0, true);
-
-          PerformanceMonitor.mark('investigation-board-hydration-end');
-          PerformanceMonitor.measure(
-            'investigation-board-hydration-duration',
-            'investigation-board-hydration-start',
-            'investigation-board-hydration-end',
-          );
-          setHasLoadedDetails(true);
-        } catch (error) {
-          console.error('Failed to hydrate investigation board details', error);
-        } finally {
-          if (mounted) setLoadingDetails(false);
-        }
-      });
-    };
-
-    hydrateBoard();
-
-    return () => {
-      mounted = false;
-    };
-  }, [investigationId, loadEvidencePage]);
 
   useEffect(() => {
     const node = evidenceContainerRef.current;
@@ -260,7 +109,7 @@ export const InvestigationBoard: React.FC<InvestigationBoardProps> = ({ investig
         status: 'draft',
       });
 
-      setHypotheses((prev) => [
+      setHypotheses((prev: Hypothesis[]) => [
         {
           id: String(created.id),
           investigationId,
@@ -307,8 +156,8 @@ export const InvestigationBoard: React.FC<InvestigationBoardProps> = ({ investig
         },
       );
 
-      setHypotheses((prev) =>
-        prev.map((h) => {
+      setHypotheses((prev: Hypothesis[]) =>
+        prev.map((h: any) => {
           if (String(h.id) !== String(hypothesisId)) return h;
           return {
             ...h,

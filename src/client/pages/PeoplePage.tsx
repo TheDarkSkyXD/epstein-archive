@@ -136,7 +136,7 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
           />
         )}
 
-        <div className="surface-glass p-3 md:p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3 flex-shrink-0">
+        <div className="surface-glass-card p-3 md:p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3 flex-shrink-0">
           <div className="flex items-center gap-2">
             <Icon name="Users" size="sm" color="info" className="flex-shrink-0" />
             <p className="text-slate-300 text-sm">
@@ -203,7 +203,7 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
               ))}
             </div>
           ) : subjects.length === 0 ? (
-            <div className="surface-glass text-center py-12 px-4">
+            <div className="surface-glass-card text-center py-12 px-4">
               <Icon name="Users" size="xl" color="gray" className="mx-auto mb-4" />
               <h3 className="text-lg font-medium text-slate-300 mb-2">No results found</h3>
               <p className="text-slate-400">Try adjusting search or entity filters.</p>

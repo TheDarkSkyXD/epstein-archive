@@ -998,7 +998,7 @@ function App() {
   const navLabelClass = navLayoutMode === 'icons' ? 'hidden' : 'inline';
   const navPillClass =
     navLayoutMode === 'normal'
-      ? 'flex w-full items-center justify-between rounded-full border overflow-hidden divide-x divide-slate-700/80'
+      ? 'inline-flex w-auto min-w-max items-center rounded-full border overflow-hidden divide-x divide-slate-700/80'
       : 'inline-flex min-w-max items-center rounded-full border overflow-hidden divide-x divide-slate-700/80';
 
   useEffect(() => {
@@ -1329,7 +1329,7 @@ function App() {
               </div>
             </header>
 
-            <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8 relative z-10 flex-grow">
+            <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8 relative z-10 flex-grow">
               {/* Mobile Stats Row */}
               <div className="md:hidden grid grid-cols-3 gap-2 mb-6 text-center">
                 <button

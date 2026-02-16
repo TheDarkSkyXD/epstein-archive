@@ -193,17 +193,12 @@ function resolveDisplayName(name: string, lookup: Map<string, string>): string {
 const DEFAULT_SIGNAL_CLAUSE = `(
   COALESCE(is_vip, 0) = 1
   OR (
-    (
-      (bio IS NOT NULL AND TRIM(bio) != '')
-      OR (SELECT COUNT(*) FROM media_item_people WHERE entity_id = entities.id) > 0
-      OR (SELECT COUNT(*) FROM black_book_entries WHERE person_id = entities.id) > 0
-      OR (
-        COALESCE(primary_role, '') NOT IN ('', 'Unknown', 'UNK')
-        AND (
-          mentions >= 50
-          OR red_flag_rating >= 4
-        )
-      )
+    COALESCE(primary_role, '') NOT IN ('', 'Unknown', 'UNK')
+    AND (
+      COALESCE(mentions, 0) >= 10
+      OR COALESCE(red_flag_rating, 0) >= 2
+      OR UPPER(COALESCE(risk_level, '')) IN ('HIGH', 'CRITICAL', 'MEDIUM')
+      OR (bio IS NOT NULL AND TRIM(bio) != '')
     )
   )
 )`;
@@ -327,8 +322,6 @@ export const entitiesRepository = {
     // 5. Sorting (Deterministic)
     let orderByClause = '';
     const vipOrder = 'COALESCE(is_vip, 0) DESC';
-    const hasPhotoOrder =
-      '(SELECT COUNT(*) FROM media_item_people WHERE entity_id = entities.id) > 0 DESC';
     const mentionsOrder = 'COALESCE(mentions, 0) DESC';
     const safetyOrder = 'red_flag_rating DESC'; // High to Low
 
@@ -340,12 +333,12 @@ export const entitiesRepository = {
         orderByClause = `ORDER BY ${vipOrder}, id DESC`;
         break;
       case 'mentions':
-        orderByClause = `ORDER BY ${vipOrder}, ${hasPhotoOrder}, mentions DESC, red_flag_rating DESC, full_name ASC`;
+        orderByClause = `ORDER BY ${vipOrder}, mentions DESC, red_flag_rating DESC, full_name ASC`;
         break;
       case 'risk':
       case 'red_flag':
       default:
-        orderByClause = `ORDER BY ${vipOrder}, ${hasPhotoOrder}, ${mentionsOrder}, ${safetyOrder}, full_name ASC`;
+        orderByClause = `ORDER BY ${vipOrder}, ${mentionsOrder}, ${safetyOrder}, full_name ASC`;
         break;
     }
 
@@ -860,8 +853,6 @@ export const entitiesRepository = {
 
     // Default sorting logic improvements
     const vipOrder = 'COALESCE(is_vip, 0) DESC';
-    const hasPhotoOrder =
-      '(SELECT COUNT(*) FROM media_item_people WHERE entity_id = entities.id) > 0 DESC';
     const mentionsOrder = 'COALESCE(mentions, 0) DESC';
     const safetyOrder = 'red_flag_rating DESC';
 
@@ -873,12 +864,12 @@ export const entitiesRepository = {
         orderByClause = `ORDER BY ${vipOrder}, id DESC`;
         break;
       case 'mentions':
-        orderByClause = `ORDER BY ${vipOrder}, ${hasPhotoOrder}, mentions DESC, red_flag_rating DESC, full_name ASC`;
+        orderByClause = `ORDER BY ${vipOrder}, mentions DESC, red_flag_rating DESC, full_name ASC`;
         break;
       case 'risk':
       case 'red_flag':
       default:
-        orderByClause = `ORDER BY ${vipOrder}, ${hasPhotoOrder}, ${mentionsOrder}, ${safetyOrder}, full_name ASC`;
+        orderByClause = `ORDER BY ${vipOrder}, ${mentionsOrder}, ${safetyOrder}, full_name ASC`;
         break;
     }
 

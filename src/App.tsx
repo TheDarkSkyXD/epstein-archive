@@ -931,10 +931,12 @@ function App() {
 
   const { user: currentUser, isAdmin } = useAuth();
   const navSegmentBaseClass =
-    'flex items-center justify-center gap-1.5 h-10 px-4 rounded-full transition-all duration-200 whitespace-nowrap';
+    'flex items-center justify-center gap-1.5 h-10 px-4 rounded-xl transition-all duration-200 whitespace-nowrap border';
   const getNavSegmentClass = (isActive: boolean, activeClass: string, extraClass: string = '') =>
     `${navSegmentBaseClass} ${
-      isActive ? activeClass : 'text-slate-300 hover:text-white hover:bg-slate-800/70'
+      isActive
+        ? `${activeClass} border-slate-500/45`
+        : 'text-slate-300 bg-slate-900/45 border-slate-700/55 hover:text-white hover:bg-slate-800/75 hover:border-slate-600/70'
     } ${extraClass}`.trim();
 
   useEffect(() => {

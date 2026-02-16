@@ -1,3 +1,17 @@
+## v13.10.2 - 2026-02-16 - Document Browser Tranche Coverage and Visual Simplification
+
+### Tranche filter parity with About page
+
+- Expanded the Document Browser tranche dropdown to cover all major tranche/source families shown on the About page, including Black Book, Flight Logs, Birthday Book, Estate Emails, DOJ Discovery groupings, DOJ Data Sets 9-12, and related collections.
+- Kept tranche options wired to real `source_collection` mappings so every added option applies an actual backend filter.
+
+### Card and navigation visual refinements
+
+- Replaced the AI summary star marker with the sparkle icon for consistency with AI affordances across the app.
+- Updated document card preview behavior to prefer AI summary text previews whenever an AI summary is available.
+- Reduced over-rounded nav segment styling and restored subtle per-segment fill so the top nav reads as delineated controls rather than merged pills.
+- Removed the outer header container box from the Document Browser top group to eliminate box-within-boxes layering and keep controls directly on page background.
+
 ## v13.10.1 - 2026-02-16 - Document Browser Header and Search UX Refinements
 
 ### Header and control-bar layout polish

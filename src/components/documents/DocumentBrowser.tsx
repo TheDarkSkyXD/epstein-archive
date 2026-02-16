@@ -28,7 +28,7 @@ import {
   Eye,
   X,
   HelpCircle,
-  Star,
+  Sparkles,
   LayoutGrid,
   List as ListIcon,
 } from 'lucide-react';
@@ -82,6 +82,12 @@ const looksLikePreviewJunk = (text: string): boolean => {
 };
 
 const getSafePreviewText = (doc: Document): string => {
+  // If backend marked this as AI summary, use that summary preview directly when present.
+  if (doc.previewKind === 'ai_summary') {
+    const aiPreview = (doc.previewText || doc.contentPreview || '').trim();
+    if (aiPreview) return aiPreview;
+  }
+
   const fromPreview = (doc.previewText || doc.contentPreview || '').trim();
   if (fromPreview && !looksLikePreviewJunk(fromPreview)) return fromPreview;
   if (doc.previewKind === 'ai_summary') {
@@ -123,10 +129,47 @@ const getSourceLabel = (doc: Document): string =>
 
 const DOJ_TRANCHE_OPTIONS: Array<{ value: string; label: string; sources: string[] }> = [
   { value: 'all', label: 'All tranches', sources: [] },
+  { value: 'black-book', label: 'Unredacted Black Book', sources: ['Unredacted Black Book'] },
+  { value: 'flight-logs', label: 'Flight Logs', sources: ['Flight Logs'] },
+  { value: 'birthday-book', label: 'Birthday Book', sources: ['Birthday Book'] },
+  {
+    value: 'estate-emails',
+    label: 'Estate Emails (2009-2019)',
+    sources: ['Epstein Estate Documents - Seventh Production'],
+  },
+  {
+    value: 'court-case-evidence',
+    label: 'Court Case Evidence',
+    sources: ['Court Case Evidence'],
+  },
+  { value: 'maxwell-proffer', label: 'Maxwell Proffer', sources: ['Maxwell Proffer'] },
+  {
+    value: 'doj-discovery-vol1',
+    label: 'DOJ Discovery (VOL00001)',
+    sources: ['DOJ Discovery VOL00001'],
+  },
+  {
+    value: 'doj-discovery-vol2-8',
+    label: 'DOJ Discovery (VOL00002-8)',
+    sources: [
+      'DOJ Discovery VOL00002',
+      'DOJ Discovery VOL00003',
+      'DOJ Discovery VOL00004',
+      'DOJ Discovery VOL00005',
+      'DOJ Discovery VOL00006',
+      'DOJ Discovery VOL00007',
+      'DOJ Discovery VOL00008',
+    ],
+  },
   {
     value: 'doj-dataset-9-11',
     label: 'DOJ Data Set 9-11',
     sources: ['DOJ Data Set 9', 'DOJ Data Set 10', 'DOJ Data Set 11'],
+  },
+  {
+    value: 'doj-dataset-9-12',
+    label: 'DOJ Data Sets 9-12',
+    sources: ['DOJ Data Set 9', 'DOJ Data Set 10', 'DOJ Data Set 11', 'DOJ Data Set 12'],
   },
   { value: 'doj-dataset-9', label: 'DOJ Data Set 9', sources: ['DOJ Data Set 9'] },
   { value: 'doj-dataset-10', label: 'DOJ Data Set 10', sources: ['DOJ Data Set 10'] },
@@ -146,6 +189,7 @@ const DOJ_TRANCHE_OPTIONS: Array<{ value: string; label: string; sources: string
       'DOJ Discovery VOL00008',
     ],
   },
+  { value: 'evidence-images', label: 'Evidence Images', sources: ['Evidence Images'] },
   { value: 'doj-phase-1', label: 'DOJ Phase 1', sources: ['DOJ Phase 1'] },
 ];
 
@@ -1604,7 +1648,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
     <div className="min-h-screen text-white overflow-x-hidden">
       <div className="w-full py-4 md:py-6">
         <div
-          className={`sticky top-0 z-30 bg-[color:var(--bg-1)]/95 backdrop-blur border border-slate-800/80 rounded-[var(--radius-lg)] px-3 md:px-4 transition-all ${
+          className={`sticky top-0 z-30 transition-all ${
             isHeaderCondensed ? 'py-2 mb-3' : 'py-3 mb-4'
           }`}
         >
@@ -1654,8 +1698,8 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                 value={selectedTranche}
                 onChange={(e) => applyTrancheFilter(e.target.value)}
                 className="control h-11 px-3 text-sm leading-none bg-slate-900 border border-slate-700 rounded-[var(--radius-md)]"
-                aria-label="Filter by DOJ tranche"
-                title="Filter documents by DOJ tranche/dataset"
+                aria-label="Filter by tranche"
+                title="Filter documents by tranche/source collection"
               >
                 {DOJ_TRANCHE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -1666,14 +1710,14 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
               <div className="relative group">
                 <button
                   type="button"
-                  aria-label="DOJ tranche help"
+                  aria-label="Tranche help"
                   className="control h-11 w-11 p-0 inline-flex items-center justify-center text-slate-300"
                 >
                   <HelpCircle className="w-4 h-4" />
                 </button>
                 <div className="pointer-events-none absolute left-1/2 top-full z-40 mt-2 hidden w-72 -translate-x-1/2 rounded-lg border border-slate-700 bg-slate-900 p-3 text-xs text-slate-300 shadow-xl group-hover:block group-focus-within:block">
-                  DOJ tranche filter maps to `source_collection` labels from the DOJ releases.
-                  Example: “DOJ Data Set 9-11” includes Data Sets 9, 10, and 11.
+                  Tranche filter maps to `source_collection` labels used in the archive. Example:
+                  “DOJ Data Set 9-11” includes Data Sets 9, 10, and 11.
                 </div>
               </div>
               <select
@@ -2255,7 +2299,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                           title="AI summary available"
                           aria-label="AI summary available"
                         >
-                          <Star className="w-3.5 h-3.5" />
+                          <Sparkles className="w-3.5 h-3.5" />
                         </span>
                       )}
                       <span
@@ -2344,7 +2388,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                               title="AI summary available"
                               aria-label="AI summary available"
                             >
-                              <Star className="w-3.5 h-3.5" />
+                              <Sparkles className="w-3.5 h-3.5" />
                             </span>
                           )}
                           <span

@@ -444,6 +444,12 @@ class ApiClient {
     mailboxId?: string;
     q?: string;
     tab?: 'all' | 'primary' | 'updates' | 'promotions';
+    from?: string;
+    to?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    hasAttachments?: boolean;
+    minRisk?: number;
     cursor?: string | null;
     limit?: number;
     showSuppressedJunk?: boolean;
@@ -455,6 +461,12 @@ class ApiClient {
     if (params.mailboxId) usp.append('mailboxId', params.mailboxId);
     if (params.q) usp.append('q', params.q);
     if (params.tab) usp.append('tab', params.tab);
+    if (params.from) usp.append('from', params.from);
+    if (params.to) usp.append('to', params.to);
+    if (params.dateFrom) usp.append('dateFrom', params.dateFrom);
+    if (params.dateTo) usp.append('dateTo', params.dateTo);
+    if (params.hasAttachments) usp.append('hasAttachments', '1');
+    if (params.minRisk && params.minRisk > 0) usp.append('minRisk', String(params.minRisk));
     if (params.cursor) usp.append('cursor', params.cursor);
     if (params.limit) usp.append('limit', String(params.limit));
     if (params.showSuppressedJunk) usp.append('showSuppressedJunk', '1');

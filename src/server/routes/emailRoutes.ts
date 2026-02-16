@@ -352,6 +352,12 @@ router.get('/threads', async (req, res, next) => {
     const db = getDb();
     const mailboxId = String(req.query.mailboxId || 'all');
     const query = String(req.query.q || '').trim();
+    const fromFilter = String(req.query.from || '').trim();
+    const toFilter = String(req.query.to || '').trim();
+    const dateFrom = String(req.query.dateFrom || '').trim();
+    const dateTo = String(req.query.dateTo || '').trim();
+    const hasAttachments = req.query.hasAttachments === '1';
+    const minRisk = Number(req.query.minRisk || 0);
     const tab = normalizeTab(typeof req.query.tab === 'string' ? req.query.tab : undefined);
     const limit = Math.min(MAX_LIMIT, Math.max(1, Number(req.query.limit) || DEFAULT_LIMIT));
     const parsedCursor = parseCursor(
@@ -388,6 +394,35 @@ router.get('/threads', async (req, res, next) => {
       )`;
       const likeQuery = `%${query}%`;
       queryParams.push(likeQuery, likeQuery, likeQuery, likeQuery);
+    }
+
+    if (fromFilter.length > 0) {
+      where += ` AND lower(COALESCE(json_extract(d.metadata_json, '$.from'), '')) LIKE lower(?)`;
+      queryParams.push(`%${fromFilter}%`);
+    }
+
+    if (toFilter.length > 0) {
+      where += ` AND lower(COALESCE(json_extract(d.metadata_json, '$.to'), '')) LIKE lower(?)`;
+      queryParams.push(`%${toFilter}%`);
+    }
+
+    if (dateFrom.length > 0) {
+      where += ` AND COALESCE(d.date_created, d.created_at) >= ?`;
+      queryParams.push(dateFrom);
+    }
+
+    if (dateTo.length > 0) {
+      where += ` AND COALESCE(d.date_created, d.created_at) <= ?`;
+      queryParams.push(dateTo);
+    }
+
+    if (hasAttachments) {
+      where += ` AND COALESCE(json_extract(d.metadata_json, '$.attachments_count'), 0) > 0`;
+    }
+
+    if (Number.isFinite(minRisk) && minRisk > 0) {
+      where += ` AND COALESCE(d.red_flag_rating, 0) >= ?`;
+      queryParams.push(minRisk);
     }
 
     const baseSql = buildThreadBaseSql(where);

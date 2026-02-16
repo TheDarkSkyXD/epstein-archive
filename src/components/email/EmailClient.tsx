@@ -14,7 +14,9 @@ import {
   Paperclip,
   Search,
   ShieldCheck,
+  SlidersHorizontal,
   User,
+  X,
 } from 'lucide-react';
 import {
   apiClient,
@@ -27,6 +29,7 @@ import { AddToInvestigationButton } from '../common/AddToInvestigationButton';
 import { EvidenceModal } from '../common/EvidenceModal';
 
 const THREAD_PAGE_SIZE = 50;
+type EmailDensity = 'comfortable' | 'compact';
 
 const tabOptions: Array<{ id: 'all' | 'primary' | 'updates' | 'promotions'; label: string }> = [
   { id: 'all', label: 'All' },
@@ -92,15 +95,18 @@ const ThreadRow = React.memo(
     rows: EmailThreadDTO[];
     selectedThreadId: string | null;
     onOpen: (threadId: string) => void;
+    density: EmailDensity;
   }>) => {
     const thread = data.rows[index];
     const selected = data.selectedThreadId === thread.threadId;
+    const compact = data.density === 'compact';
 
     return (
       <button
         style={style}
         onClick={() => data.onOpen(thread.threadId)}
-        className={`w-full px-4 py-3 text-left border-b border-slate-800/80 hover:bg-slate-800/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
+        data-thread-id={thread.threadId}
+        className={`w-full px-4 ${compact ? 'py-2' : 'py-3'} text-left border-b border-slate-800/80 hover:bg-slate-800/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
           selected ? 'bg-cyan-900/30' : 'bg-transparent'
         }`}
       >
@@ -110,9 +116,11 @@ const ThreadRow = React.memo(
             <div className="text-xs text-slate-300 truncate mt-0.5">
               {thread.participants.slice(0, 3).join(', ') || 'Unknown participants'}
             </div>
-            <div className="text-xs text-slate-400 truncate mt-1">
-              {thread.snippet || 'No preview available'}
-            </div>
+            {!compact && (
+              <div className="text-xs text-slate-400 truncate mt-1">
+                {thread.snippet || 'No preview available'}
+              </div>
+            )}
           </div>
           <div className="text-right shrink-0">
             <div className="text-[11px] text-slate-400">{formatTime(thread.lastMessageAt)}</div>
@@ -189,6 +197,17 @@ export const EmailClient: React.FC = () => {
   );
   const [searchInput, setSearchInput] = useState(searchParams.get('q') || '');
   const [debouncedSearch, setDebouncedSearch] = useState(searchParams.get('q') || '');
+  const [fromFilter, setFromFilter] = useState(searchParams.get('from') || '');
+  const [toFilter, setToFilter] = useState(searchParams.get('to') || '');
+  const [dateFrom, setDateFrom] = useState(searchParams.get('dateFrom') || '');
+  const [dateTo, setDateTo] = useState(searchParams.get('dateTo') || '');
+  const [hasAttachmentsOnly, setHasAttachmentsOnly] = useState(
+    searchParams.get('hasAttachments') === '1',
+  );
+  const [minRisk, setMinRisk] = useState(Number(searchParams.get('minRisk') || 0));
+  const [density, setDensity] = useState<EmailDensity>(
+    searchParams.get('density') === 'compact' ? 'compact' : 'comfortable',
+  );
 
   const [threads, setThreads] = useState<EmailThreadDTO[]>([]);
   const [threadsLoading, setThreadsLoading] = useState(true);
@@ -293,6 +312,12 @@ export const EmailClient: React.FC = () => {
           mailboxId: selectedMailboxId,
           q: debouncedSearch,
           tab: activeTab,
+          from: fromFilter.trim() || undefined,
+          to: toFilter.trim() || undefined,
+          dateFrom: dateFrom || undefined,
+          dateTo: dateTo || undefined,
+          hasAttachments: hasAttachmentsOnly || undefined,
+          minRisk: minRisk > 0 ? minRisk : undefined,
           cursor,
           limit: THREAD_PAGE_SIZE,
           showSuppressedJunk,
@@ -331,7 +356,19 @@ export const EmailClient: React.FC = () => {
         setLoadingMoreThreads(false);
       }
     },
-    [activeTab, debouncedSearch, selectedMailboxId, selectedThreadId, showSuppressedJunk],
+    [
+      activeTab,
+      dateFrom,
+      dateTo,
+      debouncedSearch,
+      fromFilter,
+      hasAttachmentsOnly,
+      minRisk,
+      selectedMailboxId,
+      selectedThreadId,
+      showSuppressedJunk,
+      toFilter,
+    ],
   );
 
   const loadThread = useCallback(
@@ -491,9 +528,33 @@ export const EmailClient: React.FC = () => {
   }, [loadMailboxes]);
 
   useEffect(() => {
-    updateUrlState({ mailboxId: selectedMailboxId, tab: activeTab, q: debouncedSearch || null });
+    updateUrlState({
+      mailboxId: selectedMailboxId,
+      tab: activeTab,
+      q: debouncedSearch || null,
+      from: fromFilter.trim() || null,
+      to: toFilter.trim() || null,
+      dateFrom: dateFrom || null,
+      dateTo: dateTo || null,
+      hasAttachments: hasAttachmentsOnly ? '1' : null,
+      minRisk: minRisk > 0 ? String(minRisk) : null,
+      density: density === 'compact' ? 'compact' : null,
+    });
     void loadThreads(null, false);
-  }, [selectedMailboxId, activeTab, debouncedSearch, loadThreads, updateUrlState]);
+  }, [
+    activeTab,
+    dateFrom,
+    dateTo,
+    debouncedSearch,
+    density,
+    fromFilter,
+    hasAttachmentsOnly,
+    loadThreads,
+    minRisk,
+    selectedMailboxId,
+    toFilter,
+    updateUrlState,
+  ]);
 
   useEffect(() => {
     if (!selectedThreadId) return;
@@ -536,6 +597,15 @@ export const EmailClient: React.FC = () => {
   }, [threadsTotal]);
 
   const canLoadMore = threadsHasMore && !!threadsNextCursor;
+  const threadRowHeight = density === 'compact' ? 72 : 94;
+  const clearQuickFilters = useCallback(() => {
+    setFromFilter('');
+    setToFilter('');
+    setDateFrom('');
+    setDateTo('');
+    setHasAttachmentsOnly(false);
+    setMinRisk(0);
+  }, []);
 
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col overflow-hidden">
@@ -555,7 +625,7 @@ export const EmailClient: React.FC = () => {
 
       <div className="flex-1 min-h-0 flex overflow-hidden">
         <aside
-          className={`w-full md:w-72 border-r border-slate-800/80 bg-slate-950/70 md:block ${mobileMailboxOpen ? 'block' : 'hidden md:block'}`}
+          className={`w-full md:w-72 border-r border-slate-800/80 bg-slate-950/70 md:block md:flex md:flex-col ${mobileMailboxOpen ? 'block' : 'hidden md:block'}`}
         >
           <div className="p-3 border-b border-slate-800/80 space-y-2">
             <div className="flex items-center justify-between text-xs text-slate-400 uppercase tracking-wide">
@@ -596,9 +666,37 @@ export const EmailClient: React.FC = () => {
                 </button>
               ))}
             </div>
+            <div className="flex items-center justify-between gap-2">
+              <div className="inline-flex items-center rounded-full border border-slate-700 overflow-hidden">
+                <button
+                  onClick={() => setDensity('comfortable')}
+                  className={`h-7 px-2.5 text-[11px] ${
+                    density === 'comfortable'
+                      ? 'bg-cyan-500/20 text-cyan-200'
+                      : 'text-slate-300 bg-slate-900/70'
+                  }`}
+                >
+                  Comfortable
+                </button>
+                <button
+                  onClick={() => setDensity('compact')}
+                  className={`h-7 px-2.5 text-[11px] ${
+                    density === 'compact'
+                      ? 'bg-cyan-500/20 text-cyan-200'
+                      : 'text-slate-300 bg-slate-900/70'
+                  }`}
+                >
+                  Compact
+                </button>
+              </div>
+              <div className="text-[11px] text-slate-400 flex items-center gap-1">
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                Pinned filters
+              </div>
+            </div>
           </div>
 
-          <div className="h-[calc(100%-136px)]">
+          <div className="flex-1 min-h-0">
             {mailboxesLoading ? (
               <div className="h-full flex items-center justify-center text-slate-400 text-sm">
                 <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading mailboxes
@@ -645,6 +743,65 @@ export const EmailClient: React.FC = () => {
               Metadata-only list
             </span>
           </div>
+          <div className="px-3 py-2 border-b border-slate-800/80 bg-slate-950/60">
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                value={fromFilter}
+                onChange={(event) => setFromFilter(event.target.value)}
+                placeholder="From"
+                className="h-8 rounded-full bg-slate-900 border border-slate-700 px-3 text-xs text-white"
+              />
+              <input
+                value={toFilter}
+                onChange={(event) => setToFilter(event.target.value)}
+                placeholder="To"
+                className="h-8 rounded-full bg-slate-900 border border-slate-700 px-3 text-xs text-white"
+              />
+              <input
+                value={dateFrom}
+                onChange={(event) => setDateFrom(event.target.value)}
+                type="date"
+                className="h-8 rounded-full bg-slate-900 border border-slate-700 px-3 text-xs text-white"
+              />
+              <input
+                value={dateTo}
+                onChange={(event) => setDateTo(event.target.value)}
+                type="date"
+                className="h-8 rounded-full bg-slate-900 border border-slate-700 px-3 text-xs text-white"
+              />
+            </div>
+            <div className="mt-2 flex items-center gap-2">
+              <button
+                onClick={() => setHasAttachmentsOnly((prev) => !prev)}
+                className={`h-7 px-2.5 rounded-full border text-[11px] ${
+                  hasAttachmentsOnly
+                    ? 'border-amber-400 text-amber-200 bg-amber-500/10'
+                    : 'border-slate-700 text-slate-300 bg-slate-900/70'
+                }`}
+              >
+                Has attachments
+              </button>
+              <select
+                value={minRisk}
+                onChange={(event) => setMinRisk(Number(event.target.value))}
+                className="h-7 rounded-full border border-slate-700 bg-slate-900/70 px-2 text-[11px] text-slate-200"
+                aria-label="Minimum risk"
+              >
+                <option value={0}>Risk: any</option>
+                <option value={1}>Risk ≥ 1</option>
+                <option value={2}>Risk ≥ 2</option>
+                <option value={3}>Risk ≥ 3</option>
+                <option value={4}>Risk ≥ 4</option>
+              </select>
+              <button
+                onClick={clearQuickFilters}
+                className="h-7 px-2 rounded-full border border-slate-700 text-[11px] text-slate-300 bg-slate-900/70 inline-flex items-center gap-1"
+              >
+                <X className="w-3 h-3" />
+                Clear
+              </button>
+            </div>
+          </div>
 
           <div className="flex-1 min-h-0">
             {threadsLoading ? (
@@ -680,8 +837,13 @@ export const EmailClient: React.FC = () => {
                       height={height}
                       width={width}
                       itemCount={threads.length}
-                      itemSize={94}
-                      itemData={{ rows: threads, selectedThreadId, onOpen: handleOpenThread }}
+                      itemSize={threadRowHeight}
+                      itemData={{
+                        rows: threads,
+                        selectedThreadId,
+                        onOpen: handleOpenThread,
+                        density,
+                      }}
                     >
                       {ThreadRow}
                     </List>

@@ -91,8 +91,15 @@ async function runCredibilityTests() {
       .all() as any[];
     let offsetFailures = 0;
     let legacySpans = 0;
+    const invalidSpans: Array<{
+      id: string;
+      documentId: number;
+      start: number;
+      end: number;
+      textLength: number | null;
+      reason: string;
+    }> = [];
     for (const span of spanOffsets) {
-      // Handle legacy 0/0 spans (common in imported discovery)
       if (span.start_offset === 0 && span.end_offset === 0) {
         legacySpans++;
         continue;
@@ -100,15 +107,34 @@ async function runCredibilityTests() {
 
       if (span.start_offset < 0 || span.end_offset <= span.start_offset) {
         offsetFailures++;
+        const doc = db
+          .prepare(`SELECT content, content_refined FROM documents WHERE id = ?`)
+          .get(span.document_id) as { content: string; content_refined: string };
+        const text = doc?.content_refined || doc?.content;
+        invalidSpans.push({
+          id: span.id,
+          documentId: span.document_id,
+          start: span.start_offset,
+          end: span.end_offset,
+          textLength: text ? text.length : null,
+          reason: 'negative_or_non_increasing',
+        });
         continue;
       }
-      // Check against document content length
       const doc = db
         .prepare(`SELECT content, content_refined FROM documents WHERE id = ?`)
         .get(span.document_id) as { content: string; content_refined: string };
       const text = doc?.content_refined || doc?.content;
       if (text && span.end_offset > text.length) {
         offsetFailures++;
+        invalidSpans.push({
+          id: span.id,
+          documentId: span.document_id,
+          start: span.start_offset,
+          end: span.end_offset,
+          textLength: text.length,
+          reason: 'beyond_text_length',
+        });
       }
     }
     if (offsetFailures === 0) {
@@ -117,6 +143,14 @@ async function runCredibilityTests() {
       );
     } else {
       console.log(`❌ FAIL: found ${offsetFailures} spans with invalid offsets.`);
+      if (invalidSpans.length > 0) {
+        console.log('Offending spans:');
+        for (const span of invalidSpans.slice(0, 50)) {
+          console.log(
+            `  - ${span.id} (doc=${span.documentId}, start=${span.start}, end=${span.end}, textLength=${span.textLength}, reason=${span.reason})`,
+          );
+        }
+      }
       failures++;
     }
 

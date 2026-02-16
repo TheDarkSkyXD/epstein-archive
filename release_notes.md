@@ -1,3 +1,20 @@
+## v13.10.0 - 2026-02-16 - Investigations Reliability Final Pass and DOJ Tranche Filtering
+
+### Investigations final-pass hardening
+
+- Completed confidence transparency in forensic workflows with deterministic scoring internals and an auditable confidence-details surface.
+- Strengthened notebook reliability with explicit save-state UX, durable local draft retention until persistence confirmation, and retry handling.
+- Hardened deep-link reconstruction for investigation evidence routes so cold-load URLs open case context and linked evidence reliably.
+- Improved communications investigative value with anomaly/spike signals, source-linked actions, and case-evidence add flows.
+- Clarified timeline semantics with explicit chronological vs narrative modes and mode-consistent ordering behavior.
+- Added export integrity metadata and deterministic ordering for generated investigation artifacts.
+
+### Documents browser tranche discoverability and DOJ dataset search correctness
+
+- Fixed document search matching for DOJ tranche terms by expanding query matching to source-collection/path fields and normalizing dataset term variants.
+- Added a dedicated DOJ tranche dropdown in the Document Browser (including `DOJ Data Set 9-11`) wired to real backend filtering.
+- Added inline tranche help affordance (`?` hover/focus popover) explaining source-collection mapping semantics for end users.
+
 ## v13.9.1 - 2026-02-15 - UI Overlay Consistency and Deployment Readiness Hardening
 
 ### Overlay readability and visual consistency

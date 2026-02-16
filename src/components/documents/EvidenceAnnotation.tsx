@@ -99,6 +99,17 @@ export const EvidenceAnnotationPanel: React.FC<EvidenceAnnotationPanelProps> = (
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [editNoteContent, setEditNoteContent] = useState('');
 
+  const emitAnnotationUpdate = (nextAnnotations: EvidenceAnnotation[]) => {
+    const event = new CustomEvent('investigation-evidence-annotations-updated', {
+      detail: {
+        investigationId,
+        evidenceId,
+        annotations: nextAnnotations,
+      },
+    });
+    window.dispatchEvent(event);
+  };
+
   useEffect(() => {
     loadAnnotations();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -112,15 +123,18 @@ export const EvidenceAnnotationPanel: React.FC<EvidenceAnnotationPanelProps> = (
       );
       if (response.ok) {
         const data = await response.json();
-        setAnnotations(data.annotations || []);
+        const loaded = data.annotations || [];
+        setAnnotations(loaded);
+        onAnnotationsChange?.(loaded);
+        emitAnnotationUpdate(loaded);
 
         // Load existing tags and classification
-        const existingTags = (data.annotations || [])
+        const existingTags = loaded
           .filter((a: EvidenceAnnotation) => a.type === 'tag')
           .map((a: EvidenceAnnotation) => a.content);
         setSelectedTags(existingTags);
 
-        const existingClassification = (data.annotations || []).find(
+        const existingClassification = loaded.find(
           (a: EvidenceAnnotation) => a.type === 'classification',
         );
         if (existingClassification) {
@@ -134,7 +148,10 @@ export const EvidenceAnnotationPanel: React.FC<EvidenceAnnotationPanelProps> = (
       const stored = localStorage.getItem(`annotations_${investigationId}_${evidenceId}`);
       if (stored) {
         try {
-          setAnnotations(JSON.parse(stored));
+          const parsed = JSON.parse(stored);
+          setAnnotations(parsed);
+          onAnnotationsChange?.(parsed);
+          emitAnnotationUpdate(parsed);
         } catch (_e) {
           setAnnotations([]);
         }
@@ -171,6 +188,7 @@ export const EvidenceAnnotationPanel: React.FC<EvidenceAnnotationPanelProps> = (
         const updated = [...annotations, savedAnnotation];
         setAnnotations(updated);
         onAnnotationsChange?.(updated);
+        emitAnnotationUpdate(updated);
       } else {
         // Fallback to local storage
         const updated = [...annotations, newAnnotation];
@@ -180,6 +198,7 @@ export const EvidenceAnnotationPanel: React.FC<EvidenceAnnotationPanelProps> = (
           JSON.stringify(updated),
         );
         onAnnotationsChange?.(updated);
+        emitAnnotationUpdate(updated);
       }
     } catch (error) {
       console.error('Error saving annotation:', error);
@@ -188,6 +207,7 @@ export const EvidenceAnnotationPanel: React.FC<EvidenceAnnotationPanelProps> = (
       setAnnotations(updated);
       localStorage.setItem(`annotations_${investigationId}_${evidenceId}`, JSON.stringify(updated));
       onAnnotationsChange?.(updated);
+      emitAnnotationUpdate(updated);
     } finally {
       setSaving(false);
     }
@@ -218,6 +238,7 @@ export const EvidenceAnnotationPanel: React.FC<EvidenceAnnotationPanelProps> = (
       JSON.stringify(updatedAnnotations),
     );
     onAnnotationsChange?.(updatedAnnotations);
+    emitAnnotationUpdate(updatedAnnotations);
     setSaving(false);
   };
 
@@ -236,6 +257,7 @@ export const EvidenceAnnotationPanel: React.FC<EvidenceAnnotationPanelProps> = (
     setAnnotations(updated);
     localStorage.setItem(`annotations_${investigationId}_${evidenceId}`, JSON.stringify(updated));
     onAnnotationsChange?.(updated);
+    emitAnnotationUpdate(updated);
     setSaving(false);
   };
 

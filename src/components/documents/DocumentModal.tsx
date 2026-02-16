@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Tag, Download, Eye, X, Flag } from 'lucide-react';
+import { FileText, Tag, Download, Eye, X, Flag, ArrowLeft } from 'lucide-react';
 import { apiClient } from '../../services/apiClient';
 import { DocumentMetadataPanel } from './DocumentMetadataPanel';
 import { MediaViewer } from '../media/MediaViewer';
@@ -9,6 +9,7 @@ import { DocumentContentRenderer } from './DocumentContentRenderer';
 import { useModalFocusTrap } from '../../hooks/useModalFocusTrap';
 import { EvidenceModal } from '../common/EvidenceModal';
 import { useScrollLock } from '../../hooks/useScrollLock';
+import { AddToInvestigationButton } from '../common/AddToInvestigationButton';
 
 interface Props {
   id: string;
@@ -20,6 +21,20 @@ interface Props {
 export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initialDoc }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const urlParams = new URLSearchParams(location.search);
+  const caseIdFromQuery = urlParams.get('caseId');
+  const canReturnToCase =
+    location.pathname.startsWith('/investigations') ||
+    location.pathname.startsWith('/investigate/case/') ||
+    !!caseIdFromQuery;
+
+  const handleBackToCase = () => {
+    if (caseIdFromQuery) {
+      navigate(`/investigations/${caseIdFromQuery}?tab=casefolder`);
+      return;
+    }
+    onClose();
+  };
 
   // Determine active tab from URL
   type ModalTab = 'content' | 'original' | 'metadata';
@@ -201,6 +216,32 @@ export const DocumentModal: React.FC<Props> = ({ id, searchTerm, onClose, initia
             )}
           </div>
           <div className="flex items-center gap-2">
+            {canReturnToCase && (
+              <button
+                onClick={handleBackToCase}
+                className="control h-10 px-3 flex items-center justify-center text-slate-300 hover:text-white gap-1.5"
+                title="Back to case"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span className="text-xs">Case</span>
+              </button>
+            )}
+            <AddToInvestigationButton
+              item={{
+                id: String(doc.id || id),
+                title: doc.title || doc.fileName || `Document ${id}`,
+                description: doc.description || doc.contentPreview || '',
+                type: 'document',
+                sourceId: String(doc.id || id),
+                metadata: {
+                  document_id: doc.id || id,
+                  ingest_run_id: doc.ingestRunId || doc.ingest_run_id || null,
+                  pipeline_version: doc.pipelineVersion || doc.pipeline_version || null,
+                },
+              }}
+              variant="icon"
+              className="text-slate-300 hover:text-white"
+            />
             <button
               onClick={() => navigateToTab('metadata')}
               className="control h-10 w-10 p-0 flex items-center justify-center text-slate-300 hover:text-white"

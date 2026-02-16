@@ -27,6 +27,7 @@ import {
   Download,
   Eye,
   X,
+  HelpCircle,
   Sparkles,
   LayoutGrid,
   List as ListIcon,
@@ -120,6 +121,34 @@ const renderTypeIcon = (doc: Document) => {
 const getSourceLabel = (doc: Document): string =>
   doc.sourceType || doc.metadata?.source_collection || doc.metadata?.source || 'Archive';
 
+const DOJ_TRANCHE_OPTIONS: Array<{ value: string; label: string; sources: string[] }> = [
+  { value: 'all', label: 'All tranches', sources: [] },
+  {
+    value: 'doj-dataset-9-11',
+    label: 'DOJ Data Set 9-11',
+    sources: ['DOJ Data Set 9', 'DOJ Data Set 10', 'DOJ Data Set 11'],
+  },
+  { value: 'doj-dataset-9', label: 'DOJ Data Set 9', sources: ['DOJ Data Set 9'] },
+  { value: 'doj-dataset-10', label: 'DOJ Data Set 10', sources: ['DOJ Data Set 10'] },
+  { value: 'doj-dataset-11', label: 'DOJ Data Set 11', sources: ['DOJ Data Set 11'] },
+  { value: 'doj-dataset-12', label: 'DOJ Data Set 12', sources: ['DOJ Data Set 12'] },
+  {
+    value: 'doj-discovery',
+    label: 'DOJ Discovery Volumes',
+    sources: [
+      'DOJ Discovery VOL00001',
+      'DOJ Discovery VOL00002',
+      'DOJ Discovery VOL00003',
+      'DOJ Discovery VOL00004',
+      'DOJ Discovery VOL00005',
+      'DOJ Discovery VOL00006',
+      'DOJ Discovery VOL00007',
+      'DOJ Discovery VOL00008',
+    ],
+  },
+  { value: 'doj-phase-1', label: 'DOJ Phase 1', sources: ['DOJ Phase 1'] },
+];
+
 interface DocumentBrowserProps {
   processor: DocumentProcessor;
   searchTerm?: string;
@@ -181,6 +210,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
     return saved === 'comfortable' ? 'comfortable' : 'compact';
   });
   const [searchInput, setSearchInput] = useState(effectiveSearchTerm || '');
+  const [selectedTranche, setSelectedTranche] = useState<string>('all');
   const [isHeaderCondensed, setIsHeaderCondensed] = useState(false);
   const [jumpToPage, setJumpToPage] = useState('');
 
@@ -375,7 +405,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
           sourceType: doc.sourceType || doc.source_type || '',
           whyFlagged: doc.whyFlagged || doc.why_flagged || '',
           metadata: {
-            source: 'Epstein Files',
+            source: doc.sourceCollection || doc.sourceType || 'Epstein Files',
             confidentiality: 'Public',
             categories: [],
             ...doc.metadata,
@@ -557,12 +587,35 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
     }));
   }, [collection, documents]);
 
-  const handleFilterChange = (key: keyof BrowseFilters, value: any) => {
+  const handleFilterChange = useCallback((key: keyof BrowseFilters, value: any) => {
     setFilters((prev) => ({
       ...prev,
       [key]: value,
     }));
-  };
+  }, []);
+
+  const applyTrancheFilter = useCallback(
+    (trancheValue: string) => {
+      const option = DOJ_TRANCHE_OPTIONS.find((entry) => entry.value === trancheValue);
+      setSelectedTranche(trancheValue);
+      handleFilterChange('source', option ? option.sources : []);
+    },
+    [handleFilterChange],
+  );
+
+  useEffect(() => {
+    const activeSources = [...(filters.source || [])].sort();
+    if (activeSources.length === 0) {
+      if (selectedTranche !== 'all') setSelectedTranche('all');
+      return;
+    }
+    const matching = DOJ_TRANCHE_OPTIONS.find((entry) => {
+      if (entry.sources.length !== activeSources.length) return false;
+      return [...entry.sources].sort().every((source, idx) => source === activeSources[idx]);
+    });
+    const next = matching?.value || 'all';
+    if (next !== selectedTranche) setSelectedTranche(next);
+  }, [filters.source, selectedTranche]);
 
   const handleFileTypeToggle = (fileType: string) => {
     const current = filters.fileType || [];
@@ -1597,6 +1650,32 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
 
             <div className="flex items-center gap-2 flex-wrap">
               <select
+                value={selectedTranche}
+                onChange={(e) => applyTrancheFilter(e.target.value)}
+                className="control h-10 px-3 text-xs bg-slate-900 border border-slate-700 rounded-[var(--radius-md)]"
+                aria-label="Filter by DOJ tranche"
+                title="Filter documents by DOJ tranche/dataset"
+              >
+                {DOJ_TRANCHE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <div className="relative group">
+                <button
+                  type="button"
+                  aria-label="DOJ tranche help"
+                  className="control h-10 w-10 p-0 inline-flex items-center justify-center text-slate-300"
+                >
+                  <HelpCircle className="w-4 h-4" />
+                </button>
+                <div className="pointer-events-none absolute left-1/2 top-full z-40 mt-2 hidden w-72 -translate-x-1/2 rounded-lg border border-slate-700 bg-slate-900 p-3 text-xs text-slate-300 shadow-xl group-hover:block group-focus-within:block">
+                  DOJ tranche filter maps to `source_collection` labels from the DOJ releases.
+                  Example: “DOJ Data Set 9-11” includes Data Sets 9, 10, and 11.
+                </div>
+              </div>
+              <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
                 className="control h-10 px-3 text-xs bg-slate-900 border border-slate-700 rounded-[var(--radius-md)]"
@@ -1716,6 +1795,12 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
 
           {/* Significance and Sort Chips */}
           <div className="flex flex-wrap items-center gap-2 mt-2">
+            {selectedTranche !== 'all' && (
+              <span className="px-3 py-1.5 rounded-full text-sm bg-cyan-900/40 text-cyan-100 border border-cyan-600/40">
+                Tranche:{' '}
+                {DOJ_TRANCHE_OPTIONS.find((entry) => entry.value === selectedTranche)?.label}
+              </span>
+            )}
             {/* High Significance Filter */}
             <button
               onClick={() => {

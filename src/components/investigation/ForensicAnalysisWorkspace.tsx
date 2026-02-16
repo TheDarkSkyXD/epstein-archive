@@ -13,13 +13,17 @@ import {
   Eye,
   EyeOff,
   ArrowRight,
+  Info,
+  X,
 } from 'lucide-react';
+import { useToasts } from '../common/useToasts';
 import { ForensicDocumentAnalyzer } from './ForensicDocumentAnalyzer';
 import EntityRelationshipMapper from '../entities/EntityRelationshipMapper';
 import FinancialTransactionMapper from '../visualizations/FinancialTransactionMapper';
 import MultiSourceCorrelationEngine from './MultiSourceCorrelationEngine';
 import ForensicReportGenerator from './ForensicReportGenerator';
 import { transformToNetwork } from '../../utils/networkDataUtils';
+import { computeForensicConfidence, type ConfidenceResult } from '../../utils/forensicConfidence';
 
 interface ForensicAnalysisWorkspaceProps {
   investigation: Investigation;
@@ -37,6 +41,7 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
   timelineEvents,
   useGlobalContext = false,
 }) => {
+  const { addToast } = useToasts();
   const [activeTool, setActiveTool] = useState<
     'documents' | 'entities' | 'financial' | 'correlation' | 'reports'
   >('documents');
@@ -48,6 +53,17 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
     financial: true,
     correlation: true,
     reports: true,
+  });
+  const [showReliabilityInfo, setShowReliabilityInfo] = useState(false);
+  const [selectedConfidenceTool, setSelectedConfidenceTool] = useState<string | null>(null);
+  const [toolRunState, setToolRunState] = useState<
+    Record<string, 'not_run' | 'running' | 'complete' | 'needs_input'>
+  >({
+    documents: 'not_run',
+    entities: 'not_run',
+    financial: 'not_run',
+    correlation: 'not_run',
+    reports: 'not_run',
   });
 
   // Generate network data for the Entity Mapper
@@ -117,15 +133,207 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
     const financialCount = evidence.filter((e) =>
       (e.type || '').toLowerCase().includes('financial'),
     ).length;
+    const documentCount = evidence.filter((e) =>
+      (e.type || '').toLowerCase().includes('document'),
+    ).length;
+    const correlationCount = timelineEvents.length;
+    const modelCertainty = useGlobalContext ? 0.7 : 0.75;
+
+    const runMetadata = (() => {
+      let ingestRunId: string | null = null;
+      let rulesetVersion: string | null = null;
+      let modelId: string | null = null;
+      for (const item of evidence) {
+        const meta = ((item as any).metadata || (item as any).metadata_json || {}) as
+          | Record<string, unknown>
+          | string;
+        const parsed =
+          typeof meta === 'string'
+            ? (() => {
+                try {
+                  return JSON.parse(meta);
+                } catch {
+                  return {};
+                }
+              })()
+            : meta;
+        if (!ingestRunId)
+          ingestRunId = (parsed as any).ingest_run_id || (parsed as any).ingestRunId || null;
+        if (!rulesetVersion) rulesetVersion = (parsed as any).rulesetVersion || 'forensic-rules-v1';
+        if (!modelId) modelId = (parsed as any).modelId || (parsed as any).agentic_model_id || null;
+      }
+      return { ingestRunId, rulesetVersion, modelId };
+    })();
+
+    const documentsCoverage = documentCount / Math.max(1, evidence.length || 1);
+    const entitiesCoverage = networkData.entities.length / Math.max(1, evidence.length || 1);
+    const financialCoverage = financialCount / Math.max(1, evidence.length || 1);
+    const correlationCoverage = correlationCount / Math.max(1, timelineEvents.length || 1);
+    const reportsCoverage =
+      (documentCount + timelineEvents.length) /
+      Math.max(1, evidence.length + timelineEvents.length);
+
+    const documentSignal = Math.min(
+      1,
+      evidence.filter((e) => (e.authenticityScore || 0) > 70).length / Math.max(1, documentCount),
+    );
+    const financialSignal = Math.min(
+      1,
+      evidence.filter((e) => (e.authenticityScore || 0) > 60).length /
+        Math.max(1, financialCount || 1),
+    );
+
+    const entityCorroboration = Math.min(
+      1,
+      networkData.relationships.length / Math.max(1, networkData.entities.length * 2),
+    );
+    const correlationCorroboration = Math.min(
+      1,
+      (timelineEvents.filter((e) => (e.documents?.length || 0) > 0).length || 0) /
+        Math.max(1, timelineEvents.length || 1),
+    );
+
+    const computed = {
+      documents: {
+        count: documentCount,
+        coverage: documentsCoverage,
+        signalQuality: documentSignal,
+        corroboration: Math.min(1, timelineEvents.length / Math.max(1, documentCount || 1)),
+        modelCertainty,
+      },
+      entities: {
+        count: networkData.entities.length,
+        coverage: entitiesCoverage,
+        signalQuality: Math.min(1, networkData.entities.length / 20),
+        corroboration: entityCorroboration,
+        modelCertainty: null as number | null,
+      },
+      financial: {
+        count: financialCount,
+        coverage: financialCoverage,
+        signalQuality: financialSignal,
+        corroboration: Math.min(1, financialCount / 10),
+        modelCertainty: null as number | null,
+      },
+      correlation: {
+        count: correlationCount,
+        coverage: correlationCoverage,
+        signalQuality: Math.min(1, correlationCount / 30),
+        corroboration: correlationCorroboration,
+        modelCertainty,
+      },
+      reports: {
+        count: documentCount + timelineEvents.length > 0 ? 1 : 0,
+        coverage: Math.min(1, reportsCoverage),
+        signalQuality: Math.min(1, (documentSignal + correlationCorroboration) / 2 || 0),
+        corroboration: Math.min(1, (entityCorroboration + correlationCorroboration) / 2 || 0),
+        modelCertainty,
+      },
+    };
+
+    const confidenceFor = (
+      toolId: string,
+      count: number,
+      coverage: number,
+      signalQuality: number,
+      corroboration: number,
+      modelCertaintyValue: number | null,
+      factorInputs: Record<string, unknown>,
+    ): ConfidenceResult => {
+      return computeForensicConfidence({
+        toolId,
+        count,
+        ingestRunId: runMetadata.ingestRunId,
+        rulesetVersion: runMetadata.rulesetVersion || 'forensic-rules-v1',
+        modelId: runMetadata.modelId,
+        factors: {
+          coverage,
+          signalQuality,
+          corroboration,
+          modelCertainty: modelCertaintyValue,
+        },
+        factorInputs,
+      });
+    };
+
     return {
       documents: {
-        count: evidence.filter((e) => (e.type || '').toLowerCase().includes('document')).length,
-        confidence: 94,
+        ...computed.documents,
+        confidenceDetails: confidenceFor(
+          'documents',
+          computed.documents.count,
+          computed.documents.coverage,
+          computed.documents.signalQuality,
+          computed.documents.corroboration,
+          computed.documents.modelCertainty,
+          {
+            totalEvidenceCount: evidence.length,
+            documentCount,
+            timelineCount: timelineEvents.length,
+          },
+        ),
       },
-      entities: { count: networkData.entities.length, confidence: 87 },
-      financial: { count: financialCount, confidence: financialCount ? 91 : 0 },
-      correlation: { count: 0, confidence: 0 },
-      reports: { count: 1, confidence: 96 },
+      entities: {
+        ...computed.entities,
+        confidenceDetails: confidenceFor(
+          'entities',
+          computed.entities.count,
+          computed.entities.coverage,
+          computed.entities.signalQuality,
+          computed.entities.corroboration,
+          computed.entities.modelCertainty,
+          {
+            entityCount: networkData.entities.length,
+            relationshipCount: networkData.relationships.length,
+          },
+        ),
+      },
+      financial: {
+        ...computed.financial,
+        confidenceDetails: confidenceFor(
+          'financial',
+          computed.financial.count,
+          computed.financial.coverage,
+          computed.financial.signalQuality,
+          computed.financial.corroboration,
+          computed.financial.modelCertainty,
+          {
+            financialCount,
+            verifiedFinancialCount: evidence.filter((e) => (e.authenticityScore || 0) > 60).length,
+          },
+        ),
+      },
+      correlation: {
+        ...computed.correlation,
+        confidenceDetails: confidenceFor(
+          'correlation',
+          computed.correlation.count,
+          computed.correlation.coverage,
+          computed.correlation.signalQuality,
+          computed.correlation.corroboration,
+          computed.correlation.modelCertainty,
+          {
+            timelineEventCount: timelineEvents.length,
+            linkedTimelineEvents: timelineEvents.filter((e) => (e.documents?.length || 0) > 0)
+              .length,
+          },
+        ),
+      },
+      reports: {
+        ...computed.reports,
+        confidenceDetails: confidenceFor(
+          'reports',
+          computed.reports.count,
+          computed.reports.coverage,
+          computed.reports.signalQuality,
+          computed.reports.corroboration,
+          computed.reports.modelCertainty,
+          {
+            reportInputEvidenceCount: evidence.length,
+            reportInputTimelineCount: timelineEvents.length,
+          },
+        ),
+      },
     };
   };
 
@@ -139,6 +347,68 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
       return '';
     }
   })();
+
+  const downloadBriefing = async () => {
+    try {
+      const response = await fetch(`/api/investigations/${investigation.id}/briefing`);
+      if (!response.ok) throw new Error('Failed');
+      const markdown = await response.text();
+      const blob = new Blob([markdown], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `forensic-briefing-${investigation.id}.md`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+      addToast({ text: 'Forensic briefing exported', type: 'success' });
+    } catch (_error) {
+      addToast({ text: 'Failed to export briefing', type: 'error' });
+    }
+  };
+
+  const getRequiredInput = (toolId: string) => {
+    switch (toolId) {
+      case 'documents':
+        return 'Link at least 1 document evidence item.';
+      case 'entities':
+        return 'Link at least 2 entities or person records.';
+      case 'financial':
+        return 'Link at least 3 financial evidence items.';
+      case 'correlation':
+        return 'Add timeline events and linked evidence.';
+      case 'reports':
+        return 'Run at least one tool and add case notes.';
+      default:
+        return 'Link investigation evidence.';
+    }
+  };
+
+  const resolveToolStatus = (toolId: keyof typeof stats) => {
+    const stat = stats[toolId];
+    if (toolRunState[toolId] === 'running') return 'Running';
+    if (stat.count === 0) return 'Needs input';
+    if (toolRunState[toolId] === 'complete') return 'Complete';
+    return 'Not run';
+  };
+
+  const runTool = async (
+    toolId: 'documents' | 'entities' | 'financial' | 'correlation' | 'reports',
+  ) => {
+    if ((stats as any)[toolId].count === 0) {
+      addToast({ text: getRequiredInput(toolId), type: 'warning' });
+      return;
+    }
+    setToolRunState((prev) => ({ ...prev, [toolId]: 'running' }));
+    setActiveTool(toolId);
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    setToolRunState((prev) => ({ ...prev, [toolId]: 'complete' }));
+    addToast({
+      text: `${forensicTools.find((t) => t.id === toolId)?.name} ready`,
+      type: 'success',
+    });
+  };
 
   return (
     <div className="min-h-full bg-gray-900 text-gray-100">
@@ -162,12 +432,34 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
               <Settings className="w-4 h-4" />
               <span className="text-sm">Tools</span>
             </button>
-            <button className="flex items-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors">
+            <button
+              onClick={downloadBriefing}
+              className="flex items-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+            >
               <Download className="w-4 h-4" />
-              <span className="text-sm">Export All</span>
+              <span className="text-sm">Export Briefing</span>
             </button>
           </div>
         </div>
+        <div className="mt-3 flex items-center gap-2">
+          <button
+            onClick={() => setShowReliabilityInfo((prev) => !prev)}
+            className="inline-flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-md border border-gray-600 text-gray-200 hover:bg-gray-700"
+          >
+            <Info className="w-3.5 h-3.5" />
+            What does confidence mean?
+          </button>
+        </div>
+        {showReliabilityInfo && (
+          <div className="mt-3 p-3 rounded-lg border border-gray-600 bg-gray-800 text-xs text-gray-300">
+            Confidence = internal scoring of completeness + evidence quality for this investigation,
+            not truth.
+            <div className="mt-2 text-gray-400">
+              Coverage (40%) + Signal quality (25%) + Corroboration (25%) + Model certainty (10%).
+              Tools with zero inputs show N/A.
+            </div>
+          </div>
+        )}
 
         {/* Tool Settings */}
         {showToolSettings && (
@@ -198,7 +490,7 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
       <div className="flex flex-col md:flex-row">
         {/* Collapsible Sidebar */}
         <div
-          className={`${toolsCollapsed ? 'w-16' : 'w-full md:w-80'} bg-gray-800 border-b md:border-b-0 md:border-r border-gray-700 transition-all duration-300`}
+          className={`${toolsCollapsed ? 'w-16' : 'w-full md:w-80'} bg-gray-800 border-b md:border-b-0 md:border-r border-gray-700 transition-all duration-300 overflow-x-hidden`}
         >
           {/* Tool Selection */}
           <div className="p-4 border-b border-gray-700">
@@ -245,7 +537,7 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
                       </div>
                       {!toolsCollapsed && (
                         <>
-                          <p className="text-xs text-gray-400 mb-2 line-clamp-2 whitespace-nowrap overflow-hidden text-ellipsis">
+                          <p className="text-xs text-gray-400 mb-2 line-clamp-2 break-words">
                             {tool.description}
                           </p>
                           <div className="flex justify-between items-center text-xs">
@@ -254,15 +546,60 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
                             </span>
                             <span
                               className={`px-2 py-1 rounded text-xs ${
-                                toolStats.confidence >= 90
-                                  ? 'bg-green-900 text-green-200'
-                                  : toolStats.confidence >= 80
-                                    ? 'bg-yellow-900 text-yellow-200'
-                                    : 'bg-red-900 text-red-200'
+                                toolStats.confidenceDetails.finalScore === null
+                                  ? 'bg-gray-700 text-gray-200'
+                                  : toolStats.confidenceDetails.finalScore >= 90
+                                    ? 'bg-green-900 text-green-200'
+                                    : toolStats.confidenceDetails.finalScore >= 80
+                                      ? 'bg-yellow-900 text-yellow-200'
+                                      : 'bg-red-900 text-red-200'
                               }`}
+                              role="button"
+                              tabIndex={0}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedConfidenceTool(tool.id);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setSelectedConfidenceTool(tool.id);
+                                }
+                              }}
                             >
-                              {toolStats.confidence}% confidence
+                              {toolStats.confidenceDetails.finalScore === null
+                                ? 'N/A'
+                                : `${toolStats.confidenceDetails.finalScore}% confidence`}
                             </span>
+                          </div>
+                          <div className="mt-2 flex items-center justify-between gap-2">
+                            <span className="text-[11px] text-gray-400">
+                              {resolveToolStatus(tool.id as keyof typeof stats)}
+                            </span>
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  runTool(tool.id as any);
+                                }}
+                                className="px-2 py-1 text-[11px] rounded bg-gray-600 hover:bg-gray-500 text-gray-100"
+                              >
+                                Run tool
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveTool(tool.id as any);
+                                }}
+                                className="px-2 py-1 text-[11px] rounded border border-gray-500 text-gray-200 hover:bg-gray-700"
+                              >
+                                View
+                              </button>
+                            </div>
+                          </div>
+                          <div className="mt-1 text-[11px] text-gray-500">
+                            {getRequiredInput(tool.id)}
                           </div>
                         </>
                       )}
@@ -279,15 +616,31 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
                           </span>
                           <span
                             className={`px-2 py-1 rounded text-xs ${
-                              toolStats.confidence >= 90
-                                ? 'bg-green-900 text-green-200'
-                                : toolStats.confidence >= 80
-                                  ? 'bg-yellow-900 text-yellow-200'
-                                  : 'bg-red-900 text-red-200'
+                              toolStats.confidenceDetails.finalScore === null
+                                ? 'bg-gray-700 text-gray-200'
+                                : toolStats.confidenceDetails.finalScore >= 90
+                                  ? 'bg-green-900 text-green-200'
+                                  : toolStats.confidenceDetails.finalScore >= 80
+                                    ? 'bg-yellow-900 text-yellow-200'
+                                    : 'bg-red-900 text-red-200'
                             }`}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => setSelectedConfidenceTool(tool.id)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                setSelectedConfidenceTool(tool.id);
+                              }
+                            }}
                           >
-                            {toolStats.confidence}% confidence
+                            {toolStats.confidenceDetails.finalScore === null
+                              ? 'N/A'
+                              : `${toolStats.confidenceDetails.finalScore}% confidence`}
                           </span>
+                        </div>
+                        <div className="mt-2 text-[11px] text-gray-500">
+                          {resolveToolStatus(tool.id as keyof typeof stats)}
                         </div>
                       </div>
                     )}
@@ -383,6 +736,94 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
           </div>
         </div>
       </div>
+
+      {selectedConfidenceTool && (
+        <div className="fixed inset-0 z-[1100] bg-black/60 flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl rounded-xl border border-gray-700 bg-gray-900 text-gray-100 max-h-[90vh] overflow-auto">
+            <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold">Confidence details</h3>
+                <p className="text-xs text-gray-400">
+                  {forensicTools.find((t) => t.id === selectedConfidenceTool)?.name}
+                </p>
+              </div>
+              <button
+                className="p-2 rounded hover:bg-gray-800 text-gray-300"
+                onClick={() => setSelectedConfidenceTool(null)}
+                aria-label="Close confidence details"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            {(() => {
+              const details = (stats as any)[selectedConfidenceTool]?.confidenceDetails as
+                | ConfidenceResult
+                | undefined;
+              if (!details) return null;
+              return (
+                <div className="p-4 space-y-4 text-sm">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="p-3 rounded border border-gray-700 bg-gray-800">
+                      <p className="text-xs text-gray-400">Final score</p>
+                      <p className="text-xl font-semibold">
+                        {details.finalScore === null ? 'N/A' : `${details.finalScore}%`}
+                      </p>
+                    </div>
+                    <div className="p-3 rounded border border-gray-700 bg-gray-800">
+                      <p className="text-xs text-gray-400">Algorithm</p>
+                      <p>{details.algorithm}</p>
+                    </div>
+                  </div>
+                  <div className="p-3 rounded border border-gray-700 bg-gray-800">
+                    <p className="text-xs text-gray-400 mb-2">Weight breakdown</p>
+                    <p>
+                      Coverage 40% / Signal quality 25% / Corroboration 25% / Model certainty 10%
+                    </p>
+                  </div>
+                  <div className="p-3 rounded border border-gray-700 bg-gray-800">
+                    <p className="text-xs text-gray-400 mb-2">Raw factors</p>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>Coverage: {details.factors.coverage ?? 'N/A'}</div>
+                      <div>Signal quality: {details.factors.signalQuality ?? 'N/A'}</div>
+                      <div>Corroboration: {details.factors.corroboration ?? 'N/A'}</div>
+                      <div>Model certainty: {details.factors.modelCertainty ?? 'N/A'}</div>
+                    </div>
+                  </div>
+                  <div className="p-3 rounded border border-gray-700 bg-gray-800">
+                    <p className="text-xs text-gray-400 mb-2">Per-factor inputs</p>
+                    <pre className="text-xs whitespace-pre-wrap break-words text-gray-300">
+                      {JSON.stringify(details.factorInputs, null, 2)}
+                    </pre>
+                  </div>
+                  <div className="p-3 rounded border border-gray-700 bg-gray-800">
+                    <p className="text-xs text-gray-400 mb-2">Missing inputs</p>
+                    {details.missingInputs.length > 0 ? (
+                      <ul className="list-disc pl-5 text-xs text-amber-200">
+                        {details.missingInputs.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-xs text-emerald-200">No missing inputs.</p>
+                    )}
+                  </div>
+                  <div className="p-3 rounded border border-gray-700 bg-gray-800 text-xs space-y-1">
+                    <p>
+                      Determinism:{' '}
+                      {details.determinism.deterministic ? 'deterministic' : 'non-deterministic'}
+                    </p>
+                    <p>{details.determinism.reason}</p>
+                    <p>ingest_run_id: {details.metadata.ingestRunId || 'N/A'}</p>
+                    <p>rulesetVersion: {details.metadata.rulesetVersion || 'N/A'}</p>
+                    <p>modelId: {details.metadata.modelId || 'N/A'}</p>
+                    <p>computed_at: {details.metadata.computedAt}</p>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

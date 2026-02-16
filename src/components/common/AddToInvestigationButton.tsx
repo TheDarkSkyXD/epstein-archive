@@ -7,7 +7,7 @@ interface AddToInvestigationItem {
   id: string;
   title: string;
   description: string;
-  type: 'document' | 'entity' | 'evidence' | 'flight' | 'property';
+  type: 'document' | 'entity' | 'evidence' | 'flight' | 'property' | 'email' | 'media' | 'timeline';
   sourceId: string;
   metadata?: any;
 }
@@ -112,6 +112,7 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
   const handleQuickAdd = async () => {
     if (!selectedInvestigationId) {
       // Show modal to select investigation if none selected
+      if (!hasInvestigations) setIsCreatingNew(true);
       setShowModal(true);
       return;
     }
@@ -188,27 +189,30 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
   };
 
   const ItemIcon = getItemIcon();
-
-  if (investigations.length === 0) {
-    return null;
-  }
+  const hasInvestigations = investigations.length > 0;
 
   return (
     <>
       {variant === 'button' && (
         <button
-          onClick={() => setShowModal(true)}
+          onClick={() => {
+            if (!hasInvestigations) setIsCreatingNew(true);
+            setShowModal(true);
+          }}
           className={`flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm ${className}`}
           title="Add to Investigation"
         >
           <Icon name="Plus" size="sm" />
-          Add to Investigation
+          {hasInvestigations ? 'Add to Investigation' : 'Create Case + Add'}
         </button>
       )}
 
       {variant === 'icon' && (
         <button
-          onClick={() => setShowModal(true)}
+          onClick={() => {
+            if (!hasInvestigations) setIsCreatingNew(true);
+            setShowModal(true);
+          }}
           className={`p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-900/30 rounded-lg transition-colors ${className}`}
           title="Add to Investigation"
         >
@@ -219,7 +223,10 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
       {variant === 'dropdown' && (
         <div className="relative group">
           <button
-            onClick={() => setShowModal(true)}
+            onClick={() => {
+              if (!hasInvestigations) setIsCreatingNew(true);
+              setShowModal(true);
+            }}
             className={`flex items-center gap-2 px-3 py-2 text-blue-400 hover:text-blue-300 hover:bg-blue-900/30 rounded-lg transition-colors text-sm ${className}`}
           >
             <Icon name="Plus" size="sm" />
@@ -284,14 +291,19 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
                     {isCreatingNew ? 'New Investigation Details' : 'Select Investigation'}
                   </label>
                   <button
-                    onClick={() => setIsCreatingNew(!isCreatingNew)}
+                    onClick={() => setIsCreatingNew(!isCreatingNew || !hasInvestigations)}
+                    disabled={!hasInvestigations}
                     className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
                   >
-                    {isCreatingNew ? 'Select existing...' : '+ Create new'}
+                    {!hasInvestigations
+                      ? 'No cases yet'
+                      : isCreatingNew
+                        ? 'Select existing...'
+                        : '+ Create new'}
                   </button>
                 </div>
 
-                {isCreatingNew ? (
+                {isCreatingNew || !hasInvestigations ? (
                   <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
                     <input
                       type="text"

@@ -263,6 +263,47 @@ function main(): void {
     false,
   ); // Non-critical (warnings allowed in some cases)
 
+  // 8b. Investigations Placeholder/Gating Scan
+  runCheck(
+    'Investigations placeholders are explicitly gated',
+    () => {
+      const investigationDir = join(__dirname, '..', 'src', 'components', 'investigation');
+      if (!fs.existsSync(investigationDir)) {
+        return { passed: false, message: 'Investigation component directory not found' };
+      }
+
+      const files = fs.readdirSync(investigationDir).filter((f) => f.endsWith('.tsx'));
+      const placeholderPattern = /(coming soon|not implemented yet|start analysis|placeholder)/i;
+      const violations: string[] = [];
+
+      for (const file of files) {
+        const fullPath = join(investigationDir, file);
+        const content = fs.readFileSync(fullPath, 'utf8');
+        const lines = content.split('\n');
+        lines.forEach((line, index) => {
+          if (!placeholderPattern.test(line)) return;
+          const windowText = lines.slice(Math.max(0, index - 2), index + 3).join('\n');
+          const explicitlyGated = /not available yet|data-gated-reason|disabled|alternative/i.test(
+            windowText,
+          );
+          if (!explicitlyGated) {
+            violations.push(`${file}:${index + 1}`);
+          }
+        });
+      }
+
+      if (violations.length > 0) {
+        return {
+          passed: false,
+          message: `Ungated placeholder labels found (${violations.slice(0, 10).join(', ')})`,
+        };
+      }
+
+      return { passed: true, message: 'No ungated placeholder labels detected' };
+    },
+    true,
+  );
+
   // ============================================================
   // PHASE 4: BUILD & BUNDLE (CRITICAL)
   // ============================================================

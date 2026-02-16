@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Investigation, EvidenceItem } from '../../types/investigation';
 import { apiClient } from '../../services/apiClient';
 import {
@@ -13,11 +13,13 @@ import {
   Phone,
   X,
 } from 'lucide-react';
+import { useToasts } from '../common/useToasts';
 
 interface CommunicationAnalysisProps {
   investigation: Investigation;
   evidence: EvidenceItem[];
   onCommunicationPatternDetected?: (patterns: CommunicationPattern[]) => void;
+  onOpenCaseFolder?: () => void;
 }
 
 export interface CommunicationPattern {
@@ -37,44 +39,86 @@ export interface CommunicationPattern {
     responseTime?: number;
     anomalyScore?: number;
     networkDensity?: number;
+    threadIds?: string[];
+    documentIds?: string[];
+    dataCoverage?: string;
   };
   recommendations: string[];
 }
 
 export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
-  investigation: _investigation,
+  investigation,
   evidence,
   onCommunicationPatternDetected,
+  onOpenCaseFolder,
 }) => {
+  const { addToast } = useToasts();
   const [communicationPatterns, setCommunicationPatterns] = useState<CommunicationPattern[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [selectedPattern, setSelectedPattern] = useState<CommunicationPattern | null>(null);
   const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [analysisMessage, setAnalysisMessage] = useState('Ready');
+  const [lastRunAt, setLastRunAt] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<
     'all' | 'frequency' | 'timing' | 'content' | 'network' | 'anomaly'
   >('all');
 
+  const linkedEntityCount = useMemo(
+    () =>
+      evidence.filter((item) =>
+        ['entity', 'person', 'organization'].includes((item.type || '').toString().toLowerCase()),
+      ).length,
+    [evidence],
+  );
+
+  const collectEntityIds = async (): Promise<string[]> => {
+    const fromEvidence = evidence
+      .filter((item) =>
+        ['entity', 'person', 'organization'].includes((item.type || '').toString().toLowerCase()),
+      )
+      .map((item) => String(item.sourceId || item.id))
+      .filter(Boolean);
+
+    try {
+      const response = await fetch(`/api/investigations/${investigation.id}/evidence-by-type`);
+      if (response.ok) {
+        const payload = await response.json();
+        const allItems = Array.isArray(payload?.all) ? payload.all : [];
+        const fromCaseFolder = allItems
+          .filter(
+            (item: any) =>
+              item?.target_type === 'entity' ||
+              String(item?.source_path || '').startsWith('entity:') ||
+              ['entity', 'person', 'organization'].includes(String(item?.type || '').toLowerCase()),
+          )
+          .map((item: any) => {
+            if (item?.target_id) return String(item.target_id);
+            const sourcePath = String(item?.source_path || '');
+            const match = sourcePath.match(/^entity:(\d+)$/);
+            return match ? match[1] : null;
+          })
+          .filter(Boolean);
+        return Array.from(new Set([...fromEvidence, ...fromCaseFolder])) as string[];
+      }
+    } catch (_error) {
+      // Fallback to current evidence only
+    }
+
+    return Array.from(new Set(fromEvidence));
+  };
+
   const analyzeCommunications = async () => {
     setIsAnalyzing(true);
     setAnalysisProgress(5);
+    setAnalysisMessage('Collecting linked entities');
 
     // 1. Collect unique entity IDs from investigation evidence
-    const entityIds = Array.from(
-      new Set(
-        evidence
-          .filter((item) =>
-            ['entity', 'person', 'organization'].includes(
-              (item.type || '').toString().toLowerCase(),
-            ),
-          )
-          .map((item) => String(item.sourceId || item.id))
-          .filter(Boolean),
-      ),
-    );
+    const entityIds = await collectEntityIds();
 
     if (entityIds.length === 0) {
       setCommunicationPatterns([]);
       setAnalysisProgress(100);
+      setAnalysisMessage('No linked entities found for this investigation');
       setIsAnalyzing(false);
       if (onCommunicationPatternDetected) onCommunicationPatternDetected([]);
       return;
@@ -96,6 +140,7 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
     for (let i = 0; i < entityIds.length; i++) {
       const entityId = entityIds[i];
       try {
+        setAnalysisMessage(`Loading communications for entity ${entityId}`);
         const res = await apiClient.getEntityCommunications(entityId, {
           limit: 500,
         });
@@ -122,6 +167,7 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
     if (allEvents.length === 0) {
       setCommunicationPatterns([]);
       setAnalysisProgress(100);
+      setAnalysisMessage('No communication records were found for linked entities');
       setIsAnalyzing(false);
       if (onCommunicationPatternDetected) onCommunicationPatternDetected([]);
       return;
@@ -131,6 +177,7 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
     const byTopic = new Map<string, number>();
     const byPair = new Map<string, number>();
     const byHour: number[] = Array.from({ length: 24 }, () => 0);
+    const byHourBucket = new Map<string, typeof allEvents>();
 
     for (const ev of allEvents) {
       const topic = ev.topic || 'misc';
@@ -152,11 +199,18 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
           if (h >= 0 && h < 24) {
             byHour[h] += 1;
           }
+          const bucket = new Date(d);
+          bucket.setMinutes(0, 0, 0);
+          const bucketKey = bucket.toISOString();
+          const existing = byHourBucket.get(bucketKey) || [];
+          existing.push(ev);
+          byHourBucket.set(bucketKey, existing);
         }
       }
     }
 
     setAnalysisProgress(70);
+    setAnalysisMessage('Deriving communication patterns');
 
     const totalMessages = allEvents.length;
 
@@ -198,6 +252,16 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
           frequency: topTopic[1],
           messageCount: totalMessages,
           communicationChannels: ['email'],
+          threadIds: allEvents
+            .filter((e) => e.topic === topTopic[0] && e.threadId)
+            .map((e) => e.threadId)
+            .filter(Boolean)
+            .slice(0, 20),
+          documentIds: allEvents
+            .filter((e) => e.topic === topTopic[0] && e.documentId)
+            .map((e) => e.documentId)
+            .filter(Boolean)
+            .slice(0, 20),
         },
         recommendations: [
           'Review all high-volume threads for this topic.',
@@ -229,6 +293,24 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
             end: '',
           },
           communicationChannels: ['email'],
+          threadIds: allEvents
+            .filter((e) => {
+              if (!e.date) return false;
+              const d = new Date(e.date);
+              return !isNaN(d.getTime()) && d.getHours() < 6;
+            })
+            .map((e) => e.threadId)
+            .filter(Boolean)
+            .slice(0, 20),
+          documentIds: allEvents
+            .filter((e) => {
+              if (!e.date) return false;
+              const d = new Date(e.date);
+              return !isNaN(d.getTime()) && d.getHours() < 6;
+            })
+            .map((e) => e.documentId)
+            .filter(Boolean)
+            .slice(0, 20),
         },
         recommendations: ['Inspect these threads for sensitive coordination or escalation.'],
       });
@@ -247,6 +329,32 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
         metadata: {
           communicationChannels: ['email'],
           messageCount: topPair[1],
+          threadIds: allEvents
+            .filter((e) => {
+              const participants = Array.from(
+                new Set([e.from, ...e.to].filter((v) => v && v.trim().length > 0)),
+              )
+                .slice(0, 2)
+                .sort()
+                .join(' ↔ ');
+              return participants === topPair[0];
+            })
+            .map((e) => e.threadId)
+            .filter(Boolean)
+            .slice(0, 20),
+          documentIds: allEvents
+            .filter((e) => {
+              const participants = Array.from(
+                new Set([e.from, ...e.to].filter((v) => v && v.trim().length > 0)),
+              )
+                .slice(0, 2)
+                .sort()
+                .join(' ↔ ');
+              return participants === topPair[0];
+            })
+            .map((e) => e.documentId)
+            .filter(Boolean)
+            .slice(0, 20),
         },
         recommendations: [
           'Map all threads involving this pair of participants.',
@@ -255,9 +363,61 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
       });
     }
 
+    const bucketEntries = Array.from(byHourBucket.entries()).map(([bucket, eventsInBucket]) => ({
+      bucket,
+      count: eventsInBucket.length,
+      events: eventsInBucket,
+    }));
+    if (bucketEntries.length >= 3) {
+      const counts = bucketEntries.map((entry) => entry.count);
+      const mean = counts.reduce((sum, count) => sum + count, 0) / counts.length;
+      const variance =
+        counts.reduce((sum, count) => sum + Math.pow(count - mean, 2), 0) /
+        Math.max(1, counts.length);
+      const stdDev = Math.sqrt(variance);
+      const topBucket = bucketEntries.sort((a, b) => b.count - a.count)[0];
+      const threshold = mean + stdDev * 2;
+      if (topBucket && topBucket.count >= Math.max(5, Math.ceil(threshold))) {
+        const threads = topBucket.events.map((ev) => ev.threadId).filter(Boolean);
+        const docs = topBucket.events.map((ev) => ev.documentId).filter(Boolean);
+        patterns.push({
+          id: 'anomaly-volume-spike',
+          type: 'anomaly',
+          title: 'Time-window communication spike',
+          description: `An unusual burst of ${topBucket.count} messages occurred around ${new Date(topBucket.bucket).toLocaleString()} (baseline ${mean.toFixed(1)} per hour).`,
+          confidence: Math.min(
+            98,
+            Math.max(70, Math.round((topBucket.count / Math.max(1, threshold)) * 80)),
+          ),
+          severity: topBucket.count > threshold * 1.8 ? 'critical' : 'high',
+          participants: Array.from(
+            new Set(
+              topBucket.events
+                .flatMap((ev) => [ev.from, ...ev.to])
+                .filter((value) => typeof value === 'string' && value.trim().length > 0),
+            ),
+          ).slice(0, 8),
+          evidenceIds: docs.slice(0, 50),
+          metadata: {
+            anomalyScore: Math.round((topBucket.count / Math.max(1, threshold)) * 100) / 100,
+            communicationChannels: ['email'],
+            threadIds: threads.slice(0, 20),
+            documentIds: docs.slice(0, 20),
+            dataCoverage: `${bucketEntries.length} hourly buckets`,
+          },
+          recommendations: [
+            'Open the spike hour messages and review escalation cues.',
+            'Link critical threads to case folder with provenance for audit trail.',
+          ],
+        });
+      }
+    }
+
     setCommunicationPatterns(patterns);
     setAnalysisProgress(100);
+    setAnalysisMessage(`Completed. ${patterns.length} patterns detected`);
     setIsAnalyzing(false);
+    setLastRunAt(new Date().toISOString());
 
     if (onCommunicationPatternDetected) {
       onCommunicationPatternDetected(patterns);
@@ -306,6 +466,47 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
       ? communicationPatterns
       : communicationPatterns.filter((pattern) => pattern.type === filterType);
 
+  const openScopedEmailView = (pattern?: CommunicationPattern) => {
+    const threadIds =
+      pattern?.metadata.threadIds?.filter((id) => id && id.trim().length > 0).slice(0, 12) || [];
+    const params = new URLSearchParams();
+    params.set('investigationId', String(investigation.id));
+    if (threadIds.length > 0) params.set('threadIds', threadIds.join(','));
+    window.location.assign(`/emails?${params.toString()}`);
+  };
+
+  const addPatternEvidenceToCase = async (pattern: CommunicationPattern) => {
+    const docId = pattern.metadata.documentIds?.[0] || pattern.evidenceIds?.[0] || null;
+    const threadId = pattern.metadata.threadIds?.[0] || null;
+    const sourcePath = threadId ? `email-thread:${threadId}` : docId ? `email:${docId}` : null;
+    if (!sourcePath) {
+      addToast({ text: 'No source message available to add for this pattern.', type: 'warning' });
+      return;
+    }
+    try {
+      const response = await fetch(`/api/investigations/${investigation.id}/evidence`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: `Communications signal: ${pattern.title}`,
+          description: `${pattern.description}\n\nDerived from communication analysis for investigation ${investigation.id}.`,
+          type: 'email',
+          source_path: sourcePath,
+          relevance:
+            pattern.severity === 'critical' || pattern.severity === 'high' ? 'high' : 'medium',
+          notes: `Provenance: communications pattern ${pattern.id}, confidence ${pattern.confidence}%`,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to add pattern evidence');
+      }
+      addToast({ text: 'Pattern evidence added to case folder.', type: 'success' });
+      window.dispatchEvent(new CustomEvent('investigation-item-added'));
+    } catch (_error) {
+      addToast({ text: 'Failed to add pattern evidence to case folder.', type: 'error' });
+    }
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-lg">
       {/* Header */}
@@ -316,6 +517,14 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
             <p className="text-sm text-gray-600 mt-1">
               Analyze communication patterns, timing, and network effects
             </p>
+            <p className="text-xs text-gray-500 mt-2">
+              Uses linked investigation entities and their communication records.
+            </p>
+            {lastRunAt && (
+              <p className="text-xs text-gray-500 mt-1">
+                Last run: {new Date(lastRunAt).toLocaleString()}
+              </p>
+            )}
           </div>
           <button
             onClick={analyzeCommunications}
@@ -332,9 +541,7 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
       {isAnalyzing && (
         <div className="px-6 py-4 bg-red-50 border-b border-red-200">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-red-900">
-              Analyzing communication patterns...
-            </span>
+            <span className="text-sm font-medium text-red-900">{analysisMessage}</span>
             <span className="text-sm text-red-700">{analysisProgress}%</span>
           </div>
           <div className="w-full bg-red-200 rounded-full h-2">
@@ -424,6 +631,29 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
                           {pattern.metadata.communicationChannels && (
                             <span>Channels: {pattern.metadata.communicationChannels.length}</span>
                           )}
+                          {pattern.metadata.threadIds && pattern.metadata.threadIds.length > 0 && (
+                            <span>Threads: {pattern.metadata.threadIds.length}</span>
+                          )}
+                        </div>
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openScopedEmailView(pattern);
+                            }}
+                            className="px-2 py-1 text-xs rounded bg-blue-100 text-blue-800 hover:bg-blue-200"
+                          >
+                            Open underlying emails
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              addPatternEvidenceToCase(pattern);
+                            }}
+                            className="px-2 py-1 text-xs rounded bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                          >
+                            Add signal to case folder
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -530,6 +760,33 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
                   ))}
                 </ul>
               </div>
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Underlying sources</h4>
+                <div className="flex flex-wrap gap-2">
+                  {(selectedPattern.metadata.threadIds || []).slice(0, 8).map((threadId) => (
+                    <button
+                      key={threadId}
+                      onClick={() =>
+                        window.location.assign(`/emails?threadId=${encodeURIComponent(threadId)}`)
+                      }
+                      className="px-2 py-1 bg-slate-100 text-slate-700 text-xs rounded hover:bg-slate-200"
+                    >
+                      Thread {threadId}
+                    </button>
+                  ))}
+                  {(selectedPattern.metadata.documentIds || []).slice(0, 8).map((docId) => (
+                    <button
+                      key={docId}
+                      onClick={() =>
+                        window.location.assign(`/emails?id=${encodeURIComponent(docId)}`)
+                      }
+                      className="px-2 py-1 bg-slate-100 text-slate-700 text-xs rounded hover:bg-slate-200"
+                    >
+                      Message {docId}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             <div className="flex justify-end gap-3 mt-6">
@@ -539,8 +796,22 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
               >
                 Close
               </button>
-              <button className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors">
-                Add to Investigation
+              {onOpenCaseFolder && (
+                <button
+                  onClick={() => {
+                    setSelectedPattern(null);
+                    onOpenCaseFolder();
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
+                >
+                  Review in Case Folder
+                </button>
+              )}
+              <button
+                onClick={() => addPatternEvidenceToCase(selectedPattern)}
+                className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-700 transition-colors"
+              >
+                Add Signal to Case
               </button>
             </div>
           </div>
@@ -555,15 +826,33 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
             No communication patterns detected yet
           </h3>
           <p className="text-sm text-gray-600 mb-4">
-            Start communication analysis to identify suspicious patterns in timing, frequency,
-            content, and network behavior.
+            {linkedEntityCount > 0
+              ? 'Start communication analysis to identify timing spikes, network density patterns, and high-signal threads.'
+              : 'Needs input: link at least one entity or email evidence item to this case before communication signals can be derived.'}
           </p>
-          <button
-            onClick={analyzeCommunications}
-            className="px-4 py-2 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 transition-colors"
-          >
-            Start Communication Analysis
-          </button>
+          <div className="flex items-center justify-center gap-3">
+            <button
+              onClick={analyzeCommunications}
+              disabled={linkedEntityCount === 0}
+              className="px-4 py-2 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 transition-colors"
+            >
+              Start Communication Analysis
+            </button>
+            <button
+              onClick={() => openScopedEmailView()}
+              className="px-4 py-2 bg-blue-100 text-blue-800 text-sm rounded-md hover:bg-blue-200 transition-colors"
+            >
+              Open case-scoped email view
+            </button>
+            {onOpenCaseFolder && (
+              <button
+                onClick={onOpenCaseFolder}
+                className="px-4 py-2 bg-gray-100 text-gray-800 text-sm rounded-md hover:bg-gray-200 transition-colors"
+              >
+                Open Case Folder
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

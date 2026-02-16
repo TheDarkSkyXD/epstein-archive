@@ -13,6 +13,54 @@ export interface Investigation {
   updated_at: string;
 }
 
+type InvestigationEvidenceTargetType = 'document' | 'entity' | 'media' | null;
+
+function inferEvidenceTarget(row: any): {
+  targetType: InvestigationEvidenceTargetType;
+  targetId: number | null;
+} {
+  const sourcePath = typeof row.source_path === 'string' ? row.source_path : '';
+  const metadata = (() => {
+    try {
+      return row.metadata_json ? JSON.parse(row.metadata_json) : {};
+    } catch (_error) {
+      return {};
+    }
+  })();
+
+  const sourceMatch = sourcePath.match(/^(entity|document|doc|media|audio|video):(\d+)$/i);
+  if (sourceMatch) {
+    const rawType = sourceMatch[1].toLowerCase();
+    const id = Number(sourceMatch[2]);
+    if (rawType === 'entity')
+      return { targetType: 'entity', targetId: Number.isFinite(id) ? id : null };
+    if (rawType === 'document' || rawType === 'doc')
+      return { targetType: 'document', targetId: Number.isFinite(id) ? id : null };
+    return { targetType: 'media', targetId: Number.isFinite(id) ? id : null };
+  }
+
+  const metadataDocumentId = Number(
+    metadata.document_id || metadata.doc_id || row.document_id || 0,
+  );
+  if (metadataDocumentId > 0) return { targetType: 'document', targetId: metadataDocumentId };
+
+  const metadataEntityId = Number(metadata.entity_id || 0);
+  if (metadataEntityId > 0) return { targetType: 'entity', targetId: metadataEntityId };
+
+  const mediaItemId = Number(metadata.media_item_id || row.media_item_id || 0);
+  if (mediaItemId > 0) return { targetType: 'media', targetId: mediaItemId };
+
+  if (typeof sourcePath === 'string' && sourcePath.trim().length > 0) {
+    if (sourcePath.includes('/media/'))
+      return { targetType: 'media', targetId: mediaItemId || null };
+    if (sourcePath.includes('/documents/') || sourcePath.includes('/data/')) {
+      return { targetType: 'document', targetId: metadataDocumentId || null };
+    }
+  }
+
+  return { targetType: null, targetId: null };
+}
+
 export const investigationsRepository = {
   getInvestigations: async (
     filters: {
@@ -128,19 +176,21 @@ export const investigationsRepository = {
 
   // --- Sub-resources ---
 
-  getEvidence: async (investigationId: number) => {
+  getEvidence: async (investigationId: number, options?: { limit?: number; offset?: number }) => {
     const db = getDb();
-    // JOINing investigation_evidence with evidence table to get the full view
-    // aligned with the frontend expectations.
-    return db
-      .prepare(
-        `
+    const limit = options?.limit;
+    const offset = options?.offset || 0;
+    const hasPagination = Number.isFinite(limit) && (limit || 0) > 0;
+
+    const baseQuery = `
       SELECT 
         e.id, 
         e.evidence_type as type, 
         e.title, 
         e.description, 
         e.source_path, 
+        e.metadata_json,
+        ie.id as investigation_evidence_id,
         ie.relevance, 
         ie.added_at as extracted_at, 
         ie.added_by as extracted_by
@@ -148,9 +198,29 @@ export const investigationsRepository = {
       JOIN evidence e ON ie.evidence_id = e.id
       WHERE ie.investigation_id = ? 
       ORDER BY ie.added_at DESC
-    `,
-      )
-      .all(investigationId);
+    `;
+
+    if (hasPagination) {
+      const rows = db
+        .prepare(
+          `
+        ${baseQuery}
+        LIMIT ? OFFSET ?
+      `,
+        )
+        .all(investigationId, limit, offset);
+      const totalRow = db
+        .prepare(`SELECT COUNT(*) as total FROM investigation_evidence WHERE investigation_id = ?`)
+        .get(investigationId) as { total: number };
+      return {
+        data: rows,
+        total: totalRow?.total || 0,
+        limit,
+        offset,
+      };
+    }
+
+    return db.prepare(baseQuery).all(investigationId);
   },
 
   addEvidence: async (investigationId: number, data: any) => {
@@ -604,6 +674,10 @@ export const investigationsRepository = {
         e.title, 
         e.description, 
         e.source_path,
+        e.metadata_json,
+        ie.id as investigation_evidence_id,
+        d.id as document_id,
+        m.id as media_item_id,
         e.red_flag_rating,
         ie.relevance, 
         ie.added_at, 
@@ -611,27 +685,128 @@ export const investigationsRepository = {
         ie.notes
       FROM investigation_evidence ie
       JOIN evidence e ON ie.evidence_id = e.id
+      LEFT JOIN documents d ON d.file_path = e.source_path
+      LEFT JOIN media_items m ON m.file_path = e.source_path
       WHERE ie.investigation_id = ? 
       ORDER BY ie.added_at DESC
     `,
       )
       .all(investigationId) as any[];
 
+    const enrichedEvidence = evidence.map((row) => {
+      const { targetType, targetId } = inferEvidenceTarget(row);
+      const metadata = (() => {
+        try {
+          return row.metadata_json ? JSON.parse(row.metadata_json) : {};
+        } catch (_error) {
+          return {};
+        }
+      })();
+      return {
+        ...row,
+        target_type: targetType,
+        target_id: targetId,
+        ingest_run_id: metadata.ingest_run_id || metadata.ingestRunId || null,
+        evidence_ladder: metadata.evidence_ladder || metadata.evidenceLadder || null,
+        pipeline_version: metadata.pipeline_version || metadata.pipelineVersion || null,
+        evidence_pack: metadata.evidence_pack || metadata.evidencePack || null,
+        was_agentic: metadata.was_agentic || metadata.wasAgentic || false,
+      };
+    });
+
     // Group by type
     const byType: Record<string, any[]> = {};
-    for (const e of evidence) {
+    for (const e of enrichedEvidence) {
       const type = e.type || 'other';
       if (!byType[type]) byType[type] = [];
       byType[type].push(e);
     }
 
     return {
-      all: evidence,
+      all: enrichedEvidence,
       byType,
       counts: Object.fromEntries(
         Object.entries(byType).map(([type, items]) => [type, items.length]),
       ),
-      total: evidence.length,
+      total: enrichedEvidence.length,
+    };
+  },
+
+  getBoardSnapshot: async (
+    investigationId: number,
+    options: { evidenceLimit?: number; hypothesisLimit?: number } = {},
+  ) => {
+    const db = getDb();
+    const evidenceLimit = Math.max(1, Math.min(200, options.evidenceLimit || 80));
+    const hypothesisLimit = Math.max(1, Math.min(100, options.hypothesisLimit || 20));
+
+    const evidencePreview = db
+      .prepare(
+        `
+      SELECT
+        e.id,
+        e.evidence_type as type,
+        e.title,
+        e.description,
+        ie.relevance,
+        ie.added_at as extracted_at,
+        ie.added_by as extracted_by
+      FROM investigation_evidence ie
+      JOIN evidence e ON e.id = ie.evidence_id
+      WHERE ie.investigation_id = ?
+      ORDER BY ie.added_at DESC
+      LIMIT ?
+    `,
+      )
+      .all(investigationId, evidenceLimit);
+
+    const hypothesesPreview = db
+      .prepare(
+        `
+      SELECT id, title, description, status, confidence
+      FROM hypotheses
+      WHERE investigation_id = ?
+      ORDER BY created_at DESC
+      LIMIT ?
+    `,
+      )
+      .all(investigationId, hypothesisLimit);
+
+    const counts = db
+      .prepare(
+        `
+      SELECT
+        (SELECT COUNT(*) FROM investigation_evidence WHERE investigation_id = @investigationId) as evidence_count,
+        (SELECT COUNT(*) FROM hypotheses WHERE investigation_id = @investigationId) as hypothesis_count
+    `,
+      )
+      .get({ investigationId }) as { evidence_count: number; hypothesis_count: number };
+
+    const notebook = await investigationsRepository.getNotebook(investigationId);
+
+    const revision = db
+      .prepare(
+        `
+      SELECT MAX(rev) as revision FROM (
+        SELECT COALESCE(updated_at, created_at) as rev FROM investigations WHERE id = @investigationId
+        UNION ALL
+        SELECT added_at as rev FROM investigation_evidence WHERE investigation_id = @investigationId
+        UNION ALL
+        SELECT updated_at as rev FROM investigation_notebook WHERE investigation_id = @investigationId
+      )
+    `,
+      )
+      .get({ investigationId }) as { revision: string | null };
+
+    return {
+      investigationId,
+      revision: revision?.revision || null,
+      evidenceCount: counts?.evidence_count || 0,
+      hypothesisCount: counts?.hypothesis_count || 0,
+      notebookOrderCount: Array.isArray(notebook.order) ? notebook.order.length : 0,
+      notebookOrder: Array.isArray(notebook.order) ? notebook.order : [],
+      evidencePreview,
+      hypothesesPreview,
     };
   },
 

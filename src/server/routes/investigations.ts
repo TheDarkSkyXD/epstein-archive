@@ -182,7 +182,14 @@ router.delete('/:id/timeline-events/:eventId', authenticateRequest, async (req, 
 router.get('/:id/evidence', async (req, res, next) => {
   try {
     const { id } = req.params as { id: string };
-    const evidence = await investigationsRepository.getEvidence(parseInt(id));
+    const limitRaw = req.query.limit as string | undefined;
+    const offsetRaw = req.query.offset as string | undefined;
+    const limit = limitRaw ? parseInt(limitRaw, 10) : undefined;
+    const offset = offsetRaw ? parseInt(offsetRaw, 10) : undefined;
+    const evidence = await investigationsRepository.getEvidence(parseInt(id), {
+      limit,
+      offset,
+    });
     res.json(evidence);
   } catch (error) {
     next(error);
@@ -321,6 +328,21 @@ router.get('/:id/evidence-by-type', async (req, res, next) => {
   }
 });
 
+router.get('/:id/board', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const evidenceLimit = parseInt((req.query.evidenceLimit as string) || '80', 10);
+    const hypothesisLimit = parseInt((req.query.hypothesisLimit as string) || '20', 10);
+    const snapshot = await investigationsRepository.getBoardSnapshot(parseInt(id), {
+      evidenceLimit,
+      hypothesisLimit,
+    });
+    res.json(snapshot);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Notebook persistence
 router.get('/:id/notebook', async (req, res, next) => {
   try {
@@ -349,6 +371,7 @@ router.get('/:id/briefing', async (req, res, next) => {
     const { id } = req.params;
     const repoModule = await import('../db/evidenceRepository.js');
     const summary = await repoModule.evidenceRepository.getInvestigationEvidenceSummary(id);
+    const notebook = await investigationsRepository.getNotebook(parseInt(id, 10));
     let md = `# Investigation Briefing\\n\\nTotal Evidence: ${summary.totalEvidence}\\n\\n`;
     const byType: Record<string, any[]> = {};
     for (const e of summary.evidence) {
@@ -365,6 +388,51 @@ router.get('/:id/briefing', async (req, res, next) => {
         if (desc) md += `  - ${desc}\\n`;
       }
       md += `\\n`;
+    }
+
+    const annotations = Array.isArray(notebook?.annotations) ? notebook.annotations : [];
+    const caseNotes = annotations.find((a: any) => a?.id === 'case-notes')?.content || '';
+    const evidenceAnnotations = annotations.filter((a: any) => a?.source === 'evidence');
+
+    md += `## Notebook\\n\\n`;
+    if (typeof caseNotes === 'string' && caseNotes.trim().length > 0) {
+      md += `${caseNotes.trim()}\\n\\n`;
+    } else {
+      md += `_No case notes yet._\\n\\n`;
+    }
+
+    md += `### Evidence annotations\\n\\n`;
+    if (evidenceAnnotations.length === 0) {
+      md += `_No synced evidence annotations yet._\\n`;
+    } else {
+      const groupedByEvidenceId = evidenceAnnotations.reduce(
+        (acc: Record<string, any[]>, ann: any) => {
+          const evidenceId = String(ann?.evidenceId || 'unknown');
+          if (!acc[evidenceId]) acc[evidenceId] = [];
+          acc[evidenceId].push(ann);
+          return acc;
+        },
+        {},
+      );
+
+      const sortedEvidenceIds = Object.keys(groupedByEvidenceId).sort((a, b) => {
+        if (a === 'unknown') return 1;
+        if (b === 'unknown') return -1;
+        return Number(a) - Number(b);
+      });
+
+      for (const evidenceId of sortedEvidenceIds) {
+        md += `- Evidence #${evidenceId}\\n`;
+        for (const ann of groupedByEvidenceId[evidenceId]) {
+          const typeLabel = String(ann?.type || 'note').toUpperCase();
+          const content = String(ann?.content || '').trim();
+          if (content) {
+            md += `  - [${typeLabel}] ${content}\\n`;
+          } else {
+            md += `  - [${typeLabel}]\\n`;
+          }
+        }
+      }
     }
     res.header('Content-Type', 'text/markdown').send(md);
   } catch (error) {

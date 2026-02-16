@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TimelineEvent, EvidenceItem, Investigation, Hypothesis } from '../../types/investigation';
 import { format, parseISO, isValid } from 'date-fns';
 import {
@@ -13,7 +13,12 @@ import {
   Edit2,
   Trash2,
   Eye,
+  ArrowUp,
+  ArrowDown,
+  ExternalLink,
+  Info,
 } from 'lucide-react';
+import { useToasts } from '../common/useToasts';
 
 interface TimelineBuilderProps {
   investigation: Investigation;
@@ -23,6 +28,7 @@ interface TimelineBuilderProps {
   onEventsUpdate: (events: TimelineEvent[]) => void;
   onSaveEvent?: (event: Partial<TimelineEvent>) => Promise<void>;
   onDeleteEvent?: (eventId: string) => Promise<void>;
+  onOpenSource?: (event: TimelineEvent) => void;
 }
 
 interface TimelineGroup {
@@ -38,15 +44,21 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
   onEventsUpdate,
   onSaveEvent,
   onDeleteEvent,
+  onOpenSource,
 }) => {
   const [isAddingEvent, setIsAddingEvent] = useState(false);
   const [editingEvent, setEditingEvent] = useState<TimelineEvent | null>(null);
   const [timelineScale, setTimelineScale] = useState<'day' | 'week' | 'month' | 'year'>('day');
   const [showFilters, setShowFilters] = useState(false);
   const [filterTypes, setFilterTypes] = useState<string[]>([]);
-  const [draggedEvent, setDraggedEvent] = useState<TimelineEvent | null>(null);
+  const [draggedEventId, setDraggedEventId] = useState<string | null>(null);
   const [autoMilestones, setAutoMilestones] = useState<TimelineEvent[]>([]);
+  const [orderingMode, setOrderingMode] = useState<'chronological' | 'narrative'>('chronological');
+  const [narrativeOrder, setNarrativeOrder] = useState<string[]>([]);
   const timelineRef = useRef<HTMLDivElement>(null);
+  const { addToast } = useToasts();
+  const narrativeOrderStorageKey = `investigation_timeline_order_mode_${investigation.id}`;
+  const narrativeOrderListKey = `investigation_timeline_manual_order_${investigation.id}`;
 
   const [newEvent, setNewEvent] = useState<Partial<TimelineEvent> & { startDateString: string }>({
     title: '',
@@ -66,48 +78,112 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
     { value: 'hypothesis', label: 'Hypothesis', icon: ChevronRight, color: 'bg-red-500' },
   ];
 
-  const groupEventsByDate = (events: TimelineEvent[]): TimelineGroup[] => {
-    const groups: { [key: string]: TimelineEvent[] } = {};
+  const groupEventsByDate = useCallback(
+    (eventsToGroup: TimelineEvent[]): TimelineGroup[] => {
+      const groups: { [key: string]: TimelineEvent[] } = {};
 
-    events.forEach((event) => {
-      const eventDate = new Date(event.startDate);
-      let groupKey = '';
+      eventsToGroup.forEach((event) => {
+        const eventDate = new Date(event.startDate);
+        let groupKey = '';
 
-      switch (timelineScale) {
-        case 'day':
-          groupKey = format(eventDate, 'yyyy-MM-dd');
-          break;
-        case 'week':
-          groupKey = format(eventDate, 'yyyy-MM-dd'); // First day of week
-          break;
-        case 'month':
-          groupKey = format(eventDate, 'yyyy-MM');
-          break;
-        case 'year':
-          groupKey = format(eventDate, 'yyyy');
-          break;
+        switch (timelineScale) {
+          case 'day':
+            groupKey = format(eventDate, 'yyyy-MM-dd');
+            break;
+          case 'week':
+            groupKey = format(eventDate, 'yyyy-MM-dd'); // First day of week
+            break;
+          case 'month':
+            groupKey = format(eventDate, 'yyyy-MM');
+            break;
+          case 'year':
+            groupKey = format(eventDate, 'yyyy');
+            break;
+        }
+
+        if (!groups[groupKey]) {
+          groups[groupKey] = [];
+        }
+        groups[groupKey].push(event);
+      });
+
+      return Object.keys(groups)
+        .sort()
+        .map((key) => ({
+          startDate: key,
+          events: groups[key].sort(
+            (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
+          ),
+        }));
+    },
+    [timelineScale],
+  );
+
+  useEffect(() => {
+    try {
+      const storedMode = window.localStorage.getItem(narrativeOrderStorageKey);
+      if (storedMode === 'narrative' || storedMode === 'chronological') {
+        setOrderingMode(storedMode);
       }
-
-      if (!groups[groupKey]) {
-        groups[groupKey] = [];
+      const storedOrder = window.localStorage.getItem(narrativeOrderListKey);
+      if (storedOrder) {
+        const parsed = JSON.parse(storedOrder);
+        if (Array.isArray(parsed)) {
+          setNarrativeOrder(parsed.map((value) => String(value)));
+        }
       }
-      groups[groupKey].push(event);
-    });
+    } catch (_error) {
+      // Keep default mode when local persistence is unavailable.
+    }
+  }, [narrativeOrderListKey, narrativeOrderStorageKey]);
 
-    return Object.keys(groups)
-      .sort()
-      .map((key) => ({
-        startDate: key,
-        events: groups[key].sort(
-          (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
-        ),
-      }));
+  const persistNarrativeOrder = (nextOrder: string[]) => {
+    setNarrativeOrder(nextOrder);
+    try {
+      window.localStorage.setItem(narrativeOrderListKey, JSON.stringify(nextOrder));
+    } catch (_error) {
+      // no-op; in-memory order still applies
+    }
   };
 
-  const filteredEvents =
-    filterTypes.length > 0 ? events.filter((event) => filterTypes.includes(event.type)) : events;
+  const setOrderingModeAndPersist = (mode: 'chronological' | 'narrative') => {
+    setOrderingMode(mode);
+    try {
+      window.localStorage.setItem(narrativeOrderStorageKey, mode);
+    } catch (_error) {
+      // no-op
+    }
+  };
 
-  const timelineGroups = groupEventsByDate([...filteredEvents, ...autoMilestones]);
+  const allEvents = useMemo(() => [...events, ...autoMilestones], [events, autoMilestones]);
+
+  const orderedEvents = useMemo(() => {
+    const base =
+      filterTypes.length > 0
+        ? allEvents.filter((event) => filterTypes.includes(event.type))
+        : allEvents;
+    if (orderingMode === 'chronological') {
+      return [...base].sort(
+        (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
+      );
+    }
+    const position = new Map(narrativeOrder.map((id, index) => [id, index]));
+    return [...base].sort((a, b) => {
+      const ai = position.get(String(a.id));
+      const bi = position.get(String(b.id));
+      if (typeof ai === 'number' && typeof bi === 'number') return ai - bi;
+      if (typeof ai === 'number') return -1;
+      if (typeof bi === 'number') return 1;
+      return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+    });
+  }, [allEvents, filterTypes, narrativeOrder, orderingMode]);
+
+  const timelineGroups = useMemo(() => {
+    if (orderingMode === 'narrative') {
+      return [{ startDate: 'narrative-order', events: orderedEvents }];
+    }
+    return groupEventsByDate(orderedEvents);
+  }, [groupEventsByDate, orderedEvents, orderingMode]);
 
   // Auto-generate milestones when evidence or hypotheses change
   useEffect(() => {
@@ -411,22 +487,48 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
     setAutoMilestones(milestones);
   };
 
-  const handleDragStart = (event: TimelineEvent) => {
-    setDraggedEvent(event);
+  const handleDragStart = (eventId: string) => {
+    if (orderingMode !== 'narrative') return;
+    setDraggedEventId(eventId);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
   };
 
-  const handleDrop = (e: React.DragEvent, targetDate: string) => {
+  const handleDrop = async (e: React.DragEvent, targetEventId: string) => {
     e.preventDefault();
-    if (!draggedEvent) return;
+    if (orderingMode !== 'narrative' || !draggedEventId || draggedEventId === targetEventId) return;
+    const currentIds = orderedEvents.map((ev) => String(ev.id));
+    const fromIndex = currentIds.indexOf(draggedEventId);
+    const toIndex = currentIds.indexOf(targetEventId);
+    if (fromIndex < 0 || toIndex < 0) return;
+    const next = [...currentIds];
+    const [moved] = next.splice(fromIndex, 1);
+    next.splice(toIndex, 0, moved);
+    persistNarrativeOrder(next);
+    addToast({ text: 'Narrative order saved locally', type: 'success' });
+    setDraggedEventId(null);
+  };
 
-    const updatedEvent = { ...draggedEvent, startDate: new Date(targetDate) };
-    const updatedEvents = events.map((ev) => (ev.id === draggedEvent.id ? updatedEvent : ev));
-    onEventsUpdate(updatedEvents);
-    setDraggedEvent(null);
+  const moveEvent = async (eventId: string, direction: 'up' | 'down') => {
+    if (orderingMode !== 'narrative') {
+      addToast({
+        text: 'Chronological mode enforces source date order. Switch to Narrative for manual ordering.',
+        type: 'info',
+      });
+      return;
+    }
+    const ordered = orderedEvents.map((ev) => String(ev.id));
+    const fromIdx = ordered.findIndex((id) => id === eventId);
+    if (fromIdx < 0) return;
+    const toIdx = direction === 'up' ? fromIdx - 1 : fromIdx + 1;
+    if (toIdx < 0 || toIdx >= ordered.length) return;
+    const next = [...ordered];
+    const [row] = next.splice(fromIdx, 1);
+    next.splice(toIdx, 0, row);
+    persistNarrativeOrder(next);
+    addToast({ text: 'Narrative order saved locally', type: 'success' });
   };
 
   const getEventTypeIcon = (type: string) => {
@@ -437,6 +539,18 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
   const getEventTypeColor = (type: string) => {
     const eventType = eventTypes.find((et) => et.value === type);
     return eventType ? eventType.color : 'bg-gray-500';
+  };
+
+  const getEventTypeBorderColor = (type: string) => {
+    const colorMap: Record<string, string> = {
+      document: '#3b82f6',
+      meeting: '#22c55e',
+      location: '#a855f7',
+      communication: '#f97316',
+      hypothesis: '#ef4444',
+      other: '#6b7280',
+    };
+    return colorMap[type] || colorMap.other;
   };
 
   const formatGroupDate = (dateStr: string) => {
@@ -453,6 +567,7 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
       case 'year':
         return format(date, 'yyyy');
       default:
+        if (dateStr === 'narrative-order') return 'Narrative sequence';
         return dateStr;
     }
   };
@@ -465,6 +580,18 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
           <h1 className="text-3xl font-bold text-white mb-2">Investigation Timeline</h1>
           <p className="text-gray-400">
             Build and visualize the chronological sequence of events and evidence
+          </p>
+          <p className="text-xs text-gray-500 mt-2 flex items-center gap-2">
+            {orderingMode === 'chronological'
+              ? 'Chronological mode is enforced by source date. Drag handles are disabled.'
+              : 'Narrative order is manual and local to this device; exports include this mode.'}
+            <span
+              className="inline-flex items-center gap-1 text-cyan-300"
+              title="Chronological exports are deterministic by source date. Narrative exports preserve your local manual sequence."
+            >
+              <Info className="w-3.5 h-3.5" />
+              Semantics
+            </span>
           </p>
         </div>
 
@@ -483,6 +610,28 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
                 <option value="month">Monthly</option>
                 <option value="year">Yearly</option>
               </select>
+            </div>
+            <div className="flex items-center gap-2 bg-gray-700 rounded-lg p-1">
+              <button
+                onClick={() => setOrderingModeAndPersist('chronological')}
+                className={`px-3 py-1.5 text-xs rounded ${
+                  orderingMode === 'chronological'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                Chronological
+              </button>
+              <button
+                onClick={() => setOrderingModeAndPersist('narrative')}
+                className={`px-3 py-1.5 text-xs rounded ${
+                  orderingMode === 'narrative'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                Narrative order
+              </button>
             </div>
 
             <button
@@ -546,12 +695,15 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
                 {group.events.map((event, _eventIndex) => (
                   <div
                     key={event.id}
-                    draggable
-                    onDragStart={() => handleDragStart(event)}
+                    draggable={orderingMode === 'narrative'}
+                    onDragStart={() => handleDragStart(String(event.id))}
                     onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, group.startDate)}
-                    className="relative bg-gray-800 rounded-lg p-4 border-l-4 hover:bg-gray-750 transition-colors cursor-move"
-                    style={{ borderLeftColor: getEventTypeColor(event.type).replace('bg-', '#') }}
+                    onDrop={(e) => handleDrop(e, String(event.id))}
+                    onClick={() => onOpenSource?.(event)}
+                    className={`relative bg-gray-800 rounded-lg p-4 border-l-4 hover:bg-gray-750 transition-colors ${
+                      orderingMode === 'narrative' ? 'cursor-move' : 'cursor-pointer'
+                    }`}
+                    style={{ borderLeftColor: getEventTypeBorderColor(event.type) }}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -569,6 +721,11 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
                           <span className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded">
                             {Math.round(event.confidence)}% confidence
                           </span>
+                          {orderingMode === 'narrative' && (
+                            <span className="text-xs bg-cyan-900/40 text-cyan-200 px-2 py-1 rounded">
+                              Narrative order
+                            </span>
+                          )}
                         </div>
 
                         {event.description && (
@@ -601,13 +758,63 @@ export const InvestigationTimelineBuilder: React.FC<TimelineBuilderProps> = ({
 
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => handleEditEvent(event)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            moveEvent(String(event.id), 'up');
+                          }}
+                          disabled={orderingMode !== 'narrative'}
+                          title={
+                            orderingMode !== 'narrative'
+                              ? 'Switch to Narrative order to move events'
+                              : 'Move event up'
+                          }
+                          className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          aria-label="Move event up"
+                        >
+                          <ArrowUp className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            moveEvent(String(event.id), 'down');
+                          }}
+                          disabled={orderingMode !== 'narrative'}
+                          title={
+                            orderingMode !== 'narrative'
+                              ? 'Switch to Narrative order to move events'
+                              : 'Move event down'
+                          }
+                          className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          aria-label="Move event down"
+                        >
+                          <ArrowDown className="w-4 h-4" />
+                        </button>
+                        {onOpenSource && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onOpenSource(event);
+                            }}
+                            className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
+                            aria-label="Open linked source"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditEvent(event);
+                          }}
                           className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDeleteEvent(event.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteEvent(event.id);
+                          }}
                           className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />

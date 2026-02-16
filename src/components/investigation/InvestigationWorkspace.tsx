@@ -48,13 +48,14 @@ import { InvestigationEvidencePanel } from './InvestigationEvidencePanel';
 import { EvidenceNotebook } from './EvidenceNotebook';
 import { HypothesisTestingFramework } from './HypothesisTestingFramework';
 import { InvestigationTeamManagement } from './InvestigationTeamManagement';
-import { AddToInvestigationButton } from '../common/AddToInvestigationButton';
 import { InvestigationBoard } from './InvestigationBoard';
 import { useToasts } from '../common/useToasts';
 import { CreateRelationshipModal } from '../entities/CreateRelationshipModal';
 import { CommunicationAnalysis } from './CommunicationAnalysis';
 import { InvestigationActivityFeed } from './InvestigationActivityFeed';
 import { InvestigationCaseFolder } from './InvestigationCaseFolder';
+import { DocumentModal } from '../documents/DocumentModal';
+import { EvidenceModal } from '../common/EvidenceModal';
 
 interface InvestigationWorkspaceProps {
   investigationId?: string;
@@ -102,6 +103,44 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
   });
   const [shareCopied, setShareCopied] = useState(false);
   const [useGlobalContext, setUseGlobalContext] = useState(false);
+  const [caseFolderDocumentId, setCaseFolderDocumentId] = useState<string | null>(null);
+  const [caseFolderEntityId, setCaseFolderEntityId] = useState<string | null>(null);
+  const [caseFolderFocusReturnEl, setCaseFolderFocusReturnEl] = useState<HTMLElement | null>(null);
+  const [deepLinkedEvidenceId, setDeepLinkedEvidenceId] = useState<string | null>(null);
+  const [analyticsRange, setAnalyticsRange] = useState<'30d' | '90d' | 'all'>('90d');
+  const [analyticsSourceType, setAnalyticsSourceType] = useState<
+    'all' | 'document' | 'entity' | 'media'
+  >('all');
+  const [analyticsIncludeAgentic, setAnalyticsIncludeAgentic] = useState(true);
+  const [analyticsLoading, setAnalyticsLoading] = useState({
+    overview: false,
+    trends: false,
+    signals: false,
+  });
+  const [analyticsData, setAnalyticsData] = useState<{
+    kpis: {
+      evidenceItems: number;
+      timelineEvents: number;
+      entitiesLinked: number;
+      documentsLinked: number;
+    };
+    topSources: Array<{ type: string; count: number }>;
+    evidenceTimeline: Array<{ day: string; count: number }>;
+    sourceActivity: Array<{ source: string; count: number }>;
+    spikes: Array<{ day: string; count: number }>;
+    highRiskEntities: Array<{ id: string; name: string; score: number }>;
+    strongestConnections: Array<{ source: string; target: string; confidence: number }>;
+    citedDocuments: Array<{ id: string; title: string; mentions: number }>;
+  }>({
+    kpis: { evidenceItems: 0, timelineEvents: 0, entitiesLinked: 0, documentsLinked: 0 },
+    topSources: [],
+    evidenceTimeline: [],
+    sourceActivity: [],
+    spikes: [],
+    highRiskEntities: [],
+    strongestConnections: [],
+    citedDocuments: [],
+  });
 
   // Determine active tab from URL
   type ActiveTab =
@@ -251,24 +290,33 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
               const events = timelineData.map((e: any) => ({
                 id: String(e.id),
                 title: e.title,
-                date: e.start_date,
+                startDate: new Date(e.start_date),
                 description: e.description || '',
                 type: e.type,
-                confidence: e.confidence || 'medium',
-                relatedEntities: (() => {
+                confidence: Number(e.confidence || 80),
+                entities: (() => {
                   try {
                     return JSON.parse(e.entities_json || '[]');
                   } catch {
                     return [];
                   }
                 })(),
-                relatedDocuments: (() => {
+                documents: (() => {
                   try {
                     return JSON.parse(e.documents_json || '[]');
                   } catch {
                     return [];
                   }
                 })(),
+                hypothesisIds: [],
+                evidence: [],
+                importance: 'medium',
+                tags: [],
+                sources: [],
+                createdBy: 'system',
+                createdAt: new Date(e.created_at || e.start_date || Date.now()),
+                updatedAt: new Date(e.updated_at || e.start_date || Date.now()),
+                layerId: 'default',
               }));
               setTimelineEvents(events);
             }
@@ -470,6 +518,235 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
     fetchEvidence();
   }, [selectedInvestigation, selectedInvestigation?.id]);
 
+  const closeCaseFolderDocumentModal = useCallback(() => {
+    setCaseFolderDocumentId(null);
+    if (caseFolderFocusReturnEl && typeof caseFolderFocusReturnEl.focus === 'function') {
+      caseFolderFocusReturnEl.focus();
+    }
+  }, [caseFolderFocusReturnEl]);
+
+  const closeCaseFolderEntityModal = useCallback(() => {
+    setCaseFolderEntityId(null);
+    if (caseFolderFocusReturnEl && typeof caseFolderFocusReturnEl.focus === 'function') {
+      caseFolderFocusReturnEl.focus();
+    }
+  }, [caseFolderFocusReturnEl]);
+
+  const handleCaseFolderEvidenceClick = useCallback(
+    async (item: any, triggerEl?: HTMLElement | null) => {
+      if (!selectedInvestigation) return;
+      setCaseFolderFocusReturnEl(triggerEl || null);
+
+      const targetType = item?.target_type || null;
+      const targetId = item?.target_id || null;
+      const metadata = (() => {
+        try {
+          return item?.metadata_json ? JSON.parse(item.metadata_json) : {};
+        } catch (_error) {
+          return {};
+        }
+      })();
+
+      const evidenceLinkId = item?.investigation_evidence_id;
+
+      const showMissingSourceToast = () => {
+        addToast({
+          text: 'Source missing for this evidence link.',
+          type: 'warning',
+          action:
+            isAdmin && evidenceLinkId
+              ? {
+                  label: 'Remove link',
+                  onClick: async () => {
+                    try {
+                      await fetch(`/api/investigation/remove-evidence/${evidenceLinkId}`, {
+                        method: 'DELETE',
+                      });
+                      addToast({ text: 'Broken evidence link removed.', type: 'success' });
+                    } catch (_error) {
+                      addToast({ text: 'Failed to remove broken evidence link.', type: 'error' });
+                    }
+                  },
+                }
+              : undefined,
+        });
+      };
+
+      const resolvedType =
+        targetType ||
+        (() => {
+          const sourcePath = String(item?.source_path || '');
+          if (sourcePath.startsWith('entity:')) return 'entity';
+          if (
+            sourcePath.startsWith('document:') ||
+            sourcePath.startsWith('doc:') ||
+            metadata.document_id
+          ) {
+            return 'document';
+          }
+          if (
+            sourcePath.startsWith('media:') ||
+            sourcePath.startsWith('audio:') ||
+            sourcePath.startsWith('video:')
+          ) {
+            return 'media';
+          }
+          if (metadata.media_item_id) return 'media';
+          return null;
+        })();
+      const resolvedId =
+        targetId || metadata.document_id || metadata.entity_id || metadata.media_item_id || null;
+
+      if (resolvedType === 'document' && resolvedId) {
+        setCaseFolderDocumentId(String(resolvedId));
+        return;
+      }
+
+      if (resolvedType === 'entity' && resolvedId) {
+        setCaseFolderEntityId(String(resolvedId));
+        return;
+      }
+
+      if (resolvedType === 'media' && resolvedId) {
+        const evidenceType = String(item?.type || '');
+        if (metadata.document_id) {
+          setCaseFolderDocumentId(String(metadata.document_id));
+          return;
+        }
+        if (evidenceType === 'audio') {
+          navigate(`/media/audio?id=${resolvedId}`);
+          return;
+        }
+        if (evidenceType === 'video') {
+          navigate(`/media/video?id=${resolvedId}`);
+          return;
+        }
+        navigate(`/media/photos?photoId=${resolvedId}`);
+        return;
+      }
+
+      showMissingSourceToast();
+    },
+    [addToast, isAdmin, navigate, selectedInvestigation],
+  );
+
+  const handleTimelineOpenSource = useCallback(
+    (event: TimelineEvent) => {
+      const primaryDocument = Array.isArray(event.documents) ? event.documents[0] : null;
+      if (primaryDocument) {
+        const evidenceMatch = evidenceItems.find((item) => item.id === String(primaryDocument));
+        if (evidenceMatch?.type === 'entity') {
+          setCaseFolderEntityId(String(evidenceMatch.sourceId || primaryDocument));
+          return;
+        }
+        const documentId = evidenceMatch?.sourceId || String(primaryDocument);
+        setCaseFolderDocumentId(documentId);
+        return;
+      }
+
+      const primaryEntity = Array.isArray(event.entities) ? event.entities[0] : null;
+      if (primaryEntity) {
+        setCaseFolderEntityId(String(primaryEntity));
+        return;
+      }
+
+      addToast({
+        text: 'No linked source on this timeline event yet.',
+        type: 'info',
+      });
+    },
+    [addToast, evidenceItems],
+  );
+
+  useEffect(() => {
+    if (!selectedInvestigation) return;
+    const pathMatch =
+      location.pathname.match(/^\/investigate\/case\/([^/]+)\/evidence\/([^/?#]+)/) ||
+      location.pathname.match(/^\/investigations\/([^/]+)\/evidence\/([^/?#]+)/);
+    const queryEvidenceId = new URLSearchParams(location.search).get('evidenceId');
+    if (!pathMatch && !queryEvidenceId) {
+      setDeepLinkedEvidenceId(null);
+      return;
+    }
+    const routeInvestigationId = pathMatch?.[1] || String(selectedInvestigation.id);
+    const routeEvidenceId = pathMatch?.[2] || queryEvidenceId;
+    if (!routeEvidenceId) return;
+    if (String(routeInvestigationId) !== String(selectedInvestigation.id)) return;
+    setDeepLinkedEvidenceId(String(routeEvidenceId));
+
+    const openEvidenceFromRoute = async () => {
+      if (activeTab !== 'casefolder') navigateToTab('casefolder');
+      try {
+        const response = await fetch(
+          `/api/investigations/${selectedInvestigation.id}/evidence-by-type`,
+        );
+        if (!response.ok) return;
+        const payload = await response.json();
+        const allItems = Array.isArray(payload?.all) ? payload.all : [];
+        const match = allItems.find(
+          (item: any) =>
+            String(item.id) === String(routeEvidenceId) ||
+            String(item.investigation_evidence_id) === String(routeEvidenceId),
+        );
+        if (match) {
+          handleCaseFolderEvidenceClick(match, null);
+        } else {
+          addToast({
+            text: 'Evidence deep link not found in this case.',
+            type: 'warning',
+          });
+        }
+      } catch (_error) {
+        addToast({
+          text: 'Failed to resolve evidence deep link.',
+          type: 'error',
+        });
+      }
+    };
+
+    openEvidenceFromRoute();
+  }, [
+    activeTab,
+    addToast,
+    handleCaseFolderEvidenceClick,
+    location.pathname,
+    location.search,
+    navigateToTab,
+    selectedInvestigation,
+  ]);
+
+  useEffect(() => {
+    if (import.meta.env.PROD) return;
+    const checkAffordances = () => {
+      const root = document.querySelector('.investigation-workspace');
+      if (!root) return;
+      const suspiciousLabels = ['coming soon', 'not implemented', 'todo', 'placeholder'];
+      const candidates = Array.from(root.querySelectorAll('button, a, [role="button"]'));
+      candidates.forEach((el) => {
+        const text = (el.textContent || '').trim().toLowerCase();
+        if (!text) return;
+        const isSuspicious = suspiciousLabels.some((token) => text.includes(token));
+        const disabled =
+          (el as HTMLButtonElement).disabled ||
+          el.getAttribute('aria-disabled') === 'true' ||
+          el.hasAttribute('disabled');
+        const explicitlyGated =
+          (el.getAttribute('title') || '').toLowerCase().includes('not available yet') ||
+          (el.getAttribute('data-gated-reason') || '').trim().length > 0;
+        if (isSuspicious && !disabled && !explicitlyGated) {
+          // eslint-disable-next-line no-console
+          console.warn(
+            '[Investigations invariant] Suspicious interactive label without gating:',
+            text,
+            el,
+          );
+        }
+      });
+    };
+    const handle = window.requestAnimationFrame(checkAffordances);
+    return () => window.cancelAnimationFrame(handle);
+  }, [activeTab, location.pathname, selectedInvestigation]);
+
   useEffect(() => {
     if (investigationId) {
       loadInvestigation(investigationId);
@@ -479,7 +756,10 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
   // Fetch real network data and database stats
   useEffect(() => {
     const fetchNetworkData = async () => {
+      if (activeTab !== 'analytics') return;
       try {
+        const { PerformanceMonitor } = await import('../../utils/performanceMonitor');
+        PerformanceMonitor.mark('investigation-network-fetch-start');
         let entities: any[] = [];
 
         if (useGlobalContext) {
@@ -498,7 +778,8 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
 
           if (entityEvidence.length > 0) {
             // Fetch details for each entity
-            const entityPromises = entityEvidence.map((e) =>
+            const cappedEvidence = entityEvidence.slice(0, 100);
+            const entityPromises = cappedEvidence.map((e) =>
               fetch(`/api/entities/${e.sourceId}`).then((r) => (r.ok ? r.json() : null)),
             );
             const results = await Promise.all(entityPromises);
@@ -599,6 +880,12 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
 
         setNetworkNodes(nodes);
         setNetworkEdges(edges);
+        PerformanceMonitor.mark('investigation-network-fetch-end');
+        PerformanceMonitor.measure(
+          'investigation-network-fetch-duration',
+          'investigation-network-fetch-start',
+          'investigation-network-fetch-end',
+        );
 
         // Fetch database stats
         const statsResp = await fetch('/api/stats');
@@ -620,7 +907,161 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
     if (selectedInvestigation) {
       fetchNetworkData();
     }
-  }, [selectedInvestigation?.id, evidenceItems, useGlobalContext, selectedInvestigation]);
+  }, [
+    activeTab,
+    selectedInvestigation?.id,
+    evidenceItems,
+    useGlobalContext,
+    selectedInvestigation,
+  ]);
+
+  useEffect(() => {
+    const loadAnalytics = async () => {
+      if (activeTab !== 'analytics' || !selectedInvestigation) return;
+      setAnalyticsLoading({ overview: true, trends: true, signals: true });
+      try {
+        const evidenceByTypeResp = await fetch(
+          `/api/investigations/${selectedInvestigation.id}/evidence-by-type`,
+        );
+        const evidenceByType = evidenceByTypeResp.ok
+          ? await evidenceByTypeResp.json()
+          : { all: [] };
+        const allEvidence = Array.isArray(evidenceByType?.all) ? evidenceByType.all : [];
+        const rangeDays = analyticsRange === '30d' ? 30 : analyticsRange === '90d' ? 90 : null;
+        const rangeStart = rangeDays ? Date.now() - rangeDays * 24 * 60 * 60 * 1000 : null;
+
+        const filteredEvidence = allEvidence.filter((item: any) => {
+          const addedAt = item?.added_at ? new Date(item.added_at).getTime() : null;
+          const inRange = rangeStart ? !!addedAt && addedAt >= rangeStart : true;
+          const sourcePass =
+            analyticsSourceType === 'all' ||
+            String(item?.target_type || item?.type || '')
+              .toLowerCase()
+              .includes(analyticsSourceType);
+          const agenticPass = analyticsIncludeAgentic
+            ? true
+            : !String(item?.added_by || '')
+                .toLowerCase()
+                .includes('agent');
+          return inRange && sourcePass && agenticPass;
+        });
+
+        const documentLinked = filteredEvidence.filter(
+          (item: any) => item?.target_type === 'document',
+        ).length;
+        const entityLinked = filteredEvidence.filter(
+          (item: any) => item?.target_type === 'entity',
+        ).length;
+
+        const topSourcesMap = new Map<string, number>();
+        filteredEvidence.forEach((item: any) => {
+          const t = String(item?.type || item?.target_type || 'unknown').toLowerCase();
+          topSourcesMap.set(t, (topSourcesMap.get(t) || 0) + 1);
+        });
+        const topSources = Array.from(topSourcesMap.entries())
+          .map(([type, count]) => ({ type, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 5);
+
+        const evidenceTimelineMap = new Map<string, number>();
+        filteredEvidence.forEach((item: any) => {
+          const raw = item?.added_at || item?.extracted_at;
+          if (!raw) return;
+          const day = new Date(raw).toISOString().slice(0, 10);
+          evidenceTimelineMap.set(day, (evidenceTimelineMap.get(day) || 0) + 1);
+        });
+        const evidenceTimeline = Array.from(evidenceTimelineMap.entries())
+          .map(([day, count]) => ({ day, count }))
+          .sort((a, b) => a.day.localeCompare(b.day))
+          .slice(-20);
+
+        const spikes = evidenceTimeline.filter((point) => point.count >= 5);
+
+        const sourceActivity = topSources.slice(0, 6).map((row) => ({
+          source: row.type,
+          count: row.count,
+        }));
+
+        const highRiskEntities = networkNodes
+          .map((node) => ({
+            id: node.id,
+            name: node.label,
+            score: Number(node.importance || 0),
+          }))
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 5);
+
+        const strongestConnections = networkEdges
+          .map((edge) => ({
+            source: networkNodes.find((n) => n.id === edge.source)?.label || edge.source,
+            target: networkNodes.find((n) => n.id === edge.target)?.label || edge.target,
+            confidence: Math.round(((edge.metadata?.confidence as number) || 0) * 100),
+          }))
+          .sort((a, b) => b.confidence - a.confidence)
+          .slice(0, 6);
+
+        const citedDocumentsMap = new Map<
+          string,
+          { id: string; title: string; mentions: number }
+        >();
+        timelineEvents.forEach((event) => {
+          (event.documents || []).forEach((docId) => {
+            const key = String(docId);
+            const existing = citedDocumentsMap.get(key);
+            if (existing) {
+              existing.mentions += 1;
+            } else {
+              const evidenceDoc = evidenceItems.find(
+                (item) => item.id === key || item.sourceId === key,
+              );
+              citedDocumentsMap.set(key, {
+                id: key,
+                title: evidenceDoc?.title || `Document ${key}`,
+                mentions: 1,
+              });
+            }
+          });
+        });
+
+        setAnalyticsData({
+          kpis: {
+            evidenceItems: filteredEvidence.length,
+            timelineEvents: timelineEvents.length,
+            entitiesLinked: entityLinked,
+            documentsLinked: documentLinked,
+          },
+          topSources,
+          evidenceTimeline,
+          sourceActivity,
+          spikes,
+          highRiskEntities,
+          strongestConnections,
+          citedDocuments: Array.from(citedDocumentsMap.values())
+            .sort((a, b) => b.mentions - a.mentions)
+            .slice(0, 5),
+        });
+
+        setAnalyticsLoading({ overview: false, trends: false, signals: false });
+      } catch (error) {
+        console.error('Error loading analytics:', error);
+        setAnalyticsLoading({ overview: false, trends: false, signals: false });
+        addToast({ text: 'Failed to load analytics summary.', type: 'error' });
+      }
+    };
+
+    loadAnalytics();
+  }, [
+    activeTab,
+    addToast,
+    analyticsIncludeAgentic,
+    analyticsRange,
+    analyticsSourceType,
+    evidenceItems,
+    networkEdges,
+    networkNodes,
+    selectedInvestigation,
+    timelineEvents,
+  ]);
   const createInvestigation = async () => {
     if (!newInvestigation.title || !newInvestigation.description) {
       return;
@@ -997,17 +1438,17 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
 
       {/* Main Layout - Column on mobile, Row on desktop */}
       {selectedInvestigation && (
-        <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
+        <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden flex-col md:flex-row">
           {/* Navigation - Horizontal scroll on mobile, Vertical sidebar on desktop */}
           <div
             className={`
               shrink-0 bg-slate-900/50 backdrop-blur-sm border-b md:border-b-0 md:border-r border-slate-700/50
               md:transition-all md:duration-300
               ${sidebarCollapsed ? 'md:w-16' : 'md:w-64'}
-              w-full overflow-x-auto md:overflow-x-visible
+              w-full overflow-x-auto md:overflow-hidden
             `}
           >
-            <div className="p-2 md:p-4 flex md:block items-center md:space-y-0 gap-2 md:gap-0">
+            <div className="p-2 md:p-4 flex md:block items-center md:space-y-0 gap-2 md:gap-0 overflow-hidden">
               {/* Desktop Expand/Collapse & Back - Hidden on Mobile */}
               <div className="hidden md:flex items-center justify-between mb-6">
                 <button
@@ -1091,7 +1532,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
               </div>
 
               {/* Desktop Navigation Sidebar */}
-              <nav className="hidden md:block space-y-1 min-w-max p-1">
+              <nav className="hidden md:block space-y-1 min-w-0 w-full p-1 overflow-hidden">
                 {[
                   { id: 'board', label: 'Investigation Board', icon: LayoutDashboard },
                   { id: 'overview', label: 'Overview', icon: Search },
@@ -1113,20 +1554,22 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                     onClick={() => navigateToTab(tab.id)}
                     className={`
                         flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all
-                        whitespace-nowrap
+                        whitespace-nowrap overflow-hidden
                         ${
                           activeTab === tab.id
                             ? 'bg-blue-900/40 text-blue-400 border border-blue-500/30 shadow-sm relative z-10'
                             : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
                         }
-                        ${sidebarCollapsed ? 'justify-center px-2 py-4' : 'w-full'}
+                        ${sidebarCollapsed ? 'justify-center px-2 py-4 w-full' : 'w-full'}
                       `}
                     title={tab.label}
                   >
                     <tab.icon
                       className={`${sidebarCollapsed ? 'w-6 h-6 shrink-0' : 'w-5 h-5 mr-3 shrink-0'}`}
                     />
-                    <span className={`${sidebarCollapsed ? 'hidden' : 'block'}`}>{tab.label}</span>
+                    <span className={`${sidebarCollapsed ? 'hidden' : 'block truncate'}`}>
+                      {tab.label}
+                    </span>
                   </button>
                 ))}
               </nav>
@@ -1134,7 +1577,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
           </div>
 
           {/* Main Content */}
-          <div className="flex-1 p-6 overflow-y-auto bg-slate-900">
+          <div className="flex-1 min-w-0 p-6 overflow-y-auto overflow-x-hidden bg-slate-900">
             {activeTab === 'board' && selectedInvestigation && (
               <InvestigationBoard investigationId={selectedInvestigation.id} />
             )}
@@ -1226,7 +1669,11 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
             )}
 
             {activeTab === 'casefolder' && selectedInvestigation && (
-              <InvestigationCaseFolder investigationId={selectedInvestigation.id} />
+              <InvestigationCaseFolder
+                investigationId={selectedInvestigation.id}
+                onEvidenceClick={handleCaseFolderEvidenceClick}
+                deepLinkedEvidenceId={deepLinkedEvidenceId}
+              />
             )}
 
             {activeTab === 'evidence' && selectedInvestigation && (
@@ -1259,6 +1706,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
               <CommunicationAnalysis
                 investigation={selectedInvestigation}
                 evidence={evidenceItems}
+                onOpenCaseFolder={() => navigateToTab('casefolder')}
               />
             )}
 
@@ -1271,6 +1719,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                 onEventsUpdate={setTimelineEvents}
                 onSaveEvent={saveTimelineEvent}
                 onDeleteEvent={deleteTimelineEvent}
+                onOpenSource={handleTimelineOpenSource}
               />
             )}
 
@@ -1306,7 +1755,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                   Export & Publish Investigation
                 </h3>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <div className="space-y-6 mb-8">
                   <InvestigationExportTools
                     investigation={selectedInvestigation}
                     evidence={evidenceItems}
@@ -1315,30 +1764,24 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
                     annotations={annotations}
                   />
 
-                  <div>
-                    <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 mb-6">
-                      <h4 className="text-lg font-semibold text-white mb-4">
-                        Evidence Packet Export
-                      </h4>
-                      <p className="text-slate-400 mb-4">
-                        Export this investigation as a comprehensive evidence packet containing
-                        entities, documents, metadata, and Red Flag Index scores.
-                      </p>
-                      <EvidencePacketExporter
-                        investigationId={selectedInvestigation.id}
-                        investigationTitle={selectedInvestigation.title}
-                        onExport={(format: 'json' | 'zip') => {
-                          console.log(
-                            `Exporting investigation ${selectedInvestigation.id} as ${format}`,
-                          );
-                          // In a real implementation, this would trigger the actual export
-                          addToast({
-                            text: `Exporting investigation as ${format.toUpperCase()} format`,
-                            type: 'info',
-                          });
-                        }}
-                      />
-                    </div>
+                  <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6">
+                    <h4 className="text-lg font-semibold text-white mb-4">
+                      Evidence Packet Export
+                    </h4>
+                    <p className="text-slate-400 mb-4">
+                      Export this investigation as a comprehensive evidence packet containing
+                      entities, documents, metadata, and Red Flag Index scores.
+                    </p>
+                    <EvidencePacketExporter
+                      investigationId={selectedInvestigation.id}
+                      investigationTitle={selectedInvestigation.title}
+                      onExport={(format: 'json' | 'zip') => {
+                        addToast({
+                          text: `Evidence packet export started (${format.toUpperCase()})`,
+                          type: 'info',
+                        });
+                      }}
+                    />
                   </div>
                 </div>
               </div>
@@ -1346,273 +1789,277 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
 
             {activeTab === 'analytics' && (
               <div>
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-bold text-white">
-                    Investigation Analytics & Network Analysis
-                  </h3>
-                  {isAdmin && (
-                    <button
-                      onClick={() => setShowCreateRelationshipModal(true)}
-                      className="flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-sm font-medium shadow-lg shadow-purple-500/20"
-                    >
-                      <Network className="w-4 h-4" />
-                      <span>Add Connection</span>
-                    </button>
-                  )}
-                </div>
-
-                {/* Network Visualization */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                  <div className="lg:col-span-2 liquid-glass-card rounded-xl overflow-hidden">
-                    <NetworkVisualization
-                      nodes={networkNodes}
-                      edges={networkEdges}
-                      onNodeClick={(node) => {
-                        console.log('Node clicked:', node);
-                        setSelectedNetworkNode(node);
-                        setSelectedNetworkEdge(null);
-                      }}
-                      onEdgeClick={(edge) => {
-                        console.log('Edge clicked:', edge);
-                        setSelectedNetworkEdge(edge);
-                        setSelectedNetworkNode(null);
-                      }}
-                      selectedNodeId={selectedNetworkNode?.id}
-                      selectedEdgeId={selectedNetworkEdge?.id}
-                      height={500}
-                      showFilters={true}
-                      showLegend={true}
-                      interactive={true}
-                    />
+                <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+                  <div>
+                    <h3 className="text-xl font-bold text-white">Investigation Analytics</h3>
+                    <p className="text-sm text-slate-400 mt-1">
+                      Overview first, then trends and signal insights from real investigation data.
+                    </p>
                   </div>
-
-                  {/* Selected Node/Edge Details */}
-                  <div className="liquid-glass-card rounded-xl p-6">
-                    <h4 className="text-lg font-semibold text-white mb-4">
-                      {selectedNetworkNode
-                        ? 'Node Details'
-                        : selectedNetworkEdge
-                          ? 'Connection Details'
-                          : 'Details'}
-                    </h4>
-                    {selectedNetworkNode ? (
-                      <div className="space-y-4">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h5 className="text-base font-medium text-white">
-                              {selectedNetworkNode.label}
-                            </h5>
-                            <p className="text-sm text-slate-400 capitalize">
-                              {selectedNetworkNode.type}
-                            </p>
-                          </div>
-                          <AddToInvestigationButton
-                            item={{
-                              id: selectedNetworkNode.id,
-                              title: selectedNetworkNode.label,
-                              description: selectedNetworkNode.description || 'Network entity',
-                              type: 'entity',
-                              sourceId: selectedNetworkNode.id,
-                              metadata: selectedNetworkNode.metadata,
-                            }}
-                            investigations={[]} // This needs to be populated from context or props
-                            onAddToInvestigation={(invId, item, relevance) => {
-                              console.log('Add to investigation', invId, item, relevance);
-                              const event = new CustomEvent('add-to-investigation', {
-                                detail: { investigationId: invId, item, relevance },
-                              });
-                              window.dispatchEvent(event);
-                            }}
-                            variant="icon"
-                            className="hover:bg-slate-700"
-                          />
-                        </div>
-
-                        <p className="text-sm text-slate-300">{selectedNetworkNode.description}</p>
-
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-slate-400">Risk Level</span>
-                            <span
-                              className={`px-2 py-0.5 rounded text-xs font-medium ${
-                                selectedNetworkNode.metadata.riskLevel === 'critical'
-                                  ? 'bg-red-900 text-red-200'
-                                  : selectedNetworkNode.metadata.riskLevel === 'high'
-                                    ? 'bg-orange-900 text-orange-200'
-                                    : selectedNetworkNode.metadata.riskLevel === 'medium'
-                                      ? 'bg-yellow-900 text-yellow-200'
-                                      : 'bg-green-900 text-green-200'
-                              }`}
-                            >
-                              {(selectedNetworkNode.metadata.riskLevel || 'low').toUpperCase()}
-                            </span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-slate-400">Mentions</span>
-                            <span className="text-white">
-                              {selectedNetworkNode.metadata.mentions || 0}
-                            </span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-slate-400">Category</span>
-                            <span className="text-white">
-                              {selectedNetworkNode.metadata.category || 'Uncategorized'}
-                            </span>
-                          </div>
-                        </div>
-
-                        {selectedNetworkNode.metadata.documents &&
-                          selectedNetworkNode.metadata.documents.length > 0 && (
-                            <div>
-                              <h6 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
-                                Related Documents
-                              </h6>
-                              <div className="space-y-1">
-                                {selectedNetworkNode.metadata.documents.map((doc, idx) => (
-                                  <div
-                                    key={idx}
-                                    className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 cursor-pointer"
-                                  >
-                                    <FileText className="w-3 h-3" />
-                                    <span>{doc}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                      </div>
-                    ) : selectedNetworkEdge ? (
-                      <div className="space-y-4">
-                        <div>
-                          <h5 className="text-base font-medium text-white capitalize">
-                            {selectedNetworkEdge.type}
-                          </h5>
-                          <p className="text-sm text-slate-400">
-                            Strength: {selectedNetworkEdge.strength}/10
-                          </p>
-                        </div>
-
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-slate-400">Confidence</span>
-                            <span className="text-white">
-                              {Math.round((selectedNetworkEdge.metadata.confidence || 0) * 100)}%
-                            </span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-slate-400">Evidence Count</span>
-                            <span className="text-white">
-                              {(selectedNetworkEdge.metadata as any).evidence_count || 0}
-                            </span>
-                          </div>
-                          {(selectedNetworkEdge.metadata as any).date_range && (
-                            <div className="flex justify-between text-sm">
-                              <span className="text-slate-400">Timeframe</span>
-                              <span className="text-white">
-                                {(selectedNetworkEdge.metadata as any).date_range}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-
-                        {(selectedNetworkEdge.metadata as any).evidence_types &&
-                          (selectedNetworkEdge.metadata as any).evidence_types.length > 0 && (
-                            <div>
-                              <h6 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
-                                Evidence Types
-                              </h6>
-                              <div className="flex flex-wrap gap-2">
-                                {(selectedNetworkEdge.metadata as any).evidence_types.map(
-                                  (type: string, idx: number) => (
-                                    <span
-                                      key={idx}
-                                      className="px-2 py-1 bg-slate-800 rounded text-xs text-slate-300 border border-slate-700"
-                                    >
-                                      {type}
-                                    </span>
-                                  ),
-                                )}
-                              </div>
-                            </div>
-                          )}
-                      </div>
-                    ) : (
-                      <div className="text-center py-8 text-slate-500">
-                        <Network className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                        <p>Select a node or connection to view details</p>
-                      </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      value={analyticsRange}
+                      onChange={(e) => setAnalyticsRange(e.target.value as '30d' | '90d' | 'all')}
+                      className="px-3 py-2 text-sm bg-slate-800 border border-slate-700 rounded-lg text-slate-100"
+                    >
+                      <option value="30d">Last 30 days</option>
+                      <option value="90d">Last 90 days</option>
+                      <option value="all">All time</option>
+                    </select>
+                    <select
+                      value={analyticsSourceType}
+                      onChange={(e) =>
+                        setAnalyticsSourceType(
+                          e.target.value as 'all' | 'document' | 'entity' | 'media',
+                        )
+                      }
+                      className="px-3 py-2 text-sm bg-slate-800 border border-slate-700 rounded-lg text-slate-100"
+                    >
+                      <option value="all">All sources</option>
+                      <option value="document">Documents</option>
+                      <option value="entity">Entities</option>
+                      <option value="media">Media</option>
+                    </select>
+                    <label className="inline-flex items-center gap-2 text-xs text-slate-300 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg">
+                      <input
+                        type="checkbox"
+                        checked={analyticsIncludeAgentic}
+                        onChange={(e) => setAnalyticsIncludeAgentic(e.target.checked)}
+                      />
+                      Include agentic
+                    </label>
+                    {isAdmin && (
+                      <button
+                        onClick={() => setShowCreateRelationshipModal(true)}
+                        className="flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-sm"
+                      >
+                        <Network className="w-4 h-4" />
+                        <span>Add Connection</span>
+                      </button>
                     )}
                   </div>
                 </div>
 
-                {/* Summary Statistics */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="liquid-glass-card p-4 rounded-xl">
-                    <h4 className="text-sm font-medium text-slate-400 uppercase tracking-wider">
-                      People Identified
-                    </h4>
-                    <p className="text-3xl font-bold text-white mt-2">
-                      {networkNodes.filter((n) => n.type === 'person').length}
-                    </p>
+                <div className="mb-6">
+                  <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wide mb-3">
+                    Overview KPIs
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {[
+                      ['Evidence items', analyticsData.kpis.evidenceItems],
+                      ['Timeline events', analyticsData.kpis.timelineEvents],
+                      ['Entities linked', analyticsData.kpis.entitiesLinked],
+                      ['Documents linked', analyticsData.kpis.documentsLinked],
+                    ].map(([label, value]) => (
+                      <div
+                        key={String(label)}
+                        className="bg-slate-800 border border-slate-700 rounded-lg p-4"
+                      >
+                        <p className="text-xs uppercase tracking-wide text-slate-400">{label}</p>
+                        {analyticsLoading.overview ? (
+                          <div className="h-8 mt-2 bg-slate-700 rounded animate-pulse" />
+                        ) : (
+                          <p className="text-2xl font-semibold text-white mt-2">
+                            {value as number}
+                          </p>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                  <div className="liquid-glass-card p-4 rounded-xl">
-                    <h4 className="text-sm font-medium text-slate-400 uppercase tracking-wider">
-                      Organizations
-                    </h4>
-                    <p className="text-3xl font-bold text-white mt-2">
-                      {networkNodes.filter((n) => n.type === 'organization').length}
-                    </p>
-                  </div>
-                  <div className="liquid-glass-card p-4 rounded-xl">
-                    <h4 className="text-sm font-medium text-slate-400 uppercase tracking-wider">
-                      Key Locations
-                    </h4>
-                    <p className="text-3xl font-bold text-white mt-2">
-                      {networkNodes.filter((n) => n.type === 'location').length}
-                    </p>
-                  </div>
-                  <div className="liquid-glass-card p-4 rounded-xl">
-                    <h4 className="text-sm font-medium text-slate-400 uppercase tracking-wider">
-                      Connections
-                    </h4>
-                    <p className="text-3xl font-bold text-white mt-2">{networkEdges.length}</p>
+                  <div className="mt-3 bg-slate-800 border border-slate-700 rounded-lg p-3">
+                    <p className="text-xs text-slate-400 mb-2">Top sources</p>
+                    {analyticsLoading.overview ? (
+                      <div className="h-6 bg-slate-700 rounded animate-pulse" />
+                    ) : analyticsData.topSources.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {analyticsData.topSources.map((item) => (
+                          <span
+                            key={`${item.type}-${item.count}`}
+                            className="px-2 py-1 bg-slate-700 text-slate-200 rounded text-xs"
+                          >
+                            {item.type}: {item.count}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-500">
+                        Link evidence to this case to generate source analytics.
+                      </p>
+                    )}
                   </div>
                 </div>
 
-                {/* Relationship Legend */}
-                <div className="mt-6 liquid-glass-panel p-4 rounded-xl border border-white/5">
-                  <h4 className="text-sm font-medium text-slate-400 uppercase tracking-wider mb-3">
-                    Connection Types
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                      <div className="text-sm">
-                        <span className="text-slate-200 font-medium">Email</span>
-                        <p className="text-slate-500 text-xs">
-                          Direct communication (From/To/CC) from metadata
-                        </p>
+                <div className="mb-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+                    <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wide mb-3">
+                      Trends
+                    </h4>
+                    {analyticsLoading.trends ? (
+                      <div className="space-y-2">
+                        <div className="h-4 bg-slate-700 rounded animate-pulse" />
+                        <div className="h-4 bg-slate-700 rounded animate-pulse" />
+                        <div className="h-4 bg-slate-700 rounded animate-pulse" />
                       </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 rounded-full bg-purple-500"></div>
-                      <div className="text-sm">
-                        <span className="text-slate-200 font-medium">Co-occurrence</span>
-                        <p className="text-slate-500 text-xs">
-                          Appearing in the same document (weighted by frequency)
-                        </p>
+                    ) : analyticsData.evidenceTimeline.length > 0 ? (
+                      <div className="space-y-2">
+                        {analyticsData.evidenceTimeline.map((point) => (
+                          <div key={point.day} className="flex items-center gap-3">
+                            <span className="w-24 text-xs text-slate-400">{point.day}</span>
+                            <div className="flex-1 h-2 bg-slate-700 rounded overflow-hidden">
+                              <div
+                                className="h-full bg-blue-500"
+                                style={{ width: `${Math.min(100, point.count * 10)}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-slate-200">{point.count}</span>
+                          </div>
+                        ))}
                       </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                      <div className="text-sm">
-                        <span className="text-slate-200 font-medium">Flight Log</span>
-                        <p className="text-slate-500 text-xs">
-                          Appearing on the same flight manifest
-                        </p>
-                      </div>
-                    </div>
+                    ) : (
+                      <p className="text-xs text-slate-500">
+                        No trend data yet. Add evidence and timeline entries.
+                      </p>
+                    )}
                   </div>
+
+                  <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+                    <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wide mb-3">
+                      Activity by Source Type
+                    </h4>
+                    {analyticsLoading.trends ? (
+                      <div className="space-y-2">
+                        <div className="h-4 bg-slate-700 rounded animate-pulse" />
+                        <div className="h-4 bg-slate-700 rounded animate-pulse" />
+                      </div>
+                    ) : analyticsData.sourceActivity.length > 0 ? (
+                      <div className="space-y-2">
+                        {analyticsData.sourceActivity.map((row) => (
+                          <div
+                            key={row.source}
+                            className="flex items-center justify-between text-sm"
+                          >
+                            <span className="text-slate-300 capitalize">{row.source}</span>
+                            <span className="text-white">{row.count}</span>
+                          </div>
+                        ))}
+                        <div className="pt-2 border-t border-slate-700">
+                          <p className="text-xs text-slate-400 mb-1">Spikes / bursts</p>
+                          {analyticsData.spikes.length > 0 ? (
+                            <div className="space-y-1">
+                              {analyticsData.spikes.map((spike) => (
+                                <p key={spike.day} className="text-xs text-amber-300">
+                                  {spike.day}: {spike.count} items
+                                </p>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-slate-500">No burst periods detected.</p>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-500">
+                        Source activity appears after evidence is linked.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mb-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+                    <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wide mb-3">
+                      Network / Signals
+                    </h4>
+                    {analyticsLoading.signals ? (
+                      <div className="space-y-2">
+                        <div className="h-4 bg-slate-700 rounded animate-pulse" />
+                        <div className="h-4 bg-slate-700 rounded animate-pulse" />
+                        <div className="h-4 bg-slate-700 rounded animate-pulse" />
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-xs text-slate-400 mb-2">Highest-risk entities</p>
+                          {analyticsData.highRiskEntities.length > 0 ? (
+                            analyticsData.highRiskEntities.map((entity) => (
+                              <div key={entity.id} className="flex justify-between text-sm">
+                                <span className="text-slate-200">{entity.name}</span>
+                                <span className="text-red-300">{entity.score}</span>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-xs text-slate-500">
+                              Add entity evidence to derive risk signals.
+                            </p>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-xs text-slate-400 mb-2">Strongest connections</p>
+                          {analyticsData.strongestConnections.length > 0 ? (
+                            analyticsData.strongestConnections.map((connection, idx) => (
+                              <div
+                                key={`${connection.source}-${connection.target}-${idx}`}
+                                className="text-xs text-slate-300"
+                              >
+                                {connection.source} {'->'} {connection.target} (
+                                {connection.confidence}%)
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-xs text-slate-500">No connection edges available.</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+                    <h4 className="text-sm font-semibold text-slate-300 uppercase tracking-wide mb-3">
+                      Most-cited Documents
+                    </h4>
+                    {analyticsLoading.signals ? (
+                      <div className="space-y-2">
+                        <div className="h-4 bg-slate-700 rounded animate-pulse" />
+                        <div className="h-4 bg-slate-700 rounded animate-pulse" />
+                      </div>
+                    ) : analyticsData.citedDocuments.length > 0 ? (
+                      <div className="space-y-2">
+                        {analyticsData.citedDocuments.map((doc) => (
+                          <div key={doc.id} className="flex items-center justify-between gap-3">
+                            <span className="text-sm text-slate-200 truncate">{doc.title}</span>
+                            <span className="text-xs px-2 py-1 bg-slate-700 rounded text-slate-100">
+                              {doc.mentions} cites
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-500">
+                        Documents appear here once referenced by timeline events.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="liquid-glass-card rounded-xl overflow-hidden">
+                  <NetworkVisualization
+                    nodes={networkNodes}
+                    edges={networkEdges}
+                    onNodeClick={(node) => {
+                      setSelectedNetworkNode(node);
+                      setSelectedNetworkEdge(null);
+                    }}
+                    onEdgeClick={(edge) => {
+                      setSelectedNetworkEdge(edge);
+                      setSelectedNetworkNode(null);
+                    }}
+                    selectedNodeId={selectedNetworkNode?.id}
+                    selectedEdgeId={selectedNetworkEdge?.id}
+                    height={420}
+                    showFilters={true}
+                    showLegend={true}
+                    interactive={true}
+                  />
                 </div>
               </div>
             )}
@@ -1732,6 +2179,16 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
           }}
           initialSourceId={selectedNetworkNode?.id}
         />
+      )}
+      {caseFolderEntityId && (
+        <EvidenceModal
+          entityId={caseFolderEntityId}
+          isOpen={!!caseFolderEntityId}
+          onClose={closeCaseFolderEntityModal}
+        />
+      )}
+      {caseFolderDocumentId && (
+        <DocumentModal id={caseFolderDocumentId} onClose={closeCaseFolderDocumentModal} />
       )}
     </div>
   );

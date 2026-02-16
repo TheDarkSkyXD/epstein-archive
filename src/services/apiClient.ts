@@ -213,6 +213,32 @@ class ApiClient {
     return this.fetchWithErrorHandling<T>(url, options);
   }
 
+  async post<T>(endpoint: string, body?: any): Promise<T> {
+    const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+    return this.fetchWithErrorHandling<T>(url, {
+      method: 'POST',
+      body: body === undefined ? undefined : JSON.stringify(body),
+      useCache: false,
+    });
+  }
+
+  async put<T>(endpoint: string, body?: any): Promise<T> {
+    const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+    return this.fetchWithErrorHandling<T>(url, {
+      method: 'PUT',
+      body: body === undefined ? undefined : JSON.stringify(body),
+      useCache: false,
+    });
+  }
+
+  async delete<T>(endpoint: string): Promise<T> {
+    const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+    return this.fetchWithErrorHandling<T>(url, {
+      method: 'DELETE',
+      useCache: false,
+    });
+  }
+
   // Clear cache (useful after mutations)
   clearCache(pattern?: string): void {
     invalidateCache(pattern);
@@ -470,6 +496,52 @@ class ApiClient {
 
   async getInvestigation(id: string): Promise<any> {
     return this.fetchWithErrorHandling<any>(`${API_BASE_URL}/investigations/${id}`);
+  }
+
+  async getInvestigationBoard(
+    id: string,
+    params: { evidenceLimit?: number; hypothesisLimit?: number } = {},
+  ): Promise<any> {
+    const usp = new URLSearchParams();
+    if (params.evidenceLimit) usp.append('evidenceLimit', String(params.evidenceLimit));
+    if (params.hypothesisLimit) usp.append('hypothesisLimit', String(params.hypothesisLimit));
+    return this.fetchWithErrorHandling<any>(
+      `${API_BASE_URL}/investigations/${id}/board${usp.toString() ? `?${usp.toString()}` : ''}`,
+      { useCache: false },
+    );
+  }
+
+  async getInvestigationEvidencePage(
+    id: string,
+    params: { limit: number; offset: number },
+  ): Promise<{ data: any[]; total: number; limit: number; offset: number }> {
+    const usp = new URLSearchParams({
+      limit: String(params.limit),
+      offset: String(params.offset),
+    });
+    return this.fetchWithErrorHandling<{
+      data: any[];
+      total: number;
+      limit: number;
+      offset: number;
+    }>(`${API_BASE_URL}/investigations/${id}/evidence?${usp.toString()}`, { useCache: false });
+  }
+
+  async getInvestigationNotebook(id: string): Promise<any> {
+    return this.fetchWithErrorHandling<any>(`${API_BASE_URL}/investigations/${id}/notebook`, {
+      useCache: false,
+    });
+  }
+
+  async updateInvestigationNotebook(
+    id: string,
+    payload: { order?: number[]; annotations?: any[] },
+  ): Promise<any> {
+    return this.fetchWithErrorHandling<any>(`${API_BASE_URL}/investigations/${id}/notebook`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+      useCache: false,
+    });
   }
 
   async getDocuments(filters: any = {}, page: number = 1, limit: number = 50): Promise<any> {

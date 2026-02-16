@@ -82,6 +82,30 @@ const normalizeSourceType = (evidenceType?: string | null, fileType?: string | n
   return 'Document';
 };
 
+const buildSearchVariants = (rawQuery: string): string[] => {
+  const normalized = rawQuery.trim();
+  if (!normalized) return [];
+  const variants = new Set<string>([normalized]);
+  const lower = normalized.toLowerCase();
+  if (lower.includes('dataset')) {
+    variants.add(normalized.replace(/dataset/gi, 'data set'));
+  }
+  if (lower.includes('data set')) {
+    variants.add(normalized.replace(/data\s+set/gi, 'dataset'));
+  }
+  const rangeMatch = lower.match(/(?:data\s*set|dataset)\s*(\d+)\s*-\s*(\d+)/i);
+  if (rangeMatch) {
+    const from = Number(rangeMatch[1]);
+    const to = Number(rangeMatch[2]);
+    if (Number.isFinite(from) && Number.isFinite(to) && to >= from) {
+      for (let i = from; i <= to; i += 1) {
+        variants.add(`DOJ Data Set ${i}`);
+      }
+    }
+  }
+  return Array.from(variants).filter((value) => value.trim().length > 0);
+};
+
 const buildPreview = (doc: {
   title?: string | null;
   fileName?: string | null;
@@ -152,14 +176,16 @@ export const documentsRepository = {
 
     if (filters.search && filters.search.trim()) {
       try {
-        // Simple check if table exists (cached or checked once)
-        // For now, just try-catch the query construction later?
-        // Better to assume FTS if we are in "production" mode or fallback.
-        // Let's stick to LIKE for simple browse, but if search term is complex, FTS is better.
-        // For now, I'll keep LIKE for robustness as per previous patterns unless I can guarantee FTS table.
-        whereConditions.push('(file_name LIKE ? OR content LIKE ?)');
-        const searchPattern = `%${filters.search.trim()}%`;
-        params.push(searchPattern, searchPattern);
+        const searchVariants = buildSearchVariants(filters.search);
+        const clauses: string[] = [];
+        for (const variant of searchVariants) {
+          clauses.push(
+            '(file_name LIKE ? OR content LIKE ? OR source_collection LIKE ? OR file_path LIKE ?)',
+          );
+          const pattern = `%${variant}%`;
+          params.push(pattern, pattern, pattern, pattern);
+        }
+        whereConditions.push(`(${clauses.join(' OR ')})`);
       } catch (_e) {
         // Fallback
       }

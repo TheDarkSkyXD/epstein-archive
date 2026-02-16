@@ -1,6 +1,18 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Investigation, Investigator } from '../../types/investigation';
-import { Users, Mail, UserPlus, Crown, Shield, Building, Eye, User } from 'lucide-react';
+import {
+  Users,
+  UserPlus,
+  Crown,
+  Shield,
+  Eye,
+  User,
+  Trash2,
+  Download,
+  Upload,
+  HardDrive,
+  Info,
+} from 'lucide-react';
 import { useToasts } from '../common/useToasts';
 
 interface InvestigationTeamManagementProps {
@@ -9,150 +21,211 @@ interface InvestigationTeamManagementProps {
   onTeamUpdate: (investigation: Investigation) => void;
 }
 
+type TeamRole = 'lead' | 'researcher' | 'analyst' | 'reviewer' | 'external';
+
+interface LocalTeamSnapshot {
+  team: (Omit<Investigator, 'joinedAt'> & { joinedAt: string })[];
+  updatedAt: string;
+  storage: 'local-device';
+}
+
+const STORAGE_PREFIX = 'investigation-team-local:';
+
+const rolePermissions: Record<TeamRole, string[]> = {
+  lead: ['read', 'write', 'admin'],
+  researcher: ['read', 'write'],
+  analyst: ['read', 'write'],
+  reviewer: ['read', 'comment'],
+  external: ['read'],
+};
+
+const roleNotes: Record<TeamRole, string> = {
+  lead: 'Full access including role management and destructive actions.',
+  researcher: 'Can add/edit evidence, notes, and timeline entries.',
+  analyst: 'Can run analytics/forensics and update findings.',
+  reviewer: 'Read-only with annotation and comment capability.',
+  external: 'Limited read access for shared review only.',
+};
+
 export const InvestigationTeamManagement: React.FC<InvestigationTeamManagementProps> = ({
   investigation,
   currentUser,
   onTeamUpdate,
 }) => {
-  const [showInviteModal, setShowInviteModal] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<'researcher' | 'analyst' | 'reviewer'>('researcher');
-  const [inviteMessage, setInviteMessage] = useState('');
+  const storageKey = `${STORAGE_PREFIX}${investigation.id}`;
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newRole, setNewRole] = useState<TeamRole>('researcher');
   const { addToast } = useToasts();
 
-  // Ensure current user is first author if team is empty
-  const ensureFirstAuthor = () => {
-    if (investigation.team.length === 0) {
-      const firstAuthor: Investigator = {
-        id: currentUser.id,
-        name: currentUser.name || 'Unknown Investigator',
-        email: currentUser.email,
-        role: 'lead',
-        permissions: ['read', 'write', 'admin'],
-        joinedAt: new Date(),
-        organization: currentUser.organization,
-        expertise: currentUser.expertise || [],
-        status: 'active',
-      };
-
-      const updatedInvestigation = {
-        ...investigation,
-        team: [firstAuthor],
-        leadInvestigator: currentUser.id,
-      };
-
-      onTeamUpdate(updatedInvestigation);
-      return true;
-    }
-    return false;
-  };
-
-  // Auto-populate first author on component mount
-  React.useEffect(() => {
-    ensureFirstAuthor();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- ensureFirstAuthor is stable and only runs on mount
-  }, []);
-
-  // Handle email invitation
-  const handleEmailInvitation = async (
-    email: string,
-    role: 'researcher' | 'analyst' | 'reviewer',
-    message?: string,
-  ) => {
-    try {
-      // Call API to send invitation
-      const response = await fetch('/api/investigations/invite', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+  const ensureLead = useCallback(
+    (members: Investigator[]): Investigator[] => {
+      if (members.length > 0) return members;
+      return [
+        {
+          id: currentUser.id,
+          name: currentUser.name || 'Lead Investigator',
+          email: currentUser.email,
+          role: 'lead',
+          permissions: rolePermissions.lead,
+          joinedAt: new Date(),
+          organization: currentUser.organization,
+          expertise: currentUser.expertise || [],
+          status: 'active',
         },
-        body: JSON.stringify({
-          investigationId: investigation.id,
-          email,
-          role,
-          message,
-          invitedBy: currentUser.id,
-        }),
-      });
+      ];
+    },
+    [
+      currentUser.email,
+      currentUser.expertise,
+      currentUser.id,
+      currentUser.name,
+      currentUser.organization,
+    ],
+  );
 
-      if (!response.ok) {
-        throw new Error('Failed to send invitation');
+  const persistLocalTeam = (members: Investigator[]) => {
+    const snapshot: LocalTeamSnapshot = {
+      team: members.map((member) => ({
+        ...member,
+        joinedAt: member.joinedAt.toISOString(),
+      })),
+      updatedAt: new Date().toISOString(),
+      storage: 'local-device',
+    };
+    localStorage.setItem(storageKey, JSON.stringify(snapshot));
+  };
+
+  useEffect(() => {
+    const seedMembers = ensureLead(investigation.team || []);
+    let nextMembers = seedMembers;
+
+    const localRaw = localStorage.getItem(storageKey);
+    if (localRaw) {
+      try {
+        const parsed = JSON.parse(localRaw) as LocalTeamSnapshot;
+        if (Array.isArray(parsed.team) && parsed.team.length > 0) {
+          nextMembers = parsed.team.map((member) => ({
+            ...member,
+            joinedAt: new Date(member.joinedAt),
+          }));
+        }
+      } catch (_error) {
+        addToast({
+          text: 'Team profile storage is corrupted. Reverting to current members.',
+          type: 'warning',
+        });
       }
+    }
 
-      const result = await response.json();
-
-      // Create a pending member while waiting for acceptance
-      const invitedMember: Investigator = {
-        id: result.invitationId || `invited-${Date.now()}`,
-        name: email.split('@')[0], // Temporary name from email
-        email: email,
-        role: role,
-        permissions: getRolePermissions(role),
-        joinedAt: new Date(),
-        organization: '',
-        expertise: [],
-        status: 'pending',
-      };
-
-      const updatedInvestigation = {
+    if (JSON.stringify(nextMembers) !== JSON.stringify(investigation.team || [])) {
+      onTeamUpdate({
         ...investigation,
-        team: [...investigation.team, invitedMember],
-      };
-
-      onTeamUpdate(updatedInvestigation);
-
-      return true;
-    } catch (error) {
-      console.error('Error sending invitation:', error);
-      return false;
-    }
-  };
-
-  const handleInviteMember = async () => {
-    if (!inviteEmail.trim()) return;
-
-    // Send email invitation
-    const success = await handleEmailInvitation(inviteEmail, inviteRole, inviteMessage);
-
-    if (success) {
-      // Reset form
-      setInviteEmail('');
-      setInviteRole('researcher');
-      setInviteMessage('');
-      setShowInviteModal(false);
-
-      // Show success message
-      addToast({
-        text: `Invitation sent to ${inviteEmail}. They will be added to the team once they accept.`,
-        type: 'success',
+        team: nextMembers,
+        leadInvestigator: nextMembers.find((m) => m.role === 'lead')?.id || currentUser.id,
       });
-    } else {
-      addToast({ text: 'Failed to send invitation. Please try again.', type: 'error' });
     }
+
+    persistLocalTeam(nextMembers);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [investigation.id]);
+
+  const team = useMemo(
+    () => ensureLead(investigation.team || []),
+    [ensureLead, investigation.team],
+  );
+
+  const applyTeamUpdate = (members: Investigator[]) => {
+    const safeMembers = ensureLead(members);
+    const leadId = safeMembers.find((m) => m.role === 'lead')?.id || currentUser.id;
+    const updated = { ...investigation, team: safeMembers, leadInvestigator: leadId };
+    onTeamUpdate(updated);
+    persistLocalTeam(safeMembers);
   };
 
-  const getRolePermissions = (role: string): string[] => {
-    switch (role) {
-      case 'lead':
-        return ['read', 'write', 'admin'];
-      case 'researcher':
-      case 'analyst':
-        return ['read', 'write'];
-      case 'reviewer':
-        return ['read', 'comment'];
-      case 'external':
-        return ['read'];
-      default:
-        return ['read'];
+  const addMember = () => {
+    if (!newName.trim() || !newEmail.trim()) {
+      addToast({ text: 'Name and email are required.', type: 'error' });
+      return;
     }
+
+    const member: Investigator = {
+      id: `local-${Date.now()}`,
+      name: newName.trim(),
+      email: newEmail.trim().toLowerCase(),
+      role: newRole,
+      permissions: rolePermissions[newRole],
+      joinedAt: new Date(),
+      organization: currentUser.organization,
+      expertise: [],
+      status: 'active',
+    };
+
+    applyTeamUpdate([...team, member]);
+    setNewName('');
+    setNewEmail('');
+    setNewRole('researcher');
+    setShowAddModal(false);
+    addToast({ text: 'Local profile added to this investigation.', type: 'success' });
   };
 
-  const getRoleIcon = (role: string) => {
+  const removeMember = (memberId: string) => {
+    const target = team.find((member) => member.id === memberId);
+    if (!target || target.role === 'lead') return;
+    applyTeamUpdate(team.filter((member) => member.id !== memberId));
+    addToast({ text: `${target.name} removed from local team profiles.`, type: 'info' });
+  };
+
+  const updateRole = (memberId: string, role: TeamRole) => {
+    const updated = team.map((member) =>
+      member.id === memberId ? { ...member, role, permissions: rolePermissions[role] } : member,
+    );
+    applyTeamUpdate(updated);
+  };
+
+  const exportTeamJson = () => {
+    const payload: LocalTeamSnapshot = {
+      team: team.map((member) => ({ ...member, joinedAt: member.joinedAt.toISOString() })),
+      updatedAt: new Date().toISOString(),
+      storage: 'local-device',
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `investigation-team-${investigation.id}.json`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+  };
+
+  const importTeamJson = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result || '{}')) as LocalTeamSnapshot;
+        if (!Array.isArray(parsed.team)) throw new Error('Invalid team format');
+        const importedMembers: Investigator[] = parsed.team.map((member) => ({
+          ...member,
+          joinedAt: new Date(member.joinedAt),
+          permissions: rolePermissions[(member.role || 'researcher') as TeamRole] || ['read'],
+          status: member.status || 'active',
+        }));
+        applyTeamUpdate(importedMembers);
+        addToast({ text: 'Local team profiles imported.', type: 'success' });
+      } catch (_error) {
+        addToast({ text: 'Failed to import team JSON.', type: 'error' });
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const getRoleIcon = (role: TeamRole) => {
     switch (role) {
       case 'lead':
         return Crown;
-      case 'researcher':
-        return User;
       case 'analyst':
         return Shield;
       case 'reviewer':
@@ -162,111 +235,159 @@ export const InvestigationTeamManagement: React.FC<InvestigationTeamManagementPr
     }
   };
 
-  const getRoleColor = (role: string) => {
+  const getRoleColor = (role: TeamRole) => {
     switch (role) {
       case 'lead':
-        return 'text-yellow-400 bg-yellow-900/30';
+        return 'text-yellow-300 bg-yellow-900/30 border-yellow-700';
       case 'researcher':
-        return 'text-blue-400 bg-blue-900/30';
+        return 'text-blue-300 bg-blue-900/30 border-blue-700';
       case 'analyst':
-        return 'text-green-400 bg-green-900/30';
+        return 'text-green-300 bg-green-900/30 border-green-700';
       case 'reviewer':
-        return 'text-purple-400 bg-purple-900/30';
+        return 'text-purple-300 bg-purple-900/30 border-purple-700';
+      case 'external':
+        return 'text-slate-300 bg-slate-700/40 border-slate-600';
       default:
-        return 'text-gray-400 bg-gray-900/30';
+        return 'text-slate-300 bg-slate-700/40 border-slate-600';
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-xl font-bold text-white">Investigation Team</h3>
-          <p className="text-sm text-slate-400 mt-1">Manage team members and their permissions</p>
+          <h3 className="text-xl font-bold text-white">Team & Access</h3>
+          <p className="text-sm text-slate-400 mt-1">
+            Local profiles and role controls for this investigation workspace
+          </p>
         </div>
-        <button
-          onClick={() => setShowInviteModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-        >
-          <UserPlus className="w-4 h-4" />
-          Invite Member
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+          >
+            <UserPlus className="w-4 h-4" />
+            Add Local Profile
+          </button>
+          <button
+            onClick={exportTeamJson}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Export JSON
+          </button>
+          <label className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors cursor-pointer">
+            <Upload className="w-4 h-4" />
+            Import JSON
+            <input
+              type="file"
+              accept="application/json"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) importTeamJson(file);
+              }}
+            />
+          </label>
+        </div>
       </div>
 
-      {/* Team Lead Info */}
-      <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-        <div className="flex items-center gap-3">
-          <Crown className="w-5 h-5 text-yellow-400" />
+      <div className="bg-blue-900/20 border border-blue-700 rounded-xl p-4">
+        <div className="flex items-start gap-3">
+          <HardDrive className="w-5 h-5 text-blue-300 mt-0.5" />
           <div>
-            <p className="text-white font-medium">Lead Investigator</p>
-            <p className="text-slate-400 text-sm">
-              {investigation.team.find((member) => member.id === investigation.leadInvestigator)
-                ?.name || investigation.leadInvestigator}
+            <p className="text-blue-100 font-medium">Local to this device</p>
+            <p className="text-blue-200/90 text-sm mt-1">
+              Team profiles are stored in browser local storage and are not synced to server
+              accounts. Use JSON export/import to move this setup between devices.
             </p>
           </div>
         </div>
       </div>
 
-      {/* Team Members */}
-      <div className="space-y-4">
-        {investigation.team.map((member) => {
-          const RoleIcon = getRoleIcon(member.role);
-          const roleColorClass = getRoleColor(member.role);
+      <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Info className="w-4 h-4 text-slate-300" />
+          <h4 className="text-white font-semibold">Access & Roles</h4>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {(Object.keys(rolePermissions) as TeamRole[]).map((role) => (
+            <div key={role} className="p-3 rounded-lg border border-slate-700 bg-slate-900/40">
+              <p className="text-sm font-medium text-white capitalize">{role}</p>
+              <p className="text-xs text-slate-400 mt-1">{roleNotes[role]}</p>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {rolePermissions[role].map((permission) => (
+                  <span
+                    key={`${role}-${permission}`}
+                    className="px-2 py-0.5 text-xs bg-slate-700 rounded"
+                  >
+                    {permission}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {team.map((member) => {
+          const RoleIcon = getRoleIcon(member.role as TeamRole);
+          const roleColorClass = getRoleColor(member.role as TeamRole);
 
           return (
             <div
               key={member.id}
-              className="flex items-center justify-between p-4 bg-slate-800/50 border border-slate-700 rounded-xl"
+              className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-4 bg-slate-800/50 border border-slate-700 rounded-xl"
             >
-              <div className="flex items-center gap-4">
+              <div className="flex items-start gap-3 min-w-0">
                 <div
-                  className={`w-12 h-12 rounded-full flex items-center justify-center border ${roleColorClass}`}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center border ${roleColorClass}`}
                 >
-                  <RoleIcon className="w-6 h-6" />
+                  <RoleIcon className="w-5 h-5" />
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-lg font-medium text-white">{member.name}</p>
-                    <span className={`text-xs px-2 py-1 rounded-full ${roleColorClass}`}>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-base font-medium text-white truncate">{member.name}</p>
+                    <span className={`text-xs px-2 py-1 rounded-full border ${roleColorClass}`}>
                       {member.role}
                     </span>
                   </div>
-                  <div className="flex items-center gap-4 text-sm text-slate-400 mt-1">
-                    <div className="flex items-center gap-1">
-                      <Mail className="w-3 h-3" />
-                      {member.email}
-                    </div>
-                    {member.organization && (
-                      <div className="flex items-center gap-1">
-                        <Building className="w-3 h-3" />
-                        {member.organization}
-                      </div>
-                    )}
-                  </div>
+                  <p className="text-sm text-slate-400 truncate">{member.email}</p>
                   <p className="text-xs text-slate-500 mt-1">
                     Joined {member.joinedAt.toLocaleDateString()}
                   </p>
                 </div>
               </div>
 
-              <div className="text-right">
-                <div className="flex items-center gap-2 text-xs text-slate-400 mb-2">
-                  {member.permissions.map((permission) => (
-                    <span key={permission} className="px-2 py-1 bg-slate-700 rounded">
-                      {permission}
-                    </span>
-                  ))}
-                </div>
+              <div className="flex items-center gap-2 flex-wrap">
                 {member.role !== 'lead' && (
-                  <div className="flex gap-2 mt-2">
-                    <button className="text-xs text-blue-400 hover:text-blue-300">
-                      Manage Permissions
-                    </button>
-                    {member.status === 'pending' && (
-                      <span className="text-xs text-yellow-400">Pending acceptance</span>
-                    )}
-                  </div>
+                  <select
+                    value={member.role}
+                    onChange={(e) => updateRole(member.id, e.target.value as TeamRole)}
+                    className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-white"
+                    aria-label={`Update role for ${member.name}`}
+                  >
+                    <option value="researcher">Researcher</option>
+                    <option value="analyst">Analyst</option>
+                    <option value="reviewer">Reviewer</option>
+                    <option value="external">External</option>
+                  </select>
+                )}
+                {member.role !== 'lead' && (
+                  <button
+                    onClick={() => removeMember(member.id)}
+                    className="p-2 text-slate-300 hover:text-red-300 hover:bg-slate-700 rounded-lg"
+                    aria-label={`Remove ${member.name}`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+                {member.role === 'lead' && (
+                  <span className="text-xs text-slate-400 inline-flex items-center gap-1">
+                    <Users className="w-3 h-3" />
+                    Lead profile cannot be removed
+                  </span>
                 )}
               </div>
             </div>
@@ -274,77 +395,62 @@ export const InvestigationTeamManagement: React.FC<InvestigationTeamManagementPr
         })}
       </div>
 
-      {/* Invite Modal */}
-      {showInviteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-slate-800 rounded-xl shadow-xl w-full max-w-md">
-            <div className="border-b border-slate-700 p-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-white">Invite Team Member</h3>
-                <button
-                  onClick={() => setShowInviteModal(false)}
-                  className="text-slate-400 hover:text-slate-200"
-                >
-                  <Users className="w-6 h-6" />
-                </button>
-              </div>
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-xl shadow-xl w-full max-w-md border border-slate-700">
+            <div className="border-b border-slate-700 p-5">
+              <h3 className="text-lg font-semibold text-white">Add Local Profile</h3>
+              <p className="text-xs text-slate-400 mt-1">Stored on this device only.</p>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-5 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Email Address
-                </label>
+                <label className="block text-sm text-slate-300 mb-2">Display name</label>
                 <input
-                  type="email"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="colleague@example.com"
-                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
+                  placeholder="Investigator name"
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Role</label>
+                <label className="block text-sm text-slate-300 mb-2">Email</label>
+                <input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
+                  placeholder="name@example.com"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-300 mb-2">Role</label>
                 <select
-                  value={inviteRole}
-                  onChange={(e) => setInviteRole(e.target.value as any)}
-                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={newRole}
+                  onChange={(e) => setNewRole(e.target.value as TeamRole)}
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
                 >
                   <option value="researcher">Researcher</option>
                   <option value="analyst">Analyst</option>
                   <option value="reviewer">Reviewer</option>
-                  <option value="external">External Consultant</option>
+                  <option value="external">External</option>
                 </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Message (Optional)
-                </label>
-                <textarea
-                  value={inviteMessage}
-                  onChange={(e) => setInviteMessage(e.target.value)}
-                  placeholder="Add a personal message to the invitation..."
-                  rows={3}
-                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
               </div>
             </div>
 
-            <div className="border-t border-slate-700 p-6 flex justify-end gap-3">
+            <div className="border-t border-slate-700 p-5 flex justify-end gap-2">
               <button
-                onClick={() => setShowInviteModal(false)}
-                className="px-4 py-2 text-slate-300 hover:text-white rounded-lg transition-colors"
+                onClick={() => setShowAddModal(false)}
+                className="px-4 py-2 text-slate-300 hover:text-white"
               >
                 Cancel
               </button>
               <button
-                onClick={handleInviteMember}
-                disabled={!inviteEmail.trim()}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                onClick={addMember}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
               >
-                Send Invitation
+                Add Profile
               </button>
             </div>
           </div>

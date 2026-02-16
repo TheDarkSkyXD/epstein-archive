@@ -1,18 +1,28 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '../common/Icon';
 import { Link } from 'react-router-dom';
 
 interface EvidenceItem {
   id: number;
+  investigation_evidence_id?: number;
   type: string;
   title: string;
   description: string;
   source_path: string;
+  metadata_json?: string;
+  target_type?: 'document' | 'entity' | 'media' | null;
+  target_id?: number | null;
   red_flag_rating: number;
   relevance: string;
   added_at: string;
   added_by: string;
   notes: string;
+  ingest_run_id?: string | null;
+  evidence_ladder?: string | null;
+  pipeline_version?: string | null;
+  evidence_pack?: any;
+  confidence_definition?: string | null;
+  was_agentic?: boolean | null;
 }
 
 interface EvidenceByType {
@@ -24,7 +34,8 @@ interface EvidenceByType {
 
 interface InvestigationCaseFolderProps {
   investigationId: number | string;
-  onEvidenceClick?: (evidence: EvidenceItem) => void;
+  onEvidenceClick?: (evidence: EvidenceItem, triggerEl?: HTMLElement | null) => void;
+  deepLinkedEvidenceId?: string | null;
 }
 
 const typeConfig: Record<string, { icon: string; label: string; color: string }> = {
@@ -49,6 +60,7 @@ const relevanceColors: Record<string, string> = {
 export const InvestigationCaseFolder: React.FC<InvestigationCaseFolderProps> = ({
   investigationId,
   onEvidenceClick,
+  deepLinkedEvidenceId = null,
 }) => {
   const [evidence, setEvidence] = useState<EvidenceByType | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,6 +68,8 @@ export const InvestigationCaseFolder: React.FC<InvestigationCaseFolderProps> = (
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [relevanceFilter, setRelevanceFilter] = useState<string | null>(null);
+  const [listScrollTop, setListScrollTop] = useState(0);
+  const evidenceButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
   useEffect(() => {
     const fetchEvidence = async () => {
@@ -103,6 +117,18 @@ export const InvestigationCaseFolder: React.FC<InvestigationCaseFolderProps> = (
     return items;
   }, [evidence, selectedType, searchTerm, relevanceFilter]);
 
+  const shouldVirtualize = filteredEvidence.length > 100;
+  const rowHeight = 148;
+  const viewportHeight = 720;
+  const visibleCount = Math.ceil(viewportHeight / rowHeight) + 10;
+  const startIndex = shouldVirtualize ? Math.max(0, Math.floor(listScrollTop / rowHeight) - 5) : 0;
+  const endIndex = shouldVirtualize
+    ? Math.min(filteredEvidence.length, startIndex + visibleCount)
+    : filteredEvidence.length;
+  const visibleRows = shouldVirtualize
+    ? filteredEvidence.slice(startIndex, endIndex)
+    : filteredEvidence;
+
   const getSourceLink = (item: EvidenceItem): string | null => {
     const [type, id] = (item.source_path || '').split(':');
     if (type === 'entity' && id) return `/entity/${id}`;
@@ -112,6 +138,72 @@ export const InvestigationCaseFolder: React.FC<InvestigationCaseFolderProps> = (
     if (type === 'email' && id) return `/emails?id=${id}`;
     return null;
   };
+
+  const getProvenance = (item: EvidenceItem) => {
+    let metadata: any = {};
+    try {
+      metadata = item.metadata_json ? JSON.parse(item.metadata_json) : {};
+    } catch (_error) {
+      metadata = {};
+    }
+    const ingestRunId =
+      item.ingest_run_id || metadata.ingest_run_id || metadata.ingestRunId || null;
+    const ladder =
+      item.evidence_ladder || metadata.evidence_ladder || metadata.evidenceLadder || 'N/A';
+    const pipelineVersion =
+      item.pipeline_version || metadata.pipeline_version || metadata.pipelineVersion || null;
+    const evidencePack =
+      item.evidence_pack || metadata.evidence_pack || metadata.evidencePack || null;
+    const confidence = metadata.confidence_score ?? metadata.confidence ?? null;
+    const wasAgentic = Boolean(
+      item.was_agentic ?? metadata.was_agentic ?? metadata.wasAgentic ?? false,
+    );
+    return {
+      ingestRunId,
+      ladder,
+      pipelineVersion,
+      evidencePack,
+      confidence,
+      wasAgentic,
+    };
+  };
+
+  const resolveEvidenceKey = (item: EvidenceItem): string =>
+    String(item.investigation_evidence_id || item.id);
+
+  const isDeepLinkedItem = (item: EvidenceItem): boolean => {
+    if (!deepLinkedEvidenceId) return false;
+    const linked = String(deepLinkedEvidenceId);
+    return (
+      String(item.id) === linked ||
+      String(item.investigation_evidence_id || '') === linked ||
+      resolveEvidenceKey(item) === linked
+    );
+  };
+
+  useEffect(() => {
+    if (!deepLinkedEvidenceId || !evidence?.all?.length) return;
+    const linked = String(deepLinkedEvidenceId);
+    const match = evidence.all.find(
+      (item) =>
+        String(item.id) === linked ||
+        String(item.investigation_evidence_id || '') === linked ||
+        resolveEvidenceKey(item) === linked,
+    );
+    if (!match) return;
+    if (searchTerm) setSearchTerm('');
+    if (relevanceFilter) setRelevanceFilter(null);
+    if (selectedType !== match.type) setSelectedType(match.type || null);
+
+    window.requestAnimationFrame(() => {
+      const key = String(match.investigation_evidence_id || match.id);
+      const rowButton = evidenceButtonRefs.current.get(key);
+      if (rowButton) {
+        rowButton.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        rowButton.focus();
+      }
+    });
+  }, [deepLinkedEvidenceId, evidence, relevanceFilter, searchTerm, selectedType]);
 
   if (loading) {
     return (
@@ -257,15 +349,27 @@ export const InvestigationCaseFolder: React.FC<InvestigationCaseFolderProps> = (
             <p>No evidence matches your filters</p>
           </div>
         ) : (
-          <div className="grid gap-3">
-            {filteredEvidence.map((item) => {
+          <div
+            className="grid gap-3 max-h-[45rem] overflow-y-auto pr-1"
+            onScroll={(e) => setListScrollTop((e.currentTarget as HTMLDivElement).scrollTop)}
+          >
+            {shouldVirtualize && startIndex > 0 && (
+              <div style={{ height: startIndex * rowHeight }} />
+            )}
+            {visibleRows.map((item) => {
               const config = typeConfig[item.type] || typeConfig.other;
               const link = getSourceLink(item);
+              const provenance = getProvenance(item);
 
               return (
                 <div
                   key={item.id}
-                  className="p-4 bg-slate-800/50 border border-slate-700 rounded-lg hover:border-slate-600 transition-colors"
+                  className={`p-4 bg-slate-800/50 border rounded-lg transition-colors ${
+                    isDeepLinkedItem(item)
+                      ? 'border-cyan-400 ring-2 ring-cyan-500/40'
+                      : 'border-slate-700 hover:border-slate-600'
+                  }`}
+                  data-evidence-row-id={resolveEvidenceKey(item)}
                 >
                   <div className="flex items-start gap-4">
                     {/* Type Icon */}
@@ -309,6 +413,23 @@ export const InvestigationCaseFolder: React.FC<InvestigationCaseFolderProps> = (
                       <div className="flex items-center gap-4 text-xs text-slate-500">
                         <span>Added {new Date(item.added_at).toLocaleDateString()}</span>
                         <span>by {item.added_by}</span>
+                        {provenance.ingestRunId && (
+                          <span className="px-1.5 py-0.5 rounded bg-slate-700 text-slate-300">
+                            run {provenance.ingestRunId}
+                          </span>
+                        )}
+                        <span className="px-1.5 py-0.5 rounded bg-slate-700 text-slate-300">
+                          ladder {provenance.ladder}
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded bg-slate-700 text-slate-300">
+                          confidence{' '}
+                          {provenance.confidence === null ? 'N/A' : provenance.confidence}
+                        </span>
+                        {provenance.wasAgentic && (
+                          <span className="px-1.5 py-0.5 rounded bg-amber-900/50 text-amber-200">
+                            agentic-derived
+                          </span>
+                        )}
                         {link && (
                           <Link
                             to={link}
@@ -320,13 +441,26 @@ export const InvestigationCaseFolder: React.FC<InvestigationCaseFolderProps> = (
                           </Link>
                         )}
                       </div>
+                      <div className="mt-2 text-[11px] text-slate-500">
+                        Why in case: linked by investigator relevance "{item.relevance}" from{' '}
+                        {item.source_path || 'unknown source'}
+                        {provenance.pipelineVersion
+                          ? ` • pipeline ${provenance.pipelineVersion}`
+                          : ''}
+                        {provenance.evidencePack ? ' • evidence pack available' : ''}
+                      </div>
                     </div>
 
                     {/* Actions */}
                     <div className="flex items-center gap-2">
                       {onEvidenceClick && (
                         <button
-                          onClick={() => onEvidenceClick(item)}
+                          onClick={(e) => onEvidenceClick(item, e.currentTarget)}
+                          ref={(el) => {
+                            const key = String(item.investigation_evidence_id || item.id);
+                            if (el) evidenceButtonRefs.current.set(key, el);
+                            else evidenceButtonRefs.current.delete(key);
+                          }}
                           className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
                           title="View Details"
                         >
@@ -335,9 +469,20 @@ export const InvestigationCaseFolder: React.FC<InvestigationCaseFolderProps> = (
                       )}
                     </div>
                   </div>
+                  {onEvidenceClick && (
+                    <button
+                      onClick={(e) => onEvidenceClick(item, e.currentTarget)}
+                      className="mt-3 text-xs text-cyan-300 hover:text-cyan-200"
+                    >
+                      Open evidence
+                    </button>
+                  )}
                 </div>
               );
             })}
+            {shouldVirtualize && endIndex < filteredEvidence.length && (
+              <div style={{ height: (filteredEvidence.length - endIndex) * rowHeight }} />
+            )}
           </div>
         )}
       </div>

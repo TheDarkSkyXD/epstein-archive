@@ -194,6 +194,7 @@ function App() {
     if (pathname.startsWith('/media')) return 'media';
     if (pathname.startsWith('/timeline')) return 'timeline';
     if (pathname.startsWith('/investigations')) return 'investigations';
+    if (pathname.startsWith('/investigate')) return 'investigations';
     if (pathname.startsWith('/analytics')) return 'analytics';
     if (pathname.startsWith('/blackbook')) return 'blackbook';
     if (pathname.startsWith('/about')) return 'about';
@@ -1572,12 +1573,27 @@ function App() {
 
                     {activeTab === 'investigations' &&
                       (() => {
-                        // Extract investigation ID from URL path (e.g., /investigations/maxwell-epstein-network-001)
+                        // Extract investigation ID from URL path
+                        // Supported:
+                        // - /investigations/:id
+                        // - /investigate/case/:id
+                        // - /investigate/case/:id/evidence/:evidenceId
                         const pathParts = location.pathname.split('/');
-                        const investigationIdFromUrl =
-                          pathParts.length > 2 && pathParts[1] === 'investigations' && pathParts[2]
-                            ? pathParts[2]
-                            : undefined;
+                        let investigationIdFromUrl: string | undefined;
+                        if (
+                          pathParts.length > 2 &&
+                          pathParts[1] === 'investigations' &&
+                          pathParts[2]
+                        ) {
+                          investigationIdFromUrl = pathParts[2];
+                        } else if (
+                          pathParts.length > 3 &&
+                          pathParts[1] === 'investigate' &&
+                          pathParts[2] === 'case' &&
+                          pathParts[3]
+                        ) {
+                          investigationIdFromUrl = pathParts[3];
+                        }
                         return (
                           <InvestigationWorkspace
                             investigationId={investigationIdFromUrl}

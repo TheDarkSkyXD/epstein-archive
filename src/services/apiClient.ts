@@ -2,6 +2,75 @@
 import { Person } from '../types';
 import { PaginatedResponse, SearchFilters } from './optimizedDataLoader';
 
+export interface EmailMailboxDTO {
+  mailboxId: string;
+  entityId: number | null;
+  displayName: string;
+  totalThreads: number;
+  totalMessages: number;
+  lastActivityAt: string | null;
+  riskSummary: 'minimal' | 'low' | 'medium' | 'high' | null;
+  isJunkSuppressed: boolean;
+}
+
+export interface EmailThreadDTO {
+  threadId: string;
+  subject: string;
+  participants: string[];
+  participantCount: number;
+  lastMessageAt: string;
+  snippet: string;
+  messageCount: number;
+  hasAttachments: boolean;
+  linkedEntityIds: number[];
+  risk: number | null;
+  ladder: string | null;
+  confidence: number | null;
+}
+
+export interface EmailThreadDetailsDTO {
+  threadId: string;
+  subject: string;
+  messages: Array<{
+    messageId: string;
+    threadId: string;
+    subject: string;
+    from: string;
+    to: string[];
+    cc: string[];
+    date: string;
+    snippet: string;
+    flags: { hasAttachments: boolean };
+    attachmentsMeta: Array<{
+      filename?: string;
+      mimeType?: string;
+      size?: number;
+      linkedDocumentId?: string | number;
+    }>;
+    linkedEntities: Array<{ entityId: number; name: string; role: string | null }>;
+    ingestRunId: number | null;
+    pipelineVersion: string | null;
+    confidence: number | null;
+    ladder: string | null;
+    wasAgentic: boolean;
+    redFlagRating: number | null;
+  }>;
+}
+
+export interface EmailMessageBodyDTO {
+  messageId: string;
+  cleanedText: string;
+  cleanedHtml: string;
+  extractedLinks: string[];
+  extractedEntities: string[];
+  mimeWarnings: string[];
+  parseStatus: 'success' | 'partial' | 'failed';
+  ingestRunId: number | null;
+  pipelineVersion: string | null;
+  sourceFile: { fileName: string | null; filePath: string | null };
+  rawAvailable: boolean;
+}
+
 const API_BASE_URL =
   (typeof window !== 'undefined' &&
     typeof import.meta !== 'undefined' &&
@@ -357,6 +426,104 @@ class ApiClient {
     return this.fetchWithErrorHandling<{ threadId: string; messages: any[] }>(url, {
       useCache: true,
     });
+  }
+
+  async getEmailMailboxes(
+    params: { showSuppressedJunk?: boolean } = {},
+  ): Promise<{ revisionKey: string; data: EmailMailboxDTO[] }> {
+    const usp = new URLSearchParams();
+    if (params.showSuppressedJunk) usp.append('showSuppressedJunk', '1');
+    const url = `${API_BASE_URL}/emails/mailboxes${usp.toString() ? `?${usp.toString()}` : ''}`;
+    return this.fetchWithErrorHandling<{ revisionKey: string; data: EmailMailboxDTO[] }>(url, {
+      useCache: true,
+      cacheTtl: 30000,
+    });
+  }
+
+  async getEmailThreads(params: {
+    mailboxId?: string;
+    q?: string;
+    tab?: 'all' | 'primary' | 'updates' | 'promotions';
+    cursor?: string | null;
+    limit?: number;
+    showSuppressedJunk?: boolean;
+  }): Promise<{
+    data: EmailThreadDTO[];
+    meta: { total: number; limit: number; hasMore: boolean; nextCursor: string | null };
+  }> {
+    const usp = new URLSearchParams();
+    if (params.mailboxId) usp.append('mailboxId', params.mailboxId);
+    if (params.q) usp.append('q', params.q);
+    if (params.tab) usp.append('tab', params.tab);
+    if (params.cursor) usp.append('cursor', params.cursor);
+    if (params.limit) usp.append('limit', String(params.limit));
+    if (params.showSuppressedJunk) usp.append('showSuppressedJunk', '1');
+    const url = `${API_BASE_URL}/emails/threads${usp.toString() ? `?${usp.toString()}` : ''}`;
+    return this.fetchWithErrorHandling(url, { useCache: true, cacheTtl: 30000 });
+  }
+
+  async getEmailThread(threadId: string): Promise<EmailThreadDetailsDTO> {
+    const url = `${API_BASE_URL}/emails/threads/${encodeURIComponent(threadId)}`;
+    return this.fetchWithErrorHandling<EmailThreadDetailsDTO>(url, {
+      useCache: true,
+      cacheTtl: 30000,
+    });
+  }
+
+  async getEmailMessageBody(
+    messageId: string,
+    options: { showQuoted?: boolean } = {},
+  ): Promise<EmailMessageBodyDTO> {
+    const usp = new URLSearchParams();
+    if (options.showQuoted) usp.append('showQuoted', '1');
+    const url = `${API_BASE_URL}/emails/messages/${encodeURIComponent(messageId)}/body${usp.toString() ? `?${usp.toString()}` : ''}`;
+    return this.fetchWithErrorHandling<EmailMessageBodyDTO>(url, {
+      useCache: true,
+      cacheTtl: 60000,
+    });
+  }
+
+  async getEmailRawMessage(messageId: string): Promise<{
+    messageId: string;
+    raw: string;
+    warning: string;
+    determinism: string;
+  }> {
+    const url = `${API_BASE_URL}/emails/messages/${encodeURIComponent(messageId)}/raw`;
+    return this.fetchWithErrorHandling(url, { useCache: true, cacheTtl: 60000 });
+  }
+
+  async getEmailThreadForMessage(
+    messageId: string,
+  ): Promise<{ messageId: string; threadId: string }> {
+    const url = `${API_BASE_URL}/emails/messages/${encodeURIComponent(messageId)}/thread`;
+    return this.fetchWithErrorHandling(url, { useCache: true, cacheTtl: 60000 });
+  }
+
+  async searchEmails(params: {
+    q: string;
+    scope?: 'global' | 'mailbox';
+    mailboxId?: string;
+    limit?: number;
+  }): Promise<{
+    scope: 'global' | 'mailbox';
+    q: string;
+    data: Array<{
+      threadId: string;
+      messageId: string;
+      subject: string;
+      from: string;
+      date: string;
+      snippet: string;
+      highlights: Array<{ start: number; end: number }>;
+    }>;
+  }> {
+    const usp = new URLSearchParams({ q: params.q });
+    if (params.scope) usp.append('scope', params.scope);
+    if (params.mailboxId) usp.append('mailboxId', params.mailboxId);
+    if (params.limit) usp.append('limit', String(params.limit));
+    const url = `${API_BASE_URL}/emails/search?${usp.toString()}`;
+    return this.fetchWithErrorHandling(url, { useCache: false });
   }
 
   async search(

@@ -35,6 +35,7 @@
     "type-check": "tsc --noEmit",
     "token:check": "tsx scripts/token_compliance.ts",
     "test:smoke": "tsx scripts/smoke-tests.ts",
+    "test:email:smoke": "tsx scripts/email_smoke.ts",
     "deploy:prod": "./deploy.sh",
     "db:check": "sqlite3 epstein-archive.db 'PRAGMA quick_check;' | grep -q 'ok' && echo '✅ Database integrity OK' || (echo '❌ Database corruption detected'; exit 1)",
     "prepare": "husky"

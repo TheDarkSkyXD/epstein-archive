@@ -286,6 +286,7 @@ const PUBLIC_ROUTES = [
   '/api/flights',
   '/api/properties',
   '/api/emails',
+  '/api/email',
   '/api/black-book',
   '/api/subjects',
   '/api/investigations',
@@ -398,6 +399,7 @@ app.use('/api/investigation', investigationEvidenceRoutes);
 app.use('/api/evidence', evidenceRoutes);
 app.use('/api/entities', entityEvidenceRoutes);
 app.use('/api/email', emailRoutes);
+app.use('/api/emails', emailRoutes);
 app.use('/api/articles', articlesRoutes);
 app.use('/api/financial', financialRoutes);
 app.use('/api/forensic', forensicRoutes);

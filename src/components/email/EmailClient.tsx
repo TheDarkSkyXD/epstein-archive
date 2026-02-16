@@ -1,1023 +1,1014 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { FixedSizeList as List, ListChildComponentProps } from 'react-window';
+import { AutoSizer } from 'react-virtualized-auto-sizer';
 import {
-  Mail,
-  Inbox,
-  Search,
+  AlertTriangle,
+  ArrowLeft,
   ChevronDown,
   ChevronRight,
-  ChevronLeft,
-  Clock,
-  User,
-  Loader2,
-  Archive,
-  Reply,
-  Forward,
-  Trash2,
-  Users,
-  Bell,
-  Tag,
-  Link2,
   ExternalLink,
-  Book, // Added Book icon for Black Book
+  Folder,
+  Loader2,
+  Mail,
+  Paperclip,
+  Search,
+  ShieldCheck,
+  User,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useSearchParams } from 'react-router-dom';
-import { apiClient } from '../../services/apiClient';
-import { Document } from '../../types/documents';
+import {
+  apiClient,
+  EmailMailboxDTO,
+  EmailMessageBodyDTO,
+  EmailThreadDTO,
+  EmailThreadDetailsDTO,
+} from '../../services/apiClient';
 import { AddToInvestigationButton } from '../common/AddToInvestigationButton';
 import { EvidenceModal } from '../common/EvidenceModal';
 
-// --- Types ---
+const THREAD_PAGE_SIZE = 50;
 
-interface Email extends Document {
-  sender?: string;
-  recipient?: string;
-  subject?: string;
-  threadId?: string;
-  isRead?: boolean;
-  date: string;
-  summary?: string;
-  category?: 'primary' | 'updates' | 'promotions' | 'social';
-  isFromKnownEntity?: boolean;
-  knownEntityName?: string;
-}
+const tabOptions: Array<{ id: 'all' | 'primary' | 'updates' | 'promotions'; label: string }> = [
+  { id: 'all', label: 'All' },
+  { id: 'primary', label: 'Primary' },
+  { id: 'updates', label: 'Updates' },
+  { id: 'promotions', label: 'Promotions' },
+];
 
-type EmailCategory = 'all' | 'primary' | 'updates' | 'promotions';
-
-interface Thread {
-  id: string;
-  subject: string;
-  lastMessageDate: string;
-  messages: Email[];
-  participantNames: string[];
-  snippet: string;
-  hasAttachments: boolean;
-  unreadCount: number;
-}
-
-interface Mailbox {
-  id: string;
-  label: string;
-  icon: React.ElementType;
-  count?: number;
-}
-
-type SortField = 'date' | 'sender' | 'subject';
-type SortOrder = 'asc' | 'desc';
-
-const PAGE_SIZE = 500;
-
-// --- iOS Mail-Style Email Client ---
-
-export const EmailClient: React.FC = () => {
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [threads, setThreads] = useState<Thread[]>([]);
-  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
-  const [selectedAccount, setSelectedAccount] = useState<string>('all');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
-  const [sortField, setSortField] = useState<SortField>('date');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  const [showMailboxDrawer, setShowMailboxDrawer] = useState(false);
-
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalEmails, setTotalEmails] = useState(0);
-  const [loadedEmails, setLoadedEmails] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [allDocs, setAllDocs] = useState<any[]>([]);
-  const [activeCategory, setActiveCategory] = useState<EmailCategory>('primary'); // Default to primary (real people)
-  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
-
-  const listRef = useRef<HTMLDivElement>(null);
-  const isMobileDetail = !!selectedThreadId;
-
-  // Entity Support
-  const [selectedEntity, setSelectedEntity] = useState<any | null>(null);
-
-  const handleEntityClick = useCallback(async (entityId: number) => {
-    try {
-      const entity = await apiClient.getEntity(String(entityId));
-      setSelectedEntity(entity);
-    } catch (error) {
-      console.error('Error fetching entity:', error);
-    }
-  }, []);
-
-  // Mailbox definitions
-  const mailboxes: Mailbox[] = useMemo(
-    () => [
-      { id: 'all', label: 'All Inboxes', icon: Inbox, count: totalEmails },
-      { id: 'barak', label: 'Ehud Barak', icon: Mail },
-      { id: 'jee', label: 'Jeffrey Epstein', icon: Mail },
-      { id: 'gmax', label: 'Ghislaine Maxwell', icon: Mail },
-      { id: 'oversight', label: 'House Oversight', icon: Mail },
-    ],
-    [totalEmails],
-  );
-
-  const currentMailbox = mailboxes.find((m) => m.id === selectedAccount) || mailboxes[0];
-
-  // Debounce search term for performance
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearchTerm(searchTerm), 300);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
-
-  const [searchParams] = useSearchParams();
-
-  useEffect(() => {
-    const q = searchParams.get('search');
-    if (q) setSearchTerm(q);
-  }, [searchParams]);
-
-  function cleanSnippet(text: string): string {
-    return text
-      .replace(/From:.*?\n/gi, '')
-      .replace(/To:.*?\n/gi, '')
-      .replace(/Subject:.*?\n/gi, '')
-      .replace(/Date:.*?\n/gi, '')
-      .replace(/\n+/g, ' ')
-      .trim()
-      .slice(0, 150);
-  }
-
-  const processDocsToThreads = useCallback(
-    (docs: any[]) => {
-      const threadsMap = new Map<string, Thread>();
-
-      for (const doc of docs) {
-        const threadId = doc.metadata?.thread_id || doc.id;
-        const sender = doc.metadata?.from || doc.metadata?.sender || 'Unknown Sender';
-        const recipient = doc.metadata?.to || doc.metadata?.recipient || '';
-        const subject = doc.metadata?.subject || doc.title || 'No Subject';
-        const snippet = cleanSnippet(doc.content || doc.summary || '');
-
-        const email: Email = {
-          ...doc,
-          sender,
-          recipient,
-          subject,
-          threadId,
-          date: doc.date || doc.created_at || new Date().toISOString(),
-          isRead: true,
-        };
-
-        if (threadsMap.has(threadId)) {
-          const thread = threadsMap.get(threadId)!;
-          thread.messages.push(email);
-          if (new Date(email.date) > new Date(thread.lastMessageDate)) {
-            thread.lastMessageDate = email.date;
-            thread.snippet = snippet;
-          }
-          if (!thread.participantNames.includes(sender)) {
-            thread.participantNames.push(sender);
-          }
-        } else {
-          threadsMap.set(threadId, {
-            id: threadId,
-            subject,
-            lastMessageDate: email.date,
-            messages: [email],
-            participantNames: [sender],
-            snippet,
-            hasAttachments: false,
-            unreadCount: 0,
-          });
-        }
-      }
-
-      setThreads(Array.from(threadsMap.values()));
-    },
-    [], // cleanSnippet is defined within the component and doesn't change
-  );
-
-  const loadInitialEmails = useCallback(async () => {
-    setLoading(true);
-    try {
-      const categoryParam = activeCategory !== 'all' ? `&category=${activeCategory}` : '';
-      const res = await fetch(`/api/emails?page=1&limit=${PAGE_SIZE}${categoryParam}`);
-      if (!res.ok) throw new Error('Failed to fetch');
-      const response = await res.json();
-      setAllDocs(response.data);
-      setTotalEmails(response.total);
-      setLoadedEmails(response.data.length);
-      setHasMore(response.data.length < response.total);
-      setCurrentPage(1);
-      processDocsToThreads(response.data);
-    } catch (e) {
-      console.error('Failed to load emails', e);
-    } finally {
-      setLoading(false);
-    }
-  }, [activeCategory, processDocsToThreads]);
-
-  const loadCategoryCounts = useCallback(async () => {
-    try {
-      const res = await fetch('/api/emails/categories');
-      if (res.ok) {
-        const counts = await res.json();
-        setCategoryCounts(counts);
-      }
-    } catch (e) {
-      console.error('Failed to load category counts', e);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadInitialEmails();
-    loadCategoryCounts();
-  }, [loadInitialEmails, loadCategoryCounts]);
-
-  const loadMoreEmails = useCallback(async () => {
-    if (loadingMore || !hasMore) return;
-    setLoadingMore(true);
-    try {
-      const nextPage = currentPage + 1;
-      const categoryParam = activeCategory !== 'all' ? `&category=${activeCategory}` : '';
-      const res = await fetch(`/api/emails?page=${nextPage}&limit=${PAGE_SIZE}${categoryParam}`);
-      if (!res.ok) throw new Error('Failed to fetch');
-      const response = await res.json();
-      if (response.data.length === 0) {
-        setHasMore(false);
-        return;
-      }
-      const newDocs = [...allDocs, ...response.data];
-      setAllDocs(newDocs);
-      setLoadedEmails(newDocs.length);
-      setCurrentPage(nextPage);
-      setHasMore(newDocs.length < response.total);
-      processDocsToThreads(newDocs);
-    } catch (e) {
-      console.error('Failed to load more emails', e);
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [loadingMore, hasMore, currentPage, allDocs, activeCategory, processDocsToThreads]);
-
-  const handleScroll = useCallback(
-    (e: React.UIEvent<HTMLDivElement>) => {
-      const target = e.target as HTMLDivElement;
-      const scrollBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
-      if (scrollBottom < 200 && !loadingMore && hasMore) loadMoreEmails();
-    },
-    [loadMoreEmails, loadingMore, hasMore],
-  );
-
-  const filteredThreads = useMemo(() => {
-    let t = [...threads];
-    if (selectedAccount !== 'all') {
-      const accLower = selectedAccount.toLowerCase();
-      t = t.filter((th) => {
-        const first = th.messages[0];
-        const src = (first.metadata as any)?.source_collection || '';
-        const sender = (first.sender || '').toLowerCase();
-        const recipient = (first.recipient || '').toLowerCase();
-
-        if (accLower === 'gmax') {
-          return (
-            sender.includes('gmax') ||
-            sender.includes('ellmax.com') ||
-            sender.includes('ghislaine') ||
-            recipient.includes('gmax') ||
-            recipient.includes('ellmax.com') ||
-            src.toLowerCase().includes('gmax') ||
-            src.toLowerCase().includes('maxwell')
-          );
-        }
-        return src.toLowerCase().includes(accLower) || sender.includes(accLower);
-      });
-    }
-    if (debouncedSearchTerm) {
-      const s = debouncedSearchTerm.toLowerCase();
-      t = t.filter(
-        (th) =>
-          th.subject.toLowerCase().includes(s) ||
-          th.participantNames.some((p) => p.toLowerCase().includes(s)) ||
-          th.snippet.toLowerCase().includes(s),
-      );
-    }
-    t.sort((a, b) => {
-      let valA: any, valB: any;
-      switch (sortField) {
-        case 'date':
-          valA = new Date(a.lastMessageDate).getTime();
-          valB = new Date(b.lastMessageDate).getTime();
-          break;
-        case 'sender':
-          valA = a.participantNames[0] || '';
-          valB = b.participantNames[0] || '';
-          break;
-        case 'subject':
-          valA = a.subject;
-          valB = b.subject;
-          break;
-      }
-      if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
-      if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
-      return 0;
-    });
-    return t;
-  }, [threads, selectedAccount, debouncedSearchTerm, sortField, sortOrder]);
-
-  const selectedThread = useMemo(
-    () => threads.find((t) => t.id === selectedThreadId),
-    [threads, selectedThreadId],
-  );
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    else {
-      setSortField(field);
-      setSortOrder('desc');
-    }
-  };
-
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const days = diff / (1000 * 60 * 60 * 24);
-    if (days < 1) return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    if (days < 7) return date.toLocaleDateString([], { weekday: 'short' });
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-  };
-
-  const getInitials = (name: string) => {
-    const parts = name.split(/[\s@]+/);
-    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-    return name.slice(0, 2).toUpperCase();
-  };
-
-  const getAvatarColor = (name: string) => {
-    const colors = [
-      'from-blue-500 to-blue-600',
-      'from-purple-500 to-purple-600',
-      'from-green-500 to-green-600',
-      'from-orange-500 to-orange-600',
-      'from-pink-500 to-pink-600',
-      'from-cyan-500 to-cyan-600',
-      'from-red-500 to-red-600',
-    ];
-    const hash = name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-    return colors[hash % colors.length];
-  };
-
-  const handleMailboxSelect = (id: string) => {
-    setSelectedAccount(id);
-    setShowMailboxDrawer(false);
-  };
-
-  return (
-    <div className="flex flex-col h-[calc(100vh-64px)] bg-transparent overflow-hidden">
-      {/* Mobile Header - iOS Style */}
-      <div className="md:hidden flex items-center justify-between px-4 py-3 bg-slate-900/80 border-b border-slate-800">
-        <button
-          onClick={() => setShowMailboxDrawer(true)}
-          className="flex items-center gap-2 text-blue-400 font-semibold"
-        >
-          <span className="text-lg">{currentMailbox.label}</span>
-          <ChevronDown className="w-4 h-4" />
-        </button>
-        <div className="text-slate-400 text-sm">{filteredThreads.length.toLocaleString()}</div>
-      </div>
-
-      <div className="flex flex-1 overflow-hidden">
-        <aside className="hidden md:flex w-60 flex-col m-3 mr-0 surface-glass">
-          <div className="p-5 pb-3">
-            <h2 className="text-[11px] font-bold text-slate-500/80 dark:text-white/40 uppercase tracking-widest">
-              Mailboxes
-            </h2>
-          </div>
-
-          <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
-            {mailboxes.map((mb) => (
-              <DesktopSidebarItem
-                key={mb.id}
-                icon={mb.icon}
-                label={mb.label}
-                count={mb.count}
-                active={selectedAccount === mb.id}
-                onClick={() => setSelectedAccount(mb.id)}
-              />
-            ))}
-          </nav>
-
-          <div className="p-4 border-t border-slate-800">
-            <div className="text-[11px] text-slate-500/70 dark:text-white/30 text-center font-medium">
-              {loadedEmails.toLocaleString()} of {totalEmails.toLocaleString()}
-            </div>
-          </div>
-        </aside>
-
-        {/* Main Content Area */}
-        <div className="flex-1 flex flex-col md:flex-row md:p-3 md:gap-3 min-w-0">
-          {/* Message List */}
-          <div
-            className={`w-full md:w-[400px] flex flex-col bg-slate-950 md:surface-glass overflow-hidden ${isMobileDetail ? 'hidden md:flex' : 'flex'}`}
-          >
-            {/* Search Bar - iOS Style */}
-            <div className="p-3 bg-slate-900 md:bg-transparent md:p-4 md:border-b md:border-slate-800">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 md:text-slate-400 md:dark:text-white/40" />
-                <input
-                  type="text"
-                  placeholder="Search"
-                  className="control w-full pl-10 pr-4 py-2 text-sm text-white placeholder-slate-500"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {/* Gmail-Style Category Tabs */}
-            <div className="flex border-b border-slate-800 md:border-slate-800 bg-slate-900/50 md:bg-transparent overflow-x-auto">
-              <CategoryTab
-                icon={Users}
-                label="Primary"
-                count={categoryCounts.primary}
-                active={activeCategory === 'primary'}
-                onClick={() => setActiveCategory('primary')}
-                color="blue"
-                description="Real people & known entities"
-              />
-              <CategoryTab
-                icon={Bell}
-                label="Updates"
-                count={categoryCounts.updates}
-                active={activeCategory === 'updates'}
-                onClick={() => setActiveCategory('updates')}
-                color="yellow"
-                description="Orders & notifications"
-              />
-              <CategoryTab
-                icon={Tag}
-                label="Promotions"
-                count={categoryCounts.promotions}
-                active={activeCategory === 'promotions'}
-                onClick={() => setActiveCategory('promotions')}
-                color="green"
-                description="Newsletters & marketing"
-              />
-              <CategoryTab
-                icon={Inbox}
-                label="All"
-                count={categoryCounts.all}
-                active={activeCategory === 'all'}
-                onClick={() => setActiveCategory('all')}
-                color="slate"
-                description="Everything"
-              />
-            </div>
-
-            {/* Sort Header - Hidden on Mobile */}
-            <div className="hidden md:flex px-5 py-3 items-center justify-between text-[11px] text-slate-500 dark:text-white/40 border-b border-slate-800 font-semibold uppercase tracking-wide">
-              <span>{filteredThreads.length.toLocaleString()} conversations</span>
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={() => handleSort('date')}
-                  className={`flex items-center gap-1.5 transition-colors ${sortField === 'date' ? 'text-blue-600 dark:text-blue-400' : 'hover:text-slate-700 dark:hover:text-white/60'}`}
-                >
-                  <Clock className="w-3.5 h-3.5" /> Date
-                </button>
-                <button
-                  onClick={() => handleSort('sender')}
-                  className={`flex items-center gap-1.5 transition-colors ${sortField === 'sender' ? 'text-blue-600 dark:text-blue-400' : 'hover:text-slate-700 dark:hover:text-white/60'}`}
-                >
-                  <User className="w-3.5 h-3.5" /> From
-                </button>
-              </div>
-            </div>
-
-            {/* Message List */}
-            <div ref={listRef} className="flex-1 overflow-y-auto" onScroll={handleScroll}>
-              {loading ? (
-                <div className="p-10 text-center text-slate-500">
-                  <Loader2 className="w-10 h-10 mx-auto mb-4 animate-spin opacity-40" />
-                  <div className="font-medium">Loading messages...</div>
-                </div>
-              ) : (
-                <>
-                  {filteredThreads.map((thread) => (
-                    <IOSMessageRow
-                      key={thread.id}
-                      thread={thread}
-                      selected={selectedThreadId === thread.id}
-                      onClick={() => setSelectedThreadId(thread.id)}
-                      formatDate={formatDate}
-                      getInitials={getInitials}
-                      getAvatarColor={getAvatarColor}
-                    />
-                  ))}
-                  {loadingMore && (
-                    <div className="p-5 text-center">
-                      <Loader2 className="w-5 h-5 mx-auto animate-spin text-blue-500/50" />
-                    </div>
-                  )}
-                  {hasMore && !loadingMore && (
-                    <div className="p-5 text-center">
-                      <button
-                        onClick={loadMoreEmails}
-                        className="text-sm text-blue-400 font-medium"
-                      >
-                        Load more ({(totalEmails - loadedEmails).toLocaleString()} remaining)
-                      </button>
-                    </div>
-                  )}
-                  {!hasMore && loadedEmails > 0 && (
-                    <div className="p-5 text-center text-[11px] text-slate-600 font-medium">
-                      All {loadedEmails.toLocaleString()} emails loaded
-                    </div>
-                  )}
-                </>
-              )}
-              {!loading && filteredThreads.length === 0 && (
-                <div className="p-10 text-center text-slate-500">
-                  <Mail className="w-14 h-14 mx-auto mb-4 opacity-20" />
-                  <p className="font-medium">No messages found</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Thread Detail View */}
-          <div
-            className={`flex-1 flex flex-col bg-slate-950 md:surface-glass overflow-hidden ${!selectedThreadId ? 'hidden md:flex' : 'flex'}`}
-          >
-            {selectedThread ? (
-              <>
-                {/* iOS-Style Header */}
-                <div className="flex items-center justify-between px-4 py-3 bg-slate-900 md:bg-gradient-to-b md:from-white/5 md:to-transparent md:dark:from-white/5 border-b border-slate-800">
-                  <button
-                    className="flex items-center text-blue-400 md:text-blue-600 md:dark:text-blue-400 font-semibold"
-                    onClick={() => setSelectedThreadId(null)}
-                  >
-                    <ChevronLeft className="w-5 h-5 -ml-1" />
-                    <span className="text-sm">{currentMailbox.label}</span>
-                  </button>
-                  <div className="flex items-center gap-4">
-                    <button
-                      className="text-blue-400 md:text-slate-500 md:dark:text-white/50"
-                      aria-label="Archive thread"
-                      title="Archive thread"
-                    >
-                      <Archive className="w-5 h-5" />
-                    </button>
-                    <button
-                      className="text-blue-400 md:text-slate-500 md:dark:text-white/50"
-                      aria-label="Delete thread"
-                      title="Delete thread"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                    <button
-                      className="text-blue-400 md:text-slate-500 md:dark:text-white/50"
-                      aria-label="Reply to thread"
-                      title="Reply to thread"
-                    >
-                      <Reply className="w-5 h-5" />
-                    </button>
-                    {/* Add to Investigation */}
-                    <AddToInvestigationButton
-                      item={{
-                        id: selectedThread.id,
-                        title: selectedThread.subject,
-                        description: `Email thread: ${selectedThread.subject}`,
-                        type: 'evidence',
-                        sourceId: selectedThread.id,
-                        metadata: {
-                          threadId: selectedThread.id,
-                          participants: selectedThread.participantNames,
-                        },
-                      }}
-                      variant="icon"
-                      className="text-blue-400 md:text-slate-500 md:dark:text-white/50"
-                    />
-                  </div>
-                </div>
-
-                {/* Thread Subject */}
-                <div className="px-4 py-4 bg-slate-900/50 md:bg-transparent md:px-6 md:py-5 border-b border-slate-800">
-                  <h1 className="text-xl md:text-2xl font-bold text-white md:text-slate-200 md:dark:text-white leading-tight">
-                    {selectedThread.subject}
-                  </h1>
-                  <div className="flex items-center gap-2 mt-2 text-sm text-slate-400 md:text-slate-500 md:dark:text-white/50">
-                    <span>
-                      {selectedThread.messages.length} message
-                      {selectedThread.messages.length !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Messages */}
-                <div className="flex-1 overflow-y-auto">
-                  {selectedThread.messages.map((msg, idx) => (
-                    <IOSMessageBubble
-                      key={msg.id}
-                      email={msg}
-                      expanded={idx === selectedThread.messages.length - 1}
-                      getInitials={getInitials}
-                      getAvatarColor={getAvatarColor}
-                      onEntityClick={handleEntityClick}
-                    />
-                  ))}
-                </div>
-
-                {/* Bottom Action Bar - Mobile Only */}
-                <div className="md:hidden flex items-center justify-around py-3 bg-slate-900 border-t border-slate-800">
-                  <button className="flex flex-col items-center text-blue-400">
-                    <Archive className="w-6 h-6" />
-                    <span className="text-[10px] mt-1">Archive</span>
-                  </button>
-                  <button className="flex flex-col items-center text-blue-400">
-                    <Trash2 className="w-6 h-6" />
-                    <span className="text-[10px] mt-1">Delete</span>
-                  </button>
-                  <button className="flex flex-col items-center text-blue-400">
-                    <Reply className="w-6 h-6" />
-                    <span className="text-[10px] mt-1">Reply</span>
-                  </button>
-                  <button className="flex flex-col items-center text-blue-400">
-                    <Forward className="w-6 h-6" />
-                    <span className="text-[10px] mt-1">Forward</span>
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="hidden md:flex flex-1 items-center justify-center">
-                <div className="text-center text-slate-400 dark:text-white/20">
-                  <Mail className="w-20 h-20 mx-auto mb-5 opacity-15" />
-                  <p className="text-lg font-semibold">Select a message to read</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Mailbox Drawer - Mobile Only */}
-      <AnimatePresence>
-        {showMailboxDrawer && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/60 z-40 md:hidden"
-              onClick={() => setShowMailboxDrawer(false)}
-            />
-            <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 bg-slate-900 rounded-t-[var(--radius-lg)] z-50 md:hidden max-h-[70vh] overflow-hidden"
-            >
-              <div className="flex justify-center py-3">
-                <div className="w-10 h-1 bg-slate-700 rounded-full" />
-              </div>
-              <div className="px-4 pb-2">
-                <h2 className="text-lg font-bold text-white">Mailboxes</h2>
-              </div>
-              <div className="overflow-y-auto pb-8">
-                {mailboxes.map((mb) => (
-                  <button
-                    key={mb.id}
-                    onClick={() => handleMailboxSelect(mb.id)}
-                    className={`w-full flex items-center justify-between px-4 py-4 border-b border-slate-800 ${
-                      selectedAccount === mb.id ? 'bg-blue-600/20' : ''
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <mb.icon
-                        className={`w-5 h-5 ${selectedAccount === mb.id ? 'text-blue-400' : 'text-slate-400'}`}
-                      />
-                      <span
-                        className={`font-medium ${selectedAccount === mb.id ? 'text-blue-400' : 'text-white'}`}
-                      >
-                        {mb.label}
-                      </span>
-                    </div>
-                    {mb.count !== undefined && (
-                      <span className="text-slate-500 text-sm">{mb.count.toLocaleString()}</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
-      {selectedEntity && (
-        <EvidenceModal
-          entityId={selectedEntity.id}
-          isOpen={!!selectedEntity}
-          onClose={() => setSelectedEntity(null)}
-        />
-      )}
-    </div>
-  );
+type BodyState = {
+  loading: boolean;
+  error: string | null;
+  data: EmailMessageBodyDTO | null;
+  showRaw: boolean;
+  raw: string | null;
+  showQuoted: boolean;
 };
 
-// --- iOS-Style Components ---
+const ladderTone = (ladder: string | null): string => {
+  const value = (ladder || '').toLowerCase();
+  if (value.includes('direct')) return 'text-emerald-300 border-emerald-500/60 bg-emerald-600/15';
+  if (value.includes('infer')) return 'text-amber-300 border-amber-500/60 bg-amber-600/15';
+  if (value.includes('agentic')) return 'text-fuchsia-300 border-fuchsia-500/60 bg-fuchsia-600/15';
+  return 'text-slate-300 border-slate-600/60 bg-slate-700/30';
+};
 
-const DesktopSidebarItem = ({ icon: Icon, label, count, active, onClick }: any) => (
-  <button
-    onClick={onClick}
-    className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-      active
-        ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25'
-        : 'text-slate-600 dark:text-white/70 hover:bg-black/5 dark:hover:bg-white/10'
-    }`}
-  >
-    <div className="flex items-center gap-3">
-      <Icon
-        className={`w-[18px] h-[18px] ${active ? 'text-white' : 'text-slate-400 dark:text-white/40'}`}
-      />
-      <span>{label}</span>
-    </div>
-    {count !== undefined && (
-      <span
-        className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${active ? 'bg-white/25' : 'bg-black/5 dark:bg-white/10 text-slate-500 dark:text-white/50'}`}
-      >
-        {count.toLocaleString()}
-      </span>
-    )}
-  </button>
-);
+const riskTone = (risk: number | null): string => {
+  if ((risk || 0) >= 4) return 'text-red-300 border-red-500/60 bg-red-600/15';
+  if ((risk || 0) >= 2) return 'text-amber-300 border-amber-500/60 bg-amber-600/15';
+  if ((risk || 0) > 0) return 'text-cyan-300 border-cyan-500/60 bg-cyan-600/15';
+  return 'text-emerald-300 border-emerald-500/60 bg-emerald-600/15';
+};
 
-const IOSMessageRow = React.memo(
+const formatTime = (value: string | null): string => {
+  if (!value) return 'Unknown';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const now = new Date();
+  const age = now.getTime() - date.getTime();
+  const oneDay = 24 * 60 * 60 * 1000;
+  if (age < oneDay) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  if (age < oneDay * 7) {
+    return date.toLocaleDateString([], { weekday: 'short' });
+  }
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+};
+
+const copyText = async (value: string): Promise<void> => {
+  try {
+    await navigator.clipboard.writeText(value);
+  } catch {
+    // Ignore clipboard failures.
+  }
+};
+
+const ThreadRow = React.memo(
   ({
-    thread,
-    selected,
-    onClick,
-    formatDate,
-    getInitials,
-    getAvatarColor,
-  }: {
-    thread: Thread;
-    selected: boolean;
-    onClick: () => void;
-    formatDate: (d: string) => string;
-    getInitials: (name: string) => string;
-    getAvatarColor: (name: string) => string;
-  }) => {
-    const sender = thread.participantNames[0] || 'Unknown';
+    index,
+    style,
+    data,
+  }: ListChildComponentProps<{
+    rows: EmailThreadDTO[];
+    selectedThreadId: string | null;
+    onOpen: (threadId: string) => void;
+  }>) => {
+    const thread = data.rows[index];
+    const selected = data.selectedThreadId === thread.threadId;
 
     return (
-      <div
-        onClick={onClick}
-        className={`flex items-start gap-3 px-4 py-3 border-b cursor-pointer transition-colors ${
-          selected
-            ? 'bg-blue-600/20 border-blue-800/50 md:bg-gradient-to-r md:from-blue-500 md:to-blue-600 md:border-transparent'
-            : 'border-slate-800 md:border-black/5 md:dark:border-white/5 hover:bg-slate-800/50 md:hover:bg-black/[0.02] md:dark:hover:bg-white/[0.03]'
+      <button
+        style={style}
+        onClick={() => data.onOpen(thread.threadId)}
+        className={`w-full px-4 py-3 text-left border-b border-slate-800/80 hover:bg-slate-800/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
+          selected ? 'bg-cyan-900/30' : 'bg-transparent'
         }`}
       >
-        {/* Avatar */}
-        <div
-          className={`w-10 h-10 rounded-full bg-gradient-to-br ${getAvatarColor(sender)} flex items-center justify-center text-white text-sm font-bold shrink-0`}
-        >
-          {getInitials(sender)}
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-0.5">
-            <span
-              className={`font-semibold text-[15px] truncate ${selected ? 'text-blue-300 md:text-white' : 'text-white md:text-slate-800 md:dark:text-white'}`}
-            >
-              {sender}
-            </span>
-            <div className="flex items-center gap-2 shrink-0 ml-2">
-              <span
-                className={`text-xs ${selected ? 'text-blue-300/80 md:text-white/80' : 'text-slate-500 md:text-slate-400 md:dark:text-white/40'}`}
-              >
-                {formatDate(thread.lastMessageDate)}
-              </span>
-              <ChevronRight
-                className={`w-4 h-4 ${selected ? 'text-blue-300/60 md:text-white/60' : 'text-slate-600 md:text-slate-300 md:dark:text-white/20'}`}
-              />
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold text-white truncate">{thread.subject}</div>
+            <div className="text-xs text-slate-300 truncate mt-0.5">
+              {thread.participants.slice(0, 3).join(', ') || 'Unknown participants'}
+            </div>
+            <div className="text-xs text-slate-400 truncate mt-1">
+              {thread.snippet || 'No preview available'}
             </div>
           </div>
-          <div
-            className={`text-sm truncate mb-0.5 ${selected ? 'text-blue-200 md:text-white/90' : 'text-slate-300 md:text-slate-700 md:dark:text-white/80'}`}
-          >
-            {thread.subject}
-          </div>
-          <div
-            className={`text-sm truncate ${selected ? 'text-blue-200/60 md:text-white/70' : 'text-slate-500 md:text-slate-400 md:dark:text-white/40'}`}
-          >
-            {thread.snippet}
+          <div className="text-right shrink-0">
+            <div className="text-[11px] text-slate-400">{formatTime(thread.lastMessageAt)}</div>
+            <div className="mt-1 flex items-center justify-end gap-1.5">
+              {thread.hasAttachments && <Paperclip className="w-3.5 h-3.5 text-amber-300" />}
+              <span className={`px-1.5 py-0.5 rounded border text-[10px] ${riskTone(thread.risk)}`}>
+                R{thread.risk ?? 'N/A'}
+              </span>
+              <span
+                className={`px-1.5 py-0.5 rounded border text-[10px] ${ladderTone(thread.ladder)}`}
+              >
+                {thread.ladder || 'Ladder N/A'}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
+      </button>
     );
   },
 );
 
-interface LinkedEntity {
-  id: number;
-  name: string;
-  type: string;
-  confidence: number;
-}
+const MailboxRow = React.memo(
+  ({
+    index,
+    style,
+    data,
+  }: ListChildComponentProps<{
+    rows: EmailMailboxDTO[];
+    selectedMailboxId: string;
+    onSelect: (mailboxId: string) => void;
+  }>) => {
+    const mailbox = data.rows[index];
+    const active = mailbox.mailboxId === data.selectedMailboxId;
+    return (
+      <button
+        style={style}
+        onClick={() => data.onSelect(mailbox.mailboxId)}
+        className={`w-full px-3 py-2 text-left border-b border-slate-800/70 hover:bg-slate-800/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
+          active ? 'bg-cyan-900/25' : ''
+        }`}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <div className="text-sm text-white truncate">{mailbox.displayName}</div>
+            <div className="text-[11px] text-slate-400 truncate">
+              {mailbox.totalThreads.toLocaleString()} threads ·{' '}
+              {mailbox.totalMessages.toLocaleString()} messages
+            </div>
+          </div>
+          <span className="text-[11px] text-slate-400 shrink-0">
+            {formatTime(mailbox.lastActivityAt)}
+          </span>
+        </div>
+      </button>
+    );
+  },
+);
 
-const IOSMessageBubble = ({
-  email,
-  expanded,
-  getInitials,
-  getAvatarColor,
-  onEntityClick,
-}: {
-  email: Email;
-  expanded: boolean;
-  getInitials: (name: string) => string;
-  getAvatarColor: (name: string) => string;
-  onEntityClick?: (entityId: number, entityName: string) => void;
-}) => {
-  const [isExpanded, setExpanded] = useState(expanded);
-  const [linkedEntities, setLinkedEntities] = useState<LinkedEntity[]>([]);
-  const [loadingEntities, setLoadingEntities] = useState(false);
-  const sender = email.sender || 'Unknown';
+export const EmailClient: React.FC = () => {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const deepLinkedMessageId = searchParams.get('messageId') || searchParams.get('id');
 
-  const loadEmailEntities = useCallback(async () => {
-    setLoadingEntities(true);
-    try {
-      const res = await fetch(`/api/emails/${email.id}/entities`);
-      if (res.ok) {
-        const data = await res.json();
-        setLinkedEntities(data.entities || []);
+  const [mailboxes, setMailboxes] = useState<EmailMailboxDTO[]>([]);
+  const [mailboxesLoading, setMailboxesLoading] = useState(true);
+  const [mailboxesError, setMailboxesError] = useState<string | null>(null);
+  const [showSuppressedJunk, setShowSuppressedJunk] = useState(false);
+
+  const [selectedMailboxId, setSelectedMailboxId] = useState(
+    searchParams.get('mailboxId') || 'all',
+  );
+  const [activeTab, setActiveTab] = useState<'all' | 'primary' | 'updates' | 'promotions'>(
+    ((searchParams.get('tab') as any) || 'all') as 'all' | 'primary' | 'updates' | 'promotions',
+  );
+  const [searchInput, setSearchInput] = useState(searchParams.get('q') || '');
+  const [debouncedSearch, setDebouncedSearch] = useState(searchParams.get('q') || '');
+
+  const [threads, setThreads] = useState<EmailThreadDTO[]>([]);
+  const [threadsLoading, setThreadsLoading] = useState(true);
+  const [threadsError, setThreadsError] = useState<string | null>(null);
+  const [threadsHasMore, setThreadsHasMore] = useState(false);
+  const [threadsNextCursor, setThreadsNextCursor] = useState<string | null>(null);
+  const [threadsTotal, setThreadsTotal] = useState(0);
+  const [loadingMoreThreads, setLoadingMoreThreads] = useState(false);
+
+  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(
+    searchParams.get('threadId') || null,
+  );
+  const [threadDetails, setThreadDetails] = useState<Record<string, EmailThreadDetailsDTO>>({});
+  const [threadLoading, setThreadLoading] = useState(false);
+  const [threadError, setThreadError] = useState<string | null>(null);
+
+  const [expandedMessages, setExpandedMessages] = useState<Record<string, boolean>>({});
+  const [bodyState, setBodyState] = useState<Record<string, BodyState>>({});
+  const limiterRef = useRef({ active: 0, queue: [] as Array<() => void> });
+
+  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
+  const [mobileMailboxOpen, setMobileMailboxOpen] = useState(false);
+
+  const selectedThread = selectedThreadId ? threadDetails[selectedThreadId] || null : null;
+  const selectedMailbox =
+    mailboxes.find((mailbox) => mailbox.mailboxId === selectedMailboxId) || mailboxes[0] || null;
+
+  const updateUrlState = useCallback(
+    (updates: Record<string, string | null>) => {
+      const next = new URLSearchParams(searchParams);
+      for (const [key, value] of Object.entries(updates)) {
+        if (!value) next.delete(key);
+        else next.set(key, value);
       }
-    } catch (e) {
-      console.error('Failed to load email entities:', e);
-    } finally {
-      setLoadingEntities(false);
-    }
-  }, [email.id]);
+      setSearchParams(next, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
 
-  // Load entities when expanded
   useEffect(() => {
-    if (isExpanded && linkedEntities.length === 0 && !loadingEntities) {
-      loadEmailEntities();
+    const timer = window.setTimeout(() => setDebouncedSearch(searchInput.trim()), 250);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
+
+  const withBodyLimiter = useCallback(async (task: () => Promise<void>) => {
+    await new Promise<void>((resolve, reject) => {
+      const run = () => {
+        limiterRef.current.active += 1;
+        task()
+          .then(resolve)
+          .catch(reject)
+          .finally(() => {
+            limiterRef.current.active -= 1;
+            const next = limiterRef.current.queue.shift();
+            if (next) next();
+          });
+      };
+
+      if (limiterRef.current.active < 3) run();
+      else limiterRef.current.queue.push(run);
+    });
+  }, []);
+
+  const loadMailboxes = useCallback(async () => {
+    setMailboxesLoading(true);
+    setMailboxesError(null);
+    try {
+      const { PerformanceMonitor } = await import('../../utils/performanceMonitor');
+      PerformanceMonitor.mark('email-mailboxes-load-start');
+      const response = await apiClient.getEmailMailboxes({ showSuppressedJunk });
+      setMailboxes(response.data);
+      if (!response.data.some((mailbox) => mailbox.mailboxId === selectedMailboxId)) {
+        setSelectedMailboxId('all');
+      }
+      PerformanceMonitor.mark('email-mailboxes-load-end');
+      PerformanceMonitor.measure(
+        'email-mailboxes-load',
+        'email-mailboxes-load-start',
+        'email-mailboxes-load-end',
+      );
+    } catch (error) {
+      console.error(error);
+      setMailboxesError(error instanceof Error ? error.message : 'Failed to load mailboxes');
+    } finally {
+      setMailboxesLoading(false);
     }
-  }, [isExpanded, linkedEntities.length, loadingEntities, loadEmailEntities]);
+  }, [selectedMailboxId, showSuppressedJunk]);
+
+  const loadThreads = useCallback(
+    async (cursor: string | null, append: boolean) => {
+      if (!append) {
+        setThreadsLoading(true);
+        setThreadsError(null);
+      } else {
+        setLoadingMoreThreads(true);
+      }
+
+      try {
+        const { PerformanceMonitor } = await import('../../utils/performanceMonitor');
+        PerformanceMonitor.mark('email-thread-list-load-start');
+        const response = await apiClient.getEmailThreads({
+          mailboxId: selectedMailboxId,
+          q: debouncedSearch,
+          tab: activeTab,
+          cursor,
+          limit: THREAD_PAGE_SIZE,
+          showSuppressedJunk,
+        });
+
+        setThreads((prev) => (append ? [...prev, ...response.data] : response.data));
+        setThreadsHasMore(response.meta.hasMore);
+        setThreadsNextCursor(response.meta.nextCursor);
+        setThreadsTotal(response.meta.total);
+
+        if (
+          !append &&
+          selectedThreadId &&
+          !response.data.find((thread) => thread.threadId === selectedThreadId)
+        ) {
+          setSelectedThreadId(null);
+        }
+
+        PerformanceMonitor.mark('email-thread-list-load-end');
+        PerformanceMonitor.measure(
+          'email-thread-list-load',
+          'email-thread-list-load-start',
+          'email-thread-list-load-end',
+        );
+      } catch (error) {
+        console.error(error);
+        setThreadsError(error instanceof Error ? error.message : 'Failed to load threads');
+        if (!append) {
+          setThreads([]);
+          setThreadsHasMore(false);
+          setThreadsNextCursor(null);
+          setThreadsTotal(0);
+        }
+      } finally {
+        setThreadsLoading(false);
+        setLoadingMoreThreads(false);
+      }
+    },
+    [activeTab, debouncedSearch, selectedMailboxId, selectedThreadId, showSuppressedJunk],
+  );
+
+  const loadThread = useCallback(
+    async (threadId: string) => {
+      if (threadDetails[threadId]) return;
+      setThreadLoading(true);
+      setThreadError(null);
+      try {
+        const { PerformanceMonitor } = await import('../../utils/performanceMonitor');
+        PerformanceMonitor.mark('email-thread-open-start');
+        const detail = await apiClient.getEmailThread(threadId);
+        setThreadDetails((prev) => ({ ...prev, [threadId]: detail }));
+        PerformanceMonitor.mark('email-thread-open-end');
+        PerformanceMonitor.measure(
+          'email-thread-open',
+          'email-thread-open-start',
+          'email-thread-open-end',
+        );
+      } catch (error) {
+        console.error(error);
+        setThreadError(error instanceof Error ? error.message : 'Failed to load thread');
+      } finally {
+        setThreadLoading(false);
+      }
+    },
+    [threadDetails],
+  );
+
+  const loadMessageBody = useCallback(
+    async (messageId: string, showQuoted: boolean = false) => {
+      const state = bodyState[messageId];
+      if (state?.loading) return;
+      if (state?.data && state.showQuoted === showQuoted) return;
+
+      setBodyState((prev) => ({
+        ...prev,
+        [messageId]: {
+          loading: true,
+          error: null,
+          data: prev[messageId]?.data || null,
+          showRaw: prev[messageId]?.showRaw || false,
+          raw: prev[messageId]?.raw || null,
+          showQuoted,
+        },
+      }));
+
+      await withBodyLimiter(async () => {
+        try {
+          const { PerformanceMonitor } = await import('../../utils/performanceMonitor');
+          PerformanceMonitor.mark('email-message-body-load-start');
+          const body = await apiClient.getEmailMessageBody(messageId, { showQuoted });
+          setBodyState((prev) => ({
+            ...prev,
+            [messageId]: {
+              loading: false,
+              error: null,
+              data: body,
+              showRaw: prev[messageId]?.showRaw || false,
+              raw: prev[messageId]?.raw || null,
+              showQuoted,
+            },
+          }));
+          PerformanceMonitor.mark('email-message-body-load-end');
+          PerformanceMonitor.measure(
+            'email-message-body-load',
+            'email-message-body-load-start',
+            'email-message-body-load-end',
+          );
+        } catch (error) {
+          setBodyState((prev) => ({
+            ...prev,
+            [messageId]: {
+              loading: false,
+              error: error instanceof Error ? error.message : 'Failed to load message body',
+              data: prev[messageId]?.data || null,
+              showRaw: prev[messageId]?.showRaw || false,
+              raw: prev[messageId]?.raw || null,
+              showQuoted,
+            },
+          }));
+        }
+      });
+    },
+    [bodyState, withBodyLimiter],
+  );
+
+  const handleOpenThread = useCallback(
+    (threadId: string) => {
+      setSelectedThreadId(threadId);
+      setExpandedMessages({});
+      updateUrlState({ threadId, messageId: null });
+      void loadThread(threadId);
+    },
+    [loadThread, updateUrlState],
+  );
+
+  const handleToggleMessage = useCallback(
+    (messageId: string, expanded: boolean) => {
+      setExpandedMessages((prev) => ({ ...prev, [messageId]: expanded }));
+      updateUrlState({ messageId: expanded ? messageId : null });
+      if (expanded) {
+        void loadMessageBody(messageId, bodyState[messageId]?.showQuoted || false);
+      }
+    },
+    [bodyState, loadMessageBody, updateUrlState],
+  );
+
+  const handleToggleRaw = useCallback(
+    async (messageId: string) => {
+      const state = bodyState[messageId];
+      if (!state) return;
+
+      if (!state.raw) {
+        try {
+          const raw = await apiClient.getEmailRawMessage(messageId);
+          setBodyState((prev) => ({
+            ...prev,
+            [messageId]: {
+              ...(prev[messageId] || state),
+              showRaw: !(prev[messageId]?.showRaw || false),
+              raw: raw.raw,
+            },
+          }));
+        } catch (error) {
+          setBodyState((prev) => ({
+            ...prev,
+            [messageId]: {
+              ...(prev[messageId] || state),
+              error: error instanceof Error ? error.message : 'Failed to load raw MIME',
+            },
+          }));
+        }
+        return;
+      }
+
+      setBodyState((prev) => ({
+        ...prev,
+        [messageId]: {
+          ...(prev[messageId] || state),
+          showRaw: !(prev[messageId]?.showRaw || false),
+        },
+      }));
+    },
+    [bodyState],
+  );
+
+  const handleToggleQuoted = useCallback(
+    (messageId: string) => {
+      const showQuoted = !(bodyState[messageId]?.showQuoted || false);
+      void loadMessageBody(messageId, showQuoted);
+    },
+    [bodyState, loadMessageBody],
+  );
+
+  useEffect(() => {
+    void loadMailboxes();
+  }, [loadMailboxes]);
+
+  useEffect(() => {
+    updateUrlState({ mailboxId: selectedMailboxId, tab: activeTab, q: debouncedSearch || null });
+    void loadThreads(null, false);
+  }, [selectedMailboxId, activeTab, debouncedSearch, loadThreads, updateUrlState]);
+
+  useEffect(() => {
+    if (!selectedThreadId) return;
+    void loadThread(selectedThreadId);
+  }, [selectedThreadId, loadThread]);
+
+  useEffect(() => {
+    if (!deepLinkedMessageId || selectedThreadId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const resolved = await apiClient.getEmailThreadForMessage(deepLinkedMessageId);
+        if (cancelled) return;
+        setSelectedThreadId(resolved.threadId);
+        setExpandedMessages((prev) => ({ ...prev, [deepLinkedMessageId]: true }));
+        updateUrlState({ threadId: resolved.threadId, messageId: deepLinkedMessageId });
+      } catch {
+        // Ignore deep-link misses.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [deepLinkedMessageId, selectedThreadId, updateUrlState]);
+
+  useEffect(() => {
+    const deepLinkedMessageId = searchParams.get('messageId');
+    if (!deepLinkedMessageId || !selectedThread) return;
+    const hasMessage = selectedThread.messages.some(
+      (message) => message.messageId === deepLinkedMessageId,
+    );
+    if (!hasMessage) return;
+    setExpandedMessages((prev) => ({ ...prev, [deepLinkedMessageId]: true }));
+    void loadMessageBody(deepLinkedMessageId, bodyState[deepLinkedMessageId]?.showQuoted || false);
+  }, [searchParams, selectedThread, loadMessageBody, bodyState]);
+
+  const tabsWithData = useMemo(() => {
+    if (threadsTotal === 0) return [{ id: 'all', label: 'All' }];
+    return tabOptions;
+  }, [threadsTotal]);
+
+  const canLoadMore = threadsHasMore && !!threadsNextCursor;
 
   return (
-    <div className="border-b border-slate-800 md:border-black/5 md:dark:border-white/5">
-      <div
-        className="flex items-start gap-3 p-4 cursor-pointer hover:bg-slate-800/30 md:hover:bg-black/[0.02] md:dark:hover:bg-white/[0.02] transition-colors"
-        onClick={() => setExpanded(!isExpanded)}
-      >
-        {/* Avatar */}
-        <div
-          className={`w-10 h-10 rounded-full bg-gradient-to-br ${getAvatarColor(sender)} flex items-center justify-center text-white text-sm font-bold shrink-0`}
+    <div className="h-[calc(100vh-64px)] flex flex-col overflow-hidden">
+      <div className="md:hidden px-4 py-3 border-b border-slate-800/80 bg-slate-950/80 flex items-center justify-between">
+        <button
+          onClick={() => setMobileMailboxOpen((prev) => !prev)}
+          className="text-sm text-cyan-300 flex items-center gap-2"
         >
-          {getInitials(sender)}
-        </div>
+          <Folder className="w-4 h-4" />
+          <span className="truncate max-w-[220px]">
+            {selectedMailbox?.displayName || 'Mailboxes'}
+          </span>
+          <ChevronDown className="w-4 h-4" />
+        </button>
+        <div className="text-xs text-slate-400">{threadsTotal.toLocaleString()} threads</div>
+      </div>
 
-        {/* Header */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-white md:text-slate-800 md:dark:text-white truncate">
-                {sender}
-              </span>
-              {/* Known Entity Badge */}
-              {email.isFromKnownEntity && (
-                <span
-                  className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-500/20 text-blue-400 text-[10px] font-semibold rounded-full"
-                  title="Known Entity / Black Book Contact"
-                >
-                  <Book className="w-3 h-3" />
-                  {email.knownEntityName || 'Known'}
-                </span>
-              )}
+      <div className="flex-1 min-h-0 flex overflow-hidden">
+        <aside
+          className={`w-full md:w-72 border-r border-slate-800/80 bg-slate-950/70 md:block ${mobileMailboxOpen ? 'block' : 'hidden md:block'}`}
+        >
+          <div className="p-3 border-b border-slate-800/80 space-y-2">
+            <div className="flex items-center justify-between text-xs text-slate-400 uppercase tracking-wide">
+              <span>Mailboxes</span>
+              <button
+                onClick={() => setShowSuppressedJunk((prev) => !prev)}
+                className="text-[11px] text-cyan-300 hover:text-cyan-200"
+                title={
+                  showSuppressedJunk
+                    ? 'Hide junk-suppressed entities'
+                    : 'Show junk-suppressed entities'
+                }
+              >
+                {showSuppressedJunk ? 'Hide suppressed' : 'Show suppressed'}
+              </button>
             </div>
-            <span className="text-xs text-slate-500 md:text-slate-400 md:dark:text-white/40 ml-2 shrink-0">
-              {new Date(email.date).toLocaleDateString([], {
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                placeholder="Search threads"
+                className="w-full h-10 rounded-full bg-slate-900 border border-slate-700 pl-9 pr-3 text-sm text-white placeholder:text-slate-500"
+              />
+            </div>
+            <div className="flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {tabsWithData.map((option) => (
+                <button
+                  key={option.id}
+                  onClick={() => setActiveTab(option.id as any)}
+                  className={`h-8 px-3 rounded-full text-xs border whitespace-nowrap ${
+                    activeTab === option.id
+                      ? 'text-cyan-200 border-cyan-400 bg-cyan-500/10'
+                      : 'text-slate-300 border-slate-700 bg-slate-900/60'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="h-[calc(100%-136px)]">
+            {mailboxesLoading ? (
+              <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+                <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading mailboxes
+              </div>
+            ) : mailboxesError ? (
+              <div className="p-4 text-sm text-red-300">{mailboxesError}</div>
+            ) : (
+              <AutoSizer
+                renderProp={({ height, width }) =>
+                  height && width ? (
+                    <List
+                      height={height}
+                      width={width}
+                      itemCount={mailboxes.length}
+                      itemSize={58}
+                      itemData={{
+                        rows: mailboxes,
+                        selectedMailboxId,
+                        onSelect: (mailboxId: string) => {
+                          setSelectedMailboxId(mailboxId);
+                          setMobileMailboxOpen(false);
+                        },
+                      }}
+                    >
+                      {MailboxRow}
+                    </List>
+                  ) : null
+                }
+              />
+            )}
+          </div>
+        </aside>
+
+        <section className="w-full md:w-[420px] border-r border-slate-800/80 bg-slate-950/40 min-h-0 flex flex-col">
+          <div className="px-4 py-2 text-xs text-slate-400 border-b border-slate-800/80 flex items-center justify-between">
+            <span>
+              {threads.length.toLocaleString()} of {threadsTotal.toLocaleString()} threads
+            </span>
+            <span
+              className="flex items-center gap-1"
+              title="Thread lists are metadata-only; message bodies are lazy-loaded."
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
+              Metadata-only list
             </span>
           </div>
-          <div className="text-sm text-slate-400 md:text-slate-500 md:dark:text-white/50 truncate">
-            To: {email.recipient || 'Unknown'}
-          </div>
-        </div>
 
-        <ChevronDown
-          className={`w-4 h-4 text-slate-500 transition-transform shrink-0 ${isExpanded ? 'rotate-180' : ''}`}
-        />
-      </div>
-
-      <AnimatePresence>
-        {isExpanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            <div className="px-4 pb-4 md:pl-[68px]">
-              {/* Linked Entities Section */}
-              {(linkedEntities.length > 0 || loadingEntities) && (
-                <div className="mb-3 p-3 bg-slate-800/50 md:bg-slate-100 md:dark:bg-slate-800/50 rounded-lg">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 md:text-slate-500 md:dark:text-white/50 mb-2">
-                    <Link2 className="w-3.5 h-3.5" />
-                    Mentioned Entities
-                  </div>
-                  {loadingEntities ? (
-                    <div className="flex items-center gap-2 text-xs text-slate-500">
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      Loading entities...
-                    </div>
-                  ) : (
-                    <div className="flex flex-wrap gap-1.5">
-                      {linkedEntities.map((entity, idx) => (
-                        <button
-                          key={`${entity.id}-${idx}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onEntityClick?.(entity.id, entity.name);
-                          }}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-xs font-medium rounded-full transition-colors"
-                          title={`View ${entity.name} (${entity.type})`}
-                        >
-                          <User className="w-3 h-3" />
-                          {entity.name}
-                          <ExternalLink className="w-2.5 h-2.5 opacity-50" />
-                        </button>
-                      ))}
-                    </div>
-                  )}
+          <div className="flex-1 min-h-0">
+            {threadsLoading ? (
+              <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+                <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading conversations
+              </div>
+            ) : threadsError ? (
+              <div className="p-4 text-sm text-red-300">{threadsError}</div>
+            ) : threads.length === 0 ? (
+              <div className="p-6 text-sm text-slate-300 space-y-3">
+                <div className="font-semibold text-white">No conversations found</div>
+                <p>Why: this mailbox + filter combination returned no matching threads.</p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setActiveTab('all')}
+                    className="h-8 px-3 rounded-full border border-slate-700 bg-slate-900 text-xs"
+                  >
+                    Use All tab
+                  </button>
+                  <button
+                    onClick={() => setSearchInput('')}
+                    className="h-8 px-3 rounded-full border border-slate-700 bg-slate-900 text-xs"
+                  >
+                    Clear search
+                  </button>
                 </div>
-              )}
+              </div>
+            ) : (
+              <AutoSizer
+                renderProp={({ height, width }) =>
+                  height && width ? (
+                    <List
+                      height={height}
+                      width={width}
+                      itemCount={threads.length}
+                      itemSize={94}
+                      itemData={{ rows: threads, selectedThreadId, onOpen: handleOpenThread }}
+                    >
+                      {ThreadRow}
+                    </List>
+                  ) : null
+                }
+              />
+            )}
+          </div>
 
-              {/* Email Content */}
-              <div className="text-sm text-slate-300 md:text-slate-600 md:dark:text-white/70 whitespace-pre-wrap leading-relaxed">
-                {email.content || email.summary || 'No content available'}
+          <div className="px-3 py-2 border-t border-slate-800/80">
+            {canLoadMore ? (
+              <button
+                onClick={() => {
+                  if (!threadsNextCursor || loadingMoreThreads) return;
+                  void loadThreads(threadsNextCursor, true);
+                }}
+                className="w-full h-9 rounded-full border border-slate-700 text-sm text-slate-200 bg-slate-900/80 hover:bg-slate-800 disabled:opacity-60"
+                disabled={loadingMoreThreads}
+              >
+                {loadingMoreThreads ? 'Loading...' : 'Load more'}
+              </button>
+            ) : (
+              <div className="text-[11px] text-slate-500 text-center">End of results</div>
+            )}
+          </div>
+        </section>
+
+        <section className="flex-1 min-h-0 bg-slate-950/30 flex flex-col">
+          {selectedThreadId ? (
+            threadLoading && !selectedThread ? (
+              <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+                <Loader2 className="w-4 h-4 animate-spin mr-2" /> Opening thread
+              </div>
+            ) : threadError ? (
+              <div className="p-4 text-sm text-red-300">{threadError}</div>
+            ) : selectedThread ? (
+              <>
+                <div className="px-4 py-3 border-b border-slate-800/80 bg-slate-950/70">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-lg font-semibold text-white truncate">
+                        {selectedThread.subject}
+                      </div>
+                      <div className="text-xs text-slate-400 mt-1">
+                        {selectedThread.messages.length.toLocaleString()} messages · mailbox{' '}
+                        {selectedMailbox?.displayName || 'All'}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => {
+                          setSelectedThreadId(null);
+                          updateUrlState({ threadId: null, messageId: null });
+                        }}
+                        className="h-9 px-3 rounded-full border border-slate-700 bg-slate-900 text-sm text-slate-200 md:hidden"
+                      >
+                        <ArrowLeft className="w-4 h-4" />
+                      </button>
+                      <AddToInvestigationButton
+                        item={{
+                          id: selectedThread.threadId,
+                          type: 'evidence',
+                          title: selectedThread.subject,
+                          description: `Email thread with ${selectedThread.messages.length} messages`,
+                          sourceId: selectedThread.threadId,
+                          metadata: {
+                            sourceType: 'email_thread',
+                            threadId: selectedThread.threadId,
+                            messageCount: selectedThread.messages.length,
+                          },
+                        }}
+                        variant="quick"
+                        className="h-9"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto">
+                  {selectedThread.messages.map((message) => {
+                    const expanded = Boolean(expandedMessages[message.messageId]);
+                    const body = bodyState[message.messageId];
+                    const citation = `message_id=${message.messageId}; date=${message.date}; mailbox=${selectedMailbox?.displayName || 'All'}; ingest_run_id=${message.ingestRunId ?? 'unknown'}`;
+
+                    return (
+                      <article
+                        key={message.messageId}
+                        className="border-b border-slate-800/70 px-4 py-3"
+                        data-message-id={message.messageId}
+                      >
+                        <button
+                          onClick={() => handleToggleMessage(message.messageId, !expanded)}
+                          className="w-full text-left"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-white truncate">
+                                {message.from || 'Unknown Sender'}
+                              </div>
+                              <div className="text-xs text-slate-400 truncate mt-0.5">
+                                To: {message.to.join(', ') || 'Unknown recipient'}
+                              </div>
+                              <div className="text-xs text-slate-400 truncate">
+                                {message.snippet}
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <div className="text-xs text-slate-400">
+                                {formatTime(message.date)}
+                              </div>
+                              <div className="flex items-center justify-end gap-1 mt-1">
+                                {message.flags.hasAttachments && (
+                                  <Paperclip className="w-3.5 h-3.5 text-amber-300" />
+                                )}
+                                <span
+                                  className={`px-1.5 py-0.5 rounded border text-[10px] ${riskTone(message.redFlagRating)}`}
+                                >
+                                  R{message.redFlagRating ?? 'N/A'}
+                                </span>
+                              </div>
+                            </div>
+                            <ChevronRight
+                              className={`w-4 h-4 text-slate-400 mt-0.5 transition-transform ${expanded ? 'rotate-90' : ''}`}
+                            />
+                          </div>
+                        </button>
+
+                        {expanded && (
+                          <div className="mt-3 pl-0 md:pl-2 space-y-3">
+                            <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-300">
+                              <span
+                                className={`px-2 py-1 rounded border ${ladderTone(message.ladder)}`}
+                              >
+                                Evidence Ladder: {message.ladder || 'N/A'}
+                              </span>
+                              <span className="px-2 py-1 rounded border border-slate-700 text-slate-300">
+                                Confidence:{' '}
+                                {typeof message.confidence === 'number'
+                                  ? message.confidence.toFixed(2)
+                                  : 'N/A'}
+                              </span>
+                              <span className="px-2 py-1 rounded border border-slate-700 text-slate-300">
+                                ingest_run_id: {message.ingestRunId ?? 'unknown'}
+                              </span>
+                              {message.wasAgentic && (
+                                <span className="px-2 py-1 rounded border border-fuchsia-500/60 text-fuchsia-200 bg-fuchsia-500/10">
+                                  Agentic-assisted
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                              <button
+                                onClick={() => void copyText(citation)}
+                                className="h-8 px-3 rounded-full border border-slate-700 bg-slate-900 text-xs text-slate-200"
+                              >
+                                Copy citation
+                              </button>
+                              <button
+                                onClick={() => handleToggleRaw(message.messageId)}
+                                className="h-8 px-3 rounded-full border border-slate-700 bg-slate-900 text-xs text-slate-200"
+                              >
+                                {body?.showRaw ? 'Show cleaned' : 'View original MIME'}
+                              </button>
+                              <button
+                                onClick={() => handleToggleQuoted(message.messageId)}
+                                className="h-8 px-3 rounded-full border border-slate-700 bg-slate-900 text-xs text-slate-200"
+                              >
+                                {body?.showQuoted ? 'Hide quoted history' : 'Show quoted history'}
+                              </button>
+                              <AddToInvestigationButton
+                                item={{
+                                  id: message.messageId,
+                                  type: 'evidence',
+                                  title: message.subject || selectedThread.subject,
+                                  description: `Email message from ${message.from}`,
+                                  sourceId: message.messageId,
+                                  metadata: {
+                                    sourceType: 'email_message',
+                                    threadId: selectedThread.threadId,
+                                    messageId: message.messageId,
+                                    ingestRunId: message.ingestRunId,
+                                  },
+                                }}
+                                variant="quick"
+                                className="h-8"
+                              />
+                            </div>
+
+                            {(message.linkedEntities || []).length > 0 && (
+                              <div className="flex flex-wrap gap-2">
+                                {(message.linkedEntities || []).map((entity) => (
+                                  <button
+                                    key={`${message.messageId}-${entity.entityId}`}
+                                    onClick={() => setSelectedEntityId(String(entity.entityId))}
+                                    className="inline-flex items-center gap-1 h-7 px-2 rounded-full border border-cyan-500/50 bg-cyan-500/10 text-xs text-cyan-200"
+                                    title={`Open entity ${entity.name}`}
+                                  >
+                                    <User className="w-3 h-3" />
+                                    {entity.name}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+
+                            {(message.attachmentsMeta || []).length > 0 && (
+                              <div className="space-y-1">
+                                <div className="text-xs text-slate-300 flex items-center gap-1">
+                                  <Paperclip className="w-3.5 h-3.5" /> Attachments
+                                </div>
+                                {(message.attachmentsMeta || []).map((attachment, index) => {
+                                  const linkedDocumentId =
+                                    attachment.linkedDocumentId ||
+                                    (attachment as any).documentId ||
+                                    (attachment as any).docId;
+                                  const canOpen = Boolean(linkedDocumentId);
+                                  return (
+                                    <div
+                                      key={`${message.messageId}-attachment-${index}`}
+                                      className="flex items-center justify-between gap-2 text-xs text-slate-300"
+                                    >
+                                      <div className="truncate">
+                                        {attachment.filename || `Attachment ${index + 1}`} ·{' '}
+                                        {attachment.mimeType || 'unknown'}
+                                      </div>
+                                      {canOpen ? (
+                                        <button
+                                          onClick={() => navigate(`/documents/${linkedDocumentId}`)}
+                                          className="h-7 px-2 rounded-full border border-slate-700 bg-slate-900 text-xs"
+                                        >
+                                          Open file
+                                        </button>
+                                      ) : (
+                                        <span className="text-slate-500">Not ingested</span>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                            <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                              {body?.loading ? (
+                                <div className="text-sm text-slate-400 flex items-center gap-2">
+                                  <Loader2 className="w-4 h-4 animate-spin" /> Loading message body
+                                </div>
+                              ) : body?.error ? (
+                                <div className="text-sm text-red-300">{body.error}</div>
+                              ) : body?.showRaw ? (
+                                <pre className="text-xs text-slate-300 whitespace-pre-wrap break-words max-h-72 overflow-auto">
+                                  {body.raw || 'No raw MIME content available.'}
+                                </pre>
+                              ) : (
+                                <>
+                                  <div className="text-sm text-slate-100 whitespace-pre-wrap break-words leading-relaxed">
+                                    {body?.data?.cleanedText || 'No readable body available.'}
+                                  </div>
+                                  {(body?.data?.mimeWarnings || []).length > 0 && (
+                                    <div className="mt-2 text-xs text-amber-300 flex items-center gap-1">
+                                      <AlertTriangle className="w-3.5 h-3.5" />
+                                      {(body?.data?.mimeWarnings || []).join(' | ')}
+                                    </div>
+                                  )}
+                                  {(body?.data?.extractedLinks || []).length > 0 && (
+                                    <div className="mt-2 flex flex-wrap gap-1.5">
+                                      {(body?.data?.extractedLinks || [])
+                                        .slice(0, 6)
+                                        .map((link, index) => (
+                                          <a
+                                            key={`${message.messageId}-link-${index}`}
+                                            href={link}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex items-center gap-1 px-2 py-1 rounded-full border border-slate-700 text-xs text-cyan-200 bg-cyan-500/10"
+                                          >
+                                            <ExternalLink className="w-3 h-3" />
+                                            <span className="truncate max-w-[220px]">{link}</span>
+                                          </a>
+                                        ))}
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </div>
+
+                            <div
+                              className="text-[11px] text-slate-400"
+                              title="Why am I seeing this? This message is included because it matches mailbox, tab, and search filters over evidence_type=email records."
+                            >
+                              Why am I seeing this? Matched mailbox filters with deterministic
+                              thread ordering (lastMessageAt desc, threadId asc).
+                            </div>
+                          </div>
+                        )}
+                      </article>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+                Thread not found.
+              </div>
+            )
+          ) : (
+            <div className="h-full flex items-center justify-center px-6">
+              <div className="text-center text-slate-400 max-w-md">
+                <Mail className="w-14 h-14 mx-auto mb-4 opacity-30" />
+                <div className="text-lg text-white mb-2">Investigation-grade Email Workspace</div>
+                <p className="text-sm text-slate-400">
+                  Select a thread to load message headers first, then lazy-load bodies. Use linked
+                  entities and Add to Investigation for evidence chaining.
+                </p>
               </div>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-};
-
-// Gmail-style Category Tab Component
-const CategoryTab = ({
-  icon: Icon,
-  label,
-  count,
-  active,
-  onClick,
-  color,
-  description,
-}: {
-  icon: React.ElementType;
-  label: string;
-  count?: number;
-  active: boolean;
-  onClick: () => void;
-  color: 'blue' | 'yellow' | 'green' | 'slate';
-  description?: string;
-}) => {
-  const colorClasses = {
-    blue: 'text-blue-500 border-blue-500',
-    yellow: 'text-yellow-500 border-yellow-500',
-    green: 'text-green-500 border-green-500',
-    slate: 'text-slate-400 border-slate-400',
-  };
-
-  return (
-    <button
-      onClick={onClick}
-      className={`flex-1 min-w-[80px] px-3 py-3 flex flex-col items-center gap-1 border-b-2 transition-all ${
-        active
-          ? `${colorClasses[color]} bg-slate-800/50 md:bg-black/5 md:dark:bg-white/5`
-          : 'border-transparent text-slate-500 md:text-slate-400 md:dark:text-white/40 hover:text-slate-300 md:hover:text-slate-600 md:dark:hover:text-white/60 hover:bg-slate-800/30 md:hover:bg-black/[0.02] md:dark:hover:bg-white/[0.02]'
-      }`}
-      title={description}
-    >
-      <div className="flex items-center gap-1.5">
-        <Icon className="w-4 h-4" />
-        <span className="text-xs font-semibold">{label}</span>
+          )}
+        </section>
       </div>
-      {count !== undefined && (
-        <span
-          className={`text-[10px] font-medium ${
-            active ? '' : 'text-slate-600 md:text-slate-400 md:dark:text-white/30'
-          }`}
-        >
-          {count.toLocaleString()}
-        </span>
+
+      {selectedEntityId && (
+        <EvidenceModal
+          entityId={selectedEntityId}
+          isOpen={Boolean(selectedEntityId)}
+          onClose={() => setSelectedEntityId(null)}
+        />
       )}
-    </button>
+    </div>
   );
 };
 

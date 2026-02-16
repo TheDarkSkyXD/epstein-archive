@@ -363,13 +363,17 @@ export const entitiesRepository = {
       applyDefaultNameHygieneLite(whereConditions);
       // Front page: VIP first, but still surface non-VIP high-signal entities across all types.
       whereConditions.push(DEFAULT_SIGNAL_CLAUSE);
+      // Emergency fast-path: avoid expensive global sorts for initial landing view.
+      orderByClause = 'ORDER BY id DESC';
     }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
     // Count Query
     const countSql = `SELECT COUNT(*) as total FROM entities ${whereClause}`;
-    const totalResult = db.prepare(countSql).get(params) as { total: number };
+    const totalResult = isDefaultView
+      ? ({ total: 250 } as { total: number })
+      : (db.prepare(countSql).get(params) as { total: number });
 
     // Optimized Data Query (Selecting only needed fields)
     const offset = (page - 1) * limit;

@@ -1803,43 +1803,47 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
 
           {/* Category + significance chips on one row (desktop) */}
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <div className="flex gap-2 items-center overflow-x-auto pb-1 min-w-0 flex-1">
-              {[
-                { type: 'all', label: 'All', icon: <Folder className="w-3.5 h-3.5" /> },
-                { type: 'legal', label: 'Legal', icon: <Scale className="w-3.5 h-3.5" /> },
-                { type: 'email', label: 'Email', icon: <Mail className="w-3.5 h-3.5" /> },
-                {
-                  type: 'deposition',
-                  label: 'Deposition',
-                  icon: <ScrollText className="w-3.5 h-3.5" />,
-                },
-                { type: 'photo', label: 'Photo', icon: <ImageIcon className="w-3.5 h-3.5" /> },
-                {
-                  type: 'financial',
-                  label: 'Financial',
-                  icon: <Landmark className="w-3.5 h-3.5" />,
-                },
-              ].map(({ type, label, icon }) => (
-                <button
-                  key={type}
-                  onClick={() => {
-                    if (type === 'all') {
-                      handleFilterChange('categories', []);
-                    } else {
-                      handleFilterChange('categories', [type]);
-                    }
-                  }}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all shadow-sm backdrop-blur-sm shrink-0 ${
-                    (type === 'all' && (!filters.categories || filters.categories.length === 0)) ||
-                    filters.categories?.includes(type)
-                      ? 'bg-blue-600 text-white border border-blue-500 shadow-blue-500/20'
-                      : 'bg-gray-800 text-gray-300 border border-gray-700 hover:bg-gray-700 hover:text-white'
-                  }`}
-                >
-                  <span>{icon}</span>
-                  <span>{label}</span>
-                </button>
-              ))}
+            <div className="overflow-x-auto pb-1 min-w-0 flex-1">
+              <div className="inline-flex min-w-max items-center rounded-full border border-slate-700/75 bg-slate-900/65 p-1 divide-x divide-slate-700/70">
+                {[
+                  { type: 'all', label: 'All', icon: <Folder className="w-3.5 h-3.5" /> },
+                  { type: 'legal', label: 'Legal', icon: <Scale className="w-3.5 h-3.5" /> },
+                  { type: 'email', label: 'Email', icon: <Mail className="w-3.5 h-3.5" /> },
+                  {
+                    type: 'deposition',
+                    label: 'Deposition',
+                    icon: <ScrollText className="w-3.5 h-3.5" />,
+                  },
+                  { type: 'photo', label: 'Photo', icon: <ImageIcon className="w-3.5 h-3.5" /> },
+                  {
+                    type: 'financial',
+                    label: 'Financial',
+                    icon: <Landmark className="w-3.5 h-3.5" />,
+                  },
+                ].map(({ type, label, icon }) => (
+                  <div key={type} className="px-1">
+                    <button
+                      onClick={() => {
+                        if (type === 'all') {
+                          handleFilterChange('categories', []);
+                        } else {
+                          handleFilterChange('categories', [type]);
+                        }
+                      }}
+                      className={`flex items-center gap-2 h-11 px-3 rounded-full text-sm font-medium transition-all shrink-0 ${
+                        (type === 'all' &&
+                          (!filters.categories || filters.categories.length === 0)) ||
+                        filters.categories?.includes(type)
+                          ? 'bg-blue-600 text-white border border-blue-500 shadow-blue-500/20'
+                          : 'bg-slate-800/80 text-gray-300 border border-slate-700 hover:bg-slate-700 hover:text-white'
+                      }`}
+                    >
+                      <span>{icon}</span>
+                      <span>{label}</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 md:justify-end md:shrink-0">
@@ -1849,60 +1853,65 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                   {DOJ_TRANCHE_OPTIONS.find((entry) => entry.value === selectedTranche)?.label}
                 </span>
               )}
-
-              <button
-                onClick={() => {
-                  const isActive =
-                    filters.redFlagLevel?.min === 4 && filters.redFlagLevel?.max === 5;
-                  handleRedFlagLevelChange(isActive ? 0 : 4, isActive ? 5 : 5);
-                }}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all shadow-sm backdrop-blur-sm shrink-0 ${
-                  filters.redFlagLevel?.min === 4 && filters.redFlagLevel?.max === 5
-                    ? 'bg-red-900/80 text-white border border-red-500 shadow-red-500/20'
-                    : 'bg-gray-800 text-gray-300 border border-gray-700 hover:bg-gray-700 hover:text-white'
-                }`}
-              >
-                <div
-                  className={`w-2 h-2 rounded-full ${filters.redFlagLevel?.min === 4 && filters.redFlagLevel?.max === 5 ? 'bg-red-400' : 'bg-red-600'}`}
-                ></div>
-                <span>High Significance</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  const isActive =
-                    filters.redFlagLevel?.min === 2 && filters.redFlagLevel?.max === 3;
-                  handleRedFlagLevelChange(isActive ? 0 : 2, isActive ? 5 : 3);
-                }}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all shadow-sm backdrop-blur-sm shrink-0 ${
-                  filters.redFlagLevel?.min === 2 && filters.redFlagLevel?.max === 3
-                    ? 'bg-amber-900/80 text-white border border-amber-500 shadow-amber-500/20'
-                    : 'bg-gray-800 text-gray-300 border border-gray-700 hover:bg-gray-700 hover:text-white'
-                }`}
-              >
-                <div
-                  className={`w-2 h-2 rounded-full ${filters.redFlagLevel?.min === 2 && filters.redFlagLevel?.max === 3 ? 'bg-amber-400' : 'bg-amber-600'}`}
-                ></div>
-                <span>Medium</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  const isActive =
-                    filters.redFlagLevel?.min === 0 && filters.redFlagLevel?.max === 1;
-                  handleRedFlagLevelChange(isActive ? 0 : 0, isActive ? 5 : 1);
-                }}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all shadow-sm backdrop-blur-sm shrink-0 ${
-                  filters.redFlagLevel?.min === 0 && filters.redFlagLevel?.max === 1
-                    ? 'bg-emerald-900/80 text-white border border-emerald-500 shadow-emerald-500/20'
-                    : 'bg-gray-800 text-gray-300 border border-gray-700 hover:bg-gray-700 hover:text-white'
-                }`}
-              >
-                <div
-                  className={`w-2 h-2 rounded-full ${filters.redFlagLevel?.min === 0 && filters.redFlagLevel?.max === 1 ? 'bg-emerald-400' : 'bg-emerald-600'}`}
-                ></div>
-                <span>Low</span>
-              </button>
+              <div className="inline-flex min-w-max items-center rounded-full border border-slate-700/75 bg-slate-900/65 p-1 divide-x divide-slate-700/70">
+                <div className="px-1">
+                  <button
+                    onClick={() => {
+                      const isActive =
+                        filters.redFlagLevel?.min === 4 && filters.redFlagLevel?.max === 5;
+                      handleRedFlagLevelChange(isActive ? 0 : 4, isActive ? 5 : 5);
+                    }}
+                    className={`flex items-center gap-2 h-11 px-3 rounded-full text-sm font-medium transition-all shrink-0 ${
+                      filters.redFlagLevel?.min === 4 && filters.redFlagLevel?.max === 5
+                        ? 'bg-red-900/80 text-white border border-red-500 shadow-red-500/20'
+                        : 'bg-slate-800/80 text-gray-300 border border-slate-700 hover:bg-slate-700 hover:text-white'
+                    }`}
+                  >
+                    <div
+                      className={`w-2 h-2 rounded-full ${filters.redFlagLevel?.min === 4 && filters.redFlagLevel?.max === 5 ? 'bg-red-400' : 'bg-red-600'}`}
+                    ></div>
+                    <span>High Significance</span>
+                  </button>
+                </div>
+                <div className="px-1">
+                  <button
+                    onClick={() => {
+                      const isActive =
+                        filters.redFlagLevel?.min === 2 && filters.redFlagLevel?.max === 3;
+                      handleRedFlagLevelChange(isActive ? 0 : 2, isActive ? 5 : 3);
+                    }}
+                    className={`flex items-center gap-2 h-11 px-3 rounded-full text-sm font-medium transition-all shrink-0 ${
+                      filters.redFlagLevel?.min === 2 && filters.redFlagLevel?.max === 3
+                        ? 'bg-amber-900/80 text-white border border-amber-500 shadow-amber-500/20'
+                        : 'bg-slate-800/80 text-gray-300 border border-slate-700 hover:bg-slate-700 hover:text-white'
+                    }`}
+                  >
+                    <div
+                      className={`w-2 h-2 rounded-full ${filters.redFlagLevel?.min === 2 && filters.redFlagLevel?.max === 3 ? 'bg-amber-400' : 'bg-amber-600'}`}
+                    ></div>
+                    <span>Medium</span>
+                  </button>
+                </div>
+                <div className="px-1">
+                  <button
+                    onClick={() => {
+                      const isActive =
+                        filters.redFlagLevel?.min === 0 && filters.redFlagLevel?.max === 1;
+                      handleRedFlagLevelChange(isActive ? 0 : 0, isActive ? 5 : 1);
+                    }}
+                    className={`flex items-center gap-2 h-11 px-3 rounded-full text-sm font-medium transition-all shrink-0 ${
+                      filters.redFlagLevel?.min === 0 && filters.redFlagLevel?.max === 1
+                        ? 'bg-emerald-900/80 text-white border border-emerald-500 shadow-emerald-500/20'
+                        : 'bg-slate-800/80 text-gray-300 border border-slate-700 hover:bg-slate-700 hover:text-white'
+                    }`}
+                  >
+                    <div
+                      className={`w-2 h-2 rounded-full ${filters.redFlagLevel?.min === 0 && filters.redFlagLevel?.max === 1 ? 'bg-emerald-400' : 'bg-emerald-600'}`}
+                    ></div>
+                    <span>Low</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -2240,26 +2249,28 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
             )}
           </div>
           <div className="flex items-center gap-2">
-            <label className="text-xs text-slate-500">Jump to</label>
-            <input
-              type="number"
-              min={1}
-              max={Math.max(1, Math.ceil(totalDocuments / itemsPerPage))}
-              value={jumpToPage}
-              onChange={(e) => setJumpToPage(e.target.value)}
-              className="w-20 h-9 px-2 bg-slate-900 border border-slate-700 rounded-[var(--radius-md)] text-slate-100 text-xs"
-            />
-            <button
-              onClick={() => {
-                const page = Number(jumpToPage);
-                const maxPage = Math.max(1, Math.ceil(totalDocuments / itemsPerPage));
-                if (!Number.isFinite(page)) return;
-                setCurrentPage(Math.min(maxPage, Math.max(1, page)));
-              }}
-              className="control h-9 px-3 text-xs"
-            >
-              Go
-            </button>
+            <div className="inline-flex items-center h-10 rounded-full border border-slate-700/75 bg-slate-900/65 overflow-hidden">
+              <label className="text-xs text-slate-500 pl-3 pr-2 whitespace-nowrap">Jump to</label>
+              <input
+                type="number"
+                min={1}
+                max={Math.max(1, Math.ceil(totalDocuments / itemsPerPage))}
+                value={jumpToPage}
+                onChange={(e) => setJumpToPage(e.target.value)}
+                className="w-20 h-full px-2 bg-transparent border-0 text-slate-100 text-xs focus:outline-none"
+              />
+              <button
+                onClick={() => {
+                  const page = Number(jumpToPage);
+                  const maxPage = Math.max(1, Math.ceil(totalDocuments / itemsPerPage));
+                  if (!Number.isFinite(page)) return;
+                  setCurrentPage(Math.min(maxPage, Math.max(1, page)));
+                }}
+                className="h-full px-3 text-xs border-l border-slate-700 text-slate-200 hover:bg-slate-800/80"
+              >
+                Go
+              </button>
+            </div>
           </div>
         </div>
 

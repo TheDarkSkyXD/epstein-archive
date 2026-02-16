@@ -14,6 +14,7 @@ import {
   ChevronRight,
   AlertTriangle,
 } from 'lucide-react';
+import { CollapsibleSplitPane } from '../common/CollapsibleSplitPane';
 
 export interface NetworkNode {
   id: string;
@@ -92,6 +93,7 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   const [damningEvidenceOnly, setDamningEvidenceOnly] = useState(false);
   const [showTableView, setShowTableView] = useState(false);
   const [showSettings, setShowSettings] = useState(true);
+  const [settingsPaneWidth, setSettingsPaneWidth] = useState(320);
   const [minStrength, setMinStrength] = useState(0);
   const [maxHops, setMaxHops] = useState(3);
   const [rootNodeId, _setRootNodeId] = useState<string | null>('1'); // Default to Jeffrey Epstein
@@ -830,263 +832,304 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 flex overflow-hidden relative">
-        {/* Main Content Area */}
-        <div className="flex-1 relative bg-[radial-gradient(circle_at_center,_#1e293b_0%,_#0f172a_100%)]">
-          {showTableView ? (
-            <div className="absolute inset-0 overflow-auto p-6 bg-slate-900/50">
-              <div className="max-w-6xl mx-auto space-y-8">
-                {/* Tables remain similar but with better styling */}
-                <div>
-                  <h4 className="text-white font-bold text-lg mb-4 flex items-center gap-2">
-                    <Users className="w-5 h-5 text-blue-400" />
-                    Filtered Entities ({filteredNodes.length})
-                  </h4>
-                  <div className="bg-slate-800/40 border border-slate-700 rounded-xl overflow-hidden backdrop-blur-sm">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-slate-800/60 text-slate-400 text-xs font-bold uppercase tracking-wider">
-                          <th className="p-4">Entity Name</th>
-                          <th className="p-4">Type</th>
-                          <th className="p-4 text-center">Relevance</th>
-                          <th className="p-4 text-center">Hops</th>
-                          <th className="p-4 text-right">Mentions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-700/50">
-                        {filteredNodes.map((node) => (
-                          <tr
-                            key={node.id}
-                            className="hover:bg-blue-500/5 cursor-pointer transition-colors"
-                            onClick={() => onNodeClick?.(node)}
-                          >
-                            <td className="p-4">
-                              <div className="flex items-center gap-3">
-                                <div
-                                  className="w-8 h-8 rounded-full flex items-center justify-center text-lg"
-                                  style={{ backgroundColor: `${node.color}22`, color: node.color }}
-                                >
-                                  {getNodeIcon(node.type)}
-                                </div>
-                                <span className="text-white font-medium">{node.label}</span>
-                              </div>
-                            </td>
-                            <td className="p-4">
-                              <span className="text-xs font-semibold px-2 py-1 rounded-full bg-slate-700 text-slate-300 capitalize">
-                                {node.type}
-                              </span>
-                            </td>
-                            <td className="p-4 text-center">
-                              <div className="flex justify-center gap-0.5">
-                                {[...Array(5)].map((_, i) => (
-                                  <div
-                                    key={i}
-                                    className={`w-1.5 h-1.5 rounded-full ${i < node.importance ? 'bg-blue-400' : 'bg-slate-700'}`}
-                                  />
-                                ))}
-                              </div>
-                            </td>
-                            <td className="p-4 text-center">
-                              <span className="text-slate-400 font-mono text-sm">
-                                {hopsMap.get(node.id) === 0
-                                  ? 'Root'
-                                  : `+${hopsMap.get(node.id) || '?'}`}
-                              </span>
-                            </td>
-                            <td className="p-4 text-right font-mono text-slate-300">
-                              {node.metadata.mentions || 0}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+      <div className="flex-1 min-h-0">
+        <CollapsibleSplitPane
+          left={
+            <div className="h-full relative bg-[radial-gradient(circle_at_center,_#1e293b_0%,_#0f172a_100%)]">
+              {showTableView ? (
+                <div className="absolute inset-0 overflow-auto p-6 bg-slate-900/50">
+                  <div className="max-w-6xl mx-auto space-y-8">
+                    <div>
+                      <h4 className="text-white font-bold text-lg mb-4 flex items-center gap-2">
+                        <Users className="w-5 h-5 text-blue-400" />
+                        Filtered Entities ({filteredNodes.length})
+                      </h4>
+                      <div className="bg-slate-800/40 border border-slate-700 rounded-xl overflow-hidden backdrop-blur-sm">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="bg-slate-800/60 text-slate-400 text-xs font-bold uppercase tracking-wider">
+                              <th className="p-4">Entity Name</th>
+                              <th className="p-4">Type</th>
+                              <th className="p-4 text-center">Relevance</th>
+                              <th className="p-4 text-center">Hops</th>
+                              <th className="p-4 text-right">Mentions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-700/50">
+                            {filteredNodes.map((node) => (
+                              <tr
+                                key={node.id}
+                                className="hover:bg-blue-500/5 cursor-pointer transition-colors"
+                                onClick={() => onNodeClick?.(node)}
+                              >
+                                <td className="p-4">
+                                  <div className="flex items-center gap-3">
+                                    <div
+                                      className="w-8 h-8 rounded-full flex items-center justify-center text-lg"
+                                      style={{
+                                        backgroundColor: `${node.color}22`,
+                                        color: node.color,
+                                      }}
+                                    >
+                                      {getNodeIcon(node.type)}
+                                    </div>
+                                    <span className="text-white font-medium">{node.label}</span>
+                                  </div>
+                                </td>
+                                <td className="p-4">
+                                  <span className="text-xs font-semibold px-2 py-1 rounded-full bg-slate-700 text-slate-300 capitalize">
+                                    {node.type}
+                                  </span>
+                                </td>
+                                <td className="p-4 text-center">
+                                  <div className="flex justify-center gap-0.5">
+                                    {[...Array(5)].map((_, i) => (
+                                      <div
+                                        key={i}
+                                        className={`w-1.5 h-1.5 rounded-full ${i < node.importance ? 'bg-blue-400' : 'bg-slate-700'}`}
+                                      />
+                                    ))}
+                                  </div>
+                                </td>
+                                <td className="p-4 text-center">
+                                  <span className="text-slate-400 font-mono text-sm">
+                                    {hopsMap.get(node.id) === 0
+                                      ? 'Root'
+                                      : `+${hopsMap.get(node.id) || '?'}`}
+                                  </span>
+                                </td>
+                                <td className="p-4 text-right font-mono text-slate-300">
+                                  {node.metadata.mentions || 0}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          ) : (
-            <div className="absolute inset-0 cursor-grab active:cursor-grabbing">
-              <canvas
-                ref={canvasRef}
-                width={800}
-                height={height}
-                className="w-full h-full"
-                onClick={handleCanvasClick}
-                onWheel={handleWheelEnhanced}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
-              />
+              ) : (
+                <div className="absolute inset-0 cursor-grab active:cursor-grabbing">
+                  <canvas
+                    ref={canvasRef}
+                    width={800}
+                    height={height}
+                    className="w-full h-full"
+                    onClick={handleCanvasClick}
+                    onWheel={handleWheelEnhanced}
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
+                    onMouseLeave={handleMouseUp}
+                  />
 
-              {/* Float Controls */}
-              <div className="absolute bottom-6 left-6 flex items-center gap-2 p-1 bg-slate-900/80 border border-slate-700 rounded-xl backdrop-blur-md shadow-2xl">
-                <button
-                  onClick={() => setZoom((prev) => Math.min(3, prev * 1.2))}
-                  className="p-2 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-all"
-                  title="Zoom In"
-                >
-                  <Search className="w-4 h-4" />
-                </button>
-                <div className="w-px h-4 bg-slate-700 mx-1" />
-                <button
-                  onClick={() => {
-                    setZoom(1);
-                    setPan({ x: 0, y: 0 });
-                  }}
-                  className="px-3 py-1.5 text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all"
-                >
-                  RESET
-                </button>
-                <button
-                  onClick={centerNetwork}
-                  className="px-3 py-1.5 text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all"
-                >
-                  CENTER
-                </button>
-              </div>
-
-              {/* Dynamic Legend */}
-              <div className="absolute bottom-6 right-6 p-4 bg-slate-900/60 border border-slate-700/50 rounded-xl backdrop-blur-sm hidden lg:block">
-                <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">
-                  Entity Key
-                </h5>
-                <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-                  {['person', 'organization', 'location', 'event'].map((type) => (
-                    <div key={type} className="flex items-center gap-2">
-                      <div
-                        className="w-2 h-2 rounded-full"
-                        style={{ backgroundColor: getNodeColor(type as any) }}
-                      />
-                      <span className="text-xs text-slate-300 capitalize">{type}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Settings Sidebar */}
-        <div
-          className={`overflow-hidden transition-all duration-500 border-l border-slate-700/50 bg-slate-900/95 backdrop-blur-xl z-20 ${showSettings ? 'w-80 opacity-100' : 'w-0 opacity-0'}`}
-        >
-          <div className="w-80 p-6 space-y-8 overflow-y-auto h-full scrollbar-thin">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-white font-bold flex items-center gap-2">
-                <Sliders className="w-4 h-4 text-blue-400" />
-                Graph Settings
-              </h4>
-              <button
-                onClick={() => setShowSettings(false)}
-                className="text-slate-500 hover:text-white"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Range Filters */}
-            <div className="space-y-6 pt-4 border-t border-slate-800">
-              <div className="space-y-3">
-                <div className="flex justify-between items-end">
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                    Network Density
-                  </label>
-                  <span className="text-blue-400 font-mono text-xs font-bold">≥ {minStrength}</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="10"
-                  step="0.5"
-                  value={minStrength}
-                  onChange={(e) => setMinStrength(parseFloat(e.target.value))}
-                  className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                />
-                <p className="text-[10px] text-slate-500 italic">
-                  Filter out weaker associations based on co-occurrence.
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex justify-between items-end">
-                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                    Degree of Separation
-                  </label>
-                  <span className="text-purple-400 font-mono text-xs font-bold">
-                    {maxHops >= 5 ? '∞' : `≤ ${maxHops} Hops`}
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min="1"
-                  max="5"
-                  step="1"
-                  value={maxHops}
-                  onChange={(e) => setMaxHops(parseInt(e.target.value))}
-                  className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-500"
-                />
-                <p className="text-[10px] text-slate-500 italic">
-                  Maximum connection distance from Jeffrey Epstein.
-                </p>
-              </div>
-
-              {/* Damning Evidence Mode Toggle */}
-              <div className="pt-4 border-t border-slate-800">
-                <div
-                  className={`p-4 rounded-xl border transition-all cursor-pointer ${
-                    damningEvidenceOnly
-                      ? 'bg-red-500/10 border-red-500/30'
-                      : 'bg-slate-800/50 border-slate-700 hover:border-slate-600'
-                  }`}
-                  onClick={() => setDamningEvidenceOnly(!damningEvidenceOnly)}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle
-                        className={`w-4 h-4 ${damningEvidenceOnly ? 'text-red-400' : 'text-slate-400'}`}
-                      />
-                      <span
-                        className={`text-xs font-bold uppercase tracking-wider ${damningEvidenceOnly ? 'text-red-400' : 'text-slate-300'}`}
-                      >
-                        Damning Evidence Mode
-                      </span>
-                    </div>
-                    <div
-                      className={`w-8 h-4 rounded-full relative transition-colors ${damningEvidenceOnly ? 'bg-red-500' : 'bg-slate-700'}`}
+                  <div className="absolute bottom-6 left-6 flex items-center gap-2 p-1 bg-slate-900/80 border border-slate-700 rounded-xl backdrop-blur-md shadow-2xl">
+                    <button
+                      onClick={() => setZoom((prev) => Math.min(3, prev * 1.2))}
+                      className="p-2 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-all"
+                      title="Zoom In"
                     >
-                      <div
-                        className={`absolute top-1 w-2 h-2 rounded-full bg-white transition-all ${damningEvidenceOnly ? 'left-5' : 'left-1'}`}
-                      />
+                      <Search className="w-4 h-4" />
+                    </button>
+                    <div className="w-px h-4 bg-slate-700 mx-1" />
+                    <button
+                      onClick={() => {
+                        setZoom(1);
+                        setPan({ x: 0, y: 0 });
+                      }}
+                      className="px-3 py-1.5 text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all"
+                    >
+                      RESET
+                    </button>
+                    <button
+                      onClick={centerNetwork}
+                      className="px-3 py-1.5 text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all"
+                    >
+                      CENTER
+                    </button>
+                  </div>
+
+                  <div className="absolute bottom-6 right-6 p-4 bg-slate-900/60 border border-slate-700/50 rounded-xl backdrop-blur-sm hidden lg:block">
+                    <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">
+                      Entity Key
+                    </h5>
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                      {['person', 'organization', 'location', 'event'].map((type) => (
+                        <div key={type} className="flex items-center gap-2">
+                          <div
+                            className="w-2 h-2 rounded-full"
+                            style={{ backgroundColor: getNodeColor(type as any) }}
+                          />
+                          <span className="text-xs text-slate-300 capitalize">{type}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                  <p className="text-[10px] text-slate-400 leading-relaxed">
-                    Filters for high-confidence associations (&gt;80%) with elevated risk scores.
+                </div>
+              )}
+            </div>
+          }
+          right={
+            <div className="h-full p-6 space-y-8 overflow-y-auto scrollbar-thin">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-white font-bold flex items-center gap-2">
+                  <Sliders className="w-4 h-4 text-blue-400" />
+                  Graph Settings
+                </h4>
+                <button
+                  onClick={() => setShowSettings(false)}
+                  className="text-slate-500 hover:text-white"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Range Filters */}
+              <div className="space-y-6 pt-4 border-t border-slate-800">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-end">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                      Network Density
+                    </label>
+                    <span className="text-blue-400 font-mono text-xs font-bold">
+                      ≥ {minStrength}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="10"
+                    step="0.5"
+                    value={minStrength}
+                    onChange={(e) => setMinStrength(parseFloat(e.target.value))}
+                    className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                  />
+                  <p className="text-[10px] text-slate-500 italic">
+                    Filter out weaker associations based on co-occurrence.
                   </p>
                 </div>
-              </div>
-            </div>
 
-            {/* Relationship Types */}
-            <div className="space-y-4 pt-6 border-t border-slate-800">
-              <div className="flex items-center justify-between">
-                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                  <Shield className="w-3 h-3" /> Relationship Types
-                </label>
-                <button
-                  className="text-[10px] text-blue-400 hover:text-blue-300 font-bold"
-                  onClick={() =>
-                    setSelectedEdgeTypes(
-                      new Set([
-                        'connection',
-                        'communication',
-                        'financial',
-                        'legal',
-                        'family',
-                        'business',
-                        'evidence',
-                        'co_occurrence',
-                        'co_mention',
+                <div className="space-y-3">
+                  <div className="flex justify-between items-end">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                      Degree of Separation
+                    </label>
+                    <span className="text-purple-400 font-mono text-xs font-bold">
+                      {maxHops >= 5 ? '∞' : `≤ ${maxHops} Hops`}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="1"
+                    max="5"
+                    step="1"
+                    value={maxHops}
+                    onChange={(e) => setMaxHops(parseInt(e.target.value))}
+                    className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                  />
+                  <p className="text-[10px] text-slate-500 italic">
+                    Maximum connection distance from Jeffrey Epstein.
+                  </p>
+                </div>
+
+                {/* Damning Evidence Mode Toggle */}
+                <div className="pt-4 border-t border-slate-800">
+                  <div
+                    className={`p-4 rounded-xl border transition-all cursor-pointer ${
+                      damningEvidenceOnly
+                        ? 'bg-red-500/10 border-red-500/30'
+                        : 'bg-slate-800/50 border-slate-700 hover:border-slate-600'
+                    }`}
+                    onClick={() => setDamningEvidenceOnly(!damningEvidenceOnly)}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle
+                          className={`w-4 h-4 ${damningEvidenceOnly ? 'text-red-400' : 'text-slate-400'}`}
+                        />
+                        <span
+                          className={`text-xs font-bold uppercase tracking-wider ${damningEvidenceOnly ? 'text-red-400' : 'text-slate-300'}`}
+                        >
+                          Damning Evidence Mode
+                        </span>
+                      </div>
+                      <div
+                        className={`w-8 h-4 rounded-full relative transition-colors ${damningEvidenceOnly ? 'bg-red-500' : 'bg-slate-700'}`}
+                      >
+                        <div
+                          className={`absolute top-1 w-2 h-2 rounded-full bg-white transition-all ${damningEvidenceOnly ? 'left-5' : 'left-1'}`}
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-slate-400 leading-relaxed">
+                      Filters for high-confidence associations (&gt;80%) with elevated risk scores.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Relationship Types */}
+              <div className="space-y-4 pt-6 border-t border-slate-800">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                    <Shield className="w-3 h-3" /> Relationship Types
+                  </label>
+                  <button
+                    className="text-[10px] text-blue-400 hover:text-blue-300 font-bold"
+                    onClick={() =>
+                      setSelectedEdgeTypes(
+                        new Set([
+                          'connection',
+                          'communication',
+                          'financial',
+                          'legal',
+                          'family',
+                          'business',
+                          'evidence',
+                          'co_occurrence',
+                          'co_mention',
+                          'Aviation',
+                          'Banking',
+                          'Investment',
+                          'Legal',
+                          'Personal',
+                          'Professional',
+                          'Real Estate',
+                        ]),
+                      )
+                    }
+                  >
+                    RE-SELECT ALL
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 gap-1">
+                  {[
+                    'Aviation',
+                    'Banking',
+                    'Investment',
+                    'Legal',
+                    'Personal',
+                    'Professional',
+                    'Real Estate',
+                  ].map((type) => (
+                    <Checkbox
+                      key={type}
+                      label={type}
+                      color={getEdgeColor(type)}
+                      checked={selectedEdgeTypes.has(type)}
+                      onChange={(checked) => {
+                        const next = new Set(selectedEdgeTypes);
+                        if (checked) next.add(type);
+                        else next.delete(type);
+                        setSelectedEdgeTypes(next);
+                      }}
+                    />
+                  ))}
+                  {/* Fallback for generated data */}
+                  {['co_occurrence', 'financial', 'legal'].map(
+                    (type) =>
+                      ![
                         'Aviation',
                         'Banking',
                         'Investment',
@@ -1094,101 +1137,88 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
                         'Personal',
                         'Professional',
                         'Real Estate',
-                      ]),
-                    )
-                  }
-                >
-                  RE-SELECT ALL
-                </button>
+                      ].includes(type) && (
+                        <Checkbox
+                          key={type}
+                          label={type.charAt(0).toUpperCase() + type.slice(1)}
+                          color={getEdgeColor(type)}
+                          checked={selectedEdgeTypes.has(type)}
+                          onChange={(checked) => {
+                            const next = new Set(selectedEdgeTypes);
+                            if (checked) next.add(type);
+                            else next.delete(type);
+                            setSelectedEdgeTypes(next);
+                          }}
+                        />
+                      ),
+                  )}
+                </div>
               </div>
-              <div className="grid grid-cols-1 gap-1">
-                {[
-                  'Aviation',
-                  'Banking',
-                  'Investment',
-                  'Legal',
-                  'Personal',
-                  'Professional',
-                  'Real Estate',
-                ].map((type) => (
-                  <Checkbox
-                    key={type}
-                    label={type}
-                    color={getEdgeColor(type)}
-                    checked={selectedEdgeTypes.has(type)}
-                    onChange={(checked) => {
-                      const next = new Set(selectedEdgeTypes);
-                      if (checked) next.add(type);
-                      else next.delete(type);
-                      setSelectedEdgeTypes(next);
-                    }}
-                  />
-                ))}
-                {/* Fallback for generated data */}
-                {['co_occurrence', 'financial', 'legal'].map(
-                  (type) =>
-                    ![
-                      'Aviation',
-                      'Banking',
-                      'Investment',
-                      'Legal',
-                      'Personal',
-                      'Professional',
-                      'Real Estate',
-                    ].includes(type) && (
-                      <Checkbox
-                        key={type}
-                        label={type.charAt(0).toUpperCase() + type.slice(1)}
-                        color={getEdgeColor(type)}
-                        checked={selectedEdgeTypes.has(type)}
-                        onChange={(checked) => {
-                          const next = new Set(selectedEdgeTypes);
-                          if (checked) next.add(type);
-                          else next.delete(type);
-                          setSelectedEdgeTypes(next);
-                        }}
-                      />
-                    ),
-                )}
-              </div>
-            </div>
 
-            {/* Entity Types */}
-            <div className="space-y-4 pt-6 border-t border-slate-800">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                <Filter className="w-3 h-3" /> Entity Groups
-              </label>
-              <div className="grid grid-cols-1 gap-1">
-                {['person', 'organization', 'location', 'event'].map((type) => (
-                  <Checkbox
-                    key={type}
-                    label={type.charAt(0).toUpperCase() + type.slice(1) + 's'}
-                    color={getNodeColor(type as any)}
-                    checked={selectedNodeTypes.has(type)}
-                    onChange={(checked) => {
-                      const next = new Set(selectedNodeTypes);
-                      if (checked) next.add(type);
-                      else next.delete(type);
-                      setSelectedNodeTypes(next);
-                    }}
-                  />
-                ))}
+              {/* Entity Types */}
+              <div className="space-y-4 pt-6 border-t border-slate-800">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                  <Filter className="w-3 h-3" /> Entity Groups
+                </label>
+                <div className="grid grid-cols-1 gap-1">
+                  {['person', 'organization', 'location', 'event'].map((type) => (
+                    <Checkbox
+                      key={type}
+                      label={type.charAt(0).toUpperCase() + type.slice(1) + 's'}
+                      color={getNodeColor(type as any)}
+                      checked={selectedNodeTypes.has(type)}
+                      onChange={(checked) => {
+                        const next = new Set(selectedNodeTypes);
+                        if (checked) next.add(type);
+                        else next.delete(type);
+                        setSelectedNodeTypes(next);
+                      }}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
 
-            <div className="pt-8 block">
-              <div className="bg-blue-500/5 border border-blue-500/20 p-4 rounded-xl">
-                <div className="flex gap-3">
-                  <Info className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-                  <p className="text-[11px] text-slate-400 leading-relaxed">
-                    Connecting lines represent evidence-backed associations. Thicker lines indicate
-                    higher frequency or proximity scores in investigative files.
-                  </p>
+              <div className="pt-8 block">
+                <div className="bg-blue-500/5 border border-blue-500/20 p-4 rounded-xl">
+                  <div className="flex gap-3">
+                    <Info className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      Connecting lines represent evidence-backed associations. Thicker lines
+                      indicate higher frequency or proximity scores in investigative files.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+          }
+          collapsedRight={
+            <div className="h-full py-3 flex flex-col items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowSettings(true)}
+                className="control h-8 w-8 p-0 flex items-center justify-center text-cyan-300 hover:text-cyan-100"
+                title="Expand graph settings"
+                aria-label="Expand graph settings"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+              <div className="h-px w-6 bg-slate-700/80" />
+              <Sliders className="w-4 h-4 text-slate-500" aria-hidden="true" />
+              <Filter className="w-4 h-4 text-slate-500" aria-hidden="true" />
+              <Shield className="w-4 h-4 text-slate-500" aria-hidden="true" />
+            </div>
+          }
+          defaultRightWidth={settingsPaneWidth}
+          minRightWidth={280}
+          maxRightWidth={480}
+          collapsedWidth={84}
+          rightCollapsed={!showSettings}
+          onRightCollapsedChange={(next) => setShowSettings(!next)}
+          onRightWidthChange={setSettingsPaneWidth}
+          dividerAriaLabel="Resize graph settings panel"
+          collapseAriaLabel="Collapse graph settings panel"
+          expandAriaLabel="Expand graph settings panel"
+        />
       </div>
     </div>
   );

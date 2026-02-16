@@ -931,12 +931,12 @@ function App() {
 
   const { user: currentUser, isAdmin } = useAuth();
   const navSegmentBaseClass =
-    'flex items-center justify-center gap-1.5 h-10 px-4 rounded-xl transition-all duration-200 whitespace-nowrap border';
+    'flex items-center justify-center gap-1.5 h-11 px-5 rounded-none transition-all duration-200 whitespace-nowrap border-0 bg-transparent';
   const getNavSegmentClass = (isActive: boolean, activeClass: string, extraClass: string = '') =>
     `${navSegmentBaseClass} ${
       isActive
-        ? `${activeClass} border-slate-500/45`
-        : 'text-slate-300 bg-slate-900/45 border-slate-700/55 hover:text-white hover:bg-slate-800/75 hover:border-slate-600/70'
+        ? `${activeClass} text-white`
+        : 'text-slate-300 hover:text-white hover:bg-slate-800/55'
     } ${extraClass}`.trim();
 
   useEffect(() => {
@@ -1314,8 +1314,8 @@ function App() {
                     ref={navTrackRef}
                     className="w-full overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                   >
-                    <div className="inline-flex min-w-max items-center rounded-full border border-slate-700/80 bg-slate-900/75 backdrop-blur-md p-1 divide-x divide-slate-700/80">
-                      <div className="relative group shrink-0 px-0.5">
+                    <div className="inline-flex min-w-max items-center rounded-full border border-slate-700/80 bg-slate-900/75 backdrop-blur-md overflow-hidden divide-x divide-slate-700/80">
+                      <div className="relative group shrink-0">
                         <button
                           onClick={() => navigate('/people')}
                           className={getNavSegmentClass(
@@ -1358,7 +1358,7 @@ function App() {
                           </div>
                         </div>
                       </div>
-                      <div className="shrink-0 px-0.5">
+                      <div className="shrink-0">
                         <button
                           onClick={() => navigate('/documents')}
                           className={getNavSegmentClass(
@@ -1370,7 +1370,7 @@ function App() {
                           <span className="hidden xl:inline">Docs</span>
                         </button>
                       </div>
-                      <div className="relative shrink-0 px-0.5">
+                      <div className="relative shrink-0">
                         <button
                           onClick={() => {
                             try {
@@ -1457,7 +1457,7 @@ function App() {
                             document.body,
                           )}
                       </div>
-                      <div className="shrink-0 px-0.5">
+                      <div className="shrink-0">
                         <button
                           onClick={() => navigate('/timeline')}
                           onMouseEnter={() => preloader.prefetchJson('/api/timeline')}
@@ -1470,7 +1470,7 @@ function App() {
                           <span className="hidden xl:inline">Timeline</span>
                         </button>
                       </div>
-                      <div className="shrink-0 px-0.5">
+                      <div className="shrink-0">
                         <button
                           onClick={() => navigate('/flights')}
                           onMouseEnter={() => preloader.prefetchJson('/api/flights')}
@@ -1483,7 +1483,7 @@ function App() {
                           <span className="hidden xl:inline">Flights</span>
                         </button>
                       </div>
-                      <div className="shrink-0 px-0.5">
+                      <div className="shrink-0">
                         <button
                           onClick={() => navigate('/properties')}
                           onMouseEnter={() => preloader.prefetchJson('/api/properties/stats')}
@@ -1496,7 +1496,7 @@ function App() {
                           <span className="hidden xl:inline">Property</span>
                         </button>
                       </div>
-                      <div className="shrink-0 px-0.5">
+                      <div className="shrink-0">
                         <button
                           onClick={() => navigate('/media')}
                           onMouseEnter={() => {
@@ -1512,7 +1512,7 @@ function App() {
                           <span className="hidden xl:inline">Media</span>
                         </button>
                       </div>
-                      <div className="shrink-0 px-0.5">
+                      <div className="shrink-0">
                         <button
                           onClick={() => navigate('/emails')}
                           onMouseEnter={() => preloader.prefetchJson('/api/emails')}
@@ -1525,7 +1525,7 @@ function App() {
                           <span className="hidden xl:inline">Emails</span>
                         </button>
                       </div>
-                      <div className="shrink-0 px-0.5">
+                      <div className="shrink-0">
                         <button
                           onClick={() => navigate('/blackbook')}
                           onMouseEnter={() => preloader.prefetchJson('/api/media/albums')}
@@ -1538,7 +1538,7 @@ function App() {
                           <span>Black Book</span>
                         </button>
                       </div>
-                      <div className="shrink-0 px-0.5">
+                      <div className="shrink-0">
                         <button
                           onClick={() => navigate('/analytics')}
                           className={getNavSegmentClass(
@@ -1550,7 +1550,7 @@ function App() {
                           <span className="hidden xl:inline">Stats</span>
                         </button>
                       </div>
-                      <div className="shrink-0 px-0.5">
+                      <div className="shrink-0">
                         <button
                           onClick={() => navigate('/about')}
                           className={getNavSegmentClass(

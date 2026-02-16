@@ -248,6 +248,18 @@ export const VIP_RULES: VipRule[] = [
     },
   },
   {
+    canonicalName: 'Howard Lutnick',
+    type: 'Person',
+    aliases: ['Howard W Lutnick', 'Howard W. Lutnick', 'Mr. Lutnick'],
+    patterns: [/Howard\s+Lutnick/i, /Howard\s+W\.?\s+Lutnick/i],
+    metadata: {
+      category: 'Associate',
+      riskLevel: 'medium',
+      birthDate: '1961-07-14',
+      bio: 'Business executive and chairman/CEO of Cantor Fitzgerald. Included for high-profile entity consolidation.',
+    },
+  },
+  {
     canonicalName: 'Mark Epstein',
     type: 'Person',
     aliases: ['izmo'],

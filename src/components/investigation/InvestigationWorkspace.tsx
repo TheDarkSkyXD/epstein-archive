@@ -50,6 +50,7 @@ import { HypothesisTestingFramework } from './HypothesisTestingFramework';
 import { InvestigationTeamManagement } from './InvestigationTeamManagement';
 import { InvestigationBoard } from './InvestigationBoard';
 import { useToasts } from '../common/useToasts';
+import { CollapsibleSplitPane } from '../common/CollapsibleSplitPane';
 import { CreateRelationshipModal } from '../entities/CreateRelationshipModal';
 import { CommunicationAnalysis } from './CommunicationAnalysis';
 import { InvestigationActivityFeed } from './InvestigationActivityFeed';
@@ -91,6 +92,7 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
   const [annotations, _setAnnotations] = useState<Annotation[]>([]);
   const [_evidenceLoading, setEvidenceLoading] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(320);
   const [selectedNetworkNode, setSelectedNetworkNode] = useState<NetworkNode | null>(null);
   const [selectedNetworkEdge, setSelectedNetworkEdge] = useState<NetworkEdge | null>(null);
   const [networkNodes, setNetworkNodes] = useState<NetworkNode[]>([]);
@@ -190,6 +192,38 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
   };
 
   const activeTab = getActiveTab();
+  const mobileTabs = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'activity', label: 'Activity' },
+    { id: 'casefolder', label: 'Case Folder' },
+    { id: 'evidence', label: 'Evidence' },
+    { id: 'hypotheses', label: 'Hypotheses' },
+    { id: 'notebook', label: 'Notebook' },
+    { id: 'financial', label: 'Financial' },
+    { id: 'timeline', label: 'Timeline' },
+    { id: 'communications', label: 'Communications' },
+    { id: 'forensic', label: 'Forensic' },
+    { id: 'team', label: 'Team' },
+    { id: 'analytics', label: 'Analytics' },
+    { id: 'export', label: 'Export' },
+  ] as const;
+
+  const desktopTabs = [
+    { id: 'board', label: 'Investigation Board', icon: LayoutDashboard },
+    { id: 'overview', label: 'Overview', icon: Search },
+    { id: 'activity', label: 'Activity Feed', icon: Activity },
+    { id: 'casefolder', label: 'Case Folder', icon: FolderOpen },
+    { id: 'evidence', label: 'Evidence', icon: FileText },
+    { id: 'hypotheses', label: 'Hypotheses', icon: Target },
+    { id: 'notebook', label: 'Notebook', icon: FileText },
+    { id: 'financial', label: 'Financial', icon: DollarSign },
+    { id: 'timeline', label: 'Timeline', icon: Calendar },
+    { id: 'communications', label: 'Communications', icon: MessageSquare },
+    { id: 'forensic', label: 'Forensic', icon: Microscope },
+    { id: 'team', label: 'Team', icon: Users },
+    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+    { id: 'export', label: 'Export', icon: Download },
+  ] as const;
 
   // Navigate to a tab
   const navigateToTab = useCallback(
@@ -1439,141 +1473,133 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
       {/* Main Layout - Column on mobile, Row on desktop */}
       {selectedInvestigation && (
         <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden flex-col md:flex-row">
-          {/* Navigation - Horizontal scroll on mobile, Vertical sidebar on desktop */}
-          <div
-            className={`
-              shrink-0 bg-slate-900/50 backdrop-blur-sm border-b md:border-b-0 md:border-r border-slate-700/50
-              md:transition-all md:duration-300
-              ${sidebarCollapsed ? 'md:w-16' : 'md:w-64'}
-              w-full overflow-x-auto md:overflow-hidden
-            `}
-          >
-            <div className="p-2 md:p-4 flex md:block items-center md:space-y-0 gap-2 md:gap-0 overflow-hidden">
-              {/* Desktop Expand/Collapse & Back - Hidden on Mobile */}
-              <div className="hidden md:flex items-center justify-between mb-6">
-                <button
-                  onClick={() => setSelectedInvestigation(null)}
-                  className={`text-sm text-slate-400 hover:text-white flex items-center gap-2 transition-colors h-10 px-3 bg-slate-800/50 hover:bg-slate-700 rounded-lg border border-slate-700/50 ${
-                    sidebarCollapsed ? 'hidden' : ''
-                  }`}
-                >
-                  <ArrowRight className="w-4 h-4 rotate-180" />
-                  <span className="font-medium">Back to Dashboard</span>
-                </button>
-                <button
-                  onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                  className="p-2 text-slate-400 hover:text-white transition-colors rounded-md hover:bg-slate-700"
-                  title={sidebarCollapsed ? 'Expand menu' : 'Collapse menu'}
-                >
-                  {sidebarCollapsed ? (
-                    <ArrowRight className="w-5 h-5" />
-                  ) : (
-                    <ArrowRight className="w-5 h-5 rotate-180" />
-                  )}
-                </button>
-              </div>
-
-              {/* Desktop Title - Hidden on Mobile */}
-              <div className={`hidden md:block mb-6 px-2 ${sidebarCollapsed ? 'hidden' : ''}`}>
-                <h3 className="font-medium text-white truncate" title={selectedInvestigation.title}>
-                  {selectedInvestigation.title}
-                </h3>
-                <button
-                  onClick={copyShareUrl}
-                  className="mt-2 flex items-center gap-1.5 text-xs text-slate-400 hover:text-blue-400 transition-colors"
-                >
-                  <Share2 className="w-3.5 h-3.5" />
-                  {shareCopied ? 'Copied!' : 'Share'}
-                </button>
-              </div>
-
-              {/* Mobile Back Button */}
+          {/* Mobile Navigation */}
+          <div className="md:hidden shrink-0 w-full overflow-x-auto bg-slate-900/50 backdrop-blur-sm border-b border-slate-700/50">
+            <div className="p-2 flex items-center gap-2 overflow-hidden">
               <button
                 onClick={() => setSelectedInvestigation(null)}
-                className="md:hidden p-2 text-slate-400 hover:text-white shrink-0 h-10 w-10 flex items-center justify-center rounded-lg hover:bg-slate-800"
+                className="p-2 text-slate-400 hover:text-white shrink-0 h-10 w-10 flex items-center justify-center rounded-lg hover:bg-slate-800"
               >
                 <ArrowRight className="w-5 h-5 rotate-180" />
               </button>
-
-              {/* Mobile Navigation - Horizontal Scrollable Pills */}
-              <div className="md:hidden w-full overflow-x-auto border-b border-slate-700/50 bg-slate-900/95 no-scrollbar">
+              <div className="w-full overflow-x-auto border-b border-slate-700/50 bg-slate-900/95 no-scrollbar">
                 <div className="flex px-4 py-3 gap-2 min-w-max">
-                  {[
-                    { id: 'overview', label: 'Overview' },
-                    { id: 'activity', label: 'Activity' },
-                    { id: 'casefolder', label: 'Case Folder' },
-                    { id: 'evidence', label: 'Evidence' },
-                    { id: 'hypotheses', label: 'Hypotheses' },
-                    { id: 'notebook', label: 'Notebook' },
-                    { id: 'financial', label: 'Financial' },
-                    { id: 'timeline', label: 'Timeline' },
-                    { id: 'communications', label: 'Communications' },
-                    { id: 'forensic', label: 'Forensic' },
-                    { id: 'team', label: 'Team' },
-                    { id: 'analytics', label: 'Analytics' },
-                    { id: 'export', label: 'Export' },
-                  ].map((option) => (
+                  {mobileTabs.map((option) => (
                     <button
                       key={option.id}
                       onClick={() => navigateToTab(option.id)}
                       className={`
-                          px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all
-                          ${
-                            activeTab === option.id
-                              ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30'
-                              : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white border border-slate-700'
-                          }
-                        `}
+                        px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all
+                        ${
+                          activeTab === option.id
+                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/30'
+                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white border border-slate-700'
+                        }
+                      `}
                     >
                       {option.label}
                     </button>
                   ))}
                 </div>
               </div>
-
-              {/* Desktop Navigation Sidebar */}
-              <nav className="hidden md:block space-y-1 min-w-0 w-full p-1 overflow-hidden">
-                {[
-                  { id: 'board', label: 'Investigation Board', icon: LayoutDashboard },
-                  { id: 'overview', label: 'Overview', icon: Search },
-                  { id: 'activity', label: 'Activity Feed', icon: Activity },
-                  { id: 'casefolder', label: 'Case Folder', icon: FolderOpen },
-                  { id: 'evidence', label: 'Evidence', icon: FileText },
-                  { id: 'hypotheses', label: 'Hypotheses', icon: Target },
-                  { id: 'notebook', label: 'Notebook', icon: FileText },
-                  { id: 'financial', label: 'Financial', icon: DollarSign },
-                  { id: 'timeline', label: 'Timeline', icon: Calendar },
-                  { id: 'communications', label: 'Communications', icon: MessageSquare },
-                  { id: 'forensic', label: 'Forensic', icon: Microscope },
-                  { id: 'team', label: 'Team', icon: Users },
-                  { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-                  { id: 'export', label: 'Export', icon: Download },
-                ].map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => navigateToTab(tab.id)}
-                    className={`
-                        flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all
-                        whitespace-nowrap overflow-hidden
-                        ${
-                          activeTab === tab.id
-                            ? 'bg-blue-900/40 text-blue-400 border border-blue-500/30 shadow-sm relative z-10'
-                            : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
-                        }
-                        ${sidebarCollapsed ? 'justify-center px-2 py-4 w-full' : 'w-full'}
-                      `}
-                    title={tab.label}
-                  >
-                    <tab.icon
-                      className={`${sidebarCollapsed ? 'w-6 h-6 shrink-0' : 'w-5 h-5 mr-3 shrink-0'}`}
-                    />
-                    <span className={`${sidebarCollapsed ? 'hidden' : 'block truncate'}`}>
-                      {tab.label}
-                    </span>
-                  </button>
-                ))}
-              </nav>
             </div>
+          </div>
+
+          {/* Desktop Navigation Pane (reusable collapsible + resizable component) */}
+          <div className="hidden md:block shrink-0 h-full border-r border-slate-700/50 bg-slate-900/50 backdrop-blur-sm">
+            <CollapsibleSplitPane
+              mode="singleRight"
+              left={null}
+              right={
+                <div className="h-full p-4">
+                  <div className="flex items-center justify-between mb-6">
+                    <button
+                      onClick={() => setSelectedInvestigation(null)}
+                      className="text-sm text-slate-400 hover:text-white flex items-center gap-2 transition-colors h-10 px-3 bg-slate-800/50 hover:bg-slate-700 rounded-lg border border-slate-700/50"
+                    >
+                      <ArrowRight className="w-4 h-4 rotate-180" />
+                      <span className="font-medium">Back to Dashboard</span>
+                    </button>
+                  </div>
+
+                  <div className="mb-6 px-2">
+                    <h3
+                      className="font-medium text-white truncate"
+                      title={selectedInvestigation.title}
+                    >
+                      {selectedInvestigation.title}
+                    </h3>
+                    <button
+                      onClick={copyShareUrl}
+                      className="mt-2 flex items-center gap-1.5 text-xs text-slate-400 hover:text-blue-400 transition-colors"
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                      {shareCopied ? 'Copied!' : 'Share'}
+                    </button>
+                  </div>
+
+                  <nav className="space-y-1 min-w-0 w-full p-1 overflow-hidden">
+                    {desktopTabs.map((tab) => (
+                      <button
+                        key={tab.id}
+                        onClick={() => navigateToTab(tab.id)}
+                        className={`
+                          flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-all
+                          whitespace-nowrap overflow-hidden w-full
+                          ${
+                            activeTab === tab.id
+                              ? 'bg-blue-900/40 text-blue-400 border border-blue-500/30 shadow-sm relative z-10'
+                              : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
+                          }
+                        `}
+                        title={tab.label}
+                      >
+                        <tab.icon className="w-5 h-5 mr-3 shrink-0" />
+                        <span className="block truncate">{tab.label}</span>
+                      </button>
+                    ))}
+                  </nav>
+                </div>
+              }
+              collapsedRight={
+                <div className="h-full py-4 flex flex-col items-center gap-3">
+                  <button
+                    onClick={() => setSelectedInvestigation(null)}
+                    className="control h-8 w-8 p-0 flex items-center justify-center text-slate-300 hover:text-white"
+                    aria-label="Back to dashboard"
+                    title="Back to dashboard"
+                  >
+                    <ArrowRight className="w-4 h-4 rotate-180" />
+                  </button>
+                  <div className="h-px w-6 bg-slate-700/80" />
+                  {desktopTabs.map((tab) => (
+                    <button
+                      key={`collapsed-${tab.id}`}
+                      onClick={() => navigateToTab(tab.id)}
+                      className={`h-8 w-8 rounded-md flex items-center justify-center transition-colors ${
+                        activeTab === tab.id
+                          ? 'bg-blue-900/40 text-blue-300'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+                      }`}
+                      title={tab.label}
+                      aria-label={tab.label}
+                    >
+                      <tab.icon className="w-4 h-4" />
+                    </button>
+                  ))}
+                </div>
+              }
+              defaultRightWidth={sidebarWidth}
+              minRightWidth={280}
+              maxRightWidth={460}
+              collapsedWidth={84}
+              rightCollapsed={sidebarCollapsed}
+              onRightCollapsedChange={setSidebarCollapsed}
+              onRightWidthChange={setSidebarWidth}
+              dividerAriaLabel="Resize investigation navigation panel"
+              collapseAriaLabel="Collapse investigation navigation panel"
+              expandAriaLabel="Expand investigation navigation panel"
+            />
           </div>
 
           {/* Main Content */}

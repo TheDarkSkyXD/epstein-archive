@@ -1,3 +1,32 @@
+## v13.10.3 - 2026-02-16 - Pane System Unification and Investigations UX Reliability
+
+### Reusable collapsible/resizable pane system
+
+- Added a shared `CollapsibleSplitPane` component in `/src/components/common/CollapsibleSplitPane.tsx` with:
+  - drag-to-resize divider,
+  - keyboard resize/collapse support,
+  - controlled/uncontrolled collapse state,
+  - collapsed icon-rail rendering,
+  - and `singleRight` mode for standalone sidebars.
+
+### Document modal and investigative workspace improvements
+
+- Refactored `/src/components/documents/DocumentModal.tsx` to use the reusable pane system on desktop for the right details panel.
+- Added collapse/expand + drag-resize for document details and collapsed icon-rail behavior.
+- Preserved mobile-first behavior by keeping details available in-flow on mobile.
+- Removed nested document scroll behavior by keeping a single document scroll pane and eliminating inner text/diff scroll containers.
+- Updated `/src/components/investigation/InvestigationWorkspace.tsx` desktop navigation to use the same reusable pane system for consistent collapse/resize interaction.
+
+### Network analysis pane consistency
+
+- Reworked `/src/components/visualizations/NetworkVisualization.tsx` settings sidebar to use the same reusable pane component.
+- Settings pane now supports the same resize + collapse UX and icon-rail state as other investigative pane surfaces.
+
+### Navigation and entity handling updates
+
+- Flattened top navigation segmented styling in `/src/App.tsx` to remove nested box-in-box visual artifacts.
+- Added `Howard Lutnick` to VIP consolidation rules in `/scripts/filters/vipRules.ts` for canonical matching and ingestion alignment.
+
 ## v13.10.2 - 2026-02-16 - Document Browser Tranche Coverage and Visual Simplification
 
 ### Tranche filter parity with About page

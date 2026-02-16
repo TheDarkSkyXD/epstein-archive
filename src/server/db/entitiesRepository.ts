@@ -223,6 +223,14 @@ function applyDefaultNameHygiene(whereConditions: string[], params: Record<strin
   TITLE_PREFIX_FILTERS.forEach((clause) => whereConditions.push(clause));
 }
 
+function applyDefaultNameHygieneLite(whereConditions: string[]): void {
+  whereConditions.push(`LENGTH(TRIM(full_name)) >= 3`);
+  whereConditions.push(`full_name NOT LIKE '%@%'`);
+  whereConditions.push(`full_name NOT LIKE 'http%'`);
+  whereConditions.push(`full_name NOT LIKE 'www.%'`);
+  TITLE_PREFIX_FILTERS.forEach((clause) => whereConditions.push(clause));
+}
+
 function pushRiskLevelFilter(
   whereConditions: string[],
   params: Record<string, unknown>,
@@ -350,7 +358,9 @@ export const entitiesRepository = {
       page === 1;
 
     if (isDefaultView) {
-      applyDefaultNameHygiene(whereConditions, params);
+      // Keep the homepage query bounded on million-scale datasets.
+      // Heavy pattern-based junk filters are still used in deeper entity queries.
+      applyDefaultNameHygieneLite(whereConditions);
       // Front page: VIP first, but still surface non-VIP high-signal entities across all types.
       whereConditions.push(DEFAULT_SIGNAL_CLAUSE);
     }

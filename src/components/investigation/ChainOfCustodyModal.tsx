@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useScrollLock } from '../../hooks/useScrollLock';
+import { CloseButton } from '../common/CloseButton';
 
 interface Props {
   evidenceId: string;
@@ -76,9 +77,12 @@ export const ChainOfCustodyModal: React.FC<Props> = ({ evidenceId, onClose }) =>
       <div className="bg-slate-800 rounded-lg w-full max-w-2xl">
         <div className="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
           <h3 className="text-white font-semibold">Chain of Custody</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-white">
-            ✕
-          </button>
+          <CloseButton
+            onClick={onClose}
+            size="sm"
+            label="Close chain of custody"
+            className="bg-transparent border-slate-700 text-slate-400 hover:text-white"
+          />
         </div>
         <div className="p-6 space-y-4">
           <div className="text-sm text-slate-300">Evidence ID: {evidenceId}</div>

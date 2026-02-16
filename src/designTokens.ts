@@ -39,6 +39,24 @@ export const colors = {
     tertiary: '#cbd5e1', // Tertiary text (improved contrast)
     disabled: '#94a3b8', // Disabled text (improved contrast)
   },
+
+  // Semantic mappings
+  semantic: {
+    risk: {
+      high: '#ff4d4d',
+      medium: '#fbbf24',
+      low: '#10b981',
+    },
+    confidence: {
+      high: '#8b5cf6',
+      subtle: '#c084fc',
+    },
+    provenance: {
+      direct: '#22c55e',
+      derived: '#eab308',
+      inferred: '#a855f7',
+    },
+  },
 };
 
 // Typography
@@ -90,6 +108,29 @@ export const shadows = {
   md: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
   lg: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
   xl: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+};
+
+// Motion / Easing (Liquid Feel)
+export const motion = {
+  easings: {
+    liquid: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+    swift: 'cubic-bezier(0.4, 0, 0.2, 1)',
+    gentle: 'cubic-bezier(0, 0, 0.2, 1)',
+  },
+  durations: {
+    fast: '150ms',
+    normal: '300ms',
+    slow: '500ms',
+  },
+};
+
+// Advanced Elevation (Glassmorphism)
+export const elevation = {
+  glass: {
+    border: 'linear-gradient(to bottom right, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))',
+    shine: 'linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 100%)',
+    blur: '12px',
+  },
 };
 
 // Z-index scale
@@ -177,6 +218,29 @@ export const cssVariables = `
     --shadow-md: ${shadows.md};
     --shadow-lg: ${shadows.lg};
     --shadow-xl: ${shadows.xl};
+
+    /* Motion */
+    --easing-liquid: ${motion.easings.liquid};
+    --easing-swift: ${motion.easings.swift};
+    --easing-gentle: ${motion.easings.gentle};
+    --duration-fast: ${motion.durations.fast};
+    --duration-normal: ${motion.durations.normal};
+    --duration-slow: ${motion.durations.slow};
+
+    /* Elevation */
+    --glass-border: ${elevation.glass.border};
+    --glass-shine: ${elevation.glass.shine};
+    --glass-blur: ${elevation.glass.blur};
+
+    /* Semantic */
+    --risk-high: ${colors.semantic.risk.high};
+    --risk-medium: ${colors.semantic.risk.medium};
+    --risk-low: ${colors.semantic.risk.low};
+    --confidence-high: ${colors.semantic.confidence.high};
+    --confidence-subtle: ${colors.semantic.confidence.subtle};
+    --provenance-direct: ${colors.semantic.provenance.direct};
+    --provenance-derived: ${colors.semantic.provenance.derived};
+    --provenance-inferred: ${colors.semantic.provenance.inferred};
   }
 `;
 
@@ -186,6 +250,8 @@ export default {
   spacing,
   radii,
   shadows,
+  motion,
+  elevation,
   zIndex,
   breakpoints,
   cssVariables,

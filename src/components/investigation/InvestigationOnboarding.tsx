@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { X, ArrowRight, Filter, Search, FileText, CheckCircle } from 'lucide-react';
+import { ArrowRight, Filter, Search, FileText, CheckCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { CloseButton } from '../common/CloseButton';
 
 interface InvestigationOnboardingProps {
   onComplete: () => void;
@@ -96,13 +97,12 @@ export const InvestigationOnboarding: React.FC<InvestigationOnboardingProps> = (
             ))}
           </div>
 
-          <button
+          <CloseButton
             onClick={onSkip}
-            className="p-2 rounded-full hover:bg-white/10 text-slate-500 hover:text-white transition-colors"
-            aria-label="Close"
-          >
-            <X className="h-5 w-5" />
-          </button>
+            size="md"
+            label="Close investigation onboarding"
+            className="bg-transparent hover:bg-white/10 border-white/10"
+          />
         </div>
 
         {/* Content Area */}

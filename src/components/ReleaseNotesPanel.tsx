@@ -1,6 +1,7 @@
 import React from 'react';
-import { Calendar, BookOpen, X, Circle } from 'lucide-react';
+import { Calendar, BookOpen, Circle } from 'lucide-react';
 import { useScrollLock } from '../hooks/useScrollLock';
+import { CloseButton } from './common/CloseButton';
 
 interface ReleaseNote {
   version: string;
@@ -28,6 +29,20 @@ export const ReleaseNotesPanel: React.FC<ReleaseNotesPanelProps> = ({
   const allReleaseNotes = releaseNotes;
   useScrollLock(isOpen);
 
+  const isInternalPathLeak = (value: string): boolean => {
+    const trimmed = value.trim();
+    if (!trimmed) return false;
+    return (
+      /(^|[\s`])(src|scripts|tests|docs|server|components|services|contexts|types)\//i.test(
+        trimmed,
+      ) ||
+      /(^|[\s`])\/Users\//.test(trimmed) ||
+      /(^|[\s`])[A-Za-z]:\\/.test(trimmed) ||
+      /(^|[\s`])\.\//.test(trimmed) ||
+      /(^|[\s`])file:\/\//i.test(trimmed)
+    );
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -51,14 +66,12 @@ export const ReleaseNotesPanel: React.FC<ReleaseNotesPanelProps> = ({
             <BookOpen className="h-5 w-5 text-cyan-400" />
             What's New
           </h2>
-          <button
+          <CloseButton
             onClick={onClose}
-            className="control h-10 w-10 p-0 flex items-center justify-center text-white"
-            aria-label="Close release notes"
-            title="Close release notes"
-          >
-            <X className="h-4 w-4" />
-          </button>
+            size="md"
+            label="Close release notes"
+            className="control border-slate-600 text-white"
+          />
         </div>
 
         {/* Content */}
@@ -113,6 +126,10 @@ export const ReleaseNotesPanel: React.FC<ReleaseNotesPanelProps> = ({
 
                   <div className="space-y-3 bg-slate-800/30 rounded-lg p-4 border border-slate-700/50">
                     {release.notes.map((note, noteIndex) => {
+                      if (isInternalPathLeak(note)) {
+                        return null;
+                      }
+
                       // Check if this is a markdown header (### text)
                       if (note.startsWith('### ')) {
                         const headerText = note.substring(4).trim();
@@ -132,7 +149,7 @@ export const ReleaseNotesPanel: React.FC<ReleaseNotesPanelProps> = ({
                           <span className="text-cyan-400/80 mt-1.5 text-[10px]">
                             <Circle className="h-2.5 w-2.5 fill-current" />
                           </span>
-                          <div className="text-sm text-slate-300 leading-relaxed">
+                          <div className="text-sm text-slate-300 leading-relaxed break-words [overflow-wrap:anywhere]">
                             {note.split(/(\*\*.*?\*\*)/).map((part, i) =>
                               part.startsWith('**') && part.endsWith('**') ? (
                                 <strong key={i} className="font-semibold text-cyan-100">

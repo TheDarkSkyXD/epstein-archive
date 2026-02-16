@@ -4,8 +4,18 @@
  * Displays text-based evidence with formatting preserved
  */
 
-import React, { useState } from 'react';
-import { Search, Copy, Check, Eye, Download, FileText } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Search,
+  Copy,
+  Check,
+  Eye,
+  Download,
+  FileText,
+  ChevronLeft,
+  ChevronRight,
+  Bookmark,
+} from 'lucide-react';
 import { prettifyOCRText } from '../../utils/prettifyOCR';
 import { RedactionPlaceholder } from './RedactionPlaceholder';
 import { WikiLink } from '../common/WikiLink';
@@ -35,12 +45,16 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
   const [copied, setCopied] = useState(false);
   const [showRaw, setShowRaw] = useState(false);
   const [hideBoilerplate, setHideBoilerplate] = useState(false);
+  const [currentMatch, setCurrentMatch] = useState(0);
+  const [totalMatches, setTotalMatches] = useState(0);
   const [entities, setEntities] = useState<Array<{ id: string; name: string }>>(
     evidence.allEntities || [],
   );
 
+  const contentRef = useRef<HTMLDivElement>(null);
+
   // Fetch all entities for linking if not provided
-  React.useEffect(() => {
+  useEffect(() => {
     if (entities.length === 0) {
       apiClient.getAllEntities().then((data) => {
         setEntities(data.map((e: any) => ({ id: String(e.id), name: e.full_name || e.name })));
@@ -48,17 +62,59 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
     }
   }, [entities.length]);
 
-  // Extend props type safely
+  useEffect(() => {
+    if (!searchTerm) {
+      setTotalMatches(0);
+      setCurrentMatch(0);
+      return;
+    }
+    const matches = contentRef.current?.querySelectorAll('mark');
+    setTotalMatches(matches?.length || 0);
+    if (matches && matches.length > 0) {
+      setCurrentMatch(1);
+      matches[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      matches[0].classList.add(
+        'ring-2',
+        'ring-amber-400',
+        'ring-offset-2',
+        'ring-offset-slate-900',
+      );
+    }
+  }, [searchTerm, showRaw, hideBoilerplate]);
+
+  const navigateMatch = (direction: 'next' | 'prev') => {
+    const matches = contentRef.current?.querySelectorAll('mark');
+    if (!matches || matches.length === 0) return;
+
+    matches[currentMatch - 1]?.classList.remove(
+      'ring-2',
+      'ring-amber-400',
+      'ring-offset-2',
+      'ring-offset-slate-900',
+    );
+
+    let nextIndex = direction === 'next' ? currentMatch + 1 : currentMatch - 1;
+    if (nextIndex > matches.length) nextIndex = 1;
+    if (nextIndex < 1) nextIndex = matches.length;
+
+    setCurrentMatch(nextIndex);
+    const target = matches[nextIndex - 1];
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target.classList.add('ring-2', 'ring-amber-400', 'ring-offset-2', 'ring-offset-slate-900');
+  };
+
   const docEvidence = evidence as any;
   const hasSentences = docEvidence.sentences && docEvidence.sentences.length > 0;
 
   const highlightText = (text: string, search: string) => {
     if (!search.trim()) return text;
-
     const parts = text.split(new RegExp(`(${search})`, 'gi'));
     return parts.map((part, index) =>
       part.toLowerCase() === search.toLowerCase() ? (
-        <mark key={index} className="bg-yellow-200">
+        <mark
+          key={index}
+          className="bg-amber-500/40 text-slate-50 px-0.5 rounded transition-all duration-300"
+        >
           {part}
         </mark>
       ) : (
@@ -79,54 +135,7 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
       });
   };
 
-  const renderWithRedactions = (highlightedText: React.ReactNode) => {
-    if (!evidence.redaction_spans || evidence.redaction_spans.length === 0 || showRaw) {
-      return highlightedText;
-    }
-
-    // Simplest approach: Text -> Replace Spans with Placeholders -> Return Array
-    const text = evidence.extractedText;
-    if (typeof highlightedText !== 'string' && searchTerm) {
-      // If searching, we skip redaction rendering for simplicity or need complex overlap logic
-      return highlightedText;
-    }
-
-    // We are working with the full text string
-    const spans = [...evidence.redaction_spans].sort((a, b) => a.span_start - b.span_start);
-    const result: React.ReactNode[] = [];
-    let lastIndex = 0;
-
-    spans.forEach((span, idx) => {
-      if (span.span_start < lastIndex) return; // Skip overlaps
-
-      // Text before
-      const before = text.substring(lastIndex, span.span_start);
-      if (before) result.push(prettifyOCRText(before));
-
-      // Redaction Component
-      result.push(
-        <RedactionPlaceholder
-          key={`redaction-${idx}`}
-          type={span.inferred_class}
-          role={span.inferred_role}
-          confidence={span.confidence}
-          kind={span.redaction_kind}
-        />,
-      );
-
-      lastIndex = span.span_end;
-    });
-
-    // Remaining text
-    if (lastIndex < text.length) {
-      result.push(prettifyOCRText(text.substring(lastIndex)));
-    }
-
-    return result;
-  };
-
   const renderContent = () => {
-    // 1. If we have structured sentences, use them for advanced visualization
     if (hasSentences && !showRaw) {
       return (
         <div className="space-y-1">
@@ -137,8 +146,8 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
               <span
                 key={sent.id}
                 className={`transition-colors ${
-                  sent.is_boilerplate ? 'text-gray-400 text-xs' : ''
-                } ${sent.signal_score > 0.8 ? 'bg-purple-50' : ''}`}
+                  sent.is_boilerplate ? 'text-slate-500 text-xs' : ''
+                } ${sent.signal_score > 0.8 ? 'bg-violet-500/10 border-b border-violet-500/30' : ''}`}
                 title={`Signal: ${(sent.signal_score * 100).toFixed(0)}% ${
                   sent.is_boilerplate ? '(Boilerplate)' : ''
                 }`}
@@ -153,123 +162,128 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
       );
     }
 
-    // 2. Fallback to standard text rendering
     const rawText = evidence.extractedText;
     const cleanText = evidence.contentRefined || prettifyOCRText(rawText);
-
-    const displayText = showRaw ? rawText : renderWithRedactions(cleanText);
-
-    // If it's an array (from renderWithRedactions), we return it directly (search disabled for now on redacted view)
-    if (Array.isArray(displayText)) return <div>{displayText}</div>;
 
     return (
       <div className={showRaw ? 'font-mono' : 'font-sans'}>
         {searchTerm ? (
-          highlightText(displayText as string, searchTerm)
+          highlightText(showRaw ? rawText : cleanText, searchTerm)
         ) : (
-          <WikiLink text={displayText as string} entities={entities} />
+          <WikiLink text={showRaw ? rawText : cleanText} entities={entities} />
         )}
       </div>
     );
   };
 
   return (
-    <div className="p-4 md:p-6 surface-glass">
-      <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
-        <div className="flex-1 min-w-[200px] max-w-md">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search in document..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="control w-full pl-10 pr-4 py-2"
-            />
-          </div>
+    <div className="h-full flex flex-col animate-in fade-in duration-700">
+      <div className="shrink-0 p-4 md:p-6 border-b border-white/5 flex items-center justify-between flex-wrap gap-4 bg-slate-900/40">
+        <div className="flex-1 min-w-[240px] max-w-md relative group">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
+          <input
+            type="text"
+            placeholder="Scoping search..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="control w-full pl-10 pr-20 py-2 !bg-slate-950/40 border-white/5 focus:!border-cyan-500/50"
+          />
+          {totalMatches > 0 && (
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+              <span className="text-[10px] font-black text-cyan-400 tracking-tighter uppercase whitespace-nowrap">
+                {currentMatch}/{totalMatches}
+              </span>
+              <div className="flex gap-1 border-l border-white/10 pl-2">
+                <button
+                  onClick={() => navigateMatch('prev')}
+                  className="text-slate-500 hover:text-white"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => navigateMatch('next')}
+                  className="text-slate-500 hover:text-white"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Quick Actions */}
+          <div className="flex p-1 bg-slate-950/40 rounded-xl border border-white/5 gap-1">
+            <button
+              onClick={() => setShowRaw(false)}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${!showRaw ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'text-slate-600 hover:text-slate-400'}`}
+            >
+              Refined
+            </button>
+            <button
+              onClick={() => setShowRaw(true)}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${showRaw ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-slate-600 hover:text-slate-400'}`}
+            >
+              Raw OCR
+            </button>
+          </div>
+
+          <button
+            onClick={copyText}
+            className="control !h-10 px-4 flex items-center gap-2 text-xs font-bold border-white/5 bg-slate-900/60"
+          >
+            {copied ? (
+              <Check className="w-4 h-4 text-emerald-500" />
+            ) : (
+              <Copy className="w-4 h-4 text-slate-400" />
+            )}
+            {copied ? 'Copied' : 'Copy'}
+          </button>
+
           {(evidence.original_file_path || evidence.metadata?.source_original_url) && (
             <a
               href={evidence.original_file_path || evidence.metadata.source_original_url}
               download
               target="_blank"
               rel="noopener noreferrer"
-              className="control px-4 text-sm font-medium text-slate-100 hover:bg-slate-700/80 flex items-center"
-              title="Download original document"
+              className="control !h-10 w-10 flex items-center justify-center border-white/5 text-slate-400 hover:text-white"
+              title="Download Original"
             >
-              <Download className="h-4 w-4 mr-2" />
-              Download Original
+              <Download className="w-4 h-4" />
             </a>
           )}
-
-          {evidence.metadata?.unredacted_version_id && (
-            <a
-              href={`/document/${evidence.metadata.unredacted_version_id}`}
-              className="control px-4 text-sm font-medium text-white bg-cyan-700 border-cyan-500 hover:bg-cyan-600 flex items-center"
-              title="View the unredacted version of this document"
-            >
-              <Eye className="h-4 w-4 mr-2" />
-              View Unredacted
-            </a>
-          )}
-
-          {/* Boilerplate Toggle */}
-          {hasSentences && !showRaw && (
-            <button
-              onClick={() => setHideBoilerplate(!hideBoilerplate)}
-              className={`control px-3 text-sm font-medium flex items-center gap-2 transition-colors ${
-                hideBoilerplate
-                  ? 'bg-amber-700/35 text-amber-100 border-amber-500/40'
-                  : 'text-slate-200 hover:bg-slate-700/80'
-              }`}
-              title="Hide legal boilerplate and noise"
-            >
-              <span
-                className={`w-2 h-2 rounded-full ${hideBoilerplate ? 'bg-orange-500' : 'bg-gray-300'}`}
-              />
-              {hideBoilerplate ? 'Hidden' : 'Show Noise'}
-            </button>
-          )}
-
-          {/* Pretty/Raw Toggle */}
-          <button
-            onClick={() => setShowRaw(!showRaw)}
-            className={`control px-3 text-sm font-medium flex items-center gap-2 transition-colors ${
-              showRaw
-                ? 'text-slate-200 hover:bg-slate-700/80'
-                : 'bg-cyan-700 text-white border-cyan-500 hover:bg-cyan-600'
-            }`}
-            title={showRaw ? 'Showing raw OCR text' : 'Showing cleaned text'}
-          >
-            {showRaw ? <FileText className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            {showRaw ? 'Raw' : 'Pretty'}
-          </button>
-
-          <button
-            onClick={copyText}
-            className="control px-4 text-sm font-medium text-slate-100 hover:bg-slate-700/80 flex items-center"
-          >
-            {copied ? (
-              <>
-                <Check className="h-4 w-4 mr-2 text-green-600" />
-                Copied!
-              </>
-            ) : (
-              <>
-                <Copy className="h-4 w-4 mr-2" />
-                Copy Text
-              </>
-            )}
-          </button>
         </div>
       </div>
 
-      {/* Document Content */}
-      <div className="prose max-w-none">
-        <div className="whitespace-pre-wrap text-gray-800 font-mono text-sm leading-relaxed bg-gray-50 p-6 rounded-lg">
-          {renderContent()}
+      {/* Main Content Area */}
+      <div
+        ref={contentRef}
+        className="flex-1 overflow-y-auto p-6 md:p-12 transition-all duration-500 custom-scrollbar bg-slate-950/10"
+      >
+        <div className="max-w-4xl mx-auto">
+          {evidence.metadata?.key_excerpts?.length > 0 && !showRaw && (
+            <div className="mb-12 border-l-4 border-violet-500/40 pl-6 py-2 bg-violet-500/5 rounded-r-2xl pr-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Bookmark className="w-4 h-4 text-violet-400" />
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-300">
+                  Forensic Highlights
+                </span>
+              </div>
+              {evidence.metadata.key_excerpts.map((excerpt: string, i: number) => (
+                <p key={i} className="text-sm text-slate-300 italic leading-relaxed mb-4 last:mb-0">
+                  "{excerpt}"
+                </p>
+              ))}
+            </div>
+          )}
+
+          <div className="prose prose-invert max-w-none">
+            <div
+              className={`whitespace-pre-wrap leading-relaxed ${showRaw ? 'font-mono text-xs opacity-70' : 'font-sans text-base text-slate-200'}`}
+            >
+              {renderContent()}
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -14,7 +14,6 @@ import {
   EyeOff,
   ArrowRight,
   Info,
-  X,
 } from 'lucide-react';
 import { useToasts } from '../common/useToasts';
 import { ForensicDocumentAnalyzer } from './ForensicDocumentAnalyzer';
@@ -24,6 +23,7 @@ import MultiSourceCorrelationEngine from './MultiSourceCorrelationEngine';
 import ForensicReportGenerator from './ForensicReportGenerator';
 import { transformToNetwork } from '../../utils/networkDataUtils';
 import { computeForensicConfidence, type ConfidenceResult } from '../../utils/forensicConfidence';
+import { CloseButton } from '../common/CloseButton';
 
 interface ForensicAnalysisWorkspaceProps {
   investigation: Investigation;
@@ -747,13 +747,12 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
                   {forensicTools.find((t) => t.id === selectedConfidenceTool)?.name}
                 </p>
               </div>
-              <button
-                className="p-2 rounded hover:bg-gray-800 text-gray-300"
+              <CloseButton
                 onClick={() => setSelectedConfidenceTool(null)}
-                aria-label="Close confidence details"
-              >
-                <X className="w-4 h-4" />
-              </button>
+                size="sm"
+                label="Close confidence details"
+                className="bg-transparent border-gray-700 text-gray-300 hover:bg-gray-800"
+              />
             </div>
             {(() => {
               const details = (stats as any)[selectedConfidenceTool]?.confidenceDetails as

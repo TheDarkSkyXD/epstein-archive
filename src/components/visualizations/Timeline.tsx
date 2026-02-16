@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { FileText, Calendar, Users, ArrowUp, ArrowDown } from 'lucide-react';
+import { CloseButton } from '../common/CloseButton';
 
 interface EntityLink {
   id: number;
@@ -341,12 +342,12 @@ export const Timeline: React.FC<TimelineProps> = React.memo(({ className = '' })
             >
               <div className="p-6 border-b border-slate-700 flex items-center justify-between bg-slate-800/50">
                 <h3 className="text-xl font-bold text-white pr-8">{selectedEvent.title}</h3>
-                <button
+                <CloseButton
                   onClick={() => setSelectedEvent(null)}
-                  className="text-slate-400 hover:text-white transition-colors p-2 hover:bg-slate-700 rounded-lg"
-                >
-                  ✕
-                </button>
+                  size="sm"
+                  label="Close timeline event"
+                  className="bg-transparent hover:bg-slate-700 border-slate-700 text-slate-400 hover:text-white"
+                />
               </div>
 
               <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Download, ZoomIn, ZoomOut, RotateCw } from 'lucide-react';
+import { Download, ZoomIn, ZoomOut, RotateCw } from 'lucide-react';
+import { CloseButton } from '../common/CloseButton';
 
 interface MediaViewerProps {
   filePath: string;
@@ -233,13 +234,12 @@ export const MediaViewer: React.FC<MediaViewerProps> = ({
               >
                 <Download className="w-5 h-5" />
               </button>
-              <button
+              <CloseButton
                 onClick={onClose}
-                className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
-                title="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
+                size="sm"
+                label="Close media viewer"
+                className="bg-transparent hover:bg-slate-700 border-slate-700"
+              />
             </>
           )}
         </div>

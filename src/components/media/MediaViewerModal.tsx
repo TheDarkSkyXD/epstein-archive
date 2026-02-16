@@ -23,6 +23,7 @@ import LocationMap from '../visualizations/LocationMap';
 import TagSelector from '../common/TagSelector';
 import PeopleSelector from '../entities/PeopleSelector';
 import { useScrollLock } from '../../hooks/useScrollLock';
+import { CloseButton } from '../common/CloseButton';
 
 interface MediaViewerModalProps {
   images: MediaImage[];
@@ -342,12 +343,12 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
         {/* Toolbar */}
         <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-black/80 to-transparent p-4 flex justify-between items-start z-20 pointer-events-none">
           <div className="pointer-events-auto flex items-center gap-4">
-            <button
+            <CloseButton
               onClick={onClose}
-              className="p-2 rounded-full bg-black/40 hover:bg-black/60 text-white/80 hover:text-white transition-colors"
-            >
-              <X size={20} />
-            </button>
+              size="sm"
+              label="Close media viewer"
+              className="bg-black/40 hover:bg-black/60 text-white/80 hover:text-white border-white/20"
+            />
             <div className="text-white drop-shadow-md">
               <h2 className="font-semibold text-lg leading-tight truncate max-w-md">
                 {currentImage.title}
@@ -468,12 +469,12 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({
                         <Edit2 size={16} />
                       </button>
                     )}
-                    <button
+                    <CloseButton
                       onClick={() => setShowSidebar(false)}
-                      className="md:hidden text-slate-500 hover:text-white"
-                    >
-                      <X size={20} />
-                    </button>
+                      size="sm"
+                      label="Close media details"
+                      className="md:hidden bg-transparent border-slate-700 text-slate-500 hover:text-white"
+                    />
                   </div>
                 </div>
                 <p className="text-sm text-slate-400 truncate" title={currentImage.filename}>

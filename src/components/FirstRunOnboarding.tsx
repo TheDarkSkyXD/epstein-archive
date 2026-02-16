@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { X, ArrowRight, Filter, Search, Flag, Plus } from 'lucide-react';
+import { ArrowRight, Filter, Search, Flag, Plus } from 'lucide-react';
+import { CloseButton } from './common/CloseButton';
 
 interface FirstRunOnboardingProps {
   onComplete: () => void;
@@ -72,13 +73,12 @@ export const FirstRunOnboarding: React.FC<FirstRunOnboardingProps> = ({ onComple
             <span className="w-2 h-8 bg-cyan-500 rounded-full"></span>
             Getting Started
           </h2>
-          <button
+          <CloseButton
             onClick={handleSkip}
-            className="p-2 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
-            aria-label="Close"
-          >
-            <X className="h-5 w-5" />
-          </button>
+            size="md"
+            label="Close onboarding"
+            className="bg-transparent hover:bg-slate-800 border-slate-700"
+          />
         </div>
 
         {/* Progress */}

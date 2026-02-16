@@ -14,6 +14,8 @@ import {
   AlertTriangle,
   Flag,
 } from 'lucide-react';
+import { CloseButton } from '../common/CloseButton';
+import { Tabs, TabItem } from '../common/Tabs';
 
 export interface EvidenceAnnotation {
   id: string;
@@ -363,55 +365,46 @@ export const EvidenceAnnotationPanel: React.FC<EvidenceAnnotationPanelProps> = (
                 <p className="text-sm text-slate-500 mt-2 line-clamp-2">{evidenceDescription}</p>
               )}
             </div>
-            <button
+            <CloseButton
               onClick={onClose}
-              className="p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors shrink-0"
-            >
-              <X className="w-6 h-6" />
-            </button>
+              size="md"
+              label="Close evidence annotation"
+              className="bg-transparent hover:bg-white/10 border-slate-700 text-slate-400 hover:text-white shrink-0"
+            />
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-2 mt-6">
-            {[
-              { id: 'notes', label: 'Notes', icon: MessageSquare, count: noteAnnotations.length },
+          <Tabs
+            tabs={[
               {
-                id: 'highlights',
+                key: 'notes',
+                label: 'Notes',
+                icon: <MessageSquare className="w-4 h-4" />,
+                count: noteAnnotations.length,
+              },
+              {
+                key: 'highlights',
                 label: 'Highlights',
-                icon: Highlighter,
+                icon: <Highlighter className="w-4 h-4" />,
                 count: highlightAnnotations.length,
               },
-              { id: 'tags', label: 'Tags', icon: Tag, count: selectedTags.length },
               {
-                id: 'classification',
+                key: 'tags',
+                label: 'Tags',
+                icon: <Tag className="w-4 h-4" />,
+                count: selectedTags.length,
+              },
+              {
+                key: 'classification',
                 label: 'Classification',
-                icon: FolderOpen,
+                icon: <FolderOpen className="w-4 h-4" />,
                 count: classificationAnnotation ? 1 : 0,
               },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  activeTab === tab.id
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                }`}
-              >
-                <tab.icon className="w-4 h-4" />
-                {tab.label}
-                {tab.count > 0 && (
-                  <span
-                    className={`px-1.5 py-0.5 text-xs rounded-full ${
-                      activeTab === tab.id ? 'bg-blue-500' : 'bg-slate-600'
-                    }`}
-                  >
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
+            ]}
+            activeTab={activeTab}
+            onChange={(key) => setActiveTab(key as any)}
+            className="!bg-transparent !border-none !px-0"
+          />
         </div>
 
         {/* Content */}

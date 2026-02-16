@@ -1,7 +1,8 @@
 import { createPortal } from 'react-dom';
-import { X, ExternalLink } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { AddToInvestigationButton } from '../common/AddToInvestigationButton';
 import { useScrollLock } from '../../hooks/useScrollLock';
+import { CloseButton } from '../common/CloseButton';
 
 interface ArticleContent {
   id: number;
@@ -83,12 +84,12 @@ export const ArticleViewerModal: React.FC<Props> = ({ article, highlight, onClos
               </h2>
             </div>
 
-            <button
+            <CloseButton
               onClick={onClose}
-              className="absolute top-4 right-4 p-2 bg-black/40 hover:bg-black/60 text-white rounded-full transition-colors backdrop-blur-md border border-white/10 z-10"
-            >
-              <X size={24} />
-            </button>
+              size="md"
+              label="Close article viewer"
+              className="absolute top-4 right-4 bg-black/40 hover:bg-black/60 text-white border-white/10 z-10"
+            />
           </div>
 
           <div className="p-6 md:p-10">

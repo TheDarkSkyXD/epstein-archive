@@ -34,6 +34,7 @@ import {
   Cell,
 } from 'recharts';
 import { DocumentMetadataPanel } from '../documents/DocumentMetadataPanel';
+import { Tabs, TabItem } from '../common/Tabs';
 
 // Set up PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
@@ -636,54 +637,37 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                 </div>
 
                 {/* Tabs */}
-                <div className="bg-gray-800 border-b border-gray-700 px-6 py-3">
-                  <div className="flex gap-2">
-                    {[
-                      { id: 'dashboard', label: 'Dashboard', icon: FileText, count: undefined },
-                      {
-                        id: 'entities',
-                        label: 'Entities',
-                        icon: User,
-                        count: analysis.entities.length,
-                      },
-                      {
-                        id: 'patterns',
-                        label: 'Patterns',
-                        icon: FileText,
-                        count: analysis.patterns.length,
-                      },
-                      {
-                        id: 'anomalies',
-                        label: 'Anomalies',
-                        icon: AlertTriangle,
-                        count: analysis.anomalies.length,
-                      },
-                      { id: 'metadata', label: 'Metadata', icon: FileText },
-                    ].map((tab) => (
-                      <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id as any)}
-                        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                          activeTab === tab.id
-                            ? 'bg-red-600 text-white'
-                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                        }`}
-                      >
-                        <tab.icon className="w-4 h-4" />
-                        {tab.label}
-                        {tab.count !== undefined && (
-                          <span
-                            className={`px-1.5 py-0.5 rounded text-xs ${
-                              activeTab === tab.id ? 'bg-red-700' : 'bg-gray-600'
-                            }`}
-                          >
-                            {tab.count}
-                          </span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <Tabs
+                  tabs={[
+                    {
+                      key: 'dashboard',
+                      label: 'Dashboard',
+                      icon: <FileText className="w-4 h-4" />,
+                    },
+                    {
+                      key: 'entities',
+                      label: 'Entities',
+                      icon: <User className="w-4 h-4" />,
+                      count: analysis.entities.length,
+                    },
+                    {
+                      key: 'patterns',
+                      label: 'Patterns',
+                      icon: <FileText className="w-4 h-4" />,
+                      count: analysis.patterns.length,
+                    },
+                    {
+                      key: 'anomalies',
+                      label: 'Anomalies',
+                      icon: <AlertTriangle className="w-4 h-4" />,
+                      count: analysis.anomalies.length,
+                    },
+                    { key: 'metadata', label: 'Metadata', icon: <FileText className="w-4 h-4" /> },
+                  ]}
+                  activeTab={activeTab}
+                  onChange={(key) => setActiveTab(key as any)}
+                  className="!bg-gray-800 !border-gray-700 !px-6"
+                />
 
                 {/* Tab Content */}
                 <div className="flex-1 overflow-y-auto p-6">

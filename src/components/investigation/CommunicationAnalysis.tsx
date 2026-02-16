@@ -11,9 +11,9 @@ import {
   Filter,
   Mail,
   Phone,
-  X,
 } from 'lucide-react';
 import { useToasts } from '../common/useToasts';
+import { CloseButton } from '../common/CloseButton';
 
 interface CommunicationAnalysisProps {
   investigation: Investigation;
@@ -685,13 +685,12 @@ export const CommunicationAnalysis: React.FC<CommunicationAnalysisProps> = ({
                   </span>
                 </div>
               </div>
-              <button
+              <CloseButton
                 onClick={() => setSelectedPattern(null)}
-                className="p-2 rounded-full hover:bg-slate-100 text-gray-400 hover:text-gray-600 transition-colors"
-                aria-label="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
+                size="sm"
+                label="Close communication pattern details"
+                className="border-slate-200 bg-transparent text-gray-500 hover:bg-slate-100 hover:text-gray-700"
+              />
             </div>
 
             <div className="space-y-4">

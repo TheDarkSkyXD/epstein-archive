@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useCallback, Profiler } from 'reac
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  X,
   Search,
   FileText,
   Activity,
@@ -33,6 +32,16 @@ import { Skeleton } from './Skeleton';
 import { NetworkGraph } from '../visualizations/NetworkGraph';
 import Icon from './Icon';
 import { useScrollLock } from '../../hooks/useScrollLock';
+import { CloseButton } from './CloseButton';
+import { Tabs, TabItem } from './Tabs';
+
+const EVIDENCE_TABS: TabItem[] = [
+  { key: 'overview', label: 'Overview' },
+  { key: 'evidence', label: 'Evidence' },
+  { key: 'investigations', label: 'Investigations' },
+  { key: 'media', label: 'Media' },
+  { key: 'network', label: 'Network' },
+];
 
 interface EvidenceModalProps {
   entityId: string;
@@ -532,31 +541,20 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                 )}
 
                 {/* ACTION TABS */}
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  {['overview', 'evidence', 'investigations', 'media', 'network'].map((tab) => (
-                    <button
-                      key={tab}
-                      onClick={() => handleTabChange(tab as any)}
-                      className={cn(
-                        'chip h-10 px-4 text-sm font-medium transition-colors',
-                        activeTab === tab
-                          ? 'text-cyan-100 border-cyan-300/45 bg-slate-700/70'
-                          : 'text-slate-300 hover:bg-slate-700/65 hover:text-white',
-                      )}
-                    >
-                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                    </button>
-                  ))}
-                </div>
+                <Tabs
+                  tabs={EVIDENCE_TABS}
+                  activeTab={activeTab}
+                  onChange={(key) => handleTabChange(key as any)}
+                  className="!bg-transparent !border-none !px-0"
+                />
               </div>
 
-              <button
+              <CloseButton
                 onClick={onClose}
-                className="control h-10 w-10 p-0 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
-                aria-label="Close entity profile"
-              >
-                <X size={24} />
-              </button>
+                size="md"
+                label="Close entity profile"
+                className="control border-slate-600 text-slate-400 hover:text-white"
+              />
             </div>
 
             {/* CONTENT AREA */}

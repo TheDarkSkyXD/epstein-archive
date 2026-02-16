@@ -555,7 +555,6 @@ export const documentsRepository = {
   search: (query: string, limit: number = 50) => {
     // FTS or LIKE search
     // documentsRepository.getDocuments implies filters, but FTS logic often separate.
-    // documentsRepository.getDocuments implies filters, but FTS logic often separate.
     const db = getDb();
     // If documents_fts exists, use it? Currently it's broken or not reliable without title triggers.
     // Fallback to LIKE
@@ -567,5 +566,69 @@ export const documentsRepository = {
      `;
     const pattern = `%${query}%`;
     return db.prepare(sql).all(pattern, pattern, limit);
+  },
+
+  /**
+   * Finds documents that share entities with the specified document.
+   * Grouped and sorted by shared significance.
+   */
+  getRelatedDocuments: (documentId: string, limit: number = 10) => {
+    const db = getDb();
+
+    // 1. Get entities for the source document
+    const sourceEntities = db
+      .prepare(
+        `
+      SELECT entity_id 
+      FROM entity_mentions 
+      WHERE document_id = ?
+    `,
+      )
+      .all(documentId) as Array<{ entity_id: number }>;
+
+    if (sourceEntities.length === 0) return [];
+
+    const entityIds = sourceEntities.map((e) => e.entity_id);
+    const placeholders = entityIds.map(() => '?').join(',');
+
+    // 2. Find other documents sharing these entities
+    const sql = `
+      SELECT 
+        d.id,
+        COALESCE(NULLIF(d.title, ''), d.file_name) as title,
+        d.file_name as fileName,
+        d.file_type as fileType,
+        d.evidence_type as evidenceType,
+        d.red_flag_rating as redFlagRating,
+        d.date_created as dateCreated,
+        COUNT(DISTINCT em.entity_id) as sharedEntityCount,
+        GROUP_CONCAT(DISTINCT e.full_name) as sharedEntitiesList
+      FROM documents d
+      JOIN entity_mentions em ON d.id = em.document_id
+      JOIN entities e ON em.entity_id = e.id
+      WHERE em.entity_id IN (${placeholders})
+        AND d.id != ?
+      GROUP BY d.id
+      ORDER BY sharedEntityCount DESC, d.red_flag_rating DESC, d.date_created DESC
+      LIMIT ?
+    `;
+
+    const related = db.prepare(sql).all(...entityIds, documentId, limit) as any[];
+
+    return related.map((doc) => ({
+      id: String(doc.id),
+      title: doc.title,
+      fileName: doc.fileName,
+      fileType: doc.fileType,
+      evidenceType: doc.evidenceType || 'document',
+      redFlagRating: doc.redFlagRating || 0,
+      dateCreated: doc.dateCreated,
+      sharedCount: doc.sharedEntityCount,
+      reasons: (doc.sharedEntitiesList || '')
+        .split(',')
+        .slice(0, 3)
+        .map((name: string) => `Shared entity: ${name}`),
+      sharedEntities: (doc.sharedEntitiesList || '').split(',').slice(0, 5),
+    }));
   },
 };

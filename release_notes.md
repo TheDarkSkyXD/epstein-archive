@@ -1,3 +1,25 @@
+## v13.11.0 - 2026-02-16 - Navigation and Investigation UX Reliability Upgrade
+
+### Unified close controls and modal polish
+
+- Standardized close actions across major modals and overlays to a single circular close button with consistent focus and keyboard behavior.
+- Improved modal/header visual consistency so close affordances are predictable across documents, media, onboarding, and investigation views.
+
+### Document browser controls and layout cleanup
+
+- Rebuilt category and significance filters into true segmented pill groups (single-shell segmented controls) to remove nested-box artifacts.
+- Updated the Jump-to-page action to a filled circular right-arrow control for clearer action hierarchy.
+- Improved desktop navigation and filter fit behavior so labels are fully visible in desktop layouts without truncation.
+
+### Investigation and entity quality improvements
+
+- Enforced baseline five-flag ratings for Jeffrey Epstein, Ghislaine Maxwell, and Donald Trump so high-priority entities cannot drift below expected risk baseline.
+- Fixed subject-card pagination thinning that caused partially filled pages by removing post-pagination over-pruning.
+
+### Routing and path reliability hardening
+
+- Added app-level fallback handling for direct document file URLs so deep links recover into the in-app document experience when proxy rewriting is imperfect.
+
 ## v13.10.3 - 2026-02-16 - Pane System Unification and Investigations UX Reliability
 
 ### Reusable collapsible/resizable pane system

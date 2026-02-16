@@ -422,6 +422,45 @@ function App() {
     }
   }, [location.pathname, documentModalId, setSelectedPerson, setSelectedDocumentId]);
 
+  // Safety net for legacy justice.gov path swaps when edge proxy serves SPA shell.
+  // Example: /epstein/files/DataSet%209/EFTA01188336.pdf
+  useEffect(() => {
+    if (!location.pathname.startsWith('/epstein/files/')) return;
+    const suffix = location.pathname.replace(/^\/epstein\/files\//, '');
+    if (!suffix) return;
+
+    let cancelled = false;
+    const resolveAndNavigate = async () => {
+      try {
+        const response = await fetch(
+          `/api/resolve/epstein-file?path=${encodeURIComponent(suffix)}`,
+          {
+            credentials: 'include',
+          },
+        );
+        if (!response.ok) return;
+
+        const payload = (await response.json()) as { redirectTo?: string; documentId?: string };
+        if (cancelled) return;
+
+        if (payload.redirectTo) {
+          navigate(payload.redirectTo, { replace: true });
+          return;
+        }
+        if (payload.documentId) {
+          navigate(`/documents/${payload.documentId}`, { replace: true });
+        }
+      } catch (error) {
+        console.error('Failed to resolve legacy epstein path:', error);
+      }
+    };
+
+    void resolveAndNavigate();
+    return () => {
+      cancelled = true;
+    };
+  }, [location.pathname, navigate]);
+
   // Keyboard shortcuts for power users
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -937,20 +976,17 @@ function App() {
       : navLayoutMode === 'compact'
         ? 'gap-1.5 h-10 px-2 md:px-2.5'
         : 'gap-1.5 h-11 px-3 lg:px-4'
-  } rounded-none transition-all duration-200 whitespace-nowrap border-0 bg-transparent min-w-0 w-full`;
+  } rounded-none transition-all duration-200 whitespace-nowrap border-0 bg-transparent ${
+    navLayoutMode === 'icons' ? 'w-9' : 'w-auto'
+  }`;
   const getNavSegmentClass = (isActive: boolean, activeClass: string, extraClass: string = '') =>
     `${navSegmentBaseClass} ${
       isActive
         ? `${activeClass} text-white`
         : 'text-slate-300 hover:text-white hover:bg-slate-800/55'
     } ${extraClass}`.trim();
-  const navItemClass = navLayoutMode === 'icons' ? 'shrink-0' : 'min-w-0 flex-1';
-  const navLabelClass =
-    navLayoutMode === 'icons'
-      ? 'hidden'
-      : navLayoutMode === 'compact'
-        ? 'inline min-w-0 max-w-[7rem] lg:max-w-[8rem] truncate'
-        : 'inline min-w-0 max-w-[8rem] lg:max-w-[10rem] truncate';
+  const navItemClass = 'shrink-0';
+  const navLabelClass = navLayoutMode === 'icons' ? 'hidden' : 'inline';
 
   useEffect(() => {
     const track = navTrackRef.current;

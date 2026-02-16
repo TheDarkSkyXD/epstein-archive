@@ -3,6 +3,38 @@ import { SearchFilters, PaginatedResponse } from './optimizedDataLoader';
 export type { SearchFilters, PaginatedResponse } from './optimizedDataLoader';
 import { apiClient } from './apiClient';
 
+const FIVE_FLAG_BASELINE_ALIASES = new Set([
+  'jeffrey epstein',
+  'epstein',
+  'ghislaine maxwell',
+  'maxwell',
+  'donald trump',
+  'donald j trump',
+  'donald john trump',
+  'president donald trump',
+  'djt',
+  'the donald',
+]);
+
+const normalizeEntityName = (value: string): string =>
+  value
+    .toLowerCase()
+    .replace(/[.,'"`]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const isFiveFlagBaselineEntity = (name?: string): boolean => {
+  if (!name) return false;
+  const normalized = normalizeEntityName(name);
+  if (!normalized) return false;
+  if (FIVE_FLAG_BASELINE_ALIASES.has(normalized)) return true;
+  return (
+    normalized.includes('jeffrey epstein') ||
+    normalized.includes('ghislaine maxwell') ||
+    normalized.includes('donald trump')
+  );
+};
+
 export class OptimizedDataService {
   private static instance: OptimizedDataService;
   private isInitialized: boolean = false;
@@ -180,6 +212,7 @@ export class OptimizedDataService {
               .map((person: any) => {
                 const baseRating = person.red_flag_rating ?? person.redFlagRating ?? 0;
                 const mentions = person.mentions || 0;
+                const displayName = person.fullName || person.name || '';
 
                 // Heuristic risk calibration from mentions, using Trump/Maxwell scale as baseline
                 let mentionRisk = 0;
@@ -191,16 +224,19 @@ export class OptimizedDataService {
                 else if (mentions >= 10) mentionRisk = 2;
 
                 const calibratedRating = Math.max(baseRating, mentionRisk);
+                const baselineRating = isFiveFlagBaselineEntity(displayName)
+                  ? Math.max(5, calibratedRating)
+                  : calibratedRating;
 
                 return {
                   ...person,
-                  name: person.fullName || person.name,
+                  name: displayName,
                   files: person.documentCount || person.files || 0,
                   likelihood_score: person.likelihoodLevel || person.likelihood_score,
                   role: person.primaryRole || person.role,
                   title: person.title,
                   title_variants: person.titleVariants || person.title_variants,
-                  red_flag_rating: calibratedRating,
+                  red_flag_rating: baselineRating,
                   evidence_types: person.evidenceTypes || person.evidence_types || [],
                 };
               })
@@ -266,6 +302,7 @@ export class OptimizedDataService {
                 .map((person: any) => {
                   const baseRating = person.red_flag_rating ?? person.redFlagRating ?? 0;
                   const mentions = person.mentions || 0;
+                  const displayName = person.fullName || person.name || '';
 
                   let mentionRisk = 0;
                   if (mentions >= 2000) mentionRisk = 5;
@@ -274,16 +311,19 @@ export class OptimizedDataService {
                   else if (mentions >= 10) mentionRisk = 2;
 
                   const calibratedRating = Math.max(baseRating, mentionRisk);
+                  const baselineRating = isFiveFlagBaselineEntity(displayName)
+                    ? Math.max(5, calibratedRating)
+                    : calibratedRating;
 
                   return {
                     ...person,
-                    name: person.fullName || person.name,
+                    name: displayName,
                     files: person.documentCount || person.files || 0,
                     likelihood_score: person.likelihoodLevel || person.likelihood_score,
                     role: person.primaryRole || person.role,
                     title: person.title,
                     title_variants: person.titleVariants || person.title_variants,
-                    red_flag_rating: calibratedRating,
+                    red_flag_rating: baselineRating,
                     evidence_types: person.evidenceTypes || person.evidence_types || [],
                   };
                 })

@@ -1,8 +1,8 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
 import { useModalFocusTrap } from '../hooks/useModalFocusTrap';
 import { useScrollLock } from '../hooks/useScrollLock';
+import { CloseButton } from './common/CloseButton';
 
 interface KeyboardShortcutsModalProps {
   isOpen: boolean;
@@ -73,13 +73,12 @@ const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ isOpen,
           <h2 id="keyboard-shortcuts-title" className="text-lg font-semibold text-white">
             Keyboard Shortcuts
           </h2>
-          <button
+          <CloseButton
             onClick={onClose}
-            className="p-2 rounded-full hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
-            aria-label="Close"
-          >
-            <X className="w-5 h-5" />
-          </button>
+            size="md"
+            label="Close keyboard shortcuts"
+            className="border-slate-600 bg-slate-800"
+          />
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">

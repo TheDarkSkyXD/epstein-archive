@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { X, ArrowRight, Target, FileText, BookOpen, CheckCircle } from 'lucide-react';
+import { ArrowRight, Target, FileText, BookOpen, CheckCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { CloseButton } from '../common/CloseButton';
 
 interface BoardOnboardingProps {
   onComplete: () => void;
@@ -84,12 +85,12 @@ export const BoardOnboarding: React.FC<BoardOnboardingProps> = ({ onComplete, on
         {/* Content Area */}
         <div className="p-8 pb-6 flex flex-col items-center text-center">
           <div className="absolute top-4 right-4">
-            <button
+            <CloseButton
               onClick={onSkip}
-              className="p-1 rounded-full hover:bg-slate-800 text-slate-500 hover:text-white transition-colors"
-            >
-              <X className="h-5 w-5" />
-            </button>
+              size="sm"
+              label="Close board onboarding"
+              className="bg-transparent hover:bg-slate-800 border-slate-700"
+            />
           </div>
 
           <AnimatePresence mode="wait">

@@ -647,6 +647,11 @@ class ApiClient {
     };
   }
 
+  async getRelatedDocuments(id: string, limit: number = 10): Promise<any[]> {
+    const url = `${API_BASE_URL}/documents/${id}/related?limit=${limit}`;
+    return this.fetchWithErrorHandling<any[]>(url);
+  }
+
   async getInvestigations(
     params: { status?: string; ownerId?: string; page?: number; limit?: number } = {},
   ): Promise<any> {

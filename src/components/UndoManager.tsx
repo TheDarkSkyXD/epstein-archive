@@ -1,5 +1,6 @@
 import React, { useReducer, useCallback, useEffect } from 'react';
 import { UndoAction, UndoActionType, UndoContext, UndoState } from './undoContext';
+import { CloseButton } from './common/CloseButton';
 
 // Create reducer for undo state
 const undoReducer = (state: UndoState, action: UndoActionType): UndoState => {
@@ -120,13 +121,12 @@ export const UndoProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 Undo
               </button>
             )}
-            <button
+            <CloseButton
               onClick={hideNotification}
-              className="ml-2 text-slate-400 hover:text-white"
-              aria-label="Close notification"
-            >
-              ×
-            </button>
+              size="sm"
+              label="Close notification"
+              className="ml-2 bg-transparent border-slate-700 text-slate-400 hover:text-white"
+            />
           </div>
         </div>
       )}

@@ -23,6 +23,7 @@ import {
   Tag,
   ChevronDown,
   ChevronRight,
+  ArrowRight,
   Network,
   Download,
   Eye,
@@ -1804,7 +1805,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
           {/* Category + significance chips on one row (desktop) */}
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div className="overflow-x-auto pb-1 min-w-0 flex-1">
-              <div className="inline-flex min-w-max items-center rounded-full border border-slate-700/75 bg-slate-900/65 p-1 divide-x divide-slate-700/70">
+              <div className="inline-flex min-w-max items-center rounded-full border border-slate-700/75 bg-slate-900/65 overflow-hidden divide-x divide-slate-700/80">
                 {[
                   { type: 'all', label: 'All', icon: <Folder className="w-3.5 h-3.5" /> },
                   { type: 'legal', label: 'Legal', icon: <Scale className="w-3.5 h-3.5" /> },
@@ -1821,27 +1822,26 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                     icon: <Landmark className="w-3.5 h-3.5" />,
                   },
                 ].map(({ type, label, icon }) => (
-                  <div key={type} className="px-1">
-                    <button
-                      onClick={() => {
-                        if (type === 'all') {
-                          handleFilterChange('categories', []);
-                        } else {
-                          handleFilterChange('categories', [type]);
-                        }
-                      }}
-                      className={`flex items-center gap-2 h-11 px-3 rounded-full text-sm font-medium transition-all shrink-0 ${
-                        (type === 'all' &&
-                          (!filters.categories || filters.categories.length === 0)) ||
-                        filters.categories?.includes(type)
-                          ? 'bg-blue-600 text-white border border-blue-500 shadow-blue-500/20'
-                          : 'bg-slate-800/80 text-gray-300 border border-slate-700 hover:bg-slate-700 hover:text-white'
-                      }`}
-                    >
-                      <span>{icon}</span>
-                      <span>{label}</span>
-                    </button>
-                  </div>
+                  <button
+                    key={type}
+                    onClick={() => {
+                      if (type === 'all') {
+                        handleFilterChange('categories', []);
+                      } else {
+                        handleFilterChange('categories', [type]);
+                      }
+                    }}
+                    className={`inline-flex items-center gap-2 h-11 px-4 text-sm font-medium transition-colors shrink-0 ${
+                      (type === 'all' &&
+                        (!filters.categories || filters.categories.length === 0)) ||
+                      filters.categories?.includes(type)
+                        ? 'bg-blue-600/95 text-white'
+                        : 'text-gray-300 hover:bg-slate-800/70 hover:text-white'
+                    }`}
+                  >
+                    <span>{icon}</span>
+                    <span>{label}</span>
+                  </button>
                 ))}
               </div>
             </div>
@@ -1853,64 +1853,58 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                   {DOJ_TRANCHE_OPTIONS.find((entry) => entry.value === selectedTranche)?.label}
                 </span>
               )}
-              <div className="inline-flex min-w-max items-center rounded-full border border-slate-700/75 bg-slate-900/65 p-1 divide-x divide-slate-700/70">
-                <div className="px-1">
-                  <button
-                    onClick={() => {
-                      const isActive =
-                        filters.redFlagLevel?.min === 4 && filters.redFlagLevel?.max === 5;
-                      handleRedFlagLevelChange(isActive ? 0 : 4, isActive ? 5 : 5);
-                    }}
-                    className={`flex items-center gap-2 h-11 px-3 rounded-full text-sm font-medium transition-all shrink-0 ${
-                      filters.redFlagLevel?.min === 4 && filters.redFlagLevel?.max === 5
-                        ? 'bg-red-900/80 text-white border border-red-500 shadow-red-500/20'
-                        : 'bg-slate-800/80 text-gray-300 border border-slate-700 hover:bg-slate-700 hover:text-white'
-                    }`}
-                  >
-                    <div
-                      className={`w-2 h-2 rounded-full ${filters.redFlagLevel?.min === 4 && filters.redFlagLevel?.max === 5 ? 'bg-red-400' : 'bg-red-600'}`}
-                    ></div>
-                    <span>High Significance</span>
-                  </button>
-                </div>
-                <div className="px-1">
-                  <button
-                    onClick={() => {
-                      const isActive =
-                        filters.redFlagLevel?.min === 2 && filters.redFlagLevel?.max === 3;
-                      handleRedFlagLevelChange(isActive ? 0 : 2, isActive ? 5 : 3);
-                    }}
-                    className={`flex items-center gap-2 h-11 px-3 rounded-full text-sm font-medium transition-all shrink-0 ${
-                      filters.redFlagLevel?.min === 2 && filters.redFlagLevel?.max === 3
-                        ? 'bg-amber-900/80 text-white border border-amber-500 shadow-amber-500/20'
-                        : 'bg-slate-800/80 text-gray-300 border border-slate-700 hover:bg-slate-700 hover:text-white'
-                    }`}
-                  >
-                    <div
-                      className={`w-2 h-2 rounded-full ${filters.redFlagLevel?.min === 2 && filters.redFlagLevel?.max === 3 ? 'bg-amber-400' : 'bg-amber-600'}`}
-                    ></div>
-                    <span>Medium</span>
-                  </button>
-                </div>
-                <div className="px-1">
-                  <button
-                    onClick={() => {
-                      const isActive =
-                        filters.redFlagLevel?.min === 0 && filters.redFlagLevel?.max === 1;
-                      handleRedFlagLevelChange(isActive ? 0 : 0, isActive ? 5 : 1);
-                    }}
-                    className={`flex items-center gap-2 h-11 px-3 rounded-full text-sm font-medium transition-all shrink-0 ${
-                      filters.redFlagLevel?.min === 0 && filters.redFlagLevel?.max === 1
-                        ? 'bg-emerald-900/80 text-white border border-emerald-500 shadow-emerald-500/20'
-                        : 'bg-slate-800/80 text-gray-300 border border-slate-700 hover:bg-slate-700 hover:text-white'
-                    }`}
-                  >
-                    <div
-                      className={`w-2 h-2 rounded-full ${filters.redFlagLevel?.min === 0 && filters.redFlagLevel?.max === 1 ? 'bg-emerald-400' : 'bg-emerald-600'}`}
-                    ></div>
-                    <span>Low</span>
-                  </button>
-                </div>
+              <div className="inline-flex min-w-max items-center rounded-full border border-slate-700/75 bg-slate-900/65 overflow-hidden divide-x divide-slate-700/80">
+                <button
+                  onClick={() => {
+                    const isActive =
+                      filters.redFlagLevel?.min === 4 && filters.redFlagLevel?.max === 5;
+                    handleRedFlagLevelChange(isActive ? 0 : 4, isActive ? 5 : 5);
+                  }}
+                  className={`inline-flex items-center gap-2 h-11 px-4 text-sm font-medium transition-colors shrink-0 ${
+                    filters.redFlagLevel?.min === 4 && filters.redFlagLevel?.max === 5
+                      ? 'bg-red-900/80 text-white'
+                      : 'text-gray-300 hover:bg-slate-800/70 hover:text-white'
+                  }`}
+                >
+                  <div
+                    className={`w-2 h-2 rounded-full ${filters.redFlagLevel?.min === 4 && filters.redFlagLevel?.max === 5 ? 'bg-red-400' : 'bg-red-600'}`}
+                  ></div>
+                  <span>High Significance</span>
+                </button>
+                <button
+                  onClick={() => {
+                    const isActive =
+                      filters.redFlagLevel?.min === 2 && filters.redFlagLevel?.max === 3;
+                    handleRedFlagLevelChange(isActive ? 0 : 2, isActive ? 5 : 3);
+                  }}
+                  className={`inline-flex items-center gap-2 h-11 px-4 text-sm font-medium transition-colors shrink-0 ${
+                    filters.redFlagLevel?.min === 2 && filters.redFlagLevel?.max === 3
+                      ? 'bg-amber-900/80 text-white'
+                      : 'text-gray-300 hover:bg-slate-800/70 hover:text-white'
+                  }`}
+                >
+                  <div
+                    className={`w-2 h-2 rounded-full ${filters.redFlagLevel?.min === 2 && filters.redFlagLevel?.max === 3 ? 'bg-amber-400' : 'bg-amber-600'}`}
+                  ></div>
+                  <span>Medium</span>
+                </button>
+                <button
+                  onClick={() => {
+                    const isActive =
+                      filters.redFlagLevel?.min === 0 && filters.redFlagLevel?.max === 1;
+                    handleRedFlagLevelChange(isActive ? 0 : 0, isActive ? 5 : 1);
+                  }}
+                  className={`inline-flex items-center gap-2 h-11 px-4 text-sm font-medium transition-colors shrink-0 ${
+                    filters.redFlagLevel?.min === 0 && filters.redFlagLevel?.max === 1
+                      ? 'bg-emerald-900/80 text-white'
+                      : 'text-gray-300 hover:bg-slate-800/70 hover:text-white'
+                  }`}
+                >
+                  <div
+                    className={`w-2 h-2 rounded-full ${filters.redFlagLevel?.min === 0 && filters.redFlagLevel?.max === 1 ? 'bg-emerald-400' : 'bg-emerald-600'}`}
+                  ></div>
+                  <span>Low</span>
+                </button>
               </div>
             </div>
           </div>
@@ -2266,9 +2260,11 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                   if (!Number.isFinite(page)) return;
                   setCurrentPage(Math.min(maxPage, Math.max(1, page)));
                 }}
-                className="h-full px-3 text-xs border-l border-slate-700 text-slate-200 hover:bg-slate-800/80"
+                className="mx-1 inline-flex h-8 w-8 items-center justify-center rounded-full bg-cyan-500 text-white transition-colors hover:bg-cyan-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/80 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+                title="Go to page"
+                aria-label="Go to page"
               >
-                Go
+                <ArrowRight className="w-4 h-4 stroke-[2.75]" />
               </button>
             </div>
           </div>

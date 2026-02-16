@@ -63,12 +63,36 @@ const VIP_DISPLAY_FALLBACKS = new Map<string, string>([
   ['sir mick jagger', 'Mick Jagger'],
 ]);
 
+const FIVE_FLAG_BASELINE_ALIASES = new Set([
+  'jeffrey epstein',
+  'epstein',
+  'ghislaine maxwell',
+  'maxwell',
+  'donald trump',
+  'donald j trump',
+  'donald john trump',
+  'president donald trump',
+  'djt',
+  'the donald',
+]);
+
 function normalizeVipDisplayName(value: string): string {
   return value
     .toLowerCase()
     .replace(/[.,'"`]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function isFiveFlagBaselineEntity(name: string | null | undefined): boolean {
+  if (!name) return false;
+  const normalized = normalizeVipDisplayName(name);
+  if (!normalized) return false;
+  if (FIVE_FLAG_BASELINE_ALIASES.has(normalized)) return true;
+  if (normalized.includes('jeffrey epstein')) return true;
+  if (normalized.includes('ghislaine maxwell')) return true;
+  if (normalized.includes('donald trump')) return true;
+  return false;
 }
 
 function upsertVipAlias(
@@ -451,9 +475,16 @@ export const entitiesRepository = {
       if (connCount > 10) drivers.push('Network Hub');
       if (drivers.length === 0 && e.was_agentic) drivers.push('AI Derived');
 
+      const displayName = resolveDisplayName(e.full_name || 'Unknown', vipDisplayLookup);
+      const baselineFiveFlags =
+        isFiveFlagBaselineEntity(displayName) || isFiveFlagBaselineEntity(e.full_name);
+      const objectiveRatingRaw = typeof e.red_flag_rating === 'number' ? e.red_flag_rating : 0;
+      const subjectiveRatingRaw =
+        typeof (e as any).red_flag_score === 'number' ? (e as any).red_flag_score : undefined;
+
       const dto: SubjectCardDTO = {
         id: String(e.id),
-        name: resolveDisplayName(e.full_name || 'Unknown', vipDisplayLookup),
+        name: displayName,
         role: e.primary_role || 'Unknown',
         short_bio: e.bio ? e.bio.substring(0, 150) : undefined,
         stats: {
@@ -463,11 +494,17 @@ export const entitiesRepository = {
           verified_media: e.media_count || 0,
         },
         forensics: {
-          risk_level: (e.risk_level as any) || 'LOW',
+          risk_level: baselineFiveFlags ? 'HIGH' : (e.risk_level as any) || 'LOW',
           evidence_ladder: ladder,
-          red_flag_objective: typeof e.red_flag_rating === 'number' ? e.red_flag_rating : undefined,
+          red_flag_objective: baselineFiveFlags
+            ? Math.max(5, objectiveRatingRaw)
+            : objectiveRatingRaw,
           red_flag_subjective:
-            typeof (e as any).red_flag_score === 'number' ? (e as any).red_flag_score : undefined,
+            typeof subjectiveRatingRaw === 'number'
+              ? baselineFiveFlags
+                ? Math.max(5, subjectiveRatingRaw)
+                : subjectiveRatingRaw
+              : undefined,
           signal_strength: {
             exposure: Math.round(exposure),
             connectivity: Math.round(connectivity),
@@ -492,33 +529,8 @@ export const entitiesRepository = {
       return true;
     });
 
-    const filteredSubjects = normalizedSubjects.filter((s) => {
-      const n = (s.name || '').toLowerCase();
-      if (n.length < 3) return false;
-      if (/[.@]/.test(n) || n.startsWith('http') || n.startsWith('www.')) return false;
-      if (ENTITY_BLACKLIST_REGEX.test(s.name)) return false as any;
-      for (const p of ENTITY_BLACKLIST_PATTERNS) {
-        if (n.includes(p.toLowerCase())) return false;
-      }
-      for (const p of ENTITY_PARTIAL_BLOCKLIST) {
-        if (n.includes(p.toLowerCase())) return false;
-      }
-      const lowSignals =
-        (s.stats?.mentions || 0) < 10 &&
-        (s.stats?.verified_media || 0) === 0 &&
-        (s.stats?.distinct_sources || 0) === 0;
-      const role = (s.role || '').toLowerCase();
-      if (lowSignals && (role === '' || role === 'unknown' || role === 'unk')) return false;
-      const hasBio = Boolean(s.short_bio && s.short_bio.trim().length > 0);
-      const hasEvidenceSignals =
-        (s.stats?.verified_media || 0) > 0 || (s.stats?.distinct_sources || 0) > 0;
-      if ((role === '' || role === 'unknown' || role === 'unk') && !hasBio && !hasEvidenceSignals)
-        return false;
-      return true;
-    });
-
     // Soft fallback: if strict default view returns zero, relax VIP/signal threshold but still enforce junk/pattern filters
-    if (isDefaultView && filteredSubjects.length === 0) {
+    if (isDefaultView && normalizedSubjects.length === 0) {
       const softWhere: string[] = [];
       const softParams: any = {};
       if (hasJunkFlag) softWhere.push('COALESCE(junk_flag,0)=0');
@@ -584,9 +596,16 @@ export const entitiesRepository = {
         if ((e.mentions || 0) > 50) drivers.push('Document Volume');
         const ladder =
           mediaCount > 0 || e.black_book_count > 0 ? 'L1' : (e.mentions || 0) > 50 ? 'L2' : 'L3';
+        const displayName = resolveDisplayName(e.full_name || 'Unknown', vipDisplayLookup);
+        const baselineFiveFlags =
+          isFiveFlagBaselineEntity(displayName) || isFiveFlagBaselineEntity(e.full_name);
+        const objectiveRatingRaw = typeof e.red_flag_rating === 'number' ? e.red_flag_rating : 0;
+        const subjectiveRatingRaw =
+          typeof (e as any).red_flag_score === 'number' ? (e as any).red_flag_score : undefined;
+
         return {
           id: String(e.id),
-          name: resolveDisplayName(e.full_name || 'Unknown', vipDisplayLookup),
+          name: displayName,
           role: e.primary_role || 'Unknown',
           short_bio: e.bio ? e.bio.substring(0, 150) : undefined,
           stats: {
@@ -596,12 +615,17 @@ export const entitiesRepository = {
             verified_media: mediaCount,
           },
           forensics: {
-            risk_level: (e.risk_level as any) || 'LOW',
+            risk_level: baselineFiveFlags ? 'HIGH' : (e.risk_level as any) || 'LOW',
             evidence_ladder: ladder,
-            red_flag_objective:
-              typeof e.red_flag_rating === 'number' ? e.red_flag_rating : undefined,
+            red_flag_objective: baselineFiveFlags
+              ? Math.max(5, objectiveRatingRaw)
+              : objectiveRatingRaw,
             red_flag_subjective:
-              typeof (e as any).red_flag_score === 'number' ? (e as any).red_flag_score : undefined,
+              typeof subjectiveRatingRaw === 'number'
+                ? baselineFiveFlags
+                  ? Math.max(5, subjectiveRatingRaw)
+                  : subjectiveRatingRaw
+                : undefined,
             signal_strength: {
               exposure: Math.round(exposure),
               connectivity: Math.round(connectivity),
@@ -645,7 +669,7 @@ export const entitiesRepository = {
     }
 
     return {
-      subjects: filteredSubjects,
+      subjects: normalizedSubjects,
       total: totalResult.total,
     };
   },

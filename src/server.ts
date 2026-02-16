@@ -205,6 +205,52 @@ app.use(inputValidationMiddleware);
 
 // Legacy justice.gov URL routing
 // Allows swapping justice.gov for epstein.academy to view documents in the app
+const resolveLegacyEpsteinFile = (db: any, rawSuffix: string): { id: string } | undefined => {
+  const cleanSuffix = rawSuffix.split('?')[0];
+  const decodedSuffix = decodeURIComponent(cleanSuffix);
+
+  const doc = db
+    .prepare(
+      `
+      SELECT id
+      FROM documents
+      WHERE file_path LIKE ?
+         OR file_path LIKE ?
+      LIMIT 1
+    `,
+    )
+    .get(`%/epstein/files/${cleanSuffix}`, `%/epstein/files/${decodedSuffix}`) as
+    | { id: string }
+    | undefined;
+
+  if (doc) return doc;
+
+  const filename = path.basename(decodedSuffix);
+  return db.prepare(`SELECT id FROM documents WHERE file_name = ? LIMIT 1`).get(filename) as
+    | { id: string }
+    | undefined;
+};
+
+app.get('/api/resolve/epstein-file', async (req, res, next) => {
+  try {
+    const db = getDb();
+    const suffix = String(req.query.path || '').trim();
+    if (!suffix) {
+      return res.status(400).json({ error: 'path query parameter is required' });
+    }
+
+    const doc = resolveLegacyEpsteinFile(db, suffix);
+    if (!doc) {
+      return res.status(404).json({ error: 'Document not found in Epstein Archive' });
+    }
+
+    return res.json({ documentId: String(doc.id), redirectTo: `/documents/${doc.id}` });
+  } catch (err) {
+    console.error('Error resolving legacy epstein file:', err);
+    next(err);
+  }
+});
+
 app.get('/epstein/files/*', async (req, res, next) => {
   try {
     const db = getDb();
@@ -215,45 +261,9 @@ app.get('/epstein/files/*', async (req, res, next) => {
       return res.status(404).send('Invalid path');
     }
 
-    const urlSuffix = match[1];
-    // Remove query string if present
-    const cleanSuffix = urlSuffix.split('?')[0];
-    const decodedSuffix = decodeURIComponent(cleanSuffix);
-
-    // Try to find the document
-    // 1. Exact suffix match (with %20)
-    // 2. Decoded suffix match (with spaces)
-    // 3. Filename match fallback
-    const doc = db
-      .prepare(
-        `
-      SELECT id 
-      FROM documents 
-      WHERE file_path LIKE ? 
-         OR file_path LIKE ?
-      LIMIT 1
-    `,
-      )
-      .get(`%/epstein/files/${cleanSuffix}`, `%/epstein/files/${decodedSuffix}`) as
-      | { id: string }
-      | undefined;
-
+    const doc = resolveLegacyEpsteinFile(db, match[1]);
     if (doc) {
       return res.redirect(`/documents/${doc.id}`);
-    }
-
-    // Fallback: Try filename only
-    const filename = path.basename(decodedSuffix);
-    const docByFilename = db
-      .prepare(
-        `
-      SELECT id FROM documents WHERE file_name = ? LIMIT 1
-    `,
-      )
-      .get(filename) as { id: string } | undefined;
-
-    if (docByFilename) {
-      return res.redirect(`/documents/${docByFilename.id}`);
     }
 
     res.status(404).send('Document not found in Epstein Archive');
@@ -287,6 +297,7 @@ const PUBLIC_ROUTES = [
   '/api/properties',
   '/api/emails',
   '/api/email',
+  '/api/resolve',
   '/api/black-book',
   '/api/subjects',
   '/api/investigations',
@@ -1537,6 +1548,18 @@ app.get('/api/documents/:id', async (req, res, next) => {
     res.json(doc);
   } catch (error) {
     console.error('Error fetching document by id:', error);
+    next(error);
+  }
+});
+
+app.get('/api/documents/:id/related', async (req, res, next) => {
+  try {
+    const id = req.params.id as string;
+    const limit = parseInt(req.query.limit as string) || 12;
+    const related = documentsRepository.getRelatedDocuments(id, limit);
+    res.json(related);
+  } catch (error) {
+    console.error('Error fetching related documents:', error);
     next(error);
   }
 });

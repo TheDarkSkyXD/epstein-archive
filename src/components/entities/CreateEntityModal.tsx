@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, User, Save } from 'lucide-react';
+import { User, Save } from 'lucide-react';
 import { apiClient } from '../../services/apiClient';
 import FormField from '../common/FormField';
 import { useModalFocusTrap } from '../../hooks/useModalFocusTrap';
 import { useToasts } from '../common/useToasts';
 import { useScrollLock } from '../../hooks/useScrollLock';
+import { CloseButton } from '../common/CloseButton';
 
 interface CreateEntityModalProps {
   onClose: () => void;
@@ -84,13 +85,12 @@ export const CreateEntityModal: React.FC<CreateEntityModalProps> = ({ onClose, o
             </div>
             <h2 className="text-xl font-bold text-white">Create New Subject</h2>
           </div>
-          <button
+          <CloseButton
             onClick={onClose}
-            className="p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
-            aria-label="Close"
-          >
-            <X className="w-5 h-5" />
-          </button>
+            size="md"
+            label="Close create entity modal"
+            className="bg-transparent hover:bg-white/10 border-slate-600"
+          />
         </div>
 
         {/* Form */}

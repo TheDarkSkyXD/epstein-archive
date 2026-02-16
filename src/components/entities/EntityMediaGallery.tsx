@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { X, ZoomIn, Play } from 'lucide-react';
+import { ZoomIn, Play } from 'lucide-react';
+import { CloseButton } from '../common/CloseButton';
 import Icon from '../common/Icon';
 
 interface MediaItem {
@@ -99,12 +100,12 @@ export const EntityMediaGallery: React.FC<EntityMediaGalleryProps> = ({
         >
           <div className="relative max-w-5xl w-full max-h-[90vh] flex flex-col items-center">
             {/* Close Button */}
-            <button
+            <CloseButton
               onClick={() => setSelectedMedia(null)}
-              className="absolute -top-12 right-0 p-2 text-slate-400 hover:text-white transition-colors"
-            >
-              <X className="w-6 h-6" />
-            </button>
+              size="md"
+              label="Close media lightbox"
+              className="absolute -top-12 right-0 bg-transparent border-slate-700 text-slate-400 hover:text-white"
+            />
 
             {/* Main Image */}
             <div

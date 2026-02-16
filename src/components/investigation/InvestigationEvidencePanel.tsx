@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import {
   FileText,
   Plus,
-  X,
   Search,
   AlertTriangle,
   FileSearch,
@@ -17,6 +16,7 @@ import {
 } from 'lucide-react';
 import { ENTITY_CATEGORY_ICONS } from '../../config/entityIcons';
 import { EvidenceAnnotationPanel, EvidenceAnnotation } from '../documents/EvidenceAnnotation';
+import { CloseButton } from '../common/CloseButton';
 
 interface Evidence {
   id: number;
@@ -183,12 +183,12 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
             </p>
           </div>
           {onClose && (
-            <button
+            <CloseButton
               onClick={onClose}
-              className="p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors shrink-0"
-            >
-              <X className="w-6 h-6" />
-            </button>
+              size="md"
+              label="Close evidence collection panel"
+              className="bg-transparent hover:bg-white/10 border-slate-700 text-slate-400 hover:text-white shrink-0"
+            />
           )}
         </div>
 
@@ -414,12 +414,12 @@ export const InvestigationEvidencePanel: React.FC<InvestigationEvidencePanelProp
             <div className="border-b border-slate-700 p-6">
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-bold text-white">Add Evidence</h3>
-                <button
+                <CloseButton
                   onClick={() => setShowAddModal(false)}
-                  className="p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
-                >
-                  <X className="w-6 h-6" />
-                </button>
+                  size="md"
+                  label="Close add evidence modal"
+                  className="bg-transparent hover:bg-white/10 border-slate-700 text-slate-400 hover:text-white"
+                />
               </div>
             </div>
             <div className="p-6">

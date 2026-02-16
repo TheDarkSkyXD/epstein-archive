@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, AlertCircle, Bookmark, ChevronRight, ChevronLeft } from 'lucide-react';
 import { prettifyOCRText } from '../../utils/prettifyOCR';
 
 interface InvestigationTextRendererProps {
@@ -34,7 +34,7 @@ const applySearchHighlight = (html: string, term?: string): string => {
   const regex = new RegExp(`(${tokens.join('|')})`, 'gi');
   return html.replace(
     regex,
-    '<mark class="bg-yellow-500/45 text-slate-50 px-0.5 rounded">$1</mark>',
+    '<mark class="search-match bg-amber-500/40 text-slate-50 px-0.5 rounded border-b border-amber-400/50">$1</mark>',
   );
 };
 
@@ -100,6 +100,9 @@ export const InvestigationTextRenderer: React.FC<InvestigationTextRendererProps>
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [hover, setHover] = useState<{ x: number; y: number; entity: any } | null>(null);
+  const [highlightDensity, setHighlightDensity] = useState<'off' | 'subtle' | 'strong'>('subtle');
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+  const [matchCount, setMatchCount] = useState(0);
 
   const entityList = useMemo(() => getEntityList(document), [document]);
 
@@ -123,6 +126,24 @@ export const InvestigationTextRenderer: React.FC<InvestigationTextRendererProps>
       if (normalized) set.add(normalized);
     });
     return set;
+  }, [document]);
+
+  const excerpts = useMemo(() => {
+    const fromMetadata =
+      document?.metadata?.high_significance_evidence || document?.metadata?.key_excerpts;
+    if (Array.isArray(fromMetadata)) return fromMetadata;
+    return [];
+  }, [document]);
+
+  const lowLegibility = useMemo(() => {
+    const ocrConf = document?.metadata?.ocr_confidence;
+    if (typeof ocrConf === 'number' && ocrConf < 0.6) return true;
+    const text = String(document?.content || '');
+    if (text.length > 500) {
+      const gibberishMatch = text.match(/[^a-zA-Z0-9\s\.,\-\n]/g);
+      if (gibberishMatch && gibberishMatch.length / text.length > 0.15) return true;
+    }
+    return false;
   }, [document]);
 
   const entityRegex = useMemo(() => {
@@ -149,11 +170,15 @@ export const InvestigationTextRenderer: React.FC<InvestigationTextRendererProps>
     (line: string): string => {
       let html = escapeHtml(line);
 
-      if (mode === 'clean' && showRecoveryHighlights && baselineTokens) {
+      if (mode === 'clean' && highlightDensity !== 'off' && baselineTokens) {
         html = html.replace(/([A-Za-z0-9']+)/g, (token) => {
           const normalized = token.toLowerCase();
           if (baselineTokens.has(normalized)) return token;
-          return `<span class="border-b border-emerald-500/55" data-recovery="true">${token}</span>`;
+          const style =
+            highlightDensity === 'strong'
+              ? 'bg-emerald-500/10 border-b border-emerald-500/60'
+              : 'border-b border-emerald-500/30';
+          return `<span class="${style}" data-recovery="true">${token}</span>`;
         });
       }
 
@@ -163,14 +188,14 @@ export const InvestigationTextRenderer: React.FC<InvestigationTextRendererProps>
           if (!entity) return match;
           const id = String(entity.id ?? entity.entity_id ?? '');
           const safeName = escapeHtml(match);
-          return `<button type="button" class="entity-inline text-cyan-300 underline decoration-cyan-500/60 underline-offset-2" data-entity-id="${id}" data-entity-name="${safeName}">${safeName}</button>`;
+          return `<button type="button" class="entity-inline text-cyan-300 hover:text-cyan-100 underline decoration-cyan-500/40 underline-offset-2 transition-colors" data-entity-id="${id}" data-entity-name="${safeName}">${safeName}</button>`;
         });
       }
 
       html = applySearchHighlight(html, searchTerm);
       return html;
     },
-    [baselineTokens, entityByName, entityRegex, mode, searchTerm, showRecoveryHighlights],
+    [baselineTokens, entityByName, entityRegex, mode, searchTerm, highlightDensity],
   );
 
   const processedSections = useMemo(
@@ -182,15 +207,37 @@ export const InvestigationTextRenderer: React.FC<InvestigationTextRendererProps>
     [renderLineHtml, sections],
   );
 
-  const allLines = useMemo(() => {
-    if (processedSections.length !== 1 || processedSections[0].id !== 'full') return [] as string[];
-    return processedSections[0].lines;
-  }, [processedSections]);
+  useEffect(() => {
+    if (!searchTerm) {
+      setMatchCount(0);
+      setCurrentMatchIndex(0);
+      return;
+    }
+    const matches = containerRef.current?.querySelectorAll('.search-match');
+    const count = matches?.length || 0;
+    setMatchCount(count);
+    if (count > 0) {
+      setCurrentMatchIndex(1);
+      matches?.[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      matches?.[0].classList.add('ring-2', 'ring-amber-400');
+    }
+  }, [searchTerm, processedSections]);
 
-  const useVirtualization = false;
-  const lineHeight = 24;
-  const virtualStart = 0;
-  const visibleLines = allLines;
+  const navigateMatch = (direction: 'next' | 'prev') => {
+    const matches = containerRef.current?.querySelectorAll('.search-match');
+    if (!matches || matches.length === 0) return;
+
+    matches[currentMatchIndex - 1]?.classList.remove('ring-2', 'ring-amber-400');
+
+    let nextIndex = direction === 'next' ? currentMatchIndex + 1 : currentMatchIndex - 1;
+    if (nextIndex > matches.length) nextIndex = 1;
+    if (nextIndex < 1) nextIndex = matches.length;
+
+    setCurrentMatchIndex(nextIndex);
+    const target = matches[nextIndex - 1];
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target.classList.add('ring-2', 'ring-amber-400');
+  };
 
   useEffect(() => {
     const container = containerRef.current;
@@ -212,8 +259,6 @@ export const InvestigationTextRenderer: React.FC<InvestigationTextRendererProps>
       setHover({ x: event.clientX + 12, y: event.clientY + 10, entity });
     };
 
-    const handleMouseLeave = () => setHover(null);
-
     const handleClick = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
       const entityButton = target.closest('.entity-inline') as HTMLElement | null;
@@ -228,94 +273,156 @@ export const InvestigationTextRenderer: React.FC<InvestigationTextRendererProps>
     };
 
     container.addEventListener('mousemove', handlePointer);
-    container.addEventListener('mouseleave', handleMouseLeave);
     container.addEventListener('click', handleClick);
 
     return () => {
       container.removeEventListener('mousemove', handlePointer);
-      container.removeEventListener('mouseleave', handleMouseLeave);
       container.removeEventListener('click', handleClick);
     };
-  }, [entityByName, entityList, onEntitySelect, useVirtualization]);
+  }, [entityByName, entityList, onEntitySelect]);
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="text-xs text-slate-400">
-          {mode === 'clean' ? 'Clean text view' : 'Original OCR view'}
-          {document?.contentRefined && mode === 'clean' && (
-            <span className="ml-2 inline-flex items-center gap-1 text-violet-300">
-              <Sparkles className="w-3.5 h-3.5" /> AI recovery available
+    <div className="space-y-6 animate-in fade-in duration-500">
+      {lowLegibility && (
+        <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-xl flex items-start gap-4">
+          <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0">
+            <AlertCircle className="w-6 h-6 text-amber-500" />
+          </div>
+          <div className="flex-1">
+            <h4 className="text-sm font-bold text-amber-200 uppercase tracking-widest mb-1">
+              Low Legibility Warning
+            </h4>
+            <div className="text-xs text-slate-300 leading-relaxed max-w-2xl">
+              OCR data quality is below forensic confidence threshold. Some entities or text may be
+              missing. Recommendation: Switch to <strong>Raw</strong> view or open{' '}
+              <strong>Original PDF</strong> for confirmation.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {excerpts.length > 0 && (
+        <section className="bg-violet-500/5 border border-violet-500/20 rounded-xl overflow-hidden">
+          <div className="bg-violet-500/10 px-4 py-2 border-b border-violet-500/20 flex items-center gap-2">
+            <Bookmark className="w-4 h-4 text-violet-400" />
+            <span className="text-[10px] font-black uppercase tracking-wider text-violet-300">
+              High Significance Excerpts
             </span>
+          </div>
+          <div className="p-4 space-y-4">
+            {excerpts.map((excerpt, i) => (
+              <blockquote
+                key={i}
+                className="border-l-2 border-violet-500/30 pl-4 py-1 italic text-sm text-slate-300"
+              >
+                "{excerpt}"
+              </blockquote>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <div className="flex items-center justify-between gap-4 py-2 border-b border-white/5">
+        <div className="flex items-center gap-4">
+          <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+            {mode === 'clean' ? 'Refined Content' : 'Original OCR Stream'}
+          </div>
+          {searchTerm && matchCount > 0 && (
+            <div className="flex items-center gap-2 bg-amber-500/10 px-2 py-1 rounded text-[10px] font-bold text-amber-300 border border-amber-500/20">
+              <span className="opacity-60">
+                {currentMatchIndex} OF {matchCount} MATCHES
+              </span>
+              <div className="flex gap-1 ml-1">
+                <button
+                  onClick={() => navigateMatch('prev')}
+                  className="hover:text-white transition-colors"
+                >
+                  <ChevronLeft className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={() => navigateMatch('next')}
+                  className="hover:text-white transition-colors"
+                >
+                  <ChevronRight className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
           )}
         </div>
-        {mode === 'clean' && baselineTokens && (
-          <label className="inline-flex items-center gap-2 text-xs text-slate-300">
-            <input
-              type="checkbox"
-              checked={showRecoveryHighlights}
-              onChange={(event) => onToggleRecoveryHighlights(event.target.checked)}
-            />
-            Show recovery highlights
-          </label>
-        )}
-      </div>
 
-      <div ref={containerRef} className="surface-quiet p-4 text-slate-200">
-        {useVirtualization ? (
-          <div style={{ height: `${allLines.length * lineHeight}px`, position: 'relative' }}>
-            <div
-              style={{
-                position: 'absolute',
-                top: `${virtualStart * lineHeight}px`,
-                left: 0,
-                right: 0,
-              }}
-            >
-              {visibleLines.map((line, index) => (
-                <div
-                  key={`line-${virtualStart + index}`}
-                  className="min-h-[24px] leading-6"
-                  dangerouslySetInnerHTML={{ __html: line || '&nbsp;' }}
-                />
+        {mode === 'clean' && baselineTokens && (
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+              Highlight Density
+            </span>
+            <div className="flex p-0.5 bg-slate-900/60 rounded-lg border border-white/5">
+              {(['off', 'subtle', 'strong'] as const).map((d) => (
+                <button
+                  key={d}
+                  onClick={() => setHighlightDensity(d)}
+                  className={`px-2 py-1 rounded text-[8px] font-black uppercase transition-all ${
+                    highlightDensity === d
+                      ? 'bg-emerald-500/20 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
+                      : 'text-slate-600 hover:text-slate-400'
+                  }`}
+                >
+                  {d}
+                </button>
               ))}
             </div>
           </div>
-        ) : (
-          <div className="space-y-3">
-            {processedSections.map((section, index) => (
-              <details key={section.id} open={index === 0} className="group">
-                {section.id !== 'full' && (
-                  <summary className="cursor-pointer text-sm font-semibold text-slate-200 py-1">
-                    {section.title}
-                  </summary>
-                )}
-                <div
-                  className={`${section.id !== 'full' ? 'mt-2 pl-2 border-l border-slate-700/70' : ''}`}
-                >
-                  {section.lines.map((line, lineIndex) => (
-                    <div
-                      key={`${section.id}-line-${lineIndex}`}
-                      className="min-h-[24px] leading-6"
-                      dangerouslySetInnerHTML={{ __html: line || '&nbsp;' }}
-                    />
-                  ))}
-                </div>
-              </details>
-            ))}
-          </div>
         )}
+      </div>
+
+      <div
+        ref={containerRef}
+        className="text-slate-200 font-sans leading-relaxed text-sm lg:text-base"
+      >
+        <div className="space-y-8">
+          {processedSections.map((section, index) => (
+            <div key={section.id} className="group relative">
+              {section.id !== 'full' && (
+                <div className="flex items-center gap-4 mb-4">
+                  <h3 className="text-xs font-black uppercase tracking-[0.2em] text-cyan-500/70">
+                    {section.title}
+                  </h3>
+                  <div className="flex-1 h-px bg-cyan-500/10" />
+                </div>
+              )}
+              <div className="space-y-1">
+                {section.lines.map((line, lineIndex) => (
+                  <div
+                    key={`${section.id}-line-${lineIndex}`}
+                    className="min-h-[24px]"
+                    dangerouslySetInnerHTML={{ __html: line || '&nbsp;' }}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {hover && (
         <div
-          className="fixed z-[11000] pointer-events-none rounded-md border border-slate-700 bg-slate-900/95 px-2.5 py-1.5 text-xs text-slate-200 shadow-lg"
+          className="fixed z-[11000] pointer-events-none rounded-xl border border-white/10 bg-slate-900/95 backdrop-blur-md p-4 text-xs shadow-2xl animate-in zoom-in-95 duration-200"
           style={{ left: hover.x, top: hover.y }}
         >
-          <div className="font-medium">{hover.entity.name || hover.entity.full_name}</div>
-          <div className="text-slate-400">
-            {hover.entity.entity_type || hover.entity.type || 'Entity'}
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[8px] font-black uppercase text-cyan-400 tracking-widest">
+              Entity Signature
+            </span>
+            <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
           </div>
+          <div className="font-bold text-sm text-slate-100 mb-1">
+            {hover.entity.name || hover.entity.full_name}
+          </div>
+          <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
+            {hover.entity.entity_type || hover.entity.type || 'IDENTIFIED ENTITY'}
+          </div>
+          {hover.entity.role && (
+            <div className="mt-2 text-slate-400 italic">"{hover.entity.role}"</div>
+          )}
         </div>
       )}
     </div>

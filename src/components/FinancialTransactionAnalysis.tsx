@@ -7,10 +7,10 @@ import {
   ArrowRight,
   Filter,
   AlertTriangle,
-  X,
   MapPin,
   Users,
 } from 'lucide-react';
+import { CloseButton } from './common/CloseButton';
 
 interface FinancialTransactionAnalysisProps {
   onTransactionPatternDetected?: (patterns: TransactionPattern[]) => void;
@@ -491,13 +491,12 @@ export const FinancialTransactionAnalysis: React.FC<FinancialTransactionAnalysis
                   </span>
                 </div>
               </div>
-              <button
+              <CloseButton
                 onClick={() => setSelectedPattern(null)}
-                className="p-2 rounded-full hover:bg-slate-100 text-gray-400 hover:text-gray-600 transition-colors"
-                aria-label="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
+                size="sm"
+                label="Close pattern details"
+                className="border-slate-200 bg-transparent text-gray-500 hover:bg-slate-100 hover:text-gray-700"
+              />
             </div>
 
             <div className="space-y-4">

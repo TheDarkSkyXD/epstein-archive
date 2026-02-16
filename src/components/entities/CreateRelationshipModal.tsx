@@ -7,6 +7,7 @@ import { useModalFocusTrap } from '../../hooks/useModalFocusTrap';
 import { useToasts } from '../common/useToasts';
 import { Person } from '../../types';
 import { useScrollLock } from '../../hooks/useScrollLock';
+import { CloseButton } from '../common/CloseButton';
 
 interface CreateRelationshipModalProps {
   onClose: () => void;
@@ -135,12 +136,12 @@ export const CreateRelationshipModal: React.FC<CreateRelationshipModalProps> = (
             </div>
             <h2 className="text-xl font-bold text-white">Create Connection</h2>
           </div>
-          <button
+          <CloseButton
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white text-xl transition-colors"
-          >
-            ×
-          </button>
+            size="sm"
+            label="Close create relationship modal"
+            className="bg-white/10 hover:bg-white/20 border-white/20 text-white"
+          />
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-6">

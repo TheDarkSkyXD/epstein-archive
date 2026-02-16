@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Icon from '../common/Icon';
+import { CloseButton } from '../common/CloseButton';
 // @ts-ignore
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -83,13 +84,12 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
             <Icon name="Menu" size="sm" className="text-blue-500" />
             Navigation
           </h3>
-          <button
-            aria-label="Close menu"
+          <CloseButton
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-slate-800/80 active:bg-slate-700 transition-colors border border-transparent hover:border-slate-700"
-          >
-            <Icon name="X" size="sm" className="w-5 h-5 text-slate-400" />
-          </button>
+            size="sm"
+            label="Close menu"
+            className="bg-transparent hover:bg-slate-800/80 active:bg-slate-700 border-slate-700 text-slate-400"
+          />
         </div>
 
         {/* Mobile Search Input */}

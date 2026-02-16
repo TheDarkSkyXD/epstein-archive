@@ -84,6 +84,7 @@ For every release/deploy:
 - Do not duplicate versions.
 - Avoid generic titles like “Maintenance Release” for major work.
 - Summaries must reflect real shipped changes, not intent.
+- Release notes must be user-facing only: never include internal file paths, local machine paths, repo structure, or implementation-only details.
 
 Versioning:
 

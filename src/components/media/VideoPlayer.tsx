@@ -6,13 +6,13 @@ import {
   Volume2,
   VolumeX,
   Maximize2,
-  X,
   Minimize2,
   Shield,
   Share2,
   Check,
 } from 'lucide-react';
 import { TranscriptSegment, Chapter } from './AudioPlayer'; // Reuse types
+import { CloseButton } from '../common/CloseButton';
 
 interface VideoPlayerProps {
   src: string;
@@ -389,12 +389,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               </button>
             )}
             {onClose && (
-              <button
+              <CloseButton
                 onClick={onClose}
-                className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white"
-              >
-                <X size={18} />
-              </button>
+                size="sm"
+                label="Close video player"
+                className="bg-transparent hover:bg-slate-800 border-slate-700 text-slate-400 hover:text-white"
+              />
             )}
           </div>
         </div>
@@ -583,12 +583,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   Chapters
                 </button>
               )}
-              <button
+              <CloseButton
                 onClick={() => setShowTranscript(false)}
-                className="md:hidden px-4 text-slate-400 hover:text-white"
-              >
-                <X size={18} />
-              </button>
+                size="sm"
+                label="Close transcript panel"
+                className="md:hidden mr-2 bg-transparent border-slate-700 text-slate-400 hover:text-white"
+              />
             </div>
 
             <div className="flex-1 overflow-y-auto p-0 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent max-h-[40vh] md:max-h-none">
@@ -721,12 +721,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   {isMuted ? 'Unmute' : 'Mute'}
                 </button>
               </div>
-              <button
+              <CloseButton
                 onClick={() => setShowFullTranscriptOverlay(false)}
-                className="p-2 text-slate-400 hover:text-white"
-              >
-                <X size={18} />
-              </button>
+                size="sm"
+                label="Close full transcript"
+                className="bg-transparent border-slate-700 text-slate-400 hover:text-white"
+              />
             </div>
             <div className="flex-1 flex flex-col">
               <div className="px-4 py-2 bg-slate-900/80 border-b border-slate-800 flex items-center gap-2">

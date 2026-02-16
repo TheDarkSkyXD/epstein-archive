@@ -1,3 +1,18 @@
+## v13.10.1 - 2026-02-16 - Document Browser Header and Search UX Refinements
+
+### Header and control-bar layout polish
+
+- Reworked the Document Browser control row to use full-width responsive reflow so search and filters no longer clip on the right edge.
+- Updated live status copy to `Updating results: Showing ...` and removed duplicated status text from the filter control cluster.
+- Moved significance chips into the main filter row on desktop (right aligned) and restored a `Low` significance chip (`0-1`) alongside `Medium` and `High`.
+
+### Card and search interaction improvements
+
+- Removed redundant `Open` buttons from document cards to reduce vertical space and rely on card-level click behavior.
+- Replaced inline `AI Summary` chip with a top-right star indicator on cards when an AI summary is available.
+- Simplified risk badges to icon-only presentation with hover/focus tooltip text for score and label.
+- Improved global search affordance with icon-only submit, inline clear (`X`), and canonical alias rendering (e.g., canonical entity name with matched alias in smaller parenthetical text).
+
 ## v13.10.0 - 2026-02-16 - Investigations Reliability Final Pass and DOJ Tranche Filtering
 
 ### Investigations final-pass hardening

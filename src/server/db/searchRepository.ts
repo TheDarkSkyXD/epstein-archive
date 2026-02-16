@@ -1,5 +1,52 @@
 import { getDb } from './connection.js';
 
+const normalizeAliasValue = (value: string): string =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const parseEntityAliases = (aliases: string | null | undefined): string[] => {
+  if (!aliases) return [];
+
+  try {
+    const parsed = JSON.parse(aliases);
+    if (Array.isArray(parsed)) {
+      return parsed.map((entry) => String(entry || '').trim()).filter((entry) => entry.length > 0);
+    }
+  } catch {
+    // fall through to delimiter parsing below
+  }
+
+  return String(aliases)
+    .split(/[;,|]/)
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+};
+
+const resolveMatchedAlias = (
+  searchTerm: string,
+  canonicalName: string,
+  aliases: string[],
+): string | null => {
+  const normalizedSearch = normalizeAliasValue(searchTerm);
+  if (!normalizedSearch) return null;
+
+  if (normalizeAliasValue(canonicalName) === normalizedSearch) {
+    return null;
+  }
+
+  const exactAlias = aliases.find((alias) => normalizeAliasValue(alias) === normalizedSearch);
+  if (exactAlias) return exactAlias;
+
+  const containingAlias = aliases.find((alias) =>
+    normalizeAliasValue(alias).includes(normalizedSearch),
+  );
+  return containingAlias || null;
+};
+
 export const searchRepository = {
   search: (
     query: string,
@@ -28,6 +75,7 @@ export const searchRepository = {
             e.id,
             e.full_name as fullName,
             e.primary_role as primaryRole,
+            e.aliases as aliases,
             'Person' as entityType,
             e.red_flag_rating as redFlagRating,
             e.red_flag_score as redFlagScore,
@@ -60,6 +108,7 @@ export const searchRepository = {
             e.id,
             e.full_name as fullName,
             e.primary_role as primaryRole,
+            e.aliases as aliases,
             'Person' as entityType,
             e.red_flag_rating as redFlagRating,
             e.red_flag_score as redFlagScore
@@ -143,25 +192,31 @@ export const searchRepository = {
       }
 
       return {
-        entities: entities.map((row) => ({
-          id: row.id.toString(),
-          fullName: row.fullName,
-          name: row.fullName, // Helper
-          primaryRole: row.primaryRole,
-          title: row.primaryRole, // Fallback
-          entityType: row.entityType,
-          secondaryRoles: [],
-          likelihoodLevel: 0,
-          mentions: 0,
-          currentStatus: null,
-          connectionsSummary: null,
-          redFlagRating: row.redFlagRating,
-          redFlagScore: row.redFlagScore,
-          redFlagIndicators: [],
-          redFlagDescription: row.redFlagDescription,
-          titleVariants: [],
-          evidenceTypes: [], // Prevent fallback to 'Unknown' or invalid types
-        })),
+        entities: entities.map((row) => {
+          const aliases = parseEntityAliases(row.aliases);
+          return {
+            id: row.id.toString(),
+            fullName: row.fullName,
+            canonicalName: row.fullName,
+            name: row.fullName, // Helper
+            primaryRole: row.primaryRole,
+            title: row.primaryRole, // Fallback
+            aliases,
+            matchedAlias: resolveMatchedAlias(searchTerm, row.fullName, aliases),
+            entityType: row.entityType,
+            secondaryRoles: [],
+            likelihoodLevel: 0,
+            mentions: 0,
+            currentStatus: null,
+            connectionsSummary: null,
+            redFlagRating: row.redFlagRating,
+            redFlagScore: row.redFlagScore,
+            redFlagIndicators: [],
+            redFlagDescription: row.redFlagDescription,
+            titleVariants: [],
+            evidenceTypes: [], // Prevent fallback to 'Unknown' or invalid types
+          };
+        }),
         documents: documents.map((row) => ({
           id: row.id.toString(),
           fileName: row.fileName,

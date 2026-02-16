@@ -28,7 +28,7 @@ import {
   Eye,
   X,
   HelpCircle,
-  Sparkles,
+  Star,
   LayoutGrid,
   List as ListIcon,
 } from 'lucide-react';
@@ -1604,7 +1604,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
     <div className="min-h-screen text-white overflow-x-hidden">
       <div className="w-full py-4 md:py-6">
         <div
-          className={`sticky top-0 z-30 bg-[color:var(--bg-1)]/95 backdrop-blur border border-slate-800 rounded-[var(--radius-lg)] px-3 md:px-4 transition-all ${
+          className={`sticky top-0 z-30 bg-[color:var(--bg-1)]/95 backdrop-blur border border-slate-800/80 rounded-[var(--radius-lg)] px-3 md:px-4 transition-all ${
             isHeaderCondensed ? 'py-2 mb-3' : 'py-3 mb-4'
           }`}
         >
@@ -1622,12 +1622,13 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
               )}
             </div>
             <div className="text-xs text-slate-400 shrink-0">
+              {isFetching ? 'Updating results: ' : ''}
               Showing {filteredDocuments.length} of {totalDocuments.toLocaleString()}
             </div>
           </div>
 
           {/* Unified control row */}
-          <div className="flex flex-col md:flex-row gap-2 md:items-center">
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_auto] gap-2 xl:items-center">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
@@ -1635,12 +1636,12 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                 placeholder="Search by name, document ID, phrase, or source…"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                className="w-full pl-10 pr-16 py-2.5 bg-slate-900 border border-slate-700 rounded-[var(--radius-md)] focus:outline-none focus:border-blue-500 min-h-[44px]"
+                className="control w-full h-11 pl-10 pr-10 text-sm bg-slate-900 border-slate-700 focus:outline-none focus:border-blue-500"
               />
               {searchInput && (
                 <button
                   onClick={() => setSearchInput('')}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 rounded-full hover:bg-slate-800 text-gray-400 hover:text-white transition-colors"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 inline-flex h-7 w-7 items-center justify-center rounded-full hover:bg-slate-800 text-gray-400 hover:text-white transition-colors"
                   title="Clear search"
                 >
                   <X className="w-4 h-4" />
@@ -1648,11 +1649,11 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
               )}
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap xl:justify-end">
               <select
                 value={selectedTranche}
                 onChange={(e) => applyTrancheFilter(e.target.value)}
-                className="control h-10 px-3 text-xs bg-slate-900 border border-slate-700 rounded-[var(--radius-md)]"
+                className="control h-11 px-3 text-sm leading-none bg-slate-900 border border-slate-700 rounded-[var(--radius-md)]"
                 aria-label="Filter by DOJ tranche"
                 title="Filter documents by DOJ tranche/dataset"
               >
@@ -1666,7 +1667,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                 <button
                   type="button"
                   aria-label="DOJ tranche help"
-                  className="control h-10 w-10 p-0 inline-flex items-center justify-center text-slate-300"
+                  className="control h-11 w-11 p-0 inline-flex items-center justify-center text-slate-300"
                 >
                   <HelpCircle className="w-4 h-4" />
                 </button>
@@ -1678,7 +1679,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="control h-10 px-3 text-xs bg-slate-900 border border-slate-700 rounded-[var(--radius-md)]"
+                className="control h-11 px-3 text-sm leading-none bg-slate-900 border border-slate-700 rounded-[var(--radius-md)]"
                 aria-label="Sort field"
               >
                 <option value="red_flag">Risk</option>
@@ -1688,7 +1689,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
               </select>
               <button
                 onClick={() => setSortOrder((prev) => (prev === 'desc' ? 'asc' : 'desc'))}
-                className="control h-10 px-3 text-xs"
+                className="control h-11 px-3 text-sm inline-flex items-center justify-center"
               >
                 {sortOrder === 'desc' ? 'Desc' : 'Asc'}
               </button>
@@ -1698,7 +1699,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                   setItemsPerPage(Number(e.target.value));
                   setCurrentPage(1);
                 }}
-                className="control h-10 px-3 text-xs bg-slate-900 border border-slate-700 rounded-[var(--radius-md)]"
+                className="control h-11 px-3 text-sm leading-none bg-slate-900 border border-slate-700 rounded-[var(--radius-md)]"
                 aria-label="Results per page"
               >
                 <option value={25}>25</option>
@@ -1709,28 +1710,28 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                 onClick={() =>
                   setDensityMode((prev) => (prev === 'compact' ? 'comfortable' : 'compact'))
                 }
-                className="control h-10 px-3 text-xs"
+                className="control h-11 px-3 text-sm inline-flex items-center justify-center"
                 aria-label="Toggle density mode"
               >
                 {densityMode === 'compact' ? 'Compact' : 'Comfortable'}
               </button>
               <button
                 onClick={() => setViewMode('grid')}
-                className={`control h-10 w-10 p-0 ${viewMode === 'grid' ? 'bg-blue-600/30 border-blue-500/60 text-blue-200' : ''}`}
+                className={`control h-11 w-11 p-0 inline-flex items-center justify-center ${viewMode === 'grid' ? 'bg-blue-600/30 border-blue-500/60 text-blue-200' : ''}`}
                 aria-label="Grid view"
               >
                 <LayoutGrid className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setViewMode('list')}
-                className={`control h-10 w-10 p-0 ${viewMode === 'list' ? 'bg-blue-600/30 border-blue-500/60 text-blue-200' : ''}`}
+                className={`control h-11 w-11 p-0 inline-flex items-center justify-center ${viewMode === 'list' ? 'bg-blue-600/30 border-blue-500/60 text-blue-200' : ''}`}
                 aria-label="List view"
               >
                 <ListIcon className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="control h-10 px-3 text-xs inline-flex items-center gap-1"
+                className="control h-11 px-3 text-sm inline-flex items-center gap-1.5"
               >
                 <Filter className="w-4 h-4" />
                 Filters
@@ -1740,7 +1741,6 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                   <ChevronRight className="w-3 h-3" />
                 )}
               </button>
-              {isFetching && <span className="text-xs text-slate-400 px-2">Updating results…</span>}
             </div>
           </div>
         </div>
@@ -1757,86 +1757,109 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
             />
           )}
 
-          {/* Category Type Filter Buttons - Horizontal scroll on mobile */}
-          <div className="flex gap-2 items-center overflow-x-auto pb-1">
-            {[
-              { type: 'all', label: 'All', icon: <Folder className="w-3.5 h-3.5" /> },
-              { type: 'legal', label: 'Legal', icon: <Scale className="w-3.5 h-3.5" /> },
-              { type: 'email', label: 'Email', icon: <Mail className="w-3.5 h-3.5" /> },
-              {
-                type: 'deposition',
-                label: 'Deposition',
-                icon: <ScrollText className="w-3.5 h-3.5" />,
-              },
-              { type: 'photo', label: 'Photo', icon: <ImageIcon className="w-3.5 h-3.5" /> },
-              { type: 'financial', label: 'Financial', icon: <Landmark className="w-3.5 h-3.5" /> },
-            ].map(({ type, label, icon }) => (
+          {/* Category + significance chips on one row (desktop) */}
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div className="flex gap-2 items-center overflow-x-auto pb-1 min-w-0 flex-1">
+              {[
+                { type: 'all', label: 'All', icon: <Folder className="w-3.5 h-3.5" /> },
+                { type: 'legal', label: 'Legal', icon: <Scale className="w-3.5 h-3.5" /> },
+                { type: 'email', label: 'Email', icon: <Mail className="w-3.5 h-3.5" /> },
+                {
+                  type: 'deposition',
+                  label: 'Deposition',
+                  icon: <ScrollText className="w-3.5 h-3.5" />,
+                },
+                { type: 'photo', label: 'Photo', icon: <ImageIcon className="w-3.5 h-3.5" /> },
+                {
+                  type: 'financial',
+                  label: 'Financial',
+                  icon: <Landmark className="w-3.5 h-3.5" />,
+                },
+              ].map(({ type, label, icon }) => (
+                <button
+                  key={type}
+                  onClick={() => {
+                    if (type === 'all') {
+                      handleFilterChange('categories', []);
+                    } else {
+                      handleFilterChange('categories', [type]);
+                    }
+                  }}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all shadow-sm backdrop-blur-sm shrink-0 ${
+                    (type === 'all' && (!filters.categories || filters.categories.length === 0)) ||
+                    filters.categories?.includes(type)
+                      ? 'bg-blue-600 text-white border border-blue-500 shadow-blue-500/20'
+                      : 'bg-gray-800 text-gray-300 border border-gray-700 hover:bg-gray-700 hover:text-white'
+                  }`}
+                >
+                  <span>{icon}</span>
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 md:justify-end md:shrink-0">
+              {selectedTranche !== 'all' && (
+                <span className="px-3 py-1.5 rounded-full text-sm bg-cyan-900/40 text-cyan-100 border border-cyan-600/40">
+                  Tranche:{' '}
+                  {DOJ_TRANCHE_OPTIONS.find((entry) => entry.value === selectedTranche)?.label}
+                </span>
+              )}
+
               <button
-                key={type}
                 onClick={() => {
-                  if (type === 'all') {
-                    handleFilterChange('categories', []);
-                  } else {
-                    handleFilterChange('categories', [type]);
-                  }
+                  const isActive =
+                    filters.redFlagLevel?.min === 4 && filters.redFlagLevel?.max === 5;
+                  handleRedFlagLevelChange(isActive ? 0 : 4, isActive ? 5 : 5);
                 }}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all shadow-sm backdrop-blur-sm shrink-0 ${
-                  (type === 'all' && (!filters.categories || filters.categories.length === 0)) ||
-                  filters.categories?.includes(type)
-                    ? 'bg-blue-600 text-white border border-blue-500 shadow-blue-500/20'
+                  filters.redFlagLevel?.min === 4 && filters.redFlagLevel?.max === 5
+                    ? 'bg-red-900/80 text-white border border-red-500 shadow-red-500/20'
                     : 'bg-gray-800 text-gray-300 border border-gray-700 hover:bg-gray-700 hover:text-white'
                 }`}
               >
-                <span>{icon}</span>
-                <span>{label}</span>
+                <div
+                  className={`w-2 h-2 rounded-full ${filters.redFlagLevel?.min === 4 && filters.redFlagLevel?.max === 5 ? 'bg-red-400' : 'bg-red-600'}`}
+                ></div>
+                <span>High Significance</span>
               </button>
-            ))}
-          </div>
 
-          {/* Significance and Sort Chips */}
-          <div className="flex flex-wrap items-center gap-2 mt-2">
-            {selectedTranche !== 'all' && (
-              <span className="px-3 py-1.5 rounded-full text-sm bg-cyan-900/40 text-cyan-100 border border-cyan-600/40">
-                Tranche:{' '}
-                {DOJ_TRANCHE_OPTIONS.find((entry) => entry.value === selectedTranche)?.label}
-              </span>
-            )}
-            {/* High Significance Filter */}
-            <button
-              onClick={() => {
-                const isActive = filters.redFlagLevel?.min === 4 && filters.redFlagLevel?.max === 5;
-                handleRedFlagLevelChange(isActive ? 0 : 4, 5);
-              }}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all shadow-sm backdrop-blur-sm shrink-0 ${
-                filters.redFlagLevel?.min === 4
-                  ? 'bg-red-900/80 text-white border border-red-500 shadow-red-500/20'
-                  : 'bg-gray-800 text-gray-300 border border-gray-700 hover:bg-gray-700 hover:text-white'
-              }`}
-            >
-              <div
-                className={`w-2 h-2 rounded-full ${filters.redFlagLevel?.min === 4 ? 'bg-red-400' : 'bg-red-600'}`}
-              ></div>
-              <span>High Significance</span>
-            </button>
+              <button
+                onClick={() => {
+                  const isActive =
+                    filters.redFlagLevel?.min === 2 && filters.redFlagLevel?.max === 3;
+                  handleRedFlagLevelChange(isActive ? 0 : 2, isActive ? 5 : 3);
+                }}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all shadow-sm backdrop-blur-sm shrink-0 ${
+                  filters.redFlagLevel?.min === 2 && filters.redFlagLevel?.max === 3
+                    ? 'bg-amber-900/80 text-white border border-amber-500 shadow-amber-500/20'
+                    : 'bg-gray-800 text-gray-300 border border-gray-700 hover:bg-gray-700 hover:text-white'
+                }`}
+              >
+                <div
+                  className={`w-2 h-2 rounded-full ${filters.redFlagLevel?.min === 2 && filters.redFlagLevel?.max === 3 ? 'bg-amber-400' : 'bg-amber-600'}`}
+                ></div>
+                <span>Medium</span>
+              </button>
 
-            {/* Medium Significance Filter */}
-            <button
-              onClick={() => {
-                const isActive = filters.redFlagLevel?.min === 2 && filters.redFlagLevel?.max === 3;
-                // If active, reset to default (0-5). If not, set to Medium (2-3)
-                handleRedFlagLevelChange(isActive ? 0 : 2, isActive ? 5 : 3);
-              }}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all shadow-sm backdrop-blur-sm shrink-0 ${
-                filters.redFlagLevel?.min === 2 && filters.redFlagLevel?.max === 3
-                  ? 'bg-amber-900/80 text-white border border-amber-500 shadow-amber-500/20'
-                  : 'bg-gray-800 text-gray-300 border border-gray-700 hover:bg-gray-700 hover:text-white'
-              }`}
-            >
-              <div
-                className={`w-2 h-2 rounded-full ${filters.redFlagLevel?.min === 2 && filters.redFlagLevel?.max === 3 ? 'bg-amber-400' : 'bg-amber-600'}`}
-              ></div>
-              <span>Medium</span>
-            </button>
+              <button
+                onClick={() => {
+                  const isActive =
+                    filters.redFlagLevel?.min === 0 && filters.redFlagLevel?.max === 1;
+                  handleRedFlagLevelChange(isActive ? 0 : 0, isActive ? 5 : 1);
+                }}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all shadow-sm backdrop-blur-sm shrink-0 ${
+                  filters.redFlagLevel?.min === 0 && filters.redFlagLevel?.max === 1
+                    ? 'bg-emerald-900/80 text-white border border-emerald-500 shadow-emerald-500/20'
+                    : 'bg-gray-800 text-gray-300 border border-gray-700 hover:bg-gray-700 hover:text-white'
+                }`}
+              >
+                <div
+                  className={`w-2 h-2 rounded-full ${filters.redFlagLevel?.min === 0 && filters.redFlagLevel?.max === 1 ? 'bg-emerald-400' : 'bg-emerald-600'}`}
+                ></div>
+                <span>Low</span>
+              </button>
+            </div>
           </div>
 
           {/* Desktop inline filters (hidden on mobile) */}
@@ -2225,9 +2248,23 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                         {doc.sourceType || doc.evidenceType || doc.fileType}
                       </span>
                     </div>
-                    <div className={`semantic-chip ${getRiskClass(risk)}`}>
-                      <Flag className="w-3 h-3" />
-                      {getRiskLabel(risk)}
+                    <div className="flex items-center gap-1.5">
+                      {doc.previewKind === 'ai_summary' && (
+                        <span
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-violet-500/45 bg-violet-900/35 text-violet-200"
+                          title="AI summary available"
+                          aria-label="AI summary available"
+                        >
+                          <Star className="w-3.5 h-3.5" />
+                        </span>
+                      )}
+                      <span
+                        className={`semantic-chip ${getRiskClass(risk)} px-2`}
+                        title={`Risk rating ${risk}/5 (${getRiskLabel(risk)})`}
+                        aria-label={`Risk rating ${risk} out of 5, ${getRiskLabel(risk)}`}
+                      >
+                        <Flag className="w-3 h-3" />
+                      </span>
                     </div>
                   </div>
                   <h3
@@ -2271,21 +2308,6 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                     <span className="semantic-chip border-slate-700/60 bg-slate-900/70 text-slate-300">
                       {getSourceLabel(doc)}
                     </span>
-                    {doc.previewKind === 'ai_summary' && (
-                      <span className="semantic-chip evidence-agentic">
-                        <Sparkles className="w-3 h-3" />
-                        AI Summary
-                      </span>
-                    )}
-                    <button
-                      className="control h-8 px-3 ml-auto text-[11px]"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDocumentSelect(doc);
-                      }}
-                    >
-                      Open
-                    </button>
                   </div>
                 </article>
               );
@@ -2306,23 +2328,33 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                   } hover:border-slate-600 transition-colors cursor-pointer`}
                   onClick={() => handleDocumentSelect(doc)}
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        {renderTypeIcon(doc)}
-                        <span className="text-[10px] uppercase tracking-wide text-slate-400">
-                          {doc.sourceType || doc.evidenceType || doc.fileType}
-                        </span>
-                        <span className={`semantic-chip ${getRiskClass(risk)}`}>
-                          <Flag className="w-3 h-3" />
-                          {getRiskLabel(risk)}
-                        </span>
-                        {doc.previewKind === 'ai_summary' && (
-                          <span className="semantic-chip evidence-agentic">
-                            <Sparkles className="w-3 h-3" />
-                            AI Summary
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {renderTypeIcon(doc)}
+                          <span className="text-[10px] uppercase tracking-wide text-slate-400 truncate">
+                            {doc.sourceType || doc.evidenceType || doc.fileType}
                           </span>
-                        )}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          {doc.previewKind === 'ai_summary' && (
+                            <span
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-violet-500/45 bg-violet-900/35 text-violet-200"
+                              title="AI summary available"
+                              aria-label="AI summary available"
+                            >
+                              <Star className="w-3.5 h-3.5" />
+                            </span>
+                          )}
+                          <span
+                            className={`semantic-chip ${getRiskClass(risk)} px-2`}
+                            title={`Risk rating ${risk}/5 (${getRiskLabel(risk)})`}
+                            aria-label={`Risk rating ${risk} out of 5, ${getRiskLabel(risk)}`}
+                          >
+                            <Flag className="w-3 h-3" />
+                          </span>
+                        </div>
                       </div>
                       <h3
                         className={`font-semibold text-slate-100 mb-1 ${
@@ -2367,15 +2399,6 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                         </span>
                       </div>
                     </div>
-                    <button
-                      className="control h-9 px-3 text-xs shrink-0"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDocumentSelect(doc);
-                      }}
-                    >
-                      Open
-                    </button>
                   </div>
                 </article>
               );

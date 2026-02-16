@@ -1884,6 +1884,8 @@ app.get('/api/search', async (req, res, next) => {
       id: entity.id,
       name: entity.fullName,
       fullName: entity.fullName,
+      canonicalName: entity.canonicalName || entity.fullName,
+      matchedAlias: entity.matchedAlias || null,
       primaryRole: entity.primaryRole,
       secondaryRoles: entity.secondaryRoles || [],
       mentions: entity.mentions,

@@ -267,13 +267,20 @@ function App() {
   const [showCreateEntityModal, setShowCreateEntityModal] = useState(false);
   const parsedReleaseNotes = useMemo(() => parseReleaseNotes(releaseNotesRaw), []);
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
+  const navTrackRef = useRef<HTMLDivElement | null>(null);
+  const [navEdgeFade, setNavEdgeFade] = useState({ left: false, right: false });
 
   // Use navigation context for shared state
   const navigation = useNavigation();
   const { searchTerm, setSearchTerm } = navigation;
 
+  type SearchSuggestion = Person & {
+    canonicalName?: string;
+    matchedAlias?: string | null;
+  };
+
   // Search suggestions from API (not limited to current page)
-  const [searchSuggestions, setSearchSuggestions] = useState<Person[]>([]);
+  const [searchSuggestions, setSearchSuggestions] = useState<SearchSuggestion[]>([]);
   const [searchSuggestionsLoading, setSearchSuggestionsLoading] = useState(false);
 
   // Fetch search suggestions from API when search term changes
@@ -289,13 +296,20 @@ function App() {
         const response = await fetch(`/api/search?q=${encodeURIComponent(searchTerm)}&limit=10`);
         const data = await response.json();
         const entities = data.entities || [];
-        const normalized: Person[] = entities.map((e: any) => ({
+        const normalized: SearchSuggestion[] = entities.map((e: any) => ({
           id: e.id,
           name: e.fullName || e.name,
+          fullName: e.fullName || e.name,
+          canonicalName: e.canonicalName || e.fullName || e.name,
+          matchedAlias: e.matchedAlias || null,
           role: e.primaryRole || e.role || 'Unknown',
           mentions: e.mention_count || e.mentions || 0,
           red_flag_rating: e.red_flag_rating || e.redFlagRating || 0,
           files: e.document_count || e.files || 0,
+          contexts: [],
+          evidence_types: [],
+          significant_passages: [],
+          fileReferences: [],
         }));
         setSearchSuggestions(normalized);
       } catch (error) {
@@ -916,6 +930,46 @@ function App() {
   );
 
   const { user: currentUser, isAdmin } = useAuth();
+  const navSegmentBaseClass =
+    'flex items-center justify-center gap-1.5 h-10 px-4 rounded-full transition-all duration-200 whitespace-nowrap';
+  const getNavSegmentClass = (isActive: boolean, activeClass: string, extraClass: string = '') =>
+    `${navSegmentBaseClass} ${
+      isActive ? activeClass : 'text-slate-300 hover:text-white hover:bg-slate-800/70'
+    } ${extraClass}`.trim();
+
+  useEffect(() => {
+    const track = navTrackRef.current;
+    if (!track) return;
+
+    const updateEdgeFade = () => {
+      const maxScroll = Math.max(0, track.scrollWidth - track.clientWidth);
+      const hasOverflow = maxScroll > 2;
+      const left = hasOverflow && track.scrollLeft > 2;
+      const right = hasOverflow && track.scrollLeft < maxScroll - 2;
+      setNavEdgeFade((prev) =>
+        prev.left === left && prev.right === right ? prev : { left, right },
+      );
+    };
+
+    updateEdgeFade();
+    track.addEventListener('scroll', updateEdgeFade, { passive: true });
+    window.addEventListener('resize', updateEdgeFade);
+
+    const resizeObserver =
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateEdgeFade) : null;
+    if (resizeObserver) {
+      resizeObserver.observe(track);
+      if (track.firstElementChild instanceof HTMLElement) {
+        resizeObserver.observe(track.firstElementChild);
+      }
+    }
+
+    return () => {
+      track.removeEventListener('scroll', updateEdgeFade);
+      window.removeEventListener('resize', updateEdgeFade);
+      resizeObserver?.disconnect();
+    };
+  }, []);
 
   return (
     <ToastProvider>
@@ -1093,8 +1147,8 @@ function App() {
 
                     {/* Search Bar */}
                     <div className="relative flex-1 md:flex-none max-w-md">
-                      <div className="flex items-stretch bg-slate-800/80 border border-slate-600/50 rounded-full shadow-sm">
-                        <div className="relative flex-1 rounded-l-full rounded-r-none">
+                      <div className="flex items-center gap-1.5 h-11 px-2 bg-slate-800/80 border border-slate-600/50 rounded-full shadow-sm">
+                        <div className="relative flex-1 min-w-0">
                           <Icon
                             name="Search"
                             size="sm"
@@ -1104,7 +1158,7 @@ function App() {
                           <input
                             type="text"
                             placeholder="Search evidence..."
-                            className="w-full pl-9 pr-4 py-2 bg-transparent text-white placeholder-slate-400 focus:outline-none focus:ring-0 focus:border-none text-sm"
+                            className="w-full h-9 pl-9 pr-8 bg-transparent text-white placeholder-slate-400 focus:outline-none focus:ring-0 focus:border-none text-sm"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             onKeyDown={(e) => {
@@ -1113,6 +1167,16 @@ function App() {
                               }
                             }}
                           />
+                          {searchTerm.trim().length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setSearchTerm('')}
+                              aria-label="Clear search"
+                              className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex items-center justify-center h-7 w-7 rounded-full text-slate-400 hover:text-white hover:bg-slate-700/70"
+                            >
+                              <Icon name="X" size="xs" />
+                            </button>
+                          )}
                         </div>
                         <button
                           onClick={() => {
@@ -1122,10 +1186,10 @@ function App() {
                               navigate('/search');
                             }
                           }}
-                          className="h-9 px-4 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium flex items-center gap-1 transition-colors border-l border-slate-600/60 rounded-r-full rounded-l-none"
+                          aria-label="Run search"
+                          className="h-9 w-9 shrink-0 bg-cyan-600 hover:bg-cyan-500 text-white flex items-center justify-center transition-colors rounded-full"
                         >
                           <Icon name="Search" size="sm" />
-                          <span className="hidden md:inline">Search</span>
                         </button>
                       </div>
                       {searchTerm.trim().length >= 2 && (
@@ -1146,7 +1210,14 @@ function App() {
                                 onClick={() => handlePersonClick(p)}
                               >
                                 <Icon name="User" size="sm" color="gray" />
-                                <span className="truncate flex-1">{p.name}</span>
+                                <span className="truncate flex-1">
+                                  {p.canonicalName || p.name}
+                                  {p.matchedAlias && (
+                                    <span className="ml-1 text-[11px] text-slate-400">
+                                      ({p.matchedAlias})
+                                    </span>
+                                  )}
+                                </span>
                                 <span className="text-xs text-slate-500">
                                   {p.role !== 'Unknown' ? p.role : 'Subject'}
                                 </span>
@@ -1234,244 +1305,270 @@ function App() {
                       : undefined
                 }
               />
-              {/* Navigation Tabs - Compact layout to fit all 11 tabs */}
-              <div className="hidden md:flex flex-nowrap gap-1 mb-6 text-sm font-medium w-full justify-between">
-                <div className="relative group">
-                  <button
-                    onClick={() => navigate('/people')}
-                    className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${
-                      activeTab === 'people'
-                        ? 'bg-gradient-to-r from-cyan-600 to-cyan-500 text-white border border-cyan-400/50 shadow-sm shadow-cyan-500/20'
-                        : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-                    }`}
+              {/* Navigation Tabs - segmented pill with responsive horizontal track */}
+              <div id="navigation" className="hidden md:block mb-6 text-sm font-medium">
+                <div className="relative">
+                  <div
+                    ref={navTrackRef}
+                    className="w-full overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                   >
-                    <Icon name="Users" size="sm" />
-                    <span className="hidden lg:inline">Subjects</span>
-                  </button>
-                  {/* Help Tooltip */}
-                  <div className="absolute hidden group-hover:block z-50 left-0 top-full mt-2 w-80 bg-slate-900 border border-slate-700 rounded-lg p-4 shadow-xl">
-                    <div className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
-                      <Icon name="HelpCircle" size="sm" color="info" />
-                      What are Subjects?
-                    </div>
-                    <div className="text-xs text-slate-300 space-y-2">
-                      <p>
-                        Subjects are individuals or entities mentioned in the Epstein archive
-                        documents. Each subject has:
-                      </p>
-                      <ul className="list-disc list-inside space-y-1 text-slate-400 ml-2">
-                        <li>
-                          <strong className="text-cyan-400">Red Flag Index (RFI)</strong>: Risk
-                          rating from 1-5 based on mention context
-                        </li>
-                        <li>
-                          <strong className="text-cyan-400">Mentions</strong>: Number of document
-                          references
-                        </li>
-                        <li>
-                          <strong className="text-cyan-400">Evidence Types</strong>: Categories of
-                          supporting documents
-                        </li>
-                      </ul>
-                      <p className="text-slate-500 pt-1 border-t border-slate-700 mt-2">
-                        Click any subject card to view their full profile and connected evidence.
-                      </p>
+                    <div className="inline-flex min-w-max items-center rounded-full border border-slate-700/80 bg-slate-900/75 backdrop-blur-md p-1 divide-x divide-slate-700/80">
+                      <div className="relative group shrink-0 px-0.5">
+                        <button
+                          onClick={() => navigate('/people')}
+                          className={getNavSegmentClass(
+                            activeTab === 'people',
+                            'bg-gradient-to-r from-cyan-600 to-cyan-500 text-white shadow-sm shadow-cyan-500/20',
+                          )}
+                        >
+                          <Icon name="Users" size="sm" />
+                          <span className="hidden xl:inline">Subjects</span>
+                        </button>
+                        {/* Help Tooltip */}
+                        <div className="absolute hidden group-hover:block z-50 left-0 top-full mt-2 w-80 bg-slate-900 border border-slate-700 rounded-lg p-4 shadow-xl">
+                          <div className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
+                            <Icon name="HelpCircle" size="sm" color="info" />
+                            What are Subjects?
+                          </div>
+                          <div className="text-xs text-slate-300 space-y-2">
+                            <p>
+                              Subjects are individuals or entities mentioned in the Epstein archive
+                              documents. Each subject has:
+                            </p>
+                            <ul className="list-disc list-inside space-y-1 text-slate-400 ml-2">
+                              <li>
+                                <strong className="text-cyan-400">Red Flag Index (RFI)</strong>:
+                                Risk rating from 1-5 based on mention context
+                              </li>
+                              <li>
+                                <strong className="text-cyan-400">Mentions</strong>: Number of
+                                document references
+                              </li>
+                              <li>
+                                <strong className="text-cyan-400">Evidence Types</strong>:
+                                Categories of supporting documents
+                              </li>
+                            </ul>
+                            <p className="text-slate-500 pt-1 border-t border-slate-700 mt-2">
+                              Click any subject card to view their full profile and connected
+                              evidence.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="shrink-0 px-0.5">
+                        <button
+                          onClick={() => navigate('/documents')}
+                          className={getNavSegmentClass(
+                            activeTab === 'documents',
+                            'bg-gradient-to-r from-red-600 to-red-500 text-white shadow-sm shadow-red-500/20',
+                          )}
+                        >
+                          <Icon name="FileText" size="sm" />
+                          <span className="hidden xl:inline">Docs</span>
+                        </button>
+                      </div>
+                      <div className="relative shrink-0 px-0.5">
+                        <button
+                          onClick={() => {
+                            try {
+                              localStorage.setItem('investigate_attract_shown', 'true');
+                              localStorage.setItem('investigate_popover_dismissed', 'true');
+                            } catch (e) {
+                              console.warn('localStorage not available:', e);
+                            }
+                            setInvestigateAttract(false);
+                            setInvestigatePopoverOpen(false);
+                            navigate('/investigations');
+                          }}
+                          className={getNavSegmentClass(
+                            activeTab === 'investigations',
+                            'bg-gradient-to-r from-pink-600 to-pink-500 text-white shadow-sm shadow-pink-500/20',
+                            investigateAttract && activeTab !== 'investigations'
+                              ? 'ring-2 ring-pink-500 shadow-lg shadow-pink-500/30 animate-pulse'
+                              : '',
+                          )}
+                          aria-haspopup="dialog"
+                          aria-expanded={investigatePopoverOpen}
+                          ref={investigateBtnRef}
+                          data-investigation-nav-top
+                        >
+                          <Icon name="Target" size="sm" />
+                          <span className="hidden xl:inline">Investigate</span>
+                        </button>
+                        {investigatePopoverOpen &&
+                          activeTab !== 'investigations' &&
+                          investigatePopoverPos.x !== 0 &&
+                          createPortal(
+                            <div
+                              className="fixed w-[320px] bg-slate-900 border border-pink-500/40 rounded-xl shadow-xl p-4 pointer-events-auto"
+                              style={{
+                                left: investigatePopoverPos.x,
+                                top: investigatePopoverPos.y,
+                                zIndex: 50,
+                              }}
+                            >
+                              <div
+                                className="absolute -top-2"
+                                style={{ left: `${investigateArrowLeft}px` }}
+                              >
+                                <div className="w-4 h-4 bg-slate-900 border border-pink-500/40 rotate-45"></div>
+                              </div>
+                              <div className="text-white font-semibold mb-1">Investigations</div>
+                              <div className="text-slate-300 text-sm mb-3">
+                                Create and manage deep-dive investigations, link evidence, and track
+                                findings.
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 hover:bg-slate-700"
+                                  onClick={() => {
+                                    try {
+                                      localStorage.setItem('investigate_popover_dismissed', 'true');
+                                    } catch (e) {
+                                      console.warn('localStorage not available:', e);
+                                    }
+                                    setInvestigatePopoverOpen(false);
+                                    setInvestigateAttract(false);
+                                  }}
+                                >
+                                  Got it
+                                </button>
+                                <button
+                                  className="px-3 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-lg"
+                                  onClick={() => {
+                                    try {
+                                      localStorage.setItem('investigate_popover_dismissed', 'true');
+                                      localStorage.setItem('investigate_attract_shown', 'true');
+                                    } catch (e) {
+                                      console.warn('localStorage not available:', e);
+                                    }
+                                    setInvestigatePopoverOpen(false);
+                                    setInvestigateAttract(false);
+                                    navigate('/investigations');
+                                  }}
+                                >
+                                  Try it
+                                </button>
+                              </div>
+                            </div>,
+                            document.body,
+                          )}
+                      </div>
+                      <div className="shrink-0 px-0.5">
+                        <button
+                          onClick={() => navigate('/timeline')}
+                          onMouseEnter={() => preloader.prefetchJson('/api/timeline')}
+                          className={getNavSegmentClass(
+                            activeTab === 'timeline',
+                            'bg-gradient-to-r from-orange-600 to-orange-500 text-white shadow-sm shadow-orange-500/20',
+                          )}
+                        >
+                          <Icon name="Clock" size="sm" />
+                          <span className="hidden xl:inline">Timeline</span>
+                        </button>
+                      </div>
+                      <div className="shrink-0 px-0.5">
+                        <button
+                          onClick={() => navigate('/flights')}
+                          onMouseEnter={() => preloader.prefetchJson('/api/flights')}
+                          className={getNavSegmentClass(
+                            activeTab === 'flights',
+                            'bg-gradient-to-r from-cyan-600 to-cyan-500 text-white shadow-sm shadow-cyan-500/20',
+                          )}
+                        >
+                          <Icon name="Navigation" size="sm" />
+                          <span className="hidden xl:inline">Flights</span>
+                        </button>
+                      </div>
+                      <div className="shrink-0 px-0.5">
+                        <button
+                          onClick={() => navigate('/properties')}
+                          onMouseEnter={() => preloader.prefetchJson('/api/properties/stats')}
+                          className={getNavSegmentClass(
+                            activeTab === 'properties',
+                            'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-sm shadow-emerald-500/20',
+                          )}
+                        >
+                          <Icon name="Building" size="sm" />
+                          <span className="hidden xl:inline">Property</span>
+                        </button>
+                      </div>
+                      <div className="shrink-0 px-0.5">
+                        <button
+                          onClick={() => navigate('/media')}
+                          onMouseEnter={() => {
+                            preloader.prefetchJson('/api/media/albums');
+                            preloader.prefetchJson('/api/media/images?limit=24');
+                          }}
+                          className={getNavSegmentClass(
+                            activeTab === 'media',
+                            'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-sm shadow-indigo-500/20',
+                          )}
+                        >
+                          <Icon name="Newspaper" size="sm" />
+                          <span className="hidden xl:inline">Media</span>
+                        </button>
+                      </div>
+                      <div className="shrink-0 px-0.5">
+                        <button
+                          onClick={() => navigate('/emails')}
+                          onMouseEnter={() => preloader.prefetchJson('/api/emails')}
+                          className={getNavSegmentClass(
+                            activeTab === 'emails',
+                            'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-sm shadow-blue-500/20',
+                          )}
+                        >
+                          <Icon name="Mail" size="sm" />
+                          <span className="hidden xl:inline">Emails</span>
+                        </button>
+                      </div>
+                      <div className="shrink-0 px-0.5">
+                        <button
+                          onClick={() => navigate('/blackbook')}
+                          onMouseEnter={() => preloader.prefetchJson('/api/media/albums')}
+                          className={getNavSegmentClass(
+                            activeTab === 'blackbook',
+                            'bg-gradient-to-r from-amber-600 to-amber-500 text-white shadow-sm shadow-amber-500/20',
+                          )}
+                        >
+                          <Icon name="BookOpen" size="sm" />
+                          <span>Black Book</span>
+                        </button>
+                      </div>
+                      <div className="shrink-0 px-0.5">
+                        <button
+                          onClick={() => navigate('/analytics')}
+                          className={getNavSegmentClass(
+                            activeTab === 'analytics',
+                            'bg-gradient-to-r from-purple-600 to-purple-500 text-white shadow-sm shadow-purple-500/20',
+                          )}
+                        >
+                          <Icon name="BarChart3" size="sm" />
+                          <span className="hidden xl:inline">Stats</span>
+                        </button>
+                      </div>
+                      <div className="shrink-0 px-0.5">
+                        <button
+                          onClick={() => navigate('/about')}
+                          className={getNavSegmentClass(
+                            activeTab === 'about',
+                            'bg-gradient-to-r from-cyan-600 to-cyan-500 text-white shadow-sm shadow-cyan-500/20',
+                          )}
+                        >
+                          <Icon name="Shield" size="sm" />
+                          <span className="hidden xl:inline">About</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
+                  {navEdgeFade.left && (
+                    <div className="pointer-events-none absolute left-0 top-0 bottom-1 w-10 bg-gradient-to-r from-slate-900/95 via-slate-900/70 to-transparent" />
+                  )}
+                  {navEdgeFade.right && (
+                    <div className="pointer-events-none absolute right-0 top-0 bottom-1 w-10 bg-gradient-to-l from-slate-900/95 via-slate-900/70 to-transparent" />
+                  )}
                 </div>
-                <button
-                  onClick={() => navigate('/documents')}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${
-                    activeTab === 'documents'
-                      ? 'bg-gradient-to-r from-red-600 to-red-500 text-white border border-red-400/50 shadow-sm shadow-red-500/20'
-                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-                  }`}
-                >
-                  <Icon name="FileText" size="sm" />
-                  <span className="hidden lg:inline">Docs</span>
-                </button>
-                <div className="relative">
-                  <button
-                    onClick={() => {
-                      try {
-                        localStorage.setItem('investigate_attract_shown', 'true');
-                        localStorage.setItem('investigate_popover_dismissed', 'true');
-                      } catch (e) {
-                        console.warn('localStorage not available:', e);
-                      }
-                      setInvestigateAttract(false);
-                      setInvestigatePopoverOpen(false);
-                      navigate('/investigations');
-                    }}
-                    className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${
-                      activeTab === 'investigations'
-                        ? 'bg-gradient-to-r from-pink-600 to-pink-500 text-white border border-pink-400/50 shadow-sm shadow-pink-500/20'
-                        : `bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm ${investigateAttract ? 'ring-2 ring-pink-500 shadow-lg shadow-pink-500/30 animate-pulse' : ''}`
-                    }`}
-                    aria-haspopup="dialog"
-                    aria-expanded={investigatePopoverOpen}
-                    ref={investigateBtnRef}
-                    data-investigation-nav-top
-                  >
-                    <Icon name="Target" size="sm" />
-                    <span className="hidden lg:inline">Investigate</span>
-                  </button>
-                  {investigatePopoverOpen &&
-                    activeTab !== 'investigations' &&
-                    investigatePopoverPos.x !== 0 && // Ensure valid position
-                    createPortal(
-                      <div
-                        className="fixed w-[320px] bg-slate-900 border border-pink-500/40 rounded-xl shadow-xl p-4 pointer-events-auto" // Ensure it doesn't block if transparent? Actually it has bg.
-                        style={{
-                          left: investigatePopoverPos.x,
-                          top: investigatePopoverPos.y,
-                          zIndex: 50, // Reduce from max int to something reasonable but high
-                        }}
-                      >
-                        <div
-                          className="absolute -top-2"
-                          style={{ left: `${investigateArrowLeft}px` }}
-                        >
-                          <div className="w-4 h-4 bg-slate-900 border border-pink-500/40 rotate-45"></div>
-                        </div>
-                        <div className="text-white font-semibold mb-1">Investigations</div>
-                        <div className="text-slate-300 text-sm mb-3">
-                          Create and manage deep-dive investigations, link evidence, and track
-                          findings.
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 hover:bg-slate-700"
-                            onClick={() => {
-                              try {
-                                localStorage.setItem('investigate_popover_dismissed', 'true');
-                              } catch (e) {
-                                console.warn('localStorage not available:', e);
-                              }
-                              setInvestigatePopoverOpen(false);
-                              setInvestigateAttract(false);
-                            }}
-                          >
-                            Got it
-                          </button>
-                          <button
-                            className="px-3 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-lg"
-                            onClick={() => {
-                              try {
-                                localStorage.setItem('investigate_popover_dismissed', 'true');
-                                localStorage.setItem('investigate_attract_shown', 'true');
-                              } catch (e) {
-                                console.warn('localStorage not available:', e);
-                              }
-                              setInvestigatePopoverOpen(false);
-                              setInvestigateAttract(false);
-                              navigate('/investigations');
-                            }}
-                          >
-                            Try it
-                          </button>
-                        </div>
-                      </div>,
-                      document.body,
-                    )}
-                </div>
-                <button
-                  onClick={() => navigate('/timeline')}
-                  onMouseEnter={() => preloader.prefetchJson('/api/timeline')}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${
-                    activeTab === 'timeline'
-                      ? 'bg-gradient-to-r from-orange-600 to-orange-500 text-white border border-orange-400/50 shadow-sm shadow-orange-500/20'
-                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-                  }`}
-                >
-                  <Icon name="Clock" size="sm" />
-                  <span className="hidden lg:inline">Timeline</span>
-                </button>
-                <button
-                  onClick={() => navigate('/flights')}
-                  onMouseEnter={() => preloader.prefetchJson('/api/flights')}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${
-                    activeTab === 'flights'
-                      ? 'bg-gradient-to-r from-cyan-600 to-cyan-500 text-white border border-cyan-400/50 shadow-sm shadow-cyan-500/20'
-                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-                  }`}
-                >
-                  <Icon name="Navigation" size="sm" />
-                  <span className="hidden lg:inline">Flights</span>
-                </button>
-                <button
-                  onClick={() => navigate('/properties')}
-                  onMouseEnter={() => preloader.prefetchJson('/api/properties/stats')}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${
-                    activeTab === 'properties'
-                      ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white border border-emerald-400/50 shadow-sm shadow-emerald-500/20'
-                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-                  }`}
-                >
-                  <Icon name="Building" size="sm" />
-                  <span className="hidden lg:inline">Property</span>
-                </button>
-                <button
-                  onClick={() => navigate('/media')}
-                  onMouseEnter={() => {
-                    preloader.prefetchJson('/api/media/albums');
-                    preloader.prefetchJson('/api/media/images?limit=24');
-                  }}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${
-                    activeTab === 'media'
-                      ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white border border-indigo-400/50 shadow-sm shadow-indigo-500/20'
-                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-                  }`}
-                >
-                  <Icon name="Newspaper" size="sm" />
-                  <span className="hidden lg:inline">Media</span>
-                </button>
-                <button
-                  onClick={() => navigate('/emails')}
-                  onMouseEnter={() => preloader.prefetchJson('/api/emails')}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${
-                    activeTab === 'emails'
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white border border-blue-400/50 shadow-sm shadow-blue-500/20'
-                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-                  }`}
-                >
-                  <Icon name="Mail" size="sm" />
-                  <span className="hidden lg:inline">Emails</span>
-                </button>
-                <button
-                  onClick={() => navigate('/blackbook')}
-                  onMouseEnter={() => preloader.prefetchJson('/api/media/albums')}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${
-                    activeTab === 'blackbook'
-                      ? 'bg-gradient-to-r from-amber-600 to-amber-500 text-white border border-amber-400/50 shadow-sm shadow-amber-500/20'
-                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-                  }`}
-                >
-                  <Icon name="BookOpen" size="sm" />
-                  <span>Black Book</span>
-                </button>
-                <button
-                  onClick={() => navigate('/analytics')}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${
-                    activeTab === 'analytics'
-                      ? 'bg-gradient-to-r from-purple-600 to-purple-500 text-white border border-purple-400/50 shadow-sm shadow-purple-500/20'
-                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-                  }`}
-                >
-                  <Icon name="BarChart3" size="sm" />
-                  <span className="hidden lg:inline">Stats</span>
-                </button>
-                <button
-                  onClick={() => navigate('/about')}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg transition-all duration-300 whitespace-nowrap ${
-                    activeTab === 'about'
-                      ? 'bg-gradient-to-r from-cyan-600 to-cyan-500 text-white border border-cyan-400/50 shadow-sm shadow-cyan-500/20'
-                      : 'bg-slate-800/40 text-slate-400 hover:text-white hover:bg-slate-700/60 border border-slate-700 hover:border-slate-600 backdrop-blur-sm'
-                  }`}
-                >
-                  <Icon name="Shield" size="sm" />
-                  <span className="hidden lg:inline">About</span>
-                </button>
               </div>
               <MobileMenu
                 open={isMobileMenuOpen}

@@ -3,7 +3,7 @@ set -e
 
 # Configuration
 URL="http://161.35.137.95:3012"
-EXPECTED_VERSION="13.1.4"
+EXPECTED_VERSION=$(node -p "require('./package.json').version")
 
 # Colors
 GREEN='\033[0;32m'
@@ -15,13 +15,15 @@ log_error() { echo -e "${RED}❌ $1${NC}"; }
 
 echo "Verifying deployment at $URL..."
 
-# 1. Check Health (Basic)
-echo "Checking /api/health..."
-HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/api/health")
-if [ "$HTTP_STATUS" == "200" ]; then
-    log_success "Health Check OK (200)"
+# 1. Check Deep Readiness
+echo "Checking /api/health/ready..."
+READY_RESPONSE=$(curl -sS --max-time 8 -w " HTTP_STATUS:%{http_code}" "$URL/api/health/ready")
+READY_STATUS="${READY_RESPONSE##*HTTP_STATUS:}"
+READY_BODY="${READY_RESPONSE% HTTP_STATUS:*}"
+if [ "$READY_STATUS" == "200" ] && echo "$READY_BODY" | grep -Eq '"status"[[:space:]]*:[[:space:]]*"ok"'; then
+    log_success "Readiness Check OK (200 + status=ok)"
 else
-    log_error "Health Check FAILED ($HTTP_STATUS)"
+    log_error "Readiness Check FAILED ($READY_STATUS): $READY_BODY"
     exit 1
 fi
 
@@ -60,7 +62,7 @@ fi
 # 5. Check Subject Listings (/api/subjects)
 echo "Checking /api/subjects (Data Retrieval)..."
 SUBJECTS_JSON=$(curl -s "$URL/api/subjects?limit=1")
-if echo "$SUBJECTS_JSON" | grep -q '"data":\['; then
+if echo "$SUBJECTS_JSON" | grep -q '"subjects":\['; then
    log_success "Subject Listing API OK"
 else
    log_error "Subject Listing API FAILED: $SUBJECTS_JSON"

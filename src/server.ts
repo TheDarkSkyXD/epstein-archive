@@ -316,6 +316,57 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Readiness endpoint: validates DB connectivity + critical tables + minimum data availability.
+app.get('/api/health/ready', (_req, res) => {
+  const startedAt = Date.now();
+  try {
+    const db = getDb();
+    const dbPingStart = Date.now();
+    db.prepare('SELECT 1 as ok').get();
+    const dbLatencyMs = Date.now() - dbPingStart;
+
+    const requiredTables = ['entities', 'documents', 'investigations', 'emails'];
+    const tableRows = db
+      .prepare(
+        `SELECT name FROM sqlite_master WHERE type='table' AND name IN (${requiredTables.map(() => '?').join(',')})`,
+      )
+      .all(...requiredTables) as Array<{ name: string }>;
+    const presentTables = new Set(tableRows.map((r) => r.name));
+    const missingTables = requiredTables.filter((name) => !presentTables.has(name));
+
+    const entitiesCount = Number(
+      (db.prepare('SELECT COUNT(*) as count FROM entities').get() as { count?: number })?.count ||
+        0,
+    );
+    const documentsCount = Number(
+      (db.prepare('SELECT COUNT(*) as count FROM documents').get() as { count?: number })?.count ||
+        0,
+    );
+
+    const status =
+      missingTables.length === 0 && entitiesCount > 0 && documentsCount > 0 ? 'ok' : 'degraded';
+    const code = status === 'ok' ? 200 : 503;
+
+    return res.status(code).json({
+      status,
+      timestamp: new Date().toISOString(),
+      checks: {
+        db: { ok: true, latencyMs: dbLatencyMs },
+        schema: { missingTables },
+        data: { entities: entitiesCount, documents: documentsCount },
+      },
+      durationMs: Date.now() - startedAt,
+    });
+  } catch (error: any) {
+    return res.status(503).json({
+      status: 'down',
+      timestamp: new Date().toISOString(),
+      checks: { db: { ok: false, error: error?.message || 'unknown' } },
+      durationMs: Date.now() - startedAt,
+    });
+  }
+});
+
 const isLocalRequest = (req: express.Request) => {
   const ip = (req.ip || '').replace('::ffff:', '');
   return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';

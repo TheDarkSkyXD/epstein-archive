@@ -979,12 +979,12 @@ function App() {
   );
 
   const { user: currentUser, isAdmin } = useAuth();
-  const navSegmentBaseClass = `flex w-full min-w-0 items-center justify-center ${
+  const navSegmentBaseClass = `flex h-full w-full min-w-0 items-center justify-center ${
     navLayoutMode === 'icons'
-      ? 'gap-0 h-11 px-2'
+      ? 'gap-0 px-2'
       : navLayoutMode === 'compact'
-        ? 'gap-1.5 h-10 px-2.5'
-        : 'gap-1.5 h-11 px-3 lg:px-4'
+        ? 'gap-1.5 px-2.5'
+        : 'gap-1.5 px-3 lg:px-4'
   } rounded-none transition-all duration-200 whitespace-nowrap border-0 bg-transparent ${
     navLayoutMode === 'icons' ? 'max-w-11' : ''
   }`;
@@ -994,12 +994,14 @@ function App() {
         ? `${activeClass} text-white`
         : 'text-slate-300 hover:text-white hover:bg-slate-800/55'
     } ${extraClass}`.trim();
-  const navItemClass = 'flex-1 min-w-0';
+  const navItemClass = 'flex-1 min-w-0 h-full';
   const navLabelClass = navLayoutMode === 'icons' ? 'hidden' : 'inline truncate';
   const navPillClass =
     navLayoutMode === 'normal'
-      ? 'flex w-full items-stretch rounded-full border overflow-hidden divide-x divide-slate-700/80'
-      : 'flex w-full items-stretch rounded-full border overflow-hidden divide-x divide-slate-700/80';
+      ? 'flex w-full h-11 items-stretch rounded-full border overflow-hidden divide-x divide-slate-700/80'
+      : navLayoutMode === 'compact'
+        ? 'flex w-full h-10 items-stretch rounded-full border overflow-hidden divide-x divide-slate-700/80'
+        : 'flex w-full h-11 items-stretch rounded-full border overflow-hidden divide-x divide-slate-700/80';
 
   useEffect(() => {
     const track = navTrackRef.current;

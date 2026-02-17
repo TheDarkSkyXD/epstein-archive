@@ -318,7 +318,8 @@ body {
 }
 
 .main-nav-pill > * {
-  min-height: 44px;
+  height: 100%;
+  min-height: 0;
 }
 
 @media (prefers-reduced-motion: no-preference) {

@@ -290,22 +290,24 @@ if [ "$DRY_RUN" = false ]; then
     
     while [ $COUNT -lt $MAX_RETRIES ]; do
         sleep 5
-        # Check HTTP status (timeout 2s)
-        HTTP_STATUS=$(ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "curl -s -o /dev/null -w \"%{http_code}\" --max-time 2 http://localhost:3012/api/health" || echo "000")
-        
-        if [ "$HTTP_STATUS" == "200" ]; then
+        # Deep readiness check: HTTP 200 + explicit status=ok
+        HEALTH_RESPONSE=$(ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "curl -sS --max-time 4 -w ' HTTP_STATUS:%{http_code}' http://localhost:3012/api/health/ready" || echo "HTTP_STATUS:000")
+        HTTP_STATUS="${HEALTH_RESPONSE##*HTTP_STATUS:}"
+        HEALTH_BODY="${HEALTH_RESPONSE% HTTP_STATUS:*}"
+
+        if [ "$HTTP_STATUS" == "200" ] && echo "$HEALTH_BODY" | grep -Eq '"status"[[:space:]]*:[[:space:]]*"ok"'; then
             SUCCESS=true
             break
         fi
         
-        log_step "Attempt $((COUNT+1))/$MAX_RETRIES: Status $HTTP_STATUS... waiting..."
+        log_step "Attempt $((COUNT+1))/$MAX_RETRIES: readiness status $HTTP_STATUS... waiting..."
         COUNT=$((COUNT+1))
     done
 
     if [ "$SUCCESS" = true ]; then
-      log_success "Deployment successful! API is responding (Status: 200)."
+      log_success "Deployment successful! Readiness check passed (/api/health/ready)."
     else
-      log_error "Health check failed after $MAX_RETRIES attempts (Last Status: $HTTP_STATUS)."
+      log_error "Readiness check failed after $MAX_RETRIES attempts (Last Status: $HTTP_STATUS)."
       perform_rollback
     fi
 fi

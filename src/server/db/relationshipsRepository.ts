@@ -12,7 +12,7 @@ export const relationshipsRepository = {
     } = {},
   ) => {
     const db = getDb();
-    const where: string[] = ['source_entity_id = @entityId'];
+    const where: string[] = ['(source_entity_id = @entityId OR target_entity_id = @entityId)'];
     const params: any = { entityId };
 
     if (filters.minWeight !== undefined) {

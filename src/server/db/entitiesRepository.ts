@@ -1248,6 +1248,7 @@ export const entitiesRepository = {
         id: String(p.id),
         filePath: p.file_path,
         url: `/api/media/images/${p.id}/thumbnail`,
+        fullUrl: `/api/media/images/${p.id}`,
       })),
       // Add Black Book information if available
       blackBookEntries: blackBookEntries.map((bb) => ({

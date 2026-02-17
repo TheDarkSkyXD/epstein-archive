@@ -17,14 +17,20 @@ router.get('/', async (req, res, next) => {
       minWeight: req.query.minWeight ? parseFloat(req.query.minWeight as string) : undefined,
     });
 
-    const mapped = relations.slice(0, limit).map((r) => ({
-      entity_id: r.target_id,
-      related_entity_id: r.target_id,
-      relationship_type: r.relationship_type,
-      strength: r.proximity_score,
-      confidence: r.confidence,
-      weight: r.proximity_score,
-    }));
+    const currentId = String(entityId);
+    const mapped = relations.slice(0, limit).map((r) => {
+      const sourceId = String(r.source_id);
+      const targetId = String(r.target_id);
+      const neighborId = sourceId === currentId ? targetId : sourceId;
+      return {
+        entity_id: neighborId,
+        related_entity_id: neighborId,
+        relationship_type: r.relationship_type,
+        strength: r.proximity_score,
+        confidence: r.confidence,
+        weight: r.proximity_score,
+      };
+    });
 
     res.json({ relationships: mapped });
   } catch (error) {

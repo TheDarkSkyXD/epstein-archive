@@ -196,7 +196,24 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
     }>
   >([]);
   const [networkLoading, setNetworkLoading] = useState(false);
+  const [brokenMediaIds, setBrokenMediaIds] = useState<Record<string, boolean>>({});
   const blackBookSectionRef = React.useRef<HTMLDivElement | null>(null);
+  const navigateFromModal = useCallback(
+    (path: string) => {
+      onClose();
+      navigate(path);
+    },
+    [navigate, onClose],
+  );
+
+  const isHighProfileEntity = useMemo(() => {
+    const name = String(entity?.fullName || '').toLowerCase();
+    return (
+      name.includes('jeffrey epstein') ||
+      name.includes('ghislaine maxwell') ||
+      name.includes('donald trump')
+    );
+  }, [entity?.fullName]);
 
   const fetchEntityDetails = React.useCallback(async () => {
     setLoading(true);
@@ -255,10 +272,11 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
 
     if (quickAction === 'blackbook') {
       setActiveQuickAction('blackbook');
-      setActiveTab('overview');
-      setTabsLoaded((prev) => new Set(prev).add('overview'));
+      if (entity?.fullName) {
+        navigateFromModal(`/blackbook?search=${encodeURIComponent(entity.fullName)}`);
+      }
     }
-  }, [location.search]);
+  }, [entity?.fullName, location.search, navigateFromModal]);
 
   useEffect(() => {
     if (
@@ -321,8 +339,21 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
               confidence: number;
             }>;
           };
-          const rels = resp.relationships || [];
-          // Fetch names for top relationships
+          let rels = resp.relationships || [];
+          if (!rels.length) {
+            const graphResp = (await apiClient.get(`/entities/${entityId}/graph?depth=2`)) as any;
+            const graphEdges = Array.isArray(graphResp?.edges) ? graphResp.edges : [];
+            rels = graphEdges.slice(0, 80).map((edge: any) => ({
+              entity_id:
+                String(edge.source_id) === String(entityId)
+                  ? String(edge.target_id)
+                  : String(edge.source_id),
+              relationship_type: edge.relationship_type || 'associated_with',
+              strength: Number(edge.proximity_score || edge.weight || 0),
+              confidence: Number(edge.confidence || 0),
+            }));
+          }
+
           const top = rels.slice(0, 20);
           const withNames = await Promise.all(
             top.map(async (r) => {
@@ -355,7 +386,23 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
       try {
         const response = (await apiClient.get(`/entities/${entityId}/investigations`)) as any;
         if (!mounted) return;
-        setInvestigations(Array.isArray(response) ? response : []);
+        const primary = Array.isArray(response) ? response : [];
+        if (primary.length > 0 || !isHighProfileEntity) {
+          setInvestigations(primary);
+        } else {
+          const fallbackResp = (await apiClient.get('/investigations?status=open&limit=6')) as any;
+          const fallbackItems = Array.isArray(fallbackResp?.data)
+            ? fallbackResp.data
+            : Array.isArray(fallbackResp)
+              ? fallbackResp
+              : [];
+          setInvestigations(
+            fallbackItems.map((item: any) => ({
+              ...item,
+              _fallbackReason: 'Suggested open case',
+            })),
+          );
+        }
       } catch (error) {
         console.error('Error loading entity investigations', error);
         if (mounted) setInvestigations([]);
@@ -370,7 +417,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
     return () => {
       mounted = false;
     };
-  }, [activeTab, entityId, isOpen, tabsLoaded]);
+  }, [activeTab, entityId, isHighProfileEntity, isOpen, tabsLoaded]);
 
   // Forensic Calculations
   const forensicData = useMemo(() => {
@@ -426,14 +473,6 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
     };
   }, [entity, relationships]);
 
-  const navigateFromModal = useCallback(
-    (path: string) => {
-      onClose();
-      navigate(path);
-    },
-    [navigate, onClose],
-  );
-
   const handleQuickAction = useCallback(
     (action: 'blackbook' | 'timeline' | 'search') => {
       if (!entity?.fullName) return;
@@ -442,9 +481,12 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
       params.set('entityAction', action);
 
       if (action === 'blackbook') {
-        params.set('entityTab', 'overview');
+        navigateFromModal(`/blackbook?search=${encodeURIComponent(entity.fullName)}`);
+        return;
       } else if (action === 'timeline') {
         params.set('entityTab', 'network');
+        params.delete('entitySearch');
+        setDocFilters((prev) => ({ ...prev, search: '' }));
       } else {
         params.set('entityTab', 'evidence');
         params.set('entitySearch', entity.fullName);
@@ -453,12 +495,11 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
 
       navigate(`${location.pathname}?${params.toString()}`, { replace: true });
       setActiveQuickAction(action);
-      const nextTab =
-        action === 'timeline' ? 'network' : action === 'search' ? 'evidence' : 'overview';
+      const nextTab = action === 'timeline' ? 'network' : 'evidence';
       setActiveTab(nextTab);
       setTabsLoaded((prev) => new Set(prev).add(nextTab));
     },
-    [entity?.fullName, location.pathname, location.search, navigate],
+    [entity?.fullName, location.pathname, location.search, navigate, navigateFromModal],
   );
 
   const forensicSummary = useMemo(() => {
@@ -922,18 +963,73 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                       </div>
                     )}
 
-                    {!isDocsLoading && docsInitialized && documents.length === 0 && (
-                      <div className="h-full min-h-[260px] flex flex-col items-center justify-center text-slate-400 text-center px-6">
-                        <FileText size={44} className="mb-3 opacity-30" />
-                        <h4 className="text-slate-200 font-semibold mb-1">
-                          No Linked Evidence Yet
-                        </h4>
-                        <p className="text-sm text-slate-500 max-w-md">
-                          We could not find evidence items for this entity using current filters.
-                          Try clearing search, reviewing timeline, or opening related documents.
-                        </p>
-                      </div>
-                    )}
+                    {!isDocsLoading &&
+                      docsInitialized &&
+                      documents.length === 0 &&
+                      (entity?.significant_passages || []).length === 0 && (
+                        <div className="h-full min-h-[260px] flex flex-col items-center justify-center text-slate-400 text-center px-6">
+                          <FileText size={44} className="mb-3 opacity-30" />
+                          <h4 className="text-slate-200 font-semibold mb-1">
+                            No Linked Evidence Yet
+                          </h4>
+                          <p className="text-sm text-slate-500 max-w-md">
+                            We could not find evidence items for this entity using current filters.
+                            Try clearing search, reviewing timeline, or opening related documents.
+                          </p>
+                        </div>
+                      )}
+
+                    {!isDocsLoading &&
+                      documents.length === 0 &&
+                      (entity?.significant_passages || []).length > 0 &&
+                      entity?.significant_passages?.map((passage: any, index: number) => {
+                        const excerpt = normalizeEvidenceSnippet(
+                          passage.passage || passage.contentSnippet || '',
+                          passage.filename || `Document ${passage.documentId || index + 1}`,
+                        );
+                        return (
+                          <article
+                            key={`sig-fallback-${index}`}
+                            className="bg-slate-950 border border-slate-800 rounded-[var(--radius-md)] p-4 hover:border-slate-600 transition-colors"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
+                                  <span className="semantic-chip text-[10px] px-2 h-6 border-slate-700/70 bg-slate-900/70 text-slate-300">
+                                    {passage.source || 'Document'}
+                                  </span>
+                                  <span className="font-mono">
+                                    #{passage.documentId || index + 1}
+                                  </span>
+                                </div>
+                                <h4 className="text-sm font-semibold text-slate-100 truncate">
+                                  {passage.filename ||
+                                    `Document ${passage.documentId || index + 1}`}
+                                </h4>
+                              </div>
+                              {passage.documentId && (
+                                <button
+                                  onClick={() =>
+                                    window.open(`/documents/${passage.documentId}`, '_blank')
+                                  }
+                                  className="control h-9 px-3 text-xs text-slate-200 flex items-center gap-1"
+                                >
+                                  Open <ExternalLink size={12} />
+                                </button>
+                              )}
+                            </div>
+                            <p className="text-sm text-slate-300 leading-relaxed mt-3 line-clamp-3">
+                              {highlightTerms(excerpt, [entity?.fullName, passage.keyword])}
+                            </p>
+                            <div className="mt-3 pt-3 border-t border-slate-800/70 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                              <span className="inline-flex items-center gap-1 text-amber-300">
+                                <AlertTriangle size={12} />
+                                Fallback evidence from high-significance passage.
+                              </span>
+                            </div>
+                          </article>
+                        );
+                      })}
 
                     {!isDocsLoading &&
                       documents.map((doc, index) => {
@@ -1026,11 +1122,28 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                             className="bg-slate-950 border border-slate-800 rounded-[var(--radius-md)] overflow-hidden"
                           >
                             <div className="aspect-video bg-slate-900 overflow-hidden">
-                              <img
-                                src={photo.url}
-                                alt={title}
-                                className="w-full h-full object-cover"
-                              />
+                              {brokenMediaIds[String(photo.id)] ? (
+                                <div className="w-full h-full flex items-center justify-center text-slate-500 bg-slate-900">
+                                  <ImageIcon size={28} />
+                                </div>
+                              ) : (
+                                <img
+                                  src={photo.url}
+                                  alt={title}
+                                  className="w-full h-full object-cover"
+                                  onError={(event) => {
+                                    const id = String(photo.id || i);
+                                    const fallbackUrl = photo.fullUrl || `/api/media/images/${id}`;
+                                    const img = event.currentTarget;
+                                    if (img.dataset.fallbackApplied !== '1') {
+                                      img.dataset.fallbackApplied = '1';
+                                      img.src = fallbackUrl;
+                                      return;
+                                    }
+                                    setBrokenMediaIds((prev) => ({ ...prev, [id]: true }));
+                                  }}
+                                />
+                              )}
                             </div>
                             <div className="p-3">
                               <div className="flex items-start gap-2 mb-2">
@@ -1209,6 +1322,11 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                             >
                               {inv.status}
                             </span>
+                            {inv._fallbackReason && (
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded uppercase tracking-wider border border-indigo-500/20 text-indigo-300 bg-indigo-500/10">
+                                {inv._fallbackReason}
+                              </span>
+                            )}
                             <span className="flex items-center gap-1.5 text-xs text-slate-500">
                               <Clock size={12} />
                               Updated {new Date(inv.updated_at).toLocaleDateString()}

@@ -1,3 +1,20 @@
+## v13.12.3 - 2026-02-17 - Entity Reliability and VIP Quality Patch
+
+### Entity interaction reliability
+
+- Fixed entity card navigation reliability so entity clicks consistently open the correct profile view.
+
+### VIP quality and ordering
+
+- Tightened VIP/front-page quality filtering to suppress low-signal junk entities.
+- Enforced deterministic VIP ordering with priority on red flag index, then risk, then mentions.
+- Ensured baseline ordering starts with Jeffrey Epstein, Donald Trump, and Ghislaine Maxwell.
+
+### No-evidence handling
+
+- Added clear placeholder copy for entities currently listed by DOJ without linked evidence yet.
+- Pushed no-evidence VIP entries to the bottom of VIP results until supporting mentions/evidence are present.
+
 ## v13.12.2 - 2026-02-17 - Modal Close Consistency and Layout Centering Patch
 
 ### Close control consistency

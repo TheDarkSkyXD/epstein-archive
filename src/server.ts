@@ -325,14 +325,17 @@ app.get('/api/health/ready', (_req, res) => {
     db.prepare('SELECT 1 as ok').get();
     const dbLatencyMs = Date.now() - dbPingStart;
 
-    const requiredTables = ['entities', 'documents', 'investigations', 'emails'];
+    const requiredTables = ['entities', 'documents'];
+    const optionalTables = ['investigations', 'emails'];
+    const allTablesToCheck = [...requiredTables, ...optionalTables];
     const tableRows = db
       .prepare(
-        `SELECT name FROM sqlite_master WHERE type='table' AND name IN (${requiredTables.map(() => '?').join(',')})`,
+        `SELECT name FROM sqlite_master WHERE type='table' AND name IN (${allTablesToCheck.map(() => '?').join(',')})`,
       )
-      .all(...requiredTables) as Array<{ name: string }>;
+      .all(...allTablesToCheck) as Array<{ name: string }>;
     const presentTables = new Set(tableRows.map((r) => r.name));
     const missingTables = requiredTables.filter((name) => !presentTables.has(name));
+    const missingOptionalTables = optionalTables.filter((name) => !presentTables.has(name));
 
     const entitiesCount = Number(
       (db.prepare('SELECT COUNT(*) as count FROM entities').get() as { count?: number })?.count ||
@@ -352,7 +355,7 @@ app.get('/api/health/ready', (_req, res) => {
       timestamp: new Date().toISOString(),
       checks: {
         db: { ok: true, latencyMs: dbLatencyMs },
-        schema: { missingTables },
+        schema: { missingTables, missingOptionalTables },
         data: { entities: entitiesCount, documents: documentsCount },
       },
       durationMs: Date.now() - startedAt,

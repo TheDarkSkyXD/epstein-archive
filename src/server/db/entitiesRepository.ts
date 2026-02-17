@@ -213,7 +213,6 @@ const DEFAULT_SIGNAL_CLAUSE = `(
       OR COALESCE(mentions, 0) >= 5
       OR COALESCE(red_flag_rating, 0) >= 4
       OR UPPER(COALESCE(risk_level, '')) IN ('HIGH', 'CRITICAL')
-      OR (bio IS NOT NULL AND TRIM(bio) != '')
     )
   )
   OR (
@@ -222,7 +221,6 @@ const DEFAULT_SIGNAL_CLAUSE = `(
       COALESCE(mentions, 0) >= 10
       OR COALESCE(red_flag_rating, 0) >= 2
       OR UPPER(COALESCE(risk_level, '')) IN ('HIGH', 'CRITICAL', 'MEDIUM')
-      OR (bio IS NOT NULL AND TRIM(bio) != '')
     )
   )
 )`;
@@ -351,7 +349,6 @@ export const entitiesRepository = {
             OR COALESCE(mentions, 0) >= 5
             OR COALESCE(red_flag_rating, 0) >= 4
             OR UPPER(COALESCE(risk_level, '')) IN ('HIGH','CRITICAL')
-            OR (bio IS NOT NULL AND TRIM(bio) != '')
           )
         )`);
       } else {
@@ -891,7 +888,6 @@ export const entitiesRepository = {
             OR COALESCE(mentions, 0) >= 5
             OR COALESCE(red_flag_rating, 0) >= 4
             OR UPPER(COALESCE(risk_level, '')) IN ('HIGH','CRITICAL')
-            OR (bio IS NOT NULL AND TRIM(bio) != '')
           )
         )`);
       } else {

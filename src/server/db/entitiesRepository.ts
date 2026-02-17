@@ -210,9 +210,14 @@ const DEFAULT_SIGNAL_CLAUSE = `(
     COALESCE(is_vip, 0) = 1
     AND (
       lower(full_name) IN ('jeffrey epstein', 'donald trump', 'ghislaine maxwell')
-      OR COALESCE(mentions, 0) >= 5
-      OR COALESCE(red_flag_rating, 0) >= 4
-      OR UPPER(COALESCE(risk_level, '')) IN ('HIGH', 'CRITICAL')
+      OR (
+        COALESCE(mentions, 0) >= 1
+        AND (
+          COALESCE(mentions, 0) >= 5
+          OR COALESCE(red_flag_rating, 0) >= 4
+          OR UPPER(COALESCE(risk_level, '')) IN ('HIGH', 'CRITICAL')
+        )
+      )
     )
   )
   OR (
@@ -346,9 +351,14 @@ export const entitiesRepository = {
           COALESCE(is_vip,0) = 1
           AND (
             lower(full_name) IN ('jeffrey epstein', 'donald trump', 'ghislaine maxwell')
-            OR COALESCE(mentions, 0) >= 5
-            OR COALESCE(red_flag_rating, 0) >= 4
-            OR UPPER(COALESCE(risk_level, '')) IN ('HIGH','CRITICAL')
+            OR (
+              COALESCE(mentions, 0) >= 1
+              AND (
+                COALESCE(mentions, 0) >= 5
+                OR COALESCE(red_flag_rating, 0) >= 4
+                OR UPPER(COALESCE(risk_level, '')) IN ('HIGH','CRITICAL')
+              )
+            )
           )
         )`);
       } else {
@@ -885,9 +895,14 @@ export const entitiesRepository = {
           COALESCE(is_vip,0) = 1
           AND (
             lower(full_name) IN ('jeffrey epstein', 'donald trump', 'ghislaine maxwell')
-            OR COALESCE(mentions, 0) >= 5
-            OR COALESCE(red_flag_rating, 0) >= 4
-            OR UPPER(COALESCE(risk_level, '')) IN ('HIGH','CRITICAL')
+            OR (
+              COALESCE(mentions, 0) >= 1
+              AND (
+                COALESCE(mentions, 0) >= 5
+                OR COALESCE(red_flag_rating, 0) >= 4
+                OR UPPER(COALESCE(risk_level, '')) IN ('HIGH','CRITICAL')
+              )
+            )
           )
         )`);
       } else {

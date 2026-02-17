@@ -92,6 +92,11 @@ const RISK_ORDER_SQL = `CASE UPPER(COALESCE(risk_level, ''))
   ELSE 0
 END DESC`;
 
+const EVIDENCE_PRESENCE_ORDER_SQL = `CASE
+  WHEN COALESCE(mentions, 0) > 0 THEN 1
+  ELSE 0
+END DESC`;
+
 function normalizeVipDisplayName(value: string): string {
   return value
     .toLowerCase()
@@ -381,12 +386,12 @@ export const entitiesRepository = {
         orderByClause = `ORDER BY ${vipOrder}, id DESC`;
         break;
       case 'mentions':
-        orderByClause = `ORDER BY ${vipOrder}, ${VIP_PINNED_ORDER_SQL}, ${safetyOrder}, ${RISK_ORDER_SQL}, ${mentionsOrder}, full_name ASC`;
+        orderByClause = `ORDER BY ${vipOrder}, ${VIP_PINNED_ORDER_SQL}, ${safetyOrder}, ${RISK_ORDER_SQL}, ${EVIDENCE_PRESENCE_ORDER_SQL}, ${mentionsOrder}, full_name ASC`;
         break;
       case 'risk':
       case 'red_flag':
       default:
-        orderByClause = `ORDER BY ${vipOrder}, ${VIP_PINNED_ORDER_SQL}, ${safetyOrder}, ${RISK_ORDER_SQL}, ${mentionsOrder}, full_name ASC`;
+        orderByClause = `ORDER BY ${vipOrder}, ${VIP_PINNED_ORDER_SQL}, ${safetyOrder}, ${RISK_ORDER_SQL}, ${EVIDENCE_PRESENCE_ORDER_SQL}, ${mentionsOrder}, full_name ASC`;
         break;
     }
 
@@ -532,7 +537,12 @@ export const entitiesRepository = {
         id: String(e.id),
         name: displayName,
         role: e.primary_role || 'Unknown',
-        short_bio: e.bio ? e.bio.substring(0, 150) : undefined,
+        short_bio:
+          e.bio && String(e.bio).trim().length > 0
+            ? e.bio.substring(0, 150)
+            : e.mentions === 0 && !hasBlackBook && !hasPhotos && !hasFlight
+              ? 'Entity mentioned in list published by the DOJ as being in the files. We will fill in evidence and documents as they come in.'
+              : undefined,
         stats: {
           mentions: e.mentions || 0,
           documents: e.mentions || 0,

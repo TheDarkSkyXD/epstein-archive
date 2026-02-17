@@ -206,7 +206,16 @@ function resolveDisplayName(name: string, lookup: Map<string, string>): string {
 }
 
 const DEFAULT_SIGNAL_CLAUSE = `(
-  COALESCE(is_vip, 0) = 1
+  (
+    COALESCE(is_vip, 0) = 1
+    AND (
+      lower(full_name) IN ('jeffrey epstein', 'donald trump', 'ghislaine maxwell')
+      OR COALESCE(mentions, 0) >= 5
+      OR COALESCE(red_flag_rating, 0) >= 4
+      OR UPPER(COALESCE(risk_level, '')) IN ('HIGH', 'CRITICAL')
+      OR (bio IS NOT NULL AND TRIM(bio) != '')
+    )
+  )
   OR (
     COALESCE(primary_role, '') NOT IN ('', 'Unknown', 'UNK')
     AND (
@@ -335,7 +344,16 @@ export const entitiesRepository = {
     // 4b. Entity Type / VIP view
     if (filters?.entityType && filters.entityType !== 'all') {
       if (filters.entityType === 'vip_only') {
-        whereConditions.push(`(COALESCE(is_vip,0) = 1 OR lower(full_name) = 'jeffrey epstein')`);
+        whereConditions.push(`(
+          COALESCE(is_vip,0) = 1
+          AND (
+            lower(full_name) IN ('jeffrey epstein', 'donald trump', 'ghislaine maxwell')
+            OR COALESCE(mentions, 0) >= 5
+            OR COALESCE(red_flag_rating, 0) >= 4
+            OR UPPER(COALESCE(risk_level, '')) IN ('HIGH','CRITICAL')
+            OR (bio IS NOT NULL AND TRIM(bio) != '')
+          )
+        )`);
       } else {
         whereConditions.push('entity_type = @entityType');
         params.entityType = filters.entityType;
@@ -378,8 +396,6 @@ export const entitiesRepository = {
       applyDefaultNameHygieneLite(whereConditions);
       // Front page: VIP first, but still surface non-VIP high-signal entities across all types.
       whereConditions.push(DEFAULT_SIGNAL_CLAUSE);
-      // Emergency fast-path: avoid expensive global sorts for initial landing view.
-      orderByClause = 'ORDER BY id DESC';
     }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
@@ -868,7 +884,16 @@ export const entitiesRepository = {
     // 4b. Entity Type / VIP view
     if (filters?.entityType && filters.entityType !== 'all') {
       if (filters.entityType === 'vip_only') {
-        whereConditions.push(`(COALESCE(is_vip,0) = 1 OR lower(full_name) = 'jeffrey epstein')`);
+        whereConditions.push(`(
+          COALESCE(is_vip,0) = 1
+          AND (
+            lower(full_name) IN ('jeffrey epstein', 'donald trump', 'ghislaine maxwell')
+            OR COALESCE(mentions, 0) >= 5
+            OR COALESCE(red_flag_rating, 0) >= 4
+            OR UPPER(COALESCE(risk_level, '')) IN ('HIGH','CRITICAL')
+            OR (bio IS NOT NULL AND TRIM(bio) != '')
+          )
+        )`);
       } else {
         whereConditions.push('entity_type = @entityType');
         params.entityType = filters.entityType;

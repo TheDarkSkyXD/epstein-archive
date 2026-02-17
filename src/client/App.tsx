@@ -961,9 +961,9 @@ function App() {
 
       setSelectedPerson(person);
 
-      // Update URL for shareable link
+      // Update URL via router so UI/state stays synchronized
       if (person.id) {
-        window.history.pushState({}, '', `/entity/${person.id}`);
+        navigate(`/entity/${person.id}`);
       }
 
       // Announce navigation for screen readers
@@ -975,7 +975,7 @@ function App() {
       document.body.appendChild(announcement);
       setTimeout(() => document.body.removeChild(announcement), 1000);
     },
-    [location.pathname, location.search],
+    [location.pathname, location.search, navigate],
   );
 
   const { user: currentUser, isAdmin } = useAuth();

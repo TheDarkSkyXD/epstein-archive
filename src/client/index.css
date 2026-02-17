@@ -304,7 +304,7 @@ body {
 }
 
 .main-nav-track {
-  @apply w-full pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
+  @apply w-full [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
   overflow-x: auto;
 }
 

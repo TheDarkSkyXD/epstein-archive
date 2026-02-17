@@ -77,6 +77,21 @@ const FIVE_FLAG_BASELINE_ALIASES = new Set([
   'the donald',
 ]);
 
+const VIP_PINNED_ORDER_SQL = `CASE
+  WHEN lower(full_name) = 'jeffrey epstein' THEN 0
+  WHEN lower(full_name) = 'donald trump' THEN 1
+  WHEN lower(full_name) = 'ghislaine maxwell' THEN 2
+  ELSE 3
+END ASC`;
+
+const RISK_ORDER_SQL = `CASE UPPER(COALESCE(risk_level, ''))
+  WHEN 'CRITICAL' THEN 4
+  WHEN 'HIGH' THEN 3
+  WHEN 'MEDIUM' THEN 2
+  WHEN 'LOW' THEN 1
+  ELSE 0
+END DESC`;
+
 function normalizeVipDisplayName(value: string): string {
   return value
     .toLowerCase()
@@ -331,7 +346,7 @@ export const entitiesRepository = {
     let orderByClause = '';
     const vipOrder = 'COALESCE(is_vip, 0) DESC';
     const mentionsOrder = 'COALESCE(mentions, 0) DESC';
-    const safetyOrder = 'red_flag_rating DESC'; // High to Low
+    const safetyOrder = 'COALESCE(red_flag_rating, 0) DESC'; // High to Low
 
     switch (sortBy) {
       case 'name':
@@ -341,12 +356,12 @@ export const entitiesRepository = {
         orderByClause = `ORDER BY ${vipOrder}, id DESC`;
         break;
       case 'mentions':
-        orderByClause = `ORDER BY ${vipOrder}, mentions DESC, red_flag_rating DESC, full_name ASC`;
+        orderByClause = `ORDER BY ${vipOrder}, ${VIP_PINNED_ORDER_SQL}, ${safetyOrder}, ${RISK_ORDER_SQL}, ${mentionsOrder}, full_name ASC`;
         break;
       case 'risk':
       case 'red_flag':
       default:
-        orderByClause = `ORDER BY ${vipOrder}, ${mentionsOrder}, ${safetyOrder}, full_name ASC`;
+        orderByClause = `ORDER BY ${vipOrder}, ${VIP_PINNED_ORDER_SQL}, ${safetyOrder}, ${RISK_ORDER_SQL}, ${mentionsOrder}, full_name ASC`;
         break;
     }
 
@@ -868,7 +883,7 @@ export const entitiesRepository = {
     // Default sorting logic improvements
     const vipOrder = 'COALESCE(is_vip, 0) DESC';
     const mentionsOrder = 'COALESCE(mentions, 0) DESC';
-    const safetyOrder = 'red_flag_rating DESC';
+    const safetyOrder = 'COALESCE(red_flag_rating, 0) DESC';
 
     switch (sortBy) {
       case 'name':
@@ -878,12 +893,12 @@ export const entitiesRepository = {
         orderByClause = `ORDER BY ${vipOrder}, id DESC`;
         break;
       case 'mentions':
-        orderByClause = `ORDER BY ${vipOrder}, mentions DESC, red_flag_rating DESC, full_name ASC`;
+        orderByClause = `ORDER BY ${vipOrder}, ${VIP_PINNED_ORDER_SQL}, ${safetyOrder}, ${RISK_ORDER_SQL}, ${mentionsOrder}, full_name ASC`;
         break;
       case 'risk':
       case 'red_flag':
       default:
-        orderByClause = `ORDER BY ${vipOrder}, ${mentionsOrder}, ${safetyOrder}, full_name ASC`;
+        orderByClause = `ORDER BY ${vipOrder}, ${VIP_PINNED_ORDER_SQL}, ${safetyOrder}, ${RISK_ORDER_SQL}, ${mentionsOrder}, full_name ASC`;
         break;
     }
 

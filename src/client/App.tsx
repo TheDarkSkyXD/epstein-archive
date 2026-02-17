@@ -979,14 +979,14 @@ function App() {
   );
 
   const { user: currentUser, isAdmin } = useAuth();
-  const navSegmentBaseClass = `flex items-center justify-center ${
+  const navSegmentBaseClass = `flex w-full min-w-0 items-center justify-center ${
     navLayoutMode === 'icons'
       ? 'gap-0 h-11 px-2'
       : navLayoutMode === 'compact'
         ? 'gap-1.5 h-10 px-2.5'
         : 'gap-1.5 h-11 px-3 lg:px-4'
   } rounded-none transition-all duration-200 whitespace-nowrap border-0 bg-transparent ${
-    navLayoutMode === 'icons' ? 'w-11' : 'w-auto'
+    navLayoutMode === 'icons' ? 'max-w-11' : ''
   }`;
   const getNavSegmentClass = (isActive: boolean, activeClass: string, extraClass: string = '') =>
     `${navSegmentBaseClass} ${
@@ -994,12 +994,12 @@ function App() {
         ? `${activeClass} text-white`
         : 'text-slate-300 hover:text-white hover:bg-slate-800/55'
     } ${extraClass}`.trim();
-  const navItemClass = 'shrink-0';
-  const navLabelClass = navLayoutMode === 'icons' ? 'hidden' : 'inline';
+  const navItemClass = 'flex-1 min-w-0';
+  const navLabelClass = navLayoutMode === 'icons' ? 'hidden' : 'inline truncate';
   const navPillClass =
     navLayoutMode === 'normal'
-      ? 'inline-flex w-auto min-w-max items-center rounded-full border overflow-hidden divide-x divide-slate-700/80'
-      : 'inline-flex min-w-max items-center rounded-full border overflow-hidden divide-x divide-slate-700/80';
+      ? 'flex w-full items-stretch rounded-full border overflow-hidden divide-x divide-slate-700/80'
+      : 'flex w-full items-stretch rounded-full border overflow-hidden divide-x divide-slate-700/80';
 
   useEffect(() => {
     const track = navTrackRef.current;
@@ -1630,10 +1630,10 @@ function App() {
                     </div>
                   </div>
                   {navEdgeFade.left && (
-                    <div className="pointer-events-none absolute left-0 top-0 bottom-1 w-10 bg-gradient-to-r from-slate-900/95 via-slate-900/70 to-transparent" />
+                    <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-10 bg-gradient-to-r from-slate-900/95 via-slate-900/70 to-transparent" />
                   )}
                   {navEdgeFade.right && (
-                    <div className="pointer-events-none absolute right-0 top-0 bottom-1 w-10 bg-gradient-to-l from-slate-900/95 via-slate-900/70 to-transparent" />
+                    <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-slate-900/95 via-slate-900/70 to-transparent" />
                   )}
                 </div>
               </div>

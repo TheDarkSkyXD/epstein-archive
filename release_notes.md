@@ -1,3 +1,14 @@
+## v13.12.2 - 2026-02-17 - Modal Close Consistency and Layout Centering Patch
+
+### Close control consistency
+
+- Completed a sweep to standardize remaining modal and side-panel close affordances on the shared circular close button component.
+- Removed style overrides that caused square close boxes in some dialogs.
+
+### Layout alignment
+
+- Restored centered desktop shell alignment so the main content track matches navigation width and no longer appears overstretched.
+
 ## v13.12.1 - 2026-02-16 - UI Consistency and Production Stability Patch
 
 ### Close control standardization

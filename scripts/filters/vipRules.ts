@@ -25,7 +25,7 @@ export interface VipRule {
   };
 }
 
-export const VIP_RULES: VipRule[] = [
+const BASE_VIP_RULES: VipRule[] = [
   // --- KEY FIGURES (PERPETRATORS / COMPLICIT) ---
   {
     canonicalName: 'Jeffrey Epstein',
@@ -1023,6 +1023,480 @@ export const VIP_RULES: VipRule[] = [
     },
   },
 ];
+
+const BULK_VIP_POLITICIANS = [
+  'Acosta, Alexander',
+  'Allred, Gloria',
+  'Bannon, Steve',
+  'Barr, William',
+  'Becerra, Xavier',
+  'Biden, Ashley',
+  'Biden, Hunter',
+  'Biden, Jill',
+  'Biden, Joe',
+  'Blair, Tony',
+  'Blinken, Antony',
+  'Bolton, John',
+  'Bondi, Pam',
+  'Booker, Cory',
+  'Brennan, John',
+  'Bush Jr., George',
+  'Bush, George W.',
+  'Bush, Jeb',
+  'Carper, Tom',
+  'Cheney, Dick',
+  'Clayton, Jay',
+  'Clinton, Bill',
+  'Clinton, Chelsea',
+  'Clinton, Hillary',
+  'Comey, James',
+  'Comey, Maureen',
+  'Conway, George',
+  'Desantis, Ron',
+  'Emanuel, Rahm',
+  'Feinberg, Stephen',
+  'Flynn, Michael',
+  'Foley, Mark',
+  'Garland, Merrick',
+  'Geithner, Timothy',
+  'Giuliani, Rudy',
+  'Goldman, Dan',
+  'Graham, Lindsey',
+  'Haley, Nikki',
+  'Harris, Kamala',
+  'Hatch, Orrin',
+  'Higgins, Tony',
+  'Holder, Eric',
+  'Hoyer, Steny',
+  'Huckabee, Mike',
+  'Huckabee, Sarah',
+  'Jeffries, Hakeem',
+  'Johnson, Hank',
+  'Kasich, John',
+  'Kerry, John',
+  'Khanna, Ro',
+  'Kudlow, Larry',
+  'Kushner, Jared',
+  'Kyl, Jon',
+  'Lew, Jack',
+  'Lieu, Ted',
+  'Lofgren, Zoe',
+  'Lynch, Loretta',
+  'Mace, Nancy',
+  'Mandelson, Peter',
+  'Markey, Ed',
+  'Massie, Thomas',
+  'May, Theresa',
+  'McCain, John',
+  'Meadows, Mark',
+  'Menendez, Robert',
+  'Mnuchin, Steve',
+  'Monaco, Lisa',
+  'Moskowitz, Jared',
+  'Mueller III, Robert S.',
+  'Mulvaney, Mick',
+  'Nadler, Jerry',
+  'Napolitano, Janet',
+  'Netanyahu, Benjamin',
+  'Newsom, Gavin',
+  'Obama, Barack',
+  'Obama, Michelle',
+  'Ocasio Cortez, Alexandria',
+  'Patel, Kash',
+  'Paul, Ron',
+  'Pelosi, Nancy',
+  'Pence, Mike',
+  'Plaskett, Stacey',
+  'Pompeo, Mike',
+  'Power, Samantha',
+  'Pritzker, JB',
+  'Quayle, Dan',
+  'Raskin, Jamie',
+  'Ratcliffe, John',
+  'Reagan, Ronald',
+  'Reno, Janet',
+  'Rice, Susan',
+  'Richardson, Bill',
+  'Rohrabach, Andrew',
+  'Romney, Mitt',
+  'Rosenstein, Rod',
+  'Rove, Karl',
+  'Rubio, Marco',
+  'Ryan, Paul',
+  'Sasse, Ben',
+  'Schiff, Adam',
+  'Schumer, Chuck',
+  'Scott, Tim',
+  'Sessions, Jeff',
+  'Starmer, Keir',
+  'Starr, Kenneth',
+  'Stoltenberg, Jens',
+  'Taylor Green, Marjorie',
+  'Thatcher, Margaret',
+  'Trump, Donald',
+  'Trump, Ivanka',
+  'Trump, Melania',
+  'Vance, JD',
+  'Williams, Damian',
+  'Wyden, Ron',
+];
+
+const BULK_VIP_CELEBRITIES = [
+  'Allen, Woody',
+  'Assange, Julian',
+  'Baldwin, Alec',
+  'Beyonce',
+  'Bono',
+  'Bradshaw, Ric',
+  'Branson, Richard',
+  'Clooney, George',
+  'Cobain, Kurt',
+  'Cohen, Michael',
+  'Copperfield, David',
+  'Cosby, Bill',
+  'De Niro, Robert',
+  'Diller, Barry',
+  'Donahue, Phil',
+  'Eisenberg, John',
+  'Ferguson, Sarah',
+  'Gates, Bill',
+  'Gates, Melinda',
+  'Ho, Stanley',
+  'Hoffman, Reid',
+  'Jackson, Michael',
+  'Jagger, Mick',
+  'Jay Z',
+  'Joplin, Janis',
+  'Jones, Alex',
+  'Lewinsky, Monica',
+  'Markle, Meghan',
+  'Milano, Alyssa',
+  'Monroe, Marilyn',
+  'Murdoch, Rupert',
+  'Musk, Elon',
+  "O'Donnell, Rosie",
+  'Oz, Mehmet',
+  'Ratner, Brett',
+  'Reynolds, Tom',
+  'Ross, Diana',
+  'Schumer, Amy',
+  'Snowden, Edward',
+  'Spacey, Kevin',
+  'Springsteen, Bruce',
+  'Streisand, Barbara',
+  'Summers, Larry',
+  'Thiel, Peter',
+  'Tucker, Chris',
+  'Wolff, Michael',
+  'Zuckerberg, Mark',
+  'Zucker, Jeff',
+  'Woodward, Stanley',
+];
+
+const BULK_VIP_OTHER_NOTABLE = [
+  'Adelson, Miriam',
+  'Andrew Mountbatten-Windsor',
+  'Arthur Edward Rory Guinness',
+  'Avakian, Stephanie',
+  'Babino/Babine, Vincent',
+  'Band, Doug',
+  'Belohlavek, Lanna',
+  'Berman, Geoffrey',
+  'Bezos, Jeff',
+  'Birger, Laura',
+  'Bistricer, David',
+  'Bistricer, Marc',
+  'Black, Leon',
+  'Blanche, Todd',
+  'Boies, David',
+  'Bongino, Dan',
+  'Book, Lauren',
+  'Bowdich, David',
+  'Boyd, Stephen E.',
+  'Brockman, John',
+  'Brunel, Jean Luc',
+  'Buckley, Sean',
+  'Bull, Gerald',
+  'Byrne, Patrick',
+  'Calk, Stephen',
+  'Capone, Russell',
+  'Carlson, Tucker',
+  'Castro, Fidel',
+  'Chomsky, Noam',
+  'Colleran, Brian',
+  'Collins, Linda',
+  'Daza, Omar',
+  'Diana, Princess of Wales',
+  'Donaleski, Rebekah',
+  'Dupont, Kathleen',
+  'Economou, George',
+  'Egauger, Michael',
+  'Elizabeth II',
+  'Ellison, Keith',
+  'Erben, Germann',
+  'Fortelni, Marius',
+  'Friedland, Edward',
+  'Frost, Phillip',
+  'Harish, Joshua',
+  'Hawk, Ronny',
+  'Heiss, Howard',
+  'Horowitz, Andreessen',
+  'Horowitz, Michael',
+  'Hosenball, Mark',
+  'Hunter, Florence',
+  'Inge Rokke, Kjell',
+  'Iveagh, Clare',
+  'Jarecki, Henry',
+  'Kendall Rowlands, John',
+  'Kennedy Jr., Robert F.',
+  'Kline, Carl',
+  'Krisher, Barry',
+  'Lady Victoria Hervey',
+  'Lefkowitz, Jay',
+  'Lefroy, Jeremy',
+  'Leo, Leonard',
+  'Lonergan, Jessica',
+  'Lorber, Howard',
+  'Lord Robert May',
+  'Lutnick, Howard',
+  'Mao, Coreen',
+  'Margolin, James',
+  'Maxwell, Ghislaine',
+  'Maxwell, Robert',
+  'McFarland, Nicole',
+  'Milikowski, Nathan',
+  'Milken, Michael',
+  'Moe, Alison',
+  'Mook, William',
+  'Nassar, Larry',
+  'Papapetru, Sophia',
+  'Parker, Daniel',
+  'Pecorino, Joseph',
+  'Pestana, Diego',
+  'Phelan, John',
+  'Plourde, Lee',
+  'Podesta, Tony',
+  'Pomerantz, Lara',
+  'Pope John Paul II',
+  'Pope, Susan',
+  'Presley, Elvis',
+  'Presley, Lisa Marie',
+  'Prince Harry, Duke of Sussex',
+  'Prince Philip',
+  'Pritzker, Thomas',
+  'Readler, Chad',
+  'Recarey, Joseph',
+  'Reiter, Michael',
+  'Rod-Larsen, Terje',
+  'Rogers, Matthew',
+  'Roos, Nicolas',
+  'Rosen, Jeffrey',
+  'Rossmiller, Alexander',
+  'Roth, John',
+  'Routh, Timothy',
+  'Rowan, Marc',
+  'Rubensetin/Rubenstein, Howard',
+  'Ruemmier, Kathy',
+  'Salinger, Pierre',
+  'Scanlon, Mary Gay',
+  'Scarola, John',
+  'Schenberg, Janis',
+  'Schlaf, Martin',
+  'Schwarzman, Stephen',
+  'Sekulow, Jay',
+  'Senatore, Adrienne',
+  'Shamir, Yitzhak',
+  'Shapiro, Ben',
+  'Shapper, Gretchen',
+  'Shea, Timothy',
+  'Siad, Daniel',
+  'Soros, Alex',
+  'Soros, George',
+  'Spitzer, Eliot',
+  'Stabenow, Debbie',
+  'Staley, Jes',
+  'Stordalen, Gunhild',
+  'Straub, Glenn',
+  'Sultan Ahmed bin Sulayem',
+  'Swalwell, Eric',
+  'Sweeney Jr., William',
+  'Thomas-Jacobs, Carol',
+  'Thiel, Peter',
+  'Thomas-Jacobs, Carol',
+  'Tucker, Chris',
+  'Villafana, Marie',
+  'Walker, Richard',
+  'Warsh, Kevin',
+  'Wexner, Abigail',
+  'Wexner, Les',
+  'Yung, Mark',
+  'Zampolli, Paolo',
+];
+
+function escapeRegexSegment(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function canonicalizeVipSeedName(raw: string): string {
+  const cleaned = raw.replace(/\s+/g, ' ').replace(/[;]/g, '').trim();
+  if (!cleaned.includes(',')) return cleaned;
+
+  const parts = cleaned
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length < 2) return cleaned.replace(',', '').trim();
+
+  const firstChunk = parts[0];
+  const remainder = parts.slice(1).join(' ');
+
+  if (
+    /\b(prince|princess|duke|duchess|lady|lord|pope|queen|king)\b/i.test(firstChunk) ||
+    /\bduke|duchess|of\b/i.test(remainder)
+  ) {
+    return `${firstChunk} ${remainder}`.replace(/\s+/g, ' ').trim();
+  }
+
+  return `${remainder} ${firstChunk}`.replace(/\s+/g, ' ').trim();
+}
+
+function parseVipSeedVariants(raw: string): string[] {
+  const cleaned = raw.trim();
+  if (!cleaned) return [];
+
+  if (cleaned.includes('/') && cleaned.includes(',')) {
+    const [surnameVariantPart, trailing] = cleaned.split(',', 2);
+    const firstNamePart = trailing.trim();
+    return surnameVariantPart
+      .split('/')
+      .map((surname) => `${firstNamePart} ${surname.trim()}`.replace(/\s+/g, ' ').trim())
+      .filter(Boolean);
+  }
+
+  if (!cleaned.includes('/')) {
+    return [canonicalizeVipSeedName(cleaned)];
+  }
+
+  return cleaned
+    .split('/')
+    .map((variant) => canonicalizeVipSeedName(variant))
+    .filter(Boolean);
+}
+
+function generatedVipAliases(canonicalName: string, rawName: string): string[] {
+  const aliases = new Set<string>();
+  const normalizedCanonical = canonicalizeVipSeedName(canonicalName);
+  aliases.add(normalizedCanonical);
+  aliases.add(rawName.trim());
+  if (rawName.includes(',')) aliases.add(rawName.replace(',', '').trim());
+
+  if (normalizedCanonical.includes(' ')) {
+    const tokens = normalizedCanonical.split(' ').filter(Boolean);
+    const first = tokens[0];
+    const last = tokens[tokens.length - 1];
+    aliases.add(`${last}, ${first}`);
+    aliases.add(`${first} ${last}`);
+  }
+
+  return Array.from(aliases).filter(Boolean);
+}
+
+function buildBulkVipRules(
+  rawNames: string[],
+  category: NonNullable<VipRule['metadata']>['category'],
+  riskLevel: NonNullable<VipRule['metadata']>['riskLevel'],
+): VipRule[] {
+  const built: VipRule[] = [];
+  for (const raw of rawNames) {
+    const variants = parseVipSeedVariants(raw);
+    if (!variants.length) continue;
+    const canonicalName = variants[0];
+    const aliasSet = new Set<string>();
+    for (const variant of variants) {
+      for (const alias of generatedVipAliases(variant, raw)) aliasSet.add(alias);
+      aliasSet.add(variant);
+    }
+    aliasSet.delete(canonicalName);
+
+    const canonicalTokens = canonicalName
+      .replace(/[^\w\s.'-]/g, ' ')
+      .split(/\s+/)
+      .filter(Boolean);
+    const pattern =
+      canonicalTokens.length >= 2
+        ? new RegExp(canonicalTokens.map(escapeRegexSegment).join('\\s+'), 'i')
+        : new RegExp(escapeRegexSegment(canonicalName), 'i');
+
+    built.push({
+      canonicalName,
+      type: 'Person',
+      aliases: Array.from(aliasSet),
+      patterns: [pattern],
+      metadata: {
+        category,
+        riskLevel,
+        notes: 'Bulk VIP seed for consolidation and entity surface stabilization.',
+      },
+    });
+  }
+  return built;
+}
+
+function mergeVipRules(primary: VipRule[], secondary: VipRule[]): VipRule[] {
+  const byCanonical = new Map<string, VipRule>();
+  for (const rule of primary) {
+    byCanonical.set(normalizeVipToken(rule.canonicalName), {
+      ...rule,
+      aliases: [...rule.aliases],
+      patterns: [...rule.patterns],
+      metadata: rule.metadata ? { ...rule.metadata } : undefined,
+    });
+  }
+
+  for (const rule of secondary) {
+    const key = normalizeVipToken(rule.canonicalName);
+    const existing = byCanonical.get(key);
+    if (!existing) {
+      byCanonical.set(key, {
+        ...rule,
+        aliases: [...rule.aliases],
+        patterns: [...rule.patterns],
+        metadata: rule.metadata ? { ...rule.metadata } : undefined,
+      });
+      continue;
+    }
+
+    const mergedAliasSet = new Set<string>([...existing.aliases, ...rule.aliases]);
+    existing.aliases = Array.from(mergedAliasSet);
+
+    const existingPatterns = new Set(existing.patterns.map((pattern) => pattern.source));
+    for (const pattern of rule.patterns) {
+      if (!existingPatterns.has(pattern.source)) existing.patterns.push(pattern);
+    }
+
+    if (!existing.metadata && rule.metadata) {
+      existing.metadata = { ...rule.metadata };
+    } else if (existing.metadata && rule.metadata) {
+      existing.metadata = {
+        ...rule.metadata,
+        ...existing.metadata,
+        notes: existing.metadata.notes || rule.metadata.notes,
+      };
+    }
+  }
+
+  return Array.from(byCanonical.values()).sort((a, b) =>
+    a.canonicalName.localeCompare(b.canonicalName, 'en'),
+  );
+}
+
+const BULK_VIP_RULES = [
+  ...buildBulkVipRules(BULK_VIP_POLITICIANS, 'Associate', 'high'),
+  ...buildBulkVipRules(BULK_VIP_CELEBRITIES, 'Visitor', 'medium'),
+  ...buildBulkVipRules(BULK_VIP_OTHER_NOTABLE, 'Associate', 'medium'),
+];
+
+export const VIP_RULES: VipRule[] = mergeVipRules(BASE_VIP_RULES, BULK_VIP_RULES);
 
 const HONORIFIC_PREFIXES = [
   'mr',

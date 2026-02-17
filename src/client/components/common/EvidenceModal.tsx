@@ -628,7 +628,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                 onClick={onClose}
                 size="md"
                 label="Close entity profile"
-                className="control border-slate-600 text-slate-400 hover:text-white"
+                className="text-slate-400 hover:text-white"
               />
             </div>
 

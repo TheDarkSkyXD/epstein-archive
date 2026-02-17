@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiClient } from '../../services/apiClient';
 import { useToasts } from '../common/useToasts';
-import { BookOpen, Loader2, Search, Star, Trash2, X } from 'lucide-react';
+import { BookOpen, Loader2, Search, Star, Trash2 } from 'lucide-react';
 import type { MemoryEntry } from '../../types/memory';
+import { CloseButton } from '../common/CloseButton';
 
 interface InvestigationMemoryPanelProps {
   investigationId: string;
@@ -107,12 +108,7 @@ export const InvestigationMemoryPanel: React.FC<InvestigationMemoryPanelProps> =
               Persistent notes and AI-ready context for this investigation
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <CloseButton onClick={onClose} size="sm" label="Close memory panel" />
         </div>
 
         <form

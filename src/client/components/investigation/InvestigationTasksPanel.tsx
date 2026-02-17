@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiClient } from '../../services/apiClient';
 import { useToasts } from '../common/useToasts';
-import { CheckCircle2, Clock, Flag, Loader2, Plus, X } from 'lucide-react';
+import { CheckCircle2, Clock, Flag, Loader2, Plus } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { CloseButton } from '../common/CloseButton';
 
 interface InvestigationTasksPanelProps {
   investigationId: string;
@@ -183,12 +184,7 @@ export const InvestigationTasksPanel: React.FC<InvestigationTasksPanelProps> = (
               Track work items and progress for this investigation
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <CloseButton onClick={onClose} size="sm" label="Close tasks panel" />
         </div>
 
         {summary && (

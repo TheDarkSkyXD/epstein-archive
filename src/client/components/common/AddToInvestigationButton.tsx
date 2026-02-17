@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Investigation } from '../../types/investigation';
 import Icon from './Icon';
 import { useInvestigations } from '../../contexts/InvestigationsContext';
+import { CloseButton } from './CloseButton';
 
 interface AddToInvestigationItem {
   id: string;
@@ -260,12 +261,12 @@ export const AddToInvestigationButton: React.FC<AddToInvestigationButtonProps> =
                   <Icon name={ItemIcon} size="sm" color="info" />
                   <h3 className="text-xl font-bold text-white">Add to Investigation</h3>
                 </div>
-                <button
+                <CloseButton
                   onClick={() => setShowModal(false)}
+                  size="sm"
+                  label="Close add to investigation"
                   className="text-slate-400 hover:text-slate-200"
-                >
-                  <Icon name="X" size="md" />
-                </button>
+                />
               </div>
             </div>
 

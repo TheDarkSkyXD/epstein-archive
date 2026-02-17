@@ -7,7 +7,6 @@ import {
   Trash2,
   Shield,
   Search,
-  X,
   Check,
   AlertTriangle,
   Lock,
@@ -22,6 +21,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { ReviewQueuePanel } from '../components/admin/ReviewQueuePanel';
 import { ShieldCheck } from 'lucide-react';
+import { CloseButton } from '../components/common/CloseButton';
 
 interface User {
   id: string;
@@ -299,13 +299,13 @@ export const AdminDashboard: React.FC = () => {
               <p className="font-medium">An error occurred while loading admin data.</p>
               <p className="mt-1 text-red-200/80 break-all">{error}</p>
             </div>
-            <button
+            <CloseButton
               type="button"
               onClick={() => setError('')}
-              className="ml-2 rounded-full p-1 text-red-200 hover:bg-red-900/60 hover:text-white"
-            >
-              <X size={14} />
-            </button>
+              size="sm"
+              label="Dismiss error"
+              className="ml-2 border-red-700/60 bg-red-950/60 text-red-200 hover:bg-red-900/70 hover:text-white"
+            />
           </div>
         )}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -828,12 +828,7 @@ export const AdminDashboard: React.FC = () => {
               <h3 className="text-xl font-semibold text-slate-100">
                 {editingUser ? 'Edit User' : 'Add New User'}
               </h3>
-              <button
-                onClick={closeModal}
-                className="p-2 rounded-full hover:bg-slate-800 text-slate-400 hover:text-slate-100 transition-colors"
-              >
-                <X size={20} />
-              </button>
+              <CloseButton onClick={closeModal} size="sm" label="Close user modal" />
             </div>
 
             <form onSubmit={editingUser ? handleUpdate : handleCreate} className="p-6 space-y-4">

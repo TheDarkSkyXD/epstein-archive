@@ -70,7 +70,7 @@ export const ReleaseNotesPanel: React.FC<ReleaseNotesPanelProps> = ({
             onClick={onClose}
             size="md"
             label="Close release notes"
-            className="control border-slate-600 text-white"
+            className="text-white"
           />
         </div>
 

@@ -1074,7 +1074,7 @@ function App() {
 
             {/* Header */}
             <header className="app-header-glass transition-all duration-300">
-              <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex flex-col md:flex-row items-center justify-between py-2.5 min-h-[68px] gap-4">
                   {/* LEFT: Logo and Stats */}
                   <div className="flex items-center gap-6">
@@ -1329,7 +1329,7 @@ function App() {
               </div>
             </header>
 
-            <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8 relative z-10 flex-grow">
+            <div className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8 relative z-10 flex-grow">
               {/* Mobile Stats Row */}
               <div className="md:hidden grid grid-cols-3 gap-2 mb-6 text-center">
                 <button

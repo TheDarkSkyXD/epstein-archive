@@ -881,7 +881,7 @@ export const DocumentModal: React.FC<Props> = ({
                 onClick={onClose}
                 size="md"
                 label="Close"
-                className="control !h-12 !w-12 text-slate-400 hover:text-rose-400 hover:border-rose-500/30"
+                className="!h-12 !w-12 text-slate-400 hover:text-rose-400 hover:border-rose-500/30"
               />
             </>
           }

@@ -49,6 +49,7 @@ set -e
 cd /home/deploy/epstein-archive
 pm2 stop epstein-archive || true
 pm2 delete epstein-archive || true
+rm -f epstein-archive.db-wal epstein-archive.db-shm epstein-archive.db-journal
 pm2 start ecosystem.config.cjs --only epstein-archive --env production
 CMD
 }

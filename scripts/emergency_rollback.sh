@@ -41,6 +41,7 @@ pnpm build:prod
 
 pm2 stop epstein-archive || true
 pm2 delete epstein-archive || true
+rm -f epstein-archive.db-wal epstein-archive.db-shm epstein-archive.db-journal
 pm2 start ecosystem.config.cjs --only epstein-archive --env production
 
 READY_RESPONSE=$(curl -sS --max-time 8 -w " HTTP_STATUS:%{http_code}" "http://localhost:3012/api/health/ready" || echo "HTTP_STATUS:000")

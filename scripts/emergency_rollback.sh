@@ -39,10 +39,9 @@ export NODE_ENV=production
 pnpm install --frozen-lockfile
 pnpm build:prod
 
-pm2 startOrReload ecosystem.config.cjs --only epstein-archive --env production || {
-  pm2 delete epstein-archive || true
-  pm2 start ecosystem.config.cjs --only epstein-archive --env production
-}
+pm2 stop epstein-archive || true
+pm2 delete epstein-archive || true
+pm2 start ecosystem.config.cjs --only epstein-archive --env production
 
 READY_RESPONSE=$(curl -sS --max-time 8 -w " HTTP_STATUS:%{http_code}" "http://localhost:3012/api/health/ready" || echo "HTTP_STATUS:000")
 READY_STATUS="${READY_RESPONSE##*HTTP_STATUS:}"

@@ -47,10 +47,9 @@ remote_pm2_reload_cmd() {
   cat <<'CMD'
 set -e
 cd /home/deploy/epstein-archive
-pm2 startOrReload ecosystem.config.cjs --only epstein-archive --env production || {
-  pm2 delete epstein-archive || true
-  pm2 start ecosystem.config.cjs --only epstein-archive --env production
-}
+pm2 stop epstein-archive || true
+pm2 delete epstein-archive || true
+pm2 start ecosystem.config.cjs --only epstein-archive --env production
 CMD
 }
 
@@ -271,11 +270,11 @@ fi
 # PHASE 3: HEALTH CHECK
 # ============================================
 if [ "$DRY_RUN" = false ]; then
-  MAX_RETRIES=12
+  MAX_RETRIES=60
   COUNT=0
   SUCCESS=false
 
-  log_step "Waiting for service to stabilize (up to 60s)..."
+  log_step "Waiting for service to stabilize (up to 5 minutes)..."
 
   while [ $COUNT -lt $MAX_RETRIES ]; do
     sleep 5

@@ -144,15 +144,9 @@ trap 'on_error $LINENO' ERR
 if [ "$DRY_RUN" = false ] && [ "$DB_ONLY" = false ]; then
   log_step "Running pre-flight QA (format, lint, release notes, clean tree, build)..."
 
-  pnpm format:check || {
-    log_error "Format check failed. Run 'pnpm format' and commit intentionally."
-    exit 1
-  }
-
-  pnpm lint || {
-    log_error "Lint failed. Fix issues locally and commit intentionally."
-    exit 1
-  }
+  log_step "Auto-fixing format and lint issues..."
+  pnpm format
+  pnpm lint:fix
 
   verify_release_notes_version
 

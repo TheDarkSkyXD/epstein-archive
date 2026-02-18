@@ -1105,18 +1105,6 @@ app.get('/api/entities/:id/communications', getEntityCommunications);
 // Mount Articles Routes
 app.use('/api/articles', articlesRoutes);
 
-// Get media for a specific entity
-app.get('/api/entities/:id/media', async (req, res, next) => {
-  try {
-    const entityId = req.params.id;
-    const result = await entitiesRepository.getEntityMedia(entityId);
-    res.json(result);
-  } catch (error) {
-    console.error('Error fetching entity media:', error);
-    next(error);
-  }
-});
-
 // Black Book endpoint - returns entries from Black Book table
 app.get('/api/black-book', cacheMiddleware(300), async (req, res, next) => {
   try {

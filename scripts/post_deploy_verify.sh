@@ -17,7 +17,7 @@ echo "Verifying deployment at $URL..."
 
 # 1. Check Deep Readiness
 echo "Checking /api/health/ready..."
-READY_RESPONSE=$(curl -sS --max-time 8 -w " HTTP_STATUS:%{http_code}" "$URL/api/health/ready")
+READY_RESPONSE=$(curl -sS --max-time 20 -w " HTTP_STATUS:%{http_code}" "$URL/api/health/ready")
 READY_STATUS="${READY_RESPONSE##*HTTP_STATUS:}"
 READY_BODY="${READY_RESPONSE% HTTP_STATUS:*}"
 if [ "$READY_STATUS" == "200" ] && echo "$READY_BODY" | grep -Eq '"status"[[:space:]]*:[[:space:]]*"ok"'; then

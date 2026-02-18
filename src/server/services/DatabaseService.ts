@@ -886,4 +886,4 @@ export class DatabaseService {
   }
 }
 
-export const databaseService = DatabaseService.getInstance();
+export const getDatabaseService = (): DatabaseService => DatabaseService.getInstance();

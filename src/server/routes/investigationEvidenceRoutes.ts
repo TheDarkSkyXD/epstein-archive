@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { databaseService } from '../services/DatabaseService.js';
+import { getDatabaseService } from '../services/DatabaseService.js';
 
 const router = Router();
 
@@ -10,8 +10,7 @@ const router = Router();
 router.get('/evidence/:entityId', async (req: Request, res: Response) => {
   try {
     const { entityId } = req.params as { entityId: string };
-
-    const result = await databaseService.getEntityEvidence(entityId);
+    const result = await getDatabaseService().getEntityEvidence(entityId);
 
     if (!result) {
       return res.status(404).json({ error: 'Entity not found' });
@@ -34,7 +33,7 @@ router.post('/add-evidence', async (req: Request, res: Response) => {
     if (!investigationId || !evidenceId) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-    const result = await databaseService.addEvidenceToInvestigation(
+    const result = await getDatabaseService().addEvidenceToInvestigation(
       investigationId,
       evidenceId,
       notes,
@@ -56,7 +55,7 @@ router.post('/add-media', async (req: Request, res: Response) => {
     if (!investigationId || !mediaItemId) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-    const result = await databaseService.addMediaToInvestigation(
+    const result = await getDatabaseService().addMediaToInvestigation(
       investigationId,
       mediaItemId,
       notes,
@@ -82,7 +81,7 @@ router.post('/add-snippet', async (req: Request, res: Response) => {
     if (!investigationId || !documentId || !snippetText) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-    const result = await databaseService.addSnippetToInvestigation(
+    const result = await getDatabaseService().addSnippetToInvestigation(
       investigationId,
       documentId,
       snippetText,
@@ -107,7 +106,7 @@ router.get('/:investigationId/evidence-summary', async (req: Request, res: Respo
   try {
     const { investigationId } = req.params as { investigationId: string };
 
-    const result = await databaseService.getInvestigationEvidenceSummary(investigationId);
+    const result = await getDatabaseService().getInvestigationEvidenceSummary(investigationId);
 
     res.json(result);
   } catch (error) {
@@ -124,7 +123,8 @@ router.delete('/remove-evidence/:investigationEvidenceId', async (req: Request, 
   try {
     const { investigationEvidenceId } = req.params as { investigationEvidenceId: string };
 
-    const success = await databaseService.removeEvidenceFromInvestigation(investigationEvidenceId);
+    const success =
+      await getDatabaseService().removeEvidenceFromInvestigation(investigationEvidenceId);
 
     res.json({ success });
   } catch (error) {

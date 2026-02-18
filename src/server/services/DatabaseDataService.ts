@@ -1,4 +1,4 @@
-import { databaseService } from './DatabaseService';
+import { getDatabaseService } from './DatabaseService';
 import { Person, SearchFilters, SortOption } from '../../types';
 
 export class DatabaseDataService {
@@ -35,7 +35,7 @@ export class DatabaseDataService {
       }
 
       // Query database instead of loading JSON
-      const result = await databaseService.getEntities(page, limit, filters, sortBy);
+      const result = await getDatabaseService().getEntities(page, limit, filters, sortBy);
 
       // Cache the results
       this.searchCache.set(cacheKey, { results: result.entities, timestamp: Date.now() });
@@ -54,7 +54,7 @@ export class DatabaseDataService {
    */
   async getEntityById(id: string): Promise<Person | null> {
     try {
-      return await databaseService.getEntityById(id);
+      return await getDatabaseService().getEntityById(id);
     } catch (error) {
       console.error(`Error fetching entity ${id} from database:`, error);
       throw new Error(
@@ -75,7 +75,7 @@ export class DatabaseDataService {
         return { entities: [], documents: [] };
       }
 
-      const searchResults = await databaseService.search(query.trim(), limit);
+      const searchResults = await getDatabaseService().search(query.trim(), limit);
       return searchResults;
     } catch (error) {
       console.error('Error searching entities:', error);
@@ -95,7 +95,7 @@ export class DatabaseDataService {
     likelihoodDistribution: { level: string; count: number }[];
   }> {
     try {
-      return await databaseService.getStatistics();
+      return await getDatabaseService().getStatistics();
     } catch (error) {
       console.error('Error fetching statistics:', error);
       throw new Error(
@@ -212,7 +212,7 @@ export class DatabaseDataService {
    */
   async isDatabaseReady(): Promise<boolean> {
     try {
-      const stats = await databaseService.getStatistics();
+      const stats = await getDatabaseService().getStatistics();
       return stats.totalEntities > 0;
     } catch (error) {
       console.error('Database readiness check failed:', error);
@@ -224,7 +224,7 @@ export class DatabaseDataService {
    * Get database size for monitoring
    */
   getDatabaseSize(): number {
-    return databaseService.getDatabaseSize();
+    return getDatabaseService().getDatabaseSize();
   }
 
   /**
@@ -233,7 +233,7 @@ export class DatabaseDataService {
   async exportData(format: 'json' | 'csv' = 'json', filters?: SearchFilters): Promise<string> {
     try {
       // Get all entities (no pagination for export)
-      const { entities } = await databaseService.getEntities(1, 100000, filters, 'name');
+      const { entities } = await getDatabaseService().getEntities(1, 100000, filters, 'name');
 
       if (format === 'csv') {
         return this.convertToCSV(entities);

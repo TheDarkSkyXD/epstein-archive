@@ -319,7 +319,15 @@ if [ "$DRY_RUN" = false ]; then
   done
 
   if [ "$DEEP_SUCCESS" = true ]; then
-    log_success "Deployment successful (ready + deep health checks passed)."
+    log_step "Running post-deploy verification suite..."
+    ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "
+      set -e
+      cd ${PRODUCTION_PATH}
+      chmod +x ./scripts/post_deploy_verify.sh
+      DEPLOY_VERIFY_URL=http://127.0.0.1:3012 ./scripts/post_deploy_verify.sh
+    "
+
+    log_success "Deployment successful (ready + deep health + post-deploy checks passed)."
   else
     log_error "Deep health checks failed after $DEEP_MAX_RETRIES attempts."
     perform_rollback

@@ -191,7 +191,7 @@ const searchLimiter = rateLimit({
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 500, // General limit
+  max: 1500, // General limit
   message: { error: 'Too many requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -199,7 +199,9 @@ const apiLimiter = rateLimit({
     req.path === '/health' ||
     req.path.startsWith('/health/') ||
     req.path === '/stats/health' ||
-    req.path.startsWith('/stats/health/'),
+    req.path.startsWith('/stats/health/') ||
+    req.path === '/documents' ||
+    req.path.startsWith('/documents/'),
 });
 
 app.use('/api/', apiLimiter);

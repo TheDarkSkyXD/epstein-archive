@@ -1566,9 +1566,15 @@ async function processCollection(
 // ============================================================================
 
 async function main() {
+  const args = process.argv.slice(2);
+  const modeIdx = args.indexOf('--mode');
+  const mode = modeIdx >= 0 ? args[modeIdx + 1] : 'full';
+
   console.log('='.repeat(80));
   console.log('🚀 UNIFIED DATA INGESTION PIPELINE');
   console.log('='.repeat(80));
+  console.log();
+  console.log(`🧭 Mode: ${mode}`);
   console.log();
 
   // Enforce Exo Cluster for Max Performance
@@ -1588,6 +1594,13 @@ async function main() {
   if (!(await verifyDatabase())) {
     console.error('❌ Database verification failed. Exiting.');
     process.exit(1);
+  }
+
+  if (mode === 'queue-only') {
+    console.log('⏭️  Skipping file ingestion. Running queue processor only.\n');
+    await processQueue();
+    await db.close();
+    return;
   }
 
   // Start Pipeline Run

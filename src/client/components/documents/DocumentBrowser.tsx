@@ -294,6 +294,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
 
   const [hasMore, setHasMore] = useState(true);
   const [isFetching, setIsFetching] = useState(false);
+  const [fetchBlockedUntil, setFetchBlockedUntil] = useState<number>(0);
   const hasMoreRef = useRef(true);
   const isFetchingRef = useRef(false);
 
@@ -304,6 +305,17 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
   useEffect(() => {
     isFetchingRef.current = isFetching;
   }, [isFetching]);
+
+  useEffect(() => {
+    if (!fetchBlockedUntil) return;
+    const remaining = fetchBlockedUntil - Date.now();
+    if (remaining <= 0) {
+      setFetchBlockedUntil(0);
+      return;
+    }
+    const timer = window.setTimeout(() => setFetchBlockedUntil(0), remaining);
+    return () => window.clearTimeout(timer);
+  }, [fetchBlockedUntil]);
 
   useEffect(() => {
     if (effectiveSearchTerm !== searchInput) {
@@ -339,6 +351,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
     const fetchDocuments = async () => {
       // Prevent duplicate fetches or fetching when no more data
       if (isFetchingRef.current || (currentPage > 1 && !hasMoreRef.current)) return;
+      if (fetchBlockedUntil > Date.now()) return;
 
       try {
         isFetchingRef.current = true;
@@ -378,6 +391,24 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
         }
 
         const response = await fetch(`/api/documents?${params.toString()}`);
+
+        if (!response.ok) {
+          const retryAfterHeader = response.headers.get('Retry-After');
+          const retryAfterMs = retryAfterHeader
+            ? Math.max(5000, parseInt(retryAfterHeader, 10) * 1000)
+            : response.status === 429
+              ? 30000
+              : 15000;
+          setFetchBlockedUntil(Date.now() + retryAfterMs);
+          hasMoreRef.current = false;
+          setHasMore(false);
+
+          const errorBody = await response.text().catch(() => '');
+          throw new Error(
+            `HTTP ${response.status}: ${errorBody.slice(0, 180) || 'Failed to fetch documents'}`,
+          );
+        }
+
         const result = (await response.json()) as DocumentsListResponseDto;
 
         // Map API response to Document type
@@ -435,6 +466,8 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
         }
       } catch (error) {
         console.error('DocumentBrowser: Error fetching documents:', error);
+        hasMoreRef.current = false;
+        setHasMore(false);
         if (currentPage === 1) {
           setDocuments([]);
           setFilteredDocuments([]);

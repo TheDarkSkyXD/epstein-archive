@@ -42,7 +42,7 @@ const EntityTypeFilter: React.FC<EntityTypeFilterProps> = ({ value, onChange, cl
   const selectedOption = options.find((option) => option.value === value) || options[0];
 
   return (
-    <div className={`relative ${className}`} ref={dropdownRef}>
+    <div className={`relative ${isOpen ? 'z-[1200]' : 'z-10'} ${className}`} ref={dropdownRef}>
       <button
         type="button"
         onClick={() => setIsOpen((open) => !open)}
@@ -58,7 +58,7 @@ const EntityTypeFilter: React.FC<EntityTypeFilterProps> = ({ value, onChange, cl
       </button>
 
       {isOpen && (
-        <div className="absolute z-20 mt-1 w-full min-w-[220px] dropdown-surface p-1">
+        <div className="absolute z-[1210] mt-1 w-full min-w-[220px] dropdown-surface p-1">
           <ul role="listbox" className="py-1">
             {options.map((option) => (
               <li

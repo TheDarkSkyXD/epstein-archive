@@ -34,7 +34,7 @@ const SortFilter: React.FC<SortFilterProps> = ({ value, onChange, options, class
   const selectedOption = options.find((option) => option.value === value) || options[0];
 
   return (
-    <div className={`relative ${className}`} ref={dropdownRef}>
+    <div className={`relative ${isOpen ? 'z-[1200]' : 'z-10'} ${className}`} ref={dropdownRef}>
       <button
         type="button"
         onClick={() => setIsOpen((open) => !open)}
@@ -50,7 +50,7 @@ const SortFilter: React.FC<SortFilterProps> = ({ value, onChange, options, class
       </button>
 
       {isOpen && (
-        <div className="absolute z-20 mt-1 w-full min-w-[160px] right-0 md:left-0 md:right-auto dropdown-surface p-1">
+        <div className="absolute z-[1210] mt-1 w-full min-w-[160px] right-0 md:left-0 md:right-auto dropdown-surface p-1">
           <ul role="listbox" className="py-1">
             {options.map((option) => (
               <li

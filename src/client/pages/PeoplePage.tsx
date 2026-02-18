@@ -136,7 +136,7 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
           />
         )}
 
-        <div className="surface-glass-card p-3 md:p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3 flex-shrink-0">
+        <div className="surface-glass-card relative z-40 p-3 md:p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3 flex-shrink-0">
           <div className="flex items-center gap-2">
             <Icon name="Users" size="sm" color="info" className="flex-shrink-0" />
             <p className="text-slate-300 text-sm">

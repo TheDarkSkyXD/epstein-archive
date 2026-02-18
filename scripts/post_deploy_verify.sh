@@ -89,6 +89,27 @@ else
     exit 1
 fi
 
+# 7. Check Documents API with production query shape used by UI
+echo "Checking /api/documents (UI query shape + anti-429)..."
+DOC_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/api/documents?page=1&limit=50&sortBy=red_flag&sortOrder=desc&minRedFlag=0&maxRedFlag=5")
+if [ "$DOC_STATUS" == "200" ]; then
+    log_success "Documents API Query OK (200)"
+else
+    log_error "Documents API Query FAILED ($DOC_STATUS)"
+    exit 1
+fi
+
+# 8. Burst check to ensure immediate limiter lockout is not happening
+echo "Checking /api/documents burst resilience..."
+for i in 1 2 3 4 5; do
+  STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/api/documents?page=1&limit=50&sortBy=red_flag&sortOrder=desc&minRedFlag=0&maxRedFlag=5")
+  if [ "$STATUS" != "200" ]; then
+    log_error "Documents burst check failed on request $i (status=$STATUS)"
+    exit 1
+  fi
+done
+log_success "Documents burst resilience OK"
+
 echo "---"
 echo -e "${GREEN}ALL CHECKS PASSED. DEPLOYMENT v$EXPECTED_VERSION VERIFIED.${NC}"
 exit 0

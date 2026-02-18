@@ -27,26 +27,41 @@ let isRunning = false;
 let tickCount = 0;
 const MAX_TICKS = 200; // Increase for larger networks to settle
 
+const JEFFREY_ID = 1;
+const CENTER_X = 50;
+const CENTER_Y = 50;
+
 function applyCollisionResolution(draggedNodeId: number | null): GraphNode[] {
   const newNodes = nodes.map((n) => ({ ...n }));
 
-  // Only apply collision detection, no gravity/centering to preserve spiral
   for (let i = 0; i < newNodes.length; i++) {
     const node = newNodes[i];
     if (node.id === draggedNodeId) continue;
 
+    // 1. Centering Force (Gentle pull to middle)
+    const cdx = CENTER_X - node.x;
+    const cdy = CENTER_Y - node.y;
+    const centerDist = Math.sqrt(cdx * cdx + cdy * cdy);
+
+    // Stronger centering for Jeffrey Epstein
+    const centerStrength = node.id === JEFFREY_ID ? 0.05 : 0.01;
+    node.x += cdx * centerStrength;
+    node.y += cdy * centerStrength;
+
+    // 2. Collision Detection
     for (let j = 0; j < newNodes.length; j++) {
       if (i === j) continue;
       const other = newNodes[j];
       const dx = node.x - other.x;
       const dy = node.y - other.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      const minDist = (node.radius / 2 + other.radius / 2) * 1.5; // Padding
+      const minDist = (node.radius / 2 + other.radius / 2) * 2.0; // Increased padding
 
       if (dist < minDist && dist > 0) {
         const overlap = minDist - dist;
-        const moveX = (dx / dist) * overlap * 0.1; // Gentle push
-        const moveY = (dy / dist) * overlap * 0.1;
+        const pushFactor = 0.15; // Increased push
+        const moveX = (dx / dist) * overlap * pushFactor;
+        const moveY = (dy / dist) * overlap * pushFactor;
 
         node.x += moveX;
         node.y += moveY;

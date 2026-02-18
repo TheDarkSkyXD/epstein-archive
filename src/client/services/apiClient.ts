@@ -567,11 +567,6 @@ class ApiClient {
     return [];
   }
 
-  async getEntityMedia(entityId: string): Promise<any[]> {
-    const url = `${API_BASE_URL}/entities/${entityId}/media`;
-    return this.fetchWithErrorHandling<any[]>(url);
-  }
-
   async analyzeDocument(documentId: string): Promise<any> {
     const canonicalUrl = `${API_BASE_URL}/documents/${documentId}/analytics/analyze`;
     const legacyUrl = `${API_BASE_URL}/evidence/${documentId}/analyze`;
@@ -856,8 +851,26 @@ class ApiClient {
     );
   }
 
-  async getAllEntities(): Promise<any[]> {
-    const url = `${API_BASE_URL}/entities/all`;
+  async readinessCheck(): Promise<{
+    status: 'ok' | 'degraded' | 'down';
+    timestamp: string;
+    checks: {
+      db: { ok: boolean; latencyMs?: number; error?: string };
+      schema: { missingTables: string[]; missingOptionalTables: string[] };
+      data: { entities: number; documents: number };
+    };
+    durationMs: number;
+  }> {
+    const url = `${API_BASE_URL}/health/ready`;
+    return this.fetchWithErrorHandling<any>(url, { useCache: false });
+  }
+
+  /**
+   * @deprecated Performance risk: This method fetches the entire entity database (131k+ records).
+   * Use document-specific entity mentions or paginated getEntities instead.
+   */
+  async getAllEntities(limit: number = 0): Promise<any[]> {
+    const url = `${API_BASE_URL}/entities/all${limit > 0 ? `?limit=${limit}` : ''}`;
     try {
       const response = await this.fetchWithErrorHandling<any[]>(url);
       return response;

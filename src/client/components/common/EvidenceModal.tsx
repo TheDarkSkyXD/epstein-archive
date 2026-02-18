@@ -32,6 +32,9 @@ import { Skeleton } from './Skeleton';
 import { NetworkGraph } from '../visualizations/NetworkGraph';
 import Icon from './Icon';
 import { useScrollLock } from '../../hooks/useScrollLock';
+import { FixedSizeList as List } from 'react-window';
+import { InfiniteLoader } from 'react-window-infinite-loader';
+import { AutoSizer } from 'react-virtualized-auto-sizer';
 import { CloseButton } from './CloseButton';
 import { Tabs, TabItem } from './Tabs';
 
@@ -162,6 +165,8 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
   const [documents, setDocuments] = useState<any[]>([]);
   const [totalDocs, setTotalDocs] = useState(0);
   const [isDocsLoading, setIsDocsLoading] = useState(false);
+  const [isNextPageLoading, setIsNextPageLoading] = useState(false);
+  const [hasNextPage, setHasNextPage] = useState(true);
   const [docsInitialized, setDocsInitialized] = useState(false);
   const [docFilters, setDocFilters] = useState({ search: '', source: 'all', sort: 'relevance' });
 
@@ -288,42 +293,60 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
     }
   }, [activeQuickAction, activeTab]);
 
+  const handleFilterChange = (updates: Partial<typeof docFilters>) => {
+    setDocFilters((prev) => ({ ...prev, ...updates }));
+    setDocuments([]);
+    setTotalDocs(0);
+    setHasNextPage(true);
+    setDocsInitialized(false);
+  };
+
+  const isItemLoaded = (index: number) => !hasNextPage || index < documents.length;
+
+  const loadNextPage = async (startIndex: number, stopIndex: number) => {
+    if (isNextPageLoading) return;
+    setIsNextPageLoading(true);
+
+    try {
+      const page = Math.floor(startIndex / 50) + 1;
+      const qs = new URLSearchParams();
+      if (docFilters.search.trim()) qs.set('search', docFilters.search.trim());
+      qs.set('page', String(page));
+      qs.set('limit', '50');
+      if (docFilters.source !== 'all') qs.set('source', docFilters.source);
+      qs.set('sort', docFilters.sort);
+
+      const endpoint = `/entities/${entityId}/documents?${qs.toString()}`;
+      const response = (await apiClient.get(endpoint)) as any;
+
+      const newDocs = response.data || [];
+      const total = response.total || 0;
+
+      setDocuments((prev) => {
+        // Ensure we don't add duplicates if react-window calls this multiple times
+        const currentIds = new Set(prev.map((d) => d.id));
+        const filteredNewDocs = newDocs.filter((d: any) => !currentIds.has(d.id));
+        return [...prev, ...filteredNewDocs];
+      });
+      setTotalDocs(total);
+      setHasNextPage(documents.length + newDocs.length < total);
+    } catch (error) {
+      console.error('Error loading next page of evidence', error);
+    } finally {
+      setIsNextPageLoading(false);
+      setDocsInitialized(true);
+    }
+  };
+
   useEffect(() => {
     if (!(isOpen && entityId && activeTab === 'evidence' && tabsLoaded.has('evidence'))) return;
-    let mounted = true;
-    const loadEvidenceDocs = async () => {
+
+    // Initial load
+    if (!docsInitialized && !isDocsLoading) {
       setIsDocsLoading(true);
-      try {
-        const qs = new URLSearchParams();
-        if (docFilters.search.trim()) qs.set('search', docFilters.search.trim());
-        const endpoint = `/entities/${entityId}/documents${qs.toString() ? `?${qs.toString()}` : ''}`;
-        const response = (await apiClient.get(endpoint)) as any;
-        const docs = Array.isArray(response)
-          ? response
-          : Array.isArray(response?.data)
-            ? response.data
-            : [];
-        if (!mounted) return;
-        setDocuments(docs);
-        setTotalDocs(docs.length);
-      } catch (error) {
-        console.error('Error loading entity evidence documents', error);
-        if (mounted) {
-          setDocuments([]);
-          setTotalDocs(0);
-        }
-      } finally {
-        if (mounted) {
-          setDocsInitialized(true);
-          setIsDocsLoading(false);
-        }
-      }
-    };
-    loadEvidenceDocs();
-    return () => {
-      mounted = false;
-    };
-  }, [activeTab, docFilters.search, entityId, isOpen, tabsLoaded]);
+      loadNextPage(0, 49).finally(() => setIsDocsLoading(false));
+    }
+  }, [activeTab, docFilters, entityId, isOpen, tabsLoaded, docsInitialized, isDocsLoading]);
 
   useEffect(() => {
     // Only load relationships if network tab has been activated
@@ -461,6 +484,8 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
     }));
 
     const links = relationships.map((r) => ({
+      sourceId: String(entity.id),
+      targetId: String(r.entity_id),
       source: String(entity.id),
       target: String(r.entity_id),
       type: r.relationship_type,
@@ -933,21 +958,19 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                         placeholder="Search relevant documents..."
                         className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
                         value={docFilters.search}
-                        onChange={(e) =>
-                          setDocFilters((prev) => ({ ...prev, search: e.target.value }))
-                        }
+                        onChange={(e) => handleFilterChange({ search: e.target.value })}
                       />
                     </div>
                     <div className="text-xs text-slate-400 md:ml-auto self-center">
                       {isDocsLoading
                         ? 'Loading evidence...'
-                        : `${documents.length} evidence sources`}
+                        : `${totalDocs.toLocaleString()} evidence sources`}
                     </div>
                   </div>
 
-                  <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 bg-slate-900">
-                    {isDocsLoading && (
-                      <div className="space-y-3">
+                  <div className="flex-1 min-h-0 bg-slate-900 overflow-hidden">
+                    {isDocsLoading && documents.length === 0 ? (
+                      <div className="p-4 space-y-3">
                         {Array.from({ length: 6 }).map((_, i) => (
                           <div
                             key={i}
@@ -961,135 +984,120 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                           </div>
                         ))}
                       </div>
-                    )}
-
-                    {!isDocsLoading &&
-                      docsInitialized &&
-                      documents.length === 0 &&
-                      (entity?.significant_passages || []).length === 0 && (
-                        <div className="h-full min-h-[260px] flex flex-col items-center justify-center text-slate-400 text-center px-6">
-                          <FileText size={44} className="mb-3 opacity-30" />
-                          <h4 className="text-slate-200 font-semibold mb-1">
-                            No Linked Evidence Yet
-                          </h4>
-                          <p className="text-sm text-slate-500 max-w-md">
-                            We could not find evidence items for this entity using current filters.
-                            Try clearing search, reviewing timeline, or opening related documents.
-                          </p>
-                        </div>
-                      )}
-
-                    {!isDocsLoading &&
-                      documents.length === 0 &&
-                      (entity?.significant_passages || []).length > 0 &&
-                      entity?.significant_passages?.map((passage: any, index: number) => {
-                        const excerpt = normalizeEvidenceSnippet(
-                          passage.passage || passage.contentSnippet || '',
-                          passage.filename || `Document ${passage.documentId || index + 1}`,
-                        );
-                        return (
-                          <article
-                            key={`sig-fallback-${index}`}
-                            className="bg-slate-950 border border-slate-800 rounded-[var(--radius-md)] p-4 hover:border-slate-600 transition-colors"
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
-                                  <span className="semantic-chip text-[10px] px-2 h-6 border-slate-700/70 bg-slate-900/70 text-slate-300">
-                                    {passage.source || 'Document'}
-                                  </span>
-                                  <span className="font-mono">
-                                    #{passage.documentId || index + 1}
-                                  </span>
-                                </div>
-                                <h4 className="text-sm font-semibold text-slate-100 truncate">
-                                  {passage.filename ||
-                                    `Document ${passage.documentId || index + 1}`}
-                                </h4>
-                              </div>
-                              {passage.documentId && (
-                                <button
-                                  onClick={() =>
-                                    window.open(`/documents/${passage.documentId}`, '_blank')
-                                  }
-                                  className="control h-9 px-3 text-xs text-slate-200 flex items-center gap-1"
-                                >
-                                  Open <ExternalLink size={12} />
-                                </button>
-                              )}
-                            </div>
-                            <p className="text-sm text-slate-300 leading-relaxed mt-3 line-clamp-3">
-                              {highlightTerms(excerpt, [entity?.fullName, passage.keyword])}
-                            </p>
-                            <div className="mt-3 pt-3 border-t border-slate-800/70 flex flex-wrap items-center gap-3 text-xs text-slate-500">
-                              <span className="inline-flex items-center gap-1 text-amber-300">
-                                <AlertTriangle size={12} />
-                                Fallback evidence from high-significance passage.
-                              </span>
-                            </div>
-                          </article>
-                        );
-                      })}
-
-                    {!isDocsLoading &&
-                      documents.map((doc, index) => {
-                        const excerpt = normalizeEvidenceSnippet(
-                          doc.contentPreview || doc.content || doc.title || '',
-                          doc.title || doc.fileName || `Document ${doc.id}`,
-                        );
-                        const significanceReason =
-                          (doc.redFlagRating || 0) >= 4
-                            ? 'High risk score in source record.'
-                            : doc.evidenceType
-                              ? `Matched in ${doc.evidenceType} evidence.`
-                              : 'Directly linked through entity mention context.';
-
-                        return (
-                          <article
-                            key={doc.id || index}
-                            className="bg-slate-950 border border-slate-800 rounded-[var(--radius-md)] p-4 hover:border-slate-600 transition-colors"
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
-                                  <span className="semantic-chip text-[10px] px-2 h-6 border-slate-700/70 bg-slate-900/70 text-slate-300">
-                                    {doc.evidenceType || 'Document'}
-                                  </span>
-                                  <span className="font-mono">#{doc.id}</span>
-                                </div>
-                                <h4 className="text-sm font-semibold text-slate-100 truncate">
-                                  {doc.title || doc.fileName || `Document ${doc.id}`}
-                                </h4>
-                              </div>
-                              <button
-                                onClick={() => window.open(`/documents/${doc.id}`, '_blank')}
-                                className="control h-9 px-3 text-xs text-slate-200 flex items-center gap-1"
+                    ) : !isDocsLoading && documents.length === 0 ? (
+                      <div className="h-full min-h-[260px] flex flex-col items-center justify-center text-slate-400 text-center px-6">
+                        <FileText size={44} className="mb-3 opacity-30" />
+                        <h4 className="text-slate-200 font-semibold mb-1">
+                          No Linked Evidence Found
+                        </h4>
+                        <p className="text-sm text-slate-500 max-w-md">
+                          We could not find evidence items for "{entity?.fullName}" using current
+                          filters.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="h-full w-full">
+                        {(AutoSizer as any) && (
+                          <AutoSizer>
+                            {({ height, width }: any) => (
+                              <InfiniteLoader
+                                isItemLoaded={isItemLoaded}
+                                itemCount={totalDocs}
+                                loadMoreItems={loadNextPage}
                               >
-                                Open <ExternalLink size={12} />
-                              </button>
-                            </div>
-                            <p className="text-sm text-slate-300 leading-relaxed mt-3 line-clamp-3">
-                              {highlightTerms(excerpt, [entity?.fullName, doc.keyword])}
-                            </p>
-                            <div className="mt-3 pt-3 border-t border-slate-800/70 flex flex-wrap items-center gap-3 text-xs text-slate-500">
-                              <span className="inline-flex items-center gap-1">
-                                <Clock size={12} />
-                                {doc.dateCreated
-                                  ? new Date(doc.dateCreated).toLocaleDateString()
-                                  : 'Date unknown'}
-                              </span>
-                              <span className="inline-flex items-center gap-1">
-                                <Link2 size={12} />
-                                Source: {doc.source_collection || 'Archive'}
-                              </span>
-                              <span className="inline-flex items-center gap-1 text-amber-300">
-                                <AlertTriangle size={12} />
-                                Why significant: {significanceReason}
-                              </span>
-                            </div>
-                          </article>
-                        );
-                      })}
+                                {({ onItemsRendered, ref }: any) => (
+                                  <List
+                                    className="custom-scrollbar"
+                                    height={height}
+                                    itemCount={totalDocs}
+                                    itemSize={180}
+                                    width={width}
+                                    onItemsRendered={onItemsRendered}
+                                    ref={ref}
+                                  >
+                                    {({ index, style }: any) => {
+                                      const doc = documents[index];
+                                      if (!doc) {
+                                        return (
+                                          <div style={style} className="p-4">
+                                            <div className="h-full bg-slate-950/20 border border-slate-800/50 rounded-lg animate-pulse" />
+                                          </div>
+                                        );
+                                      }
+
+                                      const excerpt = normalizeEvidenceSnippet(
+                                        doc.contentPreview || doc.content || doc.title || '',
+                                        doc.title || doc.fileName || `Document ${doc.id}`,
+                                      );
+                                      const significanceReason =
+                                        (doc.redFlagRating || 0) >= 4
+                                          ? 'High risk score in source record.'
+                                          : doc.evidenceType
+                                            ? `Matched in ${doc.evidenceType} evidence.`
+                                            : 'Directly linked through entity mention context.';
+
+                                      return (
+                                        <div style={style} className="p-2 px-4">
+                                          <article className="bg-slate-950 border border-slate-800 rounded-[var(--radius-md)] p-4 hover:border-slate-600 transition-colors h-full flex flex-col justify-between">
+                                            <div>
+                                              <div className="flex items-start justify-between gap-3">
+                                                <div className="min-w-0">
+                                                  <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
+                                                    <span className="semantic-chip text-[10px] px-2 h-6 border-slate-700/70 bg-slate-900/70 text-slate-300">
+                                                      {doc.evidenceType || 'Document'}
+                                                    </span>
+                                                    <span className="font-mono">#{doc.id}</span>
+                                                  </div>
+                                                  <h4 className="text-sm font-semibold text-slate-100 truncate">
+                                                    {doc.title ||
+                                                      doc.fileName ||
+                                                      `Document ${doc.id}`}
+                                                  </h4>
+                                                </div>
+                                                <button
+                                                  onClick={() =>
+                                                    window.open(`/documents/${doc.id}`, '_blank')
+                                                  }
+                                                  className="control h-8 px-3 text-xs text-slate-200 flex items-center gap-1"
+                                                >
+                                                  Open <ExternalLink size={12} />
+                                                </button>
+                                              </div>
+                                              <p className="text-xs text-slate-300 leading-relaxed mt-2 line-clamp-2">
+                                                {highlightTerms(excerpt, [
+                                                  entity?.fullName,
+                                                  doc.keyword,
+                                                ])}
+                                              </p>
+                                            </div>
+                                            <div className="mt-2 pt-2 border-t border-slate-800/70 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500">
+                                              <span className="inline-flex items-center gap-1">
+                                                <Clock size={10} />
+                                                {doc.dateCreated
+                                                  ? new Date(doc.dateCreated).toLocaleDateString()
+                                                  : 'Date unknown'}
+                                              </span>
+                                              <span className="inline-flex items-center gap-1">
+                                                <Link2 size={10} />
+                                                {doc.source_collection || 'Archive'}
+                                              </span>
+                                              <span className="inline-flex items-center gap-1 text-amber-300/80">
+                                                <AlertTriangle size={10} />
+                                                {significanceReason}
+                                              </span>
+                                            </div>
+                                          </article>
+                                        </div>
+                                      );
+                                    }}
+                                  </List>
+                                )}
+                              </InfiniteLoader>
+                            )}
+                          </AutoSizer>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

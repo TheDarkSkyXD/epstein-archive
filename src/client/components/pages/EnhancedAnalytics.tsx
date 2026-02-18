@@ -36,7 +36,14 @@ interface AnalyticsData {
     redactionPercentage: number;
     totalRedactions: number;
   };
-  topRelationships: Array<{ source: string; target: string; type: string; weight: number }>;
+  topRelationships: Array<{
+    sourceId: number;
+    targetId: number;
+    source: string;
+    target: string;
+    type: string;
+    weight: number;
+  }>;
 }
 
 export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
@@ -66,9 +73,9 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
 
       // Filter relationships to only include valid entities
       if (result.topRelationships && result.topConnectedEntities) {
-        const validNames = new Set(result.topConnectedEntities.map((e: any) => e.name));
+        const validIds = new Set(result.topConnectedEntities.map((e: any) => e.id));
         result.topRelationships = result.topRelationships.filter(
-          (r: any) => validNames.has(r.source) && validNames.has(r.target),
+          (r: any) => validIds.has(r.sourceId) && validIds.has(r.targetId),
         );
       }
 

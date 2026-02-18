@@ -10,42 +10,52 @@ interface FooterProps {
 
 const Footer: React.FC<FooterProps> = ({ onVersionClick }) => {
   const [systemStatus, setSystemStatus] = useState<{
-    status: 'checking' | 'operational' | 'error';
+    status: 'checking' | 'operational' | 'error' | 'healing';
     message?: string;
+    details?: string;
   }>({ status: 'checking' });
   const { showAllSensitive, toggleShowAllSensitive } = useSensitiveSettings();
 
   useEffect(() => {
     const checkHealth = async () => {
       try {
-        const health = await apiClient.healthCheck();
-        if (health.status === 'healthy' || health.status === 'ok') {
+        const health = await apiClient.readinessCheck();
+        if (health.status === 'ok') {
           setSystemStatus({ status: 'operational' });
         } else {
+          let errorDetail = 'Service reporting unhealthy status';
+          if (health.checks?.db?.ok === false) {
+            errorDetail = `Database Error: ${health.checks.db.error || 'Connection failed'}`;
+          } else if (health.checks?.schema?.missingTables?.length > 0) {
+            errorDetail = `Schema Error: Missing tables (${health.checks.schema.missingTables.join(', ')})`;
+          } else if (health.checks?.data?.entities === 0) {
+            errorDetail = 'Data Error: No entities found in database';
+          }
+
           setSystemStatus({
-            status: 'error',
-            message:
-              typeof health.status === 'string'
-                ? health.status
-                : 'Service reporting unhealthy status',
+            status: 'healing', // Indicate self-healing is likely underway
+            message: health.status.toUpperCase(),
+            details: errorDetail,
           });
         }
       } catch (error) {
         setSystemStatus({
           status: 'error',
-          message: error instanceof Error ? error.message : 'Unable to connect to API server',
+          message: 'CONNECTION FAILURE',
+          details: error instanceof Error ? error.message : 'Unable to connect to API server',
         });
       }
     };
     checkHealth();
-    // Re-check every 60 seconds
-    const interval = setInterval(checkHealth, 60000);
+    // Re-check every 30 seconds for faster feedback
+    const interval = setInterval(checkHealth, 30000);
     return () => clearInterval(interval);
   }, []);
 
   const statusConfig = {
-    checking: { color: 'bg-yellow-500', text: 'Checking...' },
+    checking: { color: 'bg-yellow-500', text: 'Checking Status' },
     operational: { color: 'bg-green-500 animate-pulse', text: 'System Operational' },
+    healing: { color: 'bg-orange-500 animate-pulse', text: 'Self-Healing In Progress' },
     error: { color: 'bg-red-500', text: 'System Issue Detected' },
   };
 
@@ -63,7 +73,7 @@ const Footer: React.FC<FooterProps> = ({ onVersionClick }) => {
               flows regarding the Jeffrey Epstein network.
             </p>
             <div
-              className={`pt-2 flex items-center gap-2 group relative ${systemStatus.status === 'error' ? 'cursor-help' : ''}`}
+              className={`pt-2 flex items-center gap-2 group relative ${systemStatus.status === 'error' || systemStatus.status === 'healing' ? 'cursor-help' : ''}`}
             >
               <div
                 className={`w-2 h-2 rounded-full ${statusConfig[systemStatus.status].color}`}
@@ -72,12 +82,23 @@ const Footer: React.FC<FooterProps> = ({ onVersionClick }) => {
                 {statusConfig[systemStatus.status].text}
               </p>
 
-              {/* Error Tooltip */}
-              {systemStatus.status === 'error' && systemStatus.message && (
-                <div className="absolute bottom-full left-0 mb-2 px-3 py-2 bg-slate-950 border border-red-500/30 rounded shadow-xl text-red-400 text-xs w-64 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none backdrop-blur-md">
-                  <div className="font-bold mb-1">System Error:</div>
-                  {systemStatus.message}
-                  <div className="absolute -bottom-1 left-4 w-2 h-2 bg-slate-950 border-r border-b border-red-500/30 transform rotate-45"></div>
+              {/* Status Tooltip */}
+              {(systemStatus.status === 'error' || systemStatus.status === 'healing') && (
+                <div
+                  className={`absolute bottom-full left-0 mb-2 px-3 py-2 bg-slate-950 border ${systemStatus.status === 'healing' ? 'border-orange-500/30 text-orange-400' : 'border-red-500/30 text-red-400'} rounded shadow-xl text-xs w-64 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none backdrop-blur-md`}
+                >
+                  <div className="font-bold mb-1">
+                    {systemStatus.status === 'healing' ? 'Self-Healing Active:' : 'System Error:'}
+                  </div>
+                  <div className="font-mono mb-1">{systemStatus.message}</div>
+                  {systemStatus.details && (
+                    <div className="text-[10px] opacity-80 leading-tight border-t border-white/5 pt-1 mt-1">
+                      {systemStatus.details}
+                    </div>
+                  )}
+                  <div
+                    className={`absolute -bottom-1 left-4 w-2 h-2 bg-slate-950 border-r border-b ${systemStatus.status === 'healing' ? 'border-orange-500/30' : 'border-red-500/30'} transform rotate-45`}
+                  ></div>
                 </div>
               )}
             </div>

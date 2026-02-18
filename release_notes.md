@@ -1,3 +1,24 @@
+## v13.13.1 - 2026-02-18 - Fetch Optimization & Dead Code Cleanup
+
+### Performance & Stability
+
+- **Global Fetch Elimination**: Removed critical bottleneck where `getAllEntities` was inadvertently fetching 131k+ entities on client load.
+- **Dead Code Removal**: Deleted unused `getEntityMedia` endpoints from both client and server to reduce attack surface and maintain codebase hygiene.
+- **Security Hardening**: Added explicit pagination limits to `getAllEntities` repository method to prevent future regressions.
+
+## v13.13.0 - 2026-02-18 - Evidence Acceleration and Self-Healing Infrastructure
+
+### Evidence tab performance optimization
+
+- Implemented virtualized list rendering (react-window) to handle thousands of documents with minimal memory overhead.
+- Added infinite scrolling and paginated backend retrieval, eliminating previous document display limits and UI hangups.
+
+### Production stability and self-healing
+
+- Optimized entity-evidence queries to use denormalized indices, resolving critical CPU hangups on high-link entities.
+- Deployed an automated self-healing monitor (`health_monitor.sh`) that periodically verifies API and database health with automated recovery procedures.
+- Enhanced UI health reporting with detailed diagnostic tooltips and visual feedback for the self-healing state.
+
 ## v13.12.3 - 2026-02-17 - Entity Reliability and VIP Quality Patch
 
 ### Entity interaction reliability

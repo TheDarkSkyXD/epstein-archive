@@ -128,11 +128,12 @@ router.get('/enhanced', async (_req, res, next) => {
       .get();
     console.timeEnd('analytics-redaction-stats');
 
-    console.time('analytics-top-relationships');
     const topRelationships = db
       .prepare(
         `
       SELECT 
+        er.source_entity_id as sourceId,
+        er.target_entity_id as targetId,
         e1.full_name as source,
         e2.full_name as target,
         er.relationship_type as type,

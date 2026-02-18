@@ -64,11 +64,30 @@ router.get('/:entityId/graph', getEntityGraph);
 router.get('/:entityId/documents', async (req: Request, res: Response) => {
   try {
     const { entityId } = req.params as { entityId: string };
-    // We import entitiesRepository dynamically to avoid circular deps if any,
-    // though here it's likely fine.
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 50;
+    const search = (req.query.search as string) || '';
+    const source = (req.query.source as string) || 'all';
+    const sort = (req.query.sort as string) || 'relevance';
+
     const { entitiesRepository } = await import('../db/entitiesRepository.js');
-    const result = await entitiesRepository.getEntityDocuments(entityId);
-    res.json(result);
+
+    // If no pagination requested and using legacy style, we could still support old way
+    // But better to always return standardized format if we are refactoring.
+
+    const docs = await entitiesRepository.getEntityDocumentsPaginated(entityId, page, limit, {
+      search,
+      source,
+      sort,
+    });
+    const total = await entitiesRepository.getEntityDocumentCount(entityId);
+
+    res.json({
+      data: docs,
+      total,
+      page,
+      limit,
+    });
   } catch (error) {
     console.error('Error fetching entity documents:', error);
     res.status(500).json({ error: 'Failed to fetch entity documents' });

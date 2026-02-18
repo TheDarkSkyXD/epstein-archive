@@ -34,54 +34,50 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
   const [entityRegexes, setEntityRegexes] = useState<RegExp[]>([]);
   const [showUnredactedHighlights, setShowUnredactedHighlights] = useState(true);
 
-  // Fetch all entities for linking - optimized
+  // Process entities from the document object - instead of fetching all global entities
   useEffect(() => {
-    let mounted = true;
-    const fetchEntities = async () => {
-      try {
-        const entityData = await apiClient.getAllEntities();
-        if (!mounted) return;
+    const entityData = doc.entities || doc.mentionedEntities || [];
+    if (entityData.length === 0) {
+      setEntities([]);
+      setEntityMap(new Map());
+      setEntityRegexes([]);
+      return;
+    }
 
-        setEntities(entityData);
+    setEntities(entityData);
 
-        // Create lookup map and giant regex for single-pass replacement
-        const map = new Map();
-        // Sort by length desc to match longest names first
-        const sorted = [...entityData].sort((a, b) => b.full_name.length - a.full_name.length);
+    // Create lookup map and giant regex for single-pass replacement
+    const map = new Map();
+    // Sort by length desc to match longest names first
+    const sorted = [...entityData].sort((a, b) => {
+      const nameA = a.full_name || a.name || '';
+      const nameB = b.full_name || b.name || '';
+      return nameB.length - nameA.length;
+    });
 
-        const terms: string[] = [];
-        sorted.forEach((e) => {
-          if (e.full_name && e.full_name.length > 3) {
-            // Skip very short names to avoid noise
-            map.set(e.full_name.toLowerCase(), e);
-            terms.push(e.full_name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-          }
-        });
-
-        setEntityMap(map);
-
-        // chunk regex if too large
-        const CHUNK_SIZE = 500;
-        const chunks: RegExp[] = [];
-        for (let i = 0; i < terms.length; i += CHUNK_SIZE) {
-          const chunk = terms.slice(i, i + CHUNK_SIZE);
-          if (chunk.length > 0) {
-            chunks.push(new RegExp(`\\b(${chunk.join('|')})\\b`, 'gi'));
-          }
-        }
-        // Store array of regexes instead of single one
-        // We need to update state type: [entityRegexes, setEntityRegexes]
-        setEntityRegexes(chunks);
-      } catch (error) {
-        console.error('Error fetching entities for linking:', error);
+    const terms: string[] = [];
+    sorted.forEach((e) => {
+      const name = e.full_name || e.name;
+      if (name && name.length > 3) {
+        // Skip very short names to avoid noise
+        map.set(name.toLowerCase(), e);
+        terms.push(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
       }
-    };
+    });
 
-    fetchEntities();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    setEntityMap(map);
+
+    // chunk regex if too large
+    const CHUNK_SIZE = 200; // Smaller chunks for better performance with targeted entities
+    const chunks: RegExp[] = [];
+    for (let i = 0; i < terms.length; i += CHUNK_SIZE) {
+      const chunk = terms.slice(i, i + CHUNK_SIZE);
+      if (chunk.length > 0) {
+        chunks.push(new RegExp(`\\b(${chunk.join('|')})\\b`, 'gi'));
+      }
+    }
+    setEntityRegexes(chunks);
+  }, [doc.entities, doc.mentionedEntities]);
 
   // Helper to highlight text
   const highlightText = useCallback((text: string, term?: string) => {

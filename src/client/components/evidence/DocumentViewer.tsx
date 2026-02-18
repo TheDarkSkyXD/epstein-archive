@@ -37,9 +37,6 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
   const [hideBoilerplate, setHideBoilerplate] = useState(false);
   const [currentMatch, setCurrentMatch] = useState(0);
   const [totalMatches, setTotalMatches] = useState(0);
-  const [entities, setEntities] = useState<Array<{ id: string; name: string }>>(
-    evidence.allEntities || [],
-  );
 
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -71,14 +68,15 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
     return Array.from(byKey.values());
   }, [evidence.redaction_spans]);
 
-  // Fetch all entities for linking if not provided
-  useEffect(() => {
-    if (entities.length === 0) {
-      apiClient.getAllEntities().then((data) => {
-        setEntities(data.map((e: any) => ({ id: String(e.id), name: e.full_name || e.name })));
-      });
-    }
-  }, [entities.length]);
+  // Get entities from the evidence prop instead of fetching all global entities
+  const entitiesList = React.useMemo(() => {
+    return (
+      evidence.allEntities ||
+      (evidence as any).entities ||
+      (evidence as any).mentionedEntities ||
+      []
+    );
+  }, [evidence]);
 
   useEffect(() => {
     if (!searchTerm) {
@@ -188,7 +186,7 @@ export function DocumentViewer({ evidence }: DocumentViewerProps) {
         {searchTerm ? (
           highlightText(showRaw ? rawText : cleanText, searchTerm)
         ) : (
-          <WikiLink text={showRaw ? rawText : cleanText} entities={entities} />
+          <WikiLink text={showRaw ? rawText : cleanText} entities={entitiesList} />
         )}
       </div>
     );

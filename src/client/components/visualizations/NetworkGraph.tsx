@@ -13,6 +13,8 @@ interface EntityNode {
 }
 
 interface Relationship {
+  sourceId: string | number;
+  targetId: string | number;
   source: string;
   target: string;
   type?: string;
@@ -109,12 +111,16 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
   const [totalDragDistance, setTotalDragDistance] = useState(0);
   const workerRef = useRef<Worker | null>(null);
   const useWorkerRef = useRef(false);
+  const [extraNodes, setExtraNodes] = useState<EntityNode[]>([]);
+  const [extraRelationships, setExtraRelationships] = useState<Relationship[]>([]);
+  const [isExpanding, setIsExpanding] = useState(false);
 
   // Filter state
   const [minSeverity, setMinSeverity] = useState(0);
   const [minConnections, setMinConnections] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
   const [hasInteractedWithFilter, setHasInteractedWithFilter] = useState(false);
+  const [excludedRelTypes, setExcludedRelTypes] = useState<Set<string>>(new Set());
 
   // Track modifier keys (Shift or Alt for forced node dragging)
   useEffect(() => {
@@ -142,10 +148,21 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
     [entities],
   );
 
+  const availableRelTypes = useMemo(() => {
+    const types = new Set<string>();
+    relationships.forEach((r) => {
+      if (r.type) types.add(r.type);
+    });
+    return Array.from(types).sort();
+  }, [relationships]);
+
   // Initialize nodes with Clustered Spiral Layout
   // Groups entities by type/role for better visual organization
   useEffect(() => {
-    const topEntities = entities.slice(0, maxNodes);
+    const topEntities = [...entities.slice(0, maxNodes), ...extraNodes];
+
+    // Deduplicate entities by ID
+    const uniqueEntities = Array.from(new Map(topEntities.map((e) => [String(e.id), e])).values());
 
     // Group entities by type for clustering
     const typeGroups = new Map<string, typeof topEntities>();
@@ -229,28 +246,29 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
 
   // Links data
   const links = useMemo(() => {
+    const allRelationships = [...relationships, ...extraRelationships];
     if (filteredNodes.length === 0) return [];
 
     const nodeMap = new Map<string, GraphNode>();
     filteredNodes.forEach((n) => {
       nodeMap.set(String(n.id), n);
-      nodeMap.set(String(n.name), n);
     });
 
     // Normalize weights if available, otherwise default
-    const maxWeight = Math.max(1, ...relationships.map((r) => r.weight || 1));
+    const maxWeight = Math.max(1, ...allRelationships.map((r) => r.weight || 1));
 
-    return relationships
-      .filter((r) => nodeMap.has(String(r.source)) && nodeMap.has(String(r.target)))
+    return allRelationships
+      .filter((r) => nodeMap.has(String(r.sourceId)) && nodeMap.has(String(r.targetId)))
+      .filter((r) => !excludedRelTypes.has(r.type || ''))
       .map((r) => ({
-        source: nodeMap.get(String(r.source))!,
-        target: nodeMap.get(String(r.target))!,
+        source: nodeMap.get(String(r.sourceId))!,
+        target: nodeMap.get(String(r.targetId))!,
         type: r.type,
         weight: r.weight || 1,
         normalizedWeight: (r.weight || 1) / maxWeight,
       }))
-      .slice(0, 100); // Limit to 100 connections to prevent overcrowding
-  }, [filteredNodes, relationships]);
+      .slice(0, 500); // Increased limit for richer network
+  }, [filteredNodes, relationships, extraRelationships, excludedRelTypes]);
 
   // Physics simulation
   useEffect(() => {
@@ -441,7 +459,50 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
 
   const zoomIn = () => zoomFromCenter(1.2);
   const zoomOut = () => zoomFromCenter(1 / 1.2);
-  const resetView = () => setTransform({ x: 0, y: 0, k: 1 });
+  const resetView = () => setTransform({ x: 0, y: 0, k: 0.8 });
+
+  const handleExpandNode = async (entityId: number | string) => {
+    try {
+      setIsExpanding(true);
+      const response = await fetch(`/api/entities/${entityId}/graph?depth=1`, {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to fetch graph slice');
+      const data = await response.json();
+
+      if (data.nodes && data.edges) {
+        // Adapt backend nodes to internal format
+        const newNodes: EntityNode[] = data.nodes.map((n: any) => ({
+          id: n.id,
+          name: n.label,
+          type: n.type || 'person',
+          connectionCount: (n.relationships || []).length,
+        }));
+
+        // Adapt backend edges to internal format
+        const newRels: Relationship[] = data.edges.map((e: any) => ({
+          sourceId: e.source_id,
+          targetId: e.target_id,
+          source: '', // Names not strictly needed since we use IDs now
+          target: '',
+          type: e.relationship_type,
+          weight: e.proximity_score || 1,
+        }));
+
+        setExtraNodes((prev) => {
+          const existing = new Set(prev.map((n) => String(n.id)));
+          const fresh = newNodes.filter((n) => !existing.has(String(n.id)));
+          return [...prev, ...fresh];
+        });
+
+        setExtraRelationships((prev) => [...prev, ...newRels]);
+      }
+    } catch (err) {
+      console.error('Error expanding node:', err);
+    } finally {
+      setIsExpanding(false);
+    }
+  };
 
   const selectedNode = useMemo(
     () =>
@@ -548,6 +609,33 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
                 <span>{Math.min(50, maxConnectionsInData)}+</span>
               </div>
             </div>
+
+            {/* Relationship Type Filter */}
+            {availableRelTypes.length > 0 && (
+              <div className="pt-2 border-t border-slate-700/50">
+                <label className="text-xs text-slate-300 mb-2 block font-medium">Rel Types:</label>
+                <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pr-1 custom-scrollbar">
+                  {availableRelTypes.map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => {
+                        const next = new Set(excludedRelTypes);
+                        if (next.has(type)) next.delete(type);
+                        else next.add(type);
+                        setExcludedRelTypes(next);
+                      }}
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                        !excludedRelTypes.has(type)
+                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
+                          : 'bg-slate-700 text-slate-500 border border-slate-600'
+                      }`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Stats */}
             <div className="pt-2 border-t border-slate-700/50 text-xs text-slate-400">
@@ -797,18 +885,33 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
       {selectedNode && (
         <div className="absolute left-4 right-4 bottom-4 z-20 bg-slate-900/90 backdrop-blur-sm border border-slate-700/60 rounded-[var(--radius-md)] p-3">
           <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-semibold text-slate-100">{selectedNode.name}</div>
-              <div className="text-xs text-slate-400">
-                {selectedNode.role || selectedNode.type || 'Entity'} • {selectedNodeLinks.length}{' '}
-                connected links
+            <div className="flex-grow">
+              <div className="text-sm font-bold text-white truncate">{selectedNode.name}</div>
+              <div className="text-[10px] text-slate-400 uppercase tracking-wider">
+                {selectedNode.role || selectedNode.type} • {selectedNode.connectionCount}{' '}
+                connections
               </div>
             </div>
-            <div className="text-right">
-              <div className="text-xs text-slate-400">Connections</div>
-              <div className="text-sm font-semibold text-cyan-300">
-                {selectedNode.connectionCount}
-              </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleExpandNode(selectedNode.id)}
+                disabled={isExpanding}
+                className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-700 text-white rounded-md text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-cyan-900/20"
+              >
+                {isExpanding ? (
+                  <RefreshCw className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Link2 className="w-3 h-3" />
+                )}
+                Discover Connections
+              </button>
+              <button
+                onClick={() => setSelectedNodeId(null)}
+                className="p-1.5 hover:bg-slate-800 rounded-md text-slate-400 transition-colors"
+                title="Close"
+              >
+                ×
+              </button>
             </div>
           </div>
         </div>

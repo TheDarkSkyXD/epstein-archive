@@ -1091,21 +1091,23 @@ export const entitiesRepository = {
 
   /**
    * Get all entities without pagination (for document linking)
+   * WARNING: Large dataset (131k+ records). Use with 'limit' or for internal services only.
    */
-  getAllEntities: (): any[] => {
+  getAllEntities: (limit: number = 0): any[] => {
     const db = getDb();
     try {
       // Get all entities with just the essential fields for linking
-      const entities = db
-        .prepare(
-          `
+      let query = `
                 SELECT id, full_name
                 FROM entities
                 ORDER BY full_name ASC
-            `,
-        )
-        .all();
+            `;
 
+      if (limit > 0) {
+        query += ` LIMIT ${limit}`;
+      }
+
+      const entities = db.prepare(query).all();
       return entities;
     } catch (error) {
       console.error('Error fetching all entities:', error);
@@ -1495,39 +1497,6 @@ export const entitiesRepository = {
   },
 
   // Get all media for a specific entity
-  getEntityMedia: (entityId: string): any[] => {
-    const db = getDb();
-
-    // Validate entity ID format
-    if (!entityId || !/^[1-9]\d*$/.test(entityId)) {
-      throw new Error('Invalid entity ID format');
-    }
-
-    const photosSql = `
-        SELECT mi.id, mi.title, mi.file_path, mi.red_flag_rating as redFlagRating, mi.file_type, mi.created_at
-        FROM media_item_people mip 
-        JOIN media_items mi ON mip.media_item_id = mi.id 
-        WHERE mip.entity_id = ?
-        ORDER BY mi.red_flag_rating DESC, mi.created_at DESC
-    `;
-
-    const photos = db.prepare(photosSql).all(entityId) as Array<{
-      id: number;
-      title: string;
-      file_path: string;
-      redFlagRating: number;
-      file_type: string;
-      created_at: string;
-    }>;
-
-    return photos.map((p) => ({
-      ...p,
-      id: String(p.id),
-      url: `/api/media/images/${p.id}/thumbnail`,
-      fullUrl: `/api/media/images/${p.id}`,
-      type: p.file_type?.startsWith('video') ? 'video' : 'image',
-    }));
-  },
 
   /**
    * Get total count of documents for an entity (fast)
@@ -1596,14 +1565,14 @@ export const entitiesRepository = {
 
     // Sort
     if (filters?.sort === 'date-asc') {
-      query += ` ORDER BY d.date_created ASC`;
+      query += ` ORDER BY em.doc_date_created ASC`;
     } else if (filters?.sort === 'date-desc') {
-      query += ` ORDER BY d.date_created DESC`;
+      query += ` ORDER BY em.doc_date_created DESC`;
     } else if (filters?.sort === 'relevance') {
-      query += ` ORDER BY em.confidence DESC, d.red_flag_rating DESC`;
+      query += ` ORDER BY em.confidence DESC, em.doc_red_flag_rating DESC`;
     } else {
-      // Default risk
-      query += ` ORDER BY d.red_flag_rating DESC, em.confidence DESC`;
+      // Default risk - uses the critical index: idx_entity_mentions_entity_sorted
+      query += ` ORDER BY em.doc_red_flag_rating DESC, em.doc_date_created DESC`;
     }
 
     query += ` LIMIT ? OFFSET ?`;

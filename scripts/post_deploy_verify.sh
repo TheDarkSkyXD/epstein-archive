@@ -2,8 +2,8 @@
 set -e
 
 # Configuration
-URL="http://161.35.137.95:3012"
-EXPECTED_VERSION=$(node -p "require('./package.json').version")
+URL="${DEPLOY_VERIFY_URL:-http://127.0.0.1:3012}"
+EXPECTED_VERSION=$(node -e "console.log(JSON.parse(require('fs').readFileSync('./package.json','utf8')).version)")
 
 # Colors
 GREEN='\033[0;32m'
@@ -24,6 +24,16 @@ if [ "$READY_STATUS" == "200" ] && echo "$READY_BODY" | grep -Eq '"status"[[:spa
     log_success "Readiness Check OK (200 + status=ok)"
 else
     log_error "Readiness Check FAILED ($READY_STATUS): $READY_BODY"
+    exit 1
+fi
+
+# 1b. Check deep health endpoint
+echo "Checking /api/stats/health/deep..."
+DEEP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/api/stats/health/deep")
+if [ "$DEEP_STATUS" == "200" ]; then
+    log_success "Deep Health Check OK (200)"
+else
+    log_error "Deep Health Check FAILED ($DEEP_STATUS)"
     exit 1
 fi
 

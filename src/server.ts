@@ -195,6 +195,11 @@ const apiLimiter = rateLimit({
   message: { error: 'Too many requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) =>
+    req.path === '/health' ||
+    req.path.startsWith('/health/') ||
+    req.path === '/stats/health' ||
+    req.path.startsWith('/stats/health/'),
 });
 
 app.use('/api/', apiLimiter);
@@ -4614,17 +4619,6 @@ app.get('*', async (req, res, next) => {
   }
 });
 
-// Graceful shutdown handling
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
-  process.exit(0);
-});
-
-process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down gracefully');
-  process.exit(0);
-});
-
 // Start server
 // Ensure migrations are run before starting
 try {
@@ -4638,7 +4632,7 @@ try {
   }
 } catch (err) {
   console.error('Failed to run migrations:', err);
-  // Continue anyway? Or exit? For now, log and continue as per plan to be robust.
+  process.exit(1);
 }
 
 const server = app.listen(config.apiPort, () => {
@@ -4665,6 +4659,10 @@ const server = app.listen(config.apiPort, () => {
   }
   console.log('[INFO] Authentication is now forced to be enabled in all environments');
   console.log('------------------------');
+
+  if (typeof process.send === 'function') {
+    process.send('ready');
+  }
 });
 
 // === GRACEFUL SHUTDOWN ===

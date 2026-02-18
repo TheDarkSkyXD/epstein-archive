@@ -1,21 +1,17 @@
 #!/bin/bash
 # deploy.sh
-# CANONICAL DEPLOYMENT SCRIPT
-# ===========================
-# Single source of truth for deploying changes to production.
-# Usage: ./deploy.sh [--code-only] [--db-only] [--dry-run]
+# Canonical deployment script for production
+# Usage: ./deploy.sh [--code-only] [--db-only] [--with-db] [--dry-run] [--skip-integrity]
 
 set -euo pipefail
 
 # Configuration
-PRODUCTION_SERVER="glasscode"
 PRODUCTION_USER="deploy"
 PRODUCTION_HOST="194.195.248.217"
 PRODUCTION_PATH="/home/deploy/epstein-archive"
 SSH_KEY_PATH="$HOME/.ssh/id_glasscode"
 LOCAL_DB="epstein-archive.db"
 REMOTE_TEMP="${PRODUCTION_PATH}/epstein-archive.db.new"
-TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 
 # Colors
 GREEN='\033[0;32m'
@@ -47,9 +43,25 @@ verify_release_notes_version() {
   log_success "Release notes include v${current_version}."
 }
 
-# Parse Args
+remote_pm2_reload_cmd() {
+  cat <<'CMD'
+set -e
+cd /home/deploy/epstein-archive
+pm2 startOrReload ecosystem.config.cjs --only epstein-archive --env production || {
+  pm2 delete epstein-archive || true
+  pm2 start ecosystem.config.cjs --only epstein-archive --env production
+}
+CMD
+}
+
+# Runtime flags (used by trap/rollback)
+DEPLOY_MUTATION_STARTED=false
+ROLLBACK_IN_PROGRESS=false
+
+# Parse args
 CODE_ONLY=false
 DB_ONLY=false
+DEPLOY_DB=false
 DRY_RUN=false
 SKIP_INTEGRITY=false
 
@@ -57,8 +69,10 @@ for arg in "$@"; do
   case $arg in
     --dry-run) DRY_RUN=true ;;
     --code-only) CODE_ONLY=true ;;
-    --db-only) DB_ONLY=true ;;
+    --db-only) DB_ONLY=true; DEPLOY_DB=true ;;
+    --with-db) DEPLOY_DB=true ;;
     --skip-integrity) SKIP_INTEGRITY=true ;;
+    *) log_error "Unknown argument: $arg"; exit 1 ;;
   esac
 done
 
@@ -67,247 +81,226 @@ if [ "$CODE_ONLY" = true ] && [ "$DB_ONLY" = true ]; then
   exit 1
 fi
 
-# Rollback Function
+if [ "$CODE_ONLY" = true ]; then
+  DEPLOY_DB=false
+fi
+
 perform_rollback() {
-    log_warning "Initiating Automatic Rollback..."
-    
-    # Construct remote command
-    # We use a heredoc for clarity, but need to be careful with variable expansion
-    # We want local variables ($PRODUCTION_PATH) to expand, but some remote logic to remain
-    
-    ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "
-        set -e
-        cd ${PRODUCTION_PATH}
-        
-        echo 'Stopping service...'
-        pm2 stop epstein-archive || true
-        
-        # Rollback DB if it was deployed (CODE_ONLY=false)
-        if [ \"$CODE_ONLY\" = false ] && [ -f epstein-archive.db.bak ]; then
-             echo 'Restoring Database backup...'
-             mv epstein-archive.db.bak epstein-archive.db
-        fi
-        
-        # Rollback Code if it was deployed (DB_ONLY=false)
-        if [ \"$DB_ONLY\" = false ] && [ -f .rollback_commit ]; then
-             TARGET=\$(cat .rollback_commit)
-             echo \"Rolling back code to \$TARGET...\"
-             git reset --hard \$TARGET
-             
-             echo 'Restoring dependencies...'
-             export PNPM_HOME=\"/home/deploy/.local/share/pnpm\"
-             export PATH=\"\$PNPM_HOME:\$PATH\"
-             export NODE_ENV=production
-             pnpm install --frozen-lockfile
-             
-             echo 'Rebuilding previous version...'
-             pnpm build:prod
-        fi
-        
-        echo 'Restarting Application...'
-        pm2 restart epstein-archive --update-env || pm2 start dist/server.js --name epstein-archive
-    "
-    
-    log_success "Rollback completed. System restored to previous state."
-    exit 1
+  if [ "$ROLLBACK_IN_PROGRESS" = true ]; then
+    return
+  fi
+  ROLLBACK_IN_PROGRESS=true
+  trap - ERR
+
+  log_warning "Initiating automatic rollback..."
+
+  ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "
+    set -e
+    cd ${PRODUCTION_PATH}
+
+    echo 'Stopping service...'
+    pm2 stop epstein-archive || true
+
+    if [ \"$DEPLOY_DB\" = true ] && [ -f epstein-archive.db.bak ]; then
+      echo 'Restoring database backup...'
+      mv -f epstein-archive.db.bak epstein-archive.db
+      rm -f epstein-archive.db-wal epstein-archive.db-shm epstein-archive.db-journal
+    fi
+
+    if [ \"$DB_ONLY\" = false ] && [ -f .rollback_commit ]; then
+      TARGET=\$(cat .rollback_commit)
+      echo \"Rolling back code to \$TARGET...\"
+      git reset --hard \$TARGET
+
+      export PNPM_HOME=\"/home/deploy/.local/share/pnpm\"
+      export PATH=\"\$PNPM_HOME:\$PATH\"
+      export NODE_ENV=production
+      pnpm install --frozen-lockfile
+      pnpm build:prod
+    fi
+  "
+
+  ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "$(remote_pm2_reload_cmd)"
+
+  log_success "Rollback completed."
 }
 
+on_error() {
+  local line="$1"
+  log_error "Deployment failed at line $line"
+
+  if [ "$DRY_RUN" = false ] && [ "$DEPLOY_MUTATION_STARTED" = true ]; then
+    perform_rollback || true
+  fi
+
+  exit 1
+}
+
+trap 'on_error $LINENO' ERR
+
 # ============================================
-# PHASE 1: DATABASE DEPLOYMENT
+# PRE-FLIGHT (all non-mutating checks first)
 # ============================================
-if [ "$CODE_ONLY" = true ]; then
-  log_step "Skipping database deployment (--code-only)"
-else
-  log_step "Phase 1: Database Deployment..."
+if [ "$DRY_RUN" = false ] && [ "$DB_ONLY" = false ]; then
+  log_step "Running pre-flight QA (format, lint, release notes, clean tree, build)..."
+
+  pnpm format:check || {
+    log_error "Format check failed. Run 'pnpm format' and commit intentionally."
+    exit 1
+  }
+
+  pnpm lint || {
+    log_error "Lint failed. Fix issues locally and commit intentionally."
+    exit 1
+  }
+
+  verify_release_notes_version
+
+  if [ -n "$(git status --porcelain)" ]; then
+    log_error "Working tree is dirty. Commit or stash changes before deploy."
+    git status --short
+    exit 1
+  fi
+
+  log_step "Building locally to verify integrity..."
+  pnpm build:prod
+
+  log_step "Pushing code to origin..."
+  git push origin main --no-verify
+fi
+
+# ============================================
+# PHASE 1: DATABASE DEPLOYMENT (opt-in for full deploy)
+# ============================================
+if [ "$DEPLOY_DB" = true ]; then
+  log_step "Phase 1: Database deployment..."
 
   if [ "$DRY_RUN" = true ]; then
-    log_warning "DRY RUN: Would upload $LOCAL_DB to $PRODUCTION_HOST"
+    log_warning "DRY RUN: Would upload and swap database"
   else
-    # 1. Create Consistent Snapshot
+    if [ ! -f "$LOCAL_DB" ]; then
+      log_error "Local database file not found: $LOCAL_DB"
+      exit 1
+    fi
+
     SNAPSHOT_DB="${LOCAL_DB}.snapshot"
-    log_step "Creating consistent snapshot (to handle concurrent writes)..."
+    log_step "Creating consistent local snapshot..."
     rm -f "$SNAPSHOT_DB"
     sqlite3 "$LOCAL_DB" ".backup '$SNAPSHOT_DB'"
-    
-    # 2. Verification of Snapshot
+
     if [ "$SKIP_INTEGRITY" = true ]; then
       log_warning "Skipping local integrity check (--skip-integrity)"
     else
-      log_step "Checking snapshot integrity (quick check)..."
-      if ! sqlite3 "$SNAPSHOT_DB" "PRAGMA quick_check;" | grep -q "ok"; then
-        log_error "Snapshot is corrupt! Aborting upload."
+      log_step "Running local PRAGMA integrity_check..."
+      if ! sqlite3 "$SNAPSHOT_DB" "PRAGMA integrity_check;" | grep -q "^ok$"; then
+        log_error "Snapshot integrity check failed."
         rm -f "$SNAPSHOT_DB"
         exit 1
       fi
-      log_success "Snapshot integrity check passed."
+      log_success "Local integrity check passed."
     fi
 
-    # 3. Upload Snapshot to temporary file
-    log_step "Uploading snapshot to temporary file ($REMOTE_TEMP)..."
-    rsync -avz --progress -e "ssh -i $SSH_KEY_PATH" "$SNAPSHOT_DB" "${PRODUCTION_USER}@${PRODUCTION_HOST}:${REMOTE_TEMP}"
-    
-    # Clean up local snapshot
+    DEPLOY_MUTATION_STARTED=true
+
+    log_step "Uploading snapshot to remote temp path..."
+    rsync -az --progress -e "ssh -i $SSH_KEY_PATH" "$SNAPSHOT_DB" "${PRODUCTION_USER}@${PRODUCTION_HOST}:${REMOTE_TEMP}"
     rm -f "$SNAPSHOT_DB"
 
-    # 3. Verify remote integrity
-    log_step "Verifying remote temporary file integrity (quick check)..."
-    if ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "sqlite3 $REMOTE_TEMP 'PRAGMA quick_check;' | grep -q 'ok'"; then
-      log_success "Remote integrity check passed."
-    else
-      log_error "Remote file integrity check failed! Upload may be corrupt."
-      exit 1
-    fi
+    log_step "Running remote PRAGMA integrity_check..."
+    ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "sqlite3 $REMOTE_TEMP 'PRAGMA integrity_check;' | grep -q '^ok$'"
 
-    # 4. Atomic Swap (Safe Mode)
-    log_step "Performing DB swap (stopping service to prevent SQLITE_BUSY)..."
+    log_step "Swapping database on remote host..."
     ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "
       set -e
       cd ${PRODUCTION_PATH}
-      
-      # Stop the application to release all DB locks
-      echo 'Stopping application to release DB locks...'
       pm2 stop epstein-archive || true
-      
-      # Allow potential lingering connections to close
       sleep 2
-      
-      echo 'Removing potentially stale WAL/Journal files...'
-      rm -f epstein-archive.db-wal epstein-archive.db-shm
-      
-      echo 'Backing up current database...'
-      mv epstein-archive.db epstein-archive.db.bak || true
-      
-      echo 'Swapping in new database...'
-      mv epstein-archive.db.new epstein-archive.db
-      
-      # Restart will happen in Phase 2, or here if DB_ONLY
-      if [ \"$DB_ONLY\" = true ]; then
-        echo 'Restarting application...'
-        pm2 start dist/server.js --name epstein-archive --update-env
-      fi
+      rm -f epstein-archive.db-wal epstein-archive.db-shm epstein-archive.db-journal
+      cp -f epstein-archive.db epstein-archive.db.bak
+      mv -f epstein-archive.db.new epstein-archive.db
     "
-    log_success "Database swapped successfully."
-  fi
-fi
 
-# ============================================
-# PHASE 2: CODE DEPLOYMENT & RESTART
-# ============================================
-if [ "$DB_ONLY" = true ]; then
-  log_warning "Skipping code deployment (--db-only)"
-  # If DB_ONLY, we already restarted in Phase 1 if needed.
-  
-  if [ "$DRY_RUN" = false ]; then
-      log_step "Ensuring service is running..."
-      ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "pm2 restart epstein-archive --update-env || pm2 start dist/server.js --name epstein-archive"
+    if [ "$DB_ONLY" = true ]; then
+      ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "$(remote_pm2_reload_cmd)"
+    fi
+
+    log_success "Database swap complete."
   fi
 else
-  log_step "Phase 2: Code Deployment..."
-
-  if [ "$DRY_RUN" = true ]; then
-    log_warning "DRY RUN: Would push code and restart server"
-  else
-    # 0. Pre-flight QA
-    log_step "Running pre-flight QA (Format & Lint)..."
-    # Non-mutating checks only. Deployment must not create surprise commits.
-    pnpm format:check || {
-      log_error "Format check failed. Run 'pnpm format' and commit intentionally.";
-      exit 1;
-    }
-    pnpm lint || {
-      log_error "Lint failed. Fix issues locally and commit intentionally.";
-      exit 1;
-    }
-    verify_release_notes_version
-
-    # Deployment should only ship intentional, reviewed commits.
-    if [ -n "$(git status --porcelain)" ]; then
-      log_error "Working tree is dirty. Commit or stash changes before deploy."
-      echo -e "${RED}Uncommitted changes:${NC}"
-      git status --short
-      exit 1
-    fi
-
-    # 1. Build Local (Verify)
-    log_step "Building locally to verify integrity..."
-    pnpm build:prod
-
-    # 2. Push Code
-    log_step "Pushing code to origin..."
-    git push origin main --no-verify
-
-    # 3. Pull & Reload on Server
-    log_step "Updating remote server..."
-    ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "
-      set -e
-      cd ${PRODUCTION_PATH}
-      
-      # Save current state for rollback
-      echo 'Saving current commit hash for potential rollback...'
-      git rev-parse HEAD > .rollback_commit
-      
-      echo 'Forcing Git Sync...'
-      git fetch origin
-      git reset --hard origin/main
-      
-      echo 'Installing Dependencies...'
-      export PNPM_HOME=\"/home/deploy/.local/share/pnpm\"
-      export PATH=\"\$PNPM_HOME:\$PATH\"
-      
-      echo 'Configuring Environment...'
-      echo \"NODE_ENV=production\" > .env
-      echo \"JWT_SECRET=epstein-archive-prod-jwt-secret-2026\" >> .env
-      echo \"SESSION_SECRET=epstein-archive-prod-session-secret-2026\" >> .env
-      echo \"RAW_CORPUS_BASE_PATH=./data\" >> .env
-      echo \"PORT=3012\" >> .env
-      
-      # Export for current session as well
-      export NODE_ENV=production
-      export JWT_SECRET=\"epstein-archive-prod-jwt-secret-2026\"
-      export SESSION_SECRET=\"epstein-archive-prod-session-secret-2026\"
-      export RAW_CORPUS_BASE_PATH=\"./data\"
-      
-      pnpm install --frozen-lockfile
-      
-      echo 'Building on Server...'
-      pnpm build:prod
-      
-      echo 'Restarting Application...'
-      pm2 restart epstein-archive --update-env || pm2 start dist/server.js --name epstein-archive
-    "
-  fi
+  log_step "Skipping database deployment (use --with-db or --db-only to deploy DB)"
 fi
 
 # ============================================
-# PHASE 3: HEALTH CHECK & ROLLBACK
+# PHASE 2: CODE DEPLOYMENT
+# ============================================
+if [ "$DB_ONLY" = false ]; then
+  log_step "Phase 2: Code deployment..."
+
+  if [ "$DRY_RUN" = true ]; then
+    log_warning "DRY RUN: Would update code/build on remote and restart PM2"
+  else
+    DEPLOY_MUTATION_STARTED=true
+
+    ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "
+      set -e
+      cd ${PRODUCTION_PATH}
+
+      echo 'Saving rollback commit...'
+      git rev-parse HEAD > .rollback_commit
+
+      echo 'Syncing code from origin/main...'
+      git fetch origin
+      git reset --hard origin/main
+
+      export PNPM_HOME=\"/home/deploy/.local/share/pnpm\"
+      export PATH=\"\$PNPM_HOME:\$PATH\"
+      export NODE_ENV=production
+
+      pnpm install --frozen-lockfile
+      pnpm build:prod
+    "
+
+    ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "$(remote_pm2_reload_cmd)"
+    log_success "Code deployment complete."
+  fi
+else
+  log_step "Skipping code deployment (--db-only)"
+fi
+
+# ============================================
+# PHASE 3: HEALTH CHECK
 # ============================================
 if [ "$DRY_RUN" = false ]; then
-    MAX_RETRIES=12 # 60 seconds total
-    COUNT=0
-    SUCCESS=false
-    
-    log_step "Waiting for service to stabilize (up to 60s)..."
-    
-    while [ $COUNT -lt $MAX_RETRIES ]; do
-        sleep 5
-        # Deep readiness check: HTTP 200 + explicit status=ok
-        HEALTH_RESPONSE=$(ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "curl -sS --max-time 4 -w ' HTTP_STATUS:%{http_code}' http://localhost:3012/api/health/ready" || echo "HTTP_STATUS:000")
-        HTTP_STATUS="${HEALTH_RESPONSE##*HTTP_STATUS:}"
-        HEALTH_BODY="${HEALTH_RESPONSE% HTTP_STATUS:*}"
+  MAX_RETRIES=12
+  COUNT=0
+  SUCCESS=false
 
-        if [ "$HTTP_STATUS" == "200" ] && echo "$HEALTH_BODY" | grep -Eq '"status"[[:space:]]*:[[:space:]]*"ok"'; then
-            SUCCESS=true
-            break
-        fi
-        
-        log_step "Attempt $((COUNT+1))/$MAX_RETRIES: readiness status $HTTP_STATUS... waiting..."
-        COUNT=$((COUNT+1))
-    done
+  log_step "Waiting for service to stabilize (up to 60s)..."
 
-    if [ "$SUCCESS" = true ]; then
-      log_success "Deployment successful! Readiness check passed (/api/health/ready)."
-    else
-      log_error "Readiness check failed after $MAX_RETRIES attempts (Last Status: $HTTP_STATUS)."
-      perform_rollback
+  while [ $COUNT -lt $MAX_RETRIES ]; do
+    sleep 5
+
+    READY=$(ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "curl -sS --max-time 6 -w ' HTTP_STATUS:%{http_code}' http://localhost:3012/api/health/ready" || echo "HTTP_STATUS:000")
+    READY_STATUS="${READY##*HTTP_STATUS:}"
+    READY_BODY="${READY% HTTP_STATUS:*}"
+
+    DEEP=$(ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "curl -sS --max-time 10 -w ' HTTP_STATUS:%{http_code}' http://localhost:3012/api/stats/health/deep" || echo "HTTP_STATUS:000")
+    DEEP_STATUS="${DEEP##*HTTP_STATUS:}"
+
+    if [ "$READY_STATUS" = "200" ] && echo "$READY_BODY" | grep -Eq '"status"[[:space:]]*:[[:space:]]*"ok"' && [ "$DEEP_STATUS" = "200" ]; then
+      SUCCESS=true
+      break
     fi
+
+    log_step "Attempt $((COUNT+1))/$MAX_RETRIES: ready=$READY_STATUS deep=$DEEP_STATUS"
+    COUNT=$((COUNT+1))
+  done
+
+  if [ "$SUCCESS" = true ]; then
+    log_success "Deployment successful (ready + deep health checks passed)."
+  else
+    log_error "Health checks failed after $MAX_RETRIES attempts."
+    perform_rollback
+    exit 1
+  fi
 fi

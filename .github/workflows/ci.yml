@@ -142,12 +142,12 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build
-        run: pnpm build
+        run: pnpm build:prod
 
       - name: Verify build output
         run: |
-          if [ ! -d "dist" ]; then
-            echo "❌ Build failed - no dist directory"
+          if [ ! -d "dist" ] || [ ! -f "dist/server.js" ]; then
+            echo "❌ Build failed - missing dist assets or dist/server.js"
             exit 1
           fi
           echo "✅ Build successful"

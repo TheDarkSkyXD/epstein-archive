@@ -40,7 +40,7 @@ module.exports = {
       // health_check: {
       //   type: 'http',
       //   livenessProbe: 'http://localhost:3012/api/health',
-      //   readinessProbe: 'http://localhost:3012/api/ready',
+      //   readinessProbe: 'http://localhost:3012/api/health/ready',
       // },
 
       // === LOGGING ===
@@ -62,6 +62,7 @@ module.exports = {
         DB_PATH: './epstein-archive.db',
         PORT: 3012, // CRITICAL: Must match Nginx proxy_pass for glasscode.academy
         RAW_CORPUS_BASE_PATH: './data',
+        JWT_REFRESH_SECRET: 'epstein-archive-prod-refresh-secret-2026',
         CORS_ORIGIN:
           'https://epstein.academy,https://www.epstein.academy,https://glasscode.academy,https://www.glasscode.academy',
         // Database safety settings
@@ -73,6 +74,7 @@ module.exports = {
         PORT: 3012,
         DB_PATH: './epstein-archive.db',
         RAW_CORPUS_BASE_PATH: './data',
+        JWT_REFRESH_SECRET: 'epstein-archive-prod-refresh-secret-2026',
         SQLITE_BUSY_TIMEOUT: '30000',
         EXO_MODEL: 'mlx-community/Qwen3-30B-A3B-4bit',
       },

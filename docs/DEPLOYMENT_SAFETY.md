@@ -46,7 +46,7 @@ After deployment, the deploy script runs 4 phases of verification:
 
 **Phase 2: Deep Health Check**
 
-- Calls `/api/health/deep` which runs:
+- Calls `/api/stats/health/deep` which runs:
   - Database connection test
   - PRAGMA integrity_check
   - Critical table existence checks
@@ -76,7 +76,7 @@ Fast endpoint for load balancers. Returns:
 - `data`: entity/document counts
 - `uptime`: server uptime
 
-### Deep Health (`/api/health/deep`)
+### Deep Health (`/api/stats/health/deep`)
 
 Comprehensive endpoint for deployment verification. Returns:
 
@@ -163,10 +163,10 @@ rm -f epstein-archive.db-wal epstein-archive.db-shm epstein-archive.db-journal
 
 ```bash
 # Full deployment with all safeguards
-./deploy-to-production.sh
+./deploy.sh
 
 # Code-only deployment (no DB sync)
-./deploy-to-production.sh deploy-code
+./deploy.sh --code-only
 
 # Pre-flight verification only
 npm run verify
@@ -187,7 +187,7 @@ If a deployment fails:
 ssh glasscode 'pm2 logs epstein-archive --lines 100'
 
 # Check deep health
-ssh glasscode 'curl http://localhost:3012/api/health/deep | jq'
+ssh glasscode 'curl http://localhost:3012/api/stats/health/deep | jq'
 
 # Check database integrity
 ssh glasscode 'cd /home/deploy/epstein-archive && sqlite3 epstein-archive.db "PRAGMA integrity_check;"'
@@ -199,7 +199,7 @@ ssh glasscode 'cd /home/deploy/epstein-archive && ls -la *.backup-*'
 ## Best Practices
 
 1. **Always run `npm run verify` before deploying**
-2. **Test locally first** with `npm run server` and check `/api/health/deep`
+2. **Test locally first** with `npm run server` and check `/api/stats/health/deep`
 3. **Monitor the deployment output** - don't walk away mid-deploy
 4. **Keep at least 3 backups** on the server
 5. **If rollback fails**, check PM2 logs immediately

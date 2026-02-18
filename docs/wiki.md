@@ -46,7 +46,7 @@ We believe archival data is useless without context. The UI follows these patter
 This documentation is explicitly structured to allow future AI assistants to:
 
 1.  Understand the database schema (`src/server.ts`) without brute-forcing queries.
-2.  Follow the deployment pipeline (`deploy-to-production.sh`).
+2.  Follow the deployment pipeline (`deploy.sh`).
 3.  Troubleshoot common issues like port conflicts or database WAL locks.
 
 ---

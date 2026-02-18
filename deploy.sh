@@ -271,35 +271,57 @@ fi
 # PHASE 3: HEALTH CHECK
 # ============================================
 if [ "$DRY_RUN" = false ]; then
-  MAX_RETRIES=60
-  COUNT=0
-  SUCCESS=false
+  READY_MAX_RETRIES=60
+  READY_COUNT=0
+  READY_SUCCESS=false
+  DEEP_MAX_RETRIES=3
+  DEEP_COUNT=0
+  DEEP_SUCCESS=false
 
   log_step "Waiting for service to stabilize (up to 5 minutes)..."
 
-  while [ $COUNT -lt $MAX_RETRIES ]; do
+  while [ $READY_COUNT -lt $READY_MAX_RETRIES ]; do
     sleep 5
 
     READY=$(ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "curl -sS --max-time 6 -w ' HTTP_STATUS:%{http_code}' http://localhost:3012/api/health/ready" || echo "HTTP_STATUS:000")
     READY_STATUS="${READY##*HTTP_STATUS:}"
     READY_BODY="${READY% HTTP_STATUS:*}"
 
-    DEEP=$(ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "curl -sS --max-time 10 -w ' HTTP_STATUS:%{http_code}' http://localhost:3012/api/stats/health/deep" || echo "HTTP_STATUS:000")
-    DEEP_STATUS="${DEEP##*HTTP_STATUS:}"
-
-    if [ "$READY_STATUS" = "200" ] && echo "$READY_BODY" | grep -Eq '"status"[[:space:]]*:[[:space:]]*"ok"' && [ "$DEEP_STATUS" = "200" ]; then
-      SUCCESS=true
+    if [ "$READY_STATUS" = "200" ] && echo "$READY_BODY" | grep -Eq '"status"[[:space:]]*:[[:space:]]*"ok"'; then
+      READY_SUCCESS=true
       break
     fi
 
-    log_step "Attempt $((COUNT+1))/$MAX_RETRIES: ready=$READY_STATUS deep=$DEEP_STATUS"
-    COUNT=$((COUNT+1))
+    log_step "Ready attempt $((READY_COUNT+1))/$READY_MAX_RETRIES: ready=$READY_STATUS"
+    READY_COUNT=$((READY_COUNT+1))
   done
 
-  if [ "$SUCCESS" = true ]; then
+  if [ "$READY_SUCCESS" != true ]; then
+    log_error "Readiness checks failed after $READY_MAX_RETRIES attempts."
+    perform_rollback
+    exit 1
+  fi
+
+  log_step "Readiness is healthy. Running deep health check..."
+
+  while [ $DEEP_COUNT -lt $DEEP_MAX_RETRIES ]; do
+    DEEP=$(ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "curl -sS --max-time 180 -w ' HTTP_STATUS:%{http_code}' http://localhost:3012/api/stats/health/deep" || echo "HTTP_STATUS:000")
+    DEEP_STATUS="${DEEP##*HTTP_STATUS:}"
+
+    if [ "$DEEP_STATUS" = "200" ]; then
+      DEEP_SUCCESS=true
+      break
+    fi
+
+    log_step "Deep health attempt $((DEEP_COUNT+1))/$DEEP_MAX_RETRIES: deep=$DEEP_STATUS"
+    DEEP_COUNT=$((DEEP_COUNT+1))
+    sleep 5
+  done
+
+  if [ "$DEEP_SUCCESS" = true ]; then
     log_success "Deployment successful (ready + deep health checks passed)."
   else
-    log_error "Health checks failed after $MAX_RETRIES attempts."
+    log_error "Deep health checks failed after $DEEP_MAX_RETRIES attempts."
     perform_rollback
     exit 1
   fi

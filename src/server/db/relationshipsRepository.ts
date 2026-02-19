@@ -66,6 +66,11 @@ export const relationshipsRepository = {
     depth: number = 2,
     _filters: { from?: string; to?: string } = {},
   ) => {
+    // Phase 6.5 Query Discipline: Hard Caps
+    const MAX_DEPTH = 3;
+    const MAX_QUEUE_ITERATIONS = 500;
+    const safeDepth = Math.min(depth, MAX_DEPTH);
+
     const db = getDb();
 
     // 0. Resolve to Canonical ID
@@ -116,7 +121,7 @@ export const relationshipsRepository = {
 
     // Only process if queue is not empty
     let iterations = 0;
-    while (queue.length > 0 && iterations < 1000) {
+    while (queue.length > 0 && iterations < MAX_QUEUE_ITERATIONS) {
       iterations++;
       const item = queue.shift();
       if (!item) break;
@@ -136,7 +141,7 @@ export const relationshipsRepository = {
       }
 
       // If we reached max depth, don't fetch neighbors (optimization)
-      if (d >= depth) continue;
+      if (d >= safeDepth) continue;
 
       const rels = getRels.all(id, id) as any[];
 
@@ -154,7 +159,7 @@ export const relationshipsRepository = {
         });
 
         const nextId = sourceId === id ? targetId : sourceId;
-        if (!visited.has(nextId) && d + 1 <= depth) {
+        if (!visited.has(nextId) && d + 1 <= safeDepth) {
           queue.push({ id: nextId, d: d + 1 });
         }
       }

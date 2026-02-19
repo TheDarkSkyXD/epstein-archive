@@ -13,7 +13,12 @@ const router = Router();
  */
 router.get('/global', async (req, res, next) => {
   try {
-    const limit = Math.min(3000, Math.max(10, parseInt(req.query.limit as string) || 500));
+    // Phase 6.5 Query Discipline: Hard Caps
+    const MAX_GLOBAL_NODES = 500;
+    const limit = Math.min(
+      MAX_GLOBAL_NODES,
+      Math.max(10, parseInt(req.query.limit as string) || 200),
+    );
     const minRisk = parseInt(req.query.minRisk as string) || 0;
     const mode = req.query.mode as string; // 'cluster' or 'default'
     const startDate = req.query.startDate as string;

@@ -8,6 +8,7 @@ import toobusy from 'toobusy-js';
 import cookieParser from 'cookie-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { monitorEventLoopDelay } from 'perf_hooks';
 // import { databaseService } from './services/DatabaseService.js';
 // import { getEnv } from './src/config/env.js';
 import { entitiesRepository } from './server/db/entitiesRepository.js';
@@ -122,12 +123,45 @@ function seedInvestigationMediaTags(): void {
   }
 }
 
+const h = monitorEventLoopDelay({ resolution: 20 });
+h.enable();
+
+// Configure toobusy-js for 70ms lag threshold
+toobusy.maxLag(70);
+toobusy.interval(500);
+
 // Event loop lag protection - BEFORE heavy routes
 app.use((req, res, next) => {
   if (toobusy()) {
     return res.status(503).json({
       error: 'Server is too busy (Event Loop lag detected).',
     });
+  }
+  next();
+});
+
+// Memory monitoring and periodic GC pressure log
+const MEMORY_THRESHOLD_MB = 1200;
+let lastMemoryLog = 0;
+
+app.use((req, res, next) => {
+  const now = Date.now();
+  if (now - lastMemoryLog > 60000) {
+    // Log once per minute
+    const memory = process.memoryUsage();
+    const rss = Math.round(memory.rss / 1024 / 1024);
+    const heapUsed = Math.round(memory.heapUsed / 1024 / 1024);
+    const lag = h.mean / 1e6; // ns to ms
+
+    if (rss > MEMORY_THRESHOLD_MB) {
+      console.warn(
+        `[RUNTIME] CRITICAL MEMORY: RSS ${rss}MB | Heap ${heapUsed}MB | Lag ${lag.toFixed(2)}ms`,
+      );
+    } else if (now - lastMemoryLog > 300000) {
+      // Every 5 mins for standard health
+      console.log(`[RUNTIME] Health: RSS ${rss}MB | Heap ${heapUsed}MB | Lag ${lag.toFixed(2)}ms`);
+    }
+    lastMemoryLog = now;
   }
   next();
 });

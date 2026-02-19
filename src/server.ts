@@ -133,7 +133,11 @@ toobusy.interval(500);
 // Event loop lag protection - BEFORE heavy routes
 app.use((req, res, next) => {
   // Always permit health checks and essential auth even if busy
-  if (req.url.startsWith('/api/health') || req.url.startsWith('/api/auth/me')) {
+  if (
+    req.url.startsWith('/api/health') ||
+    req.url.startsWith('/api/stats/health') ||
+    req.url.startsWith('/api/auth/me')
+  ) {
     return next();
   }
 

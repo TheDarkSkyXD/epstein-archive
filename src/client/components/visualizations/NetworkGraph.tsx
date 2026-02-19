@@ -108,7 +108,7 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const [nodes, setNodes] = useState<GraphNode[]>([]);
-  const [transform, setTransform] = useState({ x: 0, y: 0, k: 0.1 }); // Start zoomed out
+  const [transform, setTransform] = useState({ x: 0, y: 0, k: 1.0 }); // Start centered
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<Point>({ x: 0, y: 0 });
   const [draggedNode, setDraggedNode] = useState<string | number | null>(null);
@@ -193,8 +193,8 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
       .slice(0, maxNodes);
 
     // 2. Compute Layout (Deterministic)
-    // Map back to internal GraphNode format (which needs x,y,vx,vy)
-    const layoutNodes = GraphService.computeSpiralLayout(uniqueNodes).map((n) => {
+    // Use 100x100 space to match SVG viewBox
+    const layoutNodes = GraphService.computeSpiralLayout(uniqueNodes, 100, 100).map((n) => {
       // @ts-ignore - computeSpiralLayout adds x/y but typescript doesn't see it on ServiceGraphNode yet
       return {
         ...n,
@@ -202,7 +202,7 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
         y: n.y || 0,
         vx: 0,
         vy: 0,
-        radius: getNodeSize(n.connectionCount || 0, 100), // Default sizing
+        radius: getNodeSize(n.connectionCount || 0, 100) / 4, // Scale radius for 100x100 space
         connectionCount: n.connectionCount || 0,
       } as GraphNode;
     });
@@ -360,13 +360,16 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
     const newK = Math.max(0.2, Math.min(5, transform.k * factor));
 
     const rect = svgRef.current.getBoundingClientRect();
+    // Calculate cursor position in viewBox units (0-100)
     const relX = ((e.clientX - rect.left) / rect.width) * 100;
     const relY = ((e.clientY - rect.top) / rect.height) * 100;
 
+    // Zoom anchored to cursor
     const newX = relX - (relX - transform.x) * (newK / transform.k);
     const newY = relY - (relY - transform.y) * (newK / transform.k);
 
     setTransform({ x: newX, y: newY, k: newK });
+    reportZoomLevel(newK);
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -447,7 +450,7 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
 
   const zoomIn = () => zoomFromCenter(1.2);
   const zoomOut = () => zoomFromCenter(1 / 1.2);
-  const resetView = () => setTransform({ x: 0, y: 0, k: 0.8 });
+  const resetView = () => setTransform({ x: 0, y: 0, k: 1.0 });
 
   const handleExpandNode = async (entityId: number | string) => {
     try {
@@ -500,15 +503,6 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
     [filteredNodes, selectedNodeId],
   );
 
-  const selectedNodeLinks = useMemo(() => {
-    if (!selectedNode) return [];
-    return links.filter(
-      (l) =>
-        String(l.source.id) === String(selectedNode.id) ||
-        String(l.target.id) === String(selectedNode.id),
-    );
-  }, [links, selectedNode]);
-
   const lod = useMemo(() => GraphService.getLodConfig(transform.k), [transform.k]);
 
   return (
@@ -555,14 +549,19 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
       {/* Hover Tooltip */}
       {hoveredNode && !isDragging && (
         <div
-          className="absolute z-30 pointer-events-none bg-slate-900/90 text-white text-xs px-2 py-1 rounded border border-slate-700 shadow-lg"
+          className="absolute z-30 pointer-events-none bg-slate-900/95 text-white text-[10px] px-2 py-1 rounded border border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.3)] whitespace-nowrap backdrop-blur-md"
           style={{
-            left: (nodes.find((n) => n.label === hoveredNode)?.x || 0) * transform.k + transform.x,
-            top:
-              (nodes.find((n) => n.label === hoveredNode)?.y || 0) * transform.k + transform.y - 15,
+            left: `${(nodes.find((n) => n.label === hoveredNode)?.x || 0) * transform.k + transform.x}%`,
+            top: `${(nodes.find((n) => n.label === hoveredNode)?.y || 0) * transform.k + transform.y - 2}%`,
+            transform: 'translate(-50%, -100%)',
           }}
         >
-          {hoveredNode}
+          <div className="flex flex-col gap-0.5">
+            <span className="font-bold text-cyan-400">{hoveredNode}</span>
+            <span className="text-[8px] text-slate-400 uppercase tracking-tighter">
+              {nodes.find((n) => n.label === hoveredNode)?.type || 'Entity'}
+            </span>
+          </div>
         </div>
       )}
       {/* Filter Panel */}

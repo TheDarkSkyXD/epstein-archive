@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Info, Users, AlertTriangle, Activity, ShieldAlert } from 'lucide-react';
 import {
   BarChart,
@@ -112,6 +112,51 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
     }
   }, [people, analyticsData]);
 
+  // Filter people to only Person types, excluding junk
+  const filteredPersons = useMemo(() => filterPeopleOnly(people), [people]);
+
+  // Prepare Data for Risk Distribution
+  const riskDistribution = useMemo(
+    () => [
+      {
+        name: 'High Risk (4-5)',
+        value: filteredPersons.filter((p) => (p.red_flag_rating ?? 0) >= 4).length,
+        color: COLORS.HIGH,
+      },
+      {
+        name: 'Medium Risk (2-3)',
+        value: filteredPersons.filter(
+          (p) => (p.red_flag_rating ?? 0) >= 2 && (p.red_flag_rating ?? 0) < 4,
+        ).length,
+        color: COLORS.MEDIUM,
+      },
+      {
+        name: 'Low Risk (0-1)',
+        value: filteredPersons.filter((p) => (p.red_flag_rating ?? 0) < 2).length,
+        color: COLORS.LOW,
+      },
+    ],
+    [filteredPersons],
+  );
+
+  // Prepare Data for Top Entities
+  const topEntities = useMemo(() => {
+    const source =
+      analyticsData?.topConnectedEntities || analyticsData?.topEntities || filteredPersons;
+    if (!source || !Array.isArray(source)) return [];
+
+    return source
+      .map((p: any) => ({
+        name: (p.name || p.full_name || p.fullName || '').trim(),
+        mentions: Number(p.mentions || 0),
+        redFlagRating: Number(p.riskLevel || p.red_flag_rating || p.redFlagRating || 0),
+        person: p,
+      }))
+      .filter((e) => e.name.length > 0 && !isJunkEntity(e.name))
+      .sort((a, b) => b.mentions - a.mentions)
+      .slice(0, 30);
+  }, [analyticsData, filteredPersons]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -134,46 +179,6 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
       </div>
     );
   }
-
-  // Filter people to only Person types, excluding junk
-  const filteredPersons = filterPeopleOnly(people);
-
-  // Prepare Data
-  const riskDistribution = [
-    {
-      name: 'High Risk (4-5)',
-      value: filteredPersons.filter((p) => (p.red_flag_rating ?? 0) >= 4).length,
-      color: COLORS.HIGH,
-    },
-    {
-      name: 'Medium Risk (2-3)',
-      value: filteredPersons.filter(
-        (p) => (p.red_flag_rating ?? 0) >= 2 && (p.red_flag_rating ?? 0) < 4,
-      ).length,
-      color: COLORS.MEDIUM,
-    },
-    {
-      name: 'Low Risk (0-1)',
-      value: filteredPersons.filter((p) => (p.red_flag_rating ?? 0) < 2).length,
-      color: COLORS.LOW,
-    },
-  ];
-
-  // Filter topEntities from analytics data as well
-  const rawTopEntities =
-    analyticsData?.topEntities ||
-    filteredPersons
-      .sort((a, b) => Number(b.mentions || 0) - Number(a.mentions || 0))
-      .slice(0, 30) // Increased to support scrollable bar chart better
-      .map((p) => ({
-        name: p.name,
-        mentions: Number(p.mentions || 0),
-        redFlagRating: Number(p.red_flag_rating ?? 0),
-        person: p,
-      }));
-
-  // Apply junk filter to topEntities (even from API)
-  const topEntities = rawTopEntities.filter((e: any) => !isJunkEntity(e.name));
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -262,7 +267,7 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
                     type="category"
                     stroke="#94a3b8"
                     fontSize={11}
-                    width={180}
+                    width={200}
                     tick={({ x, y, payload }: any) => {
                       const label = payload.value || 'Unknown';
                       // No truncation needed with horizontal scroll
@@ -271,11 +276,13 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
                           x={x}
                           y={y}
                           dy={4}
-                          fill="#e2e8f0"
+                          fill="#f8fafc"
                           textAnchor="end"
-                          className="text-[11px] cursor-pointer font-medium hover:fill-cyan-400 transition-colors"
+                          className="text-[11px] cursor-pointer font-bold hover:fill-cyan-400 transition-colors"
                           onClick={() => {
-                            const person = topEntities.find((p: any) => p.name === label)?.person;
+                            const person = topEntities.find(
+                              (p: any) => (p.name || p.label) === label,
+                            )?.person;
                             if (person && onPersonSelect) onPersonSelect(person);
                           }}
                         >

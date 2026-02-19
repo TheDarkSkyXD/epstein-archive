@@ -63,6 +63,11 @@ const JUNK_PATTERNS = [
   /Englewood/i,
 
   // Specific mangled strings from user screenshot
+  /TheInformation/i,
+  /Had Epstein/i,
+  /Uh Floor/i,
+  /Sundar Monday/i,
+  /Warner Cable/i,
   /Suark\s+Ferrasl/i,
   /Stnect\s+Naw/i,
   /Srarch\s+Pereseel/i,

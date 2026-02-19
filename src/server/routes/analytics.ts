@@ -71,7 +71,7 @@ router.get('/enhanced', async (_req, res, next) => {
         e.mentions
       FROM rel_counts rc
       JOIN entities e ON e.id = rc.entity_id
-      WHERE e.entity_type = 'Person'
+      WHERE e.entity_type = 'Person' AND COALESCE(e.junk_flag, 0) = 0
       ORDER BY rc.cnt DESC
       LIMIT 1000
     `,

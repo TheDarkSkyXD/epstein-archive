@@ -4,15 +4,15 @@ import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { filterPeopleOnly } from '../../utils/entityFilters';
 
 interface TreeMapProps {
-  people: Person[];
-  onPersonClick?: (person: Person) => void;
+  people: any[];
+  onPersonClick?: (person: any) => void;
 }
 
 interface TreeMapNode {
   name: string;
   value: number;
   redFlagRating: number;
-  person: Person;
+  person: any;
 }
 
 export const TreeMap: React.FC<TreeMapProps> = ({ people, onPersonClick }) => {
@@ -22,14 +22,20 @@ export const TreeMap: React.FC<TreeMapProps> = ({ people, onPersonClick }) => {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Prepare data - top 50 PERSON entities by mentions
-  const nodes: TreeMapNode[] = filterPeopleOnly(people)
-    .sort((a, b) => (b.mentions || 0) - (a.mentions || 0))
+  // Prepare data - top 50 person-like entities by mentions
+  // Filter for entities that are likely people or have connection counts
+  const nodes: TreeMapNode[] = (people || [])
+    .filter((p) => {
+      const type = (p.type || p.entity_type || '').toLowerCase();
+      return type === 'person' || type === '' || !type;
+    })
+    .filter((p) => (p.name || p.full_name) && !filterPeopleOnly([p as any]).length === 0)
+    .sort((a, b) => Number(b.mentions || 0) - Number(a.mentions || 0))
     .slice(0, 50)
     .map((p) => ({
-      name: p.name,
-      value: p.mentions || 0,
-      redFlagRating: p.red_flag_rating !== undefined ? p.red_flag_rating : 0,
+      name: (p.name || p.full_name || 'Unknown').trim(),
+      value: Number(p.mentions || 0),
+      redFlagRating: Number(p.riskLevel || p.red_flag_rating || 0),
       person: p,
     }));
 

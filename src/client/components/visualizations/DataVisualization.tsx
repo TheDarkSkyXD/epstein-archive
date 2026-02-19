@@ -116,8 +116,28 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
   const filteredPersons = useMemo(() => filterPeopleOnly(people), [people]);
 
   // Prepare Data for Risk Distribution
-  const riskDistribution = useMemo(
-    () => [
+  const riskDistribution = useMemo(() => {
+    // 1. Prefer analyticsData.riskByType (server-side aggregated)
+    if (analyticsData?.riskByType && Array.isArray(analyticsData.riskByType)) {
+      const high = analyticsData.riskByType
+        .filter((d: any) => Number(d.riskLevel) >= 4)
+        .reduce((acc: number, curr: any) => acc + curr.count, 0);
+      const medium = analyticsData.riskByType
+        .filter((d: any) => Number(d.riskLevel) >= 2 && Number(d.riskLevel) < 4)
+        .reduce((acc: number, curr: any) => acc + curr.count, 0);
+      const low = analyticsData.riskByType
+        .filter((d: any) => Number(d.riskLevel) < 2)
+        .reduce((acc: number, curr: any) => acc + curr.count, 0);
+
+      return [
+        { name: 'High Risk (4-5)', value: high, color: COLORS.HIGH },
+        { name: 'Medium Risk (2-3)', value: medium, color: COLORS.MEDIUM },
+        { name: 'Low Risk (0-1)', value: low, color: COLORS.LOW },
+      ];
+    }
+
+    // 2. Fallback to filteredPersons (client-side)
+    return [
       {
         name: 'High Risk (4-5)',
         value: filteredPersons.filter((p) => (p.red_flag_rating ?? 0) >= 4).length,
@@ -135,11 +155,45 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
         value: filteredPersons.filter((p) => (p.red_flag_rating ?? 0) < 2).length,
         color: COLORS.LOW,
       },
-    ],
-    [filteredPersons],
-  );
+    ];
+  }, [filteredPersons, analyticsData]);
 
-  // Prepare Data for Top Entities
+  // Prepare Data for TreeMap
+  const treeMapNodes = useMemo(() => {
+    // 1. Prefer analyticsData.roleDistribution (server-side aggregated)
+    if (analyticsData?.roleDistribution && Array.isArray(analyticsData.roleDistribution)) {
+      return analyticsData.roleDistribution
+        .filter((d: any) => d.role && d.count > 0)
+        .map((d: any) => ({
+          name: d.role,
+          value: d.count,
+        }));
+    }
+
+    // 2. Fallback to filteredPersons (client-side)
+    const roleCounts: { [key: string]: number } = {};
+    filteredPersons.forEach((p) => {
+      const roles: string[] = [];
+      if (p.role) roles.push(p.role);
+      if (p.secondaryRoles && Array.isArray(p.secondaryRoles)) {
+        roles.push(...p.secondaryRoles);
+      } else if (p.secondary_roles) {
+        roles.push(...p.secondary_roles.split(',').map((r) => r.trim()));
+      }
+
+      roles.forEach((role) => {
+        if (role) {
+          roleCounts[role] = (roleCounts[role] || 0) + 1;
+        }
+      });
+    });
+
+    return Object.entries(roleCounts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [filteredPersons, analyticsData]);
+
+  // Prepare Data for Top Entities (Bar Chart)
   const topEntities = useMemo(() => {
     const source =
       analyticsData?.topConnectedEntities || analyticsData?.topEntities || filteredPersons;
@@ -411,7 +465,10 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
         </div>
 
         <div className="relative z-10">
-          <TreeMap people={people} onPersonClick={onPersonSelect} />
+          <TreeMap
+            people={people.length > 0 ? people : analyticsData?.topConnectedEntities || []}
+            onPersonClick={onPersonSelect}
+          />
         </div>
       </div>
 
@@ -443,9 +500,11 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
         </div>
         <div className="glass-panel p-4 rounded-xl hover:bg-slate-800/60 transition-colors group">
           <div className="text-3xl font-bold text-white font-mono group-hover:text-pink-400 transition-colors">
-            {people.length > 0
-              ? Math.max(...people.map((p) => p?.mentions || 0)).toLocaleString()
-              : '0'}
+            {(() => {
+              const source = people.length > 0 ? people : analyticsData?.topConnectedEntities || [];
+              if (source.length === 0) return '0';
+              return Math.max(...source.map((p: any) => p?.mentions || 0)).toLocaleString();
+            })()}
           </div>
           <div className="text-slate-400 text-xs mt-1 font-medium uppercase tracking-wide">
             Max Mentions

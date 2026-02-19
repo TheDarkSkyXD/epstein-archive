@@ -6,6 +6,7 @@ import {
   ENTITY_PARTIAL_BLOCKLIST,
   ENTITY_BLACKLIST_REGEX,
 } from '../../config/entityBlacklist.js';
+import { isJunkEntity } from '../../utils/entityFilters.js';
 
 export interface EntityRepositoryResult {
   entities: any[];
@@ -730,11 +731,19 @@ export const entitiesRepository = {
     };
   },
 
-  backfillJunkFlags: () => {
+  /**
+   * BACKGROUND ORCHESTRATOR: Non-blocking junk backfill
+   * Processes entities in chunks to avoid event loop saturation.
+   */
+  startBackgroundJunkBackfill: (chunkSize: number = 500) => {
     const db = getDb();
-    const rows = db
-      .prepare(
-        `
+    let offset = 0;
+    let totalProcessed = 0;
+
+    const processNextChunk = () => {
+      const rows = db
+        .prepare(
+          `
         SELECT 
           e.id, 
           e.full_name, 
@@ -752,88 +761,109 @@ export const entitiesRepository = {
            JOIN evidence_types et ON eet.evidence_type_id = et.id 
            WHERE eet.entity_id = e.id) as source_count
         FROM entities e
+        LIMIT ? OFFSET ?
         `,
-      )
-      .all() as Array<{
-      id: number;
-      full_name: string;
-      primary_role: string;
-      entity_type: string;
-      mentions: number;
-      is_vip?: number;
-      bio?: string;
-      red_flag_rating?: number;
-      risk_level?: string;
-      media_count: number;
-      black_book_count: number;
-      source_count: number;
-    }>;
-    const stmt = db.prepare(
-      `UPDATE entities SET junk_flag=@junk_flag, junk_reason=@junk_reason, junk_probability=@junk_probability WHERE id=@id`,
-    );
-    const tx = db.transaction((items: typeof rows) => {
-      for (const r of items) {
-        const name = (r.full_name || '').toLowerCase();
-        let prob = 0;
-        let reason = '';
-        if (
-          name.length < 3 ||
-          /[.@]/.test(name) ||
-          name.startsWith('http') ||
-          name.startsWith('www.')
-        ) {
-          prob = Math.max(prob, 0.95);
-          reason = reason || 'name_hygiene';
-        }
-        if (ENTITY_BLACKLIST_REGEX.test(r.full_name || '')) {
-          prob = Math.max(prob, 0.9);
-          reason = reason || 'regex_blacklist';
-        }
-        for (const p of ENTITY_BLACKLIST_PATTERNS) {
-          if (p && name.includes(p.toLowerCase())) {
-            prob = Math.max(prob, 0.85);
-            reason = reason || 'pattern_blacklist';
-            break;
-          }
-        }
-        for (const p of ENTITY_PARTIAL_BLOCKLIST) {
-          if (p && name.includes(p.toLowerCase())) {
-            prob = Math.max(prob, 0.8);
-            reason = reason || 'partial_blacklist';
-            break;
-          }
-        }
-        const lowSignals =
-          (r.mentions || 0) < 10 &&
-          (r.media_count || 0) === 0 &&
-          (r.source_count || 0) === 0 &&
-          (r.black_book_count || 0) === 0 &&
-          (r.bio || '') === '';
-        if (lowSignals && (r.primary_role || '').toLowerCase() === 'unknown') {
-          prob = Math.max(prob, 0.55);
-          reason = reason || 'low_signals';
-        }
-        const likelyRepeatArtifact =
-          (r.mentions || 0) >= 500 &&
-          (r.is_vip || 0) === 0 &&
-          (r.media_count || 0) === 0 &&
-          (r.source_count || 0) === 0 &&
-          (r.black_book_count || 0) === 0 &&
-          (r.bio || '').trim() === '';
-        if (likelyRepeatArtifact) {
-          prob = Math.max(prob, 0.8);
-          reason = reason || 'repeat_artifact';
-        }
-        const junk = prob >= 0.6;
-        stmt.run({
-          id: r.id,
-          junk_flag: junk ? 1 : 0,
-          junk_reason: junk ? reason : null,
-          junk_probability: prob,
-        });
+        )
+        .all(chunkSize, offset) as Array<{
+        id: number;
+        full_name: string;
+        primary_role: string;
+        entity_type: string;
+        mentions: number;
+        is_vip?: number;
+        bio?: string;
+        red_flag_rating?: number;
+        risk_level?: string;
+        media_count: number;
+        black_book_count: number;
+        source_count: number;
+      }>;
+
+      if (rows.length === 0) {
+        console.log(
+          `✅ [BACKFILL] Junk flag synchronization complete. Total entities processed: ${totalProcessed}`,
+        );
+        return;
       }
-    });
-    tx(rows);
+
+      const stmt = db.prepare(
+        `UPDATE entities SET junk_flag=@junk_flag, junk_reason=@junk_reason, junk_probability=@junk_probability WHERE id=@id`,
+      );
+
+      const tx = db.transaction((items: typeof rows) => {
+        for (const r of items) {
+          let prob = 0;
+          let reason = '';
+
+          // Use the expanded heuristics from isJunkEntity
+          const isJunk = isJunkEntity(r.full_name || '');
+
+          if (isJunk) {
+            prob = 0.8;
+            reason = 'heuristic_match';
+          }
+
+          // Additional name hygiene
+          const name = (r.full_name || '').toLowerCase();
+          if (
+            name.length < 3 ||
+            /[.@]/.test(name) ||
+            name.startsWith('http') ||
+            name.startsWith('www.')
+          ) {
+            prob = Math.max(prob, 0.95);
+            reason = reason || 'name_hygiene';
+          }
+
+          if (ENTITY_BLACKLIST_REGEX.test(r.full_name || '')) {
+            prob = Math.max(prob, 0.9);
+            reason = reason || 'regex_blacklist';
+          }
+
+          // Signal-based junk detection (if mentions are zero but it's not a known person)
+          const lowSignals =
+            (r.mentions || 0) === 0 &&
+            (r.media_count || 0) === 0 &&
+            (r.source_count || 0) === 0 &&
+            (r.black_book_count || 0) === 0 &&
+            (r.bio || '') === '' &&
+            (r.is_vip || 0) === 0;
+
+          if (lowSignals && (r.primary_role || '').toLowerCase() === 'unknown') {
+            prob = Math.max(prob, 0.7); // Increased from 0.55
+            reason = reason || 'low_signals';
+          }
+
+          const junk = prob >= 0.7; // Harder threshold
+          stmt.run({
+            id: r.id,
+            junk_flag: junk ? 1 : 0,
+            junk_reason: junk ? reason : null,
+            junk_probability: prob,
+          });
+        }
+      });
+
+      tx(rows);
+      totalProcessed += rows.length;
+      offset += chunkSize;
+
+      // Log progress every 10k entities
+      if (Math.floor(totalProcessed / 10000) > Math.floor((totalProcessed - rows.length) / 10000)) {
+        console.log(`⏳ [BACKFILL] Progress: ${totalProcessed} entities scanned...`);
+      }
+
+      // Schedule next chunk to keep event loop responsive
+      setImmediate(processNextChunk);
+    };
+
+    console.log('🚀 [BACKFILL] Starting background junk flag synchronization...');
+    setImmediate(processNextChunk);
+  },
+
+  backfillJunkFlags: () => {
+    // Deprecated in favor of startBackgroundJunkBackfill, but kept for migration compatibility
+    entitiesRepository.startBackgroundJunkBackfill();
   },
 
   /**

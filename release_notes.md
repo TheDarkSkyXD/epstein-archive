@@ -1,3 +1,19 @@
+## v13.14.1 - 2026-02-19 - Phase 6 UI & Analytics Recovery
+
+### UI Stability & Restoration (Phase 6)
+
+- **Network Graph Recalibration**: Fixed oversized font scaling and label positioning issues. Reordered the dashboard to prioritize the Entity Connection Network at the top.
+- **Analytics Chart Recovery**: Restored "Risk Level Distribution" and "Interactive Entity Map" charts by correctly mapping server-side analytics data.
+- **Enhanced Junk Filtering**: Implemented stricter OCR artifact suppression (e.g., "Search Personnel Name", "TheInformation") across all visualizations.
+- **Type Normalization**: Improved entity type recognition for Locations and Organizations.
+
+### Backend Hardening
+
+- **Backpressure Monitoring**: Integrated `toobusy-js` to prevent event loop saturation during heavy ingestion or graph processing.
+- **Background Orchestration**: Refactored `backfillJunkFlags` into a non-blocking, chunked background process to ensure zero-lag server startup.
+- **Graph Adjacency Caching**: Implemented precomputed entity adjacency lists to accelerate Depth 2+ network traverses on the full 1.3M document dataset.
+- **Fetch Optimization**: Enforced pagination and limits on secondary analytics queries.
+
 ## v13.14.0 - 2026-02-19 - Temporal Investigation & Forensic Determinism
 
 ### Forensic Graph Evolution (Phase 4.5 & 5)

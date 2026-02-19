@@ -10,6 +10,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import ToastProvider from './components/common/ToastProvider';
 
 import { SensitiveSettingsProvider } from './contexts/SensitiveSettingsContext';
+import { FilterProvider } from './contexts/FilterContext';
 
 // Global error handlers for production debugging
 window.onerror = function (message, source, lineno, colno, error) {
@@ -33,7 +34,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <SensitiveSettingsProvider>
               <BrowserRouter>
                 <NavigationProvider>
-                  <App />
+                  <FilterProvider>
+                    <App />
+                  </FilterProvider>
                 </NavigationProvider>
               </BrowserRouter>
             </SensitiveSettingsProvider>

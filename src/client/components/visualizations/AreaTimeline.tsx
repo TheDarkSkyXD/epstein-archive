@@ -73,13 +73,17 @@ export const AreaTimeline: React.FC<AreaTimelineProps> = ({ data, onPeriodClick 
   // Process and sort data by period
   const chartData = useMemo(() => {
     return data
-      .filter((d) => d.period && d.period.length >= 7)
+      .filter((d) => d.period === 'Unknown' || (d.period && d.period.length >= 7))
       .map((d) => ({
         ...d,
-        // Format period for display (YYYY-MM -> MMM YYYY)
+        // Format period for display (YYYY-MM -> MMM YYYY, Unknown -> Unknown)
         displayPeriod: formatPeriod(d.period),
       }))
-      .sort((a, b) => a.period.localeCompare(b.period));
+      .sort((a, b) => {
+        if (a.period === 'Unknown') return 1;
+        if (b.period === 'Unknown') return -1;
+        return a.period.localeCompare(b.period);
+      });
   }, [data]);
 
   if (chartData.length === 0) {
@@ -183,6 +187,7 @@ export const AreaTimeline: React.FC<AreaTimelineProps> = ({ data, onPeriodClick 
 
 // Format period from YYYY-MM to MMM 'YY
 function formatPeriod(period: string): string {
+  if (period === 'Unknown') return 'Unknown Date';
   if (!period || period.length < 5) return period;
 
   // Handle both hyphen and slash separators

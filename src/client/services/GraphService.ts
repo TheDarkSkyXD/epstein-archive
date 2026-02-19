@@ -57,7 +57,9 @@ export const GraphService = {
       label: raw.label || raw.full_name || raw.name || 'Unknown',
       type: normalizeType(raw.type || raw.primary_role),
       risk: raw.risk || raw.red_flag_rating || raw.riskLevel || 0,
-      image: raw.image || raw.photo_url,
+      image: raw.top_photo_id
+        ? `/api/media/images/${raw.top_photo_id}/thumbnail`
+        : raw.image || raw.photo_url,
       community: raw.community,
       isEgo: !!raw.isEgo,
       connectionCount: raw.connectionCount || raw.properties?.connectionCount || 0,
@@ -152,12 +154,22 @@ export const GraphService = {
 
   /**
    * Get render style based on zoom level (LOD)
+   * Hero Spec Zoom Bands:
+   * < 0.5: Clusters Only
+   * 0.5 - 1.2: Nodes + Selected Labels
+   * 1.2 - 2.5: Detailed Nodes + All Labels
+   * > 2.5: Faces + Metadata
    */
   getLodConfig: (zoom: number) => {
-    if (zoom < 0.5) return { showLabels: false, showEdges: false, opacity: 0.5 };
-    if (zoom < 1.5) return { showLabels: false, showEdges: true, opacity: 0.8 };
-    if (zoom < 4.0) return { showLabels: true, showEdges: true, opacity: 1.0 };
-    return { showLabels: true, showEdges: true, opacity: 1.0, showDetails: true };
+    return {
+      showEdges: zoom >= 0.4,
+      showLabels: zoom >= 0.6,
+      showAvatars: zoom >= 1.8,
+      showDetails: zoom >= 2.0,
+      labelDensity: zoom > 1.2 ? 'high' : 'low',
+      opacity: zoom < 0.2 ? 0.3 : zoom < 0.6 ? 0.6 : 1.0,
+      zoomLevel: zoom,
+    };
   },
   /**
    * Compute Spiral Clustered Layout (Deterministic)
@@ -223,7 +235,15 @@ export const GraphService = {
 // Helper
 function normalizeType(rawType: string): EntityType {
   if (!rawType) return 'person';
-  const lower = rawType.toLowerCase();
+  const lower = rawType.toLowerCase().trim();
+
+  // Strict matches first
+  if (lower === 'location' || lower === 'place' || lower === 'city' || lower === 'country')
+    return 'location';
+  if (lower === 'organization' || lower === 'company' || lower === 'corporation')
+    return 'organization';
+  if (lower === 'financial' || lower === 'bank' || lower === 'account') return 'financial';
+  if (lower === 'person' || lower === 'individual') return 'person';
 
   if (
     lower.includes('org') ||
@@ -236,14 +256,15 @@ function normalizeType(rawType: string): EntityType {
     lower.includes('island') ||
     lower.includes('residence') ||
     lower.includes('house') ||
-    lower.includes('apt')
+    lower.includes('apt') ||
+    lower.includes('hong kong') ||
+    lower.includes('new york') ||
+    lower.includes('palm beach')
   )
     return 'location';
   if (lower.includes('bank') || lower.includes('fund') || lower.includes('trust'))
     return 'financial';
   if (lower.includes('doc') || lower.includes('log') || lower.includes('file')) return 'document';
-  if (lower.includes('comm') || lower.includes('email') || lower.includes('phone'))
-    return 'communication';
   if (lower.includes('comm') || lower.includes('email') || lower.includes('phone'))
     return 'communication';
   if (lower.includes('cluster')) return 'cluster';

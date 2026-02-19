@@ -130,7 +130,7 @@ class ApiClient {
 
   private async fetchWithErrorHandling<T>(
     url: string,
-    options?: RequestInit & { useCache?: boolean; cacheTtl?: number },
+    options?: RequestInit & { useCache?: boolean; cacheTtl?: number; _retryCount?: number },
   ): Promise<T> {
     // Check cache for GET requests
     const shouldCache =
@@ -172,7 +172,26 @@ class ApiClient {
         const newToken = await this.refreshToken();
         if (newToken) {
           response = await executeRequest(newToken);
+        } else {
+          // If refresh fails, do NOT retry - throw to prevent loop/storm
+          throw new Error('Unauthorized: Session expired');
         }
+      }
+
+      // Phase 8: Exponential Backoff for 5xx errors
+      const retryCount = options?._retryCount || 0;
+      const maxRetries = 3;
+
+      if (!response.ok && response.status >= 500 && retryCount < maxRetries) {
+        const backoff = Math.pow(2, retryCount) * 1000;
+        console.warn(
+          `API Error ${response.status} on ${url}. Retrying in ${backoff}ms... (Attempt ${retryCount + 1})`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, backoff));
+        return this.fetchWithErrorHandling<T>(url, {
+          ...options,
+          _retryCount: retryCount + 1,
+        }); // Recursive retry
       }
 
       if (!response.ok) {
@@ -531,8 +550,13 @@ class ApiClient {
     });
   }
 
-  async getStats(): Promise<any> {
-    const url = `${API_BASE_URL}/stats`;
+  async getStats(filters: Record<string, any> = {}): Promise<any> {
+    const params = new URLSearchParams();
+    if (filters.timeRange && filters.timeRange[0]) params.append('startDate', filters.timeRange[0]);
+    if (filters.timeRange && filters.timeRange[1]) params.append('endDate', filters.timeRange[1]);
+    if (filters.limit) params.append('limit', filters.limit.toString());
+
+    const url = `${API_BASE_URL}/stats${params.toString() ? `?${params.toString()}` : ''}`;
     return this.fetchWithErrorHandling<any>(url);
   }
 

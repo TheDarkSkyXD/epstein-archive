@@ -20,6 +20,7 @@ import { searchRepository } from './server/db/searchRepository.js';
 import { timelineRepository } from './server/db/timelineRepository.js';
 import { forensicRepository } from './server/db/forensicRepository.js';
 import { runMigrations } from './server/db/migrator.js';
+import { relationshipsRepository } from './server/db/relationshipsRepository.js';
 import { validateStartup } from './server/utils/startupValidation.js';
 import { authenticateRequest, requireRole } from './server/auth/middleware.js';
 import authRoutes from './server/auth/routes.js';
@@ -149,7 +150,7 @@ app.use((req, res, next) => {
 
   if (toobusy()) {
     console.warn(
-      `[BACKPRESSURE] Rejecting request: ${req.method} ${req.url} (Lag: ${h.mean / 1e6}ms)`,
+      `[BACKPRESSURE] Rejecting request: ${req.method} ${req.url} (Lag: ${h.mean / 1e6}ms, Peak: ${h.max / 1e6}ms)`,
     );
     return res.status(503).json({
       error: 'Server is too busy (Event Loop lag detected).',
@@ -366,6 +367,7 @@ const PUBLIC_ROUTES = [
   '/api/search',
   '/api/timeline',
   '/api/analytics',
+  '/api/graph',
   '/api/relationships',
   '/api/evidence',
   '/api/articles',
@@ -393,33 +395,26 @@ app.get('/api/health/ready', (_req, res) => {
   const startedAt = Date.now();
   try {
     const db = getDb();
+
+    // 1. Lightweight Ping
     const dbPingStart = Date.now();
     db.prepare('SELECT 1 as ok').get();
     const dbLatencyMs = Date.now() - dbPingStart;
 
-    const requiredTables = ['entities', 'documents'];
-    const optionalTables = ['investigations', 'emails'];
-    const allTablesToCheck = [...requiredTables, ...optionalTables];
+    // 2. Schema Presence (non-blocking)
+    const requiredTables = ['entities', 'documents', 'entity_relationships'];
     const tableRows = db
       .prepare(
-        `SELECT name FROM sqlite_master WHERE type='table' AND name IN (${allTablesToCheck.map(() => '?').join(',')})`,
+        `SELECT name FROM sqlite_master WHERE type='table' AND name IN (${requiredTables.map(() => '?').join(',')})`,
       )
-      .all(...allTablesToCheck) as Array<{ name: string }>;
+      .all(...requiredTables) as Array<{ name: string }>;
+
     const presentTables = new Set(tableRows.map((r) => r.name));
-    const missingTables = requiredTables.filter((name) => !presentTables.has(name));
-    const missingOptionalTables = optionalTables.filter((name) => !presentTables.has(name));
+    const isSchemaReady = requiredTables.every((t) => presentTables.has(t));
 
-    const entitiesCount = Number(
-      (db.prepare('SELECT COUNT(*) as count FROM entities').get() as { count?: number })?.count ||
-        0,
-    );
-    const documentsCount = Number(
-      (db.prepare('SELECT COUNT(*) as count FROM documents').get() as { count?: number })?.count ||
-        0,
-    );
-
-    const status =
-      missingTables.length === 0 && entitiesCount > 0 && documentsCount > 0 ? 'ok' : 'degraded';
+    // 3. Fast Status Determination
+    // We avoid COUNT(*) on large tables here. Availability is assumed if schema is present and ping works.
+    const status = isSchemaReady ? 'ok' : 'degraded';
     const code = status === 'ok' ? 200 : 503;
 
     return res.status(code).json({
@@ -427,8 +422,7 @@ app.get('/api/health/ready', (_req, res) => {
       timestamp: new Date().toISOString(),
       checks: {
         db: { ok: true, latencyMs: dbLatencyMs },
-        schema: { missingTables, missingOptionalTables },
-        data: { entities: entitiesCount, documents: documentsCount },
+        schema: { ready: isSchemaReady, present: Array.from(presentTables) },
       },
       durationMs: Date.now() - startedAt,
     });
@@ -4681,11 +4675,20 @@ try {
   validateStartup();
   runMigrations();
   seedInvestigationMediaTags();
-  // try {
-  //   entitiesRepository.backfillJunkFlags();
-  // } catch (e) {
-  //   console.error('Junk flags backfill failed:', e);
-  // }
+
+  // Phase 6 Resilience: Background Junk Flag Backfill
+  try {
+    entitiesRepository.startBackgroundJunkBackfill();
+  } catch (e) {
+    console.error('⚠️ [STARTUP] Junk flags backfill trigger failed:', e);
+  }
+
+  // Phase 6 Performance: Graph Adjacency Cache Rebuild
+  try {
+    relationshipsRepository.rebuildAdjacencyCache();
+  } catch (e) {
+    console.error('⚠️ [STARTUP] Adjacency cache rebuild failed:', e);
+  }
 } catch (err) {
   console.error('Failed to run migrations:', err);
   process.exit(1);

@@ -45,12 +45,45 @@ function applyCollisionResolution(draggedNodeId: string | number | null): GraphN
     const cdy = CENTER_Y - node.y;
     const centerDist = Math.sqrt(cdx * cdx + cdy * cdy);
 
-    // Stronger centering for Jeffrey Epstein
-    const centerStrength = String(node.id) === String(JEFFREY_ID) ? 0.05 : 0.01;
+    // Stronger centering for Jeffrey Epstein, slightly weaker for others
+    let centerStrength = 0.005; // Tuned general centering force
+    if (String(node.id) === String(JEFFREY_ID)) {
+      centerStrength = 0.03; // Tuned Jeffrey's centering force
+    }
     node.x += cdx * centerStrength;
     node.y += cdy * centerStrength;
 
-    // 2. Collision Detection
+    // 2. Community-based Repulsion
+    for (let j = 0; j < newNodes.length; j++) {
+      if (i === j) continue;
+      const other = newNodes[j];
+
+      // Apply repulsion only if nodes are in different communities
+      // or if one/both don't have a community (repel from all others)
+      if (
+        node.community !== undefined &&
+        other.community !== undefined &&
+        node.community === other.community
+      ) {
+        continue; // Nodes in the same community don't repel each other here
+      }
+
+      const dx = node.x - other.x;
+      const dy = node.y - other.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      // Repulsion strength, tune as needed
+      const repulsionStrength = 0.05; // Increased repulsion for different communities
+      const minRepulsionDist = 100; // Distance at which repulsion starts to be significant
+
+      if (dist < minRepulsionDist && dist > 0) {
+        const force = repulsionStrength * (1 - dist / minRepulsionDist);
+        node.x += (dx / dist) * force;
+        node.y += (dy / dist) * force;
+      }
+    }
+
+    // 3. Collision Detection (now 3rd step after centering and community repulsion)
     for (let j = 0; j < newNodes.length; j++) {
       if (i === j) continue;
       const other = newNodes[j];

@@ -183,7 +183,7 @@ const Footer: React.FC<FooterProps> = ({ onVersionClick }) => {
               </li>
               <li>
                 <a
-                  href="https://github.com/ErikVeland/epstein-archive"
+                  href="https://about.glasscode.academy"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-blue-400 transition-colors flex items-center gap-2 group w-fit"

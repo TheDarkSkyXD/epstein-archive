@@ -14,18 +14,23 @@ const JUNK_PATTERNS = [
   /Unsubscribe/i,
   /Feedback/i,
   /Font[-\s]family/i,
-  /Arial|Helvetica|Verdana/i,
-  /Printed/i,
-  /Multiple/i,
-  /Closed/i,
-  /sensit/i,
-  /Interest/i,
-  /Interest\s/i,
-  /Additions/i,
-  /Subtractions/i,
-  /Checking/i,
-  /Interest/i,
   /Advantage/i,
+  /Search\sPersonnel\sName/i,
+  /Search\sEntities/i,
+  /Search\sPersonal\sName/i,
+  /Loading\s\.\.\./i,
+  /Checking\s\.\.\./i,
+  /Arial|Helvetica|Times\sNew\sRoman|Verdana/i,
+  /Click\s+here/i,
+  /All\s+Rights\s+Reserved/i,
+  /Copyright\s+\d{4}/i,
+  /Template\s+Module/i,
+  /\[.*\]/, // Bracketed text
+  /\{.*\}/, // Braced text
+  /^\W+$/, // Only non-word characters
+  /\d{3,}/, // Sequences of numbers (likely IDs, not names)
+  /^[A-Z]\sName$/i, // "P Name"
+  /^[A-Z][a-z]+\sPersonal$/i, // "Search Personal"
 
   // OCR Artifacts / Generic Placeholders
   /^[A-Z]\sName$/i, // "P Name"
@@ -34,6 +39,8 @@ const JUNK_PATTERNS = [
   /Description\s+Water$/i,
   /^[a-z]/, // Starts with lowercase
   /\d/, // Contains digits
+  /^[A-Z]$/, // Single letter names
+  /^[bcdefghjklmnpqrstvwxyz]{5,}$/i, // Sequence of consonants
 
   // Generic Roles/Titles without names
   /^Judge\s+$/i,
@@ -75,6 +82,13 @@ const JUNK_PATTERNS = [
   /Searet\s+Persesel/i,
   /Seard\s+Pyrene/i,
   /Search\s+Persoznel/i,
+  /\bSearch\s+Persennel\s+Name\b/i,
+  /\bSearch\s+Perpenal\s+Name\b/i,
+  /\bSearch\s+Furvenel\s+Name\b/i,
+  /\bSp\s+Name\b/i,
+  /\bTheInformation\b/i,
+  /^\.+$/,
+  /^[_\-]+$/,
 ];
 
 /**

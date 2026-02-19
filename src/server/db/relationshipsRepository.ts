@@ -60,7 +60,40 @@ export const relationshipsRepository = {
     }));
   },
 
-  // TODO: Apply filters to graph traversal - see UNUSED_VARIABLES_RECOMMENDATIONS.md
+  /**
+   * REBUILD ADJACENCY CACHE: Precomputes entity-to-entity neighbors.
+   * Accelerates high-depth graph traverses.
+   */
+  rebuildAdjacencyCache: () => {
+    const db = getDb();
+    console.log('⏳ [GRAPH] Rebuilding adjacency cache...');
+
+    db.transaction(() => {
+      db.prepare('DELETE FROM entity_adjacency').run();
+      db.prepare(
+        `
+        INSERT INTO entity_adjacency (entity_id, neighbor_id, weight, bridge_score, relationship_types)
+        SELECT 
+          s.canonical_id as entity_id,
+          t.canonical_id as neighbor_id,
+          MAX(er.proximity_score) as weight,
+          CASE WHEN s.community_id != t.community_id THEN 1.0 ELSE 0.0 END as bridge_score,
+          GROUP_CONCAT(DISTINCT er.relationship_type) as relationship_types
+        FROM entity_relationships er
+        JOIN entities s ON er.source_entity_id = s.id
+        JOIN entities t ON er.target_entity_id = t.id
+        WHERE s.canonical_id != t.canonical_id
+        GROUP BY s.canonical_id, t.canonical_id
+      `,
+      ).run();
+
+      db.prepare(
+        'UPDATE graph_cache_state SET last_rebuild = CURRENT_TIMESTAMP, is_dirty = 0 WHERE id = 1',
+      ).run();
+    })();
+    console.log('✅ [GRAPH] Adjacency cache rebuilt successfully.');
+  },
+
   getGraphSlice: (
     entityId: number | string,
     depth: number = 2,
@@ -82,7 +115,9 @@ export const relationshipsRepository = {
     const startId = startNode.cid;
 
     const visited = new Set<number>();
-    const queue: { id: number; d: number }[] = [{ id: Number(startId), d: 0 }];
+    const queue: { id: number; d: number; bridge_score?: number }[] = [
+      { id: Number(startId), d: 0, bridge_score: 0 },
+    ];
     const nodes: any[] = [];
     const edges: any[] = [];
 
@@ -92,31 +127,32 @@ export const relationshipsRepository = {
             canonical_id as id, 
             MAX(full_name) as full_name, 
             MAX(primary_role) as primary_role, 
-            MAX(red_flag_rating) as red_flag_rating 
+            MAX(red_flag_rating) as red_flag_rating,
+            (
+              SELECT mi.id
+              FROM media_item_people mip
+              JOIN media_items mi ON mip.media_item_id = mi.id
+              WHERE mip.entity_id = entities.id
+              AND (mi.file_type LIKE 'image/%' OR mi.file_type IS NULL)
+              ORDER BY mi.red_flag_rating DESC, mi.id DESC
+              LIMIT 1
+            ) as top_photo_id
         FROM entities 
         WHERE canonical_id = ?
         GROUP BY canonical_id
     `);
 
-    // Get Relationships (Mapped to Canonical IDs)
-    // We join entities twice to map both sides to canonical_id.
-    // We filter where *either* side matches the current node.
-    const getRels = db.prepare(`
-          SELECT
-            s.canonical_id as source_id,
-            t.canonical_id as target_id,
-            er.relationship_type,
-            MAX(er.proximity_score) as proximity_score, -- Aggregated max score
-            0 as risk_score,
-            1 as confidence
-          FROM entity_relationships er
-          JOIN entities s ON er.source_entity_id = s.id
-          JOIN entities t ON er.target_entity_id = t.id
-          WHERE (s.canonical_id = ? OR t.canonical_id = ?)
-          AND s.canonical_id != t.canonical_id -- No self loops
-          GROUP BY s.canonical_id, t.canonical_id, er.relationship_type
-          ORDER BY proximity_score DESC
-          LIMIT 200
+    // USE CACHED ADJACENCY (Optimized for Depth 2+)
+    const getNeighborsCached = db.prepare(`
+      SELECT 
+        neighbor_id as target_id,
+        weight as proximity_score,
+        bridge_score,
+        relationship_types
+      FROM entity_adjacency
+      WHERE entity_id = ?
+      ORDER BY bridge_score DESC, weight DESC
+      LIMIT 100
     `);
 
     // Only process if queue is not empty
@@ -137,30 +173,30 @@ export const relationshipsRepository = {
           label: entity.full_name,
           type: entity.primary_role || 'person',
           risk: entity.red_flag_rating || 0,
+          top_photo_id: entity.top_photo_id,
         });
       }
 
-      // If we reached max depth, don't fetch neighbors (optimization)
       if (d >= safeDepth) continue;
 
-      const rels = getRels.all(id, id) as any[];
+      const rels = getNeighborsCached.all(id) as any[];
 
       for (const r of rels) {
-        const sourceId = r.source_id;
         const targetId = r.target_id;
 
         edges.push({
-          source_id: sourceId,
+          source_id: id,
           target_id: targetId,
-          relationship_type: r.relationship_type,
+          relationship_type: r.relationship_types?.split(',')[0] || 'connected',
           proximity_score: r.proximity_score,
-          risk_score: r.risk_score,
-          confidence: r.confidence,
+          risk_score: 0,
+          confidence: 1,
         });
 
-        const nextId = sourceId === id ? targetId : sourceId;
-        if (!visited.has(nextId) && d + 1 <= safeDepth) {
-          queue.push({ id: nextId, d: d + 1 });
+        if (!visited.has(targetId) && d + 1 <= safeDepth) {
+          queue.push({ id: targetId, d: d + 1, bridge_score: r.bridge_score || 0 });
+          // Priority: lower depth first, then higher bridge score
+          queue.sort((a: any, b: any) => a.d - b.d || b.bridge_score - a.bridge_score);
         }
       }
     }

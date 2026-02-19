@@ -8,12 +8,15 @@ import {
   FileText,
   TrendingUp,
   Share2,
+  RotateCcw,
 } from 'lucide-react';
 import { SunburstChart } from '../visualizations/SunburstChart';
 import { AreaTimeline } from '../visualizations/AreaTimeline';
 import { NetworkGraph } from '../visualizations/NetworkGraph';
 import { EvidenceDrawer } from '../visualizations/EvidenceDrawer';
 import { filterPeopleOnly } from '../../utils/entityFilters';
+import { useFilters } from '../../contexts/FilterContext';
+import { apiClient } from '../../services/apiClient';
 
 interface EnhancedAnalyticsProps {
   onEntitySelect?: (entityId: number) => void;
@@ -54,20 +57,29 @@ interface AnalyticsData {
     type: string;
     weight: number;
   }>;
+  totalCounts: {
+    entities: number;
+    documents: number;
+    evidenceFiles: number;
+    relationships: number;
+  };
+  reconciliation: {
+    unclassifiedCount: number;
+    unknownDateCount: number;
+  };
 }
 
 export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
   onEntitySelect,
   onTypeFilter,
 }) => {
+  const { filters, setFilters } = useFilters();
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [entityCount, setEntityCount] = useState<number>(100); // Default to 100 entities
 
   // LOD Graph State
   const [graphData, setGraphData] = useState<{ nodes: any[]; edges: any[] } | null>(null);
-  const [graphLimit, setGraphLimit] = useState(100); // Start matching entityCount
   const [graphMode, setGraphMode] = useState<'default' | 'cluster'>('default');
   const [isGraphLoading, setIsGraphLoading] = useState(false);
 
@@ -83,8 +95,6 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
   const [pathSource, setPathSource] = useState<any>(null);
   const [pathTarget, setPathTarget] = useState<any>(null);
 
-  // Temporal Filter State
-  const [timeRange, setTimeRange] = useState<[string, string]>(['1990-01-01', '2025-01-01']);
   const [isTemporalSyncing, setIsTemporalSyncing] = useState(false);
 
   const handlePathNodeClick = (entity: any) => {
@@ -103,10 +113,10 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
   const fetchPath = async (sourceId: string, targetId: string) => {
     setIsGraphLoading(true);
     try {
-      const [startDate, endDate] = timeRange;
-      const res = await fetch(
-        `/api/graph/global?mode=path&sourceId=${sourceId}&targetId=${targetId}&startDate=${startDate}&endDate=${endDate}`,
-      );
+      const [startDate, endDate] = filters.timeRange;
+      const endpoint = `/graph/global?mode=path&sourceId=${sourceId}&targetId=${targetId}&startDate=${startDate || ''}&endDate=${endDate || ''}`;
+
+      const res = await apiClient.get<any>(endpoint, { useCache: false });
       if (!res.ok) throw new Error('Path fetch failed');
       const pathData = await res.json();
 
@@ -149,7 +159,7 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
         nodes: data.topConnectedEntities,
         edges: data.topRelationships,
       });
-      setGraphLimit(data.topConnectedEntities.length); // Should match
+      setFilters({ limit: data.topConnectedEntities.length });
     }
   }, [data]);
 
@@ -177,26 +187,24 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
     // 1. Mode changed (Cluster <-> Default)
     // 2. Limit increased in Default mode
     const needsFetch =
-      targetMode !== graphMode || (targetMode === 'default' && targetLimit > graphLimit);
+      targetMode !== graphMode || (targetMode === 'default' && targetLimit > filters.limit);
 
     if (needsFetch && !isGraphLoading) {
       console.log(`Zoom ${zoom.toFixed(2)} -> Fetching ${targetMode} / ${targetLimit}...`);
 
       // Optimistic updates
-      setGraphLimit(targetLimit);
+      setFilters({ limit: targetLimit });
       setGraphMode(targetMode);
       setIsGraphLoading(true);
 
       try {
-        const [startDate, endDate] = timeRange;
-        const query =
+        const [startDate, endDate] = filters.timeRange;
+        const endpoint =
           targetMode === 'cluster'
-            ? `/api/graph/global?mode=cluster&startDate=${startDate}&endDate=${endDate}`
-            : `/api/graph/global?limit=${targetLimit}&startDate=${startDate}&endDate=${endDate}`;
+            ? `/graph/global?mode=cluster&startDate=${startDate || ''}&endDate=${endDate || ''}`
+            : `/graph/global?limit=${targetLimit}&startDate=${startDate || ''}&endDate=${endDate || ''}`;
 
-        const res = await fetch(query);
-        if (!res.ok) throw new Error('Graph fetch failed');
-        const newData = await res.json();
+        const newData = await apiClient.get<any>(endpoint, { useCache: false });
 
         // Map to Legacy Interface expectations
         const mappedNodes = newData.nodes.map((n: any) => ({
@@ -214,9 +222,6 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
         }));
 
         setGraphData({ nodes: mappedNodes, edges: mappedEdges });
-        if (targetMode === 'default') {
-          setEntityCount(targetLimit); // Update UI slider only in default mode
-        }
       } catch (e) {
         console.error('LOD Fetch Error:', e);
       } finally {
@@ -225,7 +230,6 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
     }
   };
 
-  // Evidence Cache
   const evidenceCache = React.useRef<Map<string, any[]>>(new Map());
 
   const handleEdgeClick = async (edge: any) => {
@@ -247,9 +251,8 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
     setEdgeEvidence([]);
 
     try {
-      const res = await fetch(
-        `/api/graph/edge-evidence?sourceId=${edge.sourceId}&targetId=${edge.targetId}`,
-      );
+      const endpoint = `/graph/edge-evidence?sourceId=${edge.sourceId}&targetId=${edge.targetId}`;
+      const res = await apiClient.get<any>(endpoint, { useCache: true });
       if (!res.ok) throw new Error('Failed to fetch evidence');
       const data = await res.json();
 
@@ -274,18 +277,16 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
     if (data) {
       handleZoomLevelChange(1.0); // Trigger a refresh at current zoom
     }
-  }, [timeRange]);
+  }, [filters.timeRange]);
 
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/analytics/enhanced', { credentials: 'include' });
-      if (!response.ok) throw new Error('Failed to fetch analytics');
-      const result = await response.json();
+      const result = await apiClient.get<AnalyticsData>('/analytics/enhanced', { useCache: false });
 
       // Filter out junk entities from Network Graph
       if (result.topConnectedEntities) {
-        result.topConnectedEntities = filterPeopleOnly(result.topConnectedEntities as any);
+        result.topConnectedEntities = filterPeopleOnly(result.topConnectedEntities as any) as any;
       }
 
       // Filter relationships to only include valid entities
@@ -318,6 +319,27 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
     );
   }
 
+  const handleReconcileJunk = async () => {
+    try {
+      await apiClient.post('/analytics/reconcile/junk');
+      alert('Junk entities re-classified.');
+      fetchAnalytics();
+    } catch (error) {
+      console.error('Error reconciling junk:', error);
+    }
+  };
+
+  const handleResetJunk = async () => {
+    if (!confirm('Are you sure you want to reset all junk flags?')) return;
+    try {
+      await apiClient.post('/analytics/reconcile/reset');
+      alert('Junk classification reset.');
+      fetchAnalytics();
+    } catch (error) {
+      console.error('Error resetting junk:', error);
+    }
+  };
+
   if (error || !data) {
     return (
       <div className="text-center py-12">
@@ -336,93 +358,83 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Hero Stats Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard
-          icon={<FileText className="h-5 w-5 text-cyan-400" />}
-          value={redactionStats?.totalDocuments || 0}
-          label="Total Documents"
-          color="cyan"
-        />
-        <StatCard
-          icon={<Shield className="h-5 w-5 text-orange-400" />}
-          value={`${(redactionStats?.redactionPercentage || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}%`}
-          label="Redacted"
-          color="orange"
-          sublabel={`${(redactionStats?.redactedDocuments || 0).toLocaleString()} docs`}
-        />
-        <StatCard
-          icon={<Users className="h-5 w-5 text-purple-400" />}
-          value={topConnectedEntities?.length || 0}
-          label="Connected Entities"
-          color="purple"
-        />
-        <StatCard
-          icon={<Activity className="h-5 w-5 text-emerald-400" />}
-          value={topRelationships?.length || 0}
-          label="Relationships"
-          color="emerald"
-        />
-      </div>
-
-      {/* Secondary Visualizations Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Document Types Sunburst */}
-        <div className="glass-card p-6 rounded-xl relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <Database className="h-24 w-24 text-cyan-500" />
-          </div>
-
-          <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2 relative z-10">
-            <FileText className="h-5 w-5 text-cyan-400" />
-            <span className="neon-text-cyan">Document Types</span>
-          </h3>
-
-          <div className="text-xs text-slate-400 mb-4 flex items-start gap-2 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50 relative z-10">
-            <Info className="h-4 w-4 mt-0.5 flex-shrink-0 text-cyan-400" />
-            <span>
-              Breakdown of evidence by category. Click segments to filter. Hover for redaction
-              stats.
-            </span>
-          </div>
-
-          <div className="relative z-10">
-            <SunburstChart
-              data={data.documentsByType}
-              onSegmentClick={(type) => onTypeFilter?.(type)}
-            />
-          </div>
-        </div>
-
-        {/* Timeline */}
-        <div className="glass-card p-6 rounded-xl relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <TrendingUp className="h-24 w-24 text-purple-500" />
-          </div>
-
-          <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2 relative z-10">
-            <TrendingUp className="h-5 w-5 text-purple-400" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
-              Document Timeline
-            </span>
-          </h3>
-
-          <div className="text-xs text-slate-400 mb-4 flex items-start gap-2 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50 relative z-10">
-            <Info className="h-4 w-4 mt-0.5 flex-shrink-0 text-purple-400" />
-            <span>
-              Evidence volume over time, stacked by document type. Shows activity patterns and
-              peaks.
-            </span>
-          </div>
-
-          <div className="relative z-10">
-            <AreaTimeline data={data.timelineData} />
-          </div>
-        </div>
-      </div>
-
-      {/* Entity Network - Full Width */}
+      {/* Entity Network - Full Width - MOVED TO TOP */}
       <div className="glass-card p-6 rounded-xl relative overflow-hidden max-h-[85vh] flex flex-col">
+        {/* Archive Reconciliation Header Indicator */}
+        {data && (
+          <div className="absolute top-0 right-1/2 translate-x-1/2 z-20">
+            <div
+              className={`px-4 py-1.5 rounded-b-xl text-[10px] font-bold tracking-widest uppercase border-x border-b flex items-center gap-2 backdrop-blur-md transition-all ${
+                data.reconciliation.unclassifiedCount > 0
+                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                  : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+              }`}
+            >
+              <Database className="h-3 w-3 shadow-[0_0_8px_rgba(251,191,36,0.3)]" />
+              <span>
+                Archive Integrity:{' '}
+                {Math.round((data.totalCounts.evidenceFiles / data.totalCounts.documents) * 100)}%
+                Classified
+              </span>
+              {data.reconciliation.unclassifiedCount > 0 && (
+                <div className="group relative">
+                  <Info className="h-3 w-3 cursor-help text-amber-500/60 hover:text-amber-500 transition-colors" />
+                  <div className="absolute left-1/2 -translate-x-1/2 top-4 w-64 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 normal-case tracking-normal font-normal text-slate-300">
+                    <p className="mb-2 font-bold text-white">Reconciliation Report</p>
+                    <ul className="space-y-1 text-xs">
+                      <li className="flex justify-between">
+                        <span>Total Records:</span>
+                        <span className="text-white font-mono">
+                          {data.totalCounts.documents.toLocaleString()}
+                        </span>
+                      </li>
+                      <li className="flex justify-between">
+                        <span>Investigative Files:</span>
+                        <span className="text-emerald-400 font-mono">
+                          {data.totalCounts.evidenceFiles.toLocaleString()}
+                        </span>
+                      </li>
+                      <li className="flex justify-between border-t border-slate-800 pt-1 mt-1 text-amber-400">
+                        <span>Unclassified:</span>
+                        <span className="font-mono">
+                          {data.reconciliation.unclassifiedCount.toLocaleString()}
+                        </span>
+                      </li>
+                    </ul>
+                    <p className="mt-2 text-[9px] leading-tight text-slate-500">
+                      Unclassified records are being processed for OCR and entity extraction.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="h-4 w-px bg-slate-700 mx-1" />
+              <button
+                onClick={handleReconcileJunk}
+                className="p-1.5 hover:bg-slate-700/50 rounded-lg text-slate-400 hover:text-amber-400 transition-all group relative"
+                title="Reconcile Junk Entities"
+              >
+                <Database className="h-4 w-4" />
+                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-2 bg-slate-900 text-[10px] rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50">
+                  Reconcile Junk Entities
+                </span>
+              </button>
+              <button
+                onClick={handleResetJunk}
+                className="p-1.5 hover:bg-slate-700/50 rounded-lg text-slate-400 hover:text-red-400 transition-all group relative"
+                title="Reset Junk Flags"
+              >
+                <RotateCcw className="h-4 w-4" />
+                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-2 bg-slate-900 text-[10px] rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50">
+                  Reset Junk Flags
+                </span>
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-wrap items-center justify-between gap-4 mb-4 shrink-0">
           <h3 className="text-xl font-bold text-white flex items-center gap-2">
             <Users className="h-5 w-5 text-emerald-400" />
@@ -439,12 +451,12 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
               min="100"
               max="500"
               step="50"
-              value={entityCount}
-              onChange={(e) => setEntityCount(Number(e.target.value))}
+              value={filters.limit}
+              onChange={(e) => setFilters({ limit: Number(e.target.value) })}
               className="w-32 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
             />
             <span className="text-sm font-medium text-emerald-400 min-w-[3rem] text-right">
-              {entityCount}
+              {filters.limit}
             </span>
           </div>
 
@@ -453,18 +465,20 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
             <TrendingUp className="h-4 w-4 text-purple-400" />
             <div className="flex flex-col gap-1">
               <div className="flex justify-between text-[10px] text-slate-500 font-mono">
-                <span>{timeRange[0].split('-')[0]}</span>
-                <span className="text-purple-400 font-bold">{timeRange[1].split('-')[0]}</span>
+                <span>{filters.timeRange[0]?.split('-')[0] || '1990'}</span>
+                <span className="text-purple-400 font-bold">
+                  {filters.timeRange[1]?.split('-')[0] || '2025'}
+                </span>
               </div>
               <input
                 type="range"
                 min="1990"
                 max="2025"
                 step="1"
-                value={parseInt(timeRange[1].split('-')[0])}
+                value={parseInt(filters.timeRange[1]?.split('-')[0] || '2025')}
                 onChange={(e) => {
                   const year = e.target.value;
-                  setTimeRange(['1990-01-01', `${year}-12-31`]);
+                  setFilters({ timeRange: ['1990-01-01', `${year}-12-31`] });
                 }}
                 className="w-48 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
               />
@@ -512,7 +526,7 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
                 onEntitySelect?.(Number(entity.id));
               }
             }}
-            maxNodes={Number(entityCount)}
+            maxNodes={Number(filters.limit)}
             onZoomLevelChange={handleZoomLevelChange}
             onEdgeClick={handleEdgeClick}
           />
@@ -605,6 +619,91 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
               +{topConnectedEntities.length - 20} more entities
             </p>
           )}
+        </div>
+      </div>
+
+      {/* Hero Stats Row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard
+          icon={<FileText className="h-5 w-5 text-cyan-400" />}
+          value={redactionStats?.totalDocuments || 0}
+          label="Total Documents"
+          color="cyan"
+        />
+        <StatCard
+          icon={<Shield className="h-5 w-5 text-orange-400" />}
+          value={`${(redactionStats?.redactionPercentage || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}%`}
+          label="Redacted"
+          color="orange"
+          sublabel={`${(redactionStats?.redactedDocuments || 0).toLocaleString()} docs`}
+        />
+        <StatCard
+          icon={<Users className="h-5 w-5 text-purple-400" />}
+          value={topConnectedEntities?.length || 0}
+          label="Connected Entities"
+          color="purple"
+        />
+        <StatCard
+          icon={<Activity className="h-5 w-5 text-emerald-400" />}
+          value={topRelationships?.length || 0}
+          label="Relationships"
+          color="emerald"
+        />
+      </div>
+
+      {/* Secondary Visualizations Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Document Types Sunburst */}
+        <div className="glass-card p-6 rounded-xl relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <Database className="h-24 w-24 text-cyan-500" />
+          </div>
+
+          <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2 relative z-10">
+            <FileText className="h-5 w-5 text-cyan-400" />
+            <span className="neon-text-cyan">Document Types</span>
+          </h3>
+
+          <div className="text-xs text-slate-400 mb-4 flex items-start gap-2 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50 relative z-10">
+            <Info className="h-4 w-4 mt-0.5 flex-shrink-0 text-cyan-400" />
+            <span>
+              Breakdown of evidence by category. Click segments to filter. Hover for redaction
+              stats.
+            </span>
+          </div>
+
+          <div className="relative z-10">
+            <SunburstChart
+              data={data.documentsByType}
+              onSegmentClick={(type) => onTypeFilter?.(type)}
+            />
+          </div>
+        </div>
+
+        {/* Timeline */}
+        <div className="glass-card p-6 rounded-xl relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <TrendingUp className="h-24 w-24 text-purple-500" />
+          </div>
+
+          <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2 relative z-10">
+            <TrendingUp className="h-5 w-5 text-purple-400" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
+              Document Timeline
+            </span>
+          </h3>
+
+          <div className="text-xs text-slate-400 mb-4 flex items-start gap-2 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50 relative z-10">
+            <Info className="h-4 w-4 mt-0.5 flex-shrink-0 text-purple-400" />
+            <span>
+              Evidence volume over time, stacked by document type. Shows activity patterns and
+              peaks.
+            </span>
+          </div>
+
+          <div className="relative z-10">
+            <AreaTimeline data={data.timelineData} />
+          </div>
         </div>
       </div>
     </div>

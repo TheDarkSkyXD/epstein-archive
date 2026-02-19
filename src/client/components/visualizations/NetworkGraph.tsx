@@ -69,6 +69,7 @@ const getNodeSize = (connectionCount: number, maxConnections: number): number =>
 const applyCollisionResolution = (
   nodes: GraphNode[],
   draggedNode: string | number | null,
+  forceFactor: number = 0.1,
 ): GraphNode[] => {
   const newNodes = nodes.map((n) => ({ ...n }));
 
@@ -86,8 +87,8 @@ const applyCollisionResolution = (
 
       if (dist < minDist && dist > 0) {
         const overlap = minDist - dist;
-        const moveX = (dx / dist) * overlap * 0.1;
-        const moveY = (dy / dist) * overlap * 0.1;
+        const moveX = (dx / dist) * overlap * forceFactor;
+        const moveY = (dy / dist) * overlap * forceFactor;
 
         node.x += moveX;
         node.y += moveY;
@@ -108,7 +109,7 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const [nodes, setNodes] = useState<GraphNode[]>([]);
-  const [transform, setTransform] = useState({ x: 0, y: 0, k: 1.0 }); // Start centered
+  const [transform, setTransform] = useState({ x: 50, y: 50, k: 1.0 }); // Start centered at 50,50 for 100x100 viewBox
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<Point>({ x: 0, y: 0 });
   const [draggedNode, setDraggedNode] = useState<string | number | null>(null);
@@ -146,6 +147,9 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
   const [hasInteractedWithFilter, setHasInteractedWithFilter] = useState(false);
   const [excludedRelTypes, setExcludedRelTypes] = useState<Set<string>>(new Set());
 
+  // Level of Detail (LOD) based on zoom level
+  const lod = useMemo(() => GraphService.getLodConfig(transform.k), [transform.k]);
+
   // Track modifier keys (Shift or Alt for forced node dragging)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -179,8 +183,6 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
     });
     return Array.from(types).sort();
   }, [relationships]);
-
-  // ...
 
   // Initialize nodes with Clustered Spiral Layout via GraphService
   useEffect(() => {
@@ -230,7 +232,7 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
     }
   }, [filteredNodes.length, nodes.length, minSeverity, minConnections, onFilterUpdate]);
 
-  // Links data
+  // Filtered links based on filtered nodes and excluded relationship types
   const links = useMemo(() => {
     const allRelationships = [...relationships, ...extraRelationships];
     if (filteredNodes.length === 0) return [];
@@ -240,7 +242,6 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
       nodeMap.set(String(n.id), n);
     });
 
-    // Normalize weights if available, otherwise default
     const maxWeight = Math.max(1, ...allRelationships.map((r) => r.weight || 1));
 
     return allRelationships
@@ -255,8 +256,51 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
         classification: r.classification,
         normalizedWeight: (r.weight || 0.1) / maxWeight,
       }))
-      .slice(0, 500); // Increased limit for richer network
+      .slice(0, 500);
   }, [filteredNodes, relationships, extraRelationships, excludedRelTypes]);
+
+  // High-performance Label Collision Management (Grid-based approximation of Quadtree)
+  const visibleLabels = useMemo(() => {
+    if (!lod.showLabels) return new Set<string | number>();
+
+    const visible = new Set<string | number>();
+    const collisionGrid = new Set<string>();
+
+    // Cell size determines label density. Adjust based on zoom for semantic density.
+    // 100x100 viewBox. cellSize 10 means 100 cells.
+    const cellSize = lod.labelDensity === 'high' ? 3 / transform.k : 6 / transform.k;
+
+    // Sort by importance: Selected > Hovered > Ego > Risk > Degree
+    const sortedNodes = [...filteredNodes].sort((a, b) => {
+      if (String(a.id) === String(selectedNodeId)) return -1;
+      if (String(b.id) === String(selectedNodeId)) return 1;
+      if (a.label === hoveredNode) return -1;
+      if (b.label === hoveredNode) return 1;
+      if (a.isEgo !== b.isEgo) return a.isEgo ? -1 : 1;
+      if (a.risk !== b.risk) return (b.risk || 0) - (a.risk || 0);
+      return (b.connectionCount || 0) - (a.connectionCount || 0);
+    });
+
+    for (const node of sortedNodes) {
+      if (String(node.id) === String(selectedNodeId) || node.label === hoveredNode) {
+        visible.add(node.id);
+        continue;
+      }
+
+      // Semantic suppression at low density - High Risk always wins
+      if (lod.labelDensity === 'low' && !node.isEgo && (node.risk || 0) < 3.5) continue;
+
+      const gridX = Math.floor(node.x / cellSize);
+      const gridY = Math.floor(node.y / cellSize);
+      const key = `${gridX},${gridY}`;
+
+      if (!collisionGrid.has(key)) {
+        collisionGrid.add(key);
+        visible.add(node.id);
+      }
+    }
+    return visible;
+  }, [filteredNodes, lod, transform.k, selectedNodeId, hoveredNode]);
 
   // Physics simulation
   useEffect(() => {
@@ -289,11 +333,13 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
     }
 
     let tickCount = 0;
-    const maxTicks = 60;
+    const maxTicks = 200; // Increased from 60 for smoother settlement
 
     const tick = () => {
       if (tickCount >= maxTicks) return;
-      setNodes((prevNodes) => applyCollisionResolution(prevNodes, draggedNode));
+      // Exponential decay of collision force
+      const forceFactor = 0.15 * Math.exp(-tickCount / 50);
+      setNodes((prevNodes) => applyCollisionResolution(prevNodes, draggedNode, forceFactor));
       tickCount++;
     };
 
@@ -450,7 +496,7 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
 
   const zoomIn = () => zoomFromCenter(1.2);
   const zoomOut = () => zoomFromCenter(1 / 1.2);
-  const resetView = () => setTransform({ x: 0, y: 0, k: 1.0 });
+  const resetView = () => setTransform({ x: 50, y: 50, k: 1.0 });
 
   const handleExpandNode = async (entityId: number | string) => {
     try {
@@ -502,8 +548,6 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
         : null,
     [filteredNodes, selectedNodeId],
   );
-
-  const lod = useMemo(() => GraphService.getLodConfig(transform.k), [transform.k]);
 
   return (
     <div
@@ -768,7 +812,9 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
             ))}
         </defs>
 
-        <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.k})`}>
+        <g
+          transform={`translate(${transform.x - 50 * transform.k}, ${transform.y - 50 * transform.k}) scale(${transform.k})`}
+        >
           {/* Links */}
           {lod.showEdges && (
             <g className="links" style={{ opacity: lod.opacity }}>
@@ -874,23 +920,26 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
                   />
 
                   {/* Photo or Default Fill */}
-                  {node.image ? ( // Changed from node.photoUrl to node.image
+                  {node.image && lod.showAvatars ? (
                     <circle
                       r={size / 2}
                       fill={`url(#photo-${node.id})`}
-                      className="pointer-events-none"
+                      className="pointer-events-none fade-in animate-in duration-500"
                     />
                   ) : null}
 
                   {/* Label */}
-                  {(lod.showLabels || isHovered || node.id === selectedNodeId) && (
+                  {visibleLabels.has(node.id) && (
                     <text
-                      dy={size + 8}
+                      dy={size + 2}
                       textAnchor="middle"
                       fill="#e2e8f0"
-                      fontSize={Math.max(3, 12 / transform.k)} // Scale text inverse to zoom
-                      className="pointer-events-none select-none"
-                      style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
+                      fontSize={Math.max(1.5, 4 / transform.k)}
+                      className="pointer-events-none select-none transition-all duration-300"
+                      style={{
+                        textShadow: '0 1px 3px rgba(0,0,0,0.9)',
+                        opacity: hoveredNode && hoveredNode !== node.label ? 0.4 : 1.0,
+                      }}
                     >
                       {node.label}
                     </text>

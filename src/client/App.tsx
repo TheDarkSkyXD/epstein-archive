@@ -27,7 +27,8 @@ import { RedactedLogo } from './components/RedactedLogo';
 import { FirstRunOnboarding } from './components/FirstRunOnboarding';
 import { useFirstRunOnboarding } from './hooks/useFirstRunOnboarding';
 import { InvestigationsProvider } from './contexts/InvestigationsContext';
-import { useAuth } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { useFilters } from './contexts/FilterContext';
 import { LoginPage } from './pages/LoginPage';
 import { SEO } from './components/common/SEO';
 const PeoplePage = lazy(() =>
@@ -183,6 +184,7 @@ import { CreateEntityModal } from './components/entities/CreateEntityModal';
 import Footer from './components/layout/Footer';
 
 function App() {
+  const { filters } = useFilters();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -683,7 +685,7 @@ function App() {
         // Cache first page for next load
         try {
           sessionStorage.setItem(
-            'epstein_archive_people_page1_v12_7_2',
+            'epstein_archive_people_page1_v13_14_1',
             JSON.stringify(normalized),
           );
         } catch (e) {
@@ -736,7 +738,7 @@ function App() {
         // Only update if changed to prevent animation restart
         setDataStats((prev: typeof newStats) => {
           if (JSON.stringify(prev) !== JSON.stringify(newStats)) {
-            sessionStorage.setItem('epstein_archive_stats_v12_7_2', JSON.stringify(newStats));
+            sessionStorage.setItem('epstein_archive_stats_v13_14_1', JSON.stringify(newStats));
             return newStats;
           }
           return prev;
@@ -928,9 +930,9 @@ function App() {
     try {
       setAnalyticsLoading(true);
       setAnalyticsError(null);
-      console.log('Fetching analytics data...');
-      // Get statistics from apiClient
-      const stats = await apiClient.getStats();
+      console.log('Fetching analytics data with filters:', filters);
+      // Get statistics from apiClient with filters
+      const stats = await apiClient.getStats(filters);
       console.log('Analytics stats:', stats);
 
       setAnalyticsData(stats);
@@ -940,7 +942,7 @@ function App() {
     } finally {
       setAnalyticsLoading(false);
     }
-  }, []);
+  }, [filters]);
 
   // Effect for fetching analytics data when tab changes
   useEffect(() => {
@@ -1055,10 +1057,7 @@ function App() {
 
             {/* Skip links for accessibility */}
             <div className="sr-only">
-              <a
-                href="#main-content"
-                className="sr-only focus:not-sr-only focus:absolute focus:p-4 focus:bg-slate-900 focus:text-white z-50"
-              >
+              <a className="sr-only focus:not-sr-only focus:absolute focus:p-4 focus:bg-slate-900 focus:text-white z-50">
                 Skip to main content
               </a>
               <a

@@ -36,6 +36,10 @@ import { FixedSizeList as List } from 'react-window';
 import { InfiniteLoader } from 'react-window-infinite-loader';
 import { AutoSizer } from 'react-virtualized-auto-sizer';
 import { CloseButton } from './CloseButton';
+
+// Type-safe wrappers for virtualized components to bypass React 18/TS mismatches
+const TypedAutoSizer = AutoSizer as any;
+const TypedInfiniteLoader = InfiniteLoader as any;
 import { Tabs, TabItem } from './Tabs';
 
 const EVIDENCE_TABS: TabItem[] = [
@@ -997,15 +1001,15 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                       </div>
                     ) : (
                       <div className="h-full w-full">
-                        {(AutoSizer as any) && (
-                          <AutoSizer>
-                            {({ height, width }: any) => (
-                              <InfiniteLoader
+                        {typeof TypedAutoSizer !== 'undefined' && (
+                          <TypedAutoSizer>
+                            {({ height, width }: { height: number; width: number }) => (
+                              <TypedInfiniteLoader
                                 isItemLoaded={isItemLoaded}
                                 itemCount={totalDocs}
                                 loadMoreItems={loadNextPage}
                               >
-                                {({ onItemsRendered, ref }: any) => (
+                                {({ onItemsRendered, ref }: { onItemsRendered: any; ref: any }) => (
                                   <List
                                     className="custom-scrollbar"
                                     height={height}
@@ -1092,9 +1096,9 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                                     }}
                                   </List>
                                 )}
-                              </InfiniteLoader>
+                              </TypedInfiniteLoader>
                             )}
-                          </AutoSizer>
+                          </TypedAutoSizer>
                         )}
                       </div>
                     )}

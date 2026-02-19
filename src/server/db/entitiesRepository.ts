@@ -750,12 +750,13 @@ export const entitiesRepository = {
    * BACKGROUND ORCHESTRATOR: Non-blocking junk backfill
    * Processes entities in chunks to avoid event loop saturation.
    */
-  startBackgroundJunkBackfill: (chunkSize: number = 500) => {
+  startBackgroundJunkBackfill: (chunkSize: number = 50) => {
     const db = getDb();
     let offset = 0;
     let totalProcessed = 0;
 
     const processNextChunk = () => {
+      // optimization: skip entities that already have a junk_flag set to avoid re-work on restart
       const rows = db
         .prepare(
           `
@@ -776,6 +777,7 @@ export const entitiesRepository = {
            JOIN evidence_types et ON eet.evidence_type_id = et.id 
            WHERE eet.entity_id = e.id) as source_count
         FROM entities e
+        WHERE junk_flag IS NULL
         LIMIT ? OFFSET ?
         `,
         )
@@ -863,17 +865,17 @@ export const entitiesRepository = {
       totalProcessed += rows.length;
       offset += chunkSize;
 
-      // Log progress every 10k entities
-      if (Math.floor(totalProcessed / 10000) > Math.floor((totalProcessed - rows.length) / 10000)) {
+      // Log progress every 1k entities (more frequent due to smaller chunks)
+      if (Math.floor(totalProcessed / 1000) > Math.floor((totalProcessed - rows.length) / 1000)) {
         console.log(`⏳ [BACKFILL] Progress: ${totalProcessed} entities scanned...`);
       }
 
-      // Schedule next chunk to keep event loop responsive
-      setImmediate(processNextChunk);
+      // Schedule next chunk with significant delay to allow event loop to breathe
+      setTimeout(processNextChunk, 200);
     };
 
-    console.log('🚀 [BACKFILL] Starting background junk flag synchronization...');
-    setImmediate(processNextChunk);
+    console.log('🚀 [BACKFILL] Starting background junk flag synchronization (throttled)...');
+    setTimeout(processNextChunk, 1000); // Initial delay
   },
 
   backfillJunkFlags: () => {

@@ -4691,11 +4691,14 @@ try {
   }
 
   // Phase 6 Performance: Graph Adjacency Cache Rebuild
-  try {
-    relationshipsRepository.rebuildAdjacencyCache();
-  } catch (e) {
-    console.error('⚠️ [STARTUP] Adjacency cache rebuild failed:', e);
-  }
+  // Moved to background with delay to allow server to start listening immediately
+  setTimeout(() => {
+    try {
+      relationshipsRepository.rebuildAdjacencyCache();
+    } catch (e) {
+      console.error('⚠️ [BACKGROUND] Adjacency cache rebuild failed:', e);
+    }
+  }, 5000);
 } catch (err) {
   console.error('Failed to run migrations:', err);
   process.exit(1);

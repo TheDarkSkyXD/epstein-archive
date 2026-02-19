@@ -50,7 +50,14 @@ export const TagSelector: React.FC<TagSelectorProps> = ({
   useEffect(() => {
     fetch('/api/tags')
       .then((res) => res.json())
-      .then(setAllTags)
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setAllTags(data);
+        } else {
+          console.error('Invalid response from /api/tags - expected array:', data);
+          setAllTags([]);
+        }
+      })
       .catch(console.error);
   }, []);
 

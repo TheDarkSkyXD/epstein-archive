@@ -107,4 +107,17 @@ router.get('/:entityId/investigations', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/entities/:id/media
+router.get('/:entityId/media', async (req: Request, res: Response) => {
+  try {
+    const { entityId } = req.params as { entityId: string };
+    const { mediaRepository } = await import('../db/mediaRepository.js');
+    const result = await mediaRepository.getMediaItems(entityId);
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching entity media:', error);
+    res.status(500).json({ error: 'Failed to fetch entity media' });
+  }
+});
+
 export default router;

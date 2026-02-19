@@ -297,6 +297,7 @@ const PUBLIC_ROUTES = [
   '/api/health',
   '/api/stats',
   '/api/entities',
+  '/api/tags',
   '/api/documents',
   '/api/media',
   '/api/search',
@@ -4617,11 +4618,11 @@ try {
   validateStartup();
   runMigrations();
   seedInvestigationMediaTags();
-  try {
-    entitiesRepository.backfillJunkFlags();
-  } catch (e) {
-    console.error('Junk flags backfill failed:', e);
-  }
+  // try {
+  //   entitiesRepository.backfillJunkFlags();
+  // } catch (e) {
+  //   console.error('Junk flags backfill failed:', e);
+  // }
 } catch (err) {
   console.error('Failed to run migrations:', err);
   process.exit(1);

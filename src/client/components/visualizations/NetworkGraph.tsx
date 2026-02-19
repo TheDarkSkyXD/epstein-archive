@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
+import { GraphService, GraphNode as ServiceGraphNode } from '../../services/GraphService';
 import { ZoomIn, ZoomOut, Move, RefreshCw, AlertTriangle, Link2, Filter } from 'lucide-react';
 
 interface EntityNode {
@@ -7,6 +8,7 @@ interface EntityNode {
   role?: string;
   type?: string;
   riskLevel?: number;
+  risk?: number;
   connectionCount: number;
   mentions?: number;
   photoUrl?: string;
@@ -19,6 +21,8 @@ interface Relationship {
   target: string;
   type?: string;
   weight?: number;
+  confidence?: number;
+  classification?: 'EVIDENCE_BACKED' | 'INFERRED';
 }
 
 interface NetworkGraphProps {
@@ -26,7 +30,9 @@ interface NetworkGraphProps {
   relationships: Relationship[];
   onEntityClick?: (entity: EntityNode) => void;
   maxNodes?: number;
+  onZoomLevelChange?: (zoom: number) => void;
   onFilterUpdate?: (stats: { visible: number; total: number; label: string }) => void;
+  onEdgeClick?: (edge: Relationship) => void;
 }
 
 interface Point {
@@ -34,12 +40,13 @@ interface Point {
   y: number;
 }
 
-interface GraphNode extends EntityNode {
+interface GraphNode extends ServiceGraphNode {
   x: number;
   y: number;
   vx: number;
   vy: number;
   radius: number;
+  connectionCount: number;
 }
 
 // Risk-based colors with better visibility
@@ -95,16 +102,33 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
   relationships,
   onEntityClick,
   maxNodes = 200,
+  onZoomLevelChange,
   onFilterUpdate,
+  onEdgeClick,
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const [nodes, setNodes] = useState<GraphNode[]>([]);
-  const [transform, setTransform] = useState({ x: 0, y: 0, k: 0.8 });
+  const [transform, setTransform] = useState({ x: 0, y: 0, k: 0.1 }); // Start zoomed out
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<Point>({ x: 0, y: 0 });
   const [draggedNode, setDraggedNode] = useState<string | number | null>(null);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | number | null>(null);
+
+  // Debounced Zoom Callback
+  const zoomTimeoutRef = useRef<NodeJS.Timeout>();
+  const reportZoomLevel = useCallback(
+    (k: number) => {
+      if (onZoomLevelChange) {
+        if (zoomTimeoutRef.current) clearTimeout(zoomTimeoutRef.current);
+        zoomTimeoutRef.current = setTimeout(() => {
+          onZoomLevelChange(k);
+        }, 500);
+      }
+    },
+    [onZoomLevelChange],
+  );
+
   const [modifierKeyPressed, setModifierKeyPressed] = useState(false);
   // TODO: Track space key for pan mode - see UNUSED_VARIABLES_RECOMMENDATIONS.md
   const [spacePressed, _setSpacePressed] = useState(false);
@@ -136,11 +160,11 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, []);
+  }, [transform, reportZoomLevel]);
 
   // Compute max values for sliders
   const maxSeverityInData = useMemo(
-    () => Math.max(1, ...entities.map((e) => e.riskLevel || 0)),
+    () => Math.max(1, ...entities.map((e) => e.riskLevel || e.risk || 0)),
     [entities],
   );
   const maxConnectionsInData = useMemo(
@@ -156,78 +180,40 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
     return Array.from(types).sort();
   }, [relationships]);
 
-  // Initialize nodes with Clustered Spiral Layout
-  // Groups entities by type/role for better visual organization
+  // ...
+
+  // Initialize nodes with Clustered Spiral Layout via GraphService
   useEffect(() => {
-    const topEntities = [...entities.slice(0, maxNodes), ...extraNodes];
+    // 1. Normalize & Dedup
+    const rawNodes = [...entities, ...extraNodes].map((e) => GraphService.normalizeNode(e));
+    // Prioritize Ego, then Risk, then Connections.
+    // The deduplicateNodes function already handles some priority, but we should sort before slicing.
+    const uniqueNodes = GraphService.deduplicateNodes(rawNodes)
+      .sort((a, b) => b.risk - a.risk || (b.connectionCount || 0) - (a.connectionCount || 0))
+      .slice(0, maxNodes);
 
-    // Deduplicate entities by ID
-    const uniqueEntities = Array.from(new Map(topEntities.map((e) => [String(e.id), e])).values());
-
-    // Group entities by type for clustering
-    const typeGroups = new Map<string, typeof topEntities>();
-    topEntities.forEach((entity) => {
-      const type = entity.type || entity.role || 'unknown';
-      if (!typeGroups.has(type)) typeGroups.set(type, []);
-      typeGroups.get(type)!.push(entity);
+    // 2. Compute Layout (Deterministic)
+    // Map back to internal GraphNode format (which needs x,y,vx,vy)
+    const layoutNodes = GraphService.computeSpiralLayout(uniqueNodes).map((n) => {
+      // @ts-ignore - computeSpiralLayout adds x/y but typescript doesn't see it on ServiceGraphNode yet
+      return {
+        ...n,
+        x: n.x || 0,
+        y: n.y || 0,
+        vx: 0,
+        vy: 0,
+        radius: getNodeSize(n.connectionCount || 0, 100), // Default sizing
+        connectionCount: n.connectionCount || 0,
+      } as GraphNode;
     });
 
-    const goldenAngle = Math.PI * (3 - Math.sqrt(5));
-    const count = topEntities.length;
-    // Increased spacing: larger rStep values spread nodes further apart
-    // More aggressive spacing for larger node counts - increased values for better spread
-    const rStep = count > 300 ? 8 : count > 200 ? 10 : count > 150 ? 12 : count > 80 ? 14 : 16;
-
-    // Assign cluster centers for each type (spread around the center)
-    // Increased cluster radius for better separation - larger values spread clusters further
-    const clusterCenters = new Map<string, { x: number; y: number }>();
-    const types = Array.from(typeGroups.keys());
-    const clusterRadius = count > 300 ? 50 : count > 200 ? 45 : count > 100 ? 40 : 35;
-    types.forEach((type, i) => {
-      const angle = (i / types.length) * 2 * Math.PI;
-      clusterCenters.set(type, {
-        x: 50 + Math.cos(angle) * clusterRadius,
-        y: 50 + Math.sin(angle) * clusterRadius,
-      });
-    });
-
-    const initialNodes: GraphNode[] = [];
-    const maxConn = Math.max(1, ...topEntities.map((n) => n.connectionCount));
-
-    // Place nodes in clusters using spiral within each cluster
-    // Increased scale factor for better intra-cluster spacing - larger values spread nodes more
-    const intraClusterScale = count > 300 ? 1.0 : count > 200 ? 0.95 : 0.9;
-    typeGroups.forEach((groupEntities, type) => {
-      const center = clusterCenters.get(type) || { x: 50, y: 50 };
-      groupEntities.forEach((entity, localIndex) => {
-        const r = rStep * Math.sqrt(localIndex + 1);
-        const theta = localIndex * goldenAngle;
-
-        const x = center.x + r * Math.cos(theta) * intraClusterScale;
-        const y = center.y + r * Math.sin(theta) * intraClusterScale;
-
-        const size = getNodeSize(entity.connectionCount, maxConn);
-
-        initialNodes.push({
-          ...entity,
-          x,
-          y,
-          vx: 0,
-          vy: 0,
-          radius: size,
-        });
-      });
-    });
-
-    setNodes(initialNodes);
-    useWorkerRef.current = initialNodes.length > 40;
-  }, [entities, maxNodes]);
+    setNodes(layoutNodes);
+    useWorkerRef.current = layoutNodes.length > 40;
+  }, [entities, maxNodes, extraNodes]);
 
   // Filtered nodes based on sliders
   const filteredNodes = useMemo(() => {
-    return nodes.filter(
-      (n) => (n.riskLevel || 0) >= minSeverity && n.connectionCount >= minConnections,
-    );
+    return nodes.filter((n) => (n.risk || 0) >= minSeverity && n.connectionCount >= minConnections);
   }, [nodes, minSeverity, minConnections]);
 
   // Update parent with filter stats
@@ -264,8 +250,10 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
         source: nodeMap.get(String(r.sourceId))!,
         target: nodeMap.get(String(r.targetId))!,
         type: r.type,
-        weight: r.weight || 1,
-        normalizedWeight: (r.weight || 1) / maxWeight,
+        weight: r.weight || 0.1,
+        confidence: r.confidence || 1.0,
+        classification: r.classification,
+        normalizedWeight: (r.weight || 0.1) / maxWeight,
       }))
       .slice(0, 500); // Increased limit for richer network
   }, [filteredNodes, relationships, extraRelationships, excludedRelTypes]);
@@ -521,6 +509,8 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
     );
   }, [links, selectedNode]);
 
+  const lod = useMemo(() => GraphService.getLodConfig(transform.k), [transform.k]);
+
   return (
     <div
       className={`relative w-full h-full min-h-[420px] bg-slate-900/50 rounded-[var(--radius-lg)] border border-slate-700/50 overflow-hidden select-none ${spacePressed ? 'cursor-grab active:cursor-grabbing' : ''}`}
@@ -562,6 +552,19 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
         </button>
       </div>
 
+      {/* Hover Tooltip */}
+      {hoveredNode && !isDragging && (
+        <div
+          className="absolute z-30 pointer-events-none bg-slate-900/90 text-white text-xs px-2 py-1 rounded border border-slate-700 shadow-lg"
+          style={{
+            left: (nodes.find((n) => n.label === hoveredNode)?.x || 0) * transform.k + transform.x,
+            top:
+              (nodes.find((n) => n.label === hoveredNode)?.y || 0) * transform.k + transform.y - 15,
+          }}
+        >
+          {hoveredNode}
+        </div>
+      )}
       {/* Filter Panel */}
       {showFilters && (
         <div className="absolute top-4 right-16 z-20 bg-slate-800/95 backdrop-blur-sm rounded-lg p-4 border border-slate-700/50 shadow-xl w-64">
@@ -742,7 +745,7 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
             </feMerge>
           </filter>
           {filteredNodes
-            .filter((n) => n.photoUrl)
+            .filter((n) => n.image) // Changed from n.photoUrl to n.image
             .map((n) => (
               <pattern
                 key={`photo-${n.id}`}
@@ -755,7 +758,7 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
                 preserveAspectRatio="xMidYMid slice"
               >
                 <image
-                  href={n.photoUrl}
+                  href={n.image} // Changed from n.photoUrl to n.image
                   x="0"
                   y="0"
                   width="100"
@@ -768,49 +771,64 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
 
         <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.k})`}>
           {/* Links */}
-          <g className="links">
-            {links.map((link, i) => {
-              const isHighlight =
-                hoveredNode === link.source.name || hoveredNode === link.target.name;
-              const type = String(link.type || '').toLowerCase();
-              const isInferred = type.includes('infer');
-              const isAgentic = type.includes('agentic') || type.includes('derived');
-              const stroke = isAgentic ? '#a855f7' : isInferred ? '#22d3ee' : '#60a5fa';
-              // Dynamic width based on weight (0.05 to 0.3 base)
-              // @ts-ignore - normalizedWeight added in useMemo
-              const weightBonus = (link.normalizedWeight || 0) * 0.15;
-              const baseWidth = 0.05 + weightBonus;
-              const highlightWidth = 0.3 + weightBonus;
+          {lod.showEdges && (
+            <g className="links" style={{ opacity: lod.opacity }}>
+              {links.map((link, i) => {
+                const isHighlight =
+                  hoveredNode === link.source.label || hoveredNode === link.target.label;
+                const type = String(link.type || '').toLowerCase();
+                const isInferred = link.classification === 'INFERRED' || type.includes('infer');
+                const isAgentic = type.includes('agentic') || type.includes('derived');
+                const stroke = isAgentic ? '#a855f7' : isInferred ? '#22d3ee' : '#60a5fa';
+                // Dynamic width based on weight (0.05 to 0.3 base)
+                // @ts-ignore - normalizedWeight added in useMemo
+                const weightBonus = (link.normalizedWeight || 0) * 0.15;
+                const baseWidth = 0.05 + weightBonus;
+                const highlightWidth = 0.3 + weightBonus;
 
-              return (
-                <line
-                  key={i}
-                  x1={link.source.x}
-                  y1={link.source.y}
-                  x2={link.target.x}
-                  y2={link.target.y}
-                  stroke={isHighlight ? '#e2e8f0' : stroke}
-                  strokeWidth={isHighlight ? highlightWidth : baseWidth}
-                  strokeOpacity={isHighlight ? 0.85 : 0.2 + (link.normalizedWeight || 0) * 0.28}
-                  strokeDasharray={isAgentic ? '0.8 1.6' : isInferred ? '1.6 1.2' : undefined}
-                  className="transition-all duration-300"
-                />
-              );
-            })}
-          </g>
+                return (
+                  <line
+                    key={i}
+                    x1={link.source.x}
+                    y1={link.source.y}
+                    x2={link.target.x}
+                    y2={link.target.y}
+                    stroke={isHighlight ? '#e2e8f0' : stroke}
+                    strokeWidth={isHighlight ? highlightWidth : baseWidth}
+                    strokeOpacity={isHighlight ? 0.85 : 0.2 + (link.normalizedWeight || 0) * 0.28}
+                    strokeDasharray={isInferred || isAgentic ? '1.6 1.2' : undefined}
+                    className="transition-all duration-300 cursor-pointer hover:stroke-cyan-400"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Reconstruct original relationship object or pass the mapped one
+                      // NetworkGraph uses mapped object but onEdgeClick expects Relationship
+                      // Mapped object usually has source/target as GraphNodes
+                      // We need to pass back { sourceId: source.id, targetId: target.id, ... }
+                      onEdgeClick?.({
+                        sourceId: Number(link.source.id),
+                        targetId: Number(link.target.id),
+                        type: link.type,
+                        weight: link.weight,
+                      } as any);
+                    }}
+                  />
+                );
+              })}
+            </g>
+          )}
 
           {/* Nodes */}
           <g className="nodes">
             {filteredNodes.map((node) => {
-              const color = getRiskColor(node.riskLevel || 0);
-              const isHovered = hoveredNode === node.name;
+              const color = getRiskColor(node.risk || 0); // Changed from node.riskLevel to node.risk
+              const isHovered = hoveredNode === node.label; // Changed from node.label to node.label
               const size = node.radius || 4;
 
               return (
                 <g
                   key={node.id}
                   transform={`translate(${node.x}, ${node.y})`}
-                  onMouseEnter={() => setHoveredNode(node.name)}
+                  onMouseEnter={() => setHoveredNode(node.label)} // Changed from node.label to node.label
                   onMouseLeave={() => setHoveredNode(null)}
                   onMouseDown={(e) => {
                     e.stopPropagation();
@@ -825,7 +843,11 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
                     // Only trigger click if drag distance is small (was just a click)
                     if (totalDragDistance < 5) {
                       setSelectedNodeId(node.id);
-                      onEntityClick?.(node);
+                      if (onEntityClick) {
+                        // Map back to legacy EntityNode if needed or update onEntityClick signature
+                        // For now casting to any to avoid complex mapping logic in render loop
+                        onEntityClick(node as any);
+                      }
                     }
                   }}
                   className={`${spacePressed ? '' : 'cursor-pointer'}`}
@@ -853,7 +875,7 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
                   />
 
                   {/* Photo or Default Fill */}
-                  {node.photoUrl ? (
+                  {node.image ? ( // Changed from node.photoUrl to node.image
                     <circle
                       r={size / 2}
                       fill={`url(#photo-${node.id})`}
@@ -862,16 +884,16 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
                   ) : null}
 
                   {/* Label */}
-                  {(size > 4 || isHovered || transform.k > 2) && (
+                  {(lod.showLabels || isHovered || node.id === selectedNodeId) && (
                     <text
-                      y={size / 2 + 2}
+                      dy={size + 8}
                       textAnchor="middle"
-                      fill={isHovered ? 'white' : '#94a3b8'}
-                      fontSize={Math.max(1, 4 / Math.sqrt(transform.k))}
+                      fill="#e2e8f0"
+                      fontSize={Math.max(3, 12 / transform.k)} // Scale text inverse to zoom
                       className="pointer-events-none select-none"
                       style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}
                     >
-                      {node.name}
+                      {node.label}
                     </text>
                   )}
                 </g>
@@ -886,9 +908,11 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
         <div className="absolute left-4 right-4 bottom-4 z-20 bg-slate-900/90 backdrop-blur-sm border border-slate-700/60 rounded-[var(--radius-md)] p-3">
           <div className="flex items-center justify-between gap-3">
             <div className="flex-grow">
-              <div className="text-sm font-bold text-white truncate">{selectedNode.name}</div>
+              <div className="text-sm font-bold text-white truncate">{selectedNode.label}</div>{' '}
+              {/* Changed from selectedNode.name to selectedNode.label */}
               <div className="text-[10px] text-slate-400 uppercase tracking-wider">
-                {selectedNode.role || selectedNode.type} • {selectedNode.connectionCount}{' '}
+                {selectedNode.type} • {selectedNode.connectionCount}{' '}
+                {/* Changed from selectedNode.role to selectedNode.type */}
                 connections
               </div>
             </div>

@@ -1,8 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Info, Users, Shield, Database, Activity, FileText, TrendingUp } from 'lucide-react';
+import {
+  Info,
+  Users,
+  Shield,
+  Database,
+  Activity,
+  FileText,
+  TrendingUp,
+  Share2,
+} from 'lucide-react';
 import { SunburstChart } from '../visualizations/SunburstChart';
 import { AreaTimeline } from '../visualizations/AreaTimeline';
 import { NetworkGraph } from '../visualizations/NetworkGraph';
+import { EvidenceDrawer } from '../visualizations/EvidenceDrawer';
 import { filterPeopleOnly } from '../../utils/entityFilters';
 
 interface EnhancedAnalyticsProps {
@@ -55,9 +65,216 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [entityCount, setEntityCount] = useState<number>(100); // Default to 100 entities
 
+  // LOD Graph State
+  const [graphData, setGraphData] = useState<{ nodes: any[]; edges: any[] } | null>(null);
+  const [graphLimit, setGraphLimit] = useState(100); // Start matching entityCount
+  const [graphMode, setGraphMode] = useState<'default' | 'cluster'>('default');
+  const [isGraphLoading, setIsGraphLoading] = useState(false);
+
+  // Evidence Drawer State
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [selectedEdge, setSelectedEdge] = useState<any>(null);
+  const [edgeEvidence, setEdgeEvidence] = useState<any[]>([]);
+  const [isEvidenceLoading, setIsEvidenceLoading] = useState(false);
+  const [edgeDetails, setEdgeDetails] = useState<any>(null); // For relationship metadata
+
+  // Path Finding State
+  const [pathMode, setPathMode] = useState(false);
+  const [pathSource, setPathSource] = useState<any>(null);
+  const [pathTarget, setPathTarget] = useState<any>(null);
+
+  // Temporal Filter State
+  const [timeRange, setTimeRange] = useState<[string, string]>(['1990-01-01', '2025-01-01']);
+  const [isTemporalSyncing, setIsTemporalSyncing] = useState(false);
+
+  const handlePathNodeClick = (entity: any) => {
+    if (!pathSource) {
+      setPathSource(entity);
+    } else if (!pathTarget && String(entity.id) !== String(pathSource.id)) {
+      setPathTarget(entity);
+      fetchPath(String(pathSource.id), String(entity.id));
+    } else {
+      // Reset start if clicking again
+      setPathSource(entity);
+      setPathTarget(null);
+    }
+  };
+
+  const fetchPath = async (sourceId: string, targetId: string) => {
+    setIsGraphLoading(true);
+    try {
+      const [startDate, endDate] = timeRange;
+      const res = await fetch(
+        `/api/graph/global?mode=path&sourceId=${sourceId}&targetId=${targetId}&startDate=${startDate}&endDate=${endDate}`,
+      );
+      if (!res.ok) throw new Error('Path fetch failed');
+      const pathData = await res.json();
+
+      if (pathData.nodes.length === 0) {
+        alert('No path found between these entities (within 6 hops).');
+        setPathSource(null);
+        setPathTarget(null);
+        return;
+      }
+
+      const mappedNodes = pathData.nodes.map((n: any) => ({
+        ...n,
+        name: n.label,
+        riskLevel: n.risk,
+        val: 20, // Highlight size
+      }));
+      const mappedEdges = pathData.edges.map((e: any) => ({
+        source: e.source,
+        target: e.target,
+        type: 'path',
+        strength: e.weight,
+      }));
+
+      // Replace graph with path view
+      setGraphData({ nodes: mappedNodes, edges: mappedEdges });
+      setPathMode(false); // Exit selection mode
+      setPathSource(null);
+      setPathTarget(null);
+    } catch (e) {
+      console.error('Path Fetch Error:', e);
+    } finally {
+      setIsGraphLoading(false);
+    }
+  };
+
+  // Sync initial graph data
+  useEffect(() => {
+    if (data?.topConnectedEntities) {
+      setGraphData({
+        nodes: data.topConnectedEntities,
+        edges: data.topRelationships,
+      });
+      setGraphLimit(data.topConnectedEntities.length); // Should match
+    }
+  }, [data]);
+
+  // Handle Zoom LOD
+  const handleZoomLevelChange = async (zoom: number) => {
+    // Thresholds:
+    // < 0.5: Super Cluster (Aggregated)
+    // 0.5 - 1.0: 100 nodes (Overview)
+    // 1.0 - 2.5: 500 nodes
+    // > 2.5: 1500 nodes (Max Detail)
+
+    let targetLimit = 100;
+    let targetMode: 'default' | 'cluster' = 'default';
+
+    if (zoom < 0.5) {
+      targetMode = 'cluster';
+      targetLimit = 50;
+    } else if (zoom > 2.5) {
+      targetLimit = 1500;
+    } else if (zoom > 1.0) {
+      targetLimit = 500;
+    }
+
+    // Fetch if:
+    // 1. Mode changed (Cluster <-> Default)
+    // 2. Limit increased in Default mode
+    const needsFetch =
+      targetMode !== graphMode || (targetMode === 'default' && targetLimit > graphLimit);
+
+    if (needsFetch && !isGraphLoading) {
+      console.log(`Zoom ${zoom.toFixed(2)} -> Fetching ${targetMode} / ${targetLimit}...`);
+
+      // Optimistic updates
+      setGraphLimit(targetLimit);
+      setGraphMode(targetMode);
+      setIsGraphLoading(true);
+
+      try {
+        const [startDate, endDate] = timeRange;
+        const query =
+          targetMode === 'cluster'
+            ? `/api/graph/global?mode=cluster&startDate=${startDate}&endDate=${endDate}`
+            : `/api/graph/global?limit=${targetLimit}&startDate=${startDate}&endDate=${endDate}`;
+
+        const res = await fetch(query);
+        if (!res.ok) throw new Error('Graph fetch failed');
+        const newData = await res.json();
+
+        // Map to Legacy Interface expectations
+        const mappedNodes = newData.nodes.map((n: any) => ({
+          ...n,
+          name: n.label,
+          riskLevel: n.risk,
+          photoUrl: n.image,
+        }));
+
+        const mappedEdges = newData.edges.map((e: any) => ({
+          source: e.source,
+          target: e.target,
+          type: e.type,
+          strength: e.weight,
+        }));
+
+        setGraphData({ nodes: mappedNodes, edges: mappedEdges });
+        if (targetMode === 'default') {
+          setEntityCount(targetLimit); // Update UI slider only in default mode
+        }
+      } catch (e) {
+        console.error('LOD Fetch Error:', e);
+      } finally {
+        setIsGraphLoading(false);
+      }
+    }
+  };
+
+  // Evidence Cache
+  const evidenceCache = React.useRef<Map<string, any[]>>(new Map());
+
+  const handleEdgeClick = async (edge: any) => {
+    setSelectedEdge(edge);
+    setIsDrawerOpen(true);
+
+    // Generate cache key
+    const cacheKey = `${edge.sourceId}-${edge.targetId}`;
+
+    // Check cache
+    if (evidenceCache.current.has(cacheKey)) {
+      setEdgeEvidence(evidenceCache.current.get(cacheKey)!);
+      setEdgeDetails(null); // Metadata might be cached too if we expanded the cache structure, but for now just docs
+      setIsEvidenceLoading(false);
+      return;
+    }
+
+    setIsEvidenceLoading(true);
+    setEdgeEvidence([]);
+
+    try {
+      const res = await fetch(
+        `/api/graph/edge-evidence?sourceId=${edge.sourceId}&targetId=${edge.targetId}`,
+      );
+      if (!res.ok) throw new Error('Failed to fetch evidence');
+      const data = await res.json();
+
+      // Cache the documents result
+      evidenceCache.current.set(cacheKey, data.documents);
+
+      setEdgeEvidence(data.documents);
+      setEdgeDetails(data.relationship);
+    } catch (e) {
+      console.error('Edge Evidence Error:', e);
+    } finally {
+      setIsEvidenceLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchAnalytics();
   }, []);
+
+  // Update Graph when Time Range changes
+  useEffect(() => {
+    if (data) {
+      handleZoomLevelChange(1.0); // Trigger a refresh at current zoom
+    }
+  }, [timeRange]);
 
   const fetchAnalytics = async () => {
     try {
@@ -226,10 +443,51 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
               onChange={(e) => setEntityCount(Number(e.target.value))}
               className="w-32 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
             />
-            <span className="text-sm font-medium text-emerald-400 min-w-[3rem] text-right">
-              {entityCount}
-            </span>
+            <span className="text-sm font-medium text-emerald-400 min-w-[3rem] text-right"></span>
           </div>
+
+          {/* Timeline Slider */}
+          <div className="flex items-center gap-4 bg-slate-800/50 px-4 py-2 rounded-lg border border-slate-700/50">
+            <TrendingUp className="h-4 w-4 text-purple-400" />
+            <div className="flex flex-col gap-1">
+              <div className="flex justify-between text-[10px] text-slate-500 font-mono">
+                <span>{timeRange[0].split('-')[0]}</span>
+                <span className="text-purple-400 font-bold">{timeRange[1].split('-')[0]}</span>
+              </div>
+              <input
+                type="range"
+                min="1990"
+                max="2025"
+                step="1"
+                value={parseInt(timeRange[1].split('-')[0])}
+                onChange={(e) => {
+                  const year = e.target.value;
+                  setTimeRange(['1990-01-01', `${year}-12-31`]);
+                }}
+                className="w-48 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
+              />
+            </div>
+          </div>
+
+          {/* Path Mode Toggle */}
+          <button
+            onClick={() => {
+              setPathMode(!pathMode);
+              setPathSource(null);
+              setPathTarget(null);
+            }}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${
+              pathMode
+                ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300'
+                : 'bg-slate-800/50 border-slate-700/50 text-slate-400 hover:text-white'
+            }`}
+            title="Find Shortest Path"
+          >
+            <Share2 className="h-4 w-4" />
+            <span className="text-xs font-medium">
+              {pathMode ? 'Select Nodes...' : 'Find Path'}
+            </span>
+          </button>
         </div>
 
         <div className="text-xs text-slate-400 mb-4 flex items-start gap-2 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
@@ -243,12 +501,69 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
         {/* Desktop: Full Network Graph */}
         <div className="hidden md:block">
           <NetworkGraph
-            entities={topConnectedEntities}
-            relationships={topRelationships}
-            onEntityClick={(entity) => onEntitySelect?.(Number(entity.id))}
+            entities={graphData?.nodes || topConnectedEntities}
+            relationships={graphData?.edges || topRelationships}
+            onEntityClick={(entity) => {
+              if (pathMode) {
+                handlePathNodeClick(entity);
+              } else {
+                onEntitySelect?.(Number(entity.id));
+              }
+            }}
             maxNodes={Number(entityCount)}
+            onZoomLevelChange={handleZoomLevelChange}
+            onEdgeClick={handleEdgeClick}
+          />
+          {isGraphLoading && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-slate-900/80 px-4 py-2 rounded-full text-xs text-cyan-400 border border-cyan-500/30 backdrop-blur-md animate-pulse">
+              Fetching more details...
+            </div>
+          )}
+
+          <EvidenceDrawer
+            isOpen={isDrawerOpen}
+            onClose={() => setIsDrawerOpen(false)}
+            sourceLabel={
+              graphData?.nodes.find((n) => String(n.id) === String(selectedEdge?.sourceId))?.name ||
+              'Entity A'
+            }
+            targetLabel={
+              graphData?.nodes.find((n) => String(n.id) === String(selectedEdge?.targetId))?.name ||
+              'Entity B'
+            }
+            relationshipType={edgeDetails?.relationship_type || selectedEdge?.type}
+            loading={isEvidenceLoading}
+            documents={edgeEvidence}
+            onDocumentClick={(docId) => {
+              // Navigate to document view? Or just log for now
+              console.log('Open document', docId);
+              // Ideally this would open the Evidence Modal
+            }}
           />
         </div>
+
+        {/* Bias Indicator Safeguard */}
+        {data?.entityTypeDistribution &&
+          (() => {
+            const totalEntities = data.entityTypeDistribution.reduce(
+              (acc, curr) => acc + curr.count,
+              0,
+            );
+            const shownEntities = graphData?.nodes.length || 0;
+
+            if (shownEntities < totalEntities && shownEntities > 0) {
+              return (
+                <div className="absolute bottom-4 right-4 z-10 bg-amber-900/90 text-amber-100 px-3 py-1.5 rounded-full text-[10px] font-medium border border-amber-700/50 flex items-center gap-2 backdrop-blur-sm shadow-lg animate-in fade-in slide-in-from-bottom-2">
+                  <Shield className="h-3 w-3 text-amber-400" />
+                  <span>
+                    Showing {shownEntities.toLocaleString()} of {totalEntities.toLocaleString()}{' '}
+                    entities
+                  </span>
+                </div>
+              );
+            }
+            return null;
+          })()}
 
         {/* Mobile: Simplified Entity List */}
         <div className="md:hidden space-y-2">

@@ -68,42 +68,51 @@ export const relationshipsRepository = {
   ) => {
     const db = getDb();
 
-    // Prefer the newer relations table when present; fall back to
-    // legacy entity_relationships for older databases.
-    const hasRelations = !!db
-      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='relations'")
-      .get();
+    // 0. Resolve to Canonical ID
+    const startNode = db
+      .prepare('SELECT COALESCE(canonical_id, id) as cid FROM entities WHERE id = ?')
+      .get(entityId) as { cid: number };
+    if (!startNode) return { nodes: [], edges: [] };
+
+    const startId = startNode.cid;
 
     const visited = new Set<number>();
-    const queue: { id: number; d: number }[] = [{ id: Number(entityId), d: 0 }];
+    const queue: { id: number; d: number }[] = [{ id: Number(startId), d: 0 }];
     const nodes: any[] = [];
     const edges: any[] = [];
 
-    const getEntity = db.prepare('SELECT id, full_name FROM entities WHERE id = ?');
+    // Get Entity Details (Aggregated by Canonical ID)
+    const getEntity = db.prepare(`
+        SELECT 
+            canonical_id as id, 
+            MAX(full_name) as full_name, 
+            MAX(primary_role) as primary_role, 
+            MAX(red_flag_rating) as red_flag_rating 
+        FROM entities 
+        WHERE canonical_id = ?
+        GROUP BY canonical_id
+    `);
 
-    const getRels = hasRelations
-      ? db.prepare(`
+    // Get Relationships (Mapped to Canonical IDs)
+    // We join entities twice to map both sides to canonical_id.
+    // We filter where *either* side matches the current node.
+    const getRels = db.prepare(`
           SELECT
-            subject_entity_id as source_id,
-            object_entity_id as target_id,
-            predicate as relationship_type,
-            weight as proximity_score,
+            s.canonical_id as source_id,
+            t.canonical_id as target_id,
+            er.relationship_type,
+            MAX(er.proximity_score) as proximity_score, -- Aggregated max score
             0 as risk_score,
-            1 as confidence,
-            NULL as metadata_json
-          FROM relations
-          WHERE (subject_entity_id = ? OR object_entity_id = ?)
-          ORDER BY weight DESC
-          LIMIT 200
-        `)
-      : db.prepare(`
-          SELECT source_entity_id as source_id, target_entity_id as target_id, relationship_type, proximity_score,
-                 risk_score, confidence, NULL as metadata_json
-          FROM entity_relationships
-          WHERE source_entity_id = ?
+            1 as confidence
+          FROM entity_relationships er
+          JOIN entities s ON er.source_entity_id = s.id
+          JOIN entities t ON er.target_entity_id = t.id
+          WHERE (s.canonical_id = ? OR t.canonical_id = ?)
+          AND s.canonical_id != t.canonical_id -- No self loops
+          GROUP BY s.canonical_id, t.canonical_id, er.relationship_type
           ORDER BY proximity_score DESC
           LIMIT 200
-        `);
+    `);
 
     // Only process if queue is not empty
     let iterations = 0;
@@ -121,15 +130,20 @@ export const relationshipsRepository = {
         nodes.push({
           id: entity.id,
           label: entity.full_name,
-          type: 'entity',
+          type: entity.primary_role || 'person',
+          risk: entity.red_flag_rating || 0,
         });
       }
 
-      const rels = hasRelations ? (getRels.all(id, id) as any[]) : (getRels.all(id) as any[]);
+      // If we reached max depth, don't fetch neighbors (optimization)
+      if (d >= depth) continue;
+
+      const rels = getRels.all(id, id) as any[];
 
       for (const r of rels) {
         const sourceId = r.source_id;
         const targetId = r.target_id;
+
         edges.push({
           source_id: sourceId,
           target_id: targetId,
@@ -187,9 +201,19 @@ export const relationshipsRepository = {
 
   getEntitySummarySource: (entityId: number | string, topN: number = 10) => {
     const db = getDb();
+
+    // Resolve Canonical ID
+    const startNode = db
+      .prepare('SELECT COALESCE(canonical_id, id) as cid FROM entities WHERE id = ?')
+      .get(entityId) as { cid: number };
+    if (!startNode) return null;
+    const canonicalId = startNode.cid;
+
     const entity = db
-      .prepare(`SELECT id, full_name, primary_role FROM entities WHERE id=?`)
-      .get(entityId) as any;
+      .prepare(
+        `SELECT canonical_id as id, MAX(full_name) as full_name, MAX(primary_role) as primary_role FROM entities WHERE canonical_id=? GROUP BY canonical_id`,
+      )
+      .get(canonicalId) as any;
 
     if (!entity) return null;
 
@@ -197,19 +221,24 @@ export const relationshipsRepository = {
       .prepare(
         `
       SELECT 
-        source_entity_id as source_id, 
-        target_entity_id as target_id, 
-        relationship_type,
-        proximity_score,
-        risk_score, confidence, NULL as metadata_json
-      FROM entity_relationships 
-      WHERE source_entity_id=?
+        s.canonical_id as source_id, 
+        t.canonical_id as target_id, 
+        er.relationship_type,
+        MAX(er.proximity_score) as proximity_score,
+        0 as risk_score, 1 as confidence
+      FROM entity_relationships er
+      JOIN entities s ON er.source_entity_id = s.id
+      JOIN entities t ON er.target_entity_id = t.id
+      WHERE s.canonical_id=?
+      GROUP BY s.canonical_id, t.canonical_id, er.relationship_type
       ORDER BY proximity_score DESC
       LIMIT ?
     `,
       )
-      .all(entityId, topN) as any[];
+      .all(canonicalId, topN) as any[];
 
+    // Docs search still uses LIKE name, but we should probably use mentions on canonical ID
+    // Keep wildcard search for now as it's broader
     const docs = db
       .prepare(
         `

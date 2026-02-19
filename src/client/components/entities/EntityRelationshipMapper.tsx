@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import * as d3Selection from 'd3-selection';
 import * as d3Quadtree from 'd3-quadtree';
 
+import { EntityType } from '../../services/GraphService';
+
 export interface Entity {
   id: string;
-  type: 'person' | 'organization' | 'location' | 'document' | 'communication' | 'financial';
+  type: EntityType;
   label: string;
   properties: Record<string, any>;
   confidence: number;
@@ -13,6 +15,9 @@ export interface Entity {
   y?: number;
   vx?: number;
   vy?: number;
+  fx?: number | null; // Fixed X position
+  fy?: number | null; // Fixed Y position
+  isEgo?: boolean; // Is this the central entity?
 }
 
 export interface Relationship {
@@ -53,6 +58,8 @@ export const EntityRelationshipMapper: React.FC<EntityRelationshipMapperProps> =
       y: e.y ?? Math.random() * 600,
       vx: 0,
       vy: 0,
+      fx: e.isEgo ? (containerRef.current?.clientWidth || 800) / 2 : undefined,
+      fy: e.isEgo ? (containerRef.current?.clientHeight || 600) / 2 : undefined,
     }));
   }, [entities]);
 
@@ -85,6 +92,11 @@ export const EntityRelationshipMapper: React.FC<EntityRelationshipMapperProps> =
           return '#06b6d4';
         case 'document':
           return '#10b981';
+        case 'communication':
+          return '#f43f5e';
+        case 'financial':
+          return '#f59e0b';
+        case 'unknown':
         default:
           return '#64748b';
       }
@@ -195,14 +207,39 @@ export const EntityRelationshipMapper: React.FC<EntityRelationshipMapperProps> =
         }
       });
 
-      // 3. Center Gravity (Pull everything to center)
+      // 3. Center Gravity (Pull everything to center) + Pin Ego
       nodes.forEach((node) => {
-        node.vx! += (center.x - node.x!) * 0.005;
-        node.vy! += (center.y - node.y!) * 0.005;
+        // Strict Centering: If this is the selected/ego entity, lock it to center
+        // We identify the ego node by matching the ID passed via props or state
+        // For now, we assume the first node is generating the graph or we use selectedEntity if available
+        // Better strategy: The parent should pass an `egoId` prop.
+        // Fallback: If node.id matches the first node in the list? No, that's flaky.
+        // Let's rely on the parent component passing `egoId` or `centerId`.
+        // Since we don't have that yet, let's look for the node that has the most connections?
+        // OR: Just pull everything to center.
+
+        // Per Blueprint: "The Pin" logic
+        // We need to know which ID is the "Ego".
+        // We will add an `isEgo` property to the Entity interface in the next step.
+        // For this step, let's implement the physics engine capability to respect `fx` / `fy`.
+
+        if (node.fx !== undefined && node.fx !== null) {
+          node.x = node.fx;
+          node.vx = 0;
+        } else {
+          node.vx! += (center.x - node.x!) * 0.005;
+        }
+
+        if (node.fy !== undefined && node.fy !== null) {
+          node.y = node.fy;
+          node.vy = 0;
+        } else {
+          node.vy! += (center.y - node.y!) * 0.005;
+        }
 
         // Apply velocity
-        node.x! += node.vx!;
-        node.y! += node.vy!;
+        if (node.fx === undefined || node.fx === null) node.x! += node.vx!;
+        if (node.fy === undefined || node.fy === null) node.y! += node.vy!;
 
         // Damping
         node.vx! *= 0.9;

@@ -1,3 +1,18 @@
+## v13.14.0 - 2026-02-19 - Temporal Investigation & Forensic Determinism
+
+### Forensic Graph Evolution (Phase 4.5 & 5)
+
+- **Weighted Pathfinding**: Implemented Dijkstra's algorithm for pathfinding, prioritizing relationships based on `edgeStrength` (shared documents and confidence) rather than simple distance.
+- **Deterministic Clustering**: Updated community detection (LPA) to be strictly deterministic with a fixed-seed LCG, ensuring reproducible cluster assignments across investigative sessions.
+- **Temporal Filtering**: Integrated a global Timeline Slider in Analytics, enabling historical graph reconstruction and temporal slicing of the investigative network.
+- **Provenance & Lineage Trace**: Enhanced the Evidence Drawer to display extraction metadata (AI model, pipeline details), providing full traceability back to the forensic source.
+- **Visual Evidence Encoding**: Differentiated edge styles based on relationship classification—solid lines for evidence-backed direct co-occurrences and dashed lines for inferred agentic connections.
+
+### UI Polishing & Stability
+
+- **Opaque Dropdown Overlays**: Fixed transparent background issues in dropdown menus and selectors for better readability over complex page content.
+- **Graph Metadata Refinement**: Standardized edge strength and confidence formulas in the backend for more accurate visual representation.
+
 ## v13.13.1 - 2026-02-18 - Fetch Optimization & Dead Code Cleanup
 
 ### Performance & Stability

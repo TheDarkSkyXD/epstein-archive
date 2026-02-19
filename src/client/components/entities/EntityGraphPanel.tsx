@@ -1,27 +1,14 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import EntityRelationshipMapper, { Entity, Relationship } from './EntityRelationshipMapper';
+import { GraphService } from '../../services/GraphService';
 
 interface EntityGraphPanelProps {
   entityId: string | number;
 }
 
-interface GraphNode {
-  id: number;
-  label: string;
-  type?: string;
-}
-
-interface GraphEdge {
-  source_id: number;
-  target_id: number;
-  relationship_type: string;
-  proximity_score: number;
-  confidence: number;
-}
-
 export const EntityGraphPanel: React.FC<EntityGraphPanelProps> = ({ entityId }) => {
-  const [nodes, setNodes] = useState<GraphNode[]>([]);
-  const [edges, setEdges] = useState<GraphEdge[]>([]);
+  const [nodes, setNodes] = useState<any[]>([]);
+  const [edges, setEdges] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,38 +35,63 @@ export const EntityGraphPanel: React.FC<EntityGraphPanelProps> = ({ entityId }) 
     fetchGraph();
   }, [entityId]);
 
-  const mapperEntities: Entity[] = useMemo(
-    () =>
-      nodes.map((n) => ({
-        id: String(n.id),
-        label: n.label,
-        type: (n.type as Entity['type']) || 'person',
-        properties: {},
-        confidence: 1.0,
-        sources: [],
-      })),
-    [nodes],
-  );
+  const mapperEntities: Entity[] = useMemo(() => {
+    // 1. Normalize
+    const rawNodes = nodes.map((n) => GraphService.normalizeNode(n));
 
-  const mapperRelationships: Relationship[] = useMemo(
-    () =>
-      edges.map((e, idx) => ({
-        id: `edge-${idx}-${e.source_id}-${e.target_id}`,
-        from: String(e.source_id),
-        to: String(e.target_id),
-        type: e.relationship_type || 'related_to',
-        strength: e.proximity_score ?? 1,
-        confidence: e.confidence ?? 1,
-        evidence: [],
-        properties: {},
-      })),
-    [edges],
-  );
+    // 2. Dedup (Merge by Label)
+    const uniqueNodes = GraphService.deduplicateNodes(rawNodes, String(entityId));
+
+    // 3. Map to Mapper Entity Interface
+    return uniqueNodes.map((n) => ({
+      id: n.id,
+      label: n.label,
+      type: n.type,
+      properties: { riskScore: n.risk },
+      confidence: 1.0,
+      sources: [],
+      isEgo: n.id === String(entityId),
+      // Pass style hints if needed
+    }));
+  }, [nodes, entityId]);
+
+  const mapperRelationships: Relationship[] = useMemo(() => {
+    // 1. Remap Edges to Deduped IDs
+    // We need to pass the *processed* nodes to ensuring mapping alignment
+    // But GraphService.remapEdges expects the generic GraphNode
+    // Let's reconstruct the GraphNode context or pass mapperEntities if compatible.
+    // Actually, GraphService.remapEdges takes `GraphNode[]`.
+    // mapperEntities is `Entity[]` which is compatiable-ish but let's be safe.
+
+    const contextNodes = mapperEntities.map(
+      (e) =>
+        ({
+          id: e.id,
+          label: e.label,
+          type: e.type,
+          risk: e.properties.riskScore,
+        }) as any,
+    );
+
+    const remapped = GraphService.remapEdges(edges, contextNodes);
+
+    // 2. Map to Mapper Relationship Interface
+    return remapped.map((e, idx) => ({
+      id: e.id,
+      from: e.source,
+      to: e.target,
+      type: e.type,
+      strength: GraphService.calculateEdgeWeight(e.weight, e.confidence, e.docCount),
+      confidence: e.confidence,
+      evidence: [],
+      properties: { docCount: e.docCount },
+    }));
+  }, [edges, mapperEntities]);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <div className="text-sm text-slate-500">Loading entity graph333</div>
+        <div className="text-sm text-slate-500">Loading entity graph...</div>
       </div>
     );
   }

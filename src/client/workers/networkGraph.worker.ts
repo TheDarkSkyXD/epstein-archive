@@ -2,19 +2,21 @@
 // This moves the O(n²) collision detection off the main thread
 
 interface GraphNode {
-  id: number;
+  id: string | number;
   x: number;
   y: number;
   vx: number;
   vy: number;
   radius: number;
+  // Allow other props to pass through
+  [key: string]: any;
 }
 
 interface WorkerMessage {
   type: 'init' | 'tick' | 'updateNode' | 'stop';
   nodes?: GraphNode[];
-  draggedNodeId?: number | null;
-  nodeUpdate?: { id: number; x: number; y: number };
+  draggedNodeId?: string | number | null;
+  nodeUpdate?: { id: string | number; x: number; y: number };
 }
 
 interface WorkerResponse {
@@ -27,11 +29,11 @@ let isRunning = false;
 let tickCount = 0;
 const MAX_TICKS = 200; // Increase for larger networks to settle
 
-const JEFFREY_ID = 1;
+const JEFFREY_ID = '1'; // Normalized ID is usually string
 const CENTER_X = 50;
 const CENTER_Y = 50;
 
-function applyCollisionResolution(draggedNodeId: number | null): GraphNode[] {
+function applyCollisionResolution(draggedNodeId: string | number | null): GraphNode[] {
   const newNodes = nodes.map((n) => ({ ...n }));
 
   for (let i = 0; i < newNodes.length; i++) {
@@ -44,7 +46,7 @@ function applyCollisionResolution(draggedNodeId: number | null): GraphNode[] {
     const centerDist = Math.sqrt(cdx * cdx + cdy * cdy);
 
     // Stronger centering for Jeffrey Epstein
-    const centerStrength = node.id === JEFFREY_ID ? 0.05 : 0.01;
+    const centerStrength = String(node.id) === String(JEFFREY_ID) ? 0.05 : 0.01;
     node.x += cdx * centerStrength;
     node.y += cdy * centerStrength;
 
@@ -72,7 +74,7 @@ function applyCollisionResolution(draggedNodeId: number | null): GraphNode[] {
   return newNodes;
 }
 
-let draggedNodeId: number | null = null;
+let draggedNodeId: string | number | null = null;
 
 self.onmessage = (e: MessageEvent<WorkerMessage>) => {
   const { type, nodes: incomingNodes, draggedNodeId: newDraggedNodeId, nodeUpdate } = e.data;

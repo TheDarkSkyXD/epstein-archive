@@ -53,6 +53,7 @@ import { validate, entitySchema, searchSchema } from './server/middleware/valida
 import statsRoutes from './server/routes/stats.js';
 import relationshipsRoutes from './server/routes/relationships.js';
 import analyticsRoutes from './server/routes/analytics.js';
+import graphRoutes from './server/routes/graphRoutes.js';
 import usersRoutes from './server/routes/users.js';
 import { reviewQueueRepository } from './server/db/reviewQueueRepository.js';
 import { apiCache, cacheMiddleware } from './server/middleware/cache.js';
@@ -471,6 +472,7 @@ app.use('/api/downloads', downloadRoutes);
 app.use('/api/relationships', relationshipsRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/graph', graphRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/investigations', investigationsRouter);
 app.use('/api/investigation', investigationEvidenceRoutes);

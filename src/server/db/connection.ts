@@ -34,5 +34,36 @@ export function getDb(): any {
   // Optional: Optimize memory mapping
   // dbInstance.pragma('mmap_size = 30000000000');
 
+  // Diagnostic Wrapper: Slow Query Logger
+  const SLOW_QUERY_THRESHOLD_MS = 200;
+  const originalPrepare = dbInstance.prepare;
+
+  dbInstance.prepare = function (sql: string) {
+    const stmt = originalPrepare.call(dbInstance, sql);
+
+    const wrapMethod = (methodName: string) => {
+      const originalMethod = (stmt as any)[methodName];
+      (stmt as any)[methodName] = function (...args: any[]) {
+        const start = Date.now();
+        try {
+          return originalMethod.apply(stmt, args);
+        } finally {
+          const duration = Date.now() - start;
+          if (duration > SLOW_QUERY_THRESHOLD_MS) {
+            console.warn(
+              `[SLOW QUERY] ${duration}ms | ${sql.substring(0, 100)}${sql.length > 100 ? '...' : ''}`,
+            );
+            if (args.length > 0) {
+              console.warn(`  Params: ${JSON.stringify(args)}`);
+            }
+          }
+        }
+      };
+    };
+
+    ['all', 'get', 'run'].forEach(wrapMethod);
+    return stmt;
+  };
+
   return dbInstance;
 }

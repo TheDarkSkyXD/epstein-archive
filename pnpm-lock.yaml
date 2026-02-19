@@ -178,6 +178,9 @@ importers:
       tesseract.js:
         specifier: ^7.0.0
         version: 7.0.0(encoding@0.1.13)
+      toobusy-js:
+        specifier: ^0.5.1
+        version: 0.5.1
       tsx:
         specifier: ^4.19.2
         version: 4.20.6
@@ -245,6 +248,9 @@ importers:
       '@types/react-window':
         specifier: ^1.8.8
         version: 1.8.8
+      '@types/toobusy-js':
+        specifier: ^0.5.4
+        version: 0.5.4
       '@typescript-eslint/eslint-plugin':
         specifier: ^8.0.0
         version: 8.53.0(@typescript-eslint/parser@8.53.0(eslint@8.57.1)(typescript@5.9.3))(eslint@8.57.1)(typescript@5.9.3)
@@ -1855,6 +1861,12 @@ packages:
     resolution:
       {
         integrity: sha512-8mam4H1NHLtu7nmtalF7eyBH14QyOASmcxHhSfEoRyr0nP/YdoesEtU+uSRvMe96TW/HPTtkoKqQLl53N7UXMQ==,
+      }
+
+  '@types/toobusy-js@0.5.4':
+    resolution:
+      {
+        integrity: sha512-hsKMbYiaL3ZWx7B3FYyN0rEJexw7I1HgKbNToX3ZZJv6373to954wlA7zrXR3/XoVwZnFwWqFguBs91sNzJGKQ==,
       }
 
   '@types/tough-cookie@4.0.5':
@@ -5975,6 +5987,13 @@ packages:
       }
     engines: { node: '>=0.6' }
 
+  toobusy-js@0.5.1:
+    resolution:
+      {
+        integrity: sha512-GiCux/c8G2TV0FTDgtxnXOxmSAndaI/9b1YxT14CqyeBDtTZAcJLx9KlXT3qECi8D0XCc78T4sN/7gWtjRyCaA==,
+      }
+    engines: { node: '>=0.9.1' }
+
   tough-cookie@6.0.0:
     resolution:
       {
@@ -7200,6 +7219,8 @@ snapshots:
     dependencies:
       '@types/http-errors': 2.0.5
       '@types/node': 22.19.2
+
+  '@types/toobusy-js@0.5.4': {}
 
   '@types/tough-cookie@4.0.5': {}
 
@@ -9800,6 +9821,8 @@ snapshots:
       is-number: 7.0.0
 
   toidentifier@1.0.1: {}
+
+  toobusy-js@0.5.1: {}
 
   tough-cookie@6.0.0:
     dependencies:

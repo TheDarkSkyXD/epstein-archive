@@ -4,6 +4,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
+import toobusy from 'toobusy-js';
 import cookieParser from 'cookie-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -120,6 +121,16 @@ function seedInvestigationMediaTags(): void {
     console.error('Failed to seed investigation media tags:', error);
   }
 }
+
+// Event loop lag protection - BEFORE heavy routes
+app.use((req, res, next) => {
+  if (toobusy()) {
+    return res.status(503).json({
+      error: 'Server is too busy (Event Loop lag detected).',
+    });
+  }
+  next();
+});
 
 // Request logging - AT THE VERY TOP
 app.use((req, res, next) => {

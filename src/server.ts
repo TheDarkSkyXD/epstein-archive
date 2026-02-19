@@ -141,6 +141,7 @@ app.use((req, res, next) => {
     req.url.startsWith('/api/stats') ||
     req.url.startsWith('/api/media') ||
     req.url.startsWith('/api/subjects') ||
+    req.url.startsWith('/api/documents') ||
     req.url.startsWith('/api/auth/me')
   ) {
     return next();

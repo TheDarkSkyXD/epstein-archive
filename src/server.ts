@@ -126,15 +126,17 @@ function seedInvestigationMediaTags(): void {
 const h = monitorEventLoopDelay({ resolution: 20 });
 h.enable();
 
-// Configure toobusy-js for 250ms lag threshold (more realistic for large SQLite results)
-toobusy.maxLag(250);
+// Configure toobusy-js for 500ms lag threshold
+// (Large SQLite cold-starts and massive entity lists can spike lag above 250ms transiently)
+toobusy.maxLag(500);
 toobusy.interval(500);
 
 // Event loop lag protection - BEFORE heavy routes
 app.use((req, res, next) => {
-  // Always permit health checks, stats, essential data list, and auth even if busy
+  // Always permit health checks, stats, root, and essential auth even if busy
   // These are required for deployment verification and basic UI state
   if (
+    req.url === '/' ||
     req.url.startsWith('/api/health') ||
     req.url.startsWith('/api/stats') ||
     req.url.startsWith('/api/media') ||

@@ -126,13 +126,21 @@ function seedInvestigationMediaTags(): void {
 const h = monitorEventLoopDelay({ resolution: 20 });
 h.enable();
 
-// Configure toobusy-js for 70ms lag threshold
-toobusy.maxLag(70);
+// Configure toobusy-js for 150ms lag threshold (safer for startup spikes)
+toobusy.maxLag(150);
 toobusy.interval(500);
 
 // Event loop lag protection - BEFORE heavy routes
 app.use((req, res, next) => {
+  // Always permit health checks and essential auth even if busy
+  if (req.url.startsWith('/api/health') || req.url.startsWith('/api/auth/me')) {
+    return next();
+  }
+
   if (toobusy()) {
+    console.warn(
+      `[BACKPRESSURE] Rejecting request: ${req.method} ${req.url} (Lag: ${h.mean / 1e6}ms)`,
+    );
     return res.status(503).json({
       error: 'Server is too busy (Event Loop lag detected).',
     });

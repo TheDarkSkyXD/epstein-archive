@@ -365,7 +365,7 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
         />
       </div>
 
-      {/* Main Visualizations Grid */}
+      {/* Secondary Visualizations Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Document Types Sunburst */}
         <div className="glass-card p-6 rounded-xl relative overflow-hidden group">
@@ -422,8 +422,8 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
       </div>
 
       {/* Entity Network - Full Width */}
-      <div className="glass-card p-6 rounded-xl relative overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+      <div className="glass-card p-6 rounded-xl relative overflow-hidden max-h-[85vh] flex flex-col">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4 shrink-0">
           <h3 className="text-xl font-bold text-white flex items-center gap-2">
             <Users className="h-5 w-5 text-emerald-400" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
@@ -443,7 +443,9 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
               onChange={(e) => setEntityCount(Number(e.target.value))}
               className="w-32 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
             />
-            <span className="text-sm font-medium text-emerald-400 min-w-[3rem] text-right"></span>
+            <span className="text-sm font-medium text-emerald-400 min-w-[3rem] text-right">
+              {entityCount}
+            </span>
           </div>
 
           {/* Timeline Slider */}
@@ -490,7 +492,7 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
           </button>
         </div>
 
-        <div className="text-xs text-slate-400 mb-4 flex items-start gap-2 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
+        <div className="text-xs text-slate-400 mb-4 flex items-start gap-2 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50 shrink-0">
           <Info className="h-4 w-4 mt-0.5 flex-shrink-0 text-emerald-400" />
           <span>
             Interactive network showing entity relationships. Node size = connections. Colors
@@ -499,7 +501,7 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
         </div>
 
         {/* Desktop: Full Network Graph */}
-        <div className="hidden md:block">
+        <div className="hidden md:block flex-1 min-h-0 relative">
           <NetworkGraph
             entities={graphData?.nodes || topConnectedEntities}
             relationships={graphData?.edges || topRelationships}
@@ -566,11 +568,11 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
           })()}
 
         {/* Mobile: Simplified Entity List */}
-        <div className="md:hidden space-y-2">
+        <div className="md:hidden space-y-2 overflow-y-auto flex-1">
           <p className="text-xs text-slate-500 mb-3">
             View on larger screen for interactive network visualization.
           </p>
-          <div className="max-h-[400px] overflow-y-auto space-y-2">
+          <div className="space-y-2">
             {topConnectedEntities?.slice(0, 20).map((entity, i) => (
               <button
                 key={entity.id}

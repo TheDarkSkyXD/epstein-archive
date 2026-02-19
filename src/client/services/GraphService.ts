@@ -54,9 +54,9 @@ export const GraphService = {
   normalizeNode: (raw: any): GraphNode => {
     return {
       id: String(raw.id),
-      label: raw.label || raw.full_name || 'Unknown',
+      label: raw.label || raw.full_name || raw.name || 'Unknown',
       type: normalizeType(raw.type || raw.primary_role),
-      risk: raw.risk || raw.red_flag_rating || 0,
+      risk: raw.risk || raw.red_flag_rating || raw.riskLevel || 0,
       image: raw.image || raw.photo_url,
       community: raw.community,
       isEgo: !!raw.isEgo,

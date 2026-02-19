@@ -132,10 +132,12 @@ toobusy.interval(500);
 
 // Event loop lag protection - BEFORE heavy routes
 app.use((req, res, next) => {
-  // Always permit health checks and essential auth even if busy
+  // Always permit health checks, stats, and essential auth even if busy
+  // These are required for deployment verification and basic UI state
   if (
     req.url.startsWith('/api/health') ||
-    req.url.startsWith('/api/stats/health') ||
+    req.url.startsWith('/api/stats') ||
+    req.url.startsWith('/api/media') ||
     req.url.startsWith('/api/auth/me')
   ) {
     return next();

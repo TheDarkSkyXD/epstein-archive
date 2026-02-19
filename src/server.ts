@@ -4684,14 +4684,18 @@ try {
   seedInvestigationMediaTags();
 
   // Phase 6 Resilience: Background Junk Flag Backfill
+  // DISABLED FOR STABILITY: Run manually via scripts/maintenance.ts
+  /*
   try {
     entitiesRepository.startBackgroundJunkBackfill();
   } catch (e) {
     console.error('⚠️ [STARTUP] Junk flags backfill trigger failed:', e);
   }
+  */
 
   // Phase 6 Performance: Graph Adjacency Cache Rebuild
-  // Moved to background with delay to allow server to start listening immediately
+  // DISABLED FOR STABILITY: Run manually via scripts/maintenance.ts
+  /*
   setTimeout(() => {
     try {
       relationshipsRepository.rebuildAdjacencyCache();
@@ -4699,6 +4703,7 @@ try {
       console.error('⚠️ [BACKGROUND] Adjacency cache rebuild failed:', e);
     }
   }, 5000);
+  */
 } catch (err) {
   console.error('Failed to run migrations:', err);
   process.exit(1);

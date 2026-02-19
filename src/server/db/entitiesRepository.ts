@@ -303,14 +303,29 @@ export const entitiesRepository = {
     const params: any = {};
 
     let hasJunkFlag = false;
+    let hasJunkTier = false;
+    let hasQuarantine = false;
     try {
       const cols = db.prepare(`PRAGMA table_info(entities)`).all() as Array<{ name: string }>;
       hasJunkFlag = cols.some((c) => c.name === 'junk_flag');
+      hasJunkTier = cols.some((c) => c.name === 'junk_tier');
+      hasQuarantine = cols.some((c) => c.name === 'quarantine_status');
     } catch {
-      hasJunkFlag = false;
+      // ignore schema errors
     }
-    if (hasJunkFlag) {
-      whereConditions.push('COALESCE(junk_flag,0)=0');
+
+    const includeJunk = filters?.includeJunk === true;
+
+    if (!includeJunk) {
+      if (hasJunkTier) {
+        whereConditions.push("COALESCE(junk_tier, 'clean') = 'clean'");
+      }
+      if (hasQuarantine) {
+        whereConditions.push('COALESCE(quarantine_status, 0) = 0');
+      }
+      if (hasJunkFlag) {
+        whereConditions.push('COALESCE(junk_flag,0)=0');
+      }
     }
     // --- REUSE EXISTING FILTER LOGIC (DRY) ---
     // 1. Term Search

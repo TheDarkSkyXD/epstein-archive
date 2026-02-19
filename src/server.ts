@@ -57,6 +57,7 @@ import statsRoutes from './server/routes/stats.js';
 import relationshipsRoutes from './server/routes/relationships.js';
 import analyticsRoutes from './server/routes/analytics.js';
 import graphRoutes from './server/routes/graphRoutes.js';
+import mapRoutes from './server/routes/mapRoutes.js';
 import usersRoutes from './server/routes/users.js';
 import { reviewQueueRepository } from './server/db/reviewQueueRepository.js';
 import { apiCache, cacheMiddleware } from './server/middleware/cache.js';
@@ -699,6 +700,9 @@ app.post('/api/admin/review-queue/:id/decide', requireRole('admin'), async (req,
   }
 });
 
+// Map Routes
+app.use('/api/map', mapRoutes);
+
 // Document Upload Endpoint with Security Validation (Issue 20)
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
@@ -832,6 +836,8 @@ app.get('/api/entities', cacheMiddleware(300), async (req, res, next) => {
     const sortBy = req.query.sortBy as string;
     const sortOrder = req.query.sortOrder as 'asc' | 'desc';
 
+    const includeJunk = req.query.includeJunk === 'true';
+
     // Validate and sanitize inputs
     if (search && search.length > 100) {
       return res.status(400).json({ error: 'Search term too long' });
@@ -848,6 +854,7 @@ app.get('/api/entities', cacheMiddleware(300), async (req, res, next) => {
       entityType: undefined,
       sortBy: undefined,
       sortOrder: undefined,
+      includeJunk,
     };
 
     if (search) filters.searchTerm = search.trim();

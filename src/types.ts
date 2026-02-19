@@ -157,6 +157,7 @@ export interface SearchFilters {
   maxRedFlagIndex?: number;
   entityType?: string;
   dataSource?: string;
+  includeJunk?: boolean;
 }
 
 export type SortOption =

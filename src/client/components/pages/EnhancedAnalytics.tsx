@@ -15,6 +15,7 @@ import { AreaTimeline } from '../visualizations/AreaTimeline';
 import { NetworkGraph } from '../visualizations/NetworkGraph';
 import { EvidenceDrawer } from '../visualizations/EvidenceDrawer';
 import { filterPeopleOnly } from '../../utils/entityFilters';
+import { InteractiveEntityMap } from '../visualizations/InteractiveEntityMap';
 import { useFilters } from '../../contexts/FilterContext';
 import { apiClient } from '../../services/apiClient';
 
@@ -68,6 +69,35 @@ interface AnalyticsData {
     unknownDateCount: number;
   };
 }
+
+// Helper component for stat cards
+const StatCard: React.FC<{
+  icon: React.ReactNode;
+  value: number | string;
+  label: string;
+  color: string;
+  sublabel?: string;
+}> = ({ icon, value, label, color, sublabel }) => (
+  <div
+    className={`glass-panel p-4 rounded-xl hover:bg-slate-800/60 transition-all duration-300 group relative overflow-hidden`}
+  >
+    <div
+      className={`absolute inset-0 bg-gradient-to-br from-${color}-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity`}
+    />
+    <div className="relative z-10">
+      <div className="flex items-center gap-2 mb-2">
+        {icon}
+        <span className="text-slate-400 text-xs font-medium uppercase tracking-wide">{label}</span>
+      </div>
+      <div
+        className={`text-3xl font-bold text-white font-mono group-hover:text-${color}-400 transition-colors`}
+      >
+        {typeof value === 'number' ? value.toLocaleString() : value}
+      </div>
+      {sublabel && <div className="text-xs text-slate-500 mt-1">{sublabel}</div>}
+    </div>
+  </div>
+);
 
 export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
   onEntitySelect,
@@ -622,6 +652,15 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
         </div>
       </div>
 
+      {/* Interactive Entity Map - NEW PHASE 12 */}
+      <div className="hidden md:block h-[500px]">
+        <InteractiveEntityMap
+          className="h-full w-full"
+          onEntitySelect={onEntitySelect}
+          minRiskLevel={0}
+        />
+      </div>
+
       {/* Hero Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard
@@ -709,34 +748,5 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
     </div>
   );
 };
-
-// Helper component for stat cards
-const StatCard: React.FC<{
-  icon: React.ReactNode;
-  value: number | string;
-  label: string;
-  color: string;
-  sublabel?: string;
-}> = ({ icon, value, label, color, sublabel }) => (
-  <div
-    className={`glass-panel p-4 rounded-xl hover:bg-slate-800/60 transition-all duration-300 group relative overflow-hidden`}
-  >
-    <div
-      className={`absolute inset-0 bg-gradient-to-br from-${color}-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity`}
-    />
-    <div className="relative z-10">
-      <div className="flex items-center gap-2 mb-2">
-        {icon}
-        <span className="text-slate-400 text-xs font-medium uppercase tracking-wide">{label}</span>
-      </div>
-      <div
-        className={`text-3xl font-bold text-white font-mono group-hover:text-${color}-400 transition-colors`}
-      >
-        {typeof value === 'number' ? value.toLocaleString() : value}
-      </div>
-      {sublabel && <div className="text-xs text-slate-500 mt-1">{sublabel}</div>}
-    </div>
-  </div>
-);
 
 export default EnhancedAnalytics;

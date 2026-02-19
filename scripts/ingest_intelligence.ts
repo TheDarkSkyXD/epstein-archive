@@ -299,9 +299,65 @@ export async function runIntelligencePipeline() {
         )
       : null;
 
-    const insertEntity = db.prepare(
-      'INSERT INTO entities (full_name, entity_type, red_flag_rating, risk_level, entity_category, death_date, notes, bio, birth_date, aliases) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    );
+    // Check for new schema columns (migration safety)
+    const hasJunkTier = !!db
+      .prepare("SELECT name FROM pragma_table_info('entities') WHERE name='junk_tier'")
+      .get();
+    const hasQuarantine = !!db
+      .prepare("SELECT name FROM pragma_table_info('entities') WHERE name='quarantine_status'")
+      .get();
+
+    let insertEntity;
+    if (hasJunkTier && hasQuarantine) {
+      insertEntity = db.prepare(
+        'INSERT INTO entities (full_name, entity_type, red_flag_rating, risk_level, entity_category, death_date, notes, bio, birth_date, aliases, junk_tier, quarantine_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      );
+    } else {
+      insertEntity = db.prepare(
+        'INSERT INTO entities (full_name, entity_type, red_flag_rating, risk_level, entity_category, death_date, notes, bio, birth_date, aliases) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      );
+    }
+
+    function assessJunkTier(name: string): { tier: 'clean' | 'likely' | 'hard'; reason?: string } {
+      // A) HARD JUNK (Discard Immediately)
+      if (name.length < 3 && !['Xi', 'Al', 'Oz'].includes(name))
+        return { tier: 'hard', reason: 'Length < 3' };
+      if (name.length > 100) return { tier: 'hard', reason: 'Length > 100' };
+
+      const digitRatio = (name.match(/\d/g) || []).length / name.length;
+      if (digitRatio > 0.4) return { tier: 'hard', reason: 'Digit Ratio > 0.4' };
+
+      const specialCharRatio = (name.match(/[^a-zA-Z0-9\s]/g) || []).length / name.length;
+      if (specialCharRatio > 0.3) return { tier: 'hard', reason: 'Special Char Ratio > 0.3' };
+
+      if (/(.)\1{4,}/.test(name)) return { tier: 'hard', reason: 'Repeated Chars > 4' };
+
+      if (/^(Page|Slide|Section|Part|Chapter|Figure|Table)\s+\d+$/i.test(name))
+        return { tier: 'hard', reason: 'Boilerplate Regex' };
+      if (
+        /\b(Arial|Calibri|Helvetica|Times New Roman|sans-serif|Bold|Italic|Regular)\b/i.test(name)
+      )
+        return { tier: 'hard', reason: 'Font Artifact' };
+      if (/(cid:\d+|\[image\]|\[pic\])/i.test(name))
+        return { tier: 'hard', reason: 'OCR Artifact' };
+
+      // B) LIKELY JUNK (Soft Filter)
+      if (name.split(' ').length === 1 && name[0] !== name[0].toUpperCase())
+        return { tier: 'likely', reason: 'Single Token Lowercase' };
+      if (name.length > 8 && name === name.toUpperCase())
+        return { tier: 'likely', reason: 'All Caps > 8' };
+      // Simple heuristics for identifiers like 'iPad' or 'eBay'
+      // (starts lower, has upper inside)
+      if (/^[a-z]+[A-Z]/.test(name)) return { tier: 'likely', reason: 'CamelCase Product' };
+
+      const commonStopwords = ['The', 'And', 'For', 'With', 'About', 'From'];
+      if (commonStopwords.includes(name)) return { tier: 'likely', reason: 'Stopword' };
+
+      const genericCorps = ['Company', 'Business', 'Agency', 'Corporation', 'Firm'];
+      if (genericCorps.includes(name)) return { tier: 'likely', reason: 'Generic Corporate' };
+
+      return { tier: 'clean' };
+    }
     // Legacy entity_mentions is now entity_mentions_legacy.
     // We use insertMentionRow for the new schema.
 
@@ -504,19 +560,55 @@ export async function runIntelligencePipeline() {
 
       if (!entityId) {
         if (entityType === 'Other') return;
+
+        // --- PHASE 11: JUNK GATE ---
+        const assessment = assessJunkTier(resolvedName);
+        if (assessment.tier === 'hard') {
+          // Log skipped entities to console for debug, but don't insert
+          // console.log(`   ⛔ Skipped HARD JUNK: "${resolvedName}" (${assessment.reason})`);
+          return;
+        }
+
+        // Calculate initial confidence for Quarantine logic
+        let initialConfidence = 0.5;
+        if (vipResolution) initialConfidence = 1.0;
+        else if (entityType !== 'Person') initialConfidence = 0.7; // Orgs/Locs are safer
+
+        // Quarantine: If confidence < 0.7 AND mentions < 3 (0 here), quarantine it.
+        const quarantineValue = initialConfidence < 0.7 ? 1 : 0;
+
         try {
-          const res = insertEntity.run(
-            resolvedName,
-            entityType,
-            1,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-          );
+          let res;
+          if (hasJunkTier && hasQuarantine) {
+            res = insertEntity.run(
+              resolvedName,
+              entityType,
+              1,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              assessment.tier,
+              quarantineValue,
+            );
+          } else {
+            // Fallback for pre-migration schema
+            res = insertEntity.run(
+              resolvedName,
+              entityType,
+              1,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+            );
+          }
           entityId = Number(res.lastInsertRowid);
           entityCache.set(lowerName, entityId);
           newEntities++;

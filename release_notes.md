@@ -1,3 +1,28 @@
+## v14.0.0 - 2026-02-19 - Forensic Analytics & Network Intelligence
+
+### Interactive Entity Map (Phase 12)
+
+- **Geospatial Intelligence**: Global interactive map visualizing 130k+ entity locations with clustering and risk-coded markers.
+- **Performance Cap**: Optimized for performance with a strictly enforced top-500 pin limit based on risk and mention, ensuring smooth 60fps interaction on standard devices.
+- **Data Validation**: Implemented strict lat/lng validation to eliminate "Null Island" artifacts.
+
+### Network Graph "Hero Spec" (v2)
+
+- **VIP Face Integration**: High-risk entities now render with photo-realistic avatars directly in the graph nodes at higher zoom levels.
+- **Semantic Zoom (LOD)**: Adaptive Level-of-Detail system revealing labels, avatars, and secondary edges based on zoom depth.
+- **Fluid Stabilization**: Re-engineered force simulation for organic, community-aware clustering with a 200-tick settlement phase.
+
+### Signal Purification (Junk Elimination)
+
+- **Heuristic Sieves**: Deployed multi-stage filtering for OCR artifacts, boilerplate text ("Page 1 of..."), and low-signal noise.
+- **Unclassified Handling**: Improved fallback logic for entities with missing or ambiguous types to prevent data loss in charts.
+
+### Production Hardening
+
+- **Availability**: Refactored readiness probes to sub-50ms latency.
+- **Resilience**: Implemented exponential backoff for all client-side data fetching.
+- **Persistence**: Deep-linking support for all filter states (Time, Risk, Type) via URL parameters.
+
 ## v13.14.1 - 2026-02-19 - Phase 6 UI & Analytics Recovery
 
 ### UI Stability & Restoration (Phase 6)

@@ -101,34 +101,34 @@ class DatabaseBridge {
     const shadowMode = process.env.SHADOW_READS === 'true';
 
     return {
-      all: (params?: any) => {
+      all: (...args: any[]) => {
         if (usePostgres && this.apiPg) {
-          return this.executePostgres(sql, 'all', params);
+          return this.executePostgres(sql, 'all', args[0]);
         }
-        const result = sqliteStmt.all(params);
+        const result = sqliteStmt.all(...args);
         if (shadowMode && this.apiPg) {
-          this.executePostgres(sql, 'all', params).catch(() => {});
+          this.executePostgres(sql, 'all', args[0]).catch(() => {});
         }
         return result;
       },
-      get: (params?: any) => {
+      get: (...args: any[]) => {
         if (usePostgres && this.apiPg) {
-          return this.executePostgres(sql, 'get', params);
+          return this.executePostgres(sql, 'get', args[0]);
         }
-        const result = sqliteStmt.get(params);
+        const result = sqliteStmt.get(...args);
         if (shadowMode && this.apiPg) {
-          this.executePostgres(sql, 'get', params).catch(() => {});
+          this.executePostgres(sql, 'get', args[0]).catch(() => {});
         }
         return result;
       },
-      run: (params?: any) => {
+      run: (...args: any[]) => {
         const isIngest = process.env.IS_INGEST_NODE === 'true';
         const targetPool = isIngest ? this.ingressPg : this.apiPg;
 
         if (process.env.PG_WRITE_ENABLED === 'true' && targetPool) {
-          shadowWorker.push(sql, params);
+          shadowWorker.push(sql, args[0]);
         }
-        return sqliteStmt.run(params);
+        return sqliteStmt.run(...args);
       },
       sqliteStatement: sqliteStmt,
     };

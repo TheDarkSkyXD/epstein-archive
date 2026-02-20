@@ -22,7 +22,7 @@ router.get('/', cacheMiddleware(300), async (_req, res, next) => {
 });
 
 // Health check endpoint - Basic
-router.get('/health', (_req, res) => {
+router.get('/health', async (_req, res) => {
   let dbStatus = 'not_initialized';
   let stats = { entities: 0, documents: 0 };
 
@@ -30,10 +30,10 @@ router.get('/health', (_req, res) => {
     const db = getDb();
     if (db) {
       dbStatus = 'connected';
-      const entityCount = db.prepare('SELECT COUNT(*) as count FROM entities').get() as {
+      const entityCount = (await db.prepare('SELECT COUNT(*) as count FROM entities').get()) as {
         count: number;
       };
-      const docCount = db.prepare('SELECT COUNT(*) as count FROM documents').get() as {
+      const docCount = (await db.prepare('SELECT COUNT(*) as count FROM documents').get()) as {
         count: number;
       };
       stats = { entities: entityCount.count, documents: docCount.count };
@@ -72,7 +72,7 @@ router.get('/health/deep', async (_req, res) => {
     // 1. Database connection check
     const dbStart = Date.now();
     try {
-      db.prepare('SELECT 1').get();
+      await db.prepare('SELECT 1').get();
       checks.database_connection = {
         status: 'pass',
         message: 'Database connected',
@@ -122,7 +122,7 @@ router.get('/health/deep', async (_req, res) => {
     for (const table of criticalTables) {
       const tableStart = Date.now();
       try {
-        const count = db.prepare(`SELECT COUNT(*) as count FROM ${table}`).get() as {
+        const count = (await db.prepare(`SELECT COUNT(*) as count FROM ${table}`).get()) as {
           count: number;
         };
         if (count.count > 0) {
@@ -148,7 +148,7 @@ router.get('/health/deep', async (_req, res) => {
     // 4. Test a real query
     const queryStart = Date.now();
     try {
-      const entity = db
+      const entity = await db
         .prepare('SELECT id, full_name FROM entities WHERE mentions > 0 LIMIT 1')
         .get();
       if (entity) {

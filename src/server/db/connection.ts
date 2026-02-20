@@ -109,7 +109,12 @@ class DatabaseBridge {
         if (usePostgres && this.apiPg) {
           return this.executePostgres(sql, 'all', args[0]);
         }
-        const result = sqliteStmt.all(...args);
+        let result;
+        if (args.length === 0) {
+          result = sqliteStmt.all();
+        } else {
+          result = sqliteStmt.all(...args);
+        }
         if (shadowMode && this.apiPg) {
           this.executePostgres(sql, 'all', args[0]).catch(() => {});
         }
@@ -119,7 +124,12 @@ class DatabaseBridge {
         if (usePostgres && this.apiPg) {
           return this.executePostgres(sql, 'get', args[0]);
         }
-        const result = sqliteStmt.get(...args);
+        let result;
+        if (args.length === 0) {
+          result = sqliteStmt.get();
+        } else {
+          result = sqliteStmt.get(...args);
+        }
         if (shadowMode && this.apiPg) {
           this.executePostgres(sql, 'get', args[0]).catch(() => {});
         }
@@ -131,6 +141,9 @@ class DatabaseBridge {
 
         if (process.env.PG_WRITE_ENABLED === 'true' && targetPool) {
           shadowWorker.push(sql, args[0]);
+        }
+        if (args.length === 0) {
+          return sqliteStmt.run();
         }
         return sqliteStmt.run(...args);
       },

@@ -1,7 +1,7 @@
 import fs from 'fs';
 import { getDb } from '../db/connection.js';
 
-export function validateStartup() {
+export async function validateStartup() {
   console.log('[Startup] Validating environment and configuration...');
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -40,10 +40,10 @@ export function validateStartup() {
     // Note: 'relationships' might be 'entity_relationships' depending on schema version.
     // We check what we have.
 
-    const existingTables = db
+    const existingTablesRaw = await db
       .prepare("SELECT name FROM sqlite_master WHERE type='table'")
-      .all()
-      .map((r: any) => r.name);
+      .all();
+    const existingTables = existingTablesRaw.map((r: any) => r.name);
 
     // Check critical tables
     if (!existingTables.includes('entities')) errors.push('Missing critical table: entities');

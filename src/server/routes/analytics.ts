@@ -163,24 +163,34 @@ router.get('/enhanced', async (_req, res, next) => {
       redactionStats,
       topRelationships,
       totalCounts: {
-        entities: db
-          .prepare('SELECT COUNT(*) as count FROM entities WHERE COALESCE(junk_flag, 0) = 0')
-          .get().count,
-        documents: db.prepare('SELECT COUNT(*) as count FROM documents').get().count,
-        evidenceFiles: db
-          .prepare('SELECT COUNT(*) as count FROM documents WHERE evidence_type IS NOT NULL')
-          .get().count,
-        relationships: db.prepare('SELECT COUNT(*) as count FROM entity_relationships').get().count,
+        entities: (
+          await db
+            .prepare('SELECT COUNT(*) as count FROM entities WHERE COALESCE(junk_flag, 0) = 0')
+            .get()
+        ).count,
+        documents: (await db.prepare('SELECT COUNT(*) as count FROM documents').get()).count,
+        evidenceFiles: (
+          await db
+            .prepare('SELECT COUNT(*) as count FROM documents WHERE evidence_type IS NOT NULL')
+            .get()
+        ).count,
+        relationships: (
+          await db.prepare('SELECT COUNT(*) as count FROM entity_relationships').get()
+        ).count,
       },
       reconciliation: {
-        unclassifiedCount: db
-          .prepare('SELECT COUNT(*) as count FROM documents WHERE evidence_type IS NULL')
-          .get().count,
-        unknownDateCount: db
-          .prepare(
-            "SELECT COUNT(*) as count FROM documents WHERE date_created IS NULL OR length(date_created) < 7 OR date_created > '2026-12-31'",
-          )
-          .get().count,
+        unclassifiedCount: (
+          await db
+            .prepare('SELECT COUNT(*) as count FROM documents WHERE evidence_type IS NULL')
+            .get()
+        ).count,
+        unknownDateCount: (
+          await db
+            .prepare(
+              "SELECT COUNT(*) as count FROM documents WHERE date_created IS NULL OR length(date_created) < 7 OR date_created > '2026-12-31'",
+            )
+            .get()
+        ).count,
       },
       generatedAt: new Date().toISOString(),
     });

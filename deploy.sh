@@ -49,7 +49,6 @@ set -e
 cd /home/deploy/epstein-archive
 pm2 stop epstein-archive || true
 pm2 delete epstein-archive || true
-rm -f epstein-archive.db-wal epstein-archive.db-shm epstein-archive.db-journal
 pm2 start ecosystem.config.cjs --only epstein-archive --env production
 CMD
 }
@@ -104,7 +103,6 @@ perform_rollback() {
     if [ \"$DEPLOY_DB\" = true ] && [ -f epstein-archive.db.bak ]; then
       echo 'Restoring database backup...'
       mv -f epstein-archive.db.bak epstein-archive.db
-      rm -f epstein-archive.db-wal epstein-archive.db-shm epstein-archive.db-journal
     fi
 
     if [ \"$DB_ONLY\" = false ] && [ -f .rollback_commit ]; then
@@ -208,8 +206,7 @@ if [ "$DEPLOY_DB" = true ]; then
       set -e
       cd ${PRODUCTION_PATH}
       pm2 stop epstein-archive || true
-      sleep 2
-      rm -f epstein-archive.db-wal epstein-archive.db-shm epstein-archive.db-journal
+      sleep 5
       cp -f epstein-archive.db epstein-archive.db.bak
       mv -f epstein-archive.db.new epstein-archive.db
     "

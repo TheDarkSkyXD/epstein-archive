@@ -26,10 +26,15 @@ export function getDb(): any {
     verbose: process.env.NODE_ENV === 'development' ? console.log : undefined,
   });
 
-  // Performance Pragmas
+  // Performance & Reliability Pragmas
   dbInstance.pragma('journal_mode = WAL');
   dbInstance.pragma('foreign_keys = ON');
-  dbInstance.pragma('synchronous = NORMAL');
+
+  // Use FULL synchronicity in production for data safety on cloud storage.
+  // NORMAL is faster but can lead to corruption on power failure/OS crash.
+  const isProd = process.env.NODE_ENV === 'production';
+  dbInstance.pragma(`synchronous = ${isProd ? 'FULL' : 'NORMAL'}`);
+
   dbInstance.pragma('temp_store = MEMORY');
 
   // Optional: Optimize memory mapping

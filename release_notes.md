@@ -1,3 +1,15 @@
+## v14.0.1 - 2026-02-20 - Database Reliability & Hardening Patch
+
+### Persistence Reliability
+
+- **Hardened SQLite Synchronicity**: Switched to `synchronous = FULL` in production to eliminate potential database corruption during power failures or OS crashes on network-attached storage.
+- **Safe Resource Management**: Removed dangerous manual deletion of SQLite WAL/SHM files from deployment and rollback scripts. These internal recovery files are now managed strictly by the SQLite engine, preventing mandatory recovery failures.
+- **Graceful Shutdown Hardening**: Increased deployment shutdown buffer to 5 seconds to ensure all database handles are cleanly released before process termination.
+
+### Automated Maintenance
+
+- **Periodic WAL Checkpointing**: Implemented a background maintenance task that triggers a `PASSIVE` checkpoint every 30 minutes, preventing Write-Ahead Log bloat without blocking active investigative writes.
+
 ## v14.0.0 - 2026-02-19 - Forensic Analytics & Network Intelligence
 
 ### Interactive Entity Map (Phase 12)

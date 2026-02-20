@@ -4723,6 +4723,22 @@ const server = app.listen(config.apiPort, () => {
     .then(() => console.log('✅ FTS Maintenance complete'))
     .catch((err) => console.error('❌ FTS Maintenance failed:', err));
 
+  // PERIODIC DATABASE MAINTENANCE (WAL Checkpointing)
+  // Run every 30 minutes in production to prevent WAL bloat
+  const CHECKPOINT_INTERVAL = 30 * 60 * 1000;
+  setInterval(() => {
+    try {
+      const db = getDb();
+      // PASSIVE checkpoint: try to merge as many frames as possible without blocking others
+      db.pragma('wal_checkpoint(PASSIVE)');
+      console.log(
+        `${new Date().toISOString()} [MAINTENANCE] SQLite WAL checkpoint (PASSIVE) completed.`,
+      );
+    } catch (err) {
+      console.error('⚠️ [MAINTENANCE] SQLite WAL checkpoint failed:', err);
+    }
+  }, CHECKPOINT_INTERVAL);
+
   // Log startup diagnostics for debugging
   console.log('--- Startup Warnings ---');
   const isProduction = process.env.NODE_ENV === 'production';

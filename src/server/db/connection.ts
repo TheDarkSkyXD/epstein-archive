@@ -208,6 +208,12 @@ export function getDb(): any {
   sqliteInstance.pragma('journal_mode = WAL');
   sqliteInstance.pragma('foreign_keys = ON');
 
+  // High-performance Pragmas for production read-heavy workloads
+  sqliteInstance.pragma('synchronous = NORMAL');
+  sqliteInstance.pragma('temp_store = MEMORY');
+  sqliteInstance.pragma('mmap_size = 30000000000'); // 30GB memmap
+  sqliteInstance.pragma('cache_size = -2000000'); // 2GB page cache
+
   if (process.env.DATABASE_URL?.startsWith('postgres')) {
     // API Pool: High performance, tight timeouts
     apiPool = new pg.Pool({

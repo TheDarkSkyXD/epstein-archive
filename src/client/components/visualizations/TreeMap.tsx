@@ -29,7 +29,7 @@ export const TreeMap: React.FC<TreeMapProps> = ({ people, onPersonClick }) => {
       const type = (p.type || p.entity_type || '').toLowerCase();
       return type === 'person' || type === '' || !type;
     })
-    .filter((p) => (p.name || p.full_name) && !filterPeopleOnly([p as any]).length === 0)
+    .filter((p) => (p.name || p.full_name) && filterPeopleOnly([p as any]).length > 0)
     .sort((a, b) => Number(b.mentions || 0) - Number(a.mentions || 0))
     .slice(0, 50)
     .map((p) => ({

@@ -371,7 +371,7 @@ const BASE_VIP_RULES: VipRule[] = [
       category: 'Complicit',
       riskLevel: 'high',
       birthDate: '1956-12-27',
-      bio: 'Former Barclays CEO and JPMorgan executive. Managed Epstein’s accounts. Exchanged thousands of emails with Epstein.',
+      bio: 'Former Barclays CEO and JPMorgan executive. Managed Epstein’s accounts. Exchanged thousands of emails with Epstein. Allegations include that he liked his victims to dress up as Disney characters like Snow White, Tinkerbell and Belle from Beauty and the Beast.',
     },
   },
   {

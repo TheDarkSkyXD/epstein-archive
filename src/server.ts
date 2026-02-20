@@ -392,7 +392,7 @@ app.get('/api/health', (_req, res) => {
 });
 
 // Readiness endpoint: validates DB connectivity + critical tables + minimum data availability.
-app.get('/api/health/ready', (_req, res) => {
+app.get('/api/health/ready', async (_req, res) => {
   const startedAt = Date.now();
   try {
     const db = getDb();
@@ -404,26 +404,87 @@ app.get('/api/health/ready', (_req, res) => {
 
     // 2. Schema Presence (non-blocking)
     const requiredTables = ['entities', 'documents', 'entity_relationships'];
-    const tableRows = db
-      .prepare(
-        `SELECT name FROM sqlite_master WHERE type='table' AND name IN (${requiredTables.map(() => '?').join(',')})`,
-      )
-      .all(...requiredTables) as Array<{ name: string }>;
+    const isPostgres = process.env.DB_DIALECT === 'postgres';
 
-    const presentTables = new Set(tableRows.map((r) => r.name));
-    const isSchemaReady = requiredTables.every((t) => presentTables.has(t));
+    let isSchemaReady = false;
+    let presentTables: string[] = [];
+
+    if (isPostgres) {
+      // Postgres-native schema check
+      const tableCheck = await (
+        db.prepare(
+          `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ANY($1)`,
+        ) as any
+      ).all([requiredTables]);
+      presentTables = tableCheck.map((r: any) => r.table_name);
+      isSchemaReady = requiredTables.every((t) => presentTables.includes(t));
+    } else {
+      // SQLite-native schema check
+      const tableRows = db
+        .prepare(
+          `SELECT name FROM sqlite_master WHERE type='table' AND name IN (${requiredTables.map(() => '?').join(',')})`,
+        )
+        .all(...requiredTables) as Array<{ name: string }>;
+      presentTables = tableRows.map((r) => r.name);
+      isSchemaReady = requiredTables.every((t) => presentTables.includes(t));
+    }
 
     // 3. Fast Status Determination
-    // We avoid COUNT(*) on large tables here. Availability is assumed if schema is present and ping works.
-    const status = isSchemaReady ? 'ok' : 'degraded';
+    let isMigrationReady = true;
+    let fallbackReason = '';
+    let migrationMetrics = null;
+
+    if (isPostgres) {
+      // @ts-ignore - dynamic import may not resolve in strict TS mode
+      const { getMigrationMetrics } = await import('./db/connection.js');
+      migrationMetrics = await getMigrationMetrics();
+      // Check pool saturation
+      if (migrationMetrics.pools.api && migrationMetrics.pools.api.waiting > 10) {
+        isMigrationReady = false;
+        fallbackReason = 'api_pool_saturated';
+      }
+
+      // Check lag
+      try {
+        const sqlite = db.getSqlite();
+        const pgPool = db.getPg();
+
+        if (sqlite && pgPool) {
+          const sqliteMaxIdRes = sqlite
+            .prepare('SELECT MAX(id) as maxId FROM migration_write_log')
+            .get();
+          const sqliteMaxId = sqliteMaxIdRes ? sqliteMaxIdRes.maxId : 0;
+
+          const pgWatermarkRes = await pgPool.query(
+            'SELECT MIN(last_record_id) as minWatermark FROM migration_watermarks',
+          );
+          const minWatermark = parseInt(pgWatermarkRes.rows[0].minwatermark || '0');
+
+          if (sqliteMaxId - minWatermark > 1000) {
+            isMigrationReady = false;
+            fallbackReason = 'replay_lag_high';
+          }
+        }
+      } catch (err: any) {
+        // Just log, don't cascade fail if write_log doesn't exist yet
+        if (!err.message.includes('no such table')) {
+          console.error('[Health] Failed to check migration lag', err);
+        }
+      }
+    }
+
+    const status = isSchemaReady && isMigrationReady ? 'ok' : 'degraded';
     const code = status === 'ok' ? 200 : 503;
 
     return res.status(code).json({
       status,
       timestamp: new Date().toISOString(),
       checks: {
-        db: { ok: true, latencyMs: dbLatencyMs },
-        schema: { ready: isSchemaReady, present: Array.from(presentTables) },
+        db: { ok: true, latencyMs: dbLatencyMs, dialect: isPostgres ? 'postgres' : 'sqlite' },
+        schema: { ready: isSchemaReady, present: presentTables },
+        migration: migrationMetrics
+          ? { ready: isMigrationReady, reason: fallbackReason, metrics: migrationMetrics }
+          : undefined,
       },
       durationMs: Date.now() - startedAt,
     });

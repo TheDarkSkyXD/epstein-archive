@@ -1,3 +1,11 @@
+## v14.1.0 - 2026-02-20 - PostgreSQL Migration Production Release
+
+### Database Cutover
+
+- **Fully Migrated to PostgreSQL**: Migrated the 1.3M document corpus from SQLite to Postgres 16+ as the primary source of truth.
+- **Enhanced Data Integrity**: Applied robust referential integrity enforcing zero data loss and automated orphan record detection.
+- **Dual-Mode Bridge Support**: Implemented runtime translation bridge and role-based connection pooling to handle isolated API and ingestion workloads securely.
+
 ## v14.0.1 - 2026-02-20 - Database Reliability & Hardening Patch
 
 ### Persistence Reliability

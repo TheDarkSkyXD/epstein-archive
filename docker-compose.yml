@@ -6,12 +6,15 @@ services:
     restart: unless-stopped
     ports:
       - '3012:3012'
+    depends_on:
+      - db
     volumes:
       - ./data:/data
       - ./epstein-archive.db:/app/epstein-archive.db:ro
     environment:
       - NODE_ENV=production
       - API_PORT=3012
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-epstein}:${POSTGRES_PASSWORD:-epstein}@db:5432/${POSTGRES_DB:-epstein_archive}
       - DB_PATH=/app/epstein-archive.db
       - LOG_LEVEL=info
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
@@ -22,3 +25,25 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  db:
+    image: postgres:16-alpine
+    container_name: epstein-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-epstein}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-epstein}
+      - POSTGRES_DB=${POSTGRES_DB:-epstein_archive}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - '5435:5432'
+    healthcheck:
+      test:
+        ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-epstein} -d ${POSTGRES_DB:-epstein_archive}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

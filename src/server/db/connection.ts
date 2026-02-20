@@ -92,6 +92,10 @@ class DatabaseBridge {
     return this.sqlite.pragma(sql);
   }
 
+  exec(sql: string) {
+    return this.sqlite.exec(sql);
+  }
+
   prepare(sql: string) {
     const sqliteStmt = this.sqlite.prepare(sql);
     const usePostgres =
@@ -173,6 +177,12 @@ class DatabaseBridge {
 
   transaction(fn: any) {
     return this.sqlite.transaction(fn);
+  }
+
+  close() {
+    this.sqlite.close();
+    if (this.apiPg) this.apiPg.end();
+    if (this.ingressPg) this.ingressPg.end();
   }
 }
 

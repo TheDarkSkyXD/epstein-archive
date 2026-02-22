@@ -153,7 +153,7 @@ const buildPreview = (doc: {
 };
 
 export const documentsRepository = {
-  getDocuments: (
+  getDocuments: async (
     page: number = 1,
     limit: number = 50,
     filters: {
@@ -262,7 +262,7 @@ export const documentsRepository = {
     const offset = (page - 1) * limit;
 
     const countQuery = `SELECT COUNT(*) as total FROM documents ${whereClause}`;
-    const totalResult = db.prepare(countQuery).get(...params) as { total: number };
+    const totalResult = (await db.prepare(countQuery).get(...params)) as { total: number };
 
     const sql = `
       SELECT 
@@ -286,7 +286,7 @@ export const documentsRepository = {
       LIMIT ? OFFSET ?
     `;
 
-    const rawDocuments = db.prepare(sql).all(...params, limit, offset) as Array<
+    const rawDocuments = (await db.prepare(sql).all(...params, limit, offset)) as Array<
       Record<string, any>
     >;
 
@@ -295,7 +295,7 @@ export const documentsRepository = {
 
     if (docIds.length > 0) {
       const placeholders = docIds.map(() => '?').join(',');
-      const entityRows = db
+      const entityRows = (await db
         .prepare(
           `
           WITH ranked_entities AS (
@@ -318,7 +318,7 @@ export const documentsRepository = {
           ORDER BY documentId ASC, rankWithinDoc ASC
         `,
         )
-        .all(...docIds) as Array<{ documentId: number; entityName: string }>;
+        .all(...docIds)) as Array<{ documentId: number; entityName: string }>;
 
       for (const row of entityRows) {
         const existing = entitiesByDoc.get(row.documentId) || [];

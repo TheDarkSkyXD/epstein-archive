@@ -8,7 +8,7 @@ const router = Router();
 router.get('/transactions', authenticateRequest, async (req, res, next) => {
   try {
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
-    const transactions = financialRepository.getTransactions(limit);
+    const transactions = await financialRepository.getTransactions(limit);
     res.json(transactions);
   } catch (error) {
     next(error);
@@ -18,7 +18,7 @@ router.get('/transactions', authenticateRequest, async (req, res, next) => {
 // Get financial statistics/summary
 router.get('/stats', authenticateRequest, async (req, res, next) => {
   try {
-    const summary = financialRepository.getFinancialSummary();
+    const summary = await financialRepository.getFinancialSummary();
     res.json(summary);
   } catch (error) {
     next(error);
@@ -28,7 +28,7 @@ router.get('/stats', authenticateRequest, async (req, res, next) => {
 // Seed some mock data if empty (for demonstration in the workspace)
 router.post('/seed', authenticateRequest, async (req, res, next) => {
   try {
-    const existing = financialRepository.getTransactions(1);
+    const existing = await financialRepository.getTransactions(1);
     if (existing.length > 0) {
       return res.json({ message: 'Database already has transaction data' });
     }
@@ -68,7 +68,7 @@ router.post('/seed', authenticateRequest, async (req, res, next) => {
     ];
 
     for (const tx of mockTxs) {
-      financialRepository.saveTransaction(tx as any);
+      await financialRepository.saveTransaction(tx as any);
     }
 
     res.json({ success: true, count: mockTxs.length });

@@ -7,7 +7,7 @@ const router = Router();
 // Aggregated forensic metrics summary
 router.get('/metrics-summary', authenticateRequest, async (req, res, next) => {
   try {
-    const summary = forensicRepository.getMetricsSummary();
+    const summary = await forensicRepository.getMetricsSummary();
     res.json(summary);
   } catch (error) {
     next(error);

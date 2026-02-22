@@ -99,8 +99,9 @@ export const investigationsRepository = {
 
     const countQuery = `SELECT COUNT(*) as total FROM investigations ${whereClause}`;
 
-    const investigations = db.prepare(query).all({ ...params, limit, offset }) as any[];
-    const { total } = db.prepare(countQuery).get(params) as { total: number };
+    const investigations = (await db.prepare(query).all({ ...params, limit, offset })) as any[];
+    const totalRow = (await db.prepare(countQuery).get(params)) as { total: number };
+    const total = totalRow?.total || 0;
 
     return {
       data: investigations.map((inv) => mapInvestigation(inv)),
@@ -122,15 +123,16 @@ export const investigationsRepository = {
     const stmt = db.prepare(`
       INSERT INTO investigations (title, description, owner_id, scope, collaborator_ids)
       VALUES (@title, @description, @ownerId, @scope, @collaboratorIds)
+      RETURNING id
     `);
 
-    const result = stmt.run({
+    const result = (await stmt.run({
       title: data.title,
       description: data.description || null,
       ownerId: data.ownerId,
       scope: data.scope || null,
       collaboratorIds: JSON.stringify(data.collaboratorIds || []),
-    });
+    })) as any;
 
     return investigationsRepository.getInvestigationById(result.lastInsertRowid as number);
   },
@@ -138,7 +140,7 @@ export const investigationsRepository = {
   getInvestigationById: async (id: number | string) => {
     const db = getDb();
     // Support uuid or id? Logic used ID mostly.
-    const inv = db
+    const inv = (await db
       .prepare(
         `
       SELECT id, uuid, title, description, owner_id, collaborator_ids, 
@@ -146,7 +148,7 @@ export const investigationsRepository = {
       FROM investigations WHERE id = ?
     `,
       )
-      .get(id) as any;
+      .get(id)) as any;
 
     if (!inv) return null;
     return mapInvestigation(inv);
@@ -154,7 +156,7 @@ export const investigationsRepository = {
 
   getInvestigationByUuid: async (uuid: string) => {
     const db = getDb();
-    const inv = db
+    const inv = (await db
       .prepare(
         `
       SELECT id, uuid, title, description, owner_id, collaborator_ids, 
@@ -162,7 +164,7 @@ export const investigationsRepository = {
       FROM investigations WHERE uuid = ?
     `,
       )
-      .get(uuid) as any;
+      .get(uuid)) as any;
 
     if (!inv) return null;
     return mapInvestigation(inv);
@@ -170,7 +172,7 @@ export const investigationsRepository = {
 
   deleteInvestigation: async (id: number) => {
     const db = getDb();
-    const result = db.prepare('DELETE FROM investigations WHERE id = ?').run(id);
+    const result = await db.prepare('DELETE FROM investigations WHERE id = ?').run(id);
     return result.changes > 0;
   },
 
@@ -201,17 +203,17 @@ export const investigationsRepository = {
     `;
 
     if (hasPagination) {
-      const rows = db
+      const rows = (await db
         .prepare(
           `
         ${baseQuery}
         LIMIT ? OFFSET ?
       `,
         )
-        .all(investigationId, limit, offset);
-      const totalRow = db
+        .all(investigationId, limit, offset)) as any[];
+      const totalRow = (await db
         .prepare(`SELECT COUNT(*) as total FROM investigation_evidence WHERE investigation_id = ?`)
-        .get(investigationId) as { total: number };
+        .get(investigationId)) as { total: number };
       return {
         data: rows,
         total: totalRow?.total || 0,
@@ -220,7 +222,7 @@ export const investigationsRepository = {
       };
     }
 
-    return db.prepare(baseQuery).all(investigationId);
+    return (await db.prepare(baseQuery).all(investigationId)) as any[];
   },
 
   addEvidence: async (investigationId: number, data: any) => {
@@ -242,9 +244,9 @@ export const investigationsRepository = {
 
     // Check if evidence already exists by source_path
     let evidenceId;
-    const existingEvidence = db
+    const existingEvidence = (await db
       .prepare('SELECT id FROM evidence WHERE source_path = ?')
-      .get(sourcePath);
+      .get(sourcePath)) as any;
 
     if (existingEvidence) {
       evidenceId = (existingEvidence as any).id;
@@ -258,36 +260,39 @@ export const investigationsRepository = {
                 original_filename,
                 created_at,
                 red_flag_rating
-            ) VALUES (?, ?, ?, ?, ?, datetime('now'), ?)
+            ) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
+            RETURNING id
         `);
 
-      const result = insertEvidence.run(
+      const result = (await insertEvidence.run(
         title,
         description,
         type,
         sourcePath,
         title, // original_filename fallback
         evidenceData.red_flag_rating || 0,
-      );
+      )) as any;
       evidenceId = result.lastInsertRowid;
     }
 
     // 2. Link to Investigation in `investigation_evidence`
     const stmt = db.prepare(`
-      INSERT OR IGNORE INTO investigation_evidence (
+      INSERT INTO investigation_evidence (
         investigation_id, evidence_id, notes, relevance, added_at, added_by
       ) VALUES (
-        @investigation_id, @evidence_id, @notes, @relevance, datetime('now'), @added_by
+        @investigation_id, @evidence_id, @notes, @relevance, CURRENT_TIMESTAMP, @added_by
       )
+      ON CONFLICT DO NOTHING
+      RETURNING id
     `);
 
-    const result = stmt.run({
+    const result = (await stmt.run({
       investigation_id: investigationId,
       evidence_id: evidenceId,
       notes: evidenceData.notes || '',
       relevance: relevance,
       added_by: 'user',
-    });
+    })) as any;
 
     // Log the activity
     try {
@@ -303,16 +308,16 @@ export const investigationsRepository = {
       console.warn('Failed to log activity:', e);
     }
 
-    return result.lastInsertRowid;
+    return result?.lastInsertRowid || evidenceId;
   },
 
-  getTimelineEvents: (investigationId: number) => {
+  getTimelineEvents: async (investigationId: number) => {
     const db = getDb();
-    return db
+    return (await db
       .prepare(
         'SELECT * FROM investigation_timeline_events WHERE investigation_id = ? ORDER BY start_date ASC',
       )
-      .all(investigationId);
+      .all(investigationId)) as any[];
   },
 
   addTimelineEvent: async (investigationId: number, data: any) => {
@@ -323,15 +328,16 @@ export const investigationsRepository = {
       ) VALUES (
         @investigation_id, @title, @description, @type, @start_date, @end_date
       )
+      RETURNING id
     `);
-    const result = stmt.run({
+    const result = (await stmt.run({
       investigation_id: investigationId,
       title: data.title || '',
       description: data.description || '',
       type: data.type || 'document',
       start_date: data.startDate || '',
       end_date: data.endDate || null,
-    });
+    })) as any;
     return result.lastInsertRowid;
   },
 
@@ -350,7 +356,7 @@ export const investigationsRepository = {
       WHERE id = @id
     `);
 
-    const result = stmt.run({
+    const result = (await stmt.run({
       id: eventId,
       title: data.title,
       description: data.description,
@@ -360,13 +366,13 @@ export const investigationsRepository = {
       confidence: data.confidence,
       entities: data.entities ? JSON.stringify(data.entities) : null,
       documents: data.documents ? JSON.stringify(data.documents) : null,
-    });
+    })) as any;
     return result.changes > 0;
   },
 
   deleteTimelineEvent: async (eventId: number) => {
     const db = getDb();
-    const result = db
+    const result = await db
       .prepare('DELETE FROM investigation_timeline_events WHERE id = ?')
       .run(eventId);
     return result.changes > 0;
@@ -374,11 +380,11 @@ export const investigationsRepository = {
 
   getChainOfCustody: async (evidenceId: number) => {
     const db = getDb();
-    return db
+    return (await db
       .prepare(
         'SELECT id, evidence_id, date, actor, action, notes, signature FROM chain_of_custody WHERE evidence_id = ? ORDER BY date ASC',
       )
-      .all(evidenceId);
+      .all(evidenceId)) as any[];
   },
 
   addChainOfCustody: async (data: any) => {
@@ -386,14 +392,14 @@ export const investigationsRepository = {
     const stmt = db.prepare(
       'INSERT INTO chain_of_custody (evidence_id, date, actor, action, notes, signature) VALUES (?,?,?,?,?,?)',
     );
-    const result = stmt.run(
+    const result = (await stmt.run(
       data.evidenceId,
       new Date().toISOString(),
       data.actor || 'system',
       data.action || 'analyzed',
       data.notes || '',
       data.signature || null,
-    );
+    )) as any;
     return result.lastInsertRowid;
   },
 
@@ -433,28 +439,30 @@ export const investigationsRepository = {
 
     if (fields.length === 0) return investigationsRepository.getInvestigationById(id);
 
-    db.prepare(
-      `
+    await db
+      .prepare(
+        `
       UPDATE investigations 
       SET ${fields.join(', ')}
       WHERE id = @id
     `,
-    ).run(params);
+      )
+      .run(params);
 
     return investigationsRepository.getInvestigationById(id);
   },
 
   getNotebook: async (investigationId: number) => {
     const db = getDb();
-    const row = db
+    const row = (await db
       .prepare(
         `
-      SELECT investigation_id as investigationId, order_json as orderJson, annotations_json as annotationsJson, updated_at as updatedAt
+      SELECT investigation_id as "investigationId", order_json as "orderJson", annotations_json as "annotationsJson", updated_at as "updatedAt"
       FROM investigation_notebook
       WHERE investigation_id = ?
     `,
       )
-      .get(investigationId) as any;
+      .get(investigationId)) as any;
     if (!row) {
       return { investigationId, order: [], annotations: [], updatedAt: null };
     }
@@ -478,26 +486,30 @@ export const investigationsRepository = {
     payload: { order?: number[]; annotations?: any[] },
   ) => {
     const db = getDb();
-    const existing = db
+    const existing = (await db
       .prepare(`SELECT investigation_id FROM investigation_notebook WHERE investigation_id = ?`)
-      .get(investigationId);
+      .get(investigationId)) as any;
     const orderJson = JSON.stringify(payload.order || []);
     const annotationsJson = JSON.stringify(payload.annotations || []);
     if (existing) {
-      db.prepare(
-        `
+      await db
+        .prepare(
+          `
         UPDATE investigation_notebook
-        SET order_json = ?, annotations_json = ?, updated_at = datetime('now')
+        SET order_json = ?, annotations_json = ?, updated_at = CURRENT_TIMESTAMP
         WHERE investigation_id = ?
       `,
-      ).run(orderJson, annotationsJson, investigationId);
+        )
+        .run(orderJson, annotationsJson, investigationId);
     } else {
-      db.prepare(
-        `
+      await db
+        .prepare(
+          `
         INSERT INTO investigation_notebook (investigation_id, order_json, annotations_json, updated_at)
-        VALUES (?, ?, ?, datetime('now'))
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
       `,
-      ).run(investigationId, orderJson, annotationsJson);
+        )
+        .run(investigationId, orderJson, annotationsJson);
     }
     return true;
   },
@@ -506,13 +518,13 @@ export const investigationsRepository = {
 
   getHypotheses: async (investigationId: number) => {
     const db = getDb();
-    const hypotheses = db
+    const hypotheses = (await db
       .prepare(`SELECT * FROM hypotheses WHERE investigation_id = ? ORDER BY created_at DESC`)
-      .all(investigationId) as any[];
+      .all(investigationId)) as any[];
 
     // Include evidence for each hypothesis
     for (const hyp of hypotheses) {
-      hyp.evidenceLinks = db
+      hyp.evidenceLinks = (await db
         .prepare(
           `
         SELECT he.*, e.title as evidence_title, e.evidence_type 
@@ -521,22 +533,22 @@ export const investigationsRepository = {
         WHERE he.hypothesis_id = ?
       `,
         )
-        .all(hyp.id);
+        .all(hyp.id)) as any[];
     }
     return hypotheses;
   },
 
   addHypothesis: async (investigationId: number, data: { title: string; description?: string }) => {
     const db = getDb();
-    const result = db
+    const result = (await db
       .prepare(
-        `INSERT INTO hypotheses (investigation_id, title, description) VALUES (@invId, @title, @desc)`,
+        `INSERT INTO hypotheses (investigation_id, title, description) VALUES (@invId, @title, @desc) RETURNING id`,
       )
       .run({
         invId: investigationId,
         title: data.title,
         desc: data.description || '',
-      });
+      })) as any;
     return result.lastInsertRowid;
   },
 
@@ -569,7 +581,7 @@ export const investigationsRepository = {
 
     if (sets.length === 1) return true; // only updated_at
 
-    const result = db
+    const result = await db
       .prepare(`UPDATE hypotheses SET ${sets.join(', ')} WHERE id = @id`)
       .run(params);
     return result.changes > 0;
@@ -577,7 +589,7 @@ export const investigationsRepository = {
 
   deleteHypothesis: async (id: number) => {
     const db = getDb();
-    const result = db.prepare('DELETE FROM hypotheses WHERE id = ?').run(id);
+    const result = await db.prepare('DELETE FROM hypotheses WHERE id = ?').run(id);
     return result.changes > 0;
   },
 
@@ -588,13 +600,13 @@ export const investigationsRepository = {
   ) => {
     const db = getDb();
     // Check if exists
-    const exists = db
+    const exists = (await db
       .prepare('SELECT id FROM hypothesis_evidence WHERE hypothesis_id = ? AND evidence_id = ?')
-      .get(hypothesisId, evidenceId);
+      .get(hypothesisId, evidenceId)) as any;
 
     if (exists) return (exists as any).id;
 
-    const result = db
+    const result = await db
       .prepare(
         `
       INSERT INTO hypothesis_evidence (hypothesis_id, evidence_id, relevance)
@@ -608,7 +620,7 @@ export const investigationsRepository = {
 
   removeEvidenceFromHypothesis: async (hypothesisId: number, evidenceId: number) => {
     const db = getDb();
-    const result = db
+    const result = await db
       .prepare('DELETE FROM hypothesis_evidence WHERE hypothesis_id = ? AND evidence_id = ?')
       .run(hypothesisId, evidenceId);
     return result.changes > 0;
@@ -632,8 +644,9 @@ export const investigationsRepository = {
         investigation_id, user_id, user_name, action_type, 
         target_type, target_id, target_title, metadata_json
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      RETURNING id
     `);
-    const result = stmt.run(
+    const result = (await stmt.run(
       data.investigationId,
       data.userId || 'anonymous',
       data.userName || 'Anonymous User',
@@ -642,13 +655,13 @@ export const investigationsRepository = {
       data.targetId || null,
       data.targetTitle || null,
       data.metadata ? JSON.stringify(data.metadata) : null,
-    );
+    )) as any;
     return result.lastInsertRowid;
   },
 
   getActivity: async (investigationId: number, limit = 50) => {
     const db = getDb();
-    return db
+    return (await db
       .prepare(
         `
       SELECT id, investigation_id, user_id, user_name, action_type,
@@ -659,13 +672,13 @@ export const investigationsRepository = {
       LIMIT ?
     `,
       )
-      .all(investigationId, limit) as any[];
+      .all(investigationId, limit)) as any[];
   },
 
   // Enhanced evidence retrieval with type breakdown
   getEvidenceByType: async (investigationId: number) => {
     const db = getDb();
-    const evidence = db
+    const evidence = (await db
       .prepare(
         `
       SELECT 
@@ -691,7 +704,7 @@ export const investigationsRepository = {
       ORDER BY ie.added_at DESC
     `,
       )
-      .all(investigationId) as any[];
+      .all(investigationId)) as any[];
 
     const enrichedEvidence = evidence.map((row) => {
       const { targetType, targetId } = inferEvidenceTarget(row);
@@ -740,7 +753,7 @@ export const investigationsRepository = {
     const evidenceLimit = Math.max(1, Math.min(200, options.evidenceLimit || 80));
     const hypothesisLimit = Math.max(1, Math.min(100, options.hypothesisLimit || 20));
 
-    const evidencePreview = db
+    const evidencePreview = (await db
       .prepare(
         `
       SELECT
@@ -758,9 +771,9 @@ export const investigationsRepository = {
       LIMIT ?
     `,
       )
-      .all(investigationId, evidenceLimit);
+      .all(investigationId, evidenceLimit)) as any[];
 
-    const hypothesesPreview = db
+    const hypothesesPreview = (await db
       .prepare(
         `
       SELECT id, title, description, status, confidence
@@ -770,9 +783,9 @@ export const investigationsRepository = {
       LIMIT ?
     `,
       )
-      .all(investigationId, hypothesisLimit);
+      .all(investigationId, hypothesisLimit)) as any[];
 
-    const counts = db
+    const counts = (await db
       .prepare(
         `
       SELECT
@@ -780,11 +793,11 @@ export const investigationsRepository = {
         (SELECT COUNT(*) FROM hypotheses WHERE investigation_id = @investigationId) as hypothesis_count
     `,
       )
-      .get({ investigationId }) as { evidence_count: number; hypothesis_count: number };
+      .get({ investigationId })) as { evidence_count: number; hypothesis_count: number };
 
     const notebook = await investigationsRepository.getNotebook(investigationId);
 
-    const revision = db
+    const revision = (await db
       .prepare(
         `
       SELECT MAX(rev) as revision FROM (
@@ -793,10 +806,10 @@ export const investigationsRepository = {
         SELECT added_at as rev FROM investigation_evidence WHERE investigation_id = @investigationId
         UNION ALL
         SELECT updated_at as rev FROM investigation_notebook WHERE investigation_id = @investigationId
-      )
+      ) as sub
     `,
       )
-      .get({ investigationId }) as { revision: string | null };
+      .get({ investigationId })) as { revision: string | null };
 
     return {
       investigationId,

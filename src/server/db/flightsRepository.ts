@@ -56,7 +56,7 @@ export const AIRPORT_COORDS: Record<string, { lat: number; lng: number; city: st
 };
 
 export const flightsRepository = {
-  getFlights: (
+  getFlights: async (
     filters: {
       page?: number;
       limit?: number;
@@ -96,7 +96,8 @@ export const flightsRepository = {
 
     // Get total count
     const countQuery = `SELECT COUNT(*) as total FROM flights f ${whereClause}`;
-    const { total } = db.prepare(countQuery).get(...params) as { total: number };
+    const totalRow = (await db.prepare(countQuery).get(...params)) as { total: number };
+    const total = totalRow.total;
 
     // Get flights
     const query = `
@@ -105,15 +106,15 @@ export const flightsRepository = {
       ORDER BY f.date DESC
       LIMIT ? OFFSET ?
     `;
-    const flights = db.prepare(query).all(...params, limit, offset) as Flight[];
+    const flights = (await db.prepare(query).all(...params, limit, offset)) as Flight[];
 
     // Get passengers for each flight
-    const passengerQuery = db.prepare(`
+    const passengerStmt = db.prepare(`
       SELECT * FROM flight_passengers WHERE flight_id = ?
     `);
 
     for (const flight of flights) {
-      flight.passengers = passengerQuery.all(flight.id) as FlightPassenger[];
+      flight.passengers = (await passengerStmt.all(flight.id)) as FlightPassenger[];
     }
 
     return {
@@ -125,33 +126,37 @@ export const flightsRepository = {
     };
   },
 
-  getFlightById: (id: number): Flight | null => {
+  getFlightById: async (id: number): Promise<Flight | null> => {
     const db = getDb();
-    const flight = db.prepare('SELECT * FROM flights WHERE id = ?').get(id) as Flight | undefined;
+    const flight = (await db.prepare('SELECT * FROM flights WHERE id = ?').get(id)) as
+      | Flight
+      | undefined;
 
     if (!flight) return null;
 
-    flight.passengers = db
+    flight.passengers = (await db
       .prepare('SELECT * FROM flight_passengers WHERE flight_id = ?')
-      .all(id) as FlightPassenger[];
+      .all(id)) as FlightPassenger[];
 
     return flight;
   },
 
-  getFlightStats: (): FlightStats => {
+  getFlightStats: async (): Promise<FlightStats> => {
     const db = getDb();
 
     const totalFlights = (
-      db.prepare('SELECT COUNT(*) as count FROM flights').get() as { count: number }
+      (await db.prepare('SELECT COUNT(*) as count FROM flights').get()) as { count: number }
     ).count;
 
     const uniquePassengers = (
-      db.prepare('SELECT COUNT(DISTINCT passenger_name) as count FROM flight_passengers').get() as {
+      (await db
+        .prepare('SELECT COUNT(DISTINCT passenger_name) as count FROM flight_passengers')
+        .get()) as {
         count: number;
       }
     ).count;
 
-    const topPassengers = db
+    const topPassengers = (await db
       .prepare(
         `
       SELECT passenger_name as name, COUNT(*) as count
@@ -162,9 +167,9 @@ export const flightsRepository = {
       LIMIT 10
     `,
       )
-      .all() as { name: string; count: number }[];
+      .all()) as { name: string; count: number }[];
 
-    const topRoutes = db
+    const topRoutes = (await db
       .prepare(
         `
       SELECT departure_airport || ' → ' || arrival_airport as route, COUNT(*) as count
@@ -174,9 +179,9 @@ export const flightsRepository = {
       LIMIT 10
     `,
       )
-      .all() as { route: string; count: number }[];
+      .all()) as { route: string; count: number }[];
 
-    const flightsByYear = db
+    const flightsByYear = (await db
       .prepare(
         `
       SELECT substr(date, 1, 4) as year, COUNT(*) as count
@@ -185,10 +190,10 @@ export const flightsRepository = {
       ORDER BY year ASC
     `,
       )
-      .all() as { year: string; count: number }[];
+      .all()) as { year: string; count: number }[];
 
     // Get all airports used
-    const airports = db
+    const airports = (await db
       .prepare(
         `
       SELECT airport, SUM(cnt) as count FROM (
@@ -198,7 +203,7 @@ export const flightsRepository = {
       ) GROUP BY airport ORDER BY count DESC
     `,
       )
-      .all() as { airport: string; count: number }[];
+      .all()) as { airport: string; count: number }[];
 
     const airportsWithCity = airports.map((a) => ({
       code: a.airport,
@@ -216,10 +221,10 @@ export const flightsRepository = {
     };
   },
 
-  getPassengerFlights: (passengerName: string) => {
+  getPassengerFlights: async (passengerName: string) => {
     const db = getDb();
 
-    const flights = db
+    const flights = (await db
       .prepare(
         `
       SELECT f.*
@@ -229,20 +234,20 @@ export const flightsRepository = {
       ORDER BY f.date DESC
     `,
       )
-      .all(`%${passengerName}%`) as Flight[];
+      .all(`%${passengerName}%`)) as Flight[];
 
     // Get passengers for each flight
-    const passengerQuery = db.prepare('SELECT * FROM flight_passengers WHERE flight_id = ?');
+    const passengerStmt = db.prepare('SELECT * FROM flight_passengers WHERE flight_id = ?');
     for (const flight of flights) {
-      flight.passengers = passengerQuery.all(flight.id) as FlightPassenger[];
+      flight.passengers = (await passengerStmt.all(flight.id)) as FlightPassenger[];
     }
 
     return flights;
   },
 
-  getUniquePassengers: () => {
+  getUniquePassengers: async () => {
     const db = getDb();
-    return db
+    return (await db
       .prepare(
         `
       SELECT DISTINCT fp.passenger_name as name, fp.entity_id, COUNT(*) as flight_count
@@ -251,27 +256,29 @@ export const flightsRepository = {
       ORDER BY flight_count DESC
     `,
       )
-      .all() as { name: string; entity_id: number | null; flight_count: number }[];
+      .all()) as { name: string; entity_id: number | null; flight_count: number }[];
   },
 
-  getAirportCoords: () => {
+  getAirportCoords: async () => {
     return AIRPORT_COORDS;
   },
 
   /**
    * Get passenger co-occurrence matrix - who flew together and how often
    */
-  getPassengerCoOccurrences: (
+  getPassengerCoOccurrences: async (
     minFlights = 2,
-  ): {
-    passenger1: string;
-    passenger2: string;
-    flightsTogether: number;
-    firstFlight: string;
-    lastFlight: string;
-  }[] => {
+  ): Promise<
+    {
+      passenger1: string;
+      passenger2: string;
+      flightsTogether: number;
+      firstFlight: string;
+      lastFlight: string;
+    }[]
+  > => {
     const db = getDb();
-    return db
+    return (await db
       .prepare(
         `
       SELECT 
@@ -290,7 +297,7 @@ export const flightsRepository = {
       LIMIT 50
     `,
       )
-      .all(minFlights) as {
+      .all(minFlights)) as {
       passenger1: string;
       passenger2: string;
       flightsTogether: number;
@@ -302,11 +309,11 @@ export const flightsRepository = {
   /**
    * Get co-passengers for a specific person
    */
-  getCoPassengers: (
+  getCoPassengers: async (
     passengerName: string,
-  ): { name: string; flightsTogether: number; flights: string[] }[] => {
+  ): Promise<{ name: string; flightsTogether: number; flights: string[] }[]> => {
     const db = getDb();
-    const results = db
+    const results = (await db
       .prepare(
         `
       SELECT 
@@ -321,7 +328,7 @@ export const flightsRepository = {
       ORDER BY flightsTogether DESC
     `,
       )
-      .all(`%${passengerName}%`) as {
+      .all(`%${passengerName}%`)) as {
       name: string;
       flightsTogether: number;
       flightDates: string;
@@ -337,18 +344,20 @@ export const flightsRepository = {
   /**
    * Get most frequent routes
    */
-  getFrequentRoutes: (
+  getFrequentRoutes: async (
     limit = 20,
-  ): {
-    departure: string;
-    arrival: string;
-    departureCity: string;
-    arrivalCity: string;
-    count: number;
-    passengers: string[];
-  }[] => {
+  ): Promise<
+    {
+      departure: string;
+      arrival: string;
+      departureCity: string;
+      arrivalCity: string;
+      count: number;
+      passengers: string[];
+    }[]
+  > => {
     const db = getDb();
-    const routes = db
+    const routes = (await db
       .prepare(
         `
       SELECT 
@@ -365,7 +374,7 @@ export const flightsRepository = {
       LIMIT ?
     `,
       )
-      .all(limit) as {
+      .all(limit)) as {
       departure: string;
       arrival: string;
       departureCity: string;
@@ -387,14 +396,16 @@ export const flightsRepository = {
   /**
    * Get first and last flight dates for each passenger
    */
-  getPassengerDateRanges: (): {
-    name: string;
-    firstFlight: string;
-    lastFlight: string;
-    totalFlights: number;
-  }[] => {
+  getPassengerDateRanges: async (): Promise<
+    {
+      name: string;
+      firstFlight: string;
+      lastFlight: string;
+      totalFlights: number;
+    }[]
+  > => {
     const db = getDb();
-    return db
+    return (await db
       .prepare(
         `
       SELECT 
@@ -408,20 +419,22 @@ export const flightsRepository = {
       ORDER BY totalFlights DESC
     `,
       )
-      .all() as { name: string; firstFlight: string; lastFlight: string; totalFlights: number }[];
+      .all()) as { name: string; firstFlight: string; lastFlight: string; totalFlights: number }[];
   },
 
   /**
    * Get flights by aircraft
    */
-  getFlightsByAircraft: (): {
-    aircraft: string;
-    aircraftType: string;
-    flightCount: number;
-    passengerCount: number;
-  }[] => {
+  getFlightsByAircraft: async (): Promise<
+    {
+      aircraft: string;
+      aircraftType: string;
+      flightCount: number;
+      passengerCount: number;
+    }[]
+  > => {
     const db = getDb();
-    return db
+    return (await db
       .prepare(
         `
       SELECT 
@@ -435,7 +448,7 @@ export const flightsRepository = {
       ORDER BY flightCount DESC
     `,
       )
-      .all() as {
+      .all()) as {
       aircraft: string;
       aircraftType: string;
       flightCount: number;
@@ -446,11 +459,11 @@ export const flightsRepository = {
   /**
    * Get destination frequency by passenger
    */
-  getPassengerDestinations: (
+  getPassengerDestinations: async (
     passengerName: string,
-  ): { airport: string; city: string; visitCount: number }[] => {
+  ): Promise<{ airport: string; city: string; visitCount: number }[]> => {
     const db = getDb();
-    return db
+    return (await db
       .prepare(
         `
       SELECT 
@@ -464,6 +477,6 @@ export const flightsRepository = {
       ORDER BY visitCount DESC
     `,
       )
-      .all(`%${passengerName}%`) as { airport: string; city: string; visitCount: number }[];
+      .all(`%${passengerName}%`)) as { airport: string; city: string; visitCount: number }[];
   },
 };

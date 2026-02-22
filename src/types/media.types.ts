@@ -17,6 +17,7 @@ export interface ExifData {
 export interface MediaImage {
   id: number;
   filename: string;
+  file_name?: string;
   originalFilename: string;
   path: string;
   file_path?: string;
@@ -33,6 +34,8 @@ export interface MediaImage {
   dateTaken?: string;
   dateAdded: string;
   dateModified: string;
+  created_at?: string;
+  date_modified?: string;
 
   // EXIF data
   cameraMake?: string;

@@ -91,16 +91,10 @@ const KNOWN_COLLECTION_METADATA: Record<
 };
 
 // Helper function to avoid circular reference
-const getCollectionStatsHelper = (db: any) => {
+const getCollectionStatsHelper = async (db: any) => {
   try {
-    // Check if documents table exists
-    const tableCheck = db
-      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='documents'")
-      .get();
-    if (!tableCheck) return [];
-
     // Aggregate stats per collection
-    const rows = db
+    const rows = (await db
       .prepare(
         `
         SELECT 
@@ -111,7 +105,7 @@ const getCollectionStatsHelper = (db: any) => {
         GROUP BY source_collection
       `,
       )
-      .all() as { title: string; documentCount: number }[];
+      .all()) as { title: string; documentCount: number }[];
 
     return rows
       .map((row) => {
@@ -156,48 +150,16 @@ const getCollectionStatsHelper = (db: any) => {
 };
 
 export const statsRepository = {
-  getStatistics: () => {
+  getStatistics: async () => {
     const db = getDb();
 
-    // Check if optional tables exist to prevent total failure
-    const hasInvestigations = db
-      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='investigations'")
-      .get();
-    const hasDocuments = db
-      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='documents'")
-      .get();
-    const hasEntities = db
-      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='entities'")
-      .get();
-
-    if (!hasDocuments || !hasEntities) {
-      return {
-        totalEntities: 0,
-        totalDocuments: 0,
-        totalMentions: 0,
-        averageRedFlagRating: 0,
-        totalUniqueRoles: 0,
-        entitiesWithDocuments: 0,
-        documentsWithMetadata: 0,
-        documentsFixed: 0,
-        activeInvestigations: 0,
-        collectionStats: [],
-        topRoles: [],
-        likelihoodDistribution: [],
-        topEntities: [],
-        recentActivity: [],
-        pipeline_status: statsRepository.getPipelineProgress(),
-        enrichment_stats: statsRepository.getEnrichmentStats(),
-      };
-    }
-
-    const pipelineProgress = statsRepository.getPipelineProgress();
+    const pipelineProgress = await statsRepository.getPipelineProgress();
 
     // Aggregate stats - optimized to reduce table scans
     // We combine subqueries into single passes over the tables
 
     // 1. Entities Stats
-    const entitiesStats = db
+    const entitiesStats = (await db
       .prepare(
         `
       SELECT 
@@ -209,32 +171,34 @@ export const statsRepository = {
       FROM entities
     `,
       )
-      .get() as any;
+      .get()) as any;
 
     // 2. Documents Stats
-    const documentsStats = db
+    const documentsStats = (await db
       .prepare(
         `
       SELECT 
         COUNT(*) as totalDocuments,
-        COUNT(CASE WHEN metadata_json IS NOT NULL AND LENGTH(metadata_json) > 2 THEN 1 END) as documentsWithMetadata,
+        COUNT(CASE WHEN metadata_json IS NOT NULL AND (LENGTH(metadata_json::text) > 2 OR metadata_json::text <> '{}') THEN 1 END) as documentsWithMetadata,
         COUNT(CASE WHEN content_refined IS NOT NULL THEN 1 END) as documentsFixed
       FROM documents
     `,
       )
-      .get() as any;
+      .get()) as any;
 
-    // 3. Investigations Stats (if table exists)
+    // 3. Investigations Stats
     let activeInvestigations = 0;
-    if (hasInvestigations) {
-      const invStats = db
+    try {
+      const invStats = (await db
         .prepare(
           `
         SELECT COUNT(*) as count FROM investigations WHERE status = 'active' OR status = 'open'
       `,
         )
-        .get() as { count: number };
-      activeInvestigations = invStats.count;
+        .get()) as { count: number };
+      activeInvestigations = invStats?.count || 0;
+    } catch {
+      // Ignore if table missing
     }
 
     const stats = {
@@ -243,7 +207,7 @@ export const statsRepository = {
       activeInvestigations,
     };
 
-    const topRoles = db
+    const topRoles = (await db
       .prepare(
         `
       SELECT primary_role as role, COUNT(*) as count 
@@ -254,10 +218,10 @@ export const statsRepository = {
       LIMIT 10
     `,
       )
-      .all() as { role: string; count: number }[];
+      .all()) as { role: string; count: number }[];
 
     // Get red_flag_rating distribution (1-5 scale)
-    const redFlagDistribution = db
+    const redFlagDistribution = (await db
       .prepare(
         `
       SELECT red_flag_rating as rating, COUNT(*) as count
@@ -267,7 +231,7 @@ export const statsRepository = {
       ORDER BY red_flag_rating ASC
     `,
       )
-      .all() as { rating: number; count: number }[];
+      .all()) as { rating: number; count: number }[];
 
     // Compute likelihoodDistribution from red_flag_rating for better analytics
     const likelihoodDistribution = [
@@ -290,7 +254,7 @@ export const statsRepository = {
     // Get top entities by mentions - ONLY Person type, with VIP name consolidation
     // Uses CASE to consolidate known variants into canonical names
     // AGGRESSIVE consolidation - only allow exact person references, not phrases
-    const topEntities = db
+    const topEntities = (await db
       .prepare(
         `
       SELECT 
@@ -330,7 +294,6 @@ export const statsRepository = {
         SUM(mentions) as mentions,
         MAX(red_flag_rating) as redFlagRating,
         MAX(bio) as bio,
-        MAX(title) as title,
         MAX(primary_role) as primaryRole,
         MAX(entity_type) as entityType,
         MAX(red_flag_description) as redFlagDescription
@@ -361,7 +324,6 @@ export const statsRepository = {
       AND full_name NOT LIKE '%York%'
       AND full_name NOT LIKE '% Times'
       AND length(full_name) > 3
-      AND full_name NOT GLOB '*[0-9]*'
       -- Additional junk filters for banking terms, companies, truncated names
       AND full_name NOT LIKE '%Pricing'
       AND full_name NOT LIKE '%Checking'
@@ -422,14 +384,12 @@ export const statsRepository = {
       AND full_name NOT LIKE '%We Deliver For%'
       AND full_name NOT LIKE '%Taxes Cellular%'
       AND full_name NOT LIKE '%Valuable Articles%'
-      -- Exclude names starting with lowercase (truncated/partial)
-      AND full_name NOT GLOB '[a-z]*'
       GROUP BY name
       ORDER BY mentions DESC
       LIMIT 30
     `,
       )
-      .all() as {
+      .all()) as {
       name: string;
       mentions: number;
       redFlagRating: number;
@@ -454,7 +414,7 @@ export const statsRepository = {
       topEntities,
       likelihoodDistribution,
       redFlagDistribution,
-      collectionCounts: db
+      collectionCounts: (await db
         .prepare(
           `
         SELECT source_collection, COUNT(*) as count 
@@ -463,13 +423,13 @@ export const statsRepository = {
         GROUP BY source_collection
       `,
         )
-        .all() as { source_collection: string; count: number }[],
-      collectionStats: getCollectionStatsHelper(db),
+        .all()) as { source_collection: string; count: number }[],
+      collectionStats: await getCollectionStatsHelper(db),
       pipeline_status: pipelineProgress,
     };
   },
 
-  getPipelineProgress: () => {
+  getPipelineProgress: async () => {
     const db = getDb();
     const datasets = [
       { id: '9', name: 'DOJ Data Set 9', target: 531217, folder: 'DOJVOL00009' },
@@ -478,37 +438,39 @@ export const statsRepository = {
       { id: '12', name: 'DOJ Data Set 12', target: 202, folder: 'DOJVOL00012' },
     ];
 
-    const results = datasets.map((ds) => {
-      // Ingestion status from DB
-      let ingested =
-        (
-          db
-            .prepare('SELECT COUNT(*) as count FROM documents WHERE source_collection = ?')
-            .get(ds.name) as { count: number }
-        )?.count || 0;
+    const results = await Promise.all(
+      datasets.map(async (ds) => {
+        // Ingestion status from DB
+        let ingested =
+          (
+            (await db
+              .prepare('SELECT COUNT(*) as count FROM documents WHERE source_collection = ?')
+              .get(ds.name)) as { count: number }
+          )?.count || 0;
 
-      // Dataset 12 was ingested via the smaller referral enrichment flow rather than the bulk
-      // source_collection path used for Data Sets 9-11. Keep dashboard status aligned with
-      // known ingest completion to avoid false "0/202" reporting on About.
-      if (ds.id === '12' && ingested === 0) {
-        ingested = ds.target;
-      }
+        // Dataset 12 was ingested via the smaller referral enrichment flow rather than the bulk
+        // source_collection path used for Data Sets 9-11. Keep dashboard status aligned with
+        // known ingest completion to avoid false "0/202" reporting on About.
+        if (ds.id === '12' && ingested === 0) {
+          ingested = ds.target;
+        }
 
-      // For "downloaded" status, we'll use a heuristic or just track it if we have a table.
-      // Since we don't have a specific table for "discovered links vs downloaded files",
-      // and readdirSync might be slow/complex across volumes,
-      // we'll assume completed ingestion implies download is complete for those files.
-      // But for better UX, let's try to get a count from the DB where we might have registered them.
-      // If none, we'll use ingested as a floor.
+        // For "downloaded" status, we'll use a heuristic or just track it if we have a table.
+        // Since we don't have a specific table for "discovered links vs downloaded files",
+        // and readdirSync might be slow/complex across volumes,
+        // we'll assume completed ingestion implies download is complete for those files.
+        // But for better UX, let's try to get a count from the DB where we might have registered them.
+        // If none, we'll use ingested as a floor.
 
-      return {
-        id: ds.id,
-        name: ds.name,
-        target: ds.target,
-        ingested,
-        downloaded: ds.target, // Files are present on disk (symlinked), so acquisition is 100%
-      };
-    });
+        return {
+          id: ds.id,
+          name: ds.name,
+          target: ds.target,
+          ingested,
+          downloaded: ds.target,
+        };
+      }),
+    );
 
     // Calculate overall ETA
     // Remaining = Total Target - Total Ingested
@@ -520,15 +482,15 @@ export const statsRepository = {
     let throughput_docs_sec = 0;
     try {
       // Look at the last 5 minutes of activity
-      const recentProcessed = db
+      const recentProcessed = (await db
         .prepare(
           `
         SELECT COUNT(*) as count 
         FROM documents 
-        WHERE last_processed_at > datetime('now', '-5 minutes')
+        WHERE last_processed_at > CURRENT_TIMESTAMP - interval '5 minutes'
       `,
         )
-        .get() as { count: number };
+        .get()) as { count: number };
 
       if (recentProcessed && recentProcessed.count > 0) {
         throughput_docs_sec = recentProcessed.count / 300; // docs per second over 5 mins
@@ -538,16 +500,16 @@ export const statsRepository = {
     }
 
     // Fallback heuristic if no recent activity (e.g., just starting up) but workers are active
-    const activeWorkersRow = db
+    const activeWorkersRow = (await db
       .prepare(
         `
       SELECT COUNT(DISTINCT worker_id) as count 
       FROM documents 
       WHERE processing_status = 'processing' 
-        AND lease_expires_at > datetime('now')
+        AND lease_expires_at > CURRENT_TIMESTAMP
     `,
       )
-      .get() as { count: number };
+      .get()) as { count: number };
 
     const activeWorkers = activeWorkersRow?.count || 0;
 
@@ -570,28 +532,28 @@ export const statsRepository = {
       last_updated: new Date().toISOString(),
     };
   },
-  getEnrichmentStats: () => {
+  getEnrichmentStats: async () => {
     const db = getDb();
     try {
-      const totals = db
+      const totals = (await db
         .prepare(
           `
         SELECT 
           (SELECT COUNT(*) FROM documents) as total_documents,
-          (SELECT COUNT(*) FROM documents WHERE metadata_json IS NOT NULL AND metadata_json <> '') as documents_with_metadata_json,
+          (SELECT COUNT(*) FROM documents WHERE metadata_json IS NOT NULL) as documents_with_metadata_json,
           (SELECT COUNT(*) FROM entities) as total_entities,
           0 as entities_with_mentions
       `,
         )
-        .get() as any;
+        .get()) as any;
 
       let last = null;
       try {
-        last = db
+        last = (await db
           .prepare(
             `SELECT finished_at FROM jobs WHERE job_type='relationships_recompute' AND status='success' ORDER BY finished_at DESC LIMIT 1`,
           )
-          .get() as any;
+          .get()) as any;
       } catch (_e) {
         // jobs table might not exist
       }
@@ -615,20 +577,20 @@ export const statsRepository = {
     }
   },
 
-  getAliasStats: () => {
+  getAliasStats: async () => {
     const db = getDb();
     try {
-      const mergesRow = db
+      const mergesRow = (await db
         .prepare(`SELECT COUNT(*) as merges FROM merge_log WHERE reason='alias_cluster'`)
-        .get() as any;
+        .get()) as any;
 
       let lastRow = null;
       try {
-        lastRow = db
+        lastRow = (await db
           .prepare(
             `SELECT finished_at FROM jobs WHERE job_type='alias_cluster' AND status='success' ORDER BY finished_at DESC LIMIT 1`,
           )
-          .get() as any;
+          .get()) as any;
       } catch (_e) {
         // jobs table might not exist
       }
@@ -648,11 +610,11 @@ export const statsRepository = {
     }
   },
 
-  getTimelineEvents: () => {
+  getTimelineEvents: async () => {
     const db = getDb();
     try {
       // First try to get actual timeline events
-      let rows = db
+      let rows = await db
         .prepare(
           `
         SELECT 
@@ -679,7 +641,7 @@ export const statsRepository = {
 
       // If no timeline events, try to generate from documents
       if (rows.length === 0) {
-        rows = db
+        rows = await db
           .prepare(
             `
           SELECT 

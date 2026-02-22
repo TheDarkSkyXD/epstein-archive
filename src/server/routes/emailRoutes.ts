@@ -216,9 +216,11 @@ SELECT
 FROM threaded
 `;
 
-const getJunkFilterClause = (db: any, showSuppressedJunk: boolean): string => {
+const getJunkFilterClause = async (db: any, showSuppressedJunk: boolean): Promise<string> => {
   if (showSuppressedJunk) return '';
-  const entityCols = db.prepare(`PRAGMA table_info(entities)`).all() as Array<{ name: string }>;
+  const entityCols = (await db.prepare(`PRAGMA table_info(entities)`).all()) as Array<{
+    name: string;
+  }>;
   const hasJunkFlag = entityCols.some((column) => column.name === 'junk_flag');
   if (!hasJunkFlag) return '';
 
@@ -256,9 +258,9 @@ router.get('/mailboxes', async (req, res, next) => {
       return res.json(cached);
     }
 
-    const junkFilter = getJunkFilterClause(db, showSuppressedJunk);
+    const junkFilter = await getJunkFilterClause(db, showSuppressedJunk);
 
-    const totals = db
+    const totals = (await db
       .prepare(
         `
       SELECT
@@ -268,32 +270,32 @@ router.get('/mailboxes', async (req, res, next) => {
           json_extract(d.metadata_json, '$.conversation_id'),
           json_extract(d.metadata_json, '$.message_id'),
           CAST(d.id AS TEXT)
-        )) AS totalThreads,
-        COUNT(*) AS totalMessages,
-        MAX(COALESCE(d.date_created, d.created_at)) AS lastActivityAt
+        )) AS "totalThreads",
+        COUNT(*) AS "totalMessages",
+        MAX(COALESCE(d.date_created, d.created_at)) AS "lastActivityAt"
       FROM documents d
       WHERE d.evidence_type = 'email'
       ${junkFilter}
     `,
       )
-      .get() as { totalThreads: number; totalMessages: number; lastActivityAt: string | null };
+      .get()) as { totalThreads: number; totalMessages: number; lastActivityAt: string | null };
 
-    const rows = db
+    const rows = (await db
       .prepare(
         `
       SELECT
-        em.entity_id AS entityId,
-        e.full_name AS displayName,
+        em.entity_id AS "entityId",
+        e.full_name AS "displayName",
         COUNT(DISTINCT COALESCE(
           json_extract(d.metadata_json, '$.thread_id'),
           json_extract(d.metadata_json, '$.threadId'),
           json_extract(d.metadata_json, '$.conversation_id'),
           json_extract(d.metadata_json, '$.message_id'),
           CAST(d.id AS TEXT)
-        )) AS totalThreads,
-        COUNT(*) AS totalMessages,
-        MAX(COALESCE(d.date_created, d.created_at)) AS lastActivityAt,
-        MAX(COALESCE(d.red_flag_rating, 0)) AS topRisk
+        )) AS "totalThreads",
+        COUNT(*) AS "totalMessages",
+        MAX(COALESCE(d.date_created, d.created_at)) AS "lastActivityAt",
+        MAX(COALESCE(d.red_flag_rating, 0)) AS "topRisk"
       FROM entity_mentions em
       JOIN documents d ON d.id = em.document_id
       JOIN entities e ON e.id = em.entity_id
@@ -301,11 +303,11 @@ router.get('/mailboxes', async (req, res, next) => {
         ${showSuppressedJunk ? '' : 'AND COALESCE(e.junk_flag, 0) = 0'}
       GROUP BY em.entity_id
       HAVING COUNT(*) >= 2
-      ORDER BY totalThreads DESC, totalMessages DESC, displayName ASC
+      ORDER BY "totalThreads" DESC, "totalMessages" DESC, "displayName" ASC
       LIMIT 60
     `,
       )
-      .all() as Array<{
+      .all()) as Array<{
       entityId: number;
       displayName: string;
       totalThreads: number;
@@ -375,7 +377,7 @@ router.get('/threads', async (req, res, next) => {
     const showSuppressedJunk = req.query.showSuppressedJunk === '1';
 
     const queryParams: Array<string | number> = [];
-    let where = getJunkFilterClause(db, showSuppressedJunk);
+    let where = await getJunkFilterClause(db, showSuppressedJunk);
 
     if (tab !== 'all') {
       where += ` AND (${buildCategoryCaseSql}) = ?`;
@@ -436,9 +438,9 @@ router.get('/threads', async (req, res, next) => {
 
     const baseSql = buildThreadBaseSql(where);
 
-    const countRow = db
+    const countRow = (await db
       .prepare(`SELECT COUNT(*) as total FROM (${baseSql}) threads`)
-      .get(...queryParams) as { total: number };
+      .get(...queryParams)) as { total: number };
 
     const cursorParams: Array<string> = [];
     let cursorClause = '';
@@ -457,9 +459,9 @@ router.get('/threads', async (req, res, next) => {
       LIMIT ?
     `;
 
-    const rows = db
+    const rows = (await db
       .prepare(listSql)
-      .all(...queryParams, ...cursorParams, limit + 1) as EmailThreadRow[];
+      .all(...queryParams, ...cursorParams, limit + 1)) as EmailThreadRow[];
 
     const hasMore = rows.length > limit;
     const pageRows = hasMore ? rows.slice(0, limit) : rows;
@@ -505,32 +507,32 @@ router.get('/threads/:threadId', async (req, res, next) => {
     const db = getDb();
     const threadId = req.params.threadId;
 
-    const rows = db
+    const rows = (await db
       .prepare(
         `
       SELECT
-        d.id AS messageId,
+        d.id AS "messageId",
         COALESCE(
           json_extract(d.metadata_json, '$.thread_id'),
           json_extract(d.metadata_json, '$.threadId'),
           json_extract(d.metadata_json, '$.conversation_id'),
           json_extract(d.metadata_json, '$.message_id'),
           CAST(d.id AS TEXT)
-        ) AS threadId,
+        ) AS "threadId",
         COALESCE(json_extract(d.metadata_json, '$.subject'), d.file_name, d.title, 'No Subject') AS subject,
-        COALESCE(json_extract(d.metadata_json, '$.from'), '') AS fromAddress,
-        COALESCE(json_extract(d.metadata_json, '$.to'), '') AS toAddresses,
-        COALESCE(json_extract(d.metadata_json, '$.cc'), '') AS ccAddresses,
-        COALESCE(d.date_created, d.created_at, '1970-01-01T00:00:00.000Z') AS dateCreated,
+        COALESCE(json_extract(d.metadata_json, '$.from'), '') AS "fromAddress",
+        COALESCE(json_extract(d.metadata_json, '$.to'), '') AS "toAddresses",
+        COALESCE(json_extract(d.metadata_json, '$.cc'), '') AS "ccAddresses",
+        COALESCE(d.date_created, d.created_at, '1970-01-01T00:00:00.000Z') AS "dateCreated",
         COALESCE(d.content_preview, SUBSTR(d.content, 1, 220), '') AS snippet,
-        CASE WHEN COALESCE(json_extract(d.metadata_json, '$.attachments_count'), 0) > 0 THEN 1 ELSE 0 END AS hasAttachments,
-        COALESCE(json_extract(d.metadata_json, '$.attachments'), '[]') AS attachmentsMetaRaw,
-        d.ingestion_run_id AS ingestRunId,
-        d.pipeline_version AS pipelineVersion,
+        CASE WHEN COALESCE(json_extract(d.metadata_json, '$.attachments_count'), 0) > 0 THEN 1 ELSE 0 END AS "hasAttachments",
+        COALESCE(json_extract(d.metadata_json, '$.attachments'), '[]') AS "attachmentsMetaRaw",
+        d.ingestion_run_id AS "ingestRunId",
+        d.pipeline_version AS "pipelineVersion",
         COALESCE(json_extract(d.metadata_json, '$.confidence'), json_extract(d.metadata_json, '$.significance_score')) AS confidence,
         COALESCE(json_extract(d.metadata_json, '$.ladder'), json_extract(d.metadata_json, '$.evidence_ladder')) AS ladder,
-        COALESCE(json_extract(d.metadata_json, '$.was_agentic'), 0) AS wasAgentic,
-        d.red_flag_rating AS redFlagRating
+        COALESCE(json_extract(d.metadata_json, '$.was_agentic'), 0) AS "wasAgentic",
+        d.red_flag_rating AS "redFlagRating"
       FROM documents d
       WHERE d.evidence_type = 'email'
         AND COALESCE(
@@ -540,10 +542,10 @@ router.get('/threads/:threadId', async (req, res, next) => {
           json_extract(d.metadata_json, '$.message_id'),
           CAST(d.id AS TEXT)
         ) = ?
-      ORDER BY dateCreated ASC, d.id ASC
+      ORDER BY "dateCreated" ASC, d.id ASC
       `,
       )
-      .all(threadId) as EmailMessageHeaderRow[];
+      .all(threadId)) as EmailMessageHeaderRow[];
 
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Thread not found' });
@@ -552,12 +554,12 @@ router.get('/threads/:threadId', async (req, res, next) => {
     const messageIds = rows.map((row) => row.messageId);
     const entityRows =
       messageIds.length > 0
-        ? (db
+        ? ((await db
             .prepare(
               `
         SELECT
-          em.document_id AS messageId,
-          em.entity_id AS entityId,
+          em.document_id AS "messageId",
+          em.entity_id AS "entityId",
           e.full_name AS name,
           e.primary_role AS role
         FROM entity_mentions em
@@ -566,7 +568,7 @@ router.get('/threads/:threadId', async (req, res, next) => {
         ORDER BY em.document_id ASC, e.full_name ASC
         `,
             )
-            .all(...messageIds) as Array<{
+            .all(...messageIds)) as Array<{
             messageId: number;
             entityId: number;
             name: string;
@@ -635,7 +637,7 @@ router.get('/messages/:messageId/body', async (req, res, next) => {
       return res.json(cached);
     }
 
-    const row = db
+    const row = (await db
       .prepare(
         `
       SELECT
@@ -643,17 +645,17 @@ router.get('/messages/:messageId/body', async (req, res, next) => {
         d.content,
         d.content_preview,
         d.metadata_json,
-        d.ingestion_run_id AS ingestRunId,
-        d.pipeline_version AS pipelineVersion,
-        d.date_created AS dateCreated,
-        d.file_name AS fileName,
-        d.file_path AS filePath
+        d.ingestion_run_id AS "ingestRunId",
+        d.pipeline_version AS "pipelineVersion",
+        d.date_created AS "dateCreated",
+        d.file_name AS "fileName",
+        d.file_path AS "filePath"
       FROM documents d
       WHERE d.evidence_type = 'email' AND d.id = ?
       LIMIT 1
       `,
       )
-      .get(messageId) as
+      .get(messageId)) as
       | {
           id: number;
           content: string | null;
@@ -726,7 +728,7 @@ router.get('/messages/:messageId/body', async (req, res, next) => {
 router.get('/messages/:messageId/thread', async (req, res, next) => {
   try {
     const db = getDb();
-    const row = db
+    const row = (await db
       .prepare(
         `
       SELECT
@@ -737,7 +739,7 @@ router.get('/messages/:messageId/thread', async (req, res, next) => {
       LIMIT 1
       `,
       )
-      .get(req.params.messageId) as { id: number; metadata_json: string | null } | undefined;
+      .get(req.params.messageId)) as { id: number; metadata_json: string | null } | undefined;
 
     if (!row) {
       return res.status(404).json({ error: 'Message not found' });
@@ -754,7 +756,7 @@ router.get('/messages/:messageId/thread', async (req, res, next) => {
 router.get('/messages/:messageId/raw', async (req, res, next) => {
   try {
     const db = getDb();
-    const row = db
+    const row = (await db
       .prepare(
         `
       SELECT id, content, metadata_json
@@ -763,7 +765,7 @@ router.get('/messages/:messageId/raw', async (req, res, next) => {
       LIMIT 1
       `,
       )
-      .get(req.params.messageId) as
+      .get(req.params.messageId)) as
       | { id: number; content: string | null; metadata_json: string | null }
       | undefined;
 
@@ -844,7 +846,7 @@ router.get('/search', async (req, res, next) => {
       LIMIT ?
     `;
 
-    const rows = db.prepare(sql).all(...params, like, like, like, like, limit) as Array<{
+    const rows = (await db.prepare(sql).all(...params, like, like, like, like, limit)) as Array<{
       messageId: number;
       threadId: string;
       subject: string;
@@ -883,7 +885,7 @@ router.get('/search', async (req, res, next) => {
 router.get('/categories', async (_req, res, next) => {
   try {
     const db = getDb();
-    const rows = db
+    const rows = (await db
       .prepare(
         `
       SELECT
@@ -894,7 +896,7 @@ router.get('/categories', async (_req, res, next) => {
       GROUP BY category
       `,
       )
-      .all() as Array<{ category: 'primary' | 'updates' | 'promotions'; count: number }>;
+      .all()) as Array<{ category: 'primary' | 'updates' | 'promotions'; count: number }>;
 
     const counts: Record<string, number> = { all: 0, primary: 0, updates: 0, promotions: 0 };
     for (const row of rows) {
@@ -912,13 +914,13 @@ router.get('/categories', async (_req, res, next) => {
 router.get('/:id/entities', async (req, res, next) => {
   try {
     const db = getDb();
-    const email = db
+    const email = (await db
       .prepare(
         `
       SELECT content FROM documents WHERE id = ? AND evidence_type = 'email'
       `,
       )
-      .get(req.params.id) as { content: string } | undefined;
+      .get(req.params.id)) as { content: string } | undefined;
 
     if (!email) {
       return res.status(404).json({ error: 'Email not found' });

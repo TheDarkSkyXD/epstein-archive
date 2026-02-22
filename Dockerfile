@@ -22,9 +22,8 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install production dependencies only
-COPY package.json pnpm-lock.yaml ./
-RUN npm install -g pnpm && pnpm install --prod --frozen-lockfile
+# Install production dependencies only — --ignore-optional excludes better-sqlite3
+RUN npm install -g pnpm && pnpm install --prod --frozen-lockfile --ignore-optional
 
 # Copy built assets from builder
 COPY --from=builder /app/dist ./dist
@@ -41,10 +40,10 @@ COPY --from=builder /app/scripts ./scripts
 # For now, let's install tsx globally or locally in prod.
 RUN pnpm add -g tsx
 
-# Environment variables (defaults, can be overridden)
+# Environment variables
 ENV NODE_ENV=production
 ENV PORT=3012
-ENV DB_PATH=/data/epstein-archive.db
+ENV DB_DIALECT=postgres
 
 # Create data directory
 RUN mkdir -p /data

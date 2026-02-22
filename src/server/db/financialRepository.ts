@@ -18,9 +18,9 @@ export interface FinancialTransaction {
 }
 
 export const financialRepository = {
-  getTransactions: (limit: number = 100): FinancialTransaction[] => {
+  getTransactions: async (limit: number = 100): Promise<FinancialTransaction[]> => {
     const db = getDb();
-    return db
+    return (await db
       .prepare(
         `
       SELECT * FROM financial_transactions 
@@ -28,12 +28,14 @@ export const financialRepository = {
       LIMIT ?
     `,
       )
-      .all(limit) as FinancialTransaction[];
+      .all(limit)) as FinancialTransaction[];
   },
 
-  getTransactionsByInvestigation: (investigationId: number): FinancialTransaction[] => {
+  getTransactionsByInvestigation: async (
+    investigationId: number,
+  ): Promise<FinancialTransaction[]> => {
     const db = getDb();
-    return db
+    return (await db
       .prepare(
         `
       SELECT * FROM financial_transactions 
@@ -41,12 +43,12 @@ export const financialRepository = {
       ORDER BY transaction_date DESC
     `,
       )
-      .all(investigationId) as FinancialTransaction[];
+      .all(investigationId)) as FinancialTransaction[];
   },
 
-  getTransactionsByEntity: (entityName: string): FinancialTransaction[] => {
+  getTransactionsByEntity: async (entityName: string): Promise<FinancialTransaction[]> => {
     const db = getDb();
-    return db
+    return (await db
       .prepare(
         `
       SELECT * FROM financial_transactions 
@@ -54,12 +56,12 @@ export const financialRepository = {
       ORDER BY transaction_date DESC
     `,
       )
-      .all(entityName, entityName) as FinancialTransaction[];
+      .all(entityName, entityName)) as FinancialTransaction[];
   },
 
-  saveTransaction: (tx: FinancialTransaction) => {
+  saveTransaction: async (tx: FinancialTransaction) => {
     const db = getDb();
-    const result = db
+    const result = (await db
       .prepare(
         `
       INSERT INTO financial_transactions (
@@ -67,6 +69,7 @@ export const financialRepository = {
         transaction_type, method, risk_level, description, 
         investigation_id, source_document_id, metadata_json
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      RETURNING id
     `,
       )
       .run(
@@ -82,21 +85,21 @@ export const financialRepository = {
         tx.investigation_id,
         tx.source_document_id,
         tx.metadata_json,
-      );
+      )) as any;
     return result.lastInsertRowid;
   },
 
-  getFinancialSummary: () => {
+  getFinancialSummary: async () => {
     const db = getDb();
-    const totalValue = db
+    const totalValue = (await db
       .prepare('SELECT SUM(amount) as total FROM financial_transactions')
-      .get() as { total: number };
-    const highRiskCount = db
+      .get()) as { total: number };
+    const highRiskCount = (await db
       .prepare(
         "SELECT COUNT(*) as count FROM financial_transactions WHERE risk_level IN ('high', 'critical')",
       )
-      .get() as { count: number };
-    const topEntities = db
+      .get()) as { count: number };
+    const topEntities = await db
       .prepare(
         `
       SELECT entity, SUM(amount) as total_volume FROM (
@@ -108,14 +111,16 @@ export const financialRepository = {
       )
       .all();
 
+    const totalTransactions = (await db
+      .prepare('SELECT COUNT(*) as count FROM financial_transactions')
+      .get()) as {
+      count: number;
+    };
+
     return {
       totalValue: totalValue.total || 0,
       highRiskCount: highRiskCount.count || 0,
-      totalTransactions: db
-        .prepare('SELECT COUNT(*) as count FROM financial_transactions')
-        .get() as {
-        count: number;
-      },
+      totalTransactions: totalTransactions.count || 0,
       topEntities,
     };
   },

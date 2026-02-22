@@ -13,9 +13,9 @@ export interface ReviewItem {
 }
 
 export const reviewQueueRepository = {
-  getPendingItems(limit = 100): ReviewItem[] {
+  async getPendingItems(limit = 100): Promise<ReviewItem[]> {
     const db = getDb();
-    const rows = db
+    const rows = (await db
       .prepare(
         `
       SELECT * FROM review_queue 
@@ -26,7 +26,7 @@ export const reviewQueueRepository = {
       LIMIT ?
     `,
       )
-      .all(limit) as any[];
+      .all(limit)) as any[];
 
     return rows.map((row) => ({
       ...row,
@@ -34,14 +34,14 @@ export const reviewQueueRepository = {
     }));
   },
 
-  updateDecision(
+  async updateDecision(
     id: string,
     decision: 'reviewed' | 'rejected',
     reviewerId: string,
     notes?: string,
   ) {
     const db = getDb();
-    const result = db
+    const result = (await db
       .prepare(
         `
       UPDATE review_queue 
@@ -53,7 +53,7 @@ export const reviewQueueRepository = {
       WHERE id = ?
     `,
       )
-      .run(decision, decision, reviewerId, notes, id);
+      .run(decision, decision, reviewerId, notes, id)) as any;
 
     return result.changes > 0;
   },

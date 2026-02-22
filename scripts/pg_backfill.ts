@@ -217,6 +217,7 @@ async function runBackfill() {
       'aliases',
       'notes',
       'primary_role',
+      'mentions',
       'connections_summary',
       'canonical_id',
       'junk_tier',

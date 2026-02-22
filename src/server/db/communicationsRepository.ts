@@ -61,7 +61,7 @@ function mapRowToEmailDTO(row: any): EmailDTO {
 }
 
 export const communicationsRepository = {
-  getThreads(page: number = 1, limit: number = 50): ThreadDTO[] {
+  async getThreads(page: number = 1, limit: number = 50): Promise<ThreadDTO[]> {
     const db = getDb();
     const offset = (page - 1) * limit;
 
@@ -84,7 +84,7 @@ export const communicationsRepository = {
       LIMIT ? OFFSET ?
     `;
 
-    const rows = db.prepare(sql).all(limit, offset) as any[];
+    const rows = (await db.prepare(sql).all(limit, offset)) as any[];
 
     return rows.map((row) => {
       let participants: string[] = [];
@@ -111,7 +111,7 @@ export const communicationsRepository = {
     });
   },
 
-  getThreadById(threadId: string): ThreadDTO | null {
+  async getThreadById(threadId: string): Promise<ThreadDTO | null> {
     const db = getDb();
 
     // Fetch all messages for this thread
@@ -126,7 +126,7 @@ export const communicationsRepository = {
       ORDER BY date_created ASC
     `;
 
-    const rows = db.prepare(sql).all(threadId, threadId) as any[];
+    const rows = (await db.prepare(sql).all(threadId, threadId)) as any[];
     if (rows.length === 0) return null;
 
     const messages = rows.map(mapRowToEmailDTO);
@@ -152,29 +152,29 @@ export const communicationsRepository = {
     };
   },
 
-  getThreadForDocument(documentId: string): ThreadDTO | null {
+  async getThreadForDocument(documentId: string): Promise<ThreadDTO | null> {
     const db = getDb();
-    const row = db
+    const row = (await db
       .prepare(
         `SELECT json_extract(metadata_json, '$.thread_id') as thread_id FROM documents WHERE id = ?`,
       )
-      .get(documentId) as { thread_id?: string } | undefined;
+      .get(documentId)) as { thread_id?: string } | undefined;
 
     if (!row) return null;
     const threadId = row.thread_id || documentId;
-    return this.getThreadById(threadId);
+    return await this.getThreadById(threadId);
   },
 
-  getMessageById(messageId: string): EmailDTO | null {
+  async getMessageById(messageId: string): Promise<EmailDTO | null> {
     const db = getDb();
-    const row = db
+    const row = await db
       .prepare('SELECT * FROM documents WHERE id = ? AND evidence_type = "email"')
       .get(messageId);
     if (!row) return null;
     return mapRowToEmailDTO(row);
   },
 
-  searchEmails(filters: EmailSearchFilters): ThreadDTO[] {
+  async searchEmails(filters: EmailSearchFilters): Promise<ThreadDTO[]> {
     const db = getDb();
     let sql = `
       SELECT 
@@ -204,7 +204,7 @@ export const communicationsRepository = {
 
     sql += ` GROUP BY thread_id ORDER BY last_date DESC LIMIT 50`;
 
-    const threadRows = db.prepare(sql).all(...params) as any[];
+    const threadRows = (await db.prepare(sql).all(...params)) as any[];
 
     // Hydrate threads
     // This N+1 is bad but safe for limit 50.
@@ -228,7 +228,7 @@ export const communicationsRepository = {
   },
 
   // Legacy Adapter
-  getCommunicationsForEntity(entityId: string, _filters: any): EmailDTO[] {
+  async getCommunicationsForEntity(entityId: string, _filters: any): Promise<EmailDTO[]> {
     const db = getDb();
     const sql = `
         SELECT d.* 
@@ -238,7 +238,7 @@ export const communicationsRepository = {
         ORDER BY d.date_created DESC
         LIMIT 500
       `;
-    const rows = db.prepare(sql).all(entityId) as any[];
+    const rows = (await db.prepare(sql).all(entityId)) as any[];
     return rows.map(mapRowToEmailDTO);
   },
 };

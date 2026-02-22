@@ -48,7 +48,7 @@ function correctEntries<T extends { entry_text?: string; display_name?: string }
 }
 
 export const blackBookRepository = {
-  getBlackBookEntries: (filters?: {
+  getBlackBookEntries: async (filters?: {
     letter?: string;
     search?: string;
     hasPhone?: boolean;
@@ -121,14 +121,14 @@ export const blackBookRepository = {
       ${limitClause}
     `;
 
-    const entries = db.prepare(query).all(params) as any[];
+    const entries = (await db.prepare(query).all(params)) as any[];
     return correctEntries(entries);
   },
 
-  getBlackBookReviewEntries: () => {
+  getBlackBookReviewEntries: async () => {
     const db = getDb();
     try {
-      const entries = db
+      const entries = await db
         .prepare(
           `
         SELECT 
@@ -156,10 +156,10 @@ export const blackBookRepository = {
     }
   },
 
-  getBlackBookReviewStats: () => {
+  getBlackBookReviewStats: async () => {
     const db = getDb();
     try {
-      const stats = db
+      const stats = await db
         .prepare(
           `
         SELECT 
@@ -179,7 +179,7 @@ export const blackBookRepository = {
     }
   },
 
-  updateBlackBookReview: (
+  updateBlackBookReview: async (
     entryId: number,
     correctedName: string,
     action: 'approve' | 'skip' | 'delete',
@@ -187,13 +187,13 @@ export const blackBookRepository = {
     const db = getDb();
     try {
       // Get person_id from black_book_entry
-      const entry = db
+      const entry = (await db
         .prepare(
           `
         SELECT person_id FROM black_book_entries WHERE id = ?
       `,
         )
-        .get(entryId) as { person_id: number } | undefined;
+        .get(entryId)) as { person_id: number } | undefined;
 
       if (!entry) {
         throw new Error('Entry not found');
@@ -201,47 +201,62 @@ export const blackBookRepository = {
 
       if (action === 'approve') {
         // Update name and mark as reviewed
-        db.prepare(
-          `
+        await db
+          .prepare(
+            `
           UPDATE entities 
           SET full_name = ?, needs_review = 0, manually_reviewed = 1
           WHERE id = ?
         `,
-        ).run(correctedName, entry.person_id);
+          )
+          .run(correctedName, entry.person_id);
 
         // Log the action
-        db.prepare(
-          `
+        await db
+          .prepare(
+            `
           INSERT INTO data_quality_log (operation, entity_type, entity_id, details)
           VALUES (?, ?, ?, ?)
         `,
-        ).run(
-          'black_book_review',
-          'person',
-          entry.person_id,
-          JSON.stringify({ action: 'approve', correctedName }),
-        );
+          )
+          .run(
+            'black_book_review',
+            'person',
+            entry.person_id,
+            JSON.stringify({ action: 'approve', correctedName }),
+          );
       } else if (action === 'skip') {
         // Just mark as manually reviewed but keep needs_review flag
-        db.prepare(
-          `
+        await db
+          .prepare(
+            `
           UPDATE entities SET manually_reviewed = 1 WHERE id = ?
         `,
-        ).run(entry.person_id);
+          )
+          .run(entry.person_id);
       } else if (action === 'delete') {
         // Mark as deleted (soft delete)
-        db.prepare(
-          `
+        await db
+          .prepare(
+            `
           UPDATE entities SET needs_review = 0, manually_reviewed = 1, full_name = '[DELETED]' WHERE id = ?
         `,
-        ).run(entry.person_id);
+          )
+          .run(entry.person_id);
 
-        db.prepare(
-          `
+        await db
+          .prepare(
+            `
           INSERT INTO data_quality_log (operation, entity_type, entity_id, details)
           VALUES (?, ?, ?, ?)
         `,
-        ).run('black_book_review', 'person', entry.person_id, JSON.stringify({ action: 'delete' }));
+          )
+          .run(
+            'black_book_review',
+            'person',
+            entry.person_id,
+            JSON.stringify({ action: 'delete' }),
+          );
       }
 
       return { success: true };

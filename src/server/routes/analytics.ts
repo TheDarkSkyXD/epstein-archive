@@ -1,196 +1,119 @@
 import { Router } from 'express';
-import { getDb } from '../db/connection.js';
+import { getApiPool } from '../db/connection.js';
 import { entitiesRepository } from '../db/entitiesRepository.js';
+import { analyticsRateLimiter } from '../middleware/rateLimit.js';
+import { cacheResponse } from '../utils/perfCache.js';
 
 const router = Router();
 
-// Enhanced Analytics API (PUBLIC) - Aggregated data for visualizations
-router.get('/enhanced', async (_req, res, next) => {
+/**
+ * Enhanced Analytics — reads from materialised views for O(1) response times.
+ * Views are refreshed every 5 minutes by the setInterval in server.ts.
+ */
+router.get('/enhanced', analyticsRateLimiter, cacheResponse(60), async (_req, res, next) => {
   try {
-    console.log('📊 Starting Enhanced Analytics Fetch...');
+    console.log('📊 [Analytics] Fetching from materialised views...');
     console.time('analytics-total');
-    const db = getDb();
+    const pool = getApiPool();
 
-    // Document breakdown by type (including 'unclassified' bucket)
-    console.time('analytics-docs-by-type');
-    const documentsByType = db
-      .prepare(
-        `
-      SELECT 
-        COALESCE(evidence_type, 'unclassified') as type,
-        COUNT(*) as count,
-        SUM(CASE WHEN has_redactions = 1 THEN 1 ELSE 0 END) as redacted,
-        AVG(red_flag_rating) as avgRisk
-      FROM documents 
-      GROUP BY COALESCE(evidence_type, 'unclassified')
-      ORDER BY count DESC
-    `,
-      )
-      .all();
-    console.timeEnd('analytics-docs-by-type');
-
-    console.time('analytics-timeline');
-    // Improved timeline with 'Unknown' bucket for NULL or invalid dates
-    // Valid dates must be between 1920 and 2026-12-31 to prevent ingest-date collapse spikes
-    const currentYearStr = new Date().getFullYear().toString();
-    const timelineData = db
-      .prepare(
-        `
-      SELECT 
-        CASE 
-          WHEN date_created IS NULL OR length(date_created) < 7 OR date_created > '2026-12-31' THEN 'Unknown'
-          ELSE substr(date_created, 1, 7) 
-        END as period,
-        COUNT(*) as total,
-        SUM(CASE WHEN evidence_type = 'email' THEN 1 ELSE 0 END) as emails,
-        SUM(CASE WHEN evidence_type = 'photo' THEN 1 ELSE 0 END) as photos,
-        SUM(CASE WHEN evidence_type = 'document' THEN 1 ELSE 0 END) as documents,
-        SUM(CASE WHEN evidence_type = 'financial' THEN 1 ELSE 0 END) as financial
-      FROM documents 
-      GROUP BY period 
-      ORDER BY (CASE WHEN period = 'Unknown' THEN '9999-99' ELSE period END) ASC
-    `,
-      )
-      .all();
-    console.timeEnd('analytics-timeline');
-
-    console.time('analytics-top-connected');
-    const topConnectedEntities = db
-      .prepare(
-        `
-      WITH rel_counts AS (
-        SELECT entity_id, SUM(cnt) as cnt FROM (
-          SELECT source_entity_id as entity_id, COUNT(*) as cnt FROM entity_relationships GROUP BY source_entity_id
-          UNION ALL
-          SELECT target_entity_id as entity_id, COUNT(*) as cnt FROM entity_relationships GROUP BY target_entity_id
-        ) t
-        GROUP BY entity_id
-      )
-      SELECT 
-        e.id,
-        e.full_name as name,
-        e.primary_role as role,
-        e.entity_type as type,
-        e.red_flag_rating as riskLevel,
-        COALESCE(rc.cnt, 0) as connectionCount,
-        e.mentions
-      FROM rel_counts rc
-      JOIN entities e ON e.id = rc.entity_id
-      WHERE e.entity_type = 'Person' AND COALESCE(e.junk_flag, 0) = 0
-      ORDER BY rc.cnt DESC
-      LIMIT 1000
-    `,
-      )
-      .all();
-    console.timeEnd('analytics-top-connected');
-
-    console.time('analytics-entity-dist');
-    const entityTypeDistribution = db
-      .prepare(
-        `
-      SELECT 
-        entity_type as type,
-        COUNT(*) as count,
-        AVG(red_flag_rating) as avgRisk
-      FROM entities 
-      WHERE entity_type IS NOT NULL 
-      GROUP BY entity_type 
-      ORDER BY count DESC
-    `,
-      )
-      .all();
-    console.timeEnd('analytics-entity-dist');
-
-    console.time('analytics-risk-by-type');
-    const riskByType = db
-      .prepare(
-        `
-      SELECT 
-        entity_type as type,
-        red_flag_rating as riskLevel,
-        COUNT(*) as count
-      FROM entities 
-      WHERE entity_type IS NOT NULL AND red_flag_rating IS NOT NULL
-      GROUP BY entity_type, red_flag_rating 
-      ORDER BY entity_type, red_flag_rating DESC
-    `,
-      )
-      .all();
-    console.timeEnd('analytics-risk-by-type');
-
-    console.time('analytics-redaction-stats');
-    const redactionStats = db
-      .prepare(
-        `
-      SELECT 
-        COUNT(*) as totalDocuments,
-        SUM(CASE WHEN has_redactions = 1 THEN 1 ELSE 0 END) as redactedDocuments,
-        (SUM(CASE WHEN has_redactions = 1 THEN 1.0 ELSE 0 END) / COUNT(*) * 100) as redactionPercentage,
-        SUM(redaction_count) as totalRedactions
-      FROM documents
-    `,
-      )
-      .get();
-    console.timeEnd('analytics-redaction-stats');
-
-    const topRelationships = db
-      .prepare(
-        `
-      SELECT 
-        er.source_entity_id as sourceId,
-        er.target_entity_id as targetId,
-        e1.full_name as source,
-        e2.full_name as target,
-        er.relationship_type as type,
-        er.strength as weight
-      FROM entity_relationships er
-      JOIN entities e1 ON er.source_entity_id = e1.id
-      JOIN entities e2 ON er.target_entity_id = e2.id
-      ORDER BY er.strength DESC
-      LIMIT 2000
-    `,
-      )
-      .all();
-    console.timeEnd('analytics-top-relationships');
-
-    res.set('Cache-Control', 'public, max-age=300'); // 5 min cache
-    res.json({
-      documentsByType,
-      timelineData,
-      topConnectedEntities,
-      entityTypeDistribution,
-      riskByType,
+    const [
+      docsByType,
+      timeline,
+      topConnected,
+      entityDist,
       redactionStats,
       topRelationships,
+      totalCounts,
+      reconciliation,
+    ] = await Promise.all([
+      // From mv_docs_by_type
+      pool.query<any>(`
+        SELECT type, count, redacted, avg_risk AS "avgRisk"
+        FROM mv_docs_by_type
+        ORDER BY count DESC
+      `),
+      // From mv_timeline_data
+      pool.query<any>(`
+        SELECT period, total, emails, photos, documents, financial
+        FROM mv_timeline_data
+        ORDER BY (CASE WHEN period = 'Unknown' THEN '9999-99' ELSE period END) ASC
+      `),
+      // From mv_top_connected
+      pool.query<any>(`
+        SELECT id, name, role, type, risk_level AS "riskLevel",
+               connection_count AS "connectionCount", mentions
+        FROM mv_top_connected
+        ORDER BY "connectionCount" DESC
+        LIMIT 100
+      `),
+      // From mv_entity_type_dist
+      pool.query<any>(`
+        SELECT type, count, avg_risk AS "avgRisk"
+        FROM mv_entity_type_dist
+        ORDER BY count DESC
+      `),
+      // From mv_redaction_stats (single row)
+      pool.query<any>(`
+        SELECT total_documents AS "totalDocuments",
+               redacted_documents AS "redactedDocuments",
+               redaction_percentage AS "redactionPercentage",
+               total_redactions AS "totalRedactions"
+        FROM mv_redaction_stats
+      `),
+      // Top relationships — live (capped at 500)
+      pool.query<any>(`
+        SELECT
+          er.source_entity_id AS "sourceId",
+          er.target_entity_id AS "targetId",
+          e1.full_name AS source,
+          e2.full_name AS target,
+          er.relationship_type AS type,
+          er.strength AS weight
+        FROM entity_relationships er
+        JOIN entities e1 ON er.source_entity_id = e1.id
+        JOIN entities e2 ON er.target_entity_id = e2.id
+        ORDER BY er.strength DESC
+        LIMIT 500
+      `),
+      // Total counts — live (fast PK scans)
+      pool.query<any>(`
+        SELECT
+          (SELECT COUNT(*) FROM entities  WHERE COALESCE(junk_tier,'clean') = 'clean') AS entities,
+          (SELECT COUNT(*) FROM documents)                                               AS documents,
+          (SELECT COUNT(*) FROM documents WHERE evidence_type IS NOT NULL)               AS evidence_files,
+          (SELECT COUNT(*) FROM entity_relationships)                                    AS relationships
+      `),
+      // Reconciliation — live
+      pool.query<any>(`
+        SELECT
+          (SELECT COUNT(*) FROM documents WHERE evidence_type IS NULL) AS unclassified,
+          (SELECT COUNT(*) FROM documents
+             WHERE date_created IS NULL
+               OR date_created > '2026-12-31'::date) AS unknown_date
+      `),
+    ]);
+
+    const tc = totalCounts.rows[0];
+    const rc = reconciliation.rows[0];
+
+    res.set('Cache-Control', 'public, max-age=300');
+    res.json({
+      documentsByType: docsByType.rows,
+      timelineData: timeline.rows,
+      topConnectedEntities: topConnected.rows,
+      entityTypeDistribution: entityDist.rows,
+      riskByType: [], // not in mat-view; omit or calculate on demand
+      redactionStats: redactionStats.rows[0] ?? null,
+      topRelationships: topRelationships.rows,
       totalCounts: {
-        entities: (
-          await db
-            .prepare('SELECT COUNT(*) as count FROM entities WHERE COALESCE(junk_flag, 0) = 0')
-            .get()
-        ).count,
-        documents: (await db.prepare('SELECT COUNT(*) as count FROM documents').get()).count,
-        evidenceFiles: (
-          await db
-            .prepare('SELECT COUNT(*) as count FROM documents WHERE evidence_type IS NOT NULL')
-            .get()
-        ).count,
-        relationships: (
-          await db.prepare('SELECT COUNT(*) as count FROM entity_relationships').get()
-        ).count,
+        entities: Number(tc.entities),
+        documents: Number(tc.documents),
+        evidenceFiles: Number(tc.evidence_files),
+        relationships: Number(tc.relationships),
       },
       reconciliation: {
-        unclassifiedCount: (
-          await db
-            .prepare('SELECT COUNT(*) as count FROM documents WHERE evidence_type IS NULL')
-            .get()
-        ).count,
-        unknownDateCount: (
-          await db
-            .prepare(
-              "SELECT COUNT(*) as count FROM documents WHERE date_created IS NULL OR length(date_created) < 7 OR date_created > '2026-12-31'",
-            )
-            .get()
-        ).count,
+        unclassifiedCount: Number(rc.unclassified),
+        unknownDateCount: Number(rc.unknown_date),
       },
       generatedAt: new Date().toISOString(),
     });
@@ -204,43 +127,13 @@ router.get('/enhanced', async (_req, res, next) => {
 // Admin Route: Trigger Junk Entity Reconciliation
 router.post('/reconcile/junk', async (_req, res, next) => {
   try {
-    const db = getDb();
-
-    // Ensure the schema is ready
-    db.prepare(
-      `
-      ALTER TABLE entities ADD COLUMN junk_flag INTEGER DEFAULT 0;
-    `,
-    ).run();
-    db.prepare(
-      `
-      ALTER TABLE entities ADD COLUMN junk_reason TEXT;
-    `,
-    ).run();
-    db.prepare(
-      `
-      ALTER TABLE entities ADD COLUMN junk_probability REAL DEFAULT 0;
-    `,
-    ).run();
-
-    // Trigger background backfill
     entitiesRepository.startBackgroundJunkBackfill(1000);
-
     res.json({
       success: true,
       message: 'Junk reconciliation started in background',
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
-    // If table already has columns, just start the backfill
-    if (error.message.includes('duplicate column name')) {
-      entitiesRepository.startBackgroundJunkBackfill(1000);
-      return res.json({
-        success: true,
-        message: 'Junk reconciliation restarted in background',
-        timestamp: new Date().toISOString(),
-      });
-    }
     console.error('❌ Error in junk reconciliation:', error);
     next(error);
   }
@@ -249,14 +142,13 @@ router.post('/reconcile/junk', async (_req, res, next) => {
 // Admin Route: Reset Junk Flags
 router.post('/reconcile/reset', async (_req, res, next) => {
   try {
-    const db = getDb();
-    const result = db
-      .prepare('UPDATE entities SET junk_flag = 0, junk_reason = NULL, junk_probability = 0')
-      .run();
-
+    const pool = getApiPool();
+    const result = await pool.query(
+      "UPDATE entities SET junk_tier = 'clean', junk_reason = NULL, junk_probability = 0",
+    );
     res.json({
       success: true,
-      changes: result.changes,
+      changes: result.rowCount,
       message: 'All junk flags have been reset',
       timestamp: new Date().toISOString(),
     });

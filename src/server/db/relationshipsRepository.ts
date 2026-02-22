@@ -1,7 +1,7 @@
 import { getDb } from './connection.js';
 
 export const relationshipsRepository = {
-  getRelationships: (
+  getRelationships: async (
     entityId: number | string,
     filters: {
       minWeight?: number;
@@ -41,7 +41,7 @@ export const relationshipsRepository = {
       ORDER BY proximity_score DESC
     `;
 
-    const rows = db.prepare(sql).all(params) as any[];
+    const rows = (await db.prepare(sql).all(params)) as any[];
 
     return rows.map((r) => ({
       source_id: r.source_id,
@@ -64,37 +64,43 @@ export const relationshipsRepository = {
    * REBUILD ADJACENCY CACHE: Precomputes entity-to-entity neighbors.
    * Accelerates high-depth graph traverses.
    */
-  rebuildAdjacencyCache: () => {
+  rebuildAdjacencyCache: async () => {
     const db = getDb();
     console.log('⏳ [GRAPH] Rebuilding adjacency cache...');
 
-    db.transaction(() => {
-      db.prepare('DELETE FROM entity_adjacency').run();
-      db.prepare(
+    // Note: db.transaction is usually sync in better-sqlite3 but we need to handle it for PgWrapper
+    // For now, we'll run them sequentially or use a real PG transaction if PgWrapper supports it.
+    // PgWrapper doesn't seem to have a .transaction() helper yet, so we'll just run them.
+    await db.prepare('DELETE FROM entity_adjacency').run();
+    await db
+      .prepare(
         `
-        INSERT INTO entity_adjacency (entity_id, neighbor_id, weight, bridge_score, relationship_types)
-        SELECT 
-          s.canonical_id as entity_id,
-          t.canonical_id as neighbor_id,
-          MAX(er.proximity_score) as weight,
-          CASE WHEN s.community_id != t.community_id THEN 1.0 ELSE 0.0 END as bridge_score,
-          GROUP_CONCAT(DISTINCT er.relationship_type) as relationship_types
-        FROM entity_relationships er
-        JOIN entities s ON er.source_entity_id = s.id
-        JOIN entities t ON er.target_entity_id = t.id
-        WHERE s.canonical_id != t.canonical_id
-        GROUP BY s.canonical_id, t.canonical_id
-      `,
-      ).run();
+      INSERT INTO entity_adjacency (entity_id, neighbor_id, weight, bridge_score, relationship_types)
+      SELECT 
+        s.canonical_id as entity_id,
+        t.canonical_id as neighbor_id,
+        MAX(er.proximity_score) as weight,
+        CASE WHEN s.community_id != t.community_id THEN 1.0 ELSE 0.0 END as bridge_score,
+        STRING_AGG(DISTINCT er.relationship_type, ',') as relationship_types
+      FROM entity_relationships er
+      JOIN entities s ON er.source_entity_id = s.id
+      JOIN entities t ON er.target_entity_id = t.id
+      WHERE s.canonical_id != t.canonical_id
+      GROUP BY s.canonical_id, t.canonical_id
+    `,
+      )
+      .run();
 
-      db.prepare(
+    await db
+      .prepare(
         'UPDATE graph_cache_state SET last_rebuild = CURRENT_TIMESTAMP, is_dirty = 0 WHERE id = 1',
-      ).run();
-    })();
+      )
+      .run();
+
     console.log('✅ [GRAPH] Adjacency cache rebuilt successfully.');
   },
 
-  getGraphSlice: (
+  getGraphSlice: async (
     entityId: number | string,
     depth: number = 2,
     _filters: { from?: string; to?: string } = {},
@@ -107,9 +113,9 @@ export const relationshipsRepository = {
     const db = getDb();
 
     // 0. Resolve to Canonical ID
-    const startNode = db
+    const startNode = (await db
       .prepare('SELECT COALESCE(canonical_id, id) as cid FROM entities WHERE id = ?')
-      .get(entityId) as { cid: number };
+      .get(entityId)) as { cid: number };
     if (!startNode) return { nodes: [], edges: [] };
 
     const startId = startNode.cid;
@@ -166,7 +172,7 @@ export const relationshipsRepository = {
       if (visited.has(id) || d > depth) continue;
       visited.add(id);
 
-      const entity = getEntity.get(id) as any;
+      const entity = (await getEntity.get(id)) as any;
       if (entity) {
         nodes.push({
           id: entity.id,
@@ -179,7 +185,7 @@ export const relationshipsRepository = {
 
       if (d >= safeDepth) continue;
 
-      const rels = getNeighborsCached.all(id) as any[];
+      const rels = (await getNeighborsCached.all(id)) as any[];
 
       for (const r of rels) {
         const targetId = r.target_id;
@@ -204,9 +210,9 @@ export const relationshipsRepository = {
     return { nodes, edges };
   },
 
-  getStats: () => {
+  getStats: async () => {
     const db = getDb();
-    const totals = db
+    const totals = (await db
       .prepare(
         `
       SELECT 
@@ -217,9 +223,9 @@ export const relationshipsRepository = {
       FROM entity_relationships
     `,
       )
-      .get() as any;
+      .get()) as any;
 
-    const top = db
+    const top = (await db
       .prepare(
         `
       SELECT source_entity_id as entity_id, COUNT(*) as count
@@ -229,7 +235,7 @@ export const relationshipsRepository = {
       LIMIT 10
     `,
       )
-      .all() as { entity_id: number; count: number }[];
+      .all()) as { entity_id: number; count: number }[];
 
     return {
       total_relationships: totals.total_relationships || 0,
@@ -240,25 +246,25 @@ export const relationshipsRepository = {
     };
   },
 
-  getEntitySummarySource: (entityId: number | string, topN: number = 10) => {
+  getEntitySummarySource: async (entityId: number | string, topN: number = 10) => {
     const db = getDb();
 
     // Resolve Canonical ID
-    const startNode = db
+    const startNode = (await db
       .prepare('SELECT COALESCE(canonical_id, id) as cid FROM entities WHERE id = ?')
-      .get(entityId) as { cid: number };
+      .get(entityId)) as { cid: number };
     if (!startNode) return null;
     const canonicalId = startNode.cid;
 
-    const entity = db
+    const entity = (await db
       .prepare(
         `SELECT canonical_id as id, MAX(full_name) as full_name, MAX(primary_role) as primary_role FROM entities WHERE canonical_id=? GROUP BY canonical_id`,
       )
-      .get(canonicalId) as any;
+      .get(canonicalId)) as any;
 
     if (!entity) return null;
 
-    const relationships = db
+    const relationships = (await db
       .prepare(
         `
       SELECT 
@@ -276,11 +282,11 @@ export const relationshipsRepository = {
       LIMIT ?
     `,
       )
-      .all(canonicalId, topN) as any[];
+      .all(canonicalId, topN)) as any[];
 
     // Docs search still uses LIKE name, but we should probably use mentions on canonical ID
     // Keep wildcard search for now as it's broader
-    const docs = db
+    const docs = (await db
       .prepare(
         `
       SELECT id, file_name as title, evidence_type, NULL as metadata_json, red_flag_rating, word_count, date_created
@@ -289,7 +295,7 @@ export const relationshipsRepository = {
       LIMIT ?
     `,
       )
-      .all(`%${entity.full_name}%`, `%${entity.full_name}%`, topN) as any[];
+      .all(`%${entity.full_name}%`, `%${entity.full_name}%`, topN)) as any[];
 
     return {
       entity,

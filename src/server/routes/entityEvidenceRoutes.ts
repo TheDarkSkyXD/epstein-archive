@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { entityEvidenceRepository } from '../db/entityEvidenceRepository.js';
+import crypto from 'crypto';
 
 const router = Router();
 
@@ -113,6 +114,22 @@ router.get('/:entityId/media', async (req: Request, res: Response) => {
     const { entityId } = req.params as { entityId: string };
     const { mediaRepository } = await import('../db/mediaRepository.js');
     const result = await mediaRepository.getMediaItems(entityId);
+
+    if (!result || result.length === 0) {
+      return res.status(204).send();
+    }
+
+    const jsonString = JSON.stringify(result);
+    const etag = crypto.createHash('md5').update(jsonString).digest('hex');
+
+    res.set('Cache-Control', 'public, max-age=86400, immutable');
+    res.set('ETag', `"${etag}"`);
+
+    // Basic Express ETag handling (304 Not Modified)
+    if (req.headers['if-none-match'] === `"${etag}"`) {
+      return res.status(304).send();
+    }
+
     res.json(result);
   } catch (error) {
     console.error('Error fetching entity media:', error);

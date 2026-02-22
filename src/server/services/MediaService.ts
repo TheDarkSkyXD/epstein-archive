@@ -1,4 +1,3 @@
-import Database from 'better-sqlite3';
 import {
   MediaImage,
   Album,
@@ -16,76 +15,73 @@ import archiver from 'archiver';
 export class MediaService {
   private db: any;
 
-  constructor(dbOrPath: string | any) {
-    if (typeof dbOrPath === 'string') {
-      this.db = new Database(dbOrPath);
-    } else {
-      this.db = dbOrPath;
-    }
+  constructor(db: any) {
+    this.db = db;
   }
 
-  private hasTable(tableName: string): boolean {
+  private async hasTable(tableName: string): Promise<boolean> {
     try {
-      const row = this.db
-        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
-        .get(tableName) as { name?: string } | undefined;
-      return !!row?.name;
+      // In Postgres we usually check pg_tables, but PgWrapper translateSql might handle this.
+      // For now, let's use a simpler check or rely on translateSql.
+      const row = (await this.db
+        .prepare('SELECT tablename FROM pg_catalog.pg_tables WHERE tablename = ?')
+        .get(tableName)) as { tablename?: string } | undefined;
+      return !!row?.tablename;
     } catch (error) {
-      console.error('MediaService.hasTable failed for', tableName, error);
       return false;
     }
   }
 
   // ============ TAG OPERATIONS ============
 
-  getAllTags(): MediaTag[] {
-    const stmt = this.db.prepare('SELECT * FROM media_tags ORDER BY name');
-    return stmt.all() as MediaTag[];
+  async getAllTags(): Promise<MediaTag[]> {
+    const stmt = await this.db.prepare('SELECT * FROM media_tags ORDER BY name');
+    return (await stmt.all()) as MediaTag[];
   }
 
   // ============ ALBUM OPERATIONS ============
 
-  getAllAlbums(): Album[] {
-    const stmt = this.db.prepare(`
+  async getAllAlbums(): Promise<Album[]> {
+    const stmt = await this.db.prepare(`
       SELECT 
         a.*,
-        COUNT(i.id) as imageCount,
-        ci.file_path as coverImagePath
+        COUNT(i.id) as "imageCount",
+        ci.file_path as "coverImagePath"
       FROM media_albums a
       LEFT JOIN media_items i ON a.id = i.album_id AND i.file_type LIKE 'image/%'
       LEFT JOIN media_items ci ON a.cover_image_id = ci.id
-      GROUP BY a.id
-      HAVING imageCount > 0
+      GROUP BY a.id, ci.file_path
+      HAVING COUNT(i.id) > 0
       ORDER BY a.name
     `);
-    return stmt.all() as Album[];
+    return (await stmt.all()) as Album[];
   }
 
-  getAlbumById(id: number): Album | undefined {
-    const stmt = this.db.prepare(`
+  async getAlbumById(id: number): Promise<Album | undefined> {
+    const stmt = await this.db.prepare(`
       SELECT 
         a.*,
-        COUNT(i.id) as imageCount,
-        ci.file_path as coverImagePath
+        COUNT(i.id) as "imageCount",
+        ci.file_path as "coverImagePath"
       FROM media_albums a
       LEFT JOIN media_items i ON a.id = i.album_id AND i.file_type LIKE 'image/%'
       LEFT JOIN media_items ci ON a.cover_image_id = ci.id
       WHERE a.id = ?
-      GROUP BY a.id
+      GROUP BY a.id, ci.file_path
     `);
-    return stmt.get(id) as Album | undefined;
+    return (await stmt.get(id)) as Album | undefined;
   }
 
-  createAlbum(name: string, description?: string): Album {
-    const stmt = this.db.prepare(`
+  async createAlbum(name: string, description?: string): Promise<Album> {
+    const stmt = await this.db.prepare(`
       INSERT INTO media_albums (name, description)
-      VALUES (?, ?)
+      VALUES (?, ?) RETURNING id
     `);
-    const result = stmt.run(name, description);
-    return this.getAlbumById(result.lastInsertRowid as number)!;
+    const result = (await stmt.run(name, description)) as any;
+    return (await this.getAlbumById(result.lastInsertRowid as number))!;
   }
 
-  updateAlbum(id: number, updates: Partial<Album>): void {
+  async updateAlbum(id: number, updates: Partial<Album>): Promise<void> {
     const fields: string[] = [];
     const values: any[] = [];
 
@@ -104,60 +100,62 @@ export class MediaService {
 
     if (fields.length > 0) {
       values.push(id);
-      const stmt = this.db.prepare(`
+      const stmt = await this.db.prepare(`
         UPDATE media_albums
-        SET ${fields.join(', ')}, date_modified = datetime('now')
+        SET ${fields.join(', ')}, date_modified = CURRENT_TIMESTAMP
         WHERE id = ?
       `);
-      stmt.run(...values);
+      await stmt.run(...values);
     }
   }
 
-  deleteAlbum(id: number): void {
-    const stmt = this.db.prepare('DELETE FROM media_albums WHERE id = ?');
-    stmt.run(id);
+  async deleteAlbum(id: number): Promise<void> {
+    const stmt = await this.db.prepare('DELETE FROM media_albums WHERE id = ?');
+    await stmt.run(id);
   }
 
   /**
    * Get existing album by name or create a new one (idempotent)
    */
-  getOrCreateAlbum(name: string, description?: string): Album {
-    const stmt = this.db.prepare('SELECT id FROM media_albums WHERE name = ?');
-    const existing = stmt.get(name) as { id: number } | undefined;
+  async getOrCreateAlbum(name: string, description?: string): Promise<Album> {
+    const stmt = await this.db.prepare('SELECT id FROM media_albums WHERE name = ?');
+    const existing = (await stmt.get(name)) as { id: number } | undefined;
 
     if (existing) {
-      return this.getAlbumById(existing.id)!;
+      return (await this.getAlbumById(existing.id))!;
     }
 
-    return this.createAlbum(name, description);
+    return await this.createAlbum(name, description);
   }
 
   /**
    * Check if an image already exists by original filename and album
    */
-  imageExists(originalFilename: string, albumId?: number): boolean {
+  async imageExists(originalFilename: string, albumId?: number): Promise<boolean> {
     const stmt = albumId
-      ? this.db.prepare(
+      ? await this.db.prepare(
           "SELECT id FROM media_items WHERE original_filename = ? AND album_id = ? AND file_type LIKE 'image/%'",
         )
-      : this.db.prepare(
+      : await this.db.prepare(
           "SELECT id FROM media_items WHERE original_filename = ? AND file_type LIKE 'image/%'",
         );
 
-    const result = albumId ? stmt.get(originalFilename, albumId) : stmt.get(originalFilename);
+    const result = albumId
+      ? await stmt.get(originalFilename, albumId)
+      : await stmt.get(originalFilename);
 
     return !!result;
   }
 
   // ============ IMAGE OPERATIONS ============
 
-  getAllImages(filter?: ImageFilter, sort?: ImageSort): MediaImage[] {
+  async getAllImages(filter?: ImageFilter, sort?: ImageSort): Promise<MediaImage[]> {
     // Unified media_items table handles all media types.
     let query = `
       SELECT 
         i.*,
         i.file_path as path,
-        a.name as albumName
+        a.name as "albumName"
       FROM media_items i
       LEFT JOIN media_albums a ON i.album_id = a.id
       WHERE i.file_type LIKE 'image/%'
@@ -200,7 +198,7 @@ export class MediaService {
       }
       if (filter.searchQuery) {
         try {
-          if (this.hasTable('media_items_fts')) {
+          if (await this.hasTable('media_items_fts')) {
             conditions.push(`i.id IN (
               SELECT rowid FROM media_items_fts 
               WHERE media_items_fts MATCH ?
@@ -221,7 +219,7 @@ export class MediaService {
       query += ' AND ' + conditions.join(' AND ');
     }
 
-    query += ' GROUP BY i.id';
+    query += ' GROUP BY i.id, a.name';
 
     // Default sort
     let orderBy = 'i.id DESC';
@@ -244,8 +242,8 @@ export class MediaService {
       }
     }
 
-    const stmt = this.db.prepare(query);
-    const results = stmt.all(...params) as any[];
+    const stmt = await this.db.prepare(query);
+    const results = (await stmt.all(...params)) as any[];
 
     return results.map((row) => ({
       ...row,
@@ -254,7 +252,7 @@ export class MediaService {
     }));
   }
 
-  getImageCount(filter?: ImageFilter): number {
+  async getImageCount(filter?: ImageFilter): Promise<number> {
     let query =
       "SELECT COUNT(DISTINCT i.id) as count FROM media_items i WHERE i.file_type LIKE 'image/%'";
 
@@ -295,7 +293,7 @@ export class MediaService {
       }
       if (filter.searchQuery) {
         try {
-          if (this.hasTable('media_items_fts')) {
+          if (await this.hasTable('media_items_fts')) {
             conditions.push(`i.id IN (
               SELECT rowid FROM media_items_fts 
               WHERE media_items_fts MATCH ?
@@ -315,22 +313,22 @@ export class MediaService {
       query += ' AND ' + conditions.join(' AND ');
     }
 
-    const result = this.db.prepare(query).get(...params) as { count: number };
+    const result = (await this.db.prepare(query).get(...params)) as { count: number };
     return result.count;
   }
 
-  getImageById(id: number): MediaImage | undefined {
+  async getImageById(id: number): Promise<MediaImage | undefined> {
     // Keep this focused on core image/album fields; tags are fetched separately.
-    const stmt = this.db.prepare(`
+    const stmt = await this.db.prepare(`
       SELECT 
         i.*,
         i.file_path as path,
-        a.name as albumName
+        a.name as "albumName"
       FROM media_items i
       LEFT JOIN media_albums a ON i.album_id = a.id
       WHERE i.id = ?
     `);
-    const result = stmt.get(id) as any;
+    const result = (await stmt.get(id)) as any;
     if (!result) return undefined;
 
     return {
@@ -339,18 +337,21 @@ export class MediaService {
     };
   }
 
-  createImage(image: Omit<MediaImage, 'id' | 'dateAdded' | 'dateModified'>): MediaImage {
-    const stmt = this.db.prepare(`
+  async createImage(
+    image: Omit<MediaImage, 'id' | 'dateAdded' | 'dateModified'>,
+  ): Promise<MediaImage> {
+    const stmt = await this.db.prepare(`
       INSERT INTO media_items (
         filename, original_filename, file_path, thumbnail_path, title, description,
         album_id, width, height, file_size, file_type, date_taken,
         camera_make, camera_model, lens, focal_length, aperture, shutter_speed,
         iso, latitude, longitude, color_profile, orientation,
         created_at, date_modified
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      RETURNING id
     `);
 
-    const result = stmt.run(
+    const result = (await stmt.run(
       image.filename,
       image.originalFilename,
       image.path,
@@ -374,12 +375,12 @@ export class MediaService {
       image.longitude || null,
       image.colorProfile || null,
       image.orientation || 1,
-    );
+    )) as any;
 
-    return this.getImageById(result.lastInsertRowid as number)!;
+    return (await this.getImageById(result.lastInsertRowid as number))!;
   }
 
-  updateImage(id: number, updates: Partial<MediaImage>): void {
+  async updateImage(id: number, updates: Partial<MediaImage>): Promise<void> {
     const fields: string[] = [];
     const values: any[] = [];
 
@@ -404,30 +405,24 @@ export class MediaService {
 
     if (fields.length > 0) {
       values.push(id);
-      this.db
-        .prepare(
-          `
+      const stmt = await this.db.prepare(`
         UPDATE media_items
-        SET ${fields.join(', ')}, date_modified = datetime('now')
+        SET ${fields.join(', ')}, date_modified = CURRENT_TIMESTAMP
         WHERE id = ?
-      `,
-        )
-        .run(...values);
+      `);
+      await stmt.run(...values);
     }
   }
 
   async rotateImage(id: number, degrees: number): Promise<void> {
-    const image = this.getImageById(id);
+    const image = await this.getImageById(id);
     if (!image) throw new Error('Image not found');
 
-    // Resolve image path - DB stores paths like /data/... which need to be
-    // resolved relative to the app root (process.cwd())
     // Resolve image path
     let imagePath = image.path;
 
     // Check if the path exists as-is (absolute path)
     if (!fs.existsSync(imagePath)) {
-      // If not, try resolving relative to app root (for /data/ paths)
       if (imagePath.startsWith('/data/') || imagePath.startsWith('/')) {
         const relativePath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
         const resolvedPath = path.join(process.cwd(), relativePath);
@@ -437,17 +432,11 @@ export class MediaService {
       }
     }
 
-    // Verify file exists
     if (!fs.existsSync(imagePath)) {
       throw new Error(`Image file not found at: ${imagePath}`);
     }
 
-    // Calculate current visual rotation from DB state
     let cssRotation = 0;
-    // Standard EXIF mapping for "Correction" (Visual Rotation inferred from Flag)
-    // BUT we found the issue comes from "Double Rotation" (Browser + CSS).
-    // Our CSS logic was: 6->90, 8->270, 3->180.
-    // So we apply THAT rotation to the base (Auto-Oriented) image.
     switch (image.orientation) {
       case 6:
         cssRotation = 90;
@@ -464,146 +453,132 @@ export class MediaService {
     const imageExt = path.extname(imagePath) || '.jpg';
     const tempPath = `${imagePath}.tmp${imageExt}`;
 
-    // Process image: Auto-orient -> Apply Total Rotation -> Save
-    // This normalizes the file to match the user's visual expectation (WYSIWYG)
-    // and resets the orientation tag to 1 (Standard).
-    await sharp(imagePath)
-      .rotate() // Auto-orient to Upright
-      .rotate(totalRotation) // Apply calculated rotation
-      .withMetadata() // Preserve other EXIF (GPS, Date)
-      .toFile(tempPath);
+    await sharp(imagePath).rotate().rotate(totalRotation).withMetadata().toFile(tempPath);
 
     fs.renameSync(tempPath, imagePath);
-
-    // Read new dimensions/size
     const metadata = await sharp(imagePath).metadata();
 
-    // Update DB: Orientation is now 1 (Standard)
-    this.updateImage(id, {
+    await this.updateImage(id, {
       orientation: 1,
       width: metadata.width,
       height: metadata.height,
       fileSize: metadata.size,
     });
-
-    // Regenerate thumbnail (async/fire-and-forget or await?)
-    // Existing code didn't export regenerateThumbnail, but we can rely on
-    // frontend requesting it or simple re-generation if method exists.
-    // We'll update the thumbnail path if needed or just let it be.
-    // Ideally, we force regeneration. But let's stick to the core fix.
   }
 
-  deleteImage(id: number): void {
-    const stmt = this.db.prepare('DELETE FROM media_items WHERE id = ?');
-    stmt.run(id);
+  async deleteImage(id: number): Promise<void> {
+    const stmt = await this.db.prepare('DELETE FROM media_items WHERE id = ?');
+    await stmt.run(id);
   }
 
   // ============ TAG OPERATIONS ============
 
-  createTag(name: string, category?: string): MediaTag {
-    const stmt = this.db.prepare(`
+  async createTag(name: string, category?: string): Promise<MediaTag> {
+    const stmt = await this.db.prepare(`
       INSERT INTO media_tags (name, category)
-      VALUES (?, ?)
+      VALUES (?, ?) RETURNING id
     `);
-    const result = stmt.run(name, category || null);
-    return this.getTagById(result.lastInsertRowid as number)!;
+    const result = (await stmt.run(name, category || null)) as any;
+    return (await this.getTagById(result.lastInsertRowid as number))!;
   }
 
-  getTagById(id: number): MediaTag | undefined {
-    const stmt = this.db.prepare('SELECT * FROM media_tags WHERE id = ?');
-    return stmt.get(id) as MediaTag | undefined;
+  async getTagById(id: number): Promise<MediaTag | undefined> {
+    const stmt = await this.db.prepare('SELECT * FROM media_tags WHERE id = ?');
+    return (await stmt.get(id)) as MediaTag | undefined;
   }
 
-  getOrCreateTag(name: string, category?: string): MediaTag {
-    const stmt = this.db.prepare('SELECT * FROM media_tags WHERE name = ?');
-    let tag = stmt.get(name) as MediaTag | undefined;
+  async getOrCreateTag(name: string, category?: string): Promise<MediaTag> {
+    const stmt = await this.db.prepare('SELECT * FROM media_tags WHERE name = ?');
+    let tag = (await stmt.get(name)) as MediaTag | undefined;
 
     if (!tag) {
-      tag = this.createTag(name, category);
+      tag = await this.createTag(name, category);
     }
 
     return tag;
   }
 
-  addTagToImage(imageId: number, tagId: number): void {
-    const stmt = this.db.prepare(`
-      INSERT OR IGNORE INTO media_item_tags (media_item_id, tag_id)
-      VALUES (?, ?)
+  async addTagToImage(imageId: number, tagId: number): Promise<void> {
+    const stmt = await this.db.prepare(`
+      INSERT INTO media_item_tags (media_item_id, tag_id)
+      VALUES (?, ?) ON CONFLICT DO NOTHING
     `);
-    stmt.run(imageId, tagId);
+    await stmt.run(imageId, tagId);
   }
 
-  removeTagFromImage(imageId: number, tagId: number): void {
-    const stmt = this.db.prepare(`
+  async removeTagFromImage(imageId: number, tagId: number): Promise<void> {
+    const stmt = await this.db.prepare(`
       DELETE FROM media_item_tags
       WHERE media_item_id = ? AND tag_id = ?
     `);
-    stmt.run(imageId, tagId);
+    await stmt.run(imageId, tagId);
   }
 
-  getImageTags(imageId: number): MediaTag[] {
-    const stmt = this.db.prepare(`
+  async getImageTags(imageId: number): Promise<MediaTag[]> {
+    const stmt = await this.db.prepare(`
       SELECT t.*
       FROM media_tags t
       JOIN media_item_tags it ON t.id = it.tag_id
       WHERE it.media_item_id = ?
       ORDER BY t.name
     `);
-    return stmt.all(imageId) as MediaTag[];
+    return (await stmt.all(imageId)) as MediaTag[];
   }
 
   // ============ MEDIA ITEM (AUDIO/VIDEO) TAGS ============
 
-  addTagToItem(itemId: number, tagId: number): void {
-    const stmt = this.db.prepare(`
-      INSERT OR IGNORE INTO media_item_tags (media_item_id, tag_id)
-      VALUES (?, ?)
+  async addTagToItem(itemId: number, tagId: number): Promise<void> {
+    const stmt = await this.db.prepare(`
+      INSERT INTO media_item_tags (media_item_id, tag_id)
+      VALUES (?, ?) ON CONFLICT DO NOTHING
     `);
-    stmt.run(itemId, tagId);
+    await stmt.run(itemId, tagId);
   }
 
-  removeTagFromItem(itemId: number, tagId: number): void {
-    const stmt = this.db.prepare(`
+  async removeTagFromItem(itemId: number, tagId: number): Promise<void> {
+    const stmt = await this.db.prepare(`
       DELETE FROM media_item_tags
       WHERE media_item_id = ? AND tag_id = ?
     `);
-    stmt.run(itemId, tagId);
+    await stmt.run(itemId, tagId);
   }
 
-  addPersonToItem(itemId: number, personId: number): void {
-    const stmt = this.db.prepare(`
-      INSERT OR IGNORE INTO media_item_people (media_item_id, entity_id)
-      VALUES (?, ?)
+  async addPersonToItem(itemId: number, personId: number): Promise<void> {
+    const stmt = await this.db.prepare(`
+      INSERT INTO media_item_people (media_item_id, entity_id)
+      VALUES (?, ?) ON CONFLICT DO NOTHING
     `);
-    stmt.run(itemId, personId);
+    await stmt.run(itemId, personId);
   }
 
-  removePersonFromItem(itemId: number, personId: number): void {
-    const stmt = this.db.prepare(`
+  async removePersonFromItem(itemId: number, personId: number): Promise<void> {
+    const stmt = await this.db.prepare(`
       DELETE FROM media_item_people
       WHERE media_item_id = ? AND entity_id = ?
     `);
-    stmt.run(itemId, personId);
+    await stmt.run(itemId, personId);
   }
 
   // ============ STATISTICS ============
 
-  getMediaStats(): MediaStats {
-    const totalImages = this.db
+  async getMediaStats(): Promise<MediaStats> {
+    const totalImages = (await this.db
       .prepare("SELECT COUNT(*) as count FROM media_items WHERE file_type LIKE 'image/%'")
-      .get() as {
+      .get()) as {
       count: number;
     };
-    const totalAlbums = this.db.prepare('SELECT COUNT(*) as count FROM media_albums').get() as {
+    const totalAlbums = (await this.db
+      .prepare('SELECT COUNT(*) as count FROM media_albums')
+      .get()) as {
       count: number;
     };
-    const totalSize = this.db
+    const totalSize = (await this.db
       .prepare("SELECT SUM(file_size) as size FROM media_items WHERE file_type LIKE 'image/%'")
-      .get() as {
+      .get()) as {
       size: number;
     };
 
-    const formatBreakdown = this.db
+    const formatBreakdown = (await this.db
       .prepare(
         `
       SELECT file_type as format, COUNT(*) as count
@@ -612,18 +587,18 @@ export class MediaService {
       GROUP BY file_type
     `,
       )
-      .all() as { format: string; count: number }[];
+      .all()) as { format: string; count: number }[];
 
-    const albumBreakdown = this.db
+    const albumBreakdown = (await this.db
       .prepare(
         `
       SELECT a.name, COUNT(i.id) as count
       FROM media_albums a
       LEFT JOIN media_items i ON a.id = i.album_id AND i.file_type LIKE 'image/%'
-      GROUP BY a.id
+      GROUP BY a.id, a.name
     `,
       )
-      .all() as { name: string; count: number }[];
+      .all()) as { name: string; count: number }[];
 
     return {
       totalImages: totalImages.count,
@@ -636,8 +611,8 @@ export class MediaService {
 
   // ============ SEARCH ============
 
-  searchImages(query: string): MediaImage[] {
-    return this.getAllImages({ searchQuery: query });
+  async searchImages(query: string): Promise<MediaImage[]> {
+    return await this.getAllImages({ searchQuery: query });
   }
 
   // ============ ADVANCED OPERATIONS ============
@@ -830,45 +805,34 @@ export class MediaService {
       tags.GPSLongitude,
     );
 
-    return this.getImageById(info.lastInsertRowid as number)!;
+    const finalImage = await this.getImageById(info.lastInsertRowid as number);
+    return finalImage!;
   }
 
-  batchDelete(ids: number[]): void {
-    const deleteTags = this.db.prepare('DELETE FROM media_item_tags WHERE media_item_id = ?');
-    const deleteImage = this.db.prepare('DELETE FROM media_items WHERE id = ?');
-    const getImage = this.db.prepare('SELECT file_path as path FROM media_items WHERE id = ?');
-
-    const transaction = this.db.transaction((imageIds: number[]) => {
-      for (const id of imageIds) {
-        const image = getImage.get(id) as { path: string };
-        if (image && fs.existsSync(image.path)) {
-          try {
-            fs.unlinkSync(image.path);
-          } catch (e) {
-            console.error(`Failed to delete file: ${image.path}`, e);
-          }
-        }
-        deleteTags.run(id);
-        deleteImage.run(id);
+  async deleteImages(ids: number[]): Promise<void> {
+    for (const id of ids) {
+      try {
+        await this.deleteImage(id);
+      } catch (err) {
+        console.error(`Failed to delete image ${id} in bulk:`, err);
       }
-    });
-
-    transaction(ids);
+    }
   }
 
   async createAlbumArchive(albumId: number, res: any): Promise<void> {
-    const album = this.getAlbumById(albumId);
+    const album = await this.getAlbumById(albumId);
     if (!album) throw new Error('Album not found');
 
-    const images = this.getAllImages({ albumId });
+    const images = await this.getAllImages({ albumId });
     const archive = archiver('zip', { zlib: { level: 9 } });
 
     res.attachment(`${album.name.replace(/[^a-z0-9]/gi, '_')}.zip`);
     archive.pipe(res);
 
     for (const image of images) {
-      if (fs.existsSync(image.path)) {
-        archive.file(image.path, { name: image.filename });
+      const imgPath = image.path || image.file_path;
+      if (imgPath && fs.existsSync(imgPath)) {
+        archive.file(imgPath, { name: image.filename || image.file_name || 'image' });
       }
     }
 

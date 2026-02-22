@@ -1,0 +1,37 @@
+import rateLimit from 'express-rate-limit';
+
+export const analyticsRateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10,
+  message: { error: 'Too many analytics requests, please try again later.' },
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  handler: (req, res, next, options) => {
+    res.set('Retry-After', Math.ceil(options.windowMs / 1000).toString());
+    res.status(options.statusCode).send(options.message);
+  },
+});
+
+export const mapRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  message: { error: 'Too many map requests, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res, next, options) => {
+    res.set('Retry-After', Math.ceil(options.windowMs / 1000).toString());
+    res.status(options.statusCode).send(options.message);
+  },
+});
+
+export const graphRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  message: { error: 'Too many graph requests, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res, next, options) => {
+    res.set('Retry-After', Math.ceil(options.windowMs / 1000).toString());
+    res.status(options.statusCode).send(options.message);
+  },
+});

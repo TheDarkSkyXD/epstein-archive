@@ -79,13 +79,15 @@ export const globalErrorHandler = (
   res: Response,
   _next: NextFunction,
 ): void => {
-  console.error('Global error handler caught:', {
-    message: err.message,
-    stack: err.stack,
-    url: req.url,
-    method: req.method,
-    userAgent: req.get('User-Agent'),
-  });
+  const duration = Date.now() - (req as any)._startTime || Date.now();
+  console.error(
+    `[ERROR] [${req.requestId || 'no-req-id'}] ${req.method} ${req.url} (${duration}ms) caught:`,
+    {
+      message: err.message,
+      stack: err.stack,
+      userAgent: req.get('User-Agent'),
+    },
+  );
 
   // If it's our custom AppError
   if (err instanceof AppError) {

@@ -2,7 +2,7 @@ import { getDb } from './connection.js';
 
 export const mediaRepository = {
   // Get all albums with counts for a specific media type
-  getAlbumsByMediaType: (fileType: 'audio' | 'video') => {
+  getAlbumsByMediaType: async (fileType: 'audio' | 'video') => {
     const db = getDb();
 
     // Match how getMediaItemsPaginated filters by fileType so albums always
@@ -21,22 +21,18 @@ export const mediaRepository = {
         a.id,
         a.name,
         a.description,
-        a.created_at as createdAt,
-        a.date_modified as dateModified,
-        COUNT(m.id) as itemCount,
-        SUM(CASE WHEN m.is_sensitive = 1 THEN 1 ELSE 0 END) as sensitiveCount
+        a.created_at as "createdAt",
+        a.date_modified as "dateModified",
+        COUNT(m.id) as "itemCount",
+        SUM(CASE WHEN m.is_sensitive = 1 THEN 1 ELSE 0 END) as "sensitiveCount"
       FROM media_albums a
       LEFT JOIN media_items m ON a.id = m.album_id AND m.file_type LIKE ?
       GROUP BY a.id
       HAVING itemCount > 0
       ORDER BY a.name
     `;
-    const result = db.prepare(query).all(likePattern) as any[];
+    const result = (await db.prepare(query).all(likePattern)) as any[];
     console.log(`getAlbumsByMediaType(${fileType}) found ${result.length} albums`);
-    const sacha = result.find((a) => a.id === 25);
-    if (sacha) {
-      console.log('Sacha album debug:', sacha);
-    }
     return result;
   },
 
@@ -63,7 +59,7 @@ export const mediaRepository = {
       ORDER BY m.red_flag_rating DESC, m.created_at DESC
     `;
 
-    const mediaItems = db.prepare(query).all(entityId, entityId) as any[];
+    const mediaItems = (await db.prepare(query).all(entityId, entityId)) as any[];
 
     return mediaItems.map((item) => {
       let metadata = {};
@@ -110,7 +106,7 @@ export const mediaRepository = {
       ORDER BY m.red_flag_rating DESC, m.created_at DESC
     `;
 
-    const mediaItems = db.prepare(query).all() as any[];
+    const mediaItems = (await db.prepare(query).all()) as any[];
 
     return mediaItems.map((item) => {
       let metadata = {};
@@ -136,12 +132,12 @@ export const mediaRepository = {
   },
 
   // Get single media item by ID
-  getMediaItemById: (id: number) => {
+  getMediaItemById: async (id: number) => {
     const db = getDb();
     const query = `
       SELECT * FROM media_items WHERE id = ?
     `;
-    const item = db.prepare(query).get(id) as any;
+    const item = (await db.prepare(query).get(id)) as any;
     if (!item) return undefined;
 
     let metadata = {};
@@ -273,8 +269,8 @@ export const mediaRepository = {
 
     const countQuery = `SELECT COUNT(*) as total FROM media_items m ${whereClause}`;
 
-    const totalResult = db.prepare(countQuery).get(...params) as { total: number };
-    const mediaItems = db.prepare(query).all(...params, limit, offset) as any[];
+    const totalResult = (await db.prepare(countQuery).get(...params)) as { total: number };
+    const mediaItems = (await db.prepare(query).all(...params, limit, offset)) as any[];
 
     return {
       mediaItems: mediaItems.map((item) => {
@@ -314,7 +310,7 @@ export const mediaRepository = {
   },
 
   // Batch get media items for multiple entities (limit 5 per entity)
-  getPhotosForEntities: (entityIds: string[]) => {
+  getPhotosForEntities: async (entityIds: string[]) => {
     if (!entityIds.length) return [];
 
     const db = getDb();
@@ -342,6 +338,6 @@ export const mediaRepository = {
     `;
 
     // We need to double the args because we use them twice (OR condition)
-    return db.prepare(query).all(...entityIds, ...entityIds) as any[];
+    return (await db.prepare(query).all(...entityIds, ...entityIds)) as any[];
   },
 };

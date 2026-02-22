@@ -59,6 +59,7 @@ module.exports = {
       // === ENVIRONMENT ===
       env: {
         NODE_ENV: 'production',
+        DB_DIALECT: 'postgres',
         DB_PATH: './epstein-archive.db',
         PORT: 3012, // CRITICAL: Must match Nginx proxy_pass for glasscode.academy
         RAW_CORPUS_BASE_PATH: './data',
@@ -71,6 +72,7 @@ module.exports = {
       },
       env_production: {
         NODE_ENV: 'production',
+        DB_DIALECT: 'postgres',
         PORT: 3012,
         DB_PATH: './epstein-archive.db',
         RAW_CORPUS_BASE_PATH: './data',
@@ -90,6 +92,7 @@ module.exports = {
       max_memory_restart: '2G',
       env: {
         NODE_ENV: 'production',
+        DB_DIALECT: 'postgres',
         DB_PATH: './epstein-archive.db',
         SQLITE_BUSY_TIMEOUT: '30000',
         EXO_MODEL: 'mlx-community/Qwen3-30B-A3B-4bit',

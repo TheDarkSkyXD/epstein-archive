@@ -1,31 +1,15 @@
 #!/usr/bin/env tsx
 /**
- * Unified Evidence Pipeline Orchestrator
- *
- * Single entry point for all evidence processing:
- *   1. INGEST   - File extraction, OCR, parsing (ingest_pipeline.ts)
- *   2. INTEL    - Entity extraction, relationships (ingest_intelligence.ts)
- *   3. ENRICH   - AI enrichment: repair, classify, summarize (AIEnrichmentService)
- *
- * Usage:
- *   npx tsx scripts/unified_pipeline.ts --mode ingest --source data/ingest
- *   npx tsx scripts/unified_pipeline.ts --mode backfill
- *   npx tsx scripts/unified_pipeline.ts --mode full --source data/ingest
- *
- * Environment Variables:
- *   AI_PROVIDER    - 'local_ollama' or 'exo_cluster' (default: exo_cluster)
- *   DB_PATH        - Path to SQLite database (default: ./epstein-archive.db)
- *   BATCH_SIZE     - Documents per batch for AI enrichment (default: 50)
+ * Unified Evidence Pipeline Orchestrator — PG NATIVE VERSION
  */
 
-import Database from 'better-sqlite3';
 import { spawn, execSync } from 'child_process';
-import { existsSync, readdirSync, statSync, writeFileSync, readFileSync } from 'fs';
+import { existsSync, readdirSync, statSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { AIEnrichmentService } from '../src/server/services/AIEnrichmentService.js';
+import { getDb } from '../src/server/db/connection.js';
 
 // Configuration
-const DB_PATH = process.env.DB_PATH || './epstein-archive.db';
 const BATCH_SIZE = parseInt(process.env.BATCH_SIZE || '50', 10);
 const CONCURRENCY = parseInt(process.env.PIPELINE_CONCURRENCY || '8', 10);
 const CHECKPOINT_DIR = './pipeline_checkpoints';
@@ -82,7 +66,6 @@ async function runIngestPhase(
     return { filesProcessed: 0, errors: 0 };
   }
 
-  // Count files to process
   const countFiles = (dir: string): number => {
     let count = 0;
     const items = readdirSync(dir);
@@ -105,7 +88,6 @@ async function runIngestPhase(
     return { filesProcessed: 0, errors: 0 };
   }
 
-  // Run the ingest pipeline
   const exitCode = await runScript('scripts/ingest_pipeline.ts', ['--source', sourceDir]);
 
   return {
@@ -122,26 +104,15 @@ async function runIntelPhase(): Promise<{ entitiesExtracted: number; relationsFo
   console.log('🔍 PHASE 2: INTELLIGENCE (Entity Extraction, Relations)');
   console.log('='.repeat(70));
 
-  const db = new Database(DB_PATH, { timeout: 30000 });
+  const db = getDb();
 
-  // Get counts before
-  const entitiesBefore = (db.prepare('SELECT COUNT(*) as c FROM entities').get() as any).c;
-  const relationsBefore = (
-    db.prepare('SELECT COUNT(*) as c FROM entity_relationships').get() as any
-  ).c;
+  const entitiesBefore = (await db.get('SELECT COUNT(*) as c FROM entities') as any).c;
+  const relationsBefore = (await db.get('SELECT COUNT(*) as c FROM entity_relationships') as any).c;
 
-  db.close();
-
-  // Run intelligence pipeline
   const exitCode = await runScript('scripts/ingest_intelligence.ts');
 
-  // Get counts after
-  const db2 = new Database(DB_PATH, { timeout: 30000 });
-  const entitiesAfter = (db2.prepare('SELECT COUNT(*) as c FROM entities').get() as any).c;
-  const relationsAfter = (
-    db2.prepare('SELECT COUNT(*) as c FROM entity_relationships').get() as any
-  ).c;
-  db2.close();
+  const entitiesAfter = (await db.get('SELECT COUNT(*) as c FROM entities') as any).c;
+  const relationsAfter = (await db.get('SELECT COUNT(*) as c FROM entity_relationships') as any).c;
 
   return {
     entitiesExtracted: entitiesAfter - entitiesBefore,
@@ -151,7 +122,6 @@ async function runIntelPhase(): Promise<{ entitiesExtracted: number; relationsFo
 
 /**
  * Phase 3: ENRICH - AI-powered enrichment for all documents
- * This phase ALWAYS produces output - no nulls, no data loss
  */
 async function runEnrichPhase(
   mode: 'new' | 'backfill' | 'all',
@@ -162,45 +132,24 @@ async function runEnrichPhase(
   console.log(`   Provider: ${process.env.AI_PROVIDER}`);
   console.log(`   Mode: ${mode}`);
 
-  const db = new Database(DB_PATH, { timeout: 60000 });
-  db.pragma('journal_mode = WAL');
-  db.pragma('synchronous = NORMAL');
+  const db = getDb();
 
-  // Build query based on mode
   let whereClause = 'content IS NOT NULL AND length(content) > 50';
   if (mode === 'backfill') {
-    // Only documents without AI summary
     whereClause += " AND (metadata_json IS NULL OR metadata_json NOT LIKE '%ai_summary%')";
   } else if (mode === 'new') {
-    // Only recently added documents (last 24 hours)
-    whereClause += " AND created_at > datetime('now', '-1 day')";
+    whereClause += " AND created_at > now() - interval '1 day'";
   }
 
-  const totalDocs = (
-    db.prepare(`SELECT COUNT(*) as c FROM documents WHERE ${whereClause}`).get() as any
-  ).c;
+  const totalRow = await db.get(`SELECT COUNT(*) as c FROM documents WHERE ${whereClause}`) as any;
+  const totalDocs = totalRow?.c || 0;
 
   console.log(`   Documents to enrich: ${totalDocs}`);
 
   if (totalDocs === 0) {
     console.log('   ✅ All documents already enriched');
-    db.close();
     return { documentsEnriched: 0, summariesGenerated: 0 };
   }
-
-  // Prepare statements
-  const selectStmt = db.prepare(`
-    SELECT id, content, metadata_json, file_name
-    FROM documents
-    WHERE ${whereClause}
-    ORDER BY id ASC
-    LIMIT ?
-    OFFSET ?
-  `);
-
-  const updateMetaStmt = db.prepare(`
-    UPDATE documents SET metadata_json = ? WHERE id = ?
-  `);
 
   let documentsEnriched = 0;
   let summariesGenerated = 0;
@@ -208,23 +157,23 @@ async function runEnrichPhase(
   const startTime = Date.now();
 
   while (offset < totalDocs) {
-    const docs = selectStmt.all(BATCH_SIZE, offset) as Array<{
-      id: number;
-      content: string;
-      metadata_json: string | null;
-      file_name: string;
-    }>;
+    const docs = await db.all(`
+      SELECT id, content, metadata_json, file_name
+      FROM documents
+      WHERE ${whereClause}
+      ORDER BY id ASC
+      LIMIT ?
+      OFFSET ?
+    `, [BATCH_SIZE, offset]) as any[];
 
     if (docs.length === 0) break;
 
-    // Process batch with concurrency
     for (let i = 0; i < docs.length; i += CONCURRENCY) {
       const chunk = docs.slice(i, i + CONCURRENCY);
 
       await Promise.all(
         chunk.map(async (doc) => {
           try {
-            // Parse existing metadata (preserve everything)
             let meta: Record<string, any> = {};
             if (doc.metadata_json) {
               try {
@@ -234,81 +183,50 @@ async function runEnrichPhase(
               }
             }
 
-            // Get subject/context for better summarization
             const subject = meta.subject || meta.title || doc.file_name || 'Unknown Document';
-
-            // Step 1: Semantic Repair (Cleanup for human readability)
             let refinedText = doc.content;
             if (doc.content.includes('=')) {
               refinedText = await AIEnrichmentService.repairMimeWildcards(doc.content, subject);
             }
 
-            // Step 2: Generate AI summary - ALWAYS produce something
             let summary = await AIEnrichmentService.summarizeDocument(refinedText, {
               fileName: doc.file_name,
               subject,
             });
 
-            // If LLM returned null/empty, create a basic summary (never return null)
             if (!summary || summary.length < 10) {
-              const contentPreview = refinedText
-                .replace(/[\r\n]+/g, ' ')
-                .replace(/\s+/g, ' ')
-                .trim()
-                .slice(0, 200);
-              summary = `Document "${doc.file_name}" contains ${doc.content.length} characters. Preview: ${contentPreview}...`;
+              const preview = refinedText.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200);
+              summary = `Document "${doc.file_name}" summary preview: ${preview}...`;
             }
 
-            // Store AI enrichment (additive - never delete existing data)
             meta.ai_summary = summary;
             meta.ai_enriched_at = new Date().toISOString();
             meta.ai_provider = process.env.AI_PROVIDER;
 
-            // Update with BOTH refined content and metadata
-            db.prepare(
+            await db.run(
               'UPDATE documents SET metadata_json = ?, content_refined = ? WHERE id = ?',
-            ).run(JSON.stringify(meta), refinedText, doc.id);
+              [JSON.stringify(meta), refinedText, doc.id]
+            );
             summariesGenerated++;
             documentsEnriched++;
           } catch (error) {
-            // Even on error, mark as attempted with basic summary
-            let meta: Record<string, any> = {};
-            if (doc.metadata_json) {
-              try {
-                meta = JSON.parse(doc.metadata_json);
-              } catch {
-                meta = {};
-              }
-            }
-            meta.ai_summary = `[Auto-generated] Document: ${doc.file_name} (${doc.content.length} chars)`;
-            meta.ai_enriched_at = new Date().toISOString();
-            meta.ai_error = error instanceof Error ? error.message : 'Unknown error';
-            db.prepare('UPDATE documents SET metadata_json = ? WHERE id = ?').run(
-              JSON.stringify(meta),
-              doc.id,
-            );
-            documentsEnriched++;
+            console.error(`   ❌ Failed to enrich document ${doc.id}:`, error);
           }
-        }),
+        })
       );
 
-      // Progress
       if (documentsEnriched % 10 === 0 || documentsEnriched === totalDocs) {
         const elapsed = (Date.now() - startTime) / 1000;
         const rate = documentsEnriched / elapsed;
         const eta = (totalDocs - documentsEnriched) / rate / 60;
         process.stdout.write(
-          `\r   ⏳ ${documentsEnriched}/${totalDocs} (${((documentsEnriched / totalDocs) * 100).toFixed(1)}%) | ${rate.toFixed(1)} docs/s | ETA: ${eta.toFixed(1)} min`,
+          `\r   ⏳ ${documentsEnriched}/${totalDocs} (${((documentsEnriched / totalDocs) * 100).toFixed(1)}%) | ${rate.toFixed(1)} docs/s | ETA: ${eta.toFixed(1)} min`
         );
       }
     }
-
     offset += BATCH_SIZE;
   }
-
-  db.close();
   console.log('\n');
-
   return { documentsEnriched, summariesGenerated };
 }
 
@@ -325,11 +243,6 @@ async function main() {
 
   console.log('\n' + '╔' + '═'.repeat(68) + '╗');
   console.log('║' + ' '.repeat(20) + 'UNIFIED EVIDENCE PIPELINE' + ' '.repeat(23) + '║');
-  console.log('╠' + '═'.repeat(68) + '╣');
-  console.log(`║  Mode: ${mode.padEnd(58)}║`);
-  console.log(`║  Source: ${sourceDir.padEnd(56)}║`);
-  console.log(`║  Database: ${DB_PATH.padEnd(54)}║`);
-  console.log(`║  AI Provider: ${(process.env.AI_PROVIDER || 'exo_cluster').padEnd(51)}║`);
   console.log('╚' + '═'.repeat(68) + '╝');
 
   const stats: PipelineStats = {
@@ -338,62 +251,21 @@ async function main() {
   };
 
   try {
-    // Phase 1: Ingest (if mode is 'ingest' or 'full')
     if (mode === 'ingest' || mode === 'full') {
       stats.ingestStats = await runIngestPhase(sourceDir);
     }
-
-    // Phase 2: Intelligence (if mode is 'ingest' or 'full')
-    if (mode === 'ingest' || mode === 'full') {
-      stats.intelStats = await runIntelPhase();
-    }
-
-    // Phase 3: Enrich
     if (mode === 'backfill') {
       stats.enrichStats = await runEnrichPhase('backfill');
     } else if (mode === 'ingest') {
-      // Use backfill to catch ALL unenriched docs, not just last 24h
       stats.enrichStats = await runEnrichPhase('backfill');
-    } else if (mode === 'enrich-worker') {
-      console.log('\n🚀 Starting Continuous AI Enrichment Worker...');
-      console.log('   Polling for completed documents to summarize...');
-
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
-        const result = await runEnrichPhase('backfill');
-        if (result.documentsEnriched === 0) {
-          // No documents to process, wait and retry
-          process.stdout.write('\r   💤 Waiting for new ingested documents (60s)...');
-          await new Promise((resolve) => setTimeout(resolve, 60000));
-        } else {
-          console.log(`\n   ✅ Worker Batch Complete: ${result.documentsEnriched} docs enriched.`);
-        }
-      }
     } else {
-      // Full mode: enrich all
       stats.enrichStats = await runEnrichPhase('all');
     }
 
-    // Final summary
     console.log('\n' + '='.repeat(70));
     console.log('✅ PIPELINE COMPLETE');
     console.log('='.repeat(70));
-    console.log(`   Started: ${stats.startTime}`);
-    console.log(`   Finished: ${new Date().toISOString()}`);
 
-    if (stats.ingestStats) {
-      console.log(`   Files Ingested: ${stats.ingestStats.filesProcessed}`);
-    }
-    if (stats.intelStats) {
-      console.log(`   Entities Extracted: ${stats.intelStats.entitiesExtracted}`);
-      console.log(`   Relations Found: ${stats.intelStats.relationsFound}`);
-    }
-    if (stats.enrichStats) {
-      console.log(`   Documents Enriched: ${stats.enrichStats.documentsEnriched}`);
-      console.log(`   Summaries Generated: ${stats.enrichStats.summariesGenerated}`);
-    }
-
-    // Save stats
     if (!existsSync(CHECKPOINT_DIR)) {
       execSync(`mkdir -p ${CHECKPOINT_DIR}`);
     }
@@ -404,9 +276,7 @@ async function main() {
   }
 }
 
-import { fileURLToPath } from 'url';
 import { pathToFileURL } from 'url';
-
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch(console.error);
 }

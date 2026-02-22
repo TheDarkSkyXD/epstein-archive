@@ -4,9 +4,9 @@ export const forensicRepository = {
   /**
    * Get forensic metrics for a document
    */
-  getMetrics: (documentId: number | string) => {
+  getMetrics: async (documentId: number | string) => {
     const db = getDb();
-    return db
+    return await db
       .prepare('SELECT * FROM document_forensic_metrics WHERE document_id = ?')
       .get(documentId);
   },
@@ -14,37 +14,41 @@ export const forensicRepository = {
   /**
    * Save or update forensic metrics
    */
-  saveMetrics: (documentId: number | string, metrics: any, authenticityScore?: number) => {
+  saveMetrics: async (documentId: number | string, metrics: any, authenticityScore?: number) => {
     const db = getDb();
-    const existing = db
+    const existing = (await db
       .prepare('SELECT id FROM document_forensic_metrics WHERE document_id = ?')
-      .get(documentId);
+      .get(documentId)) as any;
 
     if (existing) {
-      db.prepare(
-        `
+      await db
+        .prepare(
+          `
         UPDATE document_forensic_metrics 
         SET metrics_json = @metrics, 
             authenticity_score = @score, 
             last_analyzed_at = CURRENT_TIMESTAMP 
         WHERE document_id = @docId
       `,
-      ).run({
-        metrics: JSON.stringify(metrics),
-        score: authenticityScore || 0,
-        docId: documentId,
-      });
+        )
+        .run({
+          metrics: JSON.stringify(metrics),
+          score: authenticityScore || 0,
+          docId: documentId,
+        });
     } else {
-      db.prepare(
-        `
+      await db
+        .prepare(
+          `
         INSERT INTO document_forensic_metrics (document_id, metrics_json, authenticity_score)
         VALUES (@docId, @metrics, @score)
       `,
-      ).run({
-        docId: documentId,
-        metrics: JSON.stringify(metrics),
-        score: authenticityScore || 0,
-      });
+        )
+        .run({
+          docId: documentId,
+          metrics: JSON.stringify(metrics),
+          score: authenticityScore || 0,
+        });
     }
   },
 
@@ -54,17 +58,17 @@ export const forensicRepository = {
    * We might need to resolve document_id -> evidence_id or store document_id in chain directly.
    * For now, assuming evidence_id corresponds to document_id in simple cases or we handle mapping elsewhere.
    */
-  getChainOfCustody: (evidenceId: number | string) => {
+  getChainOfCustody: async (evidenceId: number | string) => {
     const db = getDb();
-    return db
+    return (await db
       .prepare('SELECT * FROM chain_of_custody WHERE evidence_id = ? ORDER BY date DESC')
-      .all(evidenceId);
+      .all(evidenceId)) as any[];
   },
 
   /**
    * Add an event to the chain of custody
    */
-  addCustodyEvent: (event: {
+  addCustodyEvent: async (event: {
     evidenceId: number | string;
     actor: string;
     action: string;
@@ -73,48 +77,50 @@ export const forensicRepository = {
     signature?: string;
   }) => {
     const db = getDb();
-    db.prepare(
-      `
+    await db
+      .prepare(
+        `
       INSERT INTO chain_of_custody (evidence_id, actor, action, date, notes, signature)
       VALUES (@evidenceId, @actor, @action, @date, @notes, @signature)
     `,
-    ).run({
-      evidenceId: event.evidenceId,
-      actor: event.actor,
-      action: event.action,
-      date: event.date || new Date().toISOString(),
-      notes: event.notes || '',
-      signature: event.signature || '',
-    });
+      )
+      .run({
+        evidenceId: event.evidenceId,
+        actor: event.actor,
+        action: event.action,
+        date: event.date || new Date().toISOString(),
+        notes: event.notes || '',
+        signature: event.signature || '',
+      });
   },
 
   /**
    * Get aggregated forensic metrics summary (Tier 3.3 - Advanced Analytics)
    */
-  getMetricsSummary: () => {
+  getMetricsSummary: async () => {
     const db = getDb();
 
     // Total documents analyzed
-    const totalAnalyzed = db
+    const totalAnalyzed = (await db
       .prepare(
         `
       SELECT COUNT(*) as count FROM document_forensic_metrics
     `,
       )
-      .get() as { count: number };
+      .get()) as { count: number };
 
     // Average authenticity score
-    const avgScore = db
+    const avgScore = (await db
       .prepare(
         `
       SELECT AVG(authenticity_score) as avg FROM document_forensic_metrics 
       WHERE authenticity_score IS NOT NULL AND authenticity_score > 0
     `,
       )
-      .get() as { avg: number | null };
+      .get()) as { avg: number | null };
 
     // Risk distribution from documents table
-    const riskDistribution = db
+    const riskDistribution = (await db
       .prepare(
         `
       SELECT 
@@ -125,17 +131,17 @@ export const forensicRepository = {
       FROM documents
     `,
       )
-      .get() as { low: number; medium: number; high: number; critical: number };
+      .get()) as { low: number; medium: number; high: number; critical: number };
 
     // Top 10 high-risk documents with forensic metrics
-    const topRiskDocuments = db
+    const topRiskDocuments = (await db
       .prepare(
         `
       SELECT 
-        d.id, d.file_name as fileName, d.red_flag_rating as redFlagRating,
-        d.evidence_type as evidenceType, d.word_count as wordCount,
-        dfm.authenticity_score as authenticityScore,
-        dfm.last_analyzed_at as lastAnalyzedAt
+        d.id, d.file_name as "fileName", d.red_flag_rating as "redFlagRating",
+        d.evidence_type as "evidenceType", d.word_count as "wordCount",
+        dfm.authenticity_score as "authenticityScore",
+        dfm.last_analyzed_at as "lastAnalyzedAt"
       FROM documents d
       LEFT JOIN document_forensic_metrics dfm ON dfm.document_id = d.id
       WHERE d.red_flag_rating >= 3
@@ -143,10 +149,10 @@ export const forensicRepository = {
       LIMIT 10
     `,
       )
-      .all();
+      .all()) as any[];
 
     // Documents needing analysis (no forensic metrics yet)
-    const pendingAnalysis = db
+    const pendingAnalysis = (await db
       .prepare(
         `
       SELECT COUNT(*) as count FROM documents d
@@ -154,7 +160,7 @@ export const forensicRepository = {
       WHERE dfm.id IS NULL
     `,
       )
-      .get() as { count: number };
+      .get()) as { count: number };
 
     return {
       totalDocumentsAnalyzed: totalAnalyzed.count,

@@ -1,11 +1,13 @@
 import express from 'express';
 import { getDb } from '../db/connection.js';
+import { mapRateLimiter } from '../middleware/rateLimit.js';
+import { cacheResponse } from '../utils/perfCache.js';
 
 const router = express.Router();
 
 // GET /api/map/entities
 // Returns top 500 entities with valid coordinates
-router.get('/entities', (req, res) => {
+router.get('/entities', mapRateLimiter, cacheResponse(60), async (req, res) => {
   try {
     const db = getDb();
     const limit = 500;
@@ -25,15 +27,15 @@ router.get('/entities', (req, res) => {
         location_lat as lat, 
         location_lng as lng,
         mentions,
-        COALESCE(risk_level, 'LOW') as risk_level,
-        COALESCE(red_flag_rating, 0) as risk_score,
+        COALESCE(risk_level, 'LOW') as "risk_level",
+        COALESCE(red_flag_rating, 0) as "risk_score",
         COALESCE(entity_type, 'Person') as type
       FROM entities 
       WHERE 
         location_lat IS NOT NULL 
         AND location_lng IS NOT NULL 
-        AND location_lat != 0 
-        AND location_lng != 0
+        AND location_lat BETWEEN -90 AND 90 
+        AND location_lng BETWEEN -180 AND 180
         AND COALESCE(junk_tier, 'clean') = 'clean'
         AND COALESCE(quarantine_status, 0) = 0
         AND COALESCE(red_flag_rating, 0) >= ?
@@ -41,7 +43,7 @@ router.get('/entities', (req, res) => {
       LIMIT ?
     `;
 
-    const entities = db.prepare(query).all(minRisk, limit);
+    const entities = await db.prepare(query).all(minRisk, limit);
 
     // Add debug headers
     res.set('X-Map-Debug-Count', entities.length.toString());

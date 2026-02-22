@@ -13,7 +13,7 @@ router.get('/', async (req, res, next) => {
     const { relationshipsRepository } = await import('../db/relationshipsRepository.js');
     const limit = parseInt(req.query.limit as string) || 50;
 
-    const relations = relationshipsRepository.getRelationships(entityId, {
+    const relations = await relationshipsRepository.getRelationships(entityId, {
       minWeight: req.query.minWeight ? parseFloat(req.query.minWeight as string) : undefined,
     });
 

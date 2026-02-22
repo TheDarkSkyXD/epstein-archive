@@ -27,18 +27,19 @@ export const PipelineService = {
       memory: process.memoryUsage(),
     });
 
-    const result = db
+    const result = await db
       .prepare(
         `
       INSERT INTO pipeline_runs (
         run_uuid, pipeline_version, git_commit, config_json, environment_json, status
       ) VALUES (?, ?, ?, ?, ?, 'running')
+      RETURNING id
     `,
       )
-      .run(runUuid, version, gitCommit, JSON.stringify(config), envJson);
+      .get(runUuid, version, gitCommit, JSON.stringify(config), envJson);
 
     return {
-      id: result.lastInsertRowid as number,
+      id: result.id,
       run_uuid: runUuid,
       pipeline_version: version,
       git_commit: gitCommit,
@@ -58,13 +59,15 @@ export const PipelineService = {
     errorMessage?: string,
   ): Promise<void> {
     const db = getDb();
-    db.prepare(
-      `
+    await db
+      .prepare(
+        `
       UPDATE pipeline_runs 
       SET status = ?, error_message = ?, finished_at = CURRENT_TIMESTAMP 
       WHERE id = ?
     `,
-    ).run(status, errorMessage || null, id);
+      )
+      .run(status, errorMessage || null, id);
   },
 
   /**
@@ -84,11 +87,14 @@ export const PipelineService = {
    */
   async registerStep(name: string, description: string): Promise<void> {
     const db = getDb();
-    db.prepare(
-      `
-      INSERT OR IGNORE INTO pipeline_steps (step_name, description)
+    await db
+      .prepare(
+        `
+      INSERT INTO pipeline_steps (step_name, description)
       VALUES (?, ?)
+      ON CONFLICT (step_name) DO NOTHING
     `,
-    ).run(name, description);
+      )
+      .run(name, description);
   },
 };

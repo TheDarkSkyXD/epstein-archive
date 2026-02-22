@@ -4,7 +4,7 @@ import { articlesRepository } from '../db/articlesRepository.js';
 const router = express.Router();
 
 // GET /api/articles
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 50));
@@ -14,7 +14,7 @@ router.get('/', (req, res) => {
     const publication = (req.query.publication as string) || undefined;
     const sort = (req.query.sort as 'date' | 'redFlag') || 'redFlag';
 
-    const result = articlesRepository.getArticles(limit, offset, search, publication, sort);
+    const result = await articlesRepository.getArticles(limit, offset, search, publication, sort);
 
     res.json({
       data: result.articles,
@@ -32,9 +32,9 @@ router.get('/', (req, res) => {
 });
 
 // GET /api/articles/:id
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
-    const article = articlesRepository.getArticleById(req.params.id);
+    const article = await articlesRepository.getArticleById(req.params.id);
     if (!article) {
       return res.status(404).json({ error: 'Article not found' });
     }

@@ -1,3 +1,22 @@
+## v14.2.0 - 2026-02-20 - Postgres Hardening Patch
+
+### Database Hardening
+
+- **7 CONCURRENTLY indexes**: graph, map (geo), FTS, media, document, entity-mention join paths — zero table locks during creation
+- **Weighted FTS triggers** (`setweight A/B/C`): name/title → A, role/filename → B, body → C. Batched re-backfill in 10k/5k chunks
+- **5 materialised views**: `mv_docs_by_type`, `mv_entity_type_dist`, `mv_top_connected`, `mv_timeline_data`, `mv_redaction_stats` — pre-computed analytics, refreshed by `matViewRefresh.ts` on dirty-flag, uses dedicated `maintenancePool`
+- **`analytics_refresh_log`**: per-view refresh tracking. Per-table autovacuum overrides (entities 0.5%, documents 1%)
+- **`better-sqlite3` excluded** from production image via `pnpm install --prod --ignore-optional`; boot crash guard enforces this at runtime
+- **`epstein.conf`** retuned for actual prod host: Linode AMD EPYC 7713, 6 vCPU, 16 GB RAM — `shared_buffers=4GB`, `work_mem=32MB`, `max_connections=60`, `random_page_cost=1.1`
+- **`docker-compose.yml`**: `shm_size: 256mb` added (fixes VACUUM shared memory failures), image tagged `14.2.0`
+- **Search**: `websearch_to_tsquery` (phrase + negation), `ts_rank_cd` cover-density ranking, `?mode=prefix` for autocomplete
+
+### New tooling
+- `scripts/go_prod.ts` — rewritten for PG: 6-step orchestrator (preflight, migrations, VACUUM, mat-view refresh, FTS sanity, git tag)
+- `scripts/pg_explain.ts` — 6/6 plan regression checks pass, no Seq Scans on indexed paths
+- `src/server/db/batchQuery.ts` — safe `ANY($1::bigint[])` chunked batching
+- `tests/pg-hardening-v2.spec.ts` — 15 acceptance tests (AT-1 through AT-15)
+
 ## v14.1.0 - 2026-02-20 - PostgreSQL Migration Production Release
 
 ### Database Cutover

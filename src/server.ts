@@ -58,9 +58,14 @@ import relationshipsRoutes from './server/routes/relationships.js';
 import analyticsRoutes from './server/routes/analytics.js';
 import graphRoutes from './server/routes/graphRoutes.js';
 import mapRoutes from './server/routes/mapRoutes.js';
+import mediaRoutes from './server/routes/mediaRoutes.js';
 import usersRoutes from './server/routes/users.js';
 import { reviewQueueRepository } from './server/db/reviewQueueRepository.js';
 import { apiCache, cacheMiddleware } from './server/middleware/cache.js';
+import { requestIdMiddleware } from './server/middleware/requestId.js';
+import { retryStormDetector } from './server/middleware/retryStorm.js';
+import { pgSaturationShed } from './server/middleware/pgShed.js';
+import { refreshIfDue } from './server/services/matViewRefresh.js';
 import {
   mapEntityListResponseDto,
   mapSubjectsListResponseDto,
@@ -108,18 +113,16 @@ const INVESTIGATION_MEDIA_TAG_SEED: Array<{ name: string; category: string; colo
   { name: 'Unverified', category: 'verification', color: '#f59e0b' },
 ];
 
-function seedInvestigationMediaTags(): void {
+async function seedInvestigationMediaTags(): Promise<void> {
   try {
-    const db = getDb();
-    const insert = db.prepare(
-      'INSERT OR IGNORE INTO media_tags (name, category, color) VALUES (?, ?, ?)',
-    );
-    const tx = db.transaction((rows: typeof INVESTIGATION_MEDIA_TAG_SEED) => {
-      for (const row of rows) {
-        insert.run(row.name, row.category, row.color);
-      }
-    });
-    tx(INVESTIGATION_MEDIA_TAG_SEED);
+    const { getApiPool: _getPool } = await import('./server/db/connection.js');
+    const pool = _getPool();
+    for (const row of INVESTIGATION_MEDIA_TAG_SEED) {
+      await pool.query(
+        'INSERT INTO media_tags (name, category, color) VALUES ($1, $2, $3) ON CONFLICT (name) DO NOTHING',
+        [row.name, row.category, row.color],
+      );
+    }
   } catch (error) {
     console.error('Failed to seed investigation media tags:', error);
   }
@@ -153,6 +156,8 @@ app.use((req, res, next) => {
     console.warn(
       `[BACKPRESSURE] Rejecting request: ${req.method} ${req.url} (Lag: ${h.mean / 1e6}ms, Peak: ${h.max / 1e6}ms)`,
     );
+    res.set('Retry-After', '2');
+    res.set('X-Overloaded', '1');
     return res.status(503).json({
       error: 'Server is too busy (Event Loop lag detected).',
     });
@@ -186,14 +191,23 @@ app.use((req, res, next) => {
   next();
 });
 
-// Request logging - AT THE VERY TOP
+// Assign X-Request-Id to every request
+app.use(requestIdMiddleware);
+
+// X-DB-Dialect — broadcast which database is backing this instance
+app.use((_req, res, next) => {
+  res.setHeader('X-DB-Dialect', process.env.DB_DIALECT || 'sqlite');
+  next();
+});
+
+// Request logging - uses requestId for traceability
 app.use((req, res, next) => {
   const start = Date.now();
+  (req as any)._startTime = start;
   res.on('finish', () => {
     const duration = Date.now() - start;
-    // Log originalUrl to see exactly what reached Express
     console.log(
-      `${new Date().toISOString()} ${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms`,
+      `[${req.requestId}] ${new Date().toISOString()} ${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms`,
     );
   });
   next();
@@ -271,6 +285,15 @@ const apiLimiter = rateLimit({
 });
 
 app.use('/api/', apiLimiter);
+app.use('/api/', retryStormDetector); // Detect and block retry storm patterns
+app.use('/api/', pgSaturationShed); // Shed requests when PG pool is saturated
+
+// Materialised view refresh — uses dedicated maintenancePool, defers under API pressure
+if (process.env.DB_DIALECT === 'postgres') {
+  setInterval(() => {
+    refreshIfDue().catch((e) => console.warn('[MatViewRefresh]', e.message));
+  }, 60_000);
+}
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/refresh', authLimiter);
 app.use('/api/search', searchLimiter);
@@ -436,7 +459,7 @@ app.get('/api/health/ready', async (_req, res) => {
 
     if (isPostgres) {
       // @ts-ignore - dynamic import may not resolve in strict TS mode
-      const { getMigrationMetrics } = await import('./db/connection.js');
+      const { getMigrationMetrics } = await import('./server/db/connection.js');
       migrationMetrics = await getMigrationMetrics();
       // Check pool saturation
       if (migrationMetrics.pools.api && migrationMetrics.pools.api.waiting > 10) {
@@ -444,33 +467,8 @@ app.get('/api/health/ready', async (_req, res) => {
         fallbackReason = 'api_pool_saturated';
       }
 
-      // Check lag
-      try {
-        const sqlite = db.getSqlite();
-        const pgPool = db.getPg();
-
-        if (sqlite && pgPool) {
-          const sqliteMaxIdRes = sqlite
-            .prepare('SELECT MAX(id) as maxId FROM migration_write_log')
-            .get();
-          const sqliteMaxId = sqliteMaxIdRes ? sqliteMaxIdRes.maxId : 0;
-
-          const pgWatermarkRes = await pgPool.query(
-            'SELECT MIN(last_record_id) as minWatermark FROM migration_watermarks',
-          );
-          const minWatermark = parseInt(pgWatermarkRes.rows[0].minwatermark || '0');
-
-          if (sqliteMaxId - minWatermark > 1000) {
-            isMigrationReady = false;
-            fallbackReason = 'replay_lag_high';
-          }
-        }
-      } catch (err: any) {
-        // Just log, don't cascade fail if write_log doesn't exist yet
-        if (!err.message.includes('no such table')) {
-          console.error('[Health] Failed to check migration lag', err);
-        }
-      }
+      // Migration is complete — no SQLite/PG dual-read lag check needed
+      // Pool saturation already surfaced above; additional checks via pgShed middleware
     }
 
     const status = isSchemaReady && isMigrationReady ? 'ok' : 'degraded';
@@ -504,12 +502,12 @@ const isLocalRequest = (req: express.Request) => {
 };
 
 // Admin: Re-run junk classification and purge API cache (local-only)
-app.post('/api/admin/reclassify-junk', (req, res) => {
+app.post('/api/admin/reclassify-junk', async (req, res) => {
   if (!isLocalRequest(req)) {
     return res.status(403).json({ error: 'forbidden' });
   }
   try {
-    entitiesRepository.backfillJunkFlags();
+    await entitiesRepository.backfillJunkFlags();
     apiCache.flushAll();
     res.json({ ok: true, message: 'Junk reclassified and cache purged' });
   } catch (e: any) {
@@ -593,6 +591,8 @@ app.use('/api/relationships', relationshipsRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/graph', graphRoutes);
+app.use('/api/map', mapRoutes);
+app.use('/api/media', mediaRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/investigations', investigationsRouter);
 app.use('/api/investigation', investigationEvidenceRoutes);
@@ -732,7 +732,7 @@ app.get('/api/admin/audit-logs', requireRole('admin'), async (req, res, next) =>
 app.get('/api/admin/review-queue', requireRole('admin'), async (req, res, next) => {
   try {
     const limit = Math.min(100, parseInt(req.query.limit as string) || 50);
-    const items = reviewQueueRepository.getPendingItems(limit);
+    const items = await reviewQueueRepository.getPendingItems(limit);
     res.json(items);
   } catch (e) {
     next(e);
@@ -749,7 +749,7 @@ app.post('/api/admin/review-queue/:id/decide', requireRole('admin'), async (req,
       return res.status(400).json({ error: 'Invalid decision status' });
     }
 
-    const success = reviewQueueRepository.updateDecision(id, status, userId, notes);
+    const success = await reviewQueueRepository.updateDecision(id, status, userId, notes);
     if (!success) {
       return res.status(404).json({ error: 'Review item not found' });
     }
@@ -931,7 +931,7 @@ app.get('/api/entities', cacheMiddleware(300), async (req, res, next) => {
     if (sortBy) (filters as any).sortBy = sortBy.trim();
     if (sortOrder) filters.sortOrder = sortOrder;
 
-    const result = entitiesRepository.getEntities(page, limit, filters, sortBy as SortOption);
+    const result = await entitiesRepository.getEntities(page, limit, filters, sortBy as SortOption);
 
     // Batch fetch photos for these entities
     const entityIds = result.entities.map((e: any) => e.id);
@@ -939,7 +939,7 @@ app.get('/api/entities', cacheMiddleware(300), async (req, res, next) => {
 
     if (entityIds.length > 0) {
       try {
-        const photos = mediaRepository.getPhotosForEntities(entityIds);
+        const photos = await mediaRepository.getPhotosForEntities(entityIds);
         photos.forEach((p: any) => {
           if (!photosByEntity[p.entityId]) photosByEntity[p.entityId] = [];
           photosByEntity[p.entityId].push(p);
@@ -1001,7 +1001,7 @@ app.post('/api/entities', validate(entitySchema), async (req, res, next) => {
       }
     }
 
-    const id = entitiesRepository.createEntity(req.body);
+    const id = await entitiesRepository.createEntity(req.body);
     logAudit(
       'create_entity',
       (req as AuthenticatedRequest).user?.id || null,
@@ -1020,7 +1020,7 @@ app.post('/api/entities', validate(entitySchema), async (req, res, next) => {
 app.patch('/api/entities/:id', async (req, res, next) => {
   try {
     const id = req.params.id;
-    const changes = entitiesRepository.updateEntity(id, req.body);
+    const changes = await entitiesRepository.updateEntity(id, req.body);
     if (changes === 0) return res.status(404).json({ error: 'Not found or no changes' });
     logAudit(
       'update_entity',
@@ -1038,7 +1038,7 @@ app.patch('/api/entities/:id', async (req, res, next) => {
 // Get all entities for document linking
 app.get('/api/entities/all', cacheMiddleware(300), async (_req, res, next) => {
   try {
-    const entities = entitiesRepository.getAllEntities();
+    const entities = await entitiesRepository.getAllEntities();
     res.json(entities);
   } catch (error) {
     console.error('Error fetching all entities:', error);
@@ -1047,7 +1047,7 @@ app.get('/api/entities/all', cacheMiddleware(300), async (_req, res, next) => {
 });
 
 // ULTRATHINK: New Subject Card Endpoint
-app.get('/api/subjects', cacheMiddleware(300), (req, res) => {
+app.get('/api/subjects', cacheMiddleware(300), async (req, res) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 24;
@@ -1067,7 +1067,7 @@ app.get('/api/subjects', cacheMiddleware(300), (req, res) => {
 
     const sortBy = (req.query.sortBy as SortOption) || 'red_flag';
 
-    const result = entitiesRepository.getSubjectCards(page, limit, filters, sortBy);
+    const result = await entitiesRepository.getSubjectCards(page, limit, filters, sortBy);
     res.json(mapSubjectsListResponseDto(result));
   } catch (error) {
     console.error('Error fetching subject cards:', error);
@@ -1084,13 +1084,13 @@ app.get('/api/entities/:id', cacheMiddleware(60), async (req, res, next) => {
     if (!/^\d+$/.test(entityId)) {
       // Special case: if id is 'all', return all entities
       if (entityId === 'all') {
-        const entities = entitiesRepository.getAllEntities();
+        const entities = await entitiesRepository.getAllEntities();
         return res.json(entities);
       }
       return res.status(400).json({ error: 'Invalid entity ID format' });
     }
 
-    const entity = entitiesRepository.getEntityById(entityId) as Person | null;
+    const entity = (await entitiesRepository.getEntityById(entityId)) as Person | null;
 
     if (!entity) {
       return res.status(404).json({ error: 'Entity not found' });
@@ -1162,7 +1162,7 @@ app.get('/api/entities/:id/documents', cacheMiddleware(30), async (req, res, nex
 
     // Parallel fetch for perf
     // We skip count if searching (complex) or just do it separate
-    const documents = entitiesRepository.getEntityDocumentsPaginated(
+    const documents = await entitiesRepository.getEntityDocumentsPaginated(
       entityId,
       page,
       limit,
@@ -1174,7 +1174,7 @@ app.get('/api/entities/:id/documents', cacheMiddleware(30), async (req, res, nex
     // For search, we might need a separate count query or just let infinite scroll run until empty
     let total = 0;
     if (!search && !source) {
-      total = entitiesRepository.getEntityDocumentCount(entityId);
+      total = await entitiesRepository.getEntityDocumentCount(entityId);
     } else {
       // Approximation or separate count query for filtered results could be added here
       // For now, if we returned < limit, we know we're at the end.
@@ -1208,7 +1208,7 @@ const getEntityCommunications = async (req: express.Request, res: express.Respon
     const end = (req.query.end as string | undefined) || undefined;
     const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
 
-    const events = communicationsRepository.getCommunicationsForEntity(entityId, {
+    const events = await communicationsRepository.getCommunicationsForEntity(entityId, {
       topic,
       from,
       to,
@@ -1247,7 +1247,7 @@ app.get('/api/black-book', cacheMiddleware(300), async (req, res, next) => {
     };
 
     // Get data
-    const entries = blackBookRepository.getBlackBookEntries(filters);
+    const entries = await blackBookRepository.getBlackBookEntries(filters);
 
     // Get total count (inefficient but accurate for now - better to add a count method to repo)
     // Actually, let's just do a quick count query here or modify repo.
@@ -1282,7 +1282,7 @@ app.get('/api/black-book', cacheMiddleware(300), async (req, res, next) => {
 // Get database statistics
 app.get('/api/stats', cacheMiddleware(300), async (_req, res, next) => {
   try {
-    const stats = statsRepository.getStatistics();
+    const stats = await statsRepository.getStatistics();
     res.set('Cache-Control', 'public, max-age=300'); // 5 min cache
     res.json(stats);
   } catch (error) {
@@ -1630,7 +1630,7 @@ app.get('/api/documents', async (req, res, next) => {
     const minRedFlag = parseInt(req.query.minRedFlag as string) || 0;
     const maxRedFlag = parseInt(req.query.maxRedFlag as string) || 5;
 
-    const result = documentsRepository.getDocuments(page, limit, {
+    const result = await documentsRepository.getDocuments(page, limit, {
       search,
       fileType,
       evidenceType,
@@ -1726,8 +1726,8 @@ const analyzeDocumentAnalytics = async (
 
     const authenticityScore = Math.min(1.0, baseScore);
 
-    forensicRepository.saveMetrics(id as string, metrics, authenticityScore);
-    forensicRepository.addCustodyEvent({
+    await forensicRepository.saveMetrics(id as string, metrics, authenticityScore);
+    await forensicRepository.addCustodyEvent({
       evidenceId: id as string,
       actor: (req as any).user?.name || 'System',
       action: 'Automated Forensic Analysis',
@@ -1748,7 +1748,7 @@ const getDocumentAnalyticsMetrics = async (
 ) => {
   try {
     const { id } = req.params as { id: string };
-    const metrics = forensicRepository.getMetrics(id);
+    const metrics = await forensicRepository.getMetrics(id);
     res.json(metrics || { metrics_json: '{}', authenticity_score: 0 });
   } catch (error) {
     console.error('Metrics error:', error);
@@ -1763,7 +1763,7 @@ const getDocumentAnalyticsCustody = async (
 ) => {
   try {
     const { id } = req.params as { id: string };
-    const chain = forensicRepository.getChainOfCustody(id);
+    const chain = await forensicRepository.getChainOfCustody(id);
     res.json(chain || []);
   } catch (error) {
     console.error('Custody error:', error);
@@ -1780,7 +1780,7 @@ app.post('/api/documents/:id/analytics/analyze', analyzeDocumentAnalytics);
 app.get('/api/documents/:id', async (req, res, next) => {
   try {
     const id = req.params.id as string;
-    const doc = documentsRepository.getDocumentById(id) as Evidence | null;
+    const doc = (await documentsRepository.getDocumentById(id)) as Evidence | null;
     if (!doc) {
       return res.status(404).json({ error: 'not_found' });
     }
@@ -1834,7 +1834,7 @@ app.get('/api/documents/:id/related', async (req, res, next) => {
   try {
     const id = req.params.id as string;
     const limit = parseInt(req.query.limit as string) || 12;
-    const related = documentsRepository.getRelatedDocuments(id, limit);
+    const related = await documentsRepository.getRelatedDocuments(id, limit);
     res.json(related);
   } catch (error) {
     console.error('Error fetching related documents:', error);
@@ -1846,7 +1846,7 @@ app.get('/api/documents/:id/related', async (req, res, next) => {
 app.get('/api/documents/:id/thread', async (req, res, next) => {
   try {
     const id = req.params.id as string;
-    const thread = communicationsRepository.getThreadForDocument(id);
+    const thread = await communicationsRepository.getThreadForDocument(id);
     if (!thread) {
       return res.status(404).json({ error: 'thread_not_found' });
     }
@@ -1938,7 +1938,7 @@ app.get('/api/documents/:id/pages', async (req, res, next) => {
     }
 
     // Otherwise, check if request is an OCR document and find its original image
-    const doc = documentsRepository.getDocumentById(id) as Evidence | null;
+    const doc = (await documentsRepository.getDocumentById(id)) as Evidence | null;
     if (!doc) {
       return res.status(404).json({ error: 'not_found' });
     }
@@ -2058,7 +2058,7 @@ app.get('/api/documents/:id/pages', async (req, res, next) => {
 app.get('/api/documents/:id/file', async (req, res, next) => {
   try {
     const id = req.params.id as string;
-    const doc = documentsRepository.getDocumentById(id) as Evidence | null;
+    const doc = (await documentsRepository.getDocumentById(id)) as Evidence | null;
     if (!doc) {
       return res.status(404).json({ error: 'not_found' });
     }
@@ -2263,7 +2263,7 @@ app.get('/api/search', async (req, res, next) => {
 // Analytics endpoint
 app.get('/api/analytics', async (_req, res, next) => {
   try {
-    const stats = statsRepository.getStatistics();
+    const stats = await statsRepository.getStatistics();
     res.json(stats);
   } catch (error) {
     console.error('Error fetching analytics:', error);
@@ -2274,7 +2274,7 @@ app.get('/api/analytics', async (_req, res, next) => {
 // Get timeline events
 app.get('/api/timeline', async (_req, res, next) => {
   try {
-    const events = timelineRepository.getTimelineEvents();
+    const events = await timelineRepository.getTimelineEvents();
     res.set('Cache-Control', 'public, max-age=300'); // 5 min cache
     res.json(events);
   } catch (error) {
@@ -2290,7 +2290,7 @@ app.get('/api/timeline', async (_req, res, next) => {
 // Get all albums
 app.get('/api/media/albums', async (_req, res, next) => {
   try {
-    const albums = mediaService.getAllAlbums();
+    const albums = await mediaService.getAllAlbums();
     res.set('Cache-Control', 'public, max-age=120'); // 2 min cache
     res.json(albums);
   } catch (error) {
@@ -2307,7 +2307,7 @@ app.get('/api/media/albums/:id', async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid album ID' });
     }
 
-    const album = mediaService.getAlbumById(albumId);
+    const album = await mediaService.getAlbumById(albumId);
     if (!album) {
       return res.status(404).json({ error: 'Album not found' });
     }
@@ -2327,7 +2327,7 @@ app.get('/api/media/albums/:id/images', async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid album ID' });
     }
 
-    const images = mediaService.getAllImages({ albumId });
+    const images = await mediaService.getAllImages({ albumId });
     res.json(images);
   } catch (error) {
     console.error('Error fetching album images:', error);
@@ -2337,7 +2337,7 @@ app.get('/api/media/albums/:id/images', async (req, res, next) => {
 // Get albums for audio
 app.get('/api/media/audio/albums', async (_req, res, next) => {
   try {
-    const albums = mediaRepository.getAlbumsByMediaType('audio');
+    const albums = await mediaRepository.getAlbumsByMediaType('audio');
     res.json(albums);
   } catch (error) {
     console.error('Error fetching audio albums:', error);
@@ -2378,7 +2378,7 @@ app.get('/api/media/audio/:id', async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid audio ID' });
     }
 
-    const item = mediaRepository.getMediaItemById(id);
+    const item = await mediaRepository.getMediaItemById(id);
     if (!item) {
       return res.status(404).json({ error: 'Audio not found' });
     }
@@ -2393,7 +2393,7 @@ app.get('/api/media/audio/:id', async (req, res, next) => {
 app.get('/api/media/audio/:id/stream', async (req, res, next) => {
   try {
     const id = parseInt(req.params.id);
-    const item = mediaRepository.getMediaItemById(id);
+    const item = await mediaRepository.getMediaItemById(id);
     if (!item) return res.status(404).json({ error: 'Audio not found' });
 
     // Resolve path similar to images
@@ -2422,7 +2422,7 @@ app.get('/api/media/audio/:id/stream', async (req, res, next) => {
 // Get albums for video
 app.get('/api/media/video/albums', async (_req, res, next) => {
   try {
-    const albums = mediaRepository.getAlbumsByMediaType('video');
+    const albums = await mediaRepository.getAlbumsByMediaType('video');
     res.json(albums);
   } catch (error) {
     console.error('Error fetching video albums:', error);
@@ -2457,7 +2457,7 @@ app.get('/api/media/video', async (req, res, next) => {
 app.get('/api/media/video/:id/stream', async (req, res, next) => {
   try {
     const id = parseInt(req.params.id);
-    const item = mediaRepository.getMediaItemById(id);
+    const item = await mediaRepository.getMediaItemById(id);
     if (!item) return res.status(404).json({ error: 'Video not found' });
 
     // Resolve path similar to images
@@ -2484,7 +2484,7 @@ app.get('/api/media/video/:id/stream', async (req, res, next) => {
 app.get('/api/media/video/:id/thumbnail', async (req, res, next) => {
   try {
     const id = parseInt(req.params.id);
-    const item = mediaRepository.getMediaItemById(id);
+    const item = await mediaRepository.getMediaItemById(id);
     if (!item) return res.status(404).json({ error: 'Video not found' });
 
     // Check metadata for thumbnail path
@@ -2581,8 +2581,8 @@ app.get('/api/media/images', async (req, res, next) => {
       sort.order = req.query.sortOrder as 'asc' | 'desc';
     }
 
-    const images = mediaService.getAllImages(filter, sort);
-    const totalCount = mediaService.getImageCount(filter);
+    const images = await mediaService.getAllImages(filter, sort);
+    const totalCount = await mediaService.getImageCount(filter);
     res.set('X-Total-Count', totalCount.toString());
     res.set('Access-Control-Expose-Headers', 'X-Total-Count');
 
@@ -2616,7 +2616,7 @@ app.get('/api/media/images/:id', async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid image ID' });
     }
 
-    const image = mediaService.getImageById(imageId);
+    const image = await mediaService.getImageById(imageId);
     if (!image) {
       return res.status(404).json({ error: 'Image not found' });
     }
@@ -2634,7 +2634,7 @@ app.get('/api/media/images/:id/file', async (req, res, next) => {
     if (isNaN(imageId)) {
       return res.status(400).json({ error: 'Invalid image ID' });
     }
-    const image = mediaService.getImageById(imageId);
+    const image = await mediaService.getImageById(imageId);
     if (!image) {
       return res.status(404).json({ error: 'Image not found' });
     }
@@ -2676,7 +2676,7 @@ app.get('/api/media/images/:id/raw', async (req, res, next) => {
     if (isNaN(imageId)) {
       return res.status(400).json({ error: 'Invalid image ID' });
     }
-    const image = mediaService.getImageById(imageId);
+    const image = await mediaService.getImageById(imageId);
     if (!image) {
       return res.status(404).json({ error: 'Image not found' });
     }
@@ -2719,7 +2719,7 @@ app.get('/api/media/images/:id/thumbnail', async (req, res, next) => {
     if (isNaN(imageId)) {
       return res.status(400).json({ error: 'Invalid image ID' });
     }
-    const image = mediaService.getImageById(imageId);
+    const image = await mediaService.getImageById(imageId);
     if (!image) {
       return res.status(404).json({ error: 'Image not found' });
     }
@@ -2781,7 +2781,7 @@ app.get('/api/media/images/:id/thumbnail', async (req, res, next) => {
             force: true,
           });
           if (fs.existsSync(generated)) {
-            mediaService.updateImage(imageId, { thumbnailPath: generated });
+            await mediaService.updateImage(imageId, { thumbnailPath: generated });
             absPath = generated;
           } else {
             absPath = originalAbsPath;
@@ -2932,7 +2932,7 @@ app.put(
           const id = parseInt(imageId.toString());
           if (isNaN(id)) continue;
 
-          const image = mediaService.getImageById(id);
+          const image = await mediaService.getImageById(id);
           if (!image) continue;
 
           // Rotate the image
@@ -2942,15 +2942,15 @@ app.put(
           const thumbnailDir = path.dirname(
             (image as any).thumbnail_path ||
               image.thumbnailPath ||
-              path.join(path.dirname(image.path), 'thumbnails'),
+              path.join(path.dirname(image.path || image.file_path || ''), 'thumbnails'),
           );
-          await mediaService.generateThumbnail(image.path, thumbnailDir, {
+          await mediaService.generateThumbnail(image.path || image.file_path || '', thumbnailDir, {
             force: true,
             orientation: 1,
           });
 
           // Get updated image
-          const updatedImage = mediaService.getImageById(id);
+          const updatedImage = await mediaService.getImageById(id);
           results.push({ id, success: true, image: updatedImage });
         } catch (err) {
           console.error(`Error rotating image ${imageId}:`, err);
@@ -3053,9 +3053,9 @@ app.put(
             if (isNaN(tid)) continue;
 
             if (action === 'add') {
-              mediaService.addTagToImage(id, tid);
+              await mediaService.addTagToImage(id, tid);
             } else {
-              mediaService.removeTagFromImage(id, tid);
+              await mediaService.removeTagFromImage(id, tid);
             }
           }
 
@@ -3102,9 +3102,9 @@ app.put(
             if (isNaN(tid)) continue;
 
             if (action === 'add') {
-              mediaService.addTagToItem(id, tid);
+              await mediaService.addTagToItem(id, tid);
             } else {
-              mediaService.removeTagFromItem(id, tid);
+              await mediaService.removeTagFromItem(id, tid);
             }
           }
           results.push({ id, success: true });
@@ -3147,9 +3147,9 @@ app.put(
             if (isNaN(pid)) continue;
 
             if (action === 'add') {
-              mediaService.addPersonToItem(id, pid);
+              await mediaService.addPersonToItem(id, pid);
             } else {
-              mediaService.removePersonFromItem(id, pid);
+              await mediaService.removePersonFromItem(id, pid);
             }
           }
           results.push({ id, success: true });
@@ -3193,11 +3193,11 @@ app.put(
           const id = parseInt(imageId.toString());
           if (isNaN(id)) continue;
 
-          const image = mediaService.getImageById(id);
+          const image = await mediaService.getImageById(id);
           if (!image) {
             results.push({ id, success: false, error: 'Image not found' });
           } else {
-            mediaService.updateImage(id, {
+            await mediaService.updateImage(id, {
               ...(updates.title !== undefined ? { title: updates.title } : {}),
               ...(updates.description !== undefined ? { description: updates.description } : {}),
             });
@@ -3296,7 +3296,7 @@ app.put(
       if (req.body.title !== undefined) updates.title = req.body.title;
       if (req.body.description !== undefined) updates.description = req.body.description;
 
-      mediaService.updateImage(imageId, updates);
+      await mediaService.updateImage(imageId, updates);
       res.json({ success: true });
     } catch (error) {
       console.error('Error updating image:', error);
@@ -3319,7 +3319,7 @@ app.put(
         return res.status(400).json({ error: 'Invalid image ID' });
       }
 
-      const image = mediaService.getImageById(imageId);
+      const image = await mediaService.getImageById(imageId);
       if (!image) {
         return res.status(404).json({ error: 'Image not found' });
       }
@@ -3339,7 +3339,7 @@ app.put(
       // If not, assume 'thumbnails' subdir of image path (standard structure)
 
       try {
-        await mediaService.generateThumbnail(image.path, thumbnailDir, {
+        await mediaService.generateThumbnail(image.path || image.file_path || '', thumbnailDir, {
           force: true,
           orientation: 1,
         });
@@ -3349,7 +3349,7 @@ app.put(
       }
 
       // Return the updated image so frontend can reflect changes immediately
-      const updatedImage = mediaService.getImageById(imageId);
+      const updatedImage = await mediaService.getImageById(imageId);
       res.json(updatedImage);
     } catch (error) {
       console.error('Error rotating image:', error);
@@ -3370,7 +3370,7 @@ app.delete(
         return res.status(400).json({ error: 'Invalid image ID' });
       }
 
-      mediaService.deleteImage(imageId);
+      await mediaService.deleteImage(imageId);
       res.json({ success: true });
     } catch (error) {
       console.error('Error deleting image:', error);
@@ -3387,7 +3387,7 @@ app.get('/api/media/search', async (req, res, next) => {
       return res.status(400).json({ error: 'Search query is required' });
     }
 
-    const images = mediaService.searchImages(query);
+    const images = await mediaService.searchImages(query);
     res.json(images);
   } catch (error) {
     console.error('Error searching images:', error);
@@ -3399,7 +3399,7 @@ app.get('/api/media/search', async (req, res, next) => {
 app.get('/api/media/tags', async (_req, res, next) => {
   try {
     seedInvestigationMediaTags();
-    const tags = mediaService.getAllTags();
+    const tags = await mediaService.getAllTags();
     res.json(tags);
   } catch (error) {
     console.error('Error fetching tags:', error);
@@ -3410,7 +3410,7 @@ app.get('/api/media/tags', async (_req, res, next) => {
 // Get media statistics
 app.get('/api/media/stats', async (_req, res, next) => {
   try {
-    const stats = mediaService.getMediaStats();
+    const stats = await mediaService.getMediaStats();
     res.json(stats);
   } catch (error) {
     console.error('Error fetching media stats:', error);
@@ -3642,7 +3642,7 @@ app.get('/api/properties', async (req, res, next) => {
       sortOrder: (req.query.sortOrder as 'asc' | 'desc') || 'desc',
     };
 
-    const result = propertiesRepository.getProperties(filters);
+    const result = await propertiesRepository.getProperties(filters);
     res.json(result);
   } catch (error) {
     console.error('Error fetching properties:', error);
@@ -3653,7 +3653,7 @@ app.get('/api/properties', async (req, res, next) => {
 // Get property statistics
 app.get('/api/properties/stats', async (req, res, next) => {
   try {
-    const stats = propertiesRepository.getPropertyStats();
+    const stats = await propertiesRepository.getPropertyStats();
     res.json(stats);
   } catch (error) {
     console.error('Error fetching property stats:', error);
@@ -3664,7 +3664,7 @@ app.get('/api/properties/stats', async (req, res, next) => {
 // Get known associate properties
 app.get('/api/properties/known-associates', async (req, res, next) => {
   try {
-    const properties = propertiesRepository.getKnownAssociateProperties();
+    const properties = await propertiesRepository.getKnownAssociateProperties();
     res.json(properties);
   } catch (error) {
     console.error('Error fetching known associate properties:', error);
@@ -3675,7 +3675,7 @@ app.get('/api/properties/known-associates', async (req, res, next) => {
 // Get Epstein properties
 app.get('/api/properties/epstein', async (req, res, next) => {
   try {
-    const properties = propertiesRepository.getEpsteinProperties();
+    const properties = await propertiesRepository.getEpsteinProperties();
     res.json(properties);
   } catch (error) {
     console.error('Error fetching Epstein properties:', error);
@@ -3686,7 +3686,7 @@ app.get('/api/properties/epstein', async (req, res, next) => {
 // Get property value distribution
 app.get('/api/properties/value-distribution', async (req, res, next) => {
   try {
-    const distribution = propertiesRepository.getValueDistribution();
+    const distribution = await propertiesRepository.getValueDistribution();
     res.json(distribution);
   } catch (error) {
     console.error('Error fetching value distribution:', error);
@@ -3698,7 +3698,7 @@ app.get('/api/properties/value-distribution', async (req, res, next) => {
 app.get('/api/properties/top-owners', async (req, res, next) => {
   try {
     const limit = parseInt(req.query.limit as string) || 20;
-    const owners = propertiesRepository.getTopOwners(limit);
+    const owners = await propertiesRepository.getTopOwners(limit);
     res.json(owners);
   } catch (error) {
     console.error('Error fetching top owners:', error);
@@ -3712,7 +3712,7 @@ app.get('/api/properties/:id', async (req, res, next) => {
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid property ID' });
 
-    const property = propertiesRepository.getPropertyById(id);
+    const property = await propertiesRepository.getPropertyById(id);
     if (!property) return res.status(404).json({ error: 'Property not found' });
 
     res.json(property);
@@ -3737,7 +3737,7 @@ app.get('/api/flights', async (req, res, next) => {
       airport: req.query.airport as string,
     };
 
-    const result = flightsRepository.getFlights(filters);
+    const result = await flightsRepository.getFlights(filters);
     res.json(result);
   } catch (error) {
     console.error('Error fetching flights:', error);
@@ -3748,7 +3748,7 @@ app.get('/api/flights', async (req, res, next) => {
 // Get flight statistics
 app.get('/api/flights/stats', async (req, res, next) => {
   try {
-    const stats = flightsRepository.getFlightStats();
+    const stats = await flightsRepository.getFlightStats();
     res.json(stats);
   } catch (error) {
     console.error('Error fetching flight stats:', error);
@@ -3759,7 +3759,7 @@ app.get('/api/flights/stats', async (req, res, next) => {
 // Get airport coordinates for map
 app.get('/api/flights/airports', async (req, res, next) => {
   try {
-    const coords = flightsRepository.getAirportCoords();
+    const coords = await flightsRepository.getAirportCoords();
     res.json(coords);
   } catch (error) {
     next(error);
@@ -3769,7 +3769,7 @@ app.get('/api/flights/airports', async (req, res, next) => {
 // Get unique passengers list
 app.get('/api/flights/passengers', async (req, res, next) => {
   try {
-    const passengers = flightsRepository.getUniquePassengers();
+    const passengers = await flightsRepository.getUniquePassengers();
     res.json(passengers);
   } catch (error) {
     next(error);
@@ -3782,7 +3782,7 @@ app.get('/api/flights/:id', async (req, res, next) => {
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid flight ID' });
 
-    const flight = flightsRepository.getFlightById(id);
+    const flight = await flightsRepository.getFlightById(id);
     if (!flight) return res.status(404).json({ error: 'Flight not found' });
 
     res.json(flight);
@@ -3795,7 +3795,7 @@ app.get('/api/flights/:id', async (req, res, next) => {
 app.get('/api/flights/passenger/:name', async (req, res, next) => {
   try {
     const name = decodeURIComponent(req.params.name);
-    const flights = flightsRepository.getPassengerFlights(name);
+    const flights = await flightsRepository.getPassengerFlights(name);
     res.json(flights);
   } catch (error) {
     next(error);
@@ -3806,7 +3806,7 @@ app.get('/api/flights/passenger/:name', async (req, res, next) => {
 app.get('/api/flights/co-occurrences', async (req, res, next) => {
   try {
     const minFlights = parseInt(req.query.minFlights as string) || 2;
-    const coOccurrences = flightsRepository.getPassengerCoOccurrences(minFlights);
+    const coOccurrences = await flightsRepository.getPassengerCoOccurrences(minFlights);
     res.json(coOccurrences);
   } catch (error) {
     console.error('Error fetching co-occurrences:', error);
@@ -3818,7 +3818,7 @@ app.get('/api/flights/co-occurrences', async (req, res, next) => {
 app.get('/api/flights/co-passengers/:name', async (req, res, next) => {
   try {
     const name = decodeURIComponent(req.params.name);
-    const coPassengers = flightsRepository.getCoPassengers(name);
+    const coPassengers = await flightsRepository.getCoPassengers(name);
     res.json(coPassengers);
   } catch (error) {
     console.error('Error fetching co-passengers:', error);
@@ -3830,7 +3830,7 @@ app.get('/api/flights/co-passengers/:name', async (req, res, next) => {
 app.get('/api/flights/routes', async (req, res, next) => {
   try {
     const limit = parseInt(req.query.limit as string) || 20;
-    const routes = flightsRepository.getFrequentRoutes(limit);
+    const routes = await flightsRepository.getFrequentRoutes(limit);
     res.json(routes);
   } catch (error) {
     console.error('Error fetching routes:', error);
@@ -3841,7 +3841,7 @@ app.get('/api/flights/routes', async (req, res, next) => {
 // Get passenger date ranges (first/last flight)
 app.get('/api/flights/passenger-ranges', async (req, res, next) => {
   try {
-    const ranges = flightsRepository.getPassengerDateRanges();
+    const ranges = await flightsRepository.getPassengerDateRanges();
     res.json(ranges);
   } catch (error) {
     console.error('Error fetching passenger ranges:', error);
@@ -3852,7 +3852,7 @@ app.get('/api/flights/passenger-ranges', async (req, res, next) => {
 // Get flights by aircraft
 app.get('/api/flights/aircraft', async (req, res, next) => {
   try {
-    const aircraft = flightsRepository.getFlightsByAircraft();
+    const aircraft = await flightsRepository.getFlightsByAircraft();
     res.json(aircraft);
   } catch (error) {
     console.error('Error fetching aircraft stats:', error);
@@ -3864,7 +3864,7 @@ app.get('/api/flights/aircraft', async (req, res, next) => {
 app.get('/api/flights/destinations/:name', async (req, res, next) => {
   try {
     const name = decodeURIComponent(req.params.name);
-    const destinations = flightsRepository.getPassengerDestinations(name);
+    const destinations = await flightsRepository.getPassengerDestinations(name);
     res.json(destinations);
   } catch (error) {
     console.error('Error fetching destinations:', error);
@@ -3892,7 +3892,7 @@ app.get('/api/memory', async (req, res, next) => {
     if (status) filters.status = status;
     if (searchQuery) filters.searchQuery = searchQuery;
 
-    const result = memoryRepository.searchMemoryEntries(getDb(), filters, page, limit);
+    const result = await memoryRepository.searchMemoryEntries(getDb(), filters, page, limit);
 
     res.json({
       data: result.data,
@@ -3914,7 +3914,7 @@ app.get('/api/memory/:id', async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid memory ID' });
     }
 
-    const memoryEntry = memoryRepository.getMemoryEntryById(getDb(), id);
+    const memoryEntry = await memoryRepository.getMemoryEntryById(getDb(), id);
     if (!memoryEntry) {
       return res.status(404).json({ error: 'Memory entry not found' });
     }
@@ -3954,7 +3954,7 @@ app.post('/api/memory', async (req, res, next) => {
       provenance,
     };
 
-    const newMemoryEntry = memoryRepository.createMemoryEntry(getDb(), input);
+    const newMemoryEntry = await memoryRepository.createMemoryEntry(getDb(), input);
 
     res.status(201).json(newMemoryEntry);
   } catch (error) {
@@ -3971,7 +3971,7 @@ app.put('/api/memory/:id', async (req, res, next) => {
     }
 
     const updates = req.body;
-    const updatedMemoryEntry = memoryRepository.updateMemoryEntry(getDb(), id, updates);
+    const updatedMemoryEntry = await memoryRepository.updateMemoryEntry(getDb(), id, updates);
 
     if (!updatedMemoryEntry) {
       return res.status(404).json({ error: 'Memory entry not found' });
@@ -3991,7 +3991,7 @@ app.delete('/api/memory/:id', async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid memory ID' });
     }
 
-    const result = memoryRepository.updateMemoryEntry(getDb(), id, { status: 'deprecated' });
+    const result = await memoryRepository.updateMemoryEntry(getDb(), id, { status: 'deprecated' });
 
     if (!result) {
       return res.status(404).json({ error: 'Memory entry not found' });
@@ -4011,7 +4011,7 @@ app.get('/api/memory/:id/relationships', async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid memory ID' });
     }
 
-    const relationships = memoryRepository.getMemoryRelationships(getDb(), id);
+    const relationships = await memoryRepository.getMemoryRelationships(getDb(), id);
 
     res.json(relationships);
   } catch (error) {
@@ -4027,7 +4027,7 @@ app.get('/api/memory/:id/audit', async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid memory ID' });
     }
 
-    const auditLogs = memoryRepository.getMemoryAuditLogs(getDb(), id);
+    const auditLogs = await memoryRepository.getMemoryAuditLogs(getDb(), id);
 
     res.json(auditLogs);
   } catch (error) {
@@ -4043,7 +4043,7 @@ app.get('/api/memory/:id/quality', async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid memory ID' });
     }
 
-    const qualityMetrics = memoryRepository.getQualityMetrics(getDb(), id);
+    const qualityMetrics = await memoryRepository.getQualityMetrics(getDb(), id);
 
     res.json(qualityMetrics);
   } catch (error) {
@@ -4068,7 +4068,7 @@ app.post('/api/memory/:id/quality', async (req, res, next) => {
       entityConfidence: entityConfidence || 0.5,
     };
 
-    memoryRepository.updateQualityMetrics(getDb(), id, dimensions);
+    await memoryRepository.updateQualityMetrics(getDb(), id, dimensions);
 
     res.json({ success: true });
   } catch (error) {
@@ -4137,9 +4137,9 @@ function injectOgTags(
 
 // Ensure articles repository-like access (quick inline helper since no repo file exists yet)
 // Ensure articles repository-like access (quick inline helper since no repo file exists yet)
-function getArticleById(id: number | string) {
+async function getArticleById(id: number | string) {
   try {
-    return articlesRepository.getArticleById(id);
+    return await articlesRepository.getArticleById(id);
   } catch (e) {
     console.error('Error fetching article for OG tags:', e);
     return null;
@@ -4263,7 +4263,7 @@ app.get('*', async (req, res, next) => {
       if (mediaItemPathMatch) {
         const id = parseInt(mediaItemPathMatch[1], 10);
         if (!isNaN(id)) {
-          const item = mediaRepository.getMediaItemById(id);
+          const item = await mediaRepository.getMediaItemById(id);
           if (item) {
             const fileType = String(item.file_type || '').toLowerCase();
             const typeLabel = fileType.includes('audio')
@@ -4288,9 +4288,9 @@ app.get('*', async (req, res, next) => {
       if (photoId) {
         const id = parseInt(photoId as string);
         if (!isNaN(id)) {
-          const image = mediaService.getImageById(id);
+          const image = await mediaService.getImageById(id);
           if (image) {
-            const imageUrl = `${baseUrl}/api/media/images/${id}/raw?v=${new Date(image.dateModified || image.dateAdded || 0).getTime()}`;
+            const imageUrl = `${baseUrl}/api/media/images/${id}/raw?v=${new Date(image.date_modified || image.created_at || 0).getTime()}`;
             html = injectOgTags(html, {
               title: image.title || image.filename || 'Photo - Epstein Files Archive',
               description:
@@ -4308,9 +4308,9 @@ app.get('*', async (req, res, next) => {
       if (photoPathMatch) {
         const id = parseInt(photoPathMatch[1]);
         if (!isNaN(id)) {
-          const image = mediaService.getImageById(id);
+          const image = await mediaService.getImageById(id);
           if (image) {
-            const imageUrl = `${baseUrl}/api/media/images/${id}/raw?v=${new Date(image.dateModified || image.dateAdded || 0).getTime()}`;
+            const imageUrl = `${baseUrl}/api/media/images/${id}/raw?v=${new Date(image.date_modified || image.created_at || 0).getTime()}`;
             html = injectOgTags(html, {
               title: image.title || image.filename || 'Photo - Epstein Files Archive',
               description:
@@ -4335,7 +4335,7 @@ app.get('*', async (req, res, next) => {
         if (mediaItemId) {
           const id = parseInt(mediaItemId as string, 10);
           if (!isNaN(id)) {
-            const item = mediaRepository.getMediaItemById(id);
+            const item = await mediaRepository.getMediaItemById(id);
             if (item) {
               const fileType = String(item.file_type || '').toLowerCase();
               const typeLabel = fileType.includes('audio')
@@ -4362,7 +4362,7 @@ app.get('*', async (req, res, next) => {
       if (albumIdQuery && routePath.startsWith('/media')) {
         const albumId = parseInt(albumIdQuery as string, 10);
         if (!isNaN(albumId)) {
-          const album = mediaService.getAlbumById(albumId);
+          const album = await mediaService.getAlbumById(albumId);
           if (album) {
             const imageUrl = getAlbumHeroImageUrl(albumId, baseUrl, defaultOgImage);
             html = injectOgTags(html, {
@@ -4397,7 +4397,7 @@ app.get('*', async (req, res, next) => {
       // Check for entity deep links (e.g., /subjects?entity=123 or /entity/123)
       const entityId = req.query.entity || req.query.entityId;
       if (entityId) {
-        const entity = entitiesRepository.getEntityById(String(entityId));
+        const entity = await entitiesRepository.getEntityById(String(entityId));
         if (entity) {
           const entityName = entity.fullName || entity.full_name || 'Unknown Entity';
           const role = entity.primaryRole || entity.primary_role || '';
@@ -4416,7 +4416,7 @@ app.get('*', async (req, res, next) => {
       // Check for article deep links (e.g., /media/articles?articleId=123)
       const articleId = req.query.article || req.query.articleId;
       if (articleId) {
-        const article = getArticleById(articleId as string);
+        const article = await articlesRepository.getArticleById(articleId as string);
         if (article) {
           const articleTitle = article.title || 'Article';
           const summary =
@@ -4437,7 +4437,7 @@ app.get('*', async (req, res, next) => {
       // Check for document deep links (e.g., /documents?doc=123)
       const docId = req.query.doc || req.query.documentId || req.query.id;
       if (docId) {
-        const doc = documentsRepository.getDocumentById(String(docId));
+        const doc = await documentsRepository.getDocumentById(String(docId));
         if (doc) {
           const docTitle = doc.file_name || doc.title || 'Document';
           html = injectOgTags(html, {
@@ -4456,7 +4456,7 @@ app.get('*', async (req, res, next) => {
       // Check for entity path deep links (e.g., /entity/123 or /entities/123)
       const entityPathMatch = req.path.match(/^\/(?:entity|entities)\/(\d+)/);
       if (entityPathMatch) {
-        const entity = entitiesRepository.getEntityById(entityPathMatch[1]);
+        const entity = await entitiesRepository.getEntityById(entityPathMatch[1]);
         if (entity) {
           const entityName = entity.fullName || entity.full_name || 'Unknown';
           const role = entity.primaryRole || entity.primary_role || '';
@@ -4479,7 +4479,7 @@ app.get('*', async (req, res, next) => {
       // Note: Frontend likely uses /documents/:id
       const docPathMatch = req.path.match(/^\/(?:document|documents)\/(\d+)/);
       if (docPathMatch) {
-        const doc = documentsRepository.getDocumentById(docPathMatch[1]);
+        const doc = await documentsRepository.getDocumentById(docPathMatch[1]);
         if (doc) {
           const docTitle = doc.title || doc.file_name || 'Document';
           html = injectOgTags(html, {
@@ -4741,25 +4741,31 @@ app.get('*', async (req, res, next) => {
 // Ensure migrations are run before starting
 try {
   validateStartup();
-  runMigrations();
+  if (process.env.DB_DIALECT !== 'postgres') {
+    runMigrations();
+  } else {
+    console.log('[Startup] DB_DIALECT=postgres. Skipping legacy SQLite auto-migration.');
+  }
   seedInvestigationMediaTags();
 
   // Phase 6 Resilience: Background Junk Flag Backfill
   // DISABLED FOR STABILITY: Run manually via scripts/maintenance.ts
   /*
-  try {
-    entitiesRepository.startBackgroundJunkBackfill();
-  } catch (e) {
-    console.error('⚠️ [STARTUP] Junk flags backfill trigger failed:', e);
-  }
+  (async () => {
+    try {
+      await entitiesRepository.startBackgroundJunkBackfill();
+    } catch (e) {
+      console.error('⚠️ [STARTUP] Junk flags backfill trigger failed:', e);
+    }
+  })();
   */
 
   // Phase 6 Performance: Graph Adjacency Cache Rebuild
   // DISABLED FOR STABILITY: Run manually via scripts/maintenance.ts
   /*
-  setTimeout(() => {
+  setTimeout(async () => {
     try {
-      relationshipsRepository.rebuildAdjacencyCache();
+      await relationshipsRepository.rebuildAdjacencyCache();
     } catch (e) {
       console.error('⚠️ [BACKGROUND] Adjacency cache rebuild failed:', e);
     }
@@ -4783,22 +4789,6 @@ const server = app.listen(config.apiPort, () => {
   FtsMaintenanceService.performMaintenance()
     .then(() => console.log('✅ FTS Maintenance complete'))
     .catch((err) => console.error('❌ FTS Maintenance failed:', err));
-
-  // PERIODIC DATABASE MAINTENANCE (WAL Checkpointing)
-  // Run every 30 minutes in production to prevent WAL bloat
-  const CHECKPOINT_INTERVAL = 30 * 60 * 1000;
-  setInterval(() => {
-    try {
-      const db = getDb();
-      // PASSIVE checkpoint: try to merge as many frames as possible without blocking others
-      db.pragma('wal_checkpoint(PASSIVE)');
-      console.log(
-        `${new Date().toISOString()} [MAINTENANCE] SQLite WAL checkpoint (PASSIVE) completed.`,
-      );
-    } catch (err) {
-      console.error('⚠️ [MAINTENANCE] SQLite WAL checkpoint failed:', err);
-    }
-  }, CHECKPOINT_INTERVAL);
 
   // Log startup diagnostics for debugging
   console.log('--- Startup Warnings ---');
@@ -4825,14 +4815,10 @@ const gracefulShutdown = (signal: string) => {
     console.log('HTTP server closed.');
 
     try {
-      // Close database connection
-      const db = getDb();
-      if (db) {
-        db.close();
-        console.log('Database connection closed.');
-      }
+      // PgWrapper doesn't expose .close(); pool cleanup handled by process exit
+      console.log('[Shutdown] Database connections will be released by pool termination.');
     } catch (e) {
-      console.error('Error closing database:', e);
+      console.error('Error during shutdown:', e);
     }
 
     console.log('Graceful shutdown complete.');

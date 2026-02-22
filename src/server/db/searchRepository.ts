@@ -1,4 +1,4 @@
-import { getDb } from './connection.js';
+import { getApiPool } from './connection.js';
 
 const normalizeAliasValue = (value: string): string =>
   value
@@ -10,20 +10,16 @@ const normalizeAliasValue = (value: string): string =>
 
 const parseEntityAliases = (aliases: string | null | undefined): string[] => {
   if (!aliases) return [];
-
   try {
     const parsed = JSON.parse(aliases);
-    if (Array.isArray(parsed)) {
-      return parsed.map((entry) => String(entry || '').trim()).filter((entry) => entry.length > 0);
-    }
+    if (Array.isArray(parsed)) return parsed.map((e) => String(e || '').trim()).filter(Boolean);
   } catch {
-    // fall through to delimiter parsing below
+    /* fall through */
   }
-
   return String(aliases)
     .split(/[;,|]/)
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0);
+    .map((e) => e.trim())
+    .filter(Boolean);
 };
 
 const resolveMatchedAlias = (
@@ -31,252 +27,177 @@ const resolveMatchedAlias = (
   canonicalName: string,
   aliases: string[],
 ): string | null => {
-  const normalizedSearch = normalizeAliasValue(searchTerm);
-  if (!normalizedSearch) return null;
-
-  if (normalizeAliasValue(canonicalName) === normalizedSearch) {
-    return null;
-  }
-
-  const exactAlias = aliases.find((alias) => normalizeAliasValue(alias) === normalizedSearch);
-  if (exactAlias) return exactAlias;
-
-  const containingAlias = aliases.find((alias) =>
-    normalizeAliasValue(alias).includes(normalizedSearch),
+  const n = normalizeAliasValue(searchTerm);
+  if (!n) return null;
+  if (normalizeAliasValue(canonicalName) === n) return null;
+  return (
+    aliases.find((a) => normalizeAliasValue(a) === n) ||
+    aliases.find((a) => normalizeAliasValue(a).includes(n)) ||
+    null
   );
-  return containingAlias || null;
 };
 
+/**
+ * Build a Postgres tsquery for autocomplete / prefix mode.
+ * Only used when mode=prefix; default is websearch_to_tsquery.
+ * Safe — strips non-alphanumeric characters before building.
+ */
+function buildPrefixQuery(phrase: string): string {
+  const tokens = phrase
+    .trim()
+    .split(/\s+/)
+    .map((w) => w.replace(/[^a-zA-Z0-9_]/g, ''))
+    .filter((w) => w.length > 1);
+  return tokens.length > 0 ? tokens.map((w) => `${w}:*`).join(' & ') : "'a'";
+}
+
 export const searchRepository = {
-  search: (
+  search: async (
     query: string,
     limit: number = 50,
-    filters: { evidenceType?: string; redFlagBand?: string } = {},
+    filters: { evidenceType?: string; redFlagBand?: string; mode?: 'web' | 'prefix' } = {},
   ) => {
-    const db = getDb();
+    const pool = getApiPool();
     const searchTerm = query.trim();
+    if (!searchTerm) return { entities: [], documents: [] };
 
-    if (!searchTerm) {
-      return { entities: [], documents: [] };
+    const safeLimit = Math.min(200, Math.max(1, limit));
+    const isPrefix = filters.mode === 'prefix';
+
+    // websearch_to_tsquery handles: "quoted phrases", negation, OR, multi-word
+    // to_tsquery(prefix) handles autocomplete (:* suffix)
+    const tsFunc = isPrefix ? 'to_tsquery' : 'websearch_to_tsquery';
+    const tsArg = isPrefix ? buildPrefixQuery(searchTerm) : searchTerm;
+
+    // ── Entities ─────────────────────────────────────────────────────────────
+    const entityRes = await pool.query<any>(
+      `
+      SELECT
+        e.id,
+        e.full_name          AS "fullName",
+        e.primary_role       AS "primaryRole",
+        e.aliases,
+        e.red_flag_rating    AS "redFlagRating",
+        ts_rank_cd(e.fts_vector, query, 32) AS rank
+      FROM entities e, ${tsFunc}('english', $1) query
+      WHERE e.fts_vector @@ query
+        AND COALESCE(e.junk_tier, 'clean') = 'clean'
+        AND COALESCE(e.quarantine_status, 0) = 0
+      ORDER BY rank DESC
+      LIMIT $2
+    `,
+      [tsArg, safeLimit],
+    );
+
+    // ── Documents ─────────────────────────────────────────────────────────────
+    const docValues: any[] = [tsArg];
+    let docSql = `
+      SELECT
+        d.id,
+        d.file_name           AS "fileName",
+        d.file_path           AS "filePath",
+        d.evidence_type       AS "evidenceType",
+        d.red_flag_rating     AS "redFlagRating",
+        ts_headline('english',
+          coalesce(d.title, '') || ' ' || left(coalesce(d.content, ''), 500),
+          query,
+          'MaxWords=25,MinWords=8,ShortWord=3,HighlightAll=FALSE,MaxFragments=2'
+        ) AS snippet,
+        ts_rank_cd(d.fts_vector, query, 32) AS rank
+      FROM documents d, ${tsFunc}('english', $1) query
+      WHERE d.fts_vector @@ query
+    `;
+
+    if (filters.evidenceType && filters.evidenceType !== 'ALL') {
+      docValues.push(filters.evidenceType.toLowerCase());
+      docSql += ` AND d.evidence_type = $${docValues.length}`;
     }
+    if (filters.redFlagBand === 'high') docSql += ` AND d.red_flag_rating >= 4`;
+    else if (filters.redFlagBand === 'medium')
+      docSql += ` AND d.red_flag_rating >= 2 AND d.red_flag_rating < 4`;
+    else if (filters.redFlagBand === 'low') docSql += ` AND d.red_flag_rating < 2`;
 
-    try {
-      // Split search into words for fuzzy matching
-      const searchWords = searchTerm.split(/\s+/).filter((w) => w.length > 0);
+    docValues.push(safeLimit);
+    docSql += ` ORDER BY rank DESC LIMIT $${docValues.length}`;
 
-      // Build FTS query: each word with prefix matching, AND'd together
-      // e.g., "William Riley" -> "William* AND Riley*"
-      const ftsQuery = searchWords.map((w) => `${w.replace(/"/g, '""')}*`).join(' AND ');
+    const docRes = await pool.query<any>(docSql, docValues);
 
-      let entities: any[] = [];
-      try {
-        const ftsEntityQuery = `
-          SELECT 
-            e.id,
-            e.full_name as fullName,
-            e.primary_role as primaryRole,
-            e.aliases as aliases,
-            'Person' as entityType,
-            e.red_flag_rating as redFlagRating,
-            e.red_flag_score as redFlagScore,
-            entities_fts.rank
-          FROM entities_fts
-          JOIN entities e ON e.id = entities_fts.rowid
-          WHERE entities_fts MATCH @ftsQuery
-          ORDER BY entities_fts.rank
-          LIMIT @limit
-        `;
-        entities = db.prepare(ftsEntityQuery).all({ ftsQuery, limit }) as any[];
-      } catch (ftsError) {
-        // Fallback to LIKE if FTS table missing or error
-        console.warn('FTS search failed, falling back to LIKE:', ftsError);
-      }
-
-      // Fallback to LIKE if FTS returned no results (safety net for broken indices)
-      if (entities.length === 0) {
-        // Build WHERE clause matching all words
-        const wordConditions = searchWords.map((word, i) => {
-          return `(e.full_name LIKE @word${i} OR e.primary_role LIKE @word${i} OR e.connections_summary LIKE @word${i} OR e.aliases LIKE @word${i})`;
-        });
-        const params: any = { limit };
-        searchWords.forEach((word, i) => {
-          params[`word${i}`] = `%${word}%`;
-        });
-
-        const entityQuery = `
-            SELECT 
-            e.id,
-            e.full_name as fullName,
-            e.primary_role as primaryRole,
-            e.aliases as aliases,
-            'Person' as entityType,
-            e.red_flag_rating as redFlagRating,
-            e.red_flag_score as redFlagScore
-            FROM entities e
-            WHERE ${wordConditions.join(' AND ')}
-            ORDER BY e.mentions DESC
-            LIMIT @limit
-        `;
-        entities = db.prepare(entityQuery).all(params) as any[];
-      }
-
-      // Build document query with filters
-      let documents: any[] = [];
-      try {
-        // FTS for documents
-        let documentQuery = `
-            SELECT 
-              d.id,
-              d.file_name as fileName,
-              d.file_path as filePath,
-              d.file_type as fileType,
-              d.evidence_type as evidenceType,
-              d.file_size as fileSize,
-              d.date_created as dateCreated,
-              d.word_count as wordCount,
-              d.red_flag_rating as redFlagRating,
-              snippet(documents_fts, -1, '<span class="bg-yellow-600/30 text-yellow-200 font-semibold px-0.5 rounded">', '</span>', '...', 64) as snippet,
-              documents_fts.rank
-            FROM documents_fts
-            JOIN documents d ON d.id = documents_fts.rowid
-            WHERE documents_fts MATCH @ftsQuery
-         `;
-
-        const params: any = { ftsQuery, limit };
-
-        if (filters.evidenceType && filters.evidenceType !== 'ALL') {
-          documentQuery += ` AND d.evidence_type = @evidenceType`;
-          params.evidenceType = filters.evidenceType.toLowerCase();
-        }
-
-        if (filters.redFlagBand) {
-          // ... (same logic as before) ...
-          if (filters.redFlagBand === 'high') documentQuery += ` AND d.red_flag_rating >= 4`;
-          else if (filters.redFlagBand === 'medium')
-            documentQuery += ` AND d.red_flag_rating >= 2 AND d.red_flag_rating < 4`;
-          else if (filters.redFlagBand === 'low') documentQuery += ` AND d.red_flag_rating < 2`;
-        }
-
-        documentQuery += ` ORDER BY documents_fts.rank LIMIT @limit`;
-        documents = db.prepare(documentQuery).all(params) as any[];
-      } catch (_ftsError) {
-        // Fallback
-        const searchPattern = `%${searchTerm}%`;
-        let documentQuery = `
-            SELECT 
-            d.id,
-            d.file_name as fileName,
-            d.file_path as filePath,
-            d.file_type as fileType,
-            d.evidence_type as evidenceType,
-            d.file_size as fileSize,
-            d.date_created as dateCreated,
-            d.word_count as wordCount,
-            d.red_flag_rating as redFlagRating
-            FROM documents d
-            WHERE (d.file_name LIKE @searchPattern OR d.content LIKE @searchPattern)
-        `;
-        const params: any = { searchPattern, limit };
-        if (filters.evidenceType && filters.evidenceType !== 'ALL') {
-          documentQuery += ` AND d.evidence_type = @evidenceType`;
-          params.evidenceType = filters.evidenceType.toLowerCase();
-        }
-        if (filters.redFlagBand) {
-          if (filters.redFlagBand === 'high') documentQuery += ` AND d.red_flag_rating >= 4`;
-          else if (filters.redFlagBand === 'medium')
-            documentQuery += ` AND d.red_flag_rating >= 2 AND d.red_flag_rating < 4`;
-          else if (filters.redFlagBand === 'low') documentQuery += ` AND d.red_flag_rating < 2`;
-        }
-        documentQuery += ` ORDER BY d.red_flag_rating DESC LIMIT @limit`;
-        documents = db.prepare(documentQuery).all(params) as any[];
-      }
-
-      return {
-        entities: entities.map((row) => {
-          const aliases = parseEntityAliases(row.aliases);
-          return {
-            id: row.id.toString(),
-            fullName: row.fullName,
-            canonicalName: row.fullName,
-            name: row.fullName, // Helper
-            primaryRole: row.primaryRole,
-            title: row.primaryRole, // Fallback
-            aliases,
-            matchedAlias: resolveMatchedAlias(searchTerm, row.fullName, aliases),
-            entityType: row.entityType,
-            secondaryRoles: [],
-            likelihoodLevel: 0,
-            mentions: 0,
-            currentStatus: null,
-            connectionsSummary: null,
-            redFlagRating: row.redFlagRating,
-            redFlagScore: row.redFlagScore,
-            redFlagIndicators: [],
-            redFlagDescription: row.redFlagDescription,
-            titleVariants: [],
-            evidenceTypes: [], // Prevent fallback to 'Unknown' or invalid types
-          };
-        }),
-        documents: documents.map((row) => ({
-          id: row.id.toString(),
-          fileName: row.fileName,
-          title: row.fileName, // Helper
-          filePath: row.filePath,
-          fileType: row.fileType,
-          evidenceType: row.evidenceType,
-          fileSize: row.fileSize,
-          dateCreated: row.dateCreated,
-          wordCount: row.wordCount,
+    return {
+      entities: entityRes.rows.map((row) => {
+        const aliases = parseEntityAliases(row.aliases);
+        return {
+          id: String(row.id),
+          fullName: row.fullName,
+          canonicalName: row.fullName,
+          name: row.fullName,
+          primaryRole: row.primaryRole,
+          title: row.primaryRole,
+          aliases,
+          matchedAlias: resolveMatchedAlias(searchTerm, row.fullName, aliases),
+          entityType: 'Person',
+          secondaryRoles: [],
+          likelihoodLevel: 0,
+          mentions: 0,
+          currentStatus: null,
+          connectionsSummary: null,
           redFlagRating: row.redFlagRating,
-          createdAt: row.dateCreated,
-          snippet: row.snippet,
-        })),
-      };
-      return { entities: [], documents: [] };
-    } catch (error) {
-      console.error('Search error:', error);
-      return { entities: [], documents: [] };
-    }
+          redFlagScore: null,
+          redFlagIndicators: [],
+          redFlagDescription: null,
+          titleVariants: [],
+          evidenceTypes: [],
+        };
+      }),
+      documents: docRes.rows.map((row) => ({
+        id: String(row.id),
+        fileName: row.fileName,
+        title: row.fileName,
+        filePath: row.filePath,
+        fileType: null,
+        evidenceType: row.evidenceType,
+        fileSize: null,
+        dateCreated: null,
+        wordCount: null,
+        redFlagRating: row.redFlagRating,
+        createdAt: null,
+        snippet: row.snippet,
+      })),
+    };
   },
 
-  searchSentences: (query: string, limit: number = 20) => {
-    const db = getDb();
+  searchSentences: async (query: string, limit: number = 20) => {
+    const pool = getApiPool();
     const searchTerm = query.trim();
     if (!searchTerm) return [];
 
-    try {
-      const searchWords = searchTerm.split(/\s+/).filter((w) => w.length > 0);
-      const ftsQuery = searchWords.map((w) => `${w.replace(/"/g, '""')}*`).join(' AND ');
+    const safeLimit = Math.min(100, Math.max(1, limit));
 
-      // Use document_sentences_fts
-      // Join with documents/pages to get metadata
-      const results = db
-        .prepare(
-          `
-        SELECT 
+    try {
+      const res = await pool.query<any>(
+        `
+        SELECT
           s.id,
           s.document_id,
           s.page_id,
           s.sentence_text,
           s.signal_score,
           d.file_name,
-          COALESCE(p.page_number, 1) as page_number,
-          snippet(document_sentences_fts, 0, '<mark>', '</mark>', '...', 32) as snippet,
-          document_sentences_fts.rank
-        FROM document_sentences_fts
-        JOIN document_sentences s ON s.id = document_sentences_fts.rowid
+          COALESCE(p.page_number, 1) AS page_number,
+          ts_headline('english', s.sentence_text, query,
+            'MaxWords=15,MinWords=5') AS snippet
+        FROM document_sentences s
         JOIN documents d ON d.id = s.document_id
-        LEFT JOIN document_pages p ON p.id = s.page_id
-        WHERE document_sentences_fts MATCH @ftsQuery
-        ORDER BY document_sentences_fts.rank
-        LIMIT @limit
+        LEFT JOIN document_pages p ON p.id = s.page_id,
+        websearch_to_tsquery('english', $1) query
+        WHERE to_tsvector('english', s.sentence_text) @@ query
+        ORDER BY ts_rank_cd(to_tsvector('english', s.sentence_text), query, 32) DESC
+        LIMIT $2
       `,
-        )
-        .all({ ftsQuery, limit });
-
-      return results;
+        [searchTerm, safeLimit],
+      );
+      return res.rows;
     } catch (error) {
-      console.error('Sentence search error:', error);
+      console.error('[searchRepository] searchSentences error:', error);
       return [];
     }
   },

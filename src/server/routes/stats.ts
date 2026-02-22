@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { statsRepository } from '../db/statsRepository.js';
-import { getDb } from '../db/connection.js';
+import { getDb, getApiPool, getMigrationMetrics } from '../db/connection.js';
 import { config } from '../../config/index.js';
 import fs from 'fs';
 import { ingestRunsRepository } from '../db/ingestRunsRepository.js';
@@ -9,6 +9,33 @@ import { FtsMaintenanceService } from '../services/ftsMaintenance.js';
 import { cacheMiddleware } from '../middleware/cache.js';
 
 const router = Router();
+
+// ── /meta/db ─── Canary endpoint: database dialect, version, timeouts, pool stats
+router.get('/meta/db', async (_req, res, next) => {
+  try {
+    const pool = getApiPool();
+    const { rows } = await pool.query<{
+      server_version: string;
+      statement_timeout: string;
+      lock_timeout: string;
+    }>(`
+      SELECT
+        version() AS server_version,
+        current_setting('statement_timeout') AS statement_timeout,
+        current_setting('lock_timeout') AS lock_timeout
+    `);
+    const metrics = await getMigrationMetrics();
+    res.json({
+      dialect: process.env.DB_DIALECT || 'sqlite',
+      server_version: rows[0]?.server_version,
+      statement_timeout: rows[0]?.statement_timeout,
+      lock_timeout: rows[0]?.lock_timeout,
+      pools: metrics.pools,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 
 // Public Stats Endpoint (for About page)
 // Cache for 5 minutes (300 seconds)
@@ -56,6 +83,31 @@ router.get('/health', async (_req, res) => {
   res.status(healthCheck.status === 'healthy' ? 200 : 503).json(healthCheck);
 });
 
+// O(1) Instantaneous Readiness Check (STEP 1)
+router.get('/health/ready', async (_req, res) => {
+  try {
+    const db = getDb();
+    if (!db) {
+      return res.status(503).json({ status: 'degraded', error: 'No database' });
+    }
+
+    // Ping the DB strictly, wrapped in a 50ms Promise.race timeout
+    const pingPromise = Promise.resolve(db.prepare('SELECT 1').get());
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('timeout')), 50),
+    );
+
+    await Promise.race([pingPromise, timeoutPromise]);
+
+    res.status(200).json({ status: 'ready' });
+  } catch (e: any) {
+    res.status(503).json({
+      status: 'degraded',
+      error: e.message === 'timeout' ? 'DB ping timeout' : 'DB error',
+    });
+  }
+});
+
 // Deep health check
 router.get('/health/deep', async (_req, res) => {
   const checks: Record<
@@ -86,29 +138,33 @@ router.get('/health/deep', async (_req, res) => {
       overallStatus = 'critical';
     }
 
-    // 2. Database integrity check
+    // 2. Database integrity check (SQLite only — PG uses table-level checks instead)
     const integrityStart = Date.now();
-    try {
-      const integrity = db.pragma('integrity_check') as Array<{ integrity_check: string }>;
-      if (integrity[0]?.integrity_check === 'ok') {
-        checks.database_integrity = {
-          status: 'pass',
-          message: 'Database integrity OK',
-          duration: Date.now() - integrityStart,
-        };
-      } else {
+    if (process.env.DB_DIALECT !== 'postgres' && db.pragma) {
+      try {
+        const integrity = db.pragma('integrity_check') as Array<{ integrity_check: string }>;
+        if (integrity[0]?.integrity_check === 'ok') {
+          checks.database_integrity = {
+            status: 'pass',
+            message: 'Database integrity OK',
+            duration: Date.now() - integrityStart,
+          };
+        } else {
+          checks.database_integrity = {
+            status: 'fail',
+            message: `Integrity check failed: ${integrity[0]?.integrity_check}`,
+          };
+          overallStatus = 'critical';
+        }
+      } catch (e: any) {
         checks.database_integrity = {
           status: 'fail',
-          message: `Integrity check failed: ${integrity[0]?.integrity_check}`,
+          message: `Integrity check error: ${e.message}`,
         };
         overallStatus = 'critical';
       }
-    } catch (e: any) {
-      checks.database_integrity = {
-        status: 'fail',
-        message: `Integrity check error: ${e.message}`,
-      };
-      overallStatus = 'critical';
+    } else {
+      checks.database_integrity = { status: 'pass', message: 'N/A (postgres)' };
     }
 
     // 3. Critical tables exist and have data
@@ -165,19 +221,23 @@ router.get('/health/deep', async (_req, res) => {
       overallStatus = 'critical';
     }
 
-    // 5. Check WAL mode
-    try {
-      const journalMode = db.pragma('journal_mode') as Array<{ journal_mode: string }>;
-      const mode = journalMode[0]?.journal_mode;
-      checks.journal_mode = {
-        status: mode === 'wal' ? 'pass' : 'warn',
-        message: `Journal mode: ${mode}`,
-      };
-    } catch (e: any) {
-      checks.journal_mode = {
-        status: 'warn',
-        message: `Could not check journal mode: ${e.message}`,
-      };
+    // 5. Check WAL mode (SQLite only)
+    if (process.env.DB_DIALECT !== 'postgres' && db.pragma) {
+      try {
+        const journalMode = db.pragma('journal_mode') as Array<{ journal_mode: string }>;
+        const mode = journalMode[0]?.journal_mode;
+        checks.journal_mode = {
+          status: mode === 'wal' ? 'pass' : 'warn',
+          message: `Journal mode: ${mode}`,
+        };
+      } catch (e: any) {
+        checks.journal_mode = {
+          status: 'warn',
+          message: `Could not check journal mode: ${e.message}`,
+        };
+      }
+    } else {
+      checks.journal_mode = { status: 'pass', message: 'N/A (postgres uses WAL natively)' };
     }
 
     // 6. Memory check

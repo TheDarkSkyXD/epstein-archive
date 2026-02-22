@@ -24,22 +24,23 @@ export const jobsRepository = {
   /**
    * Create a new processing job.
    */
-  createJob: (job: Omit<ProcessingJob, 'id' | 'status' | 'attempts' | 'priority'>) => {
+  createJob: async (job: Omit<ProcessingJob, 'id' | 'status' | 'attempts' | 'priority'>) => {
     const db = getDb();
-    return db
+    return await db
       .prepare(
         `
       INSERT INTO processing_jobs (run_id, step_name, target_type, target_id)
       VALUES (?, ?, ?, ?)
+      RETURNING id
     `,
       )
-      .run(job.run_id, job.step_name, job.target_type, job.target_id);
+      .get(job.run_id, job.step_name, job.target_type, job.target_id);
   },
 
   /**
    * List jobs with filtering.
    */
-  listJobs: (status?: string, targetType?: string) => {
+  listJobs: async (status?: string, targetType?: string) => {
     const db = getDb();
     const where: string[] = [];
     const params: any = [];
@@ -55,32 +56,35 @@ export const jobsRepository = {
     }
 
     const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
-    return db.all(
+    return await db.all(
       `SELECT * FROM processing_jobs ${whereClause} ORDER BY priority DESC, created_at ASC`,
-      ...params,
+      params,
     );
   },
 
   /**
    * Update job status and record attempt.
    */
-  updateJobStatus: (id: number, status: ProcessingJob['status'], error?: string) => {
+  updateJobStatus: async (id: number, status: ProcessingJob['status'], error?: string) => {
     const db = getDb();
-    const update = db.prepare(`
-      UPDATE processing_jobs 
-      SET status = ?, last_error = ?, attempts = attempts + 1, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `);
 
-    db.transaction(() => {
-      update.run(status, error || null, id);
-      // Also log to job_attempts
-      db.prepare(
+    await db.transaction(async (client) => {
+      await client.query(
+        `
+        UPDATE processing_jobs 
+        SET status = $1, last_error = $2, attempts = attempts + 1, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $3
+      `,
+        [status, error || null, id],
+      );
+
+      await client.query(
         `
         INSERT INTO job_attempts (job_id, attempt_number, status, error_message)
-        SELECT id, attempts, status, last_error FROM processing_jobs WHERE id = ?
+        SELECT id, attempts, status, last_error FROM processing_jobs WHERE id = $1
       `,
-      ).run(id);
+        [id],
+      );
     })();
   },
 
@@ -88,40 +92,39 @@ export const jobsRepository = {
    * Lease a queued job for processing.
    * Atomically finds and locks a job.
    */
-  leaseJob: (workerId: string, leaseTimeMinutes: number = 15) => {
+  leaseJob: async (workerId: string, leaseTimeMinutes: number = 15) => {
     const db = getDb();
-    const leaseExpiry = new Date(Date.now() - leaseTimeMinutes * 60000)
-      .toISOString()
-      .replace('T', ' ')
-      .replace('Z', '');
 
-    // Find a job that is either 'queued', or 'running' but has expired lease
-    const findSql = `
-      SELECT id FROM processing_jobs 
-      WHERE status = 'queued' 
-         OR (status = 'running' AND locked_at < ?)
-      ORDER BY priority DESC, created_at ASC 
-      LIMIT 1
-    `;
+    // PG uses internal 'now() - interval' syntax which translateSql handles
+    const leaseExpirySql = `now() - interval '${leaseTimeMinutes} minutes'`;
 
-    const lockSql = `
-      UPDATE processing_jobs 
-      SET status = 'running', 
-          locked_by = ?, 
-          locked_at = CURRENT_TIMESTAMP,
-          attempts = attempts + 1,
-          updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `;
+    return await db.transaction(async (client) => {
+      // Use FOR UPDATE SKIP LOCKED for high-concurrency safety
+      const findSql = `
+        SELECT id FROM processing_jobs 
+        WHERE (status = 'queued' OR (status = 'running' AND locked_at < ${leaseExpirySql}))
+        ORDER BY priority DESC, created_at ASC 
+        LIMIT 1
+        FOR UPDATE SKIP LOCKED
+      `;
 
-    return db.transaction(() => {
-      const job = db.prepare(findSql).get(leaseExpiry) as { id: number } | undefined;
+      const res = await client.query(findSql);
+      const job = res.rows[0];
       if (!job) return null;
 
-      db.prepare(lockSql).run(workerId, job.id);
+      const lockSql = `
+        UPDATE processing_jobs 
+        SET status = 'running', 
+            locked_by = $1, 
+            locked_at = CURRENT_TIMESTAMP,
+            attempts = attempts + 1,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $2
+        RETURNING *
+      `;
 
-      // Fetch full job details
-      return db.prepare('SELECT * FROM processing_jobs WHERE id = ?').get(job.id) as ProcessingJob;
+      const updateRes = await client.query(lockSql, [workerId, job.id]);
+      return updateRes.rows[0] as ProcessingJob;
     })();
   },
 };

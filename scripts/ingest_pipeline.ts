@@ -15,8 +15,6 @@
  * - Production database schema compatibility
  */
 
-import sqlite3 from 'sqlite3';
-import { open } from 'sqlite';
 import { join, basename, extname } from 'path';
 import * as path from 'path';
 import { statSync, readFileSync, existsSync, mkdtempSync, mkdirSync, copyFileSync } from 'fs';
@@ -208,17 +206,13 @@ const COLLECTIONS: CollectionConfig[] = [
 let db: any;
 
 async function initDb() {
-  db = await open({
-    filename: DB_PATH,
-    driver: sqlite3.Database,
-  });
-  await db.run('PRAGMA busy_timeout = 30000');
-  await db.run('PRAGMA journal_mode = WAL');
+  db = getDb();
+  console.log('✅ Database gateway initialized (Postgres)');
 }
 
-import { PipelineService, PipelineRun } from '../src/services/pipelineService.js';
+import { PipelineService, PipelineRun } from '../src/server/services/pipelineService.js';
 import { jobsRepository } from '../src/server/db/jobsRepository.js';
-import { AssetService } from '../src/services/assetService.js';
+import { AssetService } from '../src/server/services/assetService.js';
 import { JobManager } from '../src/server/services/JobManager.js';
 
 let currentRun: PipelineRun;
@@ -973,15 +967,16 @@ async function processDocument(
     if (!existingDoc) {
       // Create skeleton document atomically
       try {
-        const result = await db.run(
+        const result = await db.prepare(
           `
           INSERT INTO documents (
             file_name, file_path, source_collection, content_sha256, 
             processing_status, pipeline_version, ingestion_run_id, hash_algo,
             parent_document_id
           ) VALUES (?, ?, ?, ?, 'queued', ?, ?, 'sha256', ?)
-        `,
-          [
+          RETURNING id, processing_status
+        `
+        ).get(
             basename(filePath),
             filePath,
             collection.name,
@@ -989,16 +984,13 @@ async function processDocument(
             PIPELINE_VERSION,
             currentRun.id,
             metaOverride?.parent_document_id || null,
-          ],
         );
-        existingDoc = { id: result.lastID, processing_status: 'queued' };
+        existingDoc = result;
       } catch (e) {
-        // Race condition or constraint: someone else inserted it OR path conflict
+        // ... (rest as before but async)
         existingDoc = await db.get(
-          'SELECT id, processing_status FROM documents WHERE content_sha256 = ? OR file_path = ? OR file_path = ?',
-          sha256,
-          filePath,
-          filePath.replace(/ /g, '%20'),
+          'SELECT id, processing_status FROM documents WHERE content_sha256 = ? OR file_path = ?',
+          [sha256, filePath]
         );
 
         if (!existingDoc) {
@@ -1280,8 +1272,8 @@ async function processDocument(
                 unredaction_baseline_vocab = ?,
                 evidence_type = ?,
                 unredacted_span_json = ?,
-                analyzed_at = datetime('now'),
-                created_at = datetime('now')
+                analyzed_at = now(),
+                created_at = now()
             WHERE id = ?
         `,
       [
@@ -1398,12 +1390,11 @@ async function processDocument(
     }
 
     return { success: true, documentId: documentId };
-  } catch (error) {
+    } catch (error) {
     if (typeof documentId !== 'undefined') {
-      // Mark Job as failed if we have a job in 'running' status for this doc
       const job = await db.get(
-        'SELECT id FROM processing_jobs WHERE target_type = "document" AND target_id = ? AND step_name = "ingestion" AND status = "running"',
-        documentId,
+        'SELECT id FROM processing_jobs WHERE target_type = $1 AND target_id = $2 AND step_name = $3 AND status = $4',
+        ['document', documentId, 'ingestion', 'running']
       );
       if (job) {
         const isRetryable =
@@ -1411,9 +1402,7 @@ async function processDocument(
           !(error as Error).message.includes('encrypted');
         await db.run(
           'UPDATE processing_jobs SET status = ?, last_error = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-          isRetryable ? 'failed_retryable' : 'failed_permanent',
-          (error as Error).message,
-          job.id,
+          [isRetryable ? 'failed_retryable' : 'failed_permanent', (error as Error).message, job.id]
         );
       }
     }
@@ -1655,13 +1644,11 @@ async function main() {
 
   // Phase 2: Process from Queue (Reprocessing Lane)
   await processQueue();
-
-  await db.close();
 }
 
 async function processQueue() {
   const jobManager = new JobManager();
-  const dbSync = getDb(); // Use shared better-sqlite3 connection to avoid locking issues
+  const dbSync = getDb();
   console.log('\n📬 Processing Queue with Robust Leasing (Phase 9)...');
 
   // Enforce Exo cluster usage
@@ -1669,53 +1656,45 @@ async function processQueue() {
   process.env.ENABLE_AI_ENRICHMENT = 'true';
   console.log('   🚀 Enforcing AI_PROVIDER=exo_cluster for maximum throughput');
 
-  const CONCURRENCY = parseInt(process.env.INGEST_CONCURRENCY || '30', 10); // Tuned for 3-node cluster
+  const CONCURRENCY = parseInt(process.env.INGEST_CONCURRENCY || '30', 10);
   const activePromises: Set<Promise<void>> = new Set();
   let processedCount = 0;
   let hasMore = true;
 
   console.log(`   ⚡️  Concurrency Level: ${CONCURRENCY} workers`);
 
-  // Loop until queue is empty and all workers are done
   while (hasMore || activePromises.size > 0) {
-    // Fill the pool
     while (hasMore && activePromises.size < CONCURRENCY) {
-      const doc = jobManager.acquireJob(600); // 10 minute lease
+      const doc = await jobManager.acquireJob(600);
 
       if (!doc) {
         hasMore = false;
         break;
       }
 
-      // Create worker promise
       const promise = (async () => {
         const docId = Math.floor(doc.id);
         try {
-          // Heartbeat
-          jobManager.renewLease(docId, 600);
+          await jobManager.renewLease(docId, 600);
 
-          // 1. Fetch full content (Synchronous via better-sqlite3)
-          const fullDoc = dbSync
-            .prepare('SELECT content, content_preview FROM documents WHERE id = ?')
-            .get(docId) as any;
+          const fullDoc = await dbSync.get(
+            'SELECT content, content_preview FROM documents WHERE id = ?',
+            [docId]
+          );
 
           if (fullDoc && fullDoc.content) {
-            // 2. Run AI Enrichment (Repair) - Async
-            // Use a reasonable context window
             const context = fullDoc.content.slice(0, 2000);
             const refined = await AIEnrichmentService.repairMimeWildcards(fullDoc.content, context);
 
-            // 3. Update if changed (Synchronous via better-sqlite3)
             if (refined !== fullDoc.content) {
-              dbSync
-                .prepare(
-                  'UPDATE documents SET content = ?, content_refined = ?, last_processed_at = datetime("now") WHERE id = ?',
-                )
-                .run(refined, refined, docId);
+              await dbSync.run(
+                'UPDATE documents SET content = ?, content_refined = ?, last_processed_at = now() WHERE id = ?',
+                [refined, refined, docId]
+              );
             }
           }
 
-          jobManager.completeJob(docId);
+          await jobManager.completeJob(docId);
           processedCount++;
 
           if (processedCount % 10 === 0) {
@@ -1725,21 +1704,17 @@ async function processQueue() {
           }
         } catch (e) {
           console.error(`\n      ❌ Job Failed (Doc ${docId}): ${(e as Error).message}`);
-          jobManager.failJob(docId, (e as Error).message);
+          await jobManager.failJob(docId, (e as Error).message);
         }
       })();
 
-      // Remove from set when done
       promise.then(() => activePromises.delete(promise));
-
       activePromises.add(promise);
     }
 
-    // Wait for at least one to finish if we have active jobs
     if (activePromises.size > 0) {
       await Promise.race(activePromises);
     } else if (!hasMore) {
-      // No more jobs and no active promises
       break;
     }
   }

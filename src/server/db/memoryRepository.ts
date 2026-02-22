@@ -16,7 +16,7 @@ export const memoryRepository = {
   /**
    * Creates a new memory entry
    */
-  createMemoryEntry: (db: any, input: CreateMemoryEntryInput): MemoryEntry => {
+  createMemoryEntry: async (db: any, input: CreateMemoryEntryInput): Promise<MemoryEntry> => {
     const stmt = db.prepare(`
       INSERT INTO memory_entries (
         uuid, memory_type, content, metadata_json, context_tags, 
@@ -25,9 +25,10 @@ export const memoryRepository = {
         @uuid, @memoryType, @content, @metadataJson, @contextTags, 
         @importanceScore, @sourceId, @sourceType, @qualityScore, @provenanceJson
       )
+      RETURNING id
     `);
 
-    const result = stmt.run({
+    const result = (await stmt.run({
       uuid: input.uuid || globalThis.crypto.randomUUID(),
       memoryType: input.memoryType,
       content: input.content,
@@ -38,9 +39,12 @@ export const memoryRepository = {
       sourceType: input.sourceType,
       qualityScore: 0.5,
       provenanceJson: JSON.stringify(input.provenance || {}),
-    });
+    })) as any;
 
-    const newEntry = memoryRepository.getMemoryEntryById(db, result.lastInsertRowid as number);
+    const newEntry = await memoryRepository.getMemoryEntryById(
+      db,
+      result.lastInsertRowid as number,
+    );
     if (!newEntry) throw new Error('Failed to retrieve created memory entry');
     return newEntry;
   },
@@ -48,11 +52,11 @@ export const memoryRepository = {
   /**
    * Gets a memory entry by ID
    */
-  getMemoryEntryById: (db: any, id: number): MemoryEntry | null => {
+  getMemoryEntryById: async (db: any, id: number): Promise<MemoryEntry | null> => {
     const stmt = db.prepare(`
       SELECT * FROM memory_entries WHERE id = ?
     `);
-    const row = stmt.get(id) as any;
+    const row = (await stmt.get(id)) as any;
 
     if (!row) {
       return null;
@@ -80,7 +84,11 @@ export const memoryRepository = {
   /**
    * Updates a memory entry
    */
-  updateMemoryEntry: (db: any, id: number, input: UpdateMemoryEntryInput): MemoryEntry | null => {
+  updateMemoryEntry: async (
+    db: any,
+    id: number,
+    input: UpdateMemoryEntryInput,
+  ): Promise<MemoryEntry | null> => {
     // Prepare update fields
     const updateFields: string[] = [];
     const params: any = { id };
@@ -130,31 +138,31 @@ export const memoryRepository = {
       WHERE id = @id
     `);
 
-    stmt.run(params);
+    await stmt.run(params);
 
-    return memoryRepository.getMemoryEntryById(db, id);
+    return await memoryRepository.getMemoryEntryById(db, id);
   },
 
   /**
    * Deletes a memory entry
    */
-  deleteMemoryEntry: (db: any, id: number): boolean => {
+  deleteMemoryEntry: async (db: any, id: number): Promise<boolean> => {
     const stmt = db.prepare(`
       DELETE FROM memory_entries WHERE id = ?
     `);
-    const result = stmt.run(id);
+    const result = (await stmt.run(id)) as any;
     return result.changes > 0;
   },
 
   /**
    * Searches memory entries based on filters
    */
-  searchMemoryEntries: (
+  searchMemoryEntries: async (
     db: any,
     filters: MemorySearchFilters = {},
     page: number = 1,
     limit: number = 20,
-  ): MemorySearchResult => {
+  ): Promise<MemorySearchResult> => {
     const offset = (page - 1) * limit;
     const conditions: string[] = [];
     const params: any = {};
@@ -218,7 +226,7 @@ export const memoryRepository = {
       ${ftsJoin}
       ${whereClause} ${ftsCondition}
     `);
-    const result = countStmt.get(params) as { total: number } | undefined;
+    const result = (await countStmt.get(params)) as { total: number } | undefined;
     const totalCount = result?.total || 0;
 
     // Fetch paginated results
@@ -230,7 +238,7 @@ export const memoryRepository = {
       LIMIT @limit OFFSET @offset
     `);
 
-    const rows = stmt.all({ ...params, limit, offset }) as any[];
+    const rows = (await stmt.all({ ...params, limit, offset })) as any[];
 
     const data = rows.map((row) => ({
       id: row.id,
@@ -262,23 +270,27 @@ export const memoryRepository = {
   /**
    * Creates a relationship between two memory entries
    */
-  createMemoryRelationship: (db: any, input: CreateMemoryRelationshipInput): MemoryRelationship => {
+  createMemoryRelationship: async (
+    db: any,
+    input: CreateMemoryRelationshipInput,
+  ): Promise<MemoryRelationship> => {
     const stmt = db.prepare(`
       INSERT INTO memory_relationships (
         from_memory_id, to_memory_id, relationship_type, strength
       ) VALUES (
         @fromMemoryId, @toMemoryId, @relationshipType, @strength
       )
+      RETURNING id
     `);
 
-    const result = stmt.run({
+    const result = (await stmt.run({
       fromMemoryId: input.fromMemoryId,
       toMemoryId: input.toMemoryId,
       relationshipType: input.relationshipType,
       strength: input.strength || 1.0,
-    });
+    })) as any;
 
-    const newRelationship = memoryRepository.getMemoryRelationshipById(
+    const newRelationship = await memoryRepository.getMemoryRelationshipById(
       db,
       result.lastInsertRowid as number,
     );
@@ -289,11 +301,11 @@ export const memoryRepository = {
   /**
    * Gets a memory relationship by ID
    */
-  getMemoryRelationshipById: (db: any, id: number): MemoryRelationship | null => {
+  getMemoryRelationshipById: async (db: any, id: number): Promise<MemoryRelationship | null> => {
     const stmt = db.prepare(`
       SELECT * FROM memory_relationships WHERE id = ?
     `);
-    const row = stmt.get(id) as any;
+    const row = (await stmt.get(id)) as any;
 
     if (!row) {
       return null;
@@ -313,13 +325,13 @@ export const memoryRepository = {
   /**
    * Gets relationships for a memory entry
    */
-  getMemoryRelationships: (db: any, memoryId: number): MemoryRelationship[] => {
+  getMemoryRelationships: async (db: any, memoryId: number): Promise<MemoryRelationship[]> => {
     const stmt = db.prepare(`
       SELECT * FROM memory_relationships 
       WHERE from_memory_id = ? OR to_memory_id = ?
       ORDER BY strength DESC
     `);
-    const rows = stmt.all(memoryId, memoryId) as any[];
+    const rows = (await stmt.all(memoryId, memoryId)) as any[];
 
     return rows.map((row) => ({
       id: row.id,
@@ -335,7 +347,7 @@ export const memoryRepository = {
   /**
    * Logs an audit event for a memory operation
    */
-  logMemoryAuditEvent: (db: any, input: CreateMemoryAuditLogInput): void => {
+  logMemoryAuditEvent: async (db: any, input: CreateMemoryAuditLogInput): Promise<void> => {
     const stmt = db.prepare(`
       INSERT INTO memory_audit_log (
         memory_entry_id, action, actor, old_values_json, new_values_json, metadata_json
@@ -344,7 +356,7 @@ export const memoryRepository = {
       )
     `);
 
-    stmt.run({
+    await stmt.run({
       memoryEntryId: input.memoryEntryId,
       action: input.action,
       actor: input.actor,
@@ -357,13 +369,13 @@ export const memoryRepository = {
   /**
    * Gets audit log for a memory entry
    */
-  getMemoryAuditLog: (db: any, memoryEntryId: number): MemoryAuditLog[] => {
+  getMemoryAuditLog: async (db: any, memoryEntryId: number): Promise<MemoryAuditLog[]> => {
     const stmt = db.prepare(`
       SELECT * FROM memory_audit_log 
       WHERE memory_entry_id = ?
       ORDER BY timestamp DESC
     `);
-    const rows = stmt.all(memoryEntryId) as any[];
+    const rows = (await stmt.all(memoryEntryId)) as any[];
 
     return rows.map((row) => ({
       id: row.id,
@@ -380,10 +392,10 @@ export const memoryRepository = {
   /**
    * Creates quality metrics for a memory entry
    */
-  createMemoryQualityMetrics: (
+  createMemoryQualityMetrics: async (
     db: any,
     input: CreateMemoryQualityMetricsInput,
-  ): MemoryQualityMetrics => {
+  ): Promise<MemoryQualityMetrics> => {
     const stmt = db.prepare(`
       INSERT INTO memory_quality_metrics (
         memory_entry_id, source_reliability, evidence_strength, 
@@ -394,15 +406,15 @@ export const memoryRepository = {
       )
     `);
 
-    const result = stmt.run({
+    const result = (await stmt.run({
       memoryEntryId: input.memoryEntryId,
       sourceReliability: input.sourceReliability,
       evidenceStrength: input.evidenceStrength,
       temporalRelevance: input.temporalRelevance,
       entityConfidence: input.entityConfidence,
-    });
+    })) as any;
 
-    const newMetrics = memoryRepository.getMemoryQualityMetricsById(
+    const newMetrics = await memoryRepository.getMemoryQualityMetricsById(
       db,
       result.lastInsertRowid as number,
     );
@@ -413,11 +425,14 @@ export const memoryRepository = {
   /**
    * Gets quality metrics for a memory entry
    */
-  getMemoryQualityMetricsById: (db: any, id: number): MemoryQualityMetrics | null => {
+  getMemoryQualityMetricsById: async (
+    db: any,
+    id: number,
+  ): Promise<MemoryQualityMetrics | null> => {
     const stmt = db.prepare(`
       SELECT * FROM memory_quality_metrics WHERE id = ?
     `);
-    const row = stmt.get(id) as any;
+    const row = (await stmt.get(id)) as any;
 
     if (!row) {
       return null;
@@ -438,14 +453,17 @@ export const memoryRepository = {
   /**
    * Gets the latest quality metrics for a memory entry
    */
-  getLatestMemoryQualityMetrics: (db: any, memoryEntryId: number): MemoryQualityMetrics | null => {
+  getLatestMemoryQualityMetrics: async (
+    db: any,
+    memoryEntryId: number,
+  ): Promise<MemoryQualityMetrics | null> => {
     const stmt = db.prepare(`
       SELECT * FROM memory_quality_metrics 
       WHERE memory_entry_id = ?
       ORDER BY calculated_at DESC
       LIMIT 1
     `);
-    const row = stmt.get(memoryEntryId) as any;
+    const row = (await stmt.get(memoryEntryId)) as any;
 
     if (!row) {
       return null;
@@ -466,13 +484,13 @@ export const memoryRepository = {
   /**
    * Gets audit logs for a memory entry
    */
-  getMemoryAuditLogs: (db: any, memoryEntryId: number): MemoryAuditLog[] => {
+  getMemoryAuditLogs: async (db: any, memoryEntryId: number): Promise<MemoryAuditLog[]> => {
     const stmt = db.prepare(`
       SELECT * FROM memory_audit_log 
       WHERE memory_entry_id = ?
       ORDER BY timestamp DESC
     `);
-    const rows = stmt.all(memoryEntryId) as any[];
+    const rows = (await stmt.all(memoryEntryId)) as any[];
 
     return rows.map((row) => ({
       id: row.id,
@@ -489,14 +507,17 @@ export const memoryRepository = {
   /**
    * Gets quality metrics for a memory entry (alias for getMemoryQualityMetricsById)
    */
-  getQualityMetrics: (db: any, memoryEntryId: number): MemoryQualityMetrics | null => {
-    return memoryRepository.getMemoryQualityMetricsById(db, memoryEntryId);
+  getQualityMetrics: async (
+    db: any,
+    memoryEntryId: number,
+  ): Promise<MemoryQualityMetrics | null> => {
+    return await memoryRepository.getMemoryQualityMetricsById(db, memoryEntryId);
   },
 
   /**
    * Updates quality metrics for a memory entry
    */
-  updateQualityMetrics: (
+  updateQualityMetrics: async (
     db: any,
     memoryEntryId: number,
     metrics: {
@@ -505,7 +526,7 @@ export const memoryRepository = {
       temporalRelevance: number;
       entityConfidence: number;
     },
-  ): MemoryQualityMetrics => {
+  ): Promise<MemoryQualityMetrics> => {
     const stmt = db.prepare(`
       INSERT INTO memory_quality_metrics (
         memory_entry_id, source_reliability, evidence_strength, 
@@ -516,15 +537,15 @@ export const memoryRepository = {
       )
     `);
 
-    const result = stmt.run({
+    const result = (await stmt.run({
       memoryEntryId,
       sourceReliability: metrics.sourceReliability,
       evidenceStrength: metrics.evidenceStrength,
       temporalRelevance: metrics.temporalRelevance,
       entityConfidence: metrics.entityConfidence,
-    });
+    })) as any;
 
-    const newMetrics = memoryRepository.getMemoryQualityMetricsById(
+    const newMetrics = await memoryRepository.getMemoryQualityMetricsById(
       db,
       result.lastInsertRowid as number,
     );

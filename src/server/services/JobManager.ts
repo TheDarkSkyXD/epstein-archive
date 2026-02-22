@@ -12,73 +12,68 @@ export class JobManager {
   /**
    * Acquires a lock on the next available document
    */
-  acquireJob(ttlSeconds: number = 300) {
+  async acquireJob(ttlSeconds: number = 300) {
     const db = getDb();
 
-    // 1. Find a candidate
-    // We look for 'queued' items OR 'processing' items with expired leases (stuck jobs)
-    const candidate = db
-      .prepare(
-        `
-      SELECT id, file_path, processing_attempts 
-      FROM documents 
-      WHERE processing_status = 'queued' 
-         OR (processing_status = 'processing' AND lease_expires_at < datetime('now'))
-      ORDER BY 
-         CASE WHEN processing_status = 'processing' THEN 0 ELSE 1 END, -- Prioritize stuck jobs
-         created_at ASC
-      LIMIT 1
-    `,
-      )
-      .get();
+    // 1. Find and lock a candidate atomically using FOR UPDATE SKIP LOCKED
+    // We look for 'queued' items OR 'processing' items with expired leases
+    return await db.transaction(async (client) => {
+      const findSql = `
+        SELECT id, file_path, processing_attempts 
+        FROM documents 
+        WHERE processing_status = 'queued' 
+           OR (processing_status = 'processing' AND lease_expires_at < now())
+        ORDER BY 
+           CASE WHEN processing_status = 'processing' THEN 0 ELSE 1 END,
+           created_at ASC
+        LIMIT 1
+        FOR UPDATE SKIP LOCKED
+      `;
 
-    if (!candidate) return null;
+      const res = await client.query(findSql);
+      const candidate = res.rows[0];
 
-    // 2. Try to lock it
-    // We use a transactional update to ensure safety
-    const updates = db
-      .prepare(
-        `
-      UPDATE documents 
-      SET 
-        processing_status = 'processing',
-        worker_id = ?,
-        lease_expires_at = datetime('now', '+' || ? || ' seconds'),
-        processing_attempts = processing_attempts + 1,
-        last_processed_at = datetime('now')
-      WHERE id = ?
-    `,
-      )
-      .run(this.workerId, ttlSeconds, candidate.id);
+      if (!candidate) return null;
 
-    if (updates.changes === 0) {
-      // Race condition lost
-      return null;
-    }
+      // 2. Lock it
+      const lockSql = `
+        UPDATE documents 
+        SET 
+          processing_status = 'processing',
+          worker_id = $1,
+          lease_expires_at = now() + interval '$2 seconds',
+          processing_attempts = processing_attempts + 1,
+          last_processed_at = now()
+        WHERE id = $3
+      `;
 
-    return candidate;
+      await client.query(lockSql, [this.workerId, ttlSeconds, candidate.id]);
+
+      return candidate;
+    })();
   }
 
   /**
    * Heartbeat to keep the job alive
    */
-  renewLease(documentId: number | string, ttlSeconds: number = 300) {
+  async renewLease(documentId: number | string, ttlSeconds: number = 300) {
     const db = getDb();
-    db.prepare(
+    await db.run(
       `
       UPDATE documents 
-      SET lease_expires_at = datetime('now', '+' || ? || ' seconds')
-      WHERE id = ? AND worker_id = ?
+      SET lease_expires_at = now() + interval '$1 seconds'
+      WHERE id = $2 AND worker_id = $3
     `,
-    ).run(ttlSeconds, documentId, this.workerId);
+      [ttlSeconds, documentId, this.workerId],
+    );
   }
 
   /**
    * Mark job as complete
    */
-  completeJob(documentId: number | string) {
+  async completeJob(documentId: number | string) {
     const db = getDb();
-    db.prepare(
+    await db.run(
       `
       UPDATE documents 
       SET 
@@ -86,27 +81,29 @@ export class JobManager {
         worker_id = NULL,
         lease_expires_at = NULL,
         processing_error = NULL
-      WHERE id = ?
+      WHERE id = $1
     `,
-    ).run(documentId);
+      [documentId],
+    );
   }
 
   /**
-   * Fail the job (with retry logic handled by caller or next acquire)
+   * Fail the job
    */
-  failJob(documentId: number | string, error: string) {
+  async failJob(documentId: number | string, error: string) {
     const db = getDb();
-    db.prepare(
+    await db.run(
       `
       UPDATE documents 
       SET 
         processing_status = 'failed',
-        processing_error = ?,
+        processing_error = $1,
         worker_id = NULL,
         lease_expires_at = NULL
-      WHERE id = ?
+      WHERE id = $2
     `,
-    ).run(error, documentId);
+      [error, documentId],
+    );
   }
 
   getWorkerId() {

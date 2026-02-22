@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { getDb } from '../db/connection.js';
+import { graphRateLimiter } from '../middleware/rateLimit.js';
 
 const router = Router();
 
@@ -7,18 +8,19 @@ const router = Router();
  * Global Graph Data Endpoint
  * Supports Zoom-based LOD fetching.
  * Query Params:
- * - limit: number (default 500, max 3000)
+ * - limit: number (default 150, max 2000)
  * - minRisk: number (default 0)
  * - includeEvidence: boolean (default false)
  */
-router.get('/global', async (req, res, next) => {
+router.get('/global', graphRateLimiter, async (req, res, next) => {
   try {
+    const rawLimit = req.query.limit ? parseInt(req.query.limit as string) : 150;
+    if (rawLimit > 2000) {
+      return res.status(400).json({ error: 'Max nodes limit exceeded (<= 2000 allowed)' });
+    }
+    const limit = Math.max(10, rawLimit);
+
     // Phase 6.5 Query Discipline: Hard Caps
-    const MAX_GLOBAL_NODES = 500;
-    const limit = Math.min(
-      MAX_GLOBAL_NODES,
-      Math.max(10, parseInt(req.query.limit as string) || 200),
-    );
     const minRisk = parseInt(req.query.minRisk as string) || 0;
     const mode = req.query.mode as string; // 'cluster' or 'default'
     const startDate = req.query.startDate as string;
@@ -29,7 +31,7 @@ router.get('/global', async (req, res, next) => {
 
     if (mode === 'cluster') {
       // Super Cluster Mode: Aggregated by Structural Community (LPA)
-      const clusters = db
+      const clusters = (await db
         .prepare(
           `
             SELECT 
@@ -54,7 +56,7 @@ router.get('/global', async (req, res, next) => {
             LIMIT 50
         `,
         )
-        .all();
+        .all()) as any[];
 
       // Enhance labels (optional)
 
@@ -116,13 +118,13 @@ router.get('/global', async (req, res, next) => {
           break;
         }
 
-        const neighbors = getNeighbors.all(
+        const neighbors = (await getNeighbors.all(
           curr,
           endDate || null,
           endDate || null,
           startDate || null,
           startDate || null,
-        ) as { canonical_id: number; weight: number }[];
+        )) as { canonical_id: number; weight: number }[];
         for (const n of neighbors) {
           const nid = String(n.canonical_id);
           const weight = n.weight || 0.1;
@@ -152,7 +154,7 @@ router.get('/global', async (req, res, next) => {
       const placeholders = Array.from(pathNodes)
         .map(() => '?')
         .join(',');
-      const nodes = db
+      const nodes = (await db
         .prepare(
           `
             SELECT 
@@ -167,9 +169,9 @@ router.get('/global', async (req, res, next) => {
             GROUP BY canonical_id
         `,
         )
-        .all(...pathNodes);
+        .all(...pathNodes)) as any[];
 
-      const edges = db
+      const edges = (await db
         .prepare(
           `
             SELECT 
@@ -199,7 +201,7 @@ router.get('/global', async (req, res, next) => {
           endDate || null,
           startDate || null,
           startDate || null,
-        );
+        )) as any[];
 
       console.timeEnd('path-search');
       return res.json({
@@ -224,7 +226,7 @@ router.get('/global', async (req, res, next) => {
 
     // 1. Fetch Top Entities (Nodes) - Aggregated by Canonical ID
     // Deterministic Sort: Risk DESC, Degree DESC, ID ASC
-    const nodesArr = db
+    const nodesArr = (await db
       .prepare(
         `
       WITH rel_counts AS (
@@ -244,7 +246,7 @@ router.get('/global', async (req, res, next) => {
         MAX(e.full_name) as label, 
         MAX(e.primary_role) as type,
         MAX(e.red_flag_rating) as risk,
-        SUM(COALESCE(rc.degree, 0)) as connectionCount,
+        SUM(COALESCE(rc.degree, 0)) as "connectionCount",
         SUM(e.mentions) as mentions,
         MAX(e.entity_type) as entity_type,
         MAX(e.community_id) as community_id
@@ -253,7 +255,7 @@ router.get('/global', async (req, res, next) => {
       WHERE e.entity_type = 'Person' 
         AND (e.red_flag_rating >= ?)
       GROUP BY e.canonical_id
-      ORDER BY risk DESC, connectionCount DESC
+      ORDER BY risk DESC, "connectionCount" DESC
       LIMIT ?
     `,
       )
@@ -268,7 +270,7 @@ router.get('/global', async (req, res, next) => {
         startDate || null,
         minRisk,
         limit,
-      );
+      )) as any[];
 
     const canonicalIds = nodesArr.map((n: any) => n.id);
 
@@ -277,8 +279,10 @@ router.get('/global', async (req, res, next) => {
       return res.json({ nodes: [], edges: [] });
     }
 
-    // 2. Fetch Relationships between these nodes
-    const query = `
+    // 2. Fetch Relationships between these nodes — injection-safe ANY($N::bigint[]) binding
+    const edgesArr = await db
+      .prepare(
+        `
         SELECT 
             s.canonical_id as source,
             t.canonical_id as target,
@@ -293,20 +297,17 @@ router.get('/global', async (req, res, next) => {
         FROM entity_relationships er
         JOIN entities s ON er.source_entity_id = s.id
         JOIN entities t ON er.target_entity_id = t.id
-        WHERE s.canonical_id IN (${canonicalIds.join(',')})
-          AND t.canonical_id IN (${canonicalIds.join(',')})
+        WHERE s.canonical_id = ANY($1::bigint[])
+          AND t.canonical_id = ANY($1::bigint[])
           AND s.canonical_id != t.canonical_id
-          -- Temporal Filter
-          AND (? IS NULL OR er.first_seen_at <= ?)
-          AND (? IS NULL OR er.last_seen_at >= ?)
+          AND ($2 IS NULL OR er.first_seen_at <= $2::timestamptz)
+          AND ($3 IS NULL OR er.last_seen_at  >= $3::timestamptz)
         GROUP BY s.canonical_id, t.canonical_id, er.relationship_type
         ORDER BY weight DESC
         LIMIT 5000
-    `;
-
-    const edgesArr = db
-      .prepare(query)
-      .all(endDate || null, endDate || null, startDate || null, startDate || null);
+    `,
+      )
+      .all([canonicalIds, endDate || null, startDate || null]);
 
     console.timeEnd('graph-global-fetch');
 
@@ -349,13 +350,13 @@ router.get('/edge-evidence', async (req, res, next) => {
     const db = getDb();
 
     // Trace Lineage: Joined with ingest_runs for provenance
-    const docs = db
+    const docs = (await db
       .prepare(
         `
       SELECT 
-        d.id as documentId, 
+        d.id as "documentId", 
         d.file_name as title, 
-        d.evidence_type as sourceType, 
+        d.evidence_type as "sourceType", 
         d.red_flag_rating as risk,
         d.date_created as date,
         ir.agentic_model_id as model,
@@ -379,10 +380,10 @@ router.get('/edge-evidence', async (req, res, next) => {
       LIMIT 20
     `,
       )
-      .all(sourceId, targetId, sourceId, targetId);
+      .all(sourceId, targetId, sourceId, targetId)) as any[];
 
     // Metadata
-    const rel = db
+    const rel = (await db
       .prepare(
         `
       SELECT er.relationship_type, er.proximity_score, er.confidence, er.was_agentic
@@ -394,7 +395,7 @@ router.get('/edge-evidence', async (req, res, next) => {
       LIMIT 1
     `,
       )
-      .get(sourceId, targetId, targetId, sourceId);
+      .get(sourceId, targetId, targetId, sourceId)) as any;
 
     const evidence = docs.map((d: any) => ({
       id: `doc-${d.documentId}`,

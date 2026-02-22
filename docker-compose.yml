@@ -1,30 +1,32 @@
 services:
   app:
     build: .
-    image: epstein-archive:latest
+    image: epstein-archive:14.2.0
     container_name: epstein-archive
     restart: unless-stopped
+    labels:
+      - "app.version=14.2.0"
     ports:
       - '3012:3012'
     depends_on:
       - db
     volumes:
       - ./data:/data
-      - ./epstein-archive.db:/app/epstein-archive.db:ro
     environment:
       - NODE_ENV=production
       - API_PORT=3012
+      - DB_DIALECT=postgres
       - DATABASE_URL=postgresql://${POSTGRES_USER:-epstein}:${POSTGRES_PASSWORD:-epstein}@db:5432/${POSTGRES_DB:-epstein_archive}
-      - DB_PATH=/app/epstein-archive.db
       - LOG_LEVEL=info
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
       - SESSION_SECRET=${SESSION_SECRET:?SESSION_SECRET must be set}
     healthcheck:
       test:
-        ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3012/api/health']
+        ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3012/api/stats/health/ready']
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 15s
 
   db:
     image: postgres:16-alpine
@@ -36,6 +38,9 @@ services:
       - POSTGRES_DB=${POSTGRES_DB:-epstein_archive}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./postgres-configs/epstein.conf:/etc/postgresql/postgresql.conf:ro
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    shm_size: '512mb'
     ports:
       - '5435:5432'
     healthcheck:

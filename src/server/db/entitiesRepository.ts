@@ -153,8 +153,8 @@ function stripVipTitlePrefix(value: string): string {
   return current;
 }
 
-function buildVipDisplayLookup(db: any): Map<string, string> {
-  const raw = db
+async function buildVipDisplayLookup(db: any): Promise<Map<string, string>> {
+  const raw = (await db
     .prepare(
       `
       SELECT full_name, aliases, COALESCE(mentions,0) as mentions
@@ -164,7 +164,7 @@ function buildVipDisplayLookup(db: any): Map<string, string> {
         AND TRIM(full_name) != ''
     `,
     )
-    .all() as Array<{ full_name: string; aliases?: string | null; mentions: number }>;
+    .all()) as Array<{ full_name: string; aliases?: string | null; mentions: number }>;
 
   const bestByAlias = new Map<string, { canonicalName: string; score: number }>();
   for (const row of raw) {
@@ -292,12 +292,12 @@ export const entitiesRepository = {
    * ULTRATHINK: High-performance subject card fetching.
    * Minimal payload, optimized SQL, server-side precomputation.
    */
-  getSubjectCards: (
+  getSubjectCards: async (
     page: number = 1,
     limit: number = 24,
     filters?: SearchFilters,
     sortBy?: SortOption,
-  ): SubjectCardRepositoryResult => {
+  ): Promise<SubjectCardRepositoryResult> => {
     const db = getDb();
     const whereConditions: string[] = [];
     const params: any = {};
@@ -306,7 +306,9 @@ export const entitiesRepository = {
     let hasJunkTier = false;
     let hasQuarantine = false;
     try {
-      const cols = db.prepare(`PRAGMA table_info(entities)`).all() as Array<{ name: string }>;
+      const cols = (await db.prepare(`PRAGMA table_info(entities)`).all()) as Array<{
+        name: string;
+      }>;
       hasJunkFlag = cols.some((c) => c.name === 'junk_flag');
       hasJunkTier = cols.some((c) => c.name === 'junk_tier');
       hasQuarantine = cols.some((c) => c.name === 'quarantine_status');
@@ -432,7 +434,7 @@ export const entitiesRepository = {
     const countSql = `SELECT COUNT(*) as total FROM entities ${whereClause}`;
     const totalResult = isDefaultView
       ? ({ total: 250 } as { total: number })
-      : (db.prepare(countSql).get(params) as { total: number });
+      : ((await db.prepare(countSql).get(params)) as { total: number });
 
     // Optimized Data Query (Selecting only needed fields)
     const offset = (page - 1) * limit;
@@ -466,23 +468,23 @@ export const entitiesRepository = {
             LIMIT @limit OFFSET @offset
         `;
 
-    const rawEntities = db.prepare(sql).all({ ...params, limit, offset }) as any[];
-    const vipDisplayLookup = buildVipDisplayLookup(db);
+    const rawEntities = (await db.prepare(sql).all({ ...params, limit, offset })) as any[];
+    const vipDisplayLookup = await buildVipDisplayLookup(db);
 
     // Compute global max connectivity from relationships to normalize the Network signal
     let maxConnectivityCount = 1;
     try {
-      const maxRow = db
+      const maxRow = (await db
         .prepare(
           `
           SELECT MAX(cnt) as maxConn FROM (
             SELECT source_entity_id, COUNT(*) as cnt 
             FROM entity_relationships 
             GROUP BY source_entity_id
-          )
+          ) AS subquery
         `,
         )
-        .get() as { maxConn?: number } | undefined;
+        .get()) as { maxConn?: number } | undefined;
       if (maxRow && typeof maxRow.maxConn === 'number' && maxRow.maxConn > 0) {
         maxConnectivityCount = maxRow.maxConn;
       }
@@ -629,9 +631,9 @@ export const entitiesRepository = {
         OR (SELECT COUNT(*) FROM black_book_entries WHERE person_id = entities.id) > 0
       )`);
       const softWhereClause = softWhere.length > 0 ? `WHERE ${softWhere.join(' AND ')}` : '';
-      const softCount = db
+      const softCount = (await db
         .prepare(`SELECT COUNT(*) as total FROM entities ${softWhereClause}`)
-        .get(softParams) as { total: number };
+        .get(softParams)) as { total: number };
       const softSql = `
             SELECT 
               id,
@@ -651,7 +653,9 @@ export const entitiesRepository = {
             ${orderByClause}
             LIMIT @limit OFFSET @offset
         `;
-      const softEntities = db.prepare(softSql).all({ ...softParams, limit, offset }) as any[];
+      const softEntities = (await db
+        .prepare(softSql)
+        .all({ ...softParams, limit, offset })) as any[];
       const softSubjects = softEntities.map((e: any) => {
         const eTypes: string[] = Array.isArray(e.evidence_types) ? e.evidence_types : [];
         const mediaCount = typeof e.media_count === 'number' ? e.media_count : 0;
@@ -886,19 +890,21 @@ export const entitiesRepository = {
   /**
    * Get paginated entities with filters
    */
-  getEntities: (
+  getEntities: async (
     page: number = 1,
     limit: number = 24,
     filters?: SearchFilters,
     sortBy?: SortOption,
-  ): EntityRepositoryResult => {
+  ): Promise<EntityRepositoryResult> => {
     const db = getDb();
     const whereConditions: string[] = [];
     const params: any = {};
 
     let hasJunkFlag = false;
     try {
-      const cols = db.prepare(`PRAGMA table_info(entities)`).all() as Array<{ name: string }>;
+      const cols = (await db.prepare(`PRAGMA table_info(entities)`).all()) as Array<{
+        name: string;
+      }>;
       hasJunkFlag = cols.some((c) => c.name === 'junk_flag');
     } catch {
       hasJunkFlag = false;
@@ -1015,7 +1021,7 @@ export const entitiesRepository = {
 
     // Count Query
     const countSql = `SELECT COUNT(*) as total FROM ${sourceTable} ${whereClause}`;
-    const totalResult = db.prepare(countSql).get(params) as { total: number };
+    const totalResult = (await db.prepare(countSql).get(params)) as { total: number };
 
     // Data Query
     const offset = (page - 1) * limit;
@@ -1030,7 +1036,7 @@ export const entitiesRepository = {
             LIMIT @limit OFFSET @offset
         `;
 
-    const entities = db.prepare(sql).all({ ...params, limit, offset }) as (Person & {
+    const entities = (await db.prepare(sql).all({ ...params, limit, offset })) as (Person & {
       hasBlackBook: boolean;
     })[];
 
@@ -1047,7 +1053,7 @@ export const entitiesRepository = {
         `;
 
       try {
-        const photos = db.prepare(photosSql).all() as Array<{
+        const photos = (await db.prepare(photosSql).all()) as Array<{
           entity_id: number;
           id: number;
           title: string;
@@ -1336,7 +1342,7 @@ export const entitiesRepository = {
     return result.lastInsertRowid;
   },
 
-  updateEntity: (id: string | number, data: any) => {
+  updateEntity: async (id: string | number, data: any) => {
     const db = getDb();
     const fields: string[] = [];
     const params: any = { id };
@@ -1361,14 +1367,14 @@ export const entitiesRepository = {
     if (fields.length === 0) return 0;
 
     const stmt = db.prepare(`UPDATE entities SET ${fields.join(', ')} WHERE id = @id`);
-    const result = stmt.run(params);
+    const result = (await stmt.run(params)) as { changes: number };
     return result.changes;
   },
 
-  deleteEntity: (id: string | number) => {
+  deleteEntity: async (id: string | number) => {
     const db = getDb();
     const stmt = db.prepare('DELETE FROM entities WHERE id = ?');
-    const result = stmt.run(id);
+    const result = (await stmt.run(id)) as { changes: number };
     return result.changes;
   },
 

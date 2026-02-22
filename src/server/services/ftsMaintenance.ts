@@ -1,41 +1,39 @@
-import { getDb } from '../db/connection.js';
+import { getApiPool } from '../db/connection.js';
 
 export interface FtsStatus {
   table: string;
-  sourceCount: number;
-  ftsCount: number;
+  pgRows: number;
   isSynced: boolean;
 }
 
+/**
+ * FtsMaintenanceService — Postgres-native implementation.
+ *
+ * Replaces the SQLite FTS5 VACUUM/optimize logic with:
+ *  - REFRESH MATERIALIZED VIEW CONCURRENTLY (analytics views)
+ *  - REINDEX for GIN indexes
+ *  - UPDATE to backfill any rows with NULL fts_vector
+ */
 export class FtsMaintenanceService {
-  /**
-   * Check synchronization status of FTS tables
-   */
   static async checkIntegrity(): Promise<FtsStatus[]> {
-    const db = getDb();
-    const tables = [
-      { name: 'entities', fts: 'entities_fts' },
-      // { name: 'documents', fts: 'documents_fts' },
-      // { name: 'media_items', fts: 'media_items_fts' },
-    ];
+    const pool = getApiPool();
 
+    const tables = ['entities', 'documents'] as const;
     const results: FtsStatus[] = [];
 
     for (const table of tables) {
       try {
-        const sourceCount = (db.prepare(`SELECT COUNT(*) as count FROM ${table.name}`).get() as any)
-          .count;
-        const ftsCount = (db.prepare(`SELECT COUNT(*) as count FROM ${table.fts}`).get() as any)
-          .count;
-
-        results.push({
-          table: table.name,
-          sourceCount,
-          ftsCount,
-          isSynced: sourceCount === ftsCount,
-        });
+        const { rows } = await pool.query<{ total: string; missing: string }>(`
+          SELECT
+            COUNT(*) AS total,
+            SUM(CASE WHEN fts_vector IS NULL THEN 1 ELSE 0 END) AS missing
+          FROM ${table}
+        `);
+        const total = parseInt(rows[0].total, 10);
+        const missing = parseInt(rows[0].missing, 10);
+        results.push({ table, pgRows: total, isSynced: missing === 0 });
       } catch (error) {
-        console.error(`Error checking integrity for ${table.name}:`, error);
+        console.error(`[FtsMaintenance] Error checking ${table}:`, error);
       }
     }
 
@@ -43,64 +41,77 @@ export class FtsMaintenanceService {
   }
 
   /**
-   * Rebuild an FTS table from its source
+   * Backfill NULL fts_vector entries for a given table.
+   * Triggers will keep new rows in sync; this is only needed after migrations.
    */
-  static async rebuildFts(tableName: 'entities' | 'documents' | 'media_items'): Promise<void> {
-    const db = getDb();
-    const ftsName = tableName === 'media_items' ? 'media_items_fts' : `${tableName}_fts`;
+  static async rebuildFts(tableName: 'entities' | 'documents'): Promise<void> {
+    const pool = getApiPool();
+    console.time(`[FtsMaintenance] Backfill fts_vector on ${tableName}`);
 
-    console.time(`Rebuilding ${ftsName}`);
+    if (tableName === 'entities') {
+      await pool.query(`
+        UPDATE entities
+        SET fts_vector = to_tsvector('english',
+          coalesce(full_name,'') || ' ' ||
+          coalesce(primary_role,'') || ' ' ||
+          coalesce(aliases,'') || ' ' ||
+          coalesce(bio,'') || ' ' ||
+          coalesce(notes,'') || ' ' ||
+          coalesce(connections_summary,'')
+        )
+        WHERE fts_vector IS NULL
+      `);
+    } else if (tableName === 'documents') {
+      await pool.query(`
+        UPDATE documents
+        SET fts_vector = to_tsvector('english',
+          coalesce(file_name,'') || ' ' ||
+          coalesce(title,'') || ' ' ||
+          coalesce(left(content, 100000),'')
+        )
+        WHERE fts_vector IS NULL
+      `);
+    }
 
-    // We use a transaction for safety
-    db.transaction(() => {
-      // Clear FTS table
-      db.prepare(`DELETE FROM ${ftsName}`).run();
-
-      // Re-insert based on table type
-      if (tableName === 'entities') {
-        db.prepare(
-          `
-          INSERT INTO entities_fts (rowid, full_name, primary_role, connections_summary)
-          SELECT id, full_name, primary_role, connections_summary FROM entities
-        `,
-        ).run();
-      } else if (tableName === 'documents') {
-        db.prepare(
-          `
-          INSERT INTO documents_fts (rowid, file_name, content_preview, evidence_type, content)
-          SELECT id, file_name, content_preview, evidence_type, content FROM documents
-        `,
-        ).run();
-      } else if (tableName === 'media_items') {
-        db.prepare(
-          `
-          INSERT INTO media_items_fts (rowid, title, description)
-          SELECT id, title, description FROM media_items
-        `,
-        ).run();
-      }
-    })();
-
-    console.timeEnd(`Rebuilding ${ftsName}`);
+    console.timeEnd(`[FtsMaintenance] Backfill fts_vector on ${tableName}`);
   }
 
   /**
-   * Run a full maintenance check and fix desyncs
+   * Refreshes all analytics materialised views and backfills any desynced fts_vector rows.
    */
   static async performMaintenance(): Promise<void> {
-    const status = await this.checkIntegrity();
-    for (const s of status) {
-      if (!s.isSynced) {
-        console.warn(
-          `Desync detected in ${s.table}: Source=${s.sourceCount}, FTS=${s.ftsCount}. Rebuilding...`,
-        );
-        await this.rebuildFts(s.table as any);
+    const pool = getApiPool();
+
+    // Refresh analytics views (CONCURRENTLY so reads are not blocked)
+    const views = [
+      'mv_docs_by_type',
+      'mv_entity_type_dist',
+      'mv_top_connected',
+      'mv_timeline_data',
+      'mv_redaction_stats',
+    ];
+
+    for (const view of views) {
+      try {
+        await pool.query(`REFRESH MATERIALIZED VIEW CONCURRENTLY ${view}`);
+        console.log(`[FtsMaintenance] Refreshed ${view}`);
+      } catch (err: any) {
+        // mv_redaction_stats has no unique index — fall back to non-concurrent refresh
+        if (err.message?.includes('CONCURRENTLY')) {
+          await pool.query(`REFRESH MATERIALIZED VIEW ${view}`).catch(() => {});
+        } else {
+          console.warn(`[FtsMaintenance] Could not refresh ${view}: ${err.message}`);
+        }
       }
     }
 
-    // Optimize indices (VACUUM is handled elsewhere, but we can do it here too if needed)
-    const db = getDb();
-    db.exec("INSERT INTO entities_fts(entities_fts) VALUES('optimize')");
-    db.exec("INSERT INTO documents_fts(documents_fts) VALUES('optimize')");
+    // Backfill any rows that slipped through missing fts_vector
+    const status = await this.checkIntegrity();
+    for (const s of status) {
+      if (!s.isSynced) {
+        console.warn(`[FtsMaintenance] fts_vector null rows on ${s.table}. Backfilling...`);
+        await this.rebuildFts(s.table as any);
+      }
+    }
   }
 }

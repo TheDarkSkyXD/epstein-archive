@@ -36,7 +36,7 @@ export const propertiesRepository = {
   /**
    * Get properties with filtering and pagination
    */
-  getProperties: (
+  getProperties: async (
     filters: {
       page?: number;
       limit?: number;
@@ -48,13 +48,13 @@ export const propertiesRepository = {
       sortBy?: 'value' | 'owner' | 'year';
       sortOrder?: 'asc' | 'desc';
     } = {},
-  ): {
+  ): Promise<{
     properties: Property[];
     total: number;
     page: number;
     pageSize: number;
     totalPages: number;
-  } => {
+  }> => {
     const db = getDb();
     const {
       page = 1,
@@ -100,7 +100,8 @@ export const propertiesRepository = {
 
     // Count total
     const countQuery = `SELECT COUNT(*) as total FROM palm_beach_properties ${whereClause}`;
-    const { total } = db.prepare(countQuery).get(...params) as { total: number };
+    const totalRow = (await db.prepare(countQuery).get(...params)) as { total: number };
+    const total = totalRow.total;
 
     // Determine sort column
     let orderClause = '';
@@ -123,7 +124,7 @@ export const propertiesRepository = {
       ${orderClause}
       LIMIT ? OFFSET ?
     `;
-    const properties = db.prepare(query).all(...params, limit, offset) as Property[];
+    const properties = (await db.prepare(query).all(...params, limit, offset)) as Property[];
 
     return {
       properties,
@@ -137,19 +138,19 @@ export const propertiesRepository = {
   /**
    * Get property by ID
    */
-  getPropertyById: (id: number): Property | null => {
+  getPropertyById: async (id: number): Promise<Property | null> => {
     const db = getDb();
-    return db
+    return (await db
       .prepare('SELECT * FROM palm_beach_properties WHERE id = ?')
-      .get(id) as Property | null;
+      .get(id)) as Property | null;
   },
 
   /**
    * Get all properties owned by known associates or linked to entities
    */
-  getKnownAssociateProperties: (): Property[] => {
+  getKnownAssociateProperties: async (): Promise<Property[]> => {
     const db = getDb();
-    return db
+    return (await db
       .prepare(
         `
       SELECT * FROM palm_beach_properties
@@ -157,15 +158,15 @@ export const propertiesRepository = {
       ORDER BY total_tax_value DESC
     `,
       )
-      .all() as Property[];
+      .all()) as Property[];
   },
 
   /**
    * Get Epstein's properties
    */
-  getEpsteinProperties: (): Property[] => {
+  getEpsteinProperties: async (): Promise<Property[]> => {
     const db = getDb();
-    return db
+    return (await db
       .prepare(
         `
       SELECT * FROM palm_beach_properties
@@ -173,16 +174,16 @@ export const propertiesRepository = {
       ORDER BY total_tax_value DESC
     `,
       )
-      .all() as Property[];
+      .all()) as Property[];
   },
 
   /**
    * Get property statistics
    */
-  getPropertyStats: (): PropertyStats => {
+  getPropertyStats: async (): Promise<PropertyStats> => {
     const db = getDb();
 
-    const stats = db
+    const stats = (await db
       .prepare(
         `
       SELECT 
@@ -194,9 +195,9 @@ export const propertiesRepository = {
       FROM palm_beach_properties
     `,
       )
-      .get() as any;
+      .get()) as any;
 
-    const propertyTypes = db
+    const propertyTypes = (await db
       .prepare(
         `
       SELECT property_use as type, COUNT(*) as count
@@ -206,7 +207,7 @@ export const propertiesRepository = {
       ORDER BY count DESC
     `,
       )
-      .all() as { type: string; count: number }[];
+      .all()) as { type: string; count: number }[];
 
     return {
       totalProperties: stats.totalProperties || 0,
@@ -221,9 +222,9 @@ export const propertiesRepository = {
   /**
    * Search property owners against entity database
    */
-  findMatchingEntities: (
+  findMatchingEntities: async (
     ownerName: string,
-  ): { id: number; full_name: string; match_score: number }[] => {
+  ): Promise<{ id: number; full_name: string; match_score: number }[]> => {
     const db = getDb();
 
     // Simple fuzzy search - look for entities with similar names
@@ -233,7 +234,7 @@ export const propertiesRepository = {
     const conditions = searchTerms.map(() => 'full_name LIKE ?').join(' OR ');
     const params = searchTerms.map((t) => `%${t}%`);
 
-    return db
+    return (await db
       .prepare(
         `
       SELECT id, full_name, 
@@ -251,29 +252,31 @@ export const propertiesRepository = {
       LIMIT 5
     `,
       )
-      .all(...params, ...params) as { id: number; full_name: string; match_score: number }[];
+      .all(...params, ...params)) as { id: number; full_name: string; match_score: number }[];
   },
 
   /**
    * Link a property to an entity
    */
-  linkPropertyToEntity: (propertyId: number, entityId: number): void => {
+  linkPropertyToEntity: async (propertyId: number, entityId: number): Promise<void> => {
     const db = getDb();
-    db.prepare(
-      `
+    await db
+      .prepare(
+        `
       UPDATE palm_beach_properties
       SET linked_entity_id = ?, is_known_associate = 1
       WHERE id = ?
     `,
-    ).run(entityId, propertyId);
+      )
+      .run(entityId, propertyId);
   },
 
   /**
    * Get property value distribution
    */
-  getValueDistribution: (): { range: string; count: number }[] => {
+  getValueDistribution: async (): Promise<{ range: string; count: number }[]> => {
     const db = getDb();
-    return db
+    return (await db
       .prepare(
         `
       SELECT 
@@ -292,17 +295,17 @@ export const propertiesRepository = {
       ORDER BY MIN(total_tax_value)
     `,
       )
-      .all() as { range: string; count: number }[];
+      .all()) as { range: string; count: number }[];
   },
 
   /**
    * Get top property owners by total value
    */
-  getTopOwners: (
+  getTopOwners: async (
     limit = 20,
-  ): { owner_name: string; property_count: number; total_value: number }[] => {
+  ): Promise<{ owner_name: string; property_count: number; total_value: number }[]> => {
     const db = getDb();
-    return db
+    return (await db
       .prepare(
         `
       SELECT 
@@ -317,6 +320,6 @@ export const propertiesRepository = {
       LIMIT ?
     `,
       )
-      .all(limit) as { owner_name: string; property_count: number; total_value: number }[];
+      .all(limit)) as { owner_name: string; property_count: number; total_value: number }[];
   },
 };

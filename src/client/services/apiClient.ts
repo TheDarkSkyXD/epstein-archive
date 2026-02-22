@@ -13,6 +13,11 @@ import type {
 import type { DocumentsListResponseDto } from '@shared/dto/documents';
 import type { EntityListResponseDto, SubjectsListResponseDto } from '@shared/dto/entities';
 import type { InvestigationEvidenceListResponseDto } from '@shared/dto/investigations';
+import { Semaphore, isHeavyRoute } from '../utils/semaphore';
+import { singleFlight, stableStringify } from '../utils/singleFlight';
+
+const globalSemaphore = new Semaphore(6);
+const heavySemaphore = new Semaphore(2);
 
 export type {
   EmailMailboxDto as EmailMailboxDTO,
@@ -76,26 +81,59 @@ function invalidateCache(pattern?: string): void {
 class ApiClient {
   private accessToken: string | null = null;
   private isRefreshing = false;
-  private refreshSubscribers: ((token: string) => void)[] = [];
+  private refreshSubscribers: ((token: string | null) => void)[] = [];
+
+  private outcomes: { timestamp: number; is5xx: boolean }[] = [];
+  private isCircuitTripped = false;
 
   setAccessToken(token: string | null) {
     this.accessToken = token;
   }
 
-  private onTokenRefreshed(token: string) {
+  private recordOutcome(status: number) {
+    const now = Date.now();
+    this.outcomes.push({ timestamp: now, is5xx: status >= 500 && status < 600 });
+    this.outcomes = this.outcomes.filter((o) => now - o.timestamp < 30000);
+
+    const count5xx = this.outcomes.filter((o) => o.is5xx).length;
+    const rate5xx = count5xx / Math.max(1, this.outcomes.length);
+
+    let consecutive5xx = 0;
+    for (let i = this.outcomes.length - 1; i >= 0; i--) {
+      if (this.outcomes[i].is5xx) consecutive5xx++;
+      else break;
+    }
+
+    if ((rate5xx > 0.15 && this.outcomes.length >= 20) || consecutive5xx >= 5) {
+      if (!this.isCircuitTripped) {
+        this.isCircuitTripped = true;
+        console.warn('[CIRCUIT BREAKER] System under load. Suspending auto-retries.');
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('api:degraded', { detail: true }));
+          setTimeout(() => {
+            this.isCircuitTripped = false;
+            window.dispatchEvent(new CustomEvent('api:degraded', { detail: false }));
+          }, 30000);
+        }
+      }
+    }
+  }
+
+  private onTokenRefreshed(token: string | null) {
     this.refreshSubscribers.map((cb) => cb(token));
     this.refreshSubscribers = [];
   }
 
-  private addRefreshSubscriber(cb: (token: string) => void) {
+  private addRefreshSubscriber(cb: (token: string | null) => void) {
     this.refreshSubscribers.push(cb);
   }
 
   private async refreshToken(): Promise<string | null> {
     if (this.isRefreshing) {
-      return new Promise((resolve) => {
-        this.addRefreshSubscriber((token: string) => {
-          resolve(token);
+      return new Promise((resolve, reject) => {
+        this.addRefreshSubscriber((token: string | null) => {
+          if (token) resolve(token);
+          else reject(new Error('Session expired'));
         });
       });
     }
@@ -105,15 +143,11 @@ class ApiClient {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
       });
 
-      if (!response.ok) {
-        throw new Error('Refresh failed');
-      }
+      if (!response.ok) throw new Error('Refresh failed');
 
       const data = await response.json();
       this.accessToken = data.accessToken;
@@ -121,6 +155,7 @@ class ApiClient {
       return data.accessToken;
     } catch {
       this.accessToken = null;
+      this.onTokenRefreshed(null);
       this.isRefreshing = false;
       return null;
     } finally {
@@ -130,40 +165,73 @@ class ApiClient {
 
   private async fetchWithErrorHandling<T>(
     url: string,
-    options?: RequestInit & { useCache?: boolean; cacheTtl?: number; _retryCount?: number },
+    options?: RequestInit & {
+      useCache?: boolean;
+      cacheTtl?: number;
+      _retryCount?: number;
+      signal?: AbortSignal;
+    },
   ): Promise<T> {
-    // Check cache for GET requests
-    const shouldCache =
-      options?.useCache !== false && (!options?.method || options.method === 'GET');
+    const method = options?.method || 'GET';
+    const isGet = method === 'GET';
+
+    if (this.isCircuitTripped) {
+      throw new Error('System under heavy load. Please try again later.');
+    }
+
+    if (isGet) {
+      const bodyString = options?.body ? stableStringify(options.body) : '{}';
+      const key = `GET:${url}?${bodyString}`;
+      return singleFlight(key, () => this.executeFetchWithRetries<T>(url, options));
+    }
+
+    return this.executeFetchWithRetries<T>(url, options);
+  }
+
+  private async executeFetchWithRetries<T>(
+    url: string,
+    options?: RequestInit & {
+      useCache?: boolean;
+      cacheTtl?: number;
+      _retryCount?: number;
+      signal?: AbortSignal;
+    },
+  ): Promise<T> {
+    const method = options?.method || 'GET';
+    const shouldCache = options?.useCache !== false && method === 'GET';
 
     if (shouldCache) {
       const cached = getCachedData<T>(url);
       if (cached) return cached;
     }
 
-    const { useCache: _, cacheTtl, ...fetchOptions } = options || {};
+    const { useCache: _, cacheTtl, _retryCount, signal, ...fetchOptions } = options || {};
+    const retryCount = _retryCount || 0;
 
     const executeRequest = async (token: string | null): Promise<Response> => {
       const headers = new Headers(fetchOptions?.headers);
-      if (token) {
+      if (token && !headers.has('Authorization')) {
         headers.set('Authorization', `Bearer ${token}`);
       }
-      headers.set('Content-Type', 'application/json');
+      if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
 
-      return fetch(url, {
-        ...fetchOptions,
-        headers,
-        credentials: 'include',
-      });
+      const releaseGlobal = await globalSemaphore.acquire();
+      const releaseHeavy = isHeavyRoute(url) ? await heavySemaphore.acquire() : () => {};
+
+      try {
+        return await fetch(url, { ...fetchOptions, headers, credentials: 'include', signal });
+      } finally {
+        releaseHeavy();
+        releaseGlobal();
+      }
     };
 
-    // Performance monitoring
     const startTime = performance.now();
 
     try {
       let response = await executeRequest(this.accessToken);
+      this.recordOutcome(response.status);
 
-      // Handle 401 - Unauthorized (Token expired)
       if (
         response.status === 401 &&
         !url.includes('/auth/login') &&
@@ -172,57 +240,76 @@ class ApiClient {
         const newToken = await this.refreshToken();
         if (newToken) {
           response = await executeRequest(newToken);
+          this.recordOutcome(response.status);
         } else {
-          // If refresh fails, do NOT retry - throw to prevent loop/storm
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('auth:logout'));
+          }
           throw new Error('Unauthorized: Session expired');
         }
       }
 
-      // Phase 8: Exponential Backoff for 5xx errors
-      const retryCount = options?._retryCount || 0;
-      const maxRetries = 3;
-
-      if (!response.ok && response.status >= 500 && retryCount < maxRetries) {
-        const backoff = Math.pow(2, retryCount) * 1000;
-        console.warn(
-          `API Error ${response.status} on ${url}. Retrying in ${backoff}ms... (Attempt ${retryCount + 1})`,
-        );
-        await new Promise((resolve) => setTimeout(resolve, backoff));
-        return this.fetchWithErrorHandling<T>(url, {
-          ...options,
-          _retryCount: retryCount + 1,
-        }); // Recursive retry
-      }
-
       if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          // Handled externally or intentionally rejected
+        } else if (response.status === 429 && retryCount < 2) {
+          const retryAfter = response.headers.get('Retry-After');
+          const delay = retryAfter
+            ? parseInt(retryAfter, 10) * 1000
+            : retryCount === 0
+              ? 1000
+              : 2000;
+          await new Promise((r) => setTimeout(r, delay));
+          return this.executeFetchWithRetries(url, { ...options, _retryCount: retryCount + 1 });
+        } else if (response.status >= 500 && response.status < 600) {
+          const isIdempotent = method === 'GET' || !!(options?.headers as any)?.['Idempotency-Key'];
+          const maxRetries = method === 'GET' ? 2 : isIdempotent ? 1 : 0;
+
+          if (retryCount < maxRetries) {
+            const retryAfter = response.headers.get('Retry-After');
+            let delay;
+            if (retryAfter) {
+              delay = parseInt(retryAfter, 10) * 1000;
+            } else {
+              delay = retryCount === 0 ? Math.random() * 100 + 200 : Math.random() * 200 + 800;
+            }
+            await new Promise((r) => setTimeout(r, delay));
+            return this.executeFetchWithRetries(url, { ...options, _retryCount: retryCount + 1 });
+          }
+        }
+
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
       }
 
       const data = await response.json();
 
-      // Log performance metrics
       const duration = performance.now() - startTime;
-      const payloadSize = JSON.stringify(data).length;
-
-      // Import dynamically to avoid circular dependency
       if (typeof window !== 'undefined') {
         import('../utils/performanceMonitor.js')
           .then(({ PerformanceMonitor }) => {
-            PerformanceMonitor.logAPICall(url, duration, payloadSize, response.status);
+            PerformanceMonitor.logAPICall(
+              url,
+              duration,
+              JSON.stringify(data).length,
+              response.status,
+            );
           })
-          .catch(() => {
-            // Silently fail if performance monitor not available
-          });
+          .catch(() => {});
       }
 
-      if (shouldCache) {
-        setCachedData(url, data, cacheTtl);
-      }
-
+      if (shouldCache) setCachedData(url, data, cacheTtl);
       return data;
-    } catch (error) {
-      // Log failed API call
+    } catch (error: any) {
+      if (error.name === 'AbortError') throw error;
+
+      if (!error.status) {
+        if (method === 'GET' && retryCount < 1) {
+          await new Promise((r) => setTimeout(r, 500));
+          return this.executeFetchWithRetries(url, { ...options, _retryCount: retryCount + 1 });
+        }
+      }
+
       const duration = performance.now() - startTime;
       if (typeof window !== 'undefined') {
         import('../utils/performanceMonitor.js')
@@ -231,9 +318,7 @@ class ApiClient {
           })
           .catch(() => {});
       }
-
-      if (error instanceof Error) throw error;
-      throw new Error('Network error occurred');
+      throw error;
     }
   }
 

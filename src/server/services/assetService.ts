@@ -32,7 +32,7 @@ export const AssetService = {
     const fileName = basename(data.storagePath);
     const fileType = extname(data.storagePath).replace('.', '').toUpperCase();
 
-    const result = db
+    const result = await db
       .prepare(
         `
       INSERT INTO file_assets (
@@ -41,9 +41,10 @@ export const AssetService = {
         source_collection, is_original, is_derivative, 
         derivative_kind, derivative_params_json, phash
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      RETURNING id
     `,
       )
-      .run(
+      .get(
         assetUuid,
         data.originalAssetId || null,
         data.storagePath,
@@ -60,7 +61,7 @@ export const AssetService = {
         data.phash || null,
       );
 
-    return result.lastInsertRowid as number;
+    return result.id;
   },
 
   /**
@@ -72,12 +73,15 @@ export const AssetService = {
     role: string = 'primary',
   ): Promise<void> {
     const db = getDb();
-    db.prepare(
-      `
-      INSERT OR IGNORE INTO document_assets (document_id, asset_id, role)
+    await db
+      .prepare(
+        `
+      INSERT INTO document_assets (document_id, asset_id, role)
       VALUES (?, ?, ?)
+      ON CONFLICT (document_id, asset_id) DO NOTHING
     `,
-    ).run(documentId, assetId, role);
+      )
+      .run(documentId, assetId, role);
   },
 
   /**
@@ -85,12 +89,15 @@ export const AssetService = {
    */
   async linkToMedia(mediaId: number, assetId: number, role: string = 'primary'): Promise<void> {
     const db = getDb();
-    db.prepare(
-      `
-      INSERT OR IGNORE INTO media_assets (media_id, asset_id, role)
+    await db
+      .prepare(
+        `
+      INSERT INTO media_assets (media_id, asset_id, role)
       VALUES (?, ?, ?)
+      ON CONFLICT (media_id, asset_id) DO NOTHING
     `,
-    ).run(mediaId, assetId, role);
+      )
+      .run(mediaId, assetId, role);
   },
 
   /**
@@ -98,7 +105,7 @@ export const AssetService = {
    */
   async findBySha256(sha256: string): Promise<number | null> {
     const db = getDb();
-    const row = db.prepare('SELECT id FROM file_assets WHERE sha256 = ?').get(sha256) as
+    const row = (await db.prepare('SELECT id FROM file_assets WHERE sha256 = ?').get(sha256)) as
       | { id: number }
       | undefined;
     return row ? row.id : null;

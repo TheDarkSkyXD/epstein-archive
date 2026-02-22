@@ -1,6 +1,9 @@
 import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { GraphService, GraphNode as ServiceGraphNode } from '../../services/GraphService';
 import { ZoomIn, ZoomOut, Move, RefreshCw, AlertTriangle, Link2, Filter } from 'lucide-react';
+import { Semaphore } from '../../utils/semaphore';
+
+const avatarSemaphore = new Semaphore(2);
 
 interface EntityNode {
   id: string | number;
@@ -146,6 +149,9 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
   const [showFilters, setShowFilters] = useState(false);
   const [hasInteractedWithFilter, setHasInteractedWithFilter] = useState(false);
   const [excludedRelTypes, setExcludedRelTypes] = useState<Set<string>>(new Set());
+
+  // Track avatar fetch status
+  const [avatarUrls, setAvatarUrls] = useState<Record<string, string>>({});
 
   // Level of Detail (LOD) based on zoom level
   const lod = useMemo(() => GraphService.getLodConfig(transform.k), [transform.k]);
@@ -301,6 +307,56 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
     }
     return visible;
   }, [filteredNodes, lod, transform.k, selectedNodeId, hoveredNode]);
+
+  // Avatar Fetch Policy
+  useEffect(() => {
+    // Only process fetching logic when zoom is deep or interactively hovering/selecting
+    if (transform.k <= 1.8 && !hoveredNode && !selectedNodeId) return;
+
+    const minX = -transform.x / transform.k;
+    const maxX = (100 - transform.x) / transform.k;
+    const minY = -transform.y / transform.k;
+    const maxY = (100 - transform.y) / transform.k;
+
+    const visibleNodes = filteredNodes.filter(
+      (n) => n.x >= minX - 10 && n.x <= maxX + 10 && n.y >= minY - 10 && n.y <= maxY + 10,
+    );
+
+    const vips = [...visibleNodes]
+      .sort(
+        (a, b) =>
+          (b.risk || 0) + (b.connectionCount || 0) - ((a.risk || 0) + (a.connectionCount || 0)),
+      )
+      .slice(0, 20);
+    const vipSet = new Set(vips.map((v) => String(v.id)));
+
+    const eligible = filteredNodes.filter((n) => {
+      if (avatarUrls[n.id] !== undefined) return false;
+      if (String(n.id) === String(selectedNodeId)) return true;
+      if (n.label === hoveredNode) return true;
+      if (transform.k > 1.8 && vipSet.has(String(n.id))) return true;
+      return false;
+    });
+
+    eligible.forEach(async (node) => {
+      const url = (node as any).photoUrl || (node as any).image || `/api/entities/${node.id}/media`;
+      setAvatarUrls((prev) => ({ ...prev, [node.id]: 'pending' }));
+
+      const release = await avatarSemaphore.acquire();
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Fetch failed');
+        const blob = await res.blob();
+        if (blob.size < 100) throw new Error('Too small');
+        const objectUrl = URL.createObjectURL(blob);
+        setAvatarUrls((prev) => ({ ...prev, [node.id]: objectUrl }));
+      } catch (e) {
+        setAvatarUrls((prev) => ({ ...prev, [node.id]: 'error' }));
+      } finally {
+        release();
+      }
+    });
+  }, [filteredNodes, transform.k, hoveredNode, selectedNodeId, transform.x, transform.y]);
 
   // Physics simulation
   useEffect(() => {
@@ -788,7 +844,10 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
             </feMerge>
           </filter>
           {filteredNodes
-            .filter((n) => n.image) // Changed from n.photoUrl to n.image
+            .filter(
+              (n) =>
+                avatarUrls[n.id] && avatarUrls[n.id] !== 'pending' && avatarUrls[n.id] !== 'error',
+            )
             .map((n) => (
               <pattern
                 key={`photo-${n.id}`}
@@ -801,7 +860,7 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
                 preserveAspectRatio="xMidYMid slice"
               >
                 <image
-                  href={n.image} // Changed from n.photoUrl to n.image
+                  href={avatarUrls[n.id]}
                   x="0"
                   y="0"
                   width="100"

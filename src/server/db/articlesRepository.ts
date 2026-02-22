@@ -21,13 +21,13 @@ export class ArticlesRepository {
   /**
    * Get paginated articles with optional filters
    */
-  getArticles(
+  async getArticles(
     limit: number = 50,
     offset: number = 0,
     search?: string,
     publication?: string,
     sort: 'date' | 'redFlag' = 'redFlag',
-  ): { articles: Article[]; total: number } {
+  ): Promise<{ articles: Article[]; total: number }> {
     const db = getDb();
     let query = 'SELECT * FROM articles WHERE 1=1';
     let countQuery = 'SELECT COUNT(*) as total FROM articles WHERE 1=1';
@@ -58,10 +58,10 @@ export class ArticlesRepository {
     query += ' LIMIT ? OFFSET ?';
 
     // Get total count
-    const countResult = db.prepare(countQuery).get(...params) as { total: number };
+    const countResult = (await db.prepare(countQuery).get(...params)) as { total: number };
 
     // Get paginated items (add limit/offset to params)
-    const articles = db.prepare(query).all(...params, limit, offset) as Article[];
+    const articles = (await db.prepare(query).all(...params, limit, offset)) as Article[];
 
     return {
       articles,
@@ -69,9 +69,9 @@ export class ArticlesRepository {
     };
   }
 
-  getArticleById(id: number | string): Article | undefined {
+  async getArticleById(id: number | string): Promise<Article | undefined> {
     const db = getDb();
-    return db.prepare('SELECT * FROM articles WHERE id = ?').get(id) as Article;
+    return (await db.prepare('SELECT * FROM articles WHERE id = ?').get(id)) as Article;
   }
 }
 

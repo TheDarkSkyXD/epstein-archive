@@ -37,21 +37,29 @@ export async function validateStartup() {
   // 4. Schema Integrity
   try {
     const db = getDb();
-    // Note: 'relationships' might be 'entity_relationships' depending on schema version.
-    // We check what we have.
+    let existingTables: string[];
 
-    const existingTablesRaw = await db
-      .prepare("SELECT name FROM sqlite_master WHERE type='table'")
-      .all();
-    const existingTables = existingTablesRaw.map((r: any) => r.name);
+    if (process.env.DB_DIALECT === 'postgres') {
+      const existingTablesRaw = await db
+        .prepare("SELECT tablename as name FROM pg_catalog.pg_tables WHERE schemaname = 'public'")
+        .all();
+      existingTables = existingTablesRaw.map((r: any) => r.name);
+    } else {
+      const existingTablesRaw = await db
+        .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+        .all();
+      existingTables = existingTablesRaw.map((r: any) => r.name);
+    }
 
     // Check critical tables
     if (!existingTables.includes('entities')) errors.push('Missing critical table: entities');
     if (!existingTables.includes('documents')) errors.push('Missing critical table: documents');
 
     // Check for migrations table
-    if (!existingTables.includes('schema_migrations')) {
-      warnings.push('schema_migrations table missing. Migrations may not have run.');
+    const migrationTable =
+      process.env.DB_DIALECT === 'postgres' ? 'schema_migrations' : 'schema_migrations';
+    if (!existingTables.includes(migrationTable)) {
+      warnings.push(`${migrationTable} table missing. Migrations may not have run.`);
     }
   } catch (e: any) {
     errors.push(`Database connection failed during validation: ${e.message}`);

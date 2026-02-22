@@ -709,7 +709,7 @@ export class DatabaseService {
     avg_confidence: number;
     top_entities_by_relationship_count: { entity_id: number; count: number }[];
   }> {
-    const stats = relationshipsRepository.getStats();
+    const stats = await relationshipsRepository.getStats();
     return {
       total_relationships: stats.total_relationships,
       avg_proximity_score: stats.avg_proximity_score,

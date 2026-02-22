@@ -67,7 +67,11 @@ async function main() {
   const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
   let gitSha = 'unknown';
-  try { gitSha = execSync('git rev-parse --short HEAD').toString().trim(); } catch { /* ok */ }
+  try {
+    gitSha = execSync('git rev-parse --short HEAD').toString().trim();
+  } catch {
+    /* ok */
+  }
   const ts = new Date().toISOString().replace(/[:.]/g, '-');
   const outDir = path.resolve(__dirname, '..', 'docs', 'explain');
   fs.mkdirSync(outDir, { recursive: true });
@@ -78,10 +82,7 @@ async function main() {
   for (const { name, sql, params } of QUERIES) {
     console.log(`\nEXPLAIN: ${name}`);
     try {
-      const { rows } = await pool.query(
-        `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${sql}`,
-        params,
-      );
+      const { rows } = await pool.query(`EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${sql}`, params);
       const plan = rows[0]['QUERY PLAN'];
       results[name] = plan;
 
@@ -120,4 +121,7 @@ async function main() {
   await pool.end();
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

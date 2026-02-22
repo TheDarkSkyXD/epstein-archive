@@ -299,21 +299,71 @@ export const entitiesRepository = {
     sortBy?: SortOption,
   ): Promise<SubjectCardRepositoryResult> => {
     const db = getDb();
+    const isPostgres = process.env.DB_DIALECT === 'postgres';
     const whereConditions: string[] = [];
     const params: any = {};
 
     let hasJunkFlag = false;
     let hasJunkTier = false;
     let hasQuarantine = false;
+    let hasMediaItemPeople = false;
+    let hasMediaItems = false;
+    let hasBlackBookEntries = false;
     try {
-      const cols = (await db.prepare(`PRAGMA table_info(entities)`).all()) as Array<{
-        name: string;
-      }>;
+      const cols = isPostgres
+        ? ((await db
+            .prepare(
+              `SELECT column_name AS name
+               FROM information_schema.columns
+               WHERE table_schema = 'public'
+                 AND table_name = 'entities'`,
+            )
+            .all()) as Array<{ name: string }>)
+        : ((await db.prepare(`PRAGMA table_info(entities)`).all()) as Array<{ name: string }>);
       hasJunkFlag = cols.some((c) => c.name === 'junk_flag');
       hasJunkTier = cols.some((c) => c.name === 'junk_tier');
       hasQuarantine = cols.some((c) => c.name === 'quarantine_status');
     } catch {
       // ignore schema errors
+    }
+
+    try {
+      if (isPostgres) {
+        const t = (await db
+          .prepare(
+            `
+              SELECT
+                to_regclass('public.media_item_people') IS NOT NULL AS has_media_item_people,
+                to_regclass('public.media_items') IS NOT NULL AS has_media_items,
+                to_regclass('public.black_book_entries') IS NOT NULL AS has_black_book_entries
+            `,
+          )
+          .get()) as
+          | {
+              has_media_item_people?: boolean;
+              has_media_items?: boolean;
+              has_black_book_entries?: boolean;
+            }
+          | undefined;
+        hasMediaItemPeople = Boolean(t?.has_media_item_people);
+        hasMediaItems = Boolean(t?.has_media_items);
+        hasBlackBookEntries = Boolean(t?.has_black_book_entries);
+      } else {
+        const tables = (await db
+          .prepare(
+            `SELECT name
+             FROM sqlite_master
+             WHERE type='table'
+               AND name IN ('media_item_people', 'media_items', 'black_book_entries')`,
+          )
+          .all()) as Array<{ name: string }>;
+        const names = new Set(tables.map((row) => row.name));
+        hasMediaItemPeople = names.has('media_item_people');
+        hasMediaItems = names.has('media_items');
+        hasBlackBookEntries = names.has('black_book_entries');
+      }
+    } catch {
+      // Ignore; we will fall back to safe zero-count projections.
     }
 
     const includeJunk = filters?.includeJunk === true;
@@ -438,6 +488,24 @@ export const entitiesRepository = {
 
     // Optimized Data Query (Selecting only needed fields)
     const offset = (page - 1) * limit;
+    const mediaCountSql = hasMediaItemPeople
+      ? '(SELECT COUNT(*) FROM media_item_people WHERE entity_id = entities.id)'
+      : '0';
+    const blackBookCountSql = hasBlackBookEntries
+      ? '(SELECT COUNT(*) FROM black_book_entries WHERE person_id = entities.id)'
+      : '0';
+    const topPhotoIdSql =
+      hasMediaItemPeople && hasMediaItems
+        ? `(
+            SELECT mi.id
+            FROM media_item_people mip 
+            JOIN media_items mi ON mip.media_item_id = mi.id 
+            WHERE mip.entity_id = entities.id
+            AND (mi.file_type LIKE 'image/%' OR mi.file_type IS NULL)
+            ORDER BY mi.red_flag_rating DESC, mi.id DESC
+            LIMIT 1
+          )`
+        : 'NULL';
     const sql = `
             SELECT 
               id,
@@ -450,18 +518,9 @@ export const entitiesRepository = {
               connections_summary as connections,
               '' as evidence_types,
               was_agentic,
-              (SELECT COUNT(*) FROM media_item_people WHERE entity_id = entities.id) as media_count,
-              (SELECT COUNT(*) FROM black_book_entries WHERE person_id = entities.id) as black_book_count
-              ,
-              (
-                SELECT mi.id
-                FROM media_item_people mip 
-                JOIN media_items mi ON mip.media_item_id = mi.id 
-                WHERE mip.entity_id = entities.id
-                AND (mi.file_type LIKE 'image/%' OR mi.file_type IS NULL)
-                ORDER BY mi.red_flag_rating DESC, mi.id DESC
-                LIMIT 1
-              ) as top_photo_id
+              ${mediaCountSql} as media_count,
+              ${blackBookCountSql} as black_book_count,
+              ${topPhotoIdSql} as top_photo_id
             FROM entities
             ${whereClause}
             ${orderByClause}
@@ -646,8 +705,8 @@ export const entitiesRepository = {
               connections_summary as connections,
               '' as evidence_types,
               was_agentic,
-              (SELECT COUNT(*) FROM media_item_people WHERE entity_id = entities.id) as media_count,
-              (SELECT COUNT(*) FROM black_book_entries WHERE person_id = entities.id) as black_book_count
+              ${mediaCountSql} as media_count,
+              ${blackBookCountSql} as black_book_count
             FROM entities
             ${softWhereClause}
             ${orderByClause}
@@ -897,14 +956,22 @@ export const entitiesRepository = {
     sortBy?: SortOption,
   ): Promise<EntityRepositoryResult> => {
     const db = getDb();
+    const isPostgres = process.env.DB_DIALECT === 'postgres';
     const whereConditions: string[] = [];
     const params: any = {};
 
     let hasJunkFlag = false;
     try {
-      const cols = (await db.prepare(`PRAGMA table_info(entities)`).all()) as Array<{
-        name: string;
-      }>;
+      const cols = isPostgres
+        ? ((await db
+            .prepare(
+              `SELECT column_name AS name
+               FROM information_schema.columns
+               WHERE table_schema = 'public'
+                 AND table_name = 'entities'`,
+            )
+            .all()) as Array<{ name: string }>)
+        : ((await db.prepare(`PRAGMA table_info(entities)`).all()) as Array<{ name: string }>);
       hasJunkFlag = cols.some((c) => c.name === 'junk_flag');
     } catch {
       hasJunkFlag = false;

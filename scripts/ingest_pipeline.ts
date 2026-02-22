@@ -967,16 +967,18 @@ async function processDocument(
     if (!existingDoc) {
       // Create skeleton document atomically
       try {
-        const result = await db.prepare(
-          `
+        const result = await db
+          .prepare(
+            `
           INSERT INTO documents (
             file_name, file_path, source_collection, content_sha256, 
             processing_status, pipeline_version, ingestion_run_id, hash_algo,
             parent_document_id
           ) VALUES (?, ?, ?, ?, 'queued', ?, ?, 'sha256', ?)
           RETURNING id, processing_status
-        `
-        ).get(
+        `,
+          )
+          .get(
             basename(filePath),
             filePath,
             collection.name,
@@ -984,13 +986,13 @@ async function processDocument(
             PIPELINE_VERSION,
             currentRun.id,
             metaOverride?.parent_document_id || null,
-        );
+          );
         existingDoc = result;
       } catch (e) {
         // ... (rest as before but async)
         existingDoc = await db.get(
           'SELECT id, processing_status FROM documents WHERE content_sha256 = ? OR file_path = ?',
-          [sha256, filePath]
+          [sha256, filePath],
         );
 
         if (!existingDoc) {
@@ -1390,11 +1392,11 @@ async function processDocument(
     }
 
     return { success: true, documentId: documentId };
-    } catch (error) {
+  } catch (error) {
     if (typeof documentId !== 'undefined') {
       const job = await db.get(
         'SELECT id FROM processing_jobs WHERE target_type = $1 AND target_id = $2 AND step_name = $3 AND status = $4',
-        ['document', documentId, 'ingestion', 'running']
+        ['document', documentId, 'ingestion', 'running'],
       );
       if (job) {
         const isRetryable =
@@ -1402,7 +1404,7 @@ async function processDocument(
           !(error as Error).message.includes('encrypted');
         await db.run(
           'UPDATE processing_jobs SET status = ?, last_error = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-          [isRetryable ? 'failed_retryable' : 'failed_permanent', (error as Error).message, job.id]
+          [isRetryable ? 'failed_retryable' : 'failed_permanent', (error as Error).message, job.id],
         );
       }
     }
@@ -1679,7 +1681,7 @@ async function processQueue() {
 
           const fullDoc = await dbSync.get(
             'SELECT content, content_preview FROM documents WHERE id = ?',
-            [docId]
+            [docId],
           );
 
           if (fullDoc && fullDoc.content) {
@@ -1689,7 +1691,7 @@ async function processQueue() {
             if (refined !== fullDoc.content) {
               await dbSync.run(
                 'UPDATE documents SET content = ?, content_refined = ?, last_processed_at = now() WHERE id = ?',
-                [refined, refined, docId]
+                [refined, refined, docId],
               );
             }
           }

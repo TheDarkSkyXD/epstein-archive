@@ -8,6 +8,10 @@ import {
 } from '../mappers/investigationsDtoMapper.js';
 
 const router = Router();
+const HARD_CAP_INVESTIGATIONS_LIMIT = Math.max(
+  1,
+  Number(process.env.HARD_CAP_INVESTIGATIONS_LIMIT || 100),
+);
 
 // Get all investigations
 // Get all investigations
@@ -17,8 +21,12 @@ router.get('/', async (req, res, next) => {
       status: (req.query.status as string) || undefined,
       ownerId: (req.query.ownerId as string) || undefined,
       page: parseInt(req.query.page as string) || 1,
-      limit: parseInt(req.query.limit as string) || 20,
+      limit: Math.min(
+        HARD_CAP_INVESTIGATIONS_LIMIT,
+        Math.max(1, parseInt(req.query.limit as string) || 20),
+      ),
     };
+    res.setHeader('X-Limit-Applied', String(filters.limit));
 
     const result = await investigationsRepository.getInvestigations(filters);
     res.json(result);

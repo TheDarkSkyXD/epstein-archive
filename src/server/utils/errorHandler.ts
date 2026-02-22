@@ -91,6 +91,23 @@ export const globalErrorHandler = (
 
   // If it's our custom AppError
   if (err instanceof AppError) {
+    if (err.statusCode >= 500) {
+      const code =
+        /relation .* does not exist|column .* does not exist|syntax error|permission denied|timeout|pool/i.test(
+          err.message || '',
+        )
+          ? 'PG_QUERY_FAILED'
+          : 'INTERNAL_ERROR';
+      res.status(err.statusCode).json({
+        error: 'internal_error',
+        code,
+        requestId: req.requestId || 'no-req-id',
+        route: req.originalUrl || req.url,
+        detailsRedacted: true,
+      });
+      return;
+    }
+
     const errorResponse = formatErrorResponse(err, req);
 
     // Log operational errors as warnings
@@ -112,10 +129,19 @@ export const globalErrorHandler = (
   }
 
   // For unexpected errors
-  const unexpectedError = new AppError('An unexpected error occurred', 500, false);
-
-  const errorResponse = formatErrorResponse(unexpectedError, req);
-  res.status(500).json(errorResponse);
+  const code =
+    /relation .* does not exist|column .* does not exist|syntax error|permission denied|timeout|pool/i.test(
+      err.message || '',
+    )
+      ? 'PG_QUERY_FAILED'
+      : 'INTERNAL_ERROR';
+  res.status(500).json({
+    error: 'internal_error',
+    code,
+    requestId: req.requestId || 'no-req-id',
+    route: req.originalUrl || req.url,
+    detailsRedacted: true,
+  });
 };
 
 // Async wrapper for route handlers

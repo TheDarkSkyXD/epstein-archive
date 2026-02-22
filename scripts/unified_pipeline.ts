@@ -106,13 +106,15 @@ async function runIntelPhase(): Promise<{ entitiesExtracted: number; relationsFo
 
   const db = getDb();
 
-  const entitiesBefore = (await db.get('SELECT COUNT(*) as c FROM entities') as any).c;
-  const relationsBefore = (await db.get('SELECT COUNT(*) as c FROM entity_relationships') as any).c;
+  const entitiesBefore = ((await db.get('SELECT COUNT(*) as c FROM entities')) as any).c;
+  const relationsBefore = ((await db.get('SELECT COUNT(*) as c FROM entity_relationships')) as any)
+    .c;
 
   const exitCode = await runScript('scripts/ingest_intelligence.ts');
 
-  const entitiesAfter = (await db.get('SELECT COUNT(*) as c FROM entities') as any).c;
-  const relationsAfter = (await db.get('SELECT COUNT(*) as c FROM entity_relationships') as any).c;
+  const entitiesAfter = ((await db.get('SELECT COUNT(*) as c FROM entities')) as any).c;
+  const relationsAfter = ((await db.get('SELECT COUNT(*) as c FROM entity_relationships')) as any)
+    .c;
 
   return {
     entitiesExtracted: entitiesAfter - entitiesBefore,
@@ -141,7 +143,9 @@ async function runEnrichPhase(
     whereClause += " AND created_at > now() - interval '1 day'";
   }
 
-  const totalRow = await db.get(`SELECT COUNT(*) as c FROM documents WHERE ${whereClause}`) as any;
+  const totalRow = (await db.get(
+    `SELECT COUNT(*) as c FROM documents WHERE ${whereClause}`,
+  )) as any;
   const totalDocs = totalRow?.c || 0;
 
   console.log(`   Documents to enrich: ${totalDocs}`);
@@ -157,14 +161,17 @@ async function runEnrichPhase(
   const startTime = Date.now();
 
   while (offset < totalDocs) {
-    const docs = await db.all(`
+    const docs = (await db.all(
+      `
       SELECT id, content, metadata_json, file_name
       FROM documents
       WHERE ${whereClause}
       ORDER BY id ASC
       LIMIT ?
       OFFSET ?
-    `, [BATCH_SIZE, offset]) as any[];
+    `,
+      [BATCH_SIZE, offset],
+    )) as any[];
 
     if (docs.length === 0) break;
 
@@ -195,7 +202,11 @@ async function runEnrichPhase(
             });
 
             if (!summary || summary.length < 10) {
-              const preview = refinedText.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200);
+              const preview = refinedText
+                .replace(/[\r\n]+/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .slice(0, 200);
               summary = `Document "${doc.file_name}" summary preview: ${preview}...`;
             }
 
@@ -205,14 +216,14 @@ async function runEnrichPhase(
 
             await db.run(
               'UPDATE documents SET metadata_json = ?, content_refined = ? WHERE id = ?',
-              [JSON.stringify(meta), refinedText, doc.id]
+              [JSON.stringify(meta), refinedText, doc.id],
             );
             summariesGenerated++;
             documentsEnriched++;
           } catch (error) {
             console.error(`   ❌ Failed to enrich document ${doc.id}:`, error);
           }
-        })
+        }),
       );
 
       if (documentsEnriched % 10 === 0 || documentsEnriched === totalDocs) {
@@ -220,7 +231,7 @@ async function runEnrichPhase(
         const rate = documentsEnriched / elapsed;
         const eta = (totalDocs - documentsEnriched) / rate / 60;
         process.stdout.write(
-          `\r   ⏳ ${documentsEnriched}/${totalDocs} (${((documentsEnriched / totalDocs) * 100).toFixed(1)}%) | ${rate.toFixed(1)} docs/s | ETA: ${eta.toFixed(1)} min`
+          `\r   ⏳ ${documentsEnriched}/${totalDocs} (${((documentsEnriched / totalDocs) * 100).toFixed(1)}%) | ${rate.toFixed(1)} docs/s | ETA: ${eta.toFixed(1)} min`,
         );
       }
     }

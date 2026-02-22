@@ -27,6 +27,13 @@ export function markViewsDirty(): void {
  * Skips if API pool has waiting connections (system is under pressure).
  */
 export async function refreshIfDue(): Promise<void> {
+  if (
+    process.env.DISABLE_MATVIEW_REFRESH === '1' ||
+    process.env.DISABLE_MATVIEW_REFRESH === 'true'
+  ) {
+    return;
+  }
+
   const now = Date.now();
 
   if (!isDirty) return;

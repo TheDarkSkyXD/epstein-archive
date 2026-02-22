@@ -12,6 +12,7 @@
 - **Search**: `websearch_to_tsquery` (phrase + negation), `ts_rank_cd` cover-density ranking, `?mode=prefix` for autocomplete
 
 ### New tooling
+
 - `scripts/go_prod.ts` — rewritten for PG: 6-step orchestrator (preflight, migrations, VACUUM, mat-view refresh, FTS sanity, git tag)
 - `scripts/pg_explain.ts` — 6/6 plan regression checks pass, no Seq Scans on indexed paths
 - `src/server/db/batchQuery.ts` — safe `ANY($1::bigint[])` chunked batching

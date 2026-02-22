@@ -37,9 +37,8 @@ test('AT-1: better-sqlite3 is not accessible in production image', () => {
 
 // AT-2: Translation counter should be 0 after warm-up requests
 test('AT-2: No SQL translation invoked (all SQL is native PG)', async () => {
-  const { getTranslationCount, resetTranslationCount } = await import(
-    '../src/server/db/connection.js'
-  );
+  const { getTranslationCount, resetTranslationCount } =
+    await import('../src/server/db/connection.js');
   resetTranslationCount();
   // Fire the key routes
   const routes = [
@@ -189,7 +188,7 @@ test('AT-14: /api/stats/meta/db exposes correct timeouts', async () => {
   if (!process.env.API_URL) return;
   const res = await fetch(`${process.env.API_URL}/api/stats/meta/db`);
   expect(res.status).toBe(200);
-  const body = await res.json() as any;
+  const body = (await res.json()) as any;
   expect(body.dialect).toBe('postgres');
   expect(parseInt(body.statement_timeout)).toBeLessThanOrEqual(5000);
   expect(body.pools).toBeDefined();

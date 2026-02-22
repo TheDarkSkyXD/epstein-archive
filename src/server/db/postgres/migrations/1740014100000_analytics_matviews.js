@@ -36,7 +36,9 @@ export async function up(pgm) {
     WHERE entity_type IS NOT NULL
     GROUP BY entity_type;
   `);
-  pgm.sql(`CREATE UNIQUE INDEX IF NOT EXISTS mv_entity_type_dist_type ON mv_entity_type_dist(type)`);
+  pgm.sql(
+    `CREATE UNIQUE INDEX IF NOT EXISTS mv_entity_type_dist_type ON mv_entity_type_dist(type)`,
+  );
 
   // ── 3. Top-100 connected persons (most expensive live query) ──────────────
   pgm.sql(`

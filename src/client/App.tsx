@@ -720,11 +720,11 @@ function App() {
         setLoadingProgressValue(90);
 
         const highRisk =
-          stats.likelihoodDistribution.find((d: any) => d.level === 'HIGH')?.count || 0;
+          stats.likelihoodDistribution?.find((d: any) => d.level === 'HIGH')?.count || 0;
         const mediumRisk =
-          stats.likelihoodDistribution.find((d: any) => d.level === 'MEDIUM')?.count || 0;
+          stats.likelihoodDistribution?.find((d: any) => d.level === 'MEDIUM')?.count || 0;
         const lowRisk =
-          stats.likelihoodDistribution.find((d: any) => d.level === 'LOW')?.count || 0;
+          stats.likelihoodDistribution?.find((d: any) => d.level === 'LOW')?.count || 0;
 
         const newStats = {
           totalPeople: stats.totalEntities,

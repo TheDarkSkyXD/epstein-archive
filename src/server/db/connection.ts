@@ -314,8 +314,9 @@ class SqliteWrapper implements DbWrapper {
       const timer = setTimeout(() => {
         try {
           this.db.interrupt();
-        } catch (_e) { /* interrupt is best-effort */ }
-
+        } catch (_e) {
+          /* interrupt is best-effort */
+        }
       }, 5000);
       try {
         const r = fn();

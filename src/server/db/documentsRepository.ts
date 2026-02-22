@@ -171,8 +171,27 @@ export const documentsRepository = {
     } = {},
   ) => {
     const db = getDb();
+    const isPostgres = process.env.DB_DIALECT === 'postgres';
     const whereConditions: string[] = [];
     const params: any[] = [];
+
+    let hasContentPreview = true;
+    if (isPostgres) {
+      try {
+        const rows = (await db
+          .prepare(
+            `SELECT column_name
+             FROM information_schema.columns
+             WHERE table_schema = 'public'
+               AND table_name = 'documents'
+               AND column_name IN ('content_preview')`,
+          )
+          .all()) as Array<{ column_name: string }>;
+        hasContentPreview = rows.some((row) => row.column_name === 'content_preview');
+      } catch {
+        hasContentPreview = false;
+      }
+    }
 
     if (filters.search && filters.search.trim()) {
       try {
@@ -180,7 +199,7 @@ export const documentsRepository = {
         const clauses: string[] = [];
         for (const variant of searchVariants) {
           clauses.push(
-            '(file_name LIKE ? OR content LIKE ? OR source_collection LIKE ? OR file_path LIKE ?)',
+            '(file_name LIKE ? OR content_refined LIKE ? OR source_collection LIKE ? OR file_path LIKE ?)',
           );
           const pattern = `%${variant}%`;
           params.push(pattern, pattern, pattern, pattern);
@@ -263,6 +282,9 @@ export const documentsRepository = {
 
     const countQuery = `SELECT COUNT(*) as total FROM documents ${whereClause}`;
     const totalResult = (await db.prepare(countQuery).get(...params)) as { total: number };
+    const previewExpr = hasContentPreview
+      ? "COALESCE(content_preview, SUBSTR(content_refined, 1, 1800), '')"
+      : "COALESCE(SUBSTR(content_refined, 1, 1800), '')";
 
     const sql = `
       SELECT 
@@ -271,7 +293,7 @@ export const documentsRepository = {
         file_type as fileType,
         file_size as fileSize,
         date_created as dateCreated,
-        substr(content, 1, 1800) as contentPreview,
+        ${previewExpr} as contentPreview,
         evidence_type as evidenceType,
         content_refined as contentRefined,
         metadata_json as metadata,

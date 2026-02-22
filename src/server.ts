@@ -48,7 +48,7 @@ import { config } from './config/index.js';
 import { blackBookRepository } from './server/db/blackBookRepository.js';
 import { globalErrorHandler } from './server/utils/errorHandler.js';
 import { memoryRepository } from './server/db/memoryRepository.js';
-import { getDb } from './server/db/connection.js';
+import { getApiPool, getDb, getMigrationMetrics } from './server/db/connection.js';
 import { FtsMaintenanceService } from './server/services/ftsMaintenance.js';
 import { validate, entitySchema, searchSchema } from './server/middleware/validate.js';
 
@@ -89,6 +89,53 @@ if (!CORPUS_BASE_PATH) {
 const app = express();
 // Enable trust proxy for Nginx/Load Balancer
 app.set('trust proxy', 1);
+
+const parseHardLimit = (value: string | undefined, fallback: number): number => {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return Math.floor(n);
+};
+
+const HARD_CAP_DOC_LIMIT = parseHardLimit(process.env.HARD_CAP_DOC_LIMIT, 500);
+const HARD_CAP_SUBJECTS_LIMIT = parseHardLimit(process.env.HARD_CAP_SUBJECTS_LIMIT, 200);
+
+function withSafeStatsContract(input: any) {
+  const source = input || {};
+  const existing = Array.isArray(source.likelihoodDistribution)
+    ? source.likelihoodDistribution
+    : [];
+  const byLevel = new Map<string, { count?: number }>(
+    existing.map((entry: any) => [
+      String(entry?.level || ''),
+      { count: Number(entry?.count || 0) },
+    ]),
+  );
+  const safeLikelihoodDistribution = ['HIGH', 'MEDIUM', 'LOW'].map((level) => ({
+    level,
+    count: Number(byLevel.get(level)?.count || 0),
+  }));
+
+  return {
+    totalEntities: Number(source.totalEntities || 0),
+    totalDocuments: Number(source.totalDocuments || 0),
+    totalMentions: Number(source.totalMentions || 0),
+    averageRedFlagRating: Number(source.averageRedFlagRating || 0),
+    totalUniqueRoles: Number(source.totalUniqueRoles || 0),
+    entitiesWithDocuments: Number(source.entitiesWithDocuments || 0),
+    documentsWithMetadata: Number(source.documentsWithMetadata || 0),
+    documentsFixed: Number(source.documentsFixed || 0),
+    activeInvestigations: Number(source.activeInvestigations || 0),
+    topRoles: Array.isArray(source.topRoles) ? source.topRoles : [],
+    topEntities: Array.isArray(source.topEntities) ? source.topEntities : [],
+    likelihoodDistribution: safeLikelihoodDistribution,
+    redFlagDistribution: Array.isArray(source.redFlagDistribution)
+      ? source.redFlagDistribution
+      : [],
+    collectionCounts: Array.isArray(source.collectionCounts) ? source.collectionCounts : [],
+    collectionStats: Array.isArray(source.collectionStats) ? source.collectionStats : [],
+    pipeline_status: source.pipeline_status || null,
+  };
+}
 
 // databaseService is already initialized at module level in its file, but let's make sure we use the same connection
 const mediaService = new MediaService(getDb());
@@ -213,6 +260,47 @@ app.use((req, res, next) => {
   next();
 });
 
+const monitoredReadRoute = (url: string) =>
+  url.startsWith('/api/investigations') ||
+  url.startsWith('/api/documents') ||
+  url.startsWith('/api/subjects') ||
+  url.startsWith('/api/emails/threads');
+
+app.use((req, res, next) => {
+  if (req.method !== 'GET' || !monitoredReadRoute(req.originalUrl)) {
+    return next();
+  }
+
+  const startedAt = Date.now();
+  let rowsReturned: number | null = null;
+  const originalJson = res.json.bind(res);
+  res.json = ((body: any) => {
+    if (Array.isArray(body)) rowsReturned = body.length;
+    else if (Array.isArray(body?.data)) rowsReturned = body.data.length;
+    else if (Array.isArray(body?.subjects)) rowsReturned = body.subjects.length;
+    else if (Array.isArray(body?.threads)) rowsReturned = body.threads.length;
+    else if (Array.isArray(body?.investigations)) rowsReturned = body.investigations.length;
+    return originalJson(body);
+  }) as typeof res.json;
+
+  res.on('finish', () => {
+    let poolWaiting = -1;
+    try {
+      if (process.env.DB_DIALECT === 'postgres') {
+        poolWaiting = getApiPool().waitingCount;
+      }
+    } catch {
+      poolWaiting = -1;
+    }
+
+    console.info(
+      `[ROUTE_TIMING] [${req.requestId || 'no-req-id'}] route=${req.originalUrl} status=${res.statusCode} durationMs=${Date.now() - startedAt} rows=${rowsReturned ?? -1} limitRequested=${String(req.query.limit || '')} limitApplied=${res.getHeader('X-Limit-Applied') || ''} poolWaiting=${poolWaiting}`,
+    );
+  });
+
+  next();
+});
+
 // Basic middleware
 app.use(
   cors({
@@ -289,10 +377,16 @@ app.use('/api/', retryStormDetector); // Detect and block retry storm patterns
 app.use('/api/', pgSaturationShed); // Shed requests when PG pool is saturated
 
 // Materialised view refresh — uses dedicated maintenancePool, defers under API pressure
-if (process.env.DB_DIALECT === 'postgres') {
+if (
+  process.env.DB_DIALECT === 'postgres' &&
+  process.env.DISABLE_MATVIEW_REFRESH !== '1' &&
+  process.env.DISABLE_MATVIEW_REFRESH !== 'true'
+) {
   setInterval(() => {
     refreshIfDue().catch((e) => console.warn('[MatViewRefresh]', e.message));
   }, 60_000);
+} else if (process.env.DB_DIALECT === 'postgres') {
+  console.warn('[MatViewRefresh] disabled by DISABLE_MATVIEW_REFRESH');
 }
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/refresh', authLimiter);
@@ -412,6 +506,44 @@ const PUBLIC_ROUTES = [
 // Health Check Endpoint
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.get('/api/_meta/db', async (_req, res, next) => {
+  try {
+    const dialect = process.env.DB_DIALECT || 'sqlite';
+    if (dialect !== 'postgres') {
+      return res.json({
+        dialect,
+        server_version: null,
+        statement_timeout: null,
+        lock_timeout: null,
+        pools: null,
+      });
+    }
+
+    const pool = getApiPool();
+    const { rows } = await pool.query<{
+      server_version: string;
+      statement_timeout: string;
+      lock_timeout: string;
+    }>(`
+      SELECT
+        version() AS server_version,
+        current_setting('statement_timeout') AS statement_timeout,
+        current_setting('lock_timeout') AS lock_timeout
+    `);
+    const metrics = await getMigrationMetrics();
+    res.json({
+      dialect,
+      server_version: rows[0]?.server_version,
+      statement_timeout: rows[0]?.statement_timeout,
+      lock_timeout: rows[0]?.lock_timeout,
+      pools: metrics.pools,
+      translationCount: metrics.translationCount,
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 // Readiness endpoint: validates DB connectivity + critical tables + minimum data availability.
@@ -1050,7 +1182,9 @@ app.get('/api/entities/all', cacheMiddleware(300), async (_req, res, next) => {
 app.get('/api/subjects', cacheMiddleware(300), async (req, res) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 24;
+    const requestedLimit = parseInt(req.query.limit as string) || 24;
+    const limit = Math.min(HARD_CAP_SUBJECTS_LIMIT, Math.max(1, requestedLimit));
+    res.setHeader('X-Limit-Applied', String(limit));
 
     const likelihoodScore = req.query.likelihoodScore
       ? ((Array.isArray(req.query.likelihoodScore)
@@ -1071,7 +1205,13 @@ app.get('/api/subjects', cacheMiddleware(300), async (req, res) => {
     res.json(mapSubjectsListResponseDto(result));
   } catch (error) {
     console.error('Error fetching subject cards:', error);
-    res.status(500).json({ error: 'Failed to fetch subjects' });
+    res.status(500).json({
+      error: 'internal_error',
+      code: 'PG_QUERY_FAILED',
+      requestId: req.requestId || 'no-req-id',
+      route: req.originalUrl,
+      detailsRedacted: true,
+    });
   }
 });
 
@@ -1282,9 +1422,17 @@ app.get('/api/black-book', cacheMiddleware(300), async (req, res, next) => {
 // Get database statistics
 app.get('/api/stats', cacheMiddleware(300), async (_req, res, next) => {
   try {
+    if (
+      process.env.DISABLE_INVESTIGATIONS_STATS === '1' ||
+      process.env.DISABLE_INVESTIGATIONS_STATS === 'true'
+    ) {
+      res.set('Cache-Control', 'public, max-age=15');
+      return res.json(withSafeStatsContract({}));
+    }
+
     const stats = await statsRepository.getStatistics();
     res.set('Cache-Control', 'public, max-age=300'); // 5 min cache
-    res.json(stats);
+    res.json(withSafeStatsContract(stats));
   } catch (error) {
     console.error('Error fetching statistics:', error);
     next(error);
@@ -1617,7 +1765,9 @@ app.get('/api/entities/:id/confidence', getEntityConfidence);
 app.get('/api/documents', async (req, res, next) => {
   try {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
-    const limit = Math.min(50000, Math.max(1, parseInt(req.query.limit as string) || 50));
+    const requestedLimit = Math.max(1, parseInt(req.query.limit as string) || 50);
+    const limit = Math.min(HARD_CAP_DOC_LIMIT, requestedLimit);
+    res.setHeader('X-Limit-Applied', String(limit));
     const sortBy = (req.query.sortBy as string) || 'red_flag';
     const sortOrder = ((req.query.sortOrder as string) || 'desc').toLowerCase() as 'asc' | 'desc';
     const search = req.query.search as string;
@@ -2263,8 +2413,15 @@ app.get('/api/search', async (req, res, next) => {
 // Analytics endpoint
 app.get('/api/analytics', async (_req, res, next) => {
   try {
+    if (
+      process.env.DISABLE_INVESTIGATIONS_STATS === '1' ||
+      process.env.DISABLE_INVESTIGATIONS_STATS === 'true'
+    ) {
+      return res.json(withSafeStatsContract({}));
+    }
+
     const stats = await statsRepository.getStatistics();
-    res.json(stats);
+    res.json(withSafeStatsContract(stats));
   } catch (error) {
     console.error('Error fetching analytics:', error);
     next(error);

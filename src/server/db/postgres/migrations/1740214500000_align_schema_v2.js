@@ -90,7 +90,7 @@ export async function up(pgm) {
 export async function down(pgm) {
   pgm.dropTable('graph_cache_state');
   pgm.dropTable('entity_adjacency');
-  
+
   pgm.sql(`
     DO $$
     BEGIN

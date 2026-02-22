@@ -4,6 +4,10 @@ import { getApiPool } from '../db/connection.js';
 const SATURATION_RATIO = 0.85; // shed when 85%+ of pool is occupied
 
 export function pgSaturationShed(req: Request, res: Response, next: NextFunction) {
+  if (process.env.DISABLE_PG_SHED === '1' || process.env.DISABLE_PG_SHED === 'true') {
+    return next();
+  }
+
   // Only active in PG mode
   if (process.env.DB_DIALECT !== 'postgres') return next();
 
@@ -15,7 +19,9 @@ export function pgSaturationShed(req: Request, res: Response, next: NextFunction
   }
 
   const occupied = pool.totalCount - pool.idleCount;
-  const ratio = pool.totalCount > 0 ? occupied / 20 : 0; // 20 = max pool size
+  const configuredMax =
+    Number((pool as any).options?.max) || Number(process.env.API_POOL_MAX || 18) || 18;
+  const ratio = configuredMax > 0 ? occupied / configuredMax : 0;
 
   // Also shed if there are queued waiters
   if (pool.waitingCount > 0 || ratio >= SATURATION_RATIO) {

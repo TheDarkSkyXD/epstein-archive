@@ -18,12 +18,17 @@ let insertRelation: any;
 const BATCH_SIZE = 100;
 
 // Patterns (same as original)
-const LOCATION_PATTERN = /\b(House|Street|Road|Avenue|Park|Beach|Islands|Drive|Place|Apartment|Mansion|Ranch|Island|Airport|Courthouse|Building|Plaza|Center|Terminal|Hangar|Dock)\b/i;
+const LOCATION_PATTERN =
+  /\b(House|Street|Road|Avenue|Park|Beach|Islands|Drive|Place|Apartment|Mansion|Ranch|Island|Airport|Courthouse|Building|Plaza|Center|Terminal|Hangar|Dock)\b/i;
 const HOUSEKEEPER_PATTERN = /Housekeeper/i;
-const ORG_PATTERN = /\b(Inc\.?|LLC|Corp\.?|Ltd\.?|Group|Trust|Foundation|University|College|School|Academy|Department|Bureau|Agency|Police|Sheriff|FBI|CIA|Secret Service|Bank|Association|Club|Holdings|Limited|Fund|Service|Office|Registry|Commission|Board)\b/i;
-const MEDIA_PATTERN = /\b(New York Times|Post|News|Press|Journal|Magazine|Broadcast|Radio|TV|Herald|Tribune|Chronicle)\b/i;
-const FINANCIAL_PATTERN = /\b(Bank|Financial|Transfer|Payment|Account|Trust|LLC|Inc|Corp|Investment|Capital|Securities|Fund|Equity)\b/i;
-const PERSON_TITLE_PATTERN = /\b(Judge|Officer|Agent|Senator|Representative|Justice|Professor|Doctor|Advocate|Counsel|Attorney|Lawyer|Pilot|Detective|Marshal|Sheriff|Foreman|Owner)\b/i;
+const ORG_PATTERN =
+  /\b(Inc\.?|LLC|Corp\.?|Ltd\.?|Group|Trust|Foundation|University|College|School|Academy|Department|Bureau|Agency|Police|Sheriff|FBI|CIA|Secret Service|Bank|Association|Club|Holdings|Limited|Fund|Service|Office|Registry|Commission|Board)\b/i;
+const MEDIA_PATTERN =
+  /\b(New York Times|Post|News|Press|Journal|Magazine|Broadcast|Radio|TV|Herald|Tribune|Chronicle)\b/i;
+const FINANCIAL_PATTERN =
+  /\b(Bank|Financial|Transfer|Payment|Account|Trust|LLC|Inc|Corp|Investment|Capital|Securities|Fund|Equity)\b/i;
+const PERSON_TITLE_PATTERN =
+  /\b(Judge|Officer|Agent|Senator|Representative|Justice|Professor|Doctor|Advocate|Counsel|Attorney|Lawyer|Pilot|Detective|Marshal|Sheriff|Foreman|Owner)\b/i;
 
 const ROLE_PATTERNS = [
   { role: 'Pilot', regex: /\bpilot|aviation|flight|cockpit\b/i },
@@ -48,11 +53,16 @@ const CREDENTIAL_PATTERNS = [
 ];
 
 const CONTACT_PATTERNS = {
-  email: /[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*/g,
+  email:
+    /[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*/g,
   phone: /(?:\+?(\d{1,3}))?[-. (]*(\d{3})[-. )]*(\d{3})[-. ]*(\d{4})/g,
 };
 
-import { ENTITY_BLACKLIST as _ENTITY_BLACKLIST, ENTITY_BLACKLIST_REGEX, ENTITY_PARTIAL_BLOCKLIST } from '../src/config/entityBlacklist.js';
+import {
+  ENTITY_BLACKLIST as _ENTITY_BLACKLIST,
+  ENTITY_BLACKLIST_REGEX,
+  ENTITY_PARTIAL_BLOCKLIST,
+} from '../src/config/entityBlacklist.js';
 import { isJunkEntity } from './filters/entityFilters.js';
 import { resolveAmbiguity } from './filters/contextRules.js';
 import { resolveVip, VIP_RULES } from './filters/vipRules.js';
@@ -61,7 +71,12 @@ import { BoilerplateService } from '../src/server/services/BoilerplateService.js
 import { TextCleaner } from './utils/text_cleaner.js';
 
 function normalizeName(name: string): string {
-  return name.replace(/[\n\r\t]/g, ' ').replace(/\s+/g, ' ').replace(/^['"]|['"]$/g, '').replace(/[.,;:]$/g, '').trim();
+  return name
+    .replace(/[\n\r\t]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/^['"]|['"]$/g, '')
+    .replace(/[.,;:]$/g, '')
+    .trim();
 }
 
 async function extractCredentials(doc: any, content: string) {
@@ -73,7 +88,11 @@ async function extractCredentials(doc: any, content: string) {
         await db.run(
           `INSERT INTO black_book_entries (entry_text, notes, document_id, entry_category, created_at)
            VALUES (?, ?, ?, 'credential', CURRENT_TIMESTAMP)`,
-          [`⭐ ${pattern.type}: ${match[1]}`, `[CREDENTIAL] Extracted from document ${doc.id} (${doc.file_name})`, doc.id]
+          [
+            `⭐ ${pattern.type}: ${match[1]}`,
+            `[CREDENTIAL] Extracted from document ${doc.id} (${doc.file_name})`,
+            doc.id,
+          ],
         );
       }
     }
@@ -93,23 +112,39 @@ async function harvestContacts(doc: any, content: string, entitiesFound: any[]) 
 
       for (const emailMatch of emails) {
         const email = emailMatch[0];
-        const existing = await db.get('SELECT id FROM black_book_entries WHERE document_id = ? AND entry_text LIKE ?', [doc.id, `%${email}%`]);
+        const existing = await db.get(
+          'SELECT id FROM black_book_entries WHERE document_id = ? AND entry_text LIKE ?',
+          [doc.id, `%${email}%`],
+        );
         if (!existing) {
           await db.run(
             `INSERT INTO black_book_entries (person_id, entry_text, notes, document_id, entry_category, created_at)
              VALUES (?, ?, ?, ?, 'contact', CURRENT_TIMESTAMP)`,
-            [entity.entityId || null, `⭐ ${entity.name} (Contact): ${email}`, `[HARVESTED] Found near name in document ${doc.id}`, doc.id]
+            [
+              entity.entityId || null,
+              `⭐ ${entity.name} (Contact): ${email}`,
+              `[HARVESTED] Found near name in document ${doc.id}`,
+              doc.id,
+            ],
           );
         }
       }
       for (const phoneMatch of phones) {
         const phone = phoneMatch[0];
-        const existing = await db.get('SELECT id FROM black_book_entries WHERE document_id = ? AND entry_text LIKE ?', [doc.id, `%${phone}%`]);
+        const existing = await db.get(
+          'SELECT id FROM black_book_entries WHERE document_id = ? AND entry_text LIKE ?',
+          [doc.id, `%${phone}%`],
+        );
         if (!existing) {
           await db.run(
             `INSERT INTO black_book_entries (person_id, entry_text, notes, document_id, entry_category, created_at)
              VALUES (?, ?, ?, ?, 'contact', CURRENT_TIMESTAMP)`,
-            [entity.entityId || null, `⭐ ${entity.name} (Contact): ${phone}`, `[HARVESTED] Found near name in document ${doc.id}`, doc.id]
+            [
+              entity.entityId || null,
+              `⭐ ${entity.name} (Contact): ${phone}`,
+              `[HARVESTED] Found near name in document ${doc.id}`,
+              doc.id,
+            ],
           );
         }
       }
@@ -117,7 +152,9 @@ async function harvestContacts(doc: any, content: string, entitiesFound: any[]) 
   }
 }
 
-function makeId(): string { return crypto.randomUUID(); }
+function makeId(): string {
+  return crypto.randomUUID();
+}
 
 export async function runIntelligencePipeline() {
   console.log('🚀 Starting ULTIMATE Evidentiary Ingestion Pipeline (PG NATIVE)...');
@@ -133,11 +170,15 @@ export async function runIntelligencePipeline() {
     await db.run(
       `INSERT INTO ingest_runs (id, status, git_commit, pipeline_version, agentic_enabled)
        VALUES (?, 'running', ?, '2.0.0-pg', 0)`,
-      [ingestRunId, gitCommit]
+      [ingestRunId, gitCommit],
     );
 
     // Resolver run registration
-    const res = await db.prepare('INSERT INTO resolver_runs (resolver_name, resolver_version) VALUES (?, ?) RETURNING id').get(['UltimateIngestionPipeline', '2.0.0-pg']);
+    const res = await db
+      .prepare(
+        'INSERT INTO resolver_runs (resolver_name, resolver_version) VALUES (?, ?) RETURNING id',
+      )
+      .get(['UltimateIngestionPipeline', '2.0.0-pg']);
     const currentResolverRunTableId = res.id;
 
     // Prepared statements for high-throughput loops
@@ -174,56 +215,74 @@ export async function runIntelligencePipeline() {
 
       // ... (Entity extraction logic logic ...
       // (Simplified for brevity in this artifact but maintain same regex logic)
-      
+
       const entitiesFound: any[] = []; // will store {name, type, offset}
       // [Simulated entity loop for this artifact version]
-      
+
       for (const ent of entitiesFound) {
         let finalEnt = ent;
         // Apply filters
         if (isJunkEntity(ent.name)) continue;
-        
+
         // Resolve VIPs
         const vip = resolveVip(ent.name);
         if (vip) {
-            finalEnt.name = vip.canonicalName;
-            finalEnt.type = 'Person';
+          finalEnt.name = vip.canonicalName;
+          finalEnt.type = 'Person';
         }
 
         // Insert/Find Entity
         let entityId: number;
-        const existing = await db.get('SELECT id FROM entities WHERE name = ? AND type = ?', [finalEnt.name, finalEnt.type]);
+        const existing = await db.get('SELECT id FROM entities WHERE name = ? AND type = ?', [
+          finalEnt.name,
+          finalEnt.type,
+        ]);
         if (existing) {
-            entityId = existing.id;
-            await updateEvidenceCount.run([entityId]);
+          entityId = existing.id;
+          await updateEvidenceCount.run([entityId]);
         } else {
-            const result = await insertEntity.get([finalEnt.name, finalEnt.type, 'low']);
-            if (result) {
-                entityId = result.id;
-            } else {
-                // Conflict handled, fetch id
-                const refetch = await db.get('SELECT id FROM entities WHERE name = ? AND type = ?', [finalEnt.name, finalEnt.type]);
-                entityId = refetch.id;
-            }
+          const result = await insertEntity.get([finalEnt.name, finalEnt.type, 'low']);
+          if (result) {
+            entityId = result.id;
+          } else {
+            // Conflict handled, fetch id
+            const refetch = await db.get('SELECT id FROM entities WHERE name = ? AND type = ?', [
+              finalEnt.name,
+              finalEnt.type,
+            ]);
+            entityId = refetch.id;
+          }
         }
 
         // Insert Mention
-        await insertMention.run([entityId, doc.id, finalEnt.name, content.substring(Math.max(0, ent.offset - 50), ent.offset + 100), 0.9, ingestRunId]);
-        
+        await insertMention.run([
+          entityId,
+          doc.id,
+          finalEnt.name,
+          content.substring(Math.max(0, ent.offset - 50), ent.offset + 100),
+          0.9,
+          ingestRunId,
+        ]);
+
         totalMentions++;
-        ent.entityId = entityId; 
+        ent.entityId = entityId;
       }
 
       await extractCredentials(doc, content);
       await harvestContacts(doc, content, entitiesFound);
     }
 
-    await db.run("UPDATE ingest_runs SET status = 'completed', finished_at = CURRENT_TIMESTAMP WHERE id = ?", [ingestRunId]);
+    await db.run(
+      "UPDATE ingest_runs SET status = 'completed', finished_at = CURRENT_TIMESTAMP WHERE id = ?",
+      [ingestRunId],
+    );
     console.log('✅ Intelligence Pipeline complete.');
-
   } catch (error) {
     console.error('❌ Intelligence Pipeline failed:', error);
-    await db.run("UPDATE ingest_runs SET status = 'failed', error_message = ? WHERE id = ?", [(error as Error).message, ingestRunId]);
+    await db.run("UPDATE ingest_runs SET status = 'failed', error_message = ? WHERE id = ?", [
+      (error as Error).message,
+      ingestRunId,
+    ]);
     throw error;
   }
 }

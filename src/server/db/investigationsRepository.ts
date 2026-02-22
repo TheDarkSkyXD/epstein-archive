@@ -15,6 +15,63 @@ export interface Investigation {
 
 type InvestigationEvidenceTargetType = 'document' | 'entity' | 'media' | null;
 
+type InvestigationColumnSupport = {
+  hasCollaboratorIds: boolean;
+  hasCreatedAt: boolean;
+  hasUpdatedAt: boolean;
+  hasScope: boolean;
+};
+
+async function getInvestigationColumnSupport(db: any): Promise<InvestigationColumnSupport> {
+  if (process.env.DB_DIALECT === 'postgres') {
+    const rows = (await db
+      .prepare(
+        `SELECT column_name
+         FROM information_schema.columns
+         WHERE table_schema = 'public'
+           AND table_name = 'investigations'`,
+      )
+      .all()) as Array<{ column_name: string }>;
+    const names = new Set(rows.map((row) => row.column_name));
+    return {
+      hasCollaboratorIds: names.has('collaborator_ids'),
+      hasCreatedAt: names.has('created_at'),
+      hasUpdatedAt: names.has('updated_at'),
+      hasScope: names.has('scope'),
+    };
+  }
+
+  const rows = (await db.prepare(`PRAGMA table_info(investigations)`).all()) as Array<{
+    name: string;
+  }>;
+  const names = new Set(rows.map((row) => row.name));
+  return {
+    hasCollaboratorIds: names.has('collaborator_ids'),
+    hasCreatedAt: names.has('created_at'),
+    hasUpdatedAt: names.has('updated_at'),
+    hasScope: names.has('scope'),
+  };
+}
+
+function buildInvestigationsSelectColumns(columns: InvestigationColumnSupport): string {
+  return [
+    'id',
+    'uuid',
+    'title',
+    'description',
+    'owner_id',
+    columns.hasCollaboratorIds ? 'collaborator_ids' : "'[]' as collaborator_ids",
+    'status',
+    columns.hasScope ? 'scope' : 'NULL as scope',
+    columns.hasCreatedAt ? 'created_at' : 'CURRENT_TIMESTAMP as created_at',
+    columns.hasUpdatedAt
+      ? 'updated_at'
+      : columns.hasCreatedAt
+        ? 'created_at as updated_at'
+        : 'CURRENT_TIMESTAMP as updated_at',
+  ].join(', ');
+}
+
 function inferEvidenceTarget(row: any): {
   targetType: InvestigationEvidenceTargetType;
   targetId: number | null;
@@ -71,6 +128,8 @@ export const investigationsRepository = {
     } = {},
   ) => {
     const db = getDb();
+    const columns = await getInvestigationColumnSupport(db);
+    const selectColumns = buildInvestigationsSelectColumns(columns);
     const { status, ownerId, page = 1, limit = 20 } = filters;
     const offset = (page - 1) * limit;
 
@@ -89,8 +148,7 @@ export const investigationsRepository = {
     const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
 
     const query = `
-      SELECT id, uuid, title, description, owner_id, collaborator_ids, 
-             status, scope, created_at, updated_at
+      SELECT ${selectColumns}
       FROM investigations
       ${whereClause}
       ORDER BY updated_at DESC
@@ -139,12 +197,13 @@ export const investigationsRepository = {
 
   getInvestigationById: async (id: number | string) => {
     const db = getDb();
+    const columns = await getInvestigationColumnSupport(db);
+    const selectColumns = buildInvestigationsSelectColumns(columns);
     // Support uuid or id? Logic used ID mostly.
     const inv = (await db
       .prepare(
         `
-      SELECT id, uuid, title, description, owner_id, collaborator_ids, 
-             status, scope, created_at, updated_at
+      SELECT ${selectColumns}
       FROM investigations WHERE id = ?
     `,
       )
@@ -156,11 +215,12 @@ export const investigationsRepository = {
 
   getInvestigationByUuid: async (uuid: string) => {
     const db = getDb();
+    const columns = await getInvestigationColumnSupport(db);
+    const selectColumns = buildInvestigationsSelectColumns(columns);
     const inv = (await db
       .prepare(
         `
-      SELECT id, uuid, title, description, owner_id, collaborator_ids, 
-             status, scope, created_at, updated_at
+      SELECT ${selectColumns}
       FROM investigations WHERE uuid = ?
     `,
       )

@@ -117,13 +117,13 @@ CASE
   WHEN lower(coalesce(json_extract(metadata_json, '$.from'), '')) LIKE '%amazon.com%'
     OR lower(coalesce(json_extract(metadata_json, '$.from'), '')) LIKE '%noreply@%'
     OR lower(coalesce(json_extract(metadata_json, '$.from'), '')) LIKE '%no-reply@%'
-    OR lower(coalesce(content_preview, '')) LIKE '%order %'
-    OR lower(coalesce(content_preview, '')) LIKE '%shipping%'
+    OR lower(coalesce(content_refined, '')) LIKE '%order %'
+    OR lower(coalesce(content_refined, '')) LIKE '%shipping%'
   THEN 'updates'
   WHEN lower(coalesce(json_extract(metadata_json, '$.from'), '')) LIKE '%@houzz.com%'
     OR lower(coalesce(json_extract(metadata_json, '$.from'), '')) LIKE '%@response.cnbc.com%'
-    OR lower(coalesce(content_preview, '')) LIKE '%unsubscribe%'
-    OR lower(coalesce(content_preview, '')) LIKE '%newsletter%'
+    OR lower(coalesce(content_refined, '')) LIKE '%unsubscribe%'
+    OR lower(coalesce(content_refined, '')) LIKE '%newsletter%'
   THEN 'promotions'
   ELSE 'primary'
 END
@@ -133,7 +133,7 @@ const buildThreadBaseSql = (where: string) => `
 WITH email_docs AS (
   SELECT
     d.id,
-    COALESCE(d.date_created, d.created_at, '1970-01-01T00:00:00.000Z') AS dateCreated,
+    COALESCE(d.date_created, '1970-01-01T00:00:00.000Z') AS dateCreated,
     COALESCE(
       json_extract(d.metadata_json, '$.thread_id'),
       json_extract(d.metadata_json, '$.threadId'),
@@ -144,10 +144,8 @@ WITH email_docs AS (
     COALESCE(json_extract(d.metadata_json, '$.subject'), d.file_name, d.title, 'No Subject') AS subject,
     COALESCE(json_extract(d.metadata_json, '$.from'), '') AS fromAddress,
     COALESCE(json_extract(d.metadata_json, '$.to'), '') AS toAddress,
-    COALESCE(d.content_preview, SUBSTR(d.content, 1, 200), '') AS snippet,
+    COALESCE(d.content_refined, '') AS snippet,
     d.red_flag_rating,
-    d.ingestion_run_id,
-    d.pipeline_version,
     d.metadata_json,
     ${buildCategoryCaseSql} AS mailboxTab
   FROM documents d
@@ -160,26 +158,14 @@ threaded AS (
     MIN(subject) AS subject,
     MAX(dateCreated) AS lastMessageAt,
     COUNT(*) AS messageCount,
-    GROUP_CONCAT(DISTINCT TRIM(fromAddress)) AS participantsRaw,
+    GROUP_CONCAT(DISTINCT fromAddress) AS participantsRaw,
     MAX(COALESCE(red_flag_rating, 0)) AS risk,
     MAX(COALESCE(json_extract(metadata_json, '$.confidence'), json_extract(metadata_json, '$.significance_score'))) AS confidence,
     MAX(COALESCE(json_extract(metadata_json, '$.ladder'), json_extract(metadata_json, '$.evidence_ladder'))) AS ladder,
-    MAX(CASE WHEN COALESCE(json_extract(metadata_json, '$.attachments_count'), 0) > 0 THEN 1 ELSE 0 END) AS hasAttachments,
+    MAX(CASE WHEN CAST(COALESCE(json_extract(metadata_json, '$.attachments_count'), '0') AS INTEGER) > 0 THEN 1 ELSE 0 END) AS hasAttachments,
+    NULL AS linkedEntityIdsRaw,
     (
-      SELECT GROUP_CONCAT(DISTINCT em.entity_id)
-      FROM entity_mentions em
-      JOIN documents d2 ON d2.id = em.document_id
-      WHERE d2.evidence_type = 'email'
-        AND COALESCE(
-          json_extract(d2.metadata_json, '$.thread_id'),
-          json_extract(d2.metadata_json, '$.threadId'),
-          json_extract(d2.metadata_json, '$.conversation_id'),
-          json_extract(d2.metadata_json, '$.message_id'),
-          CAST(d2.id AS TEXT)
-        ) = email_docs.threadId
-    ) AS linkedEntityIdsRaw,
-    (
-      SELECT COALESCE(d3.content_preview, SUBSTR(d3.content, 1, 220), '')
+      SELECT COALESCE(d3.content_refined, '')
       FROM documents d3
       WHERE d3.evidence_type = 'email'
         AND COALESCE(
@@ -189,7 +175,7 @@ threaded AS (
           json_extract(d3.metadata_json, '$.message_id'),
           CAST(d3.id AS TEXT)
         ) = email_docs.threadId
-      ORDER BY COALESCE(d3.date_created, d3.created_at, '1970-01-01T00:00:00.000Z') DESC, d3.id DESC
+      ORDER BY COALESCE(d3.date_created, '1970-01-01T00:00:00.000Z') DESC, d3.id DESC
       LIMIT 1
     ) AS snippet
   FROM email_docs
@@ -218,10 +204,25 @@ FROM threaded
 
 const getJunkFilterClause = async (db: any, showSuppressedJunk: boolean): Promise<string> => {
   if (showSuppressedJunk) return '';
-  const entityCols = (await db.prepare(`PRAGMA table_info(entities)`).all()) as Array<{
-    name: string;
-  }>;
-  const hasJunkFlag = entityCols.some((column) => column.name === 'junk_flag');
+
+  let hasJunkFlag = false;
+  if (process.env.DB_DIALECT === 'postgres') {
+    const entityCols = (await db
+      .prepare(
+        `SELECT column_name AS name
+         FROM information_schema.columns
+         WHERE table_schema = 'public'
+           AND table_name = 'entities'`,
+      )
+      .all()) as Array<{ name: string }>;
+    hasJunkFlag = entityCols.some((column) => column.name === 'junk_flag');
+  } else {
+    const entityCols = (await db.prepare(`PRAGMA table_info(entities)`).all()) as Array<{
+      name: string;
+    }>;
+    hasJunkFlag = entityCols.some((column) => column.name === 'junk_flag');
+  }
+
   if (!hasJunkFlag) return '';
 
   return `
@@ -272,7 +273,7 @@ router.get('/mailboxes', async (req, res, next) => {
           CAST(d.id AS TEXT)
         )) AS "totalThreads",
         COUNT(*) AS "totalMessages",
-        MAX(COALESCE(d.date_created, d.created_at)) AS "lastActivityAt"
+        MAX(COALESCE(d.date_created, '1970-01-01T00:00:00.000Z')) AS "lastActivityAt"
       FROM documents d
       WHERE d.evidence_type = 'email'
       ${junkFilter}
@@ -294,7 +295,7 @@ router.get('/mailboxes', async (req, res, next) => {
           CAST(d.id AS TEXT)
         )) AS "totalThreads",
         COUNT(*) AS "totalMessages",
-        MAX(COALESCE(d.date_created, d.created_at)) AS "lastActivityAt",
+        MAX(COALESCE(d.date_created, '1970-01-01T00:00:00.000Z')) AS "lastActivityAt",
         MAX(COALESCE(d.red_flag_rating, 0)) AS "topRisk"
       FROM entity_mentions em
       JOIN documents d ON d.id = em.document_id
@@ -371,6 +372,7 @@ router.get('/threads', async (req, res, next) => {
     const minRisk = Number(req.query.minRisk || 0);
     const tab = normalizeTab(typeof req.query.tab === 'string' ? req.query.tab : undefined);
     const limit = Math.min(MAX_LIMIT, Math.max(1, Number(req.query.limit) || DEFAULT_LIMIT));
+    res.setHeader('X-Limit-Applied', String(limit));
     const parsedCursor = parseCursor(
       typeof req.query.cursor === 'string' ? req.query.cursor : undefined,
     );
@@ -401,7 +403,7 @@ router.get('/threads', async (req, res, next) => {
         lower(COALESCE(json_extract(d.metadata_json, '$.subject'), d.file_name, d.title, '')) LIKE lower(?)
         OR lower(COALESCE(json_extract(d.metadata_json, '$.from'), '')) LIKE lower(?)
         OR lower(COALESCE(json_extract(d.metadata_json, '$.to'), '')) LIKE lower(?)
-        OR lower(COALESCE(d.content_preview, SUBSTR(d.content, 1, 600), '')) LIKE lower(?)
+        OR lower(COALESCE(d.content_refined, '')) LIKE lower(?)
       )`;
       const likeQuery = `%${query}%`;
       queryParams.push(likeQuery, likeQuery, likeQuery, likeQuery);
@@ -418,17 +420,17 @@ router.get('/threads', async (req, res, next) => {
     }
 
     if (dateFrom.length > 0) {
-      where += ` AND COALESCE(d.date_created, d.created_at) >= ?`;
+      where += ` AND COALESCE(d.date_created, '1970-01-01T00:00:00.000Z') >= ?`;
       queryParams.push(dateFrom);
     }
 
     if (dateTo.length > 0) {
-      where += ` AND COALESCE(d.date_created, d.created_at) <= ?`;
+      where += ` AND COALESCE(d.date_created, '1970-01-01T00:00:00.000Z') <= ?`;
       queryParams.push(dateTo);
     }
 
     if (hasAttachments) {
-      where += ` AND COALESCE(json_extract(d.metadata_json, '$.attachments_count'), 0) > 0`;
+      where += ` AND CAST(COALESCE(json_extract(d.metadata_json, '$.attachments_count'), '0') AS INTEGER) > 0`;
     }
 
     if (Number.isFinite(minRisk) && minRisk > 0) {
@@ -523,12 +525,12 @@ router.get('/threads/:threadId', async (req, res, next) => {
         COALESCE(json_extract(d.metadata_json, '$.from'), '') AS "fromAddress",
         COALESCE(json_extract(d.metadata_json, '$.to'), '') AS "toAddresses",
         COALESCE(json_extract(d.metadata_json, '$.cc'), '') AS "ccAddresses",
-        COALESCE(d.date_created, d.created_at, '1970-01-01T00:00:00.000Z') AS "dateCreated",
-        COALESCE(d.content_preview, SUBSTR(d.content, 1, 220), '') AS snippet,
-        CASE WHEN COALESCE(json_extract(d.metadata_json, '$.attachments_count'), 0) > 0 THEN 1 ELSE 0 END AS "hasAttachments",
+        COALESCE(d.date_created, '1970-01-01T00:00:00.000Z') AS "dateCreated",
+        COALESCE(d.content_refined, '') AS snippet,
+        CASE WHEN CAST(COALESCE(json_extract(d.metadata_json, '$.attachments_count'), '0') AS INTEGER) > 0 THEN 1 ELSE 0 END AS "hasAttachments",
         COALESCE(json_extract(d.metadata_json, '$.attachments'), '[]') AS "attachmentsMetaRaw",
-        d.ingestion_run_id AS "ingestRunId",
-        d.pipeline_version AS "pipelineVersion",
+        NULL AS "ingestRunId",
+        NULL AS "pipelineVersion",
         COALESCE(json_extract(d.metadata_json, '$.confidence'), json_extract(d.metadata_json, '$.significance_score')) AS confidence,
         COALESCE(json_extract(d.metadata_json, '$.ladder'), json_extract(d.metadata_json, '$.evidence_ladder')) AS ladder,
         COALESCE(json_extract(d.metadata_json, '$.was_agentic'), 0) AS "wasAgentic",
@@ -643,10 +645,10 @@ router.get('/messages/:messageId/body', async (req, res, next) => {
       SELECT
         d.id,
         d.content,
-        d.content_preview,
+        d.content_refined AS content_preview,
         d.metadata_json,
-        d.ingestion_run_id AS "ingestRunId",
-        d.pipeline_version AS "pipelineVersion",
+        NULL AS "ingestRunId",
+        NULL AS "pipelineVersion",
         d.date_created AS "dateCreated",
         d.file_name AS "fileName",
         d.file_path AS "filePath"
@@ -831,8 +833,8 @@ router.get('/search', async (req, res, next) => {
         ) AS threadId,
         COALESCE(json_extract(d.metadata_json, '$.subject'), d.file_name, d.title, 'No Subject') AS subject,
         COALESCE(json_extract(d.metadata_json, '$.from'), '') AS fromAddress,
-        COALESCE(d.date_created, d.created_at) AS dateCreated,
-        COALESCE(d.content_preview, SUBSTR(d.content, 1, 300), '') AS snippet
+        COALESCE(d.date_created, '1970-01-01T00:00:00.000Z') AS dateCreated,
+        COALESCE(d.content_refined, '') AS snippet
       FROM documents d
       WHERE d.evidence_type = 'email'
         ${mailboxClause}
@@ -840,9 +842,9 @@ router.get('/search', async (req, res, next) => {
           lower(COALESCE(json_extract(d.metadata_json, '$.subject'), '')) LIKE ?
           OR lower(COALESCE(json_extract(d.metadata_json, '$.from'), '')) LIKE ?
           OR lower(COALESCE(json_extract(d.metadata_json, '$.to'), '')) LIKE ?
-          OR lower(COALESCE(d.content_preview, d.content, '')) LIKE ?
+          OR lower(COALESCE(d.content_refined, '')) LIKE ?
         )
-      ORDER BY COALESCE(d.date_created, d.created_at) DESC, d.id ASC
+      ORDER BY COALESCE(d.date_created, '1970-01-01T00:00:00.000Z') DESC, d.id ASC
       LIMIT ?
     `;
 

@@ -10,6 +10,45 @@ import { cacheMiddleware } from '../middleware/cache.js';
 
 const router = Router();
 
+function withSafeStatsContract(input: any) {
+  const source = input || {};
+  const existing = Array.isArray(source.likelihoodDistribution)
+    ? source.likelihoodDistribution
+    : [];
+  const byLevel = new Map<string, { count?: number }>(
+    existing.map((entry: any) => [
+      String(entry?.level || ''),
+      { count: Number(entry?.count || 0) },
+    ]),
+  );
+
+  const safeLikelihoodDistribution = ['HIGH', 'MEDIUM', 'LOW'].map((level) => ({
+    level,
+    count: Number(byLevel.get(level)?.count || 0),
+  }));
+
+  return {
+    totalEntities: Number(source.totalEntities || 0),
+    totalDocuments: Number(source.totalDocuments || 0),
+    totalMentions: Number(source.totalMentions || 0),
+    averageRedFlagRating: Number(source.averageRedFlagRating || 0),
+    totalUniqueRoles: Number(source.totalUniqueRoles || 0),
+    entitiesWithDocuments: Number(source.entitiesWithDocuments || 0),
+    documentsWithMetadata: Number(source.documentsWithMetadata || 0),
+    documentsFixed: Number(source.documentsFixed || 0),
+    activeInvestigations: Number(source.activeInvestigations || 0),
+    topRoles: Array.isArray(source.topRoles) ? source.topRoles : [],
+    topEntities: Array.isArray(source.topEntities) ? source.topEntities : [],
+    likelihoodDistribution: safeLikelihoodDistribution,
+    redFlagDistribution: Array.isArray(source.redFlagDistribution)
+      ? source.redFlagDistribution
+      : [],
+    collectionCounts: Array.isArray(source.collectionCounts) ? source.collectionCounts : [],
+    collectionStats: Array.isArray(source.collectionStats) ? source.collectionStats : [],
+    pipeline_status: source.pipeline_status || null,
+  };
+}
+
 // ── /meta/db ─── Canary endpoint: database dialect, version, timeouts, pool stats
 router.get('/meta/db', async (_req, res, next) => {
   try {
@@ -41,8 +80,15 @@ router.get('/meta/db', async (_req, res, next) => {
 // Cache for 5 minutes (300 seconds)
 router.get('/', cacheMiddleware(300), async (_req, res, next) => {
   try {
+    if (
+      process.env.DISABLE_INVESTIGATIONS_STATS === '1' ||
+      process.env.DISABLE_INVESTIGATIONS_STATS === 'true'
+    ) {
+      return res.json(withSafeStatsContract({}));
+    }
+
     const stats = statsRepository.getStatistics();
-    res.json(stats);
+    res.json(withSafeStatsContract(await stats));
   } catch (e) {
     next(e);
   }

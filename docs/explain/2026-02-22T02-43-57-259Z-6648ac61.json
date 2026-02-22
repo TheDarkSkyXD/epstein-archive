@@ -482,9 +482,7 @@
             "Actual Total Time": 0.046,
             "Actual Rows": 0,
             "Actual Loops": 1,
-            "Sort Key": [
-              "red_flag_rating DESC"
-            ],
+            "Sort Key": ["red_flag_rating DESC"],
             "Sort Method": "quicksort",
             "Sort Space Used": 25,
             "Sort Space Type": "Memory",

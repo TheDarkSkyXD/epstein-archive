@@ -18,9 +18,8 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const VERSION = JSON.parse(
-  readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'),
-).version as string;
+const VERSION = JSON.parse(readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf8'))
+  .version as string;
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -96,8 +95,10 @@ async function main() {
       `SELECT COUNT(*) AS n FROM entities WHERE fts_vector IS NULL`,
     );
     const nullCount = parseInt(rows[0].n);
-    if (nullCount > 1000) throw new Error(`${nullCount} entities missing fts_vector — run backfill`);
-    if (nullCount > 0) console.log(`\n     ⚠️  ${nullCount} entities without fts_vector (below threshold)`);
+    if (nullCount > 1000)
+      throw new Error(`${nullCount} entities missing fts_vector — run backfill`);
+    if (nullCount > 0)
+      console.log(`\n     ⚠️  ${nullCount} entities without fts_vector (below threshold)`);
   });
 
   // ── 2. Run migrations (idempotent) ──────────────────────────────
@@ -134,11 +135,14 @@ async function main() {
         await pool.query(`REFRESH MATERIALIZED VIEW ${view}`);
       }
     }
-    await pool.query(`
+    await pool.query(
+      `
       UPDATE analytics_refresh_log
       SET refreshed_at = NOW(), status = 'ok'
       WHERE view_name = ANY($1)
-    `, [VIEWS]);
+    `,
+      [VIEWS],
+    );
   });
 
   // ── 5. Quick sanity queries ──────────────────────────────────────
@@ -162,7 +166,9 @@ async function main() {
   // ── 6. Git tag ───────────────────────────────────────────────────
   await step(`Git tag v${VERSION}`, async () => {
     try {
-      execSync(`git tag -a v${VERSION} -m "release: v${VERSION} — Postgres hardening patch"`, { stdio: 'pipe' });
+      execSync(`git tag -a v${VERSION} -m "release: v${VERSION} — Postgres hardening patch"`, {
+        stdio: 'pipe',
+      });
       console.log(`\n     Tagged v${VERSION}`);
     } catch (e: any) {
       if (e.stderr?.toString().includes('already exists')) {

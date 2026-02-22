@@ -301,7 +301,8 @@ export class AdvancedAnalyticsService {
     }
 
     // Get relationships for specific entity with specified depth
-    return relationshipsRepository.getGraphSlice(entityId, depth).edges.map((edge) => ({
+    const graphSlice = await relationshipsRepository.getGraphSlice(entityId, depth);
+    return graphSlice.edges.map((edge) => ({
       sourceEntity: edge.source_id.toString(),
       targetEntity: edge.target_id.toString(),
       relationshipType: edge.relationship_type,

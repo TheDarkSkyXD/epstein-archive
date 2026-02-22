@@ -54,7 +54,7 @@ export class VisualizationService {
 
     if (entityId) {
       // Get a specific entity's network
-      const graphData = relationshipsRepository.getGraphSlice(entityId, 3);
+      const graphData = await relationshipsRepository.getGraphSlice(entityId, 3);
 
       // Process nodes
       nodes = graphData.nodes.map((node) => ({

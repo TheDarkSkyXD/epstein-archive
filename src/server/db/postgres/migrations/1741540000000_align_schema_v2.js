@@ -6,15 +6,18 @@ export async function up(pgm) {
     DO $$
     BEGIN
       -- Rename columns if they exist with old names
-      IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='documents' AND column_name='mime_type') THEN
+      IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='documents' AND column_name='mime_type')
+         AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='documents' AND column_name='file_type') THEN
         ALTER TABLE documents RENAME COLUMN mime_type TO file_type;
       END IF;
       
-      IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='documents' AND column_name='file_size_bytes') THEN
+      IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='documents' AND column_name='file_size_bytes')
+         AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='documents' AND column_name='file_size') THEN
         ALTER TABLE documents RENAME COLUMN file_size_bytes TO file_size;
       END IF;
       
-      IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='documents' AND column_name='created_at') THEN
+      IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='documents' AND column_name='created_at')
+         AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='documents' AND column_name='date_created') THEN
         ALTER TABLE documents RENAME COLUMN created_at TO date_created;
       END IF;
 
@@ -57,7 +60,8 @@ export async function up(pgm) {
       END IF;
 
       -- 3. Align media_items table
-      IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='media_items' AND column_name='media_type') THEN
+      IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='media_items' AND column_name='media_type')
+         AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='media_items' AND column_name='file_type') THEN
         ALTER TABLE media_items RENAME COLUMN media_type TO file_type;
       END IF;
       

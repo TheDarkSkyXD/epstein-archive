@@ -39,7 +39,7 @@ router.get('/global', graphRateLimiter, async (req, res, next) => {
 
     if (mode === 'cluster') {
       // Super Cluster Mode: Aggregated by Structural Community (LPA)
-      const clusters = getGraphCommunities();
+      const clusters = await getGraphCommunities();
 
       // Enhance labels (optional)
 
@@ -90,7 +90,7 @@ router.get('/global', graphRateLimiter, async (req, res, next) => {
           break;
         }
 
-        const neighbors = getGraphNeighbors(curr, startDate, endDate);
+        const neighbors = await getGraphNeighbors(curr, startDate, endDate);
         for (const n of neighbors) {
           const nid = String(n.canonical_id);
           const weight = n.weight || 0.1;
@@ -117,8 +117,9 @@ router.get('/global', graphRateLimiter, async (req, res, next) => {
         curr = previous.get(curr) || null;
       }
 
-      const nodes = getGraphPathNodes(pathNodes);
-      const edges = getGraphPathEdges(pathNodes, startDate, endDate);
+      const pathNodeArray = Array.from(pathNodes);
+      const nodes = await getGraphPathNodes(pathNodeArray);
+      const edges = await getGraphPathEdges(pathNodeArray, startDate, endDate);
 
       console.timeEnd('path-search');
       return res.json({
@@ -143,7 +144,7 @@ router.get('/global', graphRateLimiter, async (req, res, next) => {
 
     // 1. Fetch Top Entities (Nodes) - Aggregated by Canonical ID
     // Deterministic Sort: Risk DESC, Degree DESC, ID ASC
-    const nodesArr = getGlobalGraphNodes({ minRisk, limit, startDate, endDate });
+    const nodesArr = await getGlobalGraphNodes({ minRisk, limit, startDate, endDate });
 
     const canonicalIds = nodesArr.map((n: any) => n.id);
 
@@ -153,7 +154,7 @@ router.get('/global', graphRateLimiter, async (req, res, next) => {
     }
 
     // 2. Fetch Relationships between these nodes — injection-safe ANY($N::bigint[]) binding
-    const edgesArr = getGlobalGraphEdges({ canonicalIds, startDate, endDate });
+    const edgesArr = await getGlobalGraphEdges({ canonicalIds, startDate, endDate });
 
     console.timeEnd('graph-global-fetch');
 
@@ -193,7 +194,7 @@ router.get('/edge-evidence', async (req, res, next) => {
       return res.status(400).json({ error: 'sourceId and targetId are required' });
     }
 
-    const docs = getEdgeEvidenceDocuments(String(sourceId), String(targetId));
+    const docs = await getEdgeEvidenceDocuments(String(sourceId), String(targetId));
     const rel = getEdgeRelationship(String(sourceId), String(targetId));
 
     const evidence = docs.map((d: any) => ({

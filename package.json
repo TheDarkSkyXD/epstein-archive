@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:prod": "vite build && tsc -p tsconfig.server.json",
+    "build:prod": "pnpm --filter @epstein/db build && vite build && tsc -p tsconfig.server.json",
     "start": "NODE_ENV=production RAW_CORPUS_BASE_PATH=./data node dist/server.js",
     "server": "tsx src/server.ts",
     "api": "tsx src/server.ts",

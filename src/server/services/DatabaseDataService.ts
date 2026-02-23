@@ -37,13 +37,14 @@ export class DatabaseDataService {
       }
 
       const result = await entitiesRepository.getSubjectCards(page, limit, filters, sortBy);
+      const subjectsAsPersons = result.subjects as unknown as Person[];
 
       this.searchCache.set(cacheKey, {
-        results: result.subjects as Person[],
+        results: subjectsAsPersons,
         timestamp: Date.now(),
       });
 
-      return { entities: result.subjects as Person[], total: result.total };
+      return { entities: subjectsAsPersons, total: result.total };
     } catch (error) {
       console.error('Error fetching entities from database:', error);
       throw new Error(
@@ -79,11 +80,11 @@ export class DatabaseDataService {
         return { entities: [], documents: [] };
       }
 
-      const searchResults = await searchRepository.search(query.trim(), limit, {
+      const searchResults = (await searchRepository.search(query.trim(), limit, {
         mode: 'web',
         evidenceType: 'ALL',
-      });
-      return searchResults as { entities: Person[]; documents: any[] };
+      })) as unknown as { entities: Person[]; documents: any[] };
+      return searchResults;
     } catch (error) {
       console.error('Error searching entities:', error);
       throw new Error(`Search failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -102,7 +103,25 @@ export class DatabaseDataService {
     likelihoodDistribution: { level: string; count: number }[];
   }> {
     try {
-      return await statsRepository.getStatistics();
+      const rawStats = await statsRepository.getStatistics();
+      return {
+        totalEntities: Number((rawStats as any).totalEntities || 0),
+        totalDocuments: Number((rawStats as any).totalDocuments || 0),
+        totalMentions: Number((rawStats as any).totalMentions || 0),
+        averageRedFlagRating: Number((rawStats as any).averageRedFlagRating || 0),
+        topRoles: Array.isArray((rawStats as any).topRoles)
+          ? (rawStats as any).topRoles.map((r: any) => ({
+              role: String(r.role || ''),
+              count: Number(r.count || 0),
+            }))
+          : [],
+        likelihoodDistribution: Array.isArray((rawStats as any).likelihoodDistribution)
+          ? (rawStats as any).likelihoodDistribution.map((entry: any) => ({
+              level: String(entry.level || ''),
+              count: Number(entry.count || 0),
+            }))
+          : [],
+      };
     } catch (error) {
       console.error('Error fetching statistics:', error);
       throw new Error(

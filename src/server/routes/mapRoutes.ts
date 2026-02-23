@@ -19,7 +19,7 @@ router.get('/entities', mapRateLimiter, cacheResponse(60), async (req, res) => {
     // 2. Sort by Mentions DESC, Risk DESC
     // 3. Limit 500 for performance
 
-    const entities = getMapEntities(minRisk, limit);
+    const entities = await getMapEntities(minRisk, limit);
 
     // Add debug headers
     res.set('X-Map-Debug-Count', entities.length.toString());

@@ -1,5 +1,4 @@
 import { db, documentsQueries, entitiesQueries } from '@epstein/db';
-import { Investigation } from '../types.js';
 
 const PREVIEW_MAX_CHARS = 320;
 
@@ -270,7 +269,6 @@ export const documentsRepository = {
     };
   },
 
-  // Get document by ID with full content
   getDocumentById: async (id: string): Promise<any | null> => {
     const docId = Number(id);
     const rows = await documentsQueries.getDocumentById.run({ id: BigInt(docId) }, db);

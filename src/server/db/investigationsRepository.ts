@@ -176,18 +176,16 @@ export const investigationsRepository = {
 
     // Log activity
     try {
-      await investigationsRepository.logActivity(
+      await investigationsRepository.logActivity({
         investigationId,
         userId,
-        'system',
-        'evidence_added',
-        {
-          targetType: type,
-          targetId: String(evidenceId),
-          targetTitle: title,
-          metadata: { relevance, sourcePath },
-        },
-      );
+        userName: 'system',
+        actionType: 'evidence_added',
+        targetType: type,
+        targetId: String(evidenceId),
+        targetTitle: title,
+        metadata: { relevance, sourcePath },
+      });
     } catch (e) {
       console.warn('Failed to log activity:', e);
     }
@@ -506,9 +504,15 @@ export const investigationsRepository = {
     };
   },
 
-  getBoardSnapshot: async (investigationId: number) => {
+  getBoardSnapshot: async (
+    investigationId: number,
+    options?: { evidenceLimit?: number; hypothesisLimit?: number },
+  ) => {
+    const evidenceLimit = options?.evidenceLimit ?? 100;
+    const hypothesisLimit = options?.hypothesisLimit ?? 100;
+
     const evidenceRows = await investigationsQueries.getEvidence.run(
-      { investigationId, limit: 100n, offset: 0n },
+      { investigationId, limit: BigInt(evidenceLimit), offset: 0n },
       db,
     );
     const hypothesesRows = await investigationsQueries.getHypotheses.run({ investigationId }, db);
@@ -522,12 +526,12 @@ export const investigationsRepository = {
         id: Number(row.id),
         investigation_evidence_id: Number(row.investigation_evidence_id),
       })),
-      hypothesesPreview: hypothesesRows.map((row) => ({
+      hypothesesPreview: hypothesesRows.slice(0, hypothesisLimit).map((row) => ({
         ...row,
         id: Number(row.id),
       })),
       evidenceCount: Number(countsResult[0]?.total || 0),
-      hypothesisCount: hypothesesRows.length,
+      hypothesisCount: Math.min(hypothesesRows.length, hypothesisLimit),
       notebookOrder: notebook.order,
       notebookOrderCount: notebook.order.length,
     };

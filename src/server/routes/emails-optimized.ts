@@ -100,7 +100,7 @@ router.get('/categories', async (req: Request, res: Response) => {
       return res.json(cached);
     }
 
-    const counts: EmailCategoriesCounts = getEmailCategoriesCounts();
+    const counts: EmailCategoriesCounts = await getEmailCategoriesCounts();
 
     // Cache for 60s
     performanceCache.set('email:categories', counts, 60);

@@ -76,11 +76,7 @@ router.get('/:entityId/documents', async (req: Request, res: Response) => {
     // If no pagination requested and using legacy style, we could still support old way
     // But better to always return standardized format if we are refactoring.
 
-    const docs = await entitiesRepository.getEntityDocumentsPaginated(entityId, page, limit, {
-      search,
-      source,
-      sort,
-    });
+    const docs = await entitiesRepository.getEntityDocumentsPaginated(entityId, page, limit);
     const total = await entitiesRepository.getEntityDocumentCount(entityId);
 
     res.json({
@@ -100,7 +96,7 @@ router.get('/:entityId/investigations', async (req: Request, res: Response) => {
   try {
     const { entityId } = req.params as { entityId: string };
     const { investigationsRepository } = await import('../db/investigationsRepository.js');
-    const result = await investigationsRepository.getInvestigationsByEntityId(entityId);
+    const result = await investigationsRepository.getInvestigationsByEntityId(Number(entityId));
     res.json(result);
   } catch (error) {
     console.error('Error fetching entity investigations:', error);

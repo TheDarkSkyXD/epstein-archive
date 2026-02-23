@@ -66,9 +66,7 @@ router.post('/', authenticateRequest, async (req, res, next) => {
     const investigation = await investigationsRepository.createInvestigation({
       title,
       description,
-      scope,
       ownerId: finalOwnerId,
-      collaboratorIds,
     });
 
     res.status(201).json(investigation);
@@ -82,8 +80,10 @@ router.post('/', authenticateRequest, async (req, res, next) => {
 router.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    // Try by ID first, then UUID if it looks like one or if ID lookup fails
-    let investigation = await investigationsRepository.getInvestigationById(id);
+    const numericId = Number(id);
+    let investigation = Number.isFinite(numericId)
+      ? await investigationsRepository.getInvestigationById(numericId)
+      : null;
 
     if (!investigation) {
       investigation = await investigationsRepository.getInvestigationByUuid(id);
@@ -122,19 +122,20 @@ router.delete('/:id', authenticateRequest, async (req, res, next) => {
   try {
     const { id } = req.params as { id: string };
     const user = (req as any).user;
+    const numericId = parseInt(id, 10);
 
     // Check if investigation exists and get owner
-    const investigation = await investigationsRepository.getInvestigationById(id);
+    const investigation = await investigationsRepository.getInvestigationById(numericId);
     if (!investigation) {
       return res.status(404).json({ error: 'Investigation not found' });
     }
 
     // Authorization: Admin OR Owner
-    if (user.role !== 'admin' && investigation.owner_id !== user.id) {
+    if (user.role !== 'admin' && investigation.ownerId !== user.id) {
       return res.status(403).json({ error: 'Unauthorized: Only admins or owners can delete' });
     }
 
-    const success = await investigationsRepository.deleteInvestigation(parseInt(id));
+    const success = await investigationsRepository.deleteInvestigation(numericId);
 
     if (!success) {
       return res.status(404).json({ error: 'Investigation not found' });
@@ -359,7 +360,7 @@ router.get('/:id/board', async (req, res, next) => {
     const { id } = req.params;
     const evidenceLimit = parseInt((req.query.evidenceLimit as string) || '80', 10);
     const hypothesisLimit = parseInt((req.query.hypothesisLimit as string) || '20', 10);
-    const snapshot = await investigationsRepository.getBoardSnapshot(parseInt(id), {
+    const snapshot = await investigationsRepository.getBoardSnapshot(parseInt(id, 10), {
       evidenceLimit,
       hypothesisLimit,
     });

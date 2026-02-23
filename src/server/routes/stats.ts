@@ -92,7 +92,7 @@ router.get('/health', async (_req, res) => {
     const db = getDb();
     if (db) {
       dbStatus = 'connected';
-      stats = getEntityAndDocumentCounts();
+      stats = await getEntityAndDocumentCounts();
     }
   } catch (e) {
     dbStatus = 'error';
@@ -176,7 +176,7 @@ router.get('/health/deep', async (_req, res) => {
       'investigations',
       'black_book_entries',
     ];
-    const tableCounts = getCriticalTableCounts(criticalTables);
+    const tableCounts = await getCriticalTableCounts(criticalTables);
     for (const table of criticalTables) {
       const tableStart = Date.now();
       const info = tableCounts[table];
@@ -205,7 +205,7 @@ router.get('/health/deep', async (_req, res) => {
     // 4. Test a real query
     const queryStart = Date.now();
     try {
-      const entity = getSampleEntityWithMentions();
+      const entity = await getSampleEntityWithMentions();
       if (entity) {
         checks.query_execution = {
           status: 'pass',

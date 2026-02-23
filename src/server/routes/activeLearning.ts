@@ -1,14 +1,7 @@
 import express from 'express';
 import { authenticateRequest } from '../auth/middleware.js';
 import { z } from 'zod';
-import {
-  getClaimsQueue,
-  getMentionsQueue,
-  rejectClaim,
-  rejectMention,
-  verifyClaim,
-  verifyMention,
-} from '../db/routesDb.js';
+import { reviewQueueRepository } from '../db/reviewQueueRepository.js';
 
 const router = express.Router();
 
@@ -25,11 +18,11 @@ const RejectSchema = z.object({
 // 1. Mentions Queue
 // Fetch mentions that are high signal (entity relevant) but unverified
 // Priority: Signal Score (via document/sentence) + Confidence < 1.0
-router.get('/mentions/queue', authenticateRequest, (req, res, next) => {
+router.get('/mentions/queue', authenticateRequest, async (req, res, next) => {
   try {
     const limit = parseInt(req.query.limit as string) || 20;
 
-    const queue = getMentionsQueue(limit);
+    const queue = await reviewQueueRepository.getMentionsQueue(limit);
 
     res.json(queue);
   } catch (e) {
@@ -38,12 +31,12 @@ router.get('/mentions/queue', authenticateRequest, (req, res, next) => {
 });
 
 // Verify Mention
-router.post('/mentions/:id/verify', authenticateRequest, (req, res, next) => {
+router.post('/mentions/:id/verify', authenticateRequest, async (req, res, next) => {
   try {
     const { id } = req.params;
     const body = VerifySchema.parse(req.body);
     const verifiedBy = body.verified_by || (req as any).user?.username || 'reviewer';
-    verifyMention(id, verifiedBy);
+    await reviewQueueRepository.verifyMention(Number(id), verifiedBy);
 
     res.json({ success: true });
   } catch (e) {
@@ -52,12 +45,12 @@ router.post('/mentions/:id/verify', authenticateRequest, (req, res, next) => {
 });
 
 // Reject Mention
-router.post('/mentions/:id/reject', authenticateRequest, (req, res, next) => {
+router.post('/mentions/:id/reject', authenticateRequest, async (req, res, next) => {
   try {
     const { id } = req.params;
     const body = RejectSchema.parse(req.body);
     const verifiedBy = body.verified_by || (req as any).user?.username || 'reviewer';
-    rejectMention(id, verifiedBy, body.rejection_reason);
+    await reviewQueueRepository.rejectMention(Number(id), body.rejection_reason, verifiedBy);
 
     res.json({ success: true });
   } catch (e) {
@@ -66,11 +59,11 @@ router.post('/mentions/:id/reject', authenticateRequest, (req, res, next) => {
 });
 
 // 2. Claims Queue
-router.get('/claims/queue', authenticateRequest, (req, res, next) => {
+router.get('/claims/queue', authenticateRequest, async (req, res, next) => {
   try {
     const limit = parseInt(req.query.limit as string) || 20;
 
-    const queue = getClaimsQueue(limit);
+    const queue = await reviewQueueRepository.getClaimsQueue(limit);
 
     res.json(queue);
   } catch (e) {
@@ -79,12 +72,12 @@ router.get('/claims/queue', authenticateRequest, (req, res, next) => {
 });
 
 // Verify Claim
-router.post('/claims/:id/verify', authenticateRequest, (req, res, next) => {
+router.post('/claims/:id/verify', authenticateRequest, async (req, res, next) => {
   try {
     const { id } = req.params;
     const body = VerifySchema.parse(req.body);
     const verifiedBy = body.verified_by || (req as any).user?.username || 'reviewer';
-    verifyClaim(id, verifiedBy);
+    await reviewQueueRepository.verifyClaim(Number(id), verifiedBy);
 
     res.json({ success: true });
   } catch (e) {
@@ -93,12 +86,12 @@ router.post('/claims/:id/verify', authenticateRequest, (req, res, next) => {
 });
 
 // Reject Claim
-router.post('/claims/:id/reject', authenticateRequest, (req, res, next) => {
+router.post('/claims/:id/reject', authenticateRequest, async (req, res, next) => {
   try {
     const { id } = req.params;
     const body = RejectSchema.parse(req.body);
     const verifiedBy = body.verified_by || (req as any).user?.username || 'reviewer';
-    rejectClaim(id, verifiedBy, body.rejection_reason);
+    await reviewQueueRepository.rejectClaim(Number(id), body.rejection_reason, verifiedBy);
 
     res.json({ success: true });
   } catch (e) {

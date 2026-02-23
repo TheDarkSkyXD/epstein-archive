@@ -5,6 +5,40 @@ import {
 } from '@epstein/db/src/queries/__generated__/review.js';
 
 export const reviewQueueRepository = {
+  async getPendingItems(limit: number = 50) {
+    const mentions = await reviewQueueRepository.getMentionsQueue(limit);
+    const claims = await reviewQueueRepository.getClaimsQueue(limit);
+    return [
+      ...mentions.map((m) => ({
+        id: m.id,
+        type: 'mention',
+        subject_id: m.entity_id,
+        ingest_run_id: null,
+        status: 'pending' as const,
+        priority: 'medium' as const,
+        payload_json: {
+          before: null,
+          after: m,
+        },
+        notes: null,
+        created_at: new Date().toISOString(),
+      })),
+      ...claims.map((c) => ({
+        id: c.id,
+        type: 'claim',
+        subject_id: c.subject_entity_id,
+        ingest_run_id: null,
+        status: 'pending' as const,
+        priority: 'medium' as const,
+        payload_json: {
+          before: null,
+          after: c,
+        },
+        notes: null,
+        created_at: new Date().toISOString(),
+      })),
+    ];
+  },
   async getMentionsQueue(limit: number = 50) {
     const rows = await reviewQueries.getMentionsQueue.run({ limit }, db);
     return rows.map((r: IGetMentionsQueueResult) => ({
@@ -50,5 +84,23 @@ export const reviewQueueRepository = {
   async rejectClaim(id: number, reason: string, verifiedBy: string = 'system') {
     await reviewQueries.rejectClaim.run({ id, reason, verifiedBy }, db);
     return { success: true };
+  },
+
+  async updateDecision(
+    id: string,
+    status: 'reviewed' | 'rejected',
+    userId: string,
+    notes?: string,
+  ) {
+    const numericId = Number(id);
+    if (Number.isNaN(numericId)) return false;
+
+    if (status === 'reviewed') {
+      await reviewQueueRepository.verifyMention(numericId, userId);
+    } else {
+      await reviewQueueRepository.rejectMention(numericId, notes || '', userId);
+    }
+
+    return true;
   },
 };

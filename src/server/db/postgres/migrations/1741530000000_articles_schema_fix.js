@@ -9,7 +9,7 @@ export async function up(pgm) {
       content: { type: 'text' },
       author: { type: 'text' },
       guid: { type: 'text', unique: true },
-    }
+    },
   );
 }
 

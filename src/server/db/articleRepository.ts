@@ -1,35 +1,35 @@
-import { getDb } from './connection.js';
+import { getApiPool } from './connection.js';
 
 export const articleRepository = {
   // Insert an article into the database
-  insertArticle: (article: any) => {
-    const db = getDb();
-    const stmt = db.prepare(`
+  insertArticle: async (article: any) => {
+    const pool = getApiPool();
+    const sql = `
       INSERT INTO articles (
         title, link, description, content, pub_date, author, source, image_url, guid, red_flag_rating
       ) VALUES (
-        @title, @link, @description, @content, @pub_date, @author, @source, @image_url, @guid, @red_flag_rating
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
       )
       ON CONFLICT(link) DO UPDATE SET
-        title = excluded.title,
-        description = excluded.description,
-        content = excluded.content,
+        title = EXCLUDED.title,
+        description = EXCLUDED.description,
+        content = EXCLUDED.content,
         updated_at = CURRENT_TIMESTAMP
-    `);
+    `;
 
     try {
-      stmt.run({
-        title: article.title,
-        link: article.link,
-        description: article.description || '',
-        content: article.content || '',
-        pub_date: article.pubDate,
-        author: article.author || 'Unknown',
-        source: article.source || 'rss',
-        image_url: article.imageUrl || null,
-        guid: article.guid || article.link,
-        red_flag_rating: article.redFlagRating || 0,
-      });
+      await pool.query(sql, [
+        article.title,
+        article.link,
+        article.description || '',
+        article.content || '',
+        article.pubDate,
+        article.author || 'Unknown',
+        article.source || 'rss',
+        article.imageUrl || null,
+        article.guid || article.link,
+        article.redFlagRating || 0,
+      ]);
     } catch (error) {
       console.error('Error inserting article:', error);
     }
@@ -37,15 +37,13 @@ export const articleRepository = {
 
   // Get all articles
   getArticles: async () => {
-    const db = getDb();
-    const articles = db
-      .prepare(
-        `
+    const pool = getApiPool();
+    const res = await pool.query(`
       SELECT * FROM articles 
       ORDER BY red_flag_rating DESC, pub_date DESC
-    `,
-      )
-      .all() as any[];
+    `);
+
+    const articles = res.rows;
 
     return articles.map((a) => ({
       id: a.id,

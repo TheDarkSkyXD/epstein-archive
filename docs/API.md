@@ -80,9 +80,9 @@ Get network graph data (nodes/edges).
 ## Architecture
 
 - **Server**: Node.js + Express
-- **Database**: SQLite (Production)
-- **Search**: FTS5 (Full Text Search) + Vector Fallback (planned)
-- **ORM**: Raw SQL via `better-sqlite3` (Repository Pattern)
+- **Database**: Postgres 16 (Production)
+- **Search**: Postgres Full Text Search (tsvector)
+- **ORM**: Raw SQL via `pg` (Repository Pattern)
 
 ## Development
 

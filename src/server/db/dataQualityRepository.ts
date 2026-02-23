@@ -1,4 +1,4 @@
-import { getDb } from './connection.js';
+import { getApiPool } from './connection.js';
 
 /**
  * Data Quality Repository
@@ -47,21 +47,21 @@ export const dataQualityRepository = {
   /**
    * Get comprehensive data quality metrics
    */
-  getMetrics: (): DataQualityMetrics => {
-    const db = getDb();
+  getMetrics: async (): Promise<DataQualityMetrics> => {
+    const pool = getApiPool();
 
     // Document counts
-    const totalDocs = db.prepare('SELECT COUNT(*) as c FROM documents').get() as { c: number };
-    const docsWithProvenance = db
-      .prepare(
-        "SELECT COUNT(*) as c FROM documents WHERE source_collection IS NOT NULL AND source_collection != ''",
-      )
-      .get() as { c: number };
+    const { rows: totalRows } = await pool.query('SELECT COUNT(*) as c FROM documents');
+    const totalDocs = totalRows[0];
+
+    const { rows: provenanceRows } = await pool.query(
+      "SELECT COUNT(*) as c FROM documents WHERE source_collection IS NOT NULL AND source_collection != ''",
+    );
+    const docsWithProvenance = provenanceRows[0];
 
     // OCR Quality Distribution
-    const ocrQuality = db
-      .prepare(
-        `
+    const { rows: ocrQuality } = await pool.query(
+      `
       SELECT 
         CASE 
           WHEN ocr_quality_score >= 0.8 THEN 'High (80%+)'
@@ -73,20 +73,18 @@ export const dataQualityRepository = {
       FROM documents
       GROUP BY band
       ORDER BY 
-        CASE band
-          WHEN 'High (80%+)' THEN 1
-          WHEN 'Medium (50-80%)' THEN 2
-          WHEN 'Low (<50%)' THEN 3
+        CASE 
+          WHEN band = 'High (80%+)' THEN 1
+          WHEN band = 'Medium (50-80%)' THEN 2
+          WHEN band = 'Low (<50%)' THEN 3
           ELSE 4
         END
     `,
-      )
-      .all() as { band: string; count: number }[];
+    );
 
     // Source Collections
-    const sourceCollections = db
-      .prepare(
-        `
+    const { rows: sourceCollections } = await pool.query(
+      `
       SELECT 
         COALESCE(source_collection, 'Unknown/Untagged') as name,
         COUNT(*) as count
@@ -95,13 +93,11 @@ export const dataQualityRepository = {
       ORDER BY count DESC
       LIMIT 20
     `,
-      )
-      .all() as { name: string; count: number }[];
+    );
 
     // Evidence Types
-    const evidenceTypes = db
-      .prepare(
-        `
+    const { rows: evidenceTypes } = await pool.query(
+      `
       SELECT 
         COALESCE(evidence_type, 'unclassified') as type,
         COUNT(*) as count
@@ -109,75 +105,81 @@ export const dataQualityRepository = {
       GROUP BY evidence_type
       ORDER BY count DESC
     `,
-      )
-      .all() as { type: string; count: number }[];
+    );
 
     // Entity Quality
-    const entityQuality = db
-      .prepare(
-        `
+    const { rows: entityRows } = await pool.query(
+      `
       SELECT 
         COUNT(*) as total,
-        SUM(CASE WHEN primary_role IS NOT NULL AND primary_role != 'Unknown' THEN 1 ELSE 0 END) as withRoles,
-        SUM(CASE WHEN red_flag_description IS NOT NULL AND red_flag_description != '' THEN 1 ELSE 0 END) as withRedFlagDescription
+        SUM(CASE WHEN primary_role IS NOT NULL AND primary_role != 'Unknown' THEN 1 ELSE 0 END) as "withRoles",
+        SUM(CASE WHEN red_flag_description IS NOT NULL AND red_flag_description != '' THEN 1 ELSE 0 END) as "withRedFlagDescription"
       FROM entities
     `,
-      )
-      .get() as { total: number; withRoles: number; withRedFlagDescription: number };
+    );
+    const entityQuality = entityRows[0] as any;
 
     // Orphaned entities (no mentions)
-    const orphanedEntities = db
-      .prepare(
-        `
+    const { rows: orphanedRows } = await pool.query(
+      `
       SELECT COUNT(*) as c FROM entities e
       WHERE NOT EXISTS (SELECT 1 FROM entity_mentions em WHERE em.entity_id = e.id)
     `,
-      )
-      .get() as { c: number };
+    );
+    const orphanedEntities = orphanedRows[0];
 
     // Data Completeness
-    const docsWithContent = db
-      .prepare(
-        'SELECT COUNT(*) as c FROM documents WHERE content IS NOT NULL AND length(content) > 100',
-      )
-      .get() as { c: number };
+    const { rows: contentRows } = await pool.query(
+      'SELECT COUNT(*) as c FROM documents WHERE content IS NOT NULL AND length(content) > 100',
+    );
+    const docsWithContent = contentRows[0];
 
-    const docsWithMetadata = db
-      .prepare('SELECT COUNT(*) as c FROM documents WHERE metadata_json IS NOT NULL')
-      .get() as { c: number };
+    const { rows: metadataRows } = await pool.query(
+      'SELECT COUNT(*) as c FROM documents WHERE metadata_json IS NOT NULL',
+    );
+    const docsWithMetadata = metadataRows[0];
 
-    const entitiesWithMentions = db
-      .prepare(
-        `
+    const { rows: mentionRows } = await pool.query(
+      `
       SELECT COUNT(DISTINCT entity_id) as c FROM entity_mentions
     `,
-      )
-      .get() as { c: number };
+    );
+    const entitiesWithMentions = mentionRows[0];
 
-    const provenanceCoverage =
-      totalDocs.c > 0 ? Math.round((docsWithProvenance.c / totalDocs.c) * 100 * 10) / 10 : 0;
+    const totalC = parseInt(totalDocs.c, 10);
+    const provC = parseInt(docsWithProvenance.c, 10);
+    const provenanceCoverage = totalC > 0 ? Math.round((provC / totalC) * 100 * 10) / 10 : 0;
 
     return {
-      totalDocuments: totalDocs.c,
-      documentsWithProvenance: docsWithProvenance.c,
-      documentsWithoutProvenance: totalDocs.c - docsWithProvenance.c,
+      totalDocuments: totalC,
+      documentsWithProvenance: provC,
+      documentsWithoutProvenance: totalC - provC,
       provenanceCoverage,
 
-      ocrQualityDistribution: ocrQuality,
-      sourceCollections,
-      evidenceTypeDistribution: evidenceTypes,
+      ocrQualityDistribution: ocrQuality.map((r: any) => ({
+        band: r.band,
+        count: parseInt(r.count, 10),
+      })),
+      sourceCollections: sourceCollections.map((r: any) => ({
+        name: r.name,
+        count: parseInt(r.count, 10),
+      })),
+      evidenceTypeDistribution: evidenceTypes.map((r: any) => ({
+        type: r.type,
+        count: parseInt(r.count, 10),
+      })),
 
       entityQuality: {
-        total: entityQuality.total,
-        withRoles: entityQuality.withRoles,
-        withRedFlagDescription: entityQuality.withRedFlagDescription,
-        orphaned: orphanedEntities.c,
+        total: parseInt(entityQuality.total, 10),
+        withRoles: parseInt(entityQuality.withRoles || 0, 10),
+        withRedFlagDescription: parseInt(entityQuality.withRedFlagDescription || 0, 10),
+        orphaned: parseInt(orphanedEntities.c, 10),
       },
 
       dataCompleteness: {
-        documentsWithContent: docsWithContent.c,
-        documentsWithMetadata: docsWithMetadata.c,
-        entitiesWithMentions: entitiesWithMentions.c,
+        documentsWithContent: parseInt(docsWithContent.c, 10),
+        documentsWithMetadata: parseInt(docsWithMetadata.c, 10),
+        entitiesWithMentions: parseInt(entitiesWithMentions.c, 10),
       },
 
       lastUpdated: new Date().toISOString(),
@@ -187,85 +189,91 @@ export const dataQualityRepository = {
   /**
    * Add an entry to the audit log
    */
-  logAudit: (entry: AuditLogEntry): number => {
-    const db = getDb();
-    const stmt = db.prepare(`
+  logAudit: async (entry: AuditLogEntry): Promise<number> => {
+    const pool = getApiPool();
+    const { rows } = await pool.query(
+      `
       INSERT INTO audit_log (user_id, action, object_type, object_id, payload_json)
-      VALUES (@userId, @action, @objectType, @objectId, @payloadJson)
-    `);
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id
+    `,
+      [
+        entry.userId || 'system',
+        entry.action,
+        entry.objectType,
+        entry.objectId || null,
+        entry.payload ? JSON.stringify(entry.payload) : null,
+      ],
+    );
 
-    const result = stmt.run({
-      userId: entry.userId || 'system',
-      action: entry.action,
-      objectType: entry.objectType,
-      objectId: entry.objectId || null,
-      payloadJson: entry.payload ? JSON.stringify(entry.payload) : null,
-    });
-
-    return Number(result.lastInsertRowid);
+    return parseInt(rows[0].id, 10);
   },
 
   /**
    * Get audit log entries, optionally filtered
    */
-  getAuditLog: (
+  getAuditLog: async (
     filters: { objectType?: string; objectId?: string; action?: string } = {},
     limit: number = 100,
-  ): AuditLogEntry[] => {
-    const db = getDb();
+  ): Promise<AuditLogEntry[]> => {
+    const pool = getApiPool();
 
     const conditions: string[] = [];
-    const params: any = { limit };
+    const params: any[] = [];
+    let paramCounter = 1;
 
     if (filters.objectType) {
-      conditions.push('object_type = @objectType');
-      params.objectType = filters.objectType;
+      conditions.push(`object_type = $${paramCounter++}`);
+      params.push(filters.objectType);
     }
     if (filters.objectId) {
-      conditions.push('object_id = @objectId');
-      params.objectId = filters.objectId;
+      conditions.push(`object_id = $${paramCounter++}`);
+      params.push(filters.objectId);
     }
     if (filters.action) {
-      conditions.push('action = @action');
-      params.action = filters.action;
+      conditions.push(`action = $${paramCounter++}`);
+      params.push(filters.action);
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    params.push(limit);
 
-    const rows = db
-      .prepare(
-        `
-      SELECT id, timestamp, user_id as userId, action, object_type as objectType, 
-             object_id as objectId, payload_json as payloadJson
+    const { rows } = await pool.query(
+      `
+      SELECT id, timestamp, user_id as "userId", action, object_type as "objectType", 
+             object_id as "objectId", payload_json as "payloadJson"
       FROM audit_log
       ${whereClause}
       ORDER BY timestamp DESC
-      LIMIT @limit
+      LIMIT $${paramCounter}
     `,
-      )
-      .all(params) as any[];
+      params,
+    );
 
-    return rows.map((row) => ({
+    return rows.map((row: any) => ({
       id: row.id,
       timestamp: row.timestamp,
       userId: row.userId,
       action: row.action,
       objectType: row.objectType,
       objectId: row.objectId,
-      payload: row.payloadJson ? JSON.parse(row.payloadJson) : undefined,
+      payload: row.payloadJson
+        ? typeof row.payloadJson === 'string'
+          ? JSON.parse(row.payloadJson)
+          : row.payloadJson
+        : undefined,
     }));
   },
 
   /**
    * Get document provenance/lineage information
    */
-  getDocumentLineage: (documentId: string | number): any => {
-    const db = getDb();
+  getDocumentLineage: async (documentId: string | number): Promise<any> => {
+    const pool = getApiPool();
 
     // Get document with provenance info
-    const doc = db
-      .prepare(
-        `
+    const { rows: docRows } = await pool.query(
+      `
       SELECT 
         d.id,
         d.file_name,
@@ -281,37 +289,36 @@ export const dataQualityRepository = {
         orig.file_path as original_file_path
       FROM documents d
       LEFT JOIN documents orig ON d.original_file_id = orig.id
-      WHERE d.id = ?
+      WHERE d.id = $1
     `,
-      )
-      .get(documentId) as any;
+      [documentId],
+    );
 
+    const doc = docRows[0];
     if (!doc) return null;
 
     // Get child documents (e.g., pages extracted from this document)
-    const children = db
-      .prepare(
-        `
+    const { rows: children } = await pool.query(
+      `
       SELECT id, file_name, page_number
       FROM documents
-      WHERE parent_id = ?
+      WHERE parent_id = $1
       ORDER BY page_number ASC
     `,
-      )
-      .all(documentId) as any[];
+      [documentId],
+    );
 
     // Get related audit entries
-    const auditEntries = db
-      .prepare(
-        `
+    const { rows: auditEntries } = await pool.query(
+      `
       SELECT timestamp, user_id, action, payload_json
       FROM audit_log
-      WHERE object_type = 'document' AND object_id = ?
+      WHERE object_type = 'document' AND object_id = $1
       ORDER BY timestamp DESC
       LIMIT 20
     `,
-      )
-      .all(String(documentId)) as any[];
+      [String(documentId)],
+    );
 
     return {
       document: doc,
@@ -328,11 +335,15 @@ export const dataQualityRepository = {
         ocrQualityScore: doc.ocr_quality_score,
         processedAt: doc.ocr_processed_at,
       },
-      auditTrail: auditEntries.map((e) => ({
+      auditTrail: auditEntries.map((e: any) => ({
         timestamp: e.timestamp,
         user: e.user_id,
         action: e.action,
-        details: e.payload_json ? JSON.parse(e.payload_json) : null,
+        details: e.payload_json
+          ? typeof e.payload_json === 'string'
+            ? JSON.parse(e.payload_json)
+            : e.payload_json
+          : null,
       })),
     };
   },
@@ -340,39 +351,44 @@ export const dataQualityRepository = {
   /**
    * Get entity confidence scoring based on evidence quality
    */
-  getEntityConfidence: (entityId: string | number): any => {
-    const db = getDb();
+  getEntityConfidence: async (entityId: string | number): Promise<any> => {
+    const pool = getApiPool();
 
-    const entity = db.prepare('SELECT * FROM entities WHERE id = ?').get(entityId) as any;
+    const { rows: entityRows } = await pool.query('SELECT * FROM entities WHERE id = $1', [
+      entityId,
+    ]);
+    const entity = entityRows[0];
     if (!entity) return null;
 
     // Count mentions by evidence type
-    const mentionsByType = db
-      .prepare(
-        `
+    const { rows: mentionsByType } = await pool.query(
+      `
       SELECT d.evidence_type, COUNT(*) as count
       FROM entity_mentions em
       JOIN documents d ON em.document_id = d.id
-      WHERE em.entity_id = ?
+      WHERE em.entity_id = $1
       GROUP BY d.evidence_type
     `,
-      )
-      .all(entityId) as { evidence_type: string; count: number }[];
+      [entityId],
+    );
 
     // Count high-quality OCR sources
-    const highQualitySources = db
-      .prepare(
-        `
+    const { rows: highQualityRows } = await pool.query(
+      `
       SELECT COUNT(DISTINCT d.id) as c
       FROM entity_mentions em
       JOIN documents d ON em.document_id = d.id
-      WHERE em.entity_id = ? AND d.ocr_quality_score >= 0.8
+      WHERE em.entity_id = $1 AND d.ocr_quality_score >= 0.8
     `,
-      )
-      .get(entityId) as { c: number };
+      [entityId],
+    );
+    const highQualitySources = highQualityRows[0];
 
     // Calculate confidence score (0-100)
-    const totalMentions = mentionsByType.reduce((sum, m) => sum + m.count, 0);
+    const totalMentions = mentionsByType.reduce(
+      (sum: number, m: any) => sum + parseInt(m.count, 10),
+      0,
+    );
     const typeWeights: Record<string, number> = {
       legal: 1.0,
       testimony: 0.9,
@@ -388,20 +404,25 @@ export const dataQualityRepository = {
     let totalWeight = 0;
     for (const m of mentionsByType) {
       const weight = typeWeights[m.evidence_type] || 0.5;
-      weightedScore += weight * m.count;
-      totalWeight += m.count;
+      const count = parseInt(m.count, 10);
+      weightedScore += weight * count;
+      totalWeight += count;
     }
 
     const baseConfidence = totalWeight > 0 ? (weightedScore / totalWeight) * 100 : 0;
-    const qualityBonus = highQualitySources.c > 10 ? 10 : highQualitySources.c;
+    const hqCount = parseInt(highQualitySources.c, 10);
+    const qualityBonus = hqCount > 10 ? 10 : hqCount;
     const confidence = Math.min(100, Math.round(baseConfidence + qualityBonus));
 
     return {
       entityId,
       entityName: entity.full_name,
       confidenceScore: confidence,
-      evidenceBreakdown: mentionsByType,
-      highQualitySources: highQualitySources.c,
+      evidenceBreakdown: mentionsByType.map((m: any) => ({
+        evidence_type: m.evidence_type,
+        count: parseInt(m.count, 10),
+      })),
+      highQualitySources: hqCount,
       totalMentions,
       confidenceLevel: confidence >= 80 ? 'High' : confidence >= 50 ? 'Medium' : 'Low',
     };

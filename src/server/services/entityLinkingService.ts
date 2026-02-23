@@ -3,8 +3,7 @@
  * CTO Priority: MEDIUM #8 - Auto-entity linking with confidence scores
  */
 
-// Use 'any' for the database instance type to avoid TypeScript namespace issues
-// with better-sqlite3 in this environment
+// Use 'any' for the database instance type to avoid local driver typing issues.
 
 export interface EntityLinkCandidate {
   documentId: number;

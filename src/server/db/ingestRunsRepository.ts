@@ -1,4 +1,4 @@
-import { getDb } from './connection.js';
+import { getApiPool } from './connection.js';
 
 export interface IngestRun {
   id: string;
@@ -21,60 +21,63 @@ export class IngestRunsRepository {
   /**
    * Get all ingest runs
    */
-  static getRuns(limit: number = 20): IngestRun[] {
-    const db = getDb();
+  static async getRuns(limit: number = 20): Promise<IngestRun[]> {
+    const pool = getApiPool();
 
-    const rows = db
-      .prepare(
-        `
+    const res = await pool.query(
+      `
       SELECT 
         id,
-        started_at as startedAt,
-        finished_at as finishedAt,
+        started_at as "startedAt",
+        finished_at as "finishedAt",
         status,
-        git_commit as gitCommit,
-        schema_version as schemaVersion,
-        pipeline_version as pipelineVersion,
-        extractor_versions as extractorVersions,
-        ocr_versions as ocrVersions,
-        agentic_enabled as agenticEnabled,
-        agentic_model_id as agenticModelId,
-        agentic_prompt_version as agenticPromptVersion,
-        agentic_params as agenticParams,
+        git_commit as "gitCommit",
+        schema_version as "schemaVersion",
+        pipeline_version as "pipelineVersion",
+        extractor_versions as "extractorVersions",
+        ocr_versions as "ocrVersions",
+        agentic_enabled as "agenticEnabled",
+        agentic_model_id as "agenticModelId",
+        agentic_prompt_version as "agenticPromptVersion",
+        agentic_params as "agenticParams",
         notes
       FROM ingest_runs 
       ORDER BY started_at DESC 
-      LIMIT ?
+      LIMIT $1
     `,
-      )
-      .all(limit);
+      [limit],
+    );
 
-    return rows.map((row: any) => ({
+    return res.rows.map((row: any) => ({
       ...row,
       agenticEnabled: Boolean(row.agenticEnabled),
-      extractorVersions: row.extractorVersions ? JSON.parse(row.extractorVersions) : null,
-      ocrVersions: row.ocrVersions ? JSON.parse(row.ocrVersions) : null,
-      agenticParams: row.agenticParams ? JSON.parse(row.agenticParams) : null,
+      extractorVersions:
+        typeof row.extractorVersions === 'string'
+          ? JSON.parse(row.extractorVersions)
+          : row.extractorVersions,
+      ocrVersions:
+        typeof row.ocrVersions === 'string' ? JSON.parse(row.ocrVersions) : row.ocrVersions,
+      agenticParams:
+        typeof row.agenticParams === 'string' ? JSON.parse(row.agenticParams) : row.agenticParams,
     }));
   }
 
   /**
    * Get latest successful run
    */
-  static getLatestSuccess(): IngestRun | null {
-    const db = getDb();
+  static async getLatestSuccess(): Promise<IngestRun | null> {
+    const pool = getApiPool();
 
-    const row = db
-      .prepare(
-        `
+    const res = await pool.query(
+      `
       SELECT * FROM ingest_runs 
       WHERE status = 'success' 
       ORDER BY finished_at DESC 
       LIMIT 1
     `,
-      )
-      .get();
+    );
 
+    const row = res.rows[0];
     if (!row) return null;
 
     return {
@@ -85,12 +88,19 @@ export class IngestRunsRepository {
       gitCommit: row.git_commit,
       schemaVersion: row.schema_version,
       pipelineVersion: row.pipeline_version,
-      extractorVersions: row.extractor_versions ? JSON.parse(row.extractor_versions) : null,
-      ocrVersions: row.ocr_versions ? JSON.parse(row.ocr_versions) : null,
+      extractorVersions:
+        typeof row.extractor_versions === 'string'
+          ? JSON.parse(row.extractor_versions)
+          : row.extractor_versions,
+      ocrVersions:
+        typeof row.ocr_versions === 'string' ? JSON.parse(row.ocr_versions) : row.ocr_versions,
       agenticEnabled: Boolean(row.agentic_enabled),
       agenticModelId: row.agentic_model_id,
       agenticPromptVersion: row.agentic_prompt_version,
-      agenticParams: row.agentic_params ? JSON.parse(row.agentic_params) : null,
+      agenticParams:
+        typeof row.agentic_params === 'string'
+          ? JSON.parse(row.agentic_params)
+          : row.agentic_params,
       notes: row.notes,
     };
   }

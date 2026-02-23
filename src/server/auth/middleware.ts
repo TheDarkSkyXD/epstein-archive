@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { getDb } from '../db/connection.js';
+import { getApiPool } from '../db/connection.js';
 
 // Extend Request locally to avoid global type conflicts for now
 // Extend Request locally to avoid global type conflicts for now
@@ -23,7 +23,7 @@ if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
 const ACTUAL_SECRET = JWT_SECRET || 'dev-secret-do-not-use-in-prod';
 
 // Shared verification helper
-const verifyToken = (req: Request): any | null => {
+const verifyToken = async (req: Request): Promise<any | null> => {
   let token: string | undefined;
 
   // ACCESS TOKEN should only be in the Authorization header
@@ -35,17 +35,18 @@ const verifyToken = (req: Request): any | null => {
 
   try {
     const decoded = jwt.verify(token, ACTUAL_SECRET) as any;
-    const db = getDb();
-    const user = db
-      .prepare('SELECT id, username, role, email FROM users WHERE id = ?')
-      .get(decoded.id) as any;
+    const pool = getApiPool();
+    const { rows } = await pool.query('SELECT id, username, role, email FROM users WHERE id = $1', [
+      decoded.id,
+    ]);
+    const user = rows[0];
     return user || null;
   } catch (_error) {
     return null;
   }
 };
 
-export const authenticateRequest = (req: Request, res: Response, next: NextFunction) => {
+export const authenticateRequest = async (req: Request, res: Response, next: NextFunction) => {
   const authReq = req as AuthRequest;
 
   // Check if Auth is enabled
@@ -61,7 +62,7 @@ export const authenticateRequest = (req: Request, res: Response, next: NextFunct
     return next();
   }
 
-  const user = verifyToken(req);
+  const user = await verifyToken(req);
   if (!user) {
     return res
       .status(401)
@@ -72,10 +73,10 @@ export const authenticateRequest = (req: Request, res: Response, next: NextFunct
   next();
 };
 
-export const optionalAuthenticate = (req: Request, res: Response, next: NextFunction) => {
+export const optionalAuthenticate = async (req: Request, res: Response, next: NextFunction) => {
   const authReq = req as AuthRequest;
   // Always try to verify, but don't error if it fails
-  const user = verifyToken(req);
+  const user = await verifyToken(req);
   if (user) {
     authReq.user = user;
   }

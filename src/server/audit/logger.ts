@@ -1,4 +1,4 @@
-import { getDb } from '../db/connection.js';
+import { getApiPool } from '../db/connection.js';
 
 export interface AuditEvent {
   userId?: string;
@@ -8,19 +8,20 @@ export interface AuditEvent {
   payload?: unknown;
 }
 
-export function logAudit(event: AuditEvent) {
+export async function logAudit(event: AuditEvent) {
   try {
-    const db = getDb();
-    db.prepare(
+    const pool = getApiPool();
+    await pool.query(
       `INSERT INTO audit_log (user_id, action, object_type, object_id, payload_json)
-       VALUES (@userId, @action, @objectType, @objectId, @payload)`,
-    ).run({
-      userId: event.userId || null,
-      action: event.action,
-      objectType: event.objectType,
-      objectId: event.objectId != null ? String(event.objectId) : null,
-      payload: event.payload ? JSON.stringify(event.payload) : null,
-    });
+       VALUES ($1, $2, $3, $4, $5)`,
+      [
+        event.userId || null,
+        event.action,
+        event.objectType,
+        event.objectId != null ? String(event.objectId) : null,
+        event.payload ? JSON.stringify(event.payload) : null,
+      ],
+    );
   } catch (e) {
     console.error('Failed to write audit log entry', e);
   }

@@ -1,4 +1,4 @@
-import { getDb } from '../db/connection.js';
+import { getApiPool } from '../db/connection.js';
 import { randomUUID } from 'crypto';
 import { basename, extname } from 'path';
 
@@ -27,24 +27,22 @@ export const AssetService = {
     derivativeParamsJson?: string;
     phash?: string;
   }): Promise<number> {
-    const db = getDb();
+    const pool = getApiPool();
     const assetUuid = randomUUID();
     const fileName = basename(data.storagePath);
     const fileType = extname(data.storagePath).replace('.', '').toUpperCase();
 
-    const result = await db
-      .prepare(
-        `
+    const { rows } = await pool.query(
+      `
       INSERT INTO file_assets (
         asset_uuid, original_asset_id, storage_path, file_name, 
         mime_type, file_type, file_size, sha256, 
         source_collection, is_original, is_derivative, 
         derivative_kind, derivative_params_json, phash
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING id
     `,
-      )
-      .get(
+      [
         assetUuid,
         data.originalAssetId || null,
         data.storagePath,
@@ -59,9 +57,10 @@ export const AssetService = {
         data.derivativeKind || null,
         data.derivativeParamsJson || null,
         data.phash || null,
-      );
+      ],
+    );
 
-    return result.id;
+    return rows[0].id;
   },
 
   /**
@@ -72,42 +71,38 @@ export const AssetService = {
     assetId: number,
     role: string = 'primary',
   ): Promise<void> {
-    const db = getDb();
-    await db
-      .prepare(
-        `
+    const pool = getApiPool();
+    await pool.query(
+      `
       INSERT INTO document_assets (document_id, asset_id, role)
-      VALUES (?, ?, ?)
+      VALUES ($1, $2, $3)
       ON CONFLICT (document_id, asset_id) DO NOTHING
     `,
-      )
-      .run(documentId, assetId, role);
+      [documentId, assetId, role],
+    );
   },
 
   /**
    * Link an asset to a media item.
    */
   async linkToMedia(mediaId: number, assetId: number, role: string = 'primary'): Promise<void> {
-    const db = getDb();
-    await db
-      .prepare(
-        `
+    const pool = getApiPool();
+    await pool.query(
+      `
       INSERT INTO media_assets (media_id, asset_id, role)
-      VALUES (?, ?, ?)
+      VALUES ($1, $2, $3)
       ON CONFLICT (media_id, asset_id) DO NOTHING
     `,
-      )
-      .run(mediaId, assetId, role);
+      [mediaId, assetId, role],
+    );
   },
 
   /**
    * Find asset by SHA-256.
    */
   async findBySha256(sha256: string): Promise<number | null> {
-    const db = getDb();
-    const row = (await db.prepare('SELECT id FROM file_assets WHERE sha256 = ?').get(sha256)) as
-      | { id: number }
-      | undefined;
-    return row ? row.id : null;
+    const pool = getApiPool();
+    const { rows } = await pool.query('SELECT id FROM file_assets WHERE sha256 = $1', [sha256]);
+    return rows.length > 0 ? rows[0].id : null;
   },
 };

@@ -141,6 +141,9 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Guard Against SQLite In Production Source
+        run: bash scripts/guard_no_sqlite.sh
+
       - name: Build
         run: pnpm build:prod
 
@@ -177,3 +180,8 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.CI_DATABASE_URL }}
         run: bash scripts/ci_pg_nuclear_gates.sh
+
+      - name: Check Postgres Schema Hash
+        env:
+          DATABASE_URL: ${{ secrets.CI_DATABASE_URL }}
+        run: pnpm schema:hash:check

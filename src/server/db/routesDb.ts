@@ -1,5 +1,6 @@
 import { adminQueries, analyticsQueries, graphQueries } from '@epstein/db';
-import { getApiPool, getDb } from './connection.js';
+import { getApiPool } from './connection.js';
+import { getDb } from './runtime.js';
 
 export async function getDbMeta() {
   const rows = await (adminQueries.getDbStats as any).run(undefined, getApiPool());
@@ -206,119 +207,120 @@ export async function getGraphCommunities() {
 }
 
 export async function getEmailThreadMessageHeaders(threadId: string) {
-  const db = getDb();
-  return (await db
-    .prepare(
-      `
-      SELECT
-        d.id AS "messageId",
-        COALESCE(
-          json_extract(d.metadata_json, '$.thread_id'),
-          json_extract(d.metadata_json, '$.threadId'),
-          json_extract(d.metadata_json, '$.conversation_id'),
-          json_extract(d.metadata_json, '$.message_id'),
-          CAST(d.id AS TEXT)
-        ) AS "threadId",
-        COALESCE(json_extract(d.metadata_json, '$.subject'), d.file_name, d.title, 'No Subject') AS subject,
-        COALESCE(json_extract(d.metadata_json, '$.from'), '') AS "fromAddress",
-        COALESCE(json_extract(d.metadata_json, '$.to'), '') AS "toAddresses",
-        COALESCE(json_extract(d.metadata_json, '$.cc'), '') AS "ccAddresses",
-        COALESCE(d.date_created, '1970-01-01T00:00:00.000Z') AS "dateCreated",
-        COALESCE(d.content_refined, '') AS snippet,
-        CASE WHEN CAST(COALESCE(json_extract(d.metadata_json, '$.attachments_count'), '0') AS INTEGER) > 0 THEN 1 ELSE 0 END AS "hasAttachments",
-        COALESCE(json_extract(d.metadata_json, '$.attachments'), '[]') AS "attachmentsMetaRaw",
-        NULL AS "ingestRunId",
-        NULL AS "pipelineVersion",
-        COALESCE(json_extract(d.metadata_json, '$.confidence'), json_extract(d.metadata_json, '$.significance_score')) AS confidence,
-        COALESCE(json_extract(d.metadata_json, '$.ladder'), json_extract(d.metadata_json, '$.evidence_ladder')) AS ladder,
-        COALESCE(json_extract(d.metadata_json, '$.was_agentic'), 0) AS "wasAgentic",
-        d.red_flag_rating AS "redFlagRating"
-      FROM documents d
-      WHERE d.evidence_type = 'email'
-        AND COALESCE(
-          json_extract(d.metadata_json, '$.thread_id'),
-          json_extract(d.metadata_json, '$.threadId'),
-          json_extract(d.metadata_json, '$.conversation_id'),
-          json_extract(d.metadata_json, '$.message_id'),
-          CAST(d.id AS TEXT)
-        ) = ?
-      ORDER BY "dateCreated" ASC, d.id ASC
-      `,
-    )
-    .all(threadId)) as any[];
+  const pool = getApiPool();
+  const { rows } = await pool.query(
+    `
+    SELECT
+      d.id AS "messageId",
+      COALESCE(
+        d.metadata_json ->> 'thread_id',
+        d.metadata_json ->> 'threadId',
+        d.metadata_json ->> 'conversation_id',
+        d.metadata_json ->> 'message_id',
+        d.id::text
+      ) AS "threadId",
+      COALESCE(d.metadata_json ->> 'subject', d.file_name, d.title, 'No Subject') AS subject,
+      COALESCE(d.metadata_json ->> 'from', '') AS "fromAddress",
+      COALESCE(d.metadata_json ->> 'to', '') AS "toAddresses",
+      COALESCE(d.metadata_json ->> 'cc', '') AS "ccAddresses",
+      COALESCE(d.date_created, '1970-01-01T00:00:00.000Z') AS "dateCreated",
+      COALESCE(d.content_refined, '') AS snippet,
+      CASE WHEN (COALESCE(d.metadata_json ->> 'attachments_count', '0'))::int > 0 THEN 1 ELSE 0 END AS "hasAttachments",
+      COALESCE(d.metadata_json ->> 'attachments', '[]') AS "attachmentsMetaRaw",
+      NULL AS "ingestRunId",
+      NULL AS "pipelineVersion",
+      COALESCE(d.metadata_json ->> 'confidence', d.metadata_json ->> 'significance_score') AS confidence,
+      COALESCE(d.metadata_json ->> 'ladder', d.metadata_json ->> 'evidence_ladder') AS ladder,
+      COALESCE((d.metadata_json ->> 'was_agentic')::int, 0) AS "wasAgentic",
+      d.red_flag_rating AS "redFlagRating"
+    FROM documents d
+    WHERE d.evidence_type = 'email'
+      AND COALESCE(
+        d.metadata_json ->> 'thread_id',
+        d.metadata_json ->> 'threadId',
+        d.metadata_json ->> 'conversation_id',
+        d.metadata_json ->> 'message_id',
+        d.id::text
+      ) = $1
+    ORDER BY "dateCreated" ASC, d.id ASC
+    `,
+    [threadId],
+  );
+  return rows;
 }
 
 export async function getEmailLinkedEntitiesForMessages(messageIds: number[]) {
   if (messageIds.length === 0) return [];
-  const db = getDb();
-  return (await db
-    .prepare(
-      `
-        SELECT
-          em.document_id AS "messageId",
-          em.entity_id AS "entityId",
-          e.full_name AS name,
-          e.primary_role AS role
-        FROM entity_mentions em
-        JOIN entities e ON e.id = em.entity_id
-        WHERE em.document_id IN (${messageIds.map(() => '?').join(',')})
-        ORDER BY em.document_id ASC, e.full_name ASC
-      `,
-    )
-    .all(...messageIds)) as any[];
+  const pool = getApiPool();
+  const placeholders = messageIds.map((_, idx) => `$${idx + 1}`).join(',');
+  const { rows } = await pool.query(
+    `
+      SELECT
+        em.document_id AS "messageId",
+        em.entity_id AS "entityId",
+        e.full_name AS name,
+        e.primary_role AS role
+      FROM entity_mentions em
+      JOIN entities e ON e.id = em.entity_id
+      WHERE em.document_id IN (${placeholders})
+      ORDER BY em.document_id ASC, e.full_name ASC
+    `,
+    messageIds,
+  );
+  return rows;
 }
 
 export async function getEmailMessageBodyRecord(messageId: string) {
-  const db = getDb();
-  return (await db
-    .prepare(
-      `
-      SELECT
-        d.id,
-        d.content,
-        d.content_refined AS content_preview,
-        d.metadata_json,
-        NULL AS "ingestRunId",
-        NULL AS "pipelineVersion",
-        d.date_created AS "dateCreated",
-        d.file_name AS "fileName",
-        d.file_path AS "filePath"
-      FROM documents d
-      WHERE d.evidence_type = 'email' AND d.id = ?
-      LIMIT 1
-      `,
-    )
-    .get(messageId)) as any;
+  const pool = getApiPool();
+  const { rows } = await pool.query(
+    `
+    SELECT
+      d.id,
+      d.content,
+      d.content_refined AS content_preview,
+      d.metadata_json,
+      NULL AS "ingestRunId",
+      NULL AS "pipelineVersion",
+      d.date_created AS "dateCreated",
+      d.file_name AS "fileName",
+      d.file_path AS "filePath"
+    FROM documents d
+    WHERE d.evidence_type = 'email' AND d.id = $1
+    LIMIT 1
+    `,
+    [messageId],
+  );
+  return rows[0];
 }
 
 export async function getEmailMessageThreadPointer(messageId: string) {
-  const db = getDb();
-  return (await db
-    .prepare(
-      `
-      SELECT
-        id,
-        metadata_json
-      FROM documents
-      WHERE evidence_type = 'email' AND id = ?
-      LIMIT 1
-      `,
-    )
-    .get(messageId)) as any;
+  const pool = getApiPool();
+  const { rows } = await pool.query(
+    `
+    SELECT
+      id,
+      metadata_json
+    FROM documents
+    WHERE evidence_type = 'email' AND id = $1
+    LIMIT 1
+    `,
+    [messageId],
+  );
+  return rows[0];
 }
 
 export async function getEmailRawMessageRecord(messageId: string) {
-  const db = getDb();
-  return (await db
-    .prepare(
-      `
-      SELECT id, content, metadata_json
-      FROM documents
-      WHERE evidence_type = 'email' AND id = ?
-      LIMIT 1
-      `,
-    )
-    .get(messageId)) as any;
+  const pool = getApiPool();
+  const { rows } = await pool.query(
+    `
+    SELECT id, content, metadata_json
+    FROM documents
+    WHERE evidence_type = 'email' AND id = $1
+    LIMIT 1
+    `,
+    [messageId],
+  );
+  return rows[0];
 }
 
 export async function searchEmailMessagesLegacy(params: {
@@ -326,7 +328,7 @@ export async function searchEmailMessagesLegacy(params: {
   mailboxEntityId?: number | null;
   limit: number;
 }) {
-  const db = getDb();
+  const pool = getApiPool();
   let mailboxClause = '';
   const sqlParams: Array<string | number> = [];
   if (
@@ -337,51 +339,53 @@ export async function searchEmailMessagesLegacy(params: {
     mailboxClause = `
       AND EXISTS (
         SELECT 1 FROM entity_mentions em
-        WHERE em.document_id = d.id AND em.entity_id = ?
+        WHERE em.document_id = d.id AND em.entity_id = $1
       )
     `;
     sqlParams.push(params.mailboxEntityId);
   }
 
   const like = `%${params.q.toLowerCase()}%`;
+  const offset = sqlParams.length;
   const sql = `
       SELECT
-        d.id AS messageId,
+        d.id AS "messageId",
         COALESCE(
-          json_extract(d.metadata_json, '$.thread_id'),
-          json_extract(d.metadata_json, '$.threadId'),
-          json_extract(d.metadata_json, '$.conversation_id'),
-          json_extract(d.metadata_json, '$.message_id'),
-          CAST(d.id AS TEXT)
-        ) AS threadId,
-        COALESCE(json_extract(d.metadata_json, '$.subject'), d.file_name, d.title, 'No Subject') AS subject,
-        COALESCE(json_extract(d.metadata_json, '$.from'), '') AS fromAddress,
-        COALESCE(d.date_created, '1970-01-01T00:00:00.000Z') AS dateCreated,
+          d.metadata_json ->> 'thread_id',
+          d.metadata_json ->> 'threadId',
+          d.metadata_json ->> 'conversation_id',
+          d.metadata_json ->> 'message_id',
+          d.id::text
+        ) AS "threadId",
+        COALESCE(d.metadata_json ->> 'subject', d.file_name, d.title, 'No Subject') AS subject,
+        COALESCE(d.metadata_json ->> 'from', '') AS "fromAddress",
+        COALESCE(d.date_created, '1970-01-01T00:00:00.000Z') AS "dateCreated",
         COALESCE(d.content_refined, '') AS snippet
       FROM documents d
       WHERE d.evidence_type = 'email'
         ${mailboxClause}
         AND (
-          lower(COALESCE(json_extract(d.metadata_json, '$.subject'), '')) LIKE ?
-          OR lower(COALESCE(json_extract(d.metadata_json, '$.from'), '')) LIKE ?
-          OR lower(COALESCE(json_extract(d.metadata_json, '$.to'), '')) LIKE ?
-          OR lower(COALESCE(d.content_refined, '')) LIKE ?
+          lower(COALESCE(d.metadata_json ->> 'subject', '')) LIKE $${offset + 1}
+          OR lower(COALESCE(d.metadata_json ->> 'from', '')) LIKE $${offset + 1}
+          OR lower(COALESCE(d.metadata_json ->> 'to', '')) LIKE $${offset + 1}
+          OR lower(COALESCE(d.content_refined, '')) LIKE $${offset + 1}
         )
-      ORDER BY COALESCE(d.date_created, '1970-01-01T00:00:00.000Z') DESC, d.id ASC
-      LIMIT ?
+      ORDER BY COALESCE(d.date_created, '1970-01-01T00:00:00.000Z'::timestamptz) DESC, d.id ASC
+      LIMIT $${offset + 2}
     `;
-  return (await db.prepare(sql).all(...sqlParams, like, like, like, like, params.limit)) as any[];
+  const { rows } = await pool.query(sql, [...sqlParams, like, params.limit]);
+  return rows;
 }
 
 export async function getEmailDocumentContentById(id: string) {
-  const db = getDb();
-  return (await db
-    .prepare(
-      `
-      SELECT content FROM documents WHERE id = ? AND evidence_type = 'email'
+  const pool = getApiPool();
+  const { rows } = await pool.query(
+    `
+      SELECT content FROM documents WHERE id = $1 AND evidence_type = 'email'
       `,
-    )
-    .get(id)) as any;
+    [id],
+  );
+  return rows[0];
 }
 
 export async function getGraphNeighbors(

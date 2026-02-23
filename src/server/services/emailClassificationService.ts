@@ -10,7 +10,7 @@
  * - forums: Mailing lists, group discussions
  */
 
-import { getDb } from '../db/connection.js';
+import { getApiPool } from '../db/connection.js';
 
 // Known real people senders (VIPs in the Epstein case)
 const KNOWN_ENTITY_SENDERS: Record<string, string> = {
@@ -258,12 +258,11 @@ export interface LinkedEntity {
  * Get known entities mentioned in email content
  */
 export async function getEntitiesInEmail(content: string): Promise<LinkedEntity[]> {
-  const db = getDb();
+  const pool = getApiPool();
 
   // Get top entities with high mentions
-  const entities = db
-    .prepare(
-      `
+  const { rows: entities } = await pool.query(
+    `
     SELECT id, full_name as name, mentions, entity_type as type
     FROM entities
     WHERE mentions > 10
@@ -272,8 +271,7 @@ export async function getEntitiesInEmail(content: string): Promise<LinkedEntity[
     ORDER BY mentions DESC
     LIMIT 500
   `,
-    )
-    .all() as Array<{ id: number; name: string; mentions: number; type: string }>;
+  );
 
   const contentLower = content.toLowerCase();
   const found: LinkedEntity[] = [];

@@ -1,4 +1,4 @@
-import { getDb } from '../db/connection.js';
+import { getApiPool } from '../db/connection.js';
 import { relationshipsRepository } from '../db/relationshipsRepository.js';
 
 export interface RelationshipNode {
@@ -47,7 +47,7 @@ export interface TimelineVisualization {
 
 export class VisualizationService {
   async getRelationshipGraph(entityId?: number, maxNodes: number = 100): Promise<NetworkGraph> {
-    const db = getDb();
+    const pool = getApiPool();
 
     let nodes: RelationshipNode[] = [];
     let edges: RelationshipEdge[] = [];
@@ -57,7 +57,7 @@ export class VisualizationService {
       const graphData = await relationshipsRepository.getGraphSlice(entityId, 3);
 
       // Process nodes
-      nodes = graphData.nodes.map((node) => ({
+      nodes = graphData.nodes.map((node: any) => ({
         id: node.id.toString(),
         label: node.label,
         type: node.type,
@@ -65,7 +65,7 @@ export class VisualizationService {
       }));
 
       // Process edges
-      edges = graphData.edges.map((edge) => ({
+      edges = graphData.edges.map((edge: any) => ({
         id: `${edge.source_id}-${edge.target_id}`,
         source: edge.source_id.toString(),
         target: edge.target_id.toString(),
@@ -74,9 +74,8 @@ export class VisualizationService {
       }));
     } else {
       // Get top connected entities for a broader view
-      const topEntities = db
-        .prepare(
-          `
+      const topEntitiesRes = await pool.query(
+        `
         SELECT 
           e.id,
           e.full_name,
@@ -87,13 +86,15 @@ export class VisualizationService {
         LEFT JOIN entity_relationships er ON e.id = er.source_id OR e.id = er.target_id
         GROUP BY e.id
         ORDER BY connectionCount DESC
-        LIMIT ?
+        LIMIT $1
       `,
-        )
-        .all(maxNodes) as any[];
+        [maxNodes],
+      );
+
+      const topEntities = topEntitiesRes.rows;
 
       // Add top entities as nodes
-      nodes = topEntities.map((entity) => ({
+      nodes = topEntities.map((entity: any) => ({
         id: entity.id.toString(),
         label: entity.full_name,
         type: entity.primary_role || 'Person',
@@ -102,12 +103,11 @@ export class VisualizationService {
       }));
 
       // Get relationships between these top entities
-      const entityIds = topEntities.map((e) => e.id);
+      const entityIds = topEntities.map((e: any) => e.id);
       if (entityIds.length > 0) {
-        const placeholders = entityIds.map(() => '?').join(',');
-        const relationships = db
-          .prepare(
-            `
+        const placeholders = entityIds.map((_, idx) => `$${idx + 1}`).join(',');
+        const relationshipsRes = await pool.query(
+          `
           SELECT 
             er.source_id,
             er.target_id,
@@ -116,15 +116,15 @@ export class VisualizationService {
           FROM entity_relationships er
           WHERE (er.source_id IN (${placeholders}) AND er.target_id IN (${placeholders}))
         `,
-          )
-          .all(...entityIds, ...entityIds) as any[];
+          entityIds, // Simplifying: in Postgres we could use = ANY($1) for better performance
+        );
 
-        edges = relationships.map((rel) => ({
+        edges = relationshipsRes.rows.map((rel: any) => ({
           id: `${rel.source_id}-${rel.target_id}`,
           source: rel.source_id.toString(),
           target: rel.target_id.toString(),
           type: rel.relationship_type,
-          strength: rel.strength,
+          strength: parseFloat(rel.strength || '0.5'),
         }));
       }
     }
@@ -133,17 +133,12 @@ export class VisualizationService {
   }
 
   async getGeospatialData(): Promise<GeospatialData[]> {
-    const db = getDb();
-
-    // This would typically extract location data from documents
-    // For now, we'll return some example data based on available information
+    const pool = getApiPool();
     const locations: GeospatialData[] = [];
 
-    // Example: Get flight data if available (since flight data often has locations)
     try {
-      const flightLocations = db
-        .prepare(
-          `
+      const res = await pool.query(
+        `
         SELECT DISTINCT 
           departure_airport,
           arrival_airport,
@@ -155,16 +150,17 @@ export class VisualizationService {
         WHERE departure_lat IS NOT NULL AND departure_lon IS NOT NULL
         LIMIT 50
       `,
-        )
-        .all() as any[];
+      );
 
-      flightLocations.forEach((flight) => {
+      const flightLocations = res.rows;
+
+      flightLocations.forEach((flight: any) => {
         if (flight.departure_lat && flight.departure_lon) {
           locations.push({
             id: `dep-${flight.departure_airport}`,
             name: flight.departure_airport,
-            latitude: flight.departure_lat,
-            longitude: flight.departure_lon,
+            latitude: parseFloat(flight.departure_lat),
+            longitude: parseFloat(flight.departure_lon),
             type: 'departure',
             connections: [flight.arrival_airport],
           });
@@ -174,8 +170,8 @@ export class VisualizationService {
           locations.push({
             id: `arr-${flight.arrival_airport}`,
             name: flight.arrival_airport,
-            latitude: flight.arrival_lat,
-            longitude: flight.arrival_lon,
+            latitude: parseFloat(flight.arrival_lat),
+            longitude: parseFloat(flight.arrival_lon),
             type: 'arrival',
             connections: [flight.departure_airport],
           });
@@ -189,33 +185,33 @@ export class VisualizationService {
   }
 
   async getTimelineVisualization(searchTerm?: string): Promise<TimelineVisualization> {
-    const db = getDb();
+    const pool = getApiPool();
 
-    const query = `
+    let query = `
       SELECT 
         d.id,
         d.file_name as title,
         d.date_created as date,
         d.evidence_type as type,
-        GROUP_CONCAT(e.full_name) as entities
+        STRING_AGG(e.full_name, ',') as entities
       FROM documents d
       LEFT JOIN entity_mentions em ON d.id = em.document_id
       LEFT JOIN entities e ON em.entity_id = e.id
     `;
 
-    let queryWithParams = query;
-    const params: any = {};
+    const params: any[] = [];
 
     if (searchTerm) {
-      queryWithParams += ` WHERE d.file_name LIKE @searchTerm OR d.content LIKE @searchTerm`;
-      params.searchTerm = `%${searchTerm}%`;
+      query += ` WHERE d.file_name ILIKE $1 OR d.content ILIKE $1`;
+      params.push(`%${searchTerm}%`);
     }
 
-    queryWithParams += ` GROUP BY d.id ORDER BY d.date_created ASC LIMIT 100`;
+    query += ` GROUP BY d.id ORDER BY d.date_created ASC LIMIT 100`;
 
-    const results = db.prepare(queryWithParams).all(params) as any[];
+    const res = await pool.query(query, params);
+    const results = res.rows;
 
-    const events = results.map((row) => ({
+    const events = results.map((row: any) => ({
       id: row.id.toString(),
       title: row.title,
       date: row.date,
@@ -228,37 +224,30 @@ export class VisualizationService {
   }
 
   async getNetworkAnalysis(): Promise<any> {
-    const db = getDb();
+    const pool = getApiPool();
 
     // Calculate network metrics
-    const totalEntities = db.prepare('SELECT COUNT(*) as count FROM entities').get() as {
-      count: number;
-    };
-    const totalRelationships = db
-      .prepare('SELECT COUNT(*) as count FROM entity_relationships')
-      .get() as { count: number };
+    const totalEntitiesRes = await pool.query('SELECT COUNT(*) as count FROM entities');
+    const totalEntities = parseInt(totalEntitiesRes.rows[0].count, 10);
 
-    // Find central figures (entities with most connections)
-    const centralFigures = db
-      .prepare(
-        `
+    const totalRelRes = await pool.query('SELECT COUNT(*) as count FROM entity_relationships');
+    const totalRelationships = parseInt(totalRelRes.rows[0].count, 10);
+
+    // Find central figures
+    const centralFiguresRes = await pool.query(`
       SELECT 
         e.id,
         e.full_name,
         e.primary_role,
         e.red_flag_rating,
-        (SELECT COUNT(*) FROM entity_relationships WHERE source_id = e.id OR target_id = e.id) as connectionCount
+        (SELECT COUNT(*) FROM entity_relationships WHERE source_id = e.id OR target_id = e.id) as connection_count
       FROM entities e
-      ORDER BY connectionCount DESC
+      ORDER BY connection_count DESC
       LIMIT 10
-    `,
-      )
-      .all() as any[];
+    `);
 
     // Find relationship types distribution
-    const relationshipTypes = db
-      .prepare(
-        `
+    const relTypesRes = await pool.query(`
       SELECT 
         relationship_type,
         COUNT(*) as count
@@ -266,42 +255,32 @@ export class VisualizationService {
       WHERE relationship_type IS NOT NULL
       GROUP BY relationship_type
       ORDER BY count DESC
-    `,
-      )
-      .all() as any[];
+    `);
 
     // Information flow patterns
-    const infoFlow = db
-      .prepare(
-        `
+    const infoFlowRes = await pool.query(`
       SELECT 
         e1.full_name as source,
         e2.full_name as target,
         er.relationship_type,
-        er.strength
+        COALESCE(er.strength, er.proximity_score) as strength
       FROM entity_relationships er
       JOIN entities e1 ON er.source_id = e1.id
       JOIN entities e2 ON er.target_id = e2.id
-      ORDER BY er.strength DESC
+      ORDER BY strength DESC
       LIMIT 20
-    `,
-      )
-      .all() as any[];
+    `);
 
     return {
       networkMetrics: {
-        totalEntities: totalEntities.count,
-        totalRelationships: totalRelationships.count,
-        density:
-          totalEntities.count > 0
-            ? totalRelationships.count / (totalEntities.count * (totalEntities.count - 1))
-            : 0,
-        averageConnectionsPerEntity:
-          totalEntities.count > 0 ? totalRelationships.count / totalEntities.count : 0,
+        totalEntities,
+        totalRelationships,
+        density: totalEntities > 0 ? totalRelationships / (totalEntities * (totalEntities - 1)) : 0,
+        averageConnectionsPerEntity: totalEntities > 0 ? totalRelationships / totalEntities : 0,
       },
-      centralFigures,
-      relationshipTypes,
-      informationFlow: infoFlow,
+      centralFigures: centralFiguresRes.rows,
+      relationshipTypes: relTypesRes.rows,
+      informationFlow: infoFlowRes.rows,
     };
   }
 
@@ -330,19 +309,17 @@ export class VisualizationService {
   }
 
   async getConnectionInference(entityId: number): Promise<any[]> {
-    const db = getDb();
+    const pool = getApiPool();
 
-    // Find entities that are not directly connected to the given entity
-    // but share connections with entities that are connected to it
     const query = `
       WITH direct_connections AS (
         SELECT target_id as connected_id
         FROM entity_relationships
-        WHERE source_id = ?
+        WHERE source_id = $1
         UNION
         SELECT source_id as connected_id
         FROM entity_relationships
-        WHERE target_id = ?
+        WHERE target_id = $2
       ),
       shared_connections AS (
         SELECT 
@@ -351,9 +328,9 @@ export class VisualizationService {
         FROM entity_relationships er1
         JOIN entity_relationships er2 ON er1.target_id = er2.target_id
         JOIN direct_connections dc ON er2.source_id = dc.connected_id
-        WHERE er1.source_id = ?
-          AND er1.target_id != ?
-          AND er2.target_id != ?
+        WHERE er1.source_id = $3
+          AND er1.target_id != $4
+          AND er2.target_id != $5
         GROUP BY er1.target_id
         HAVING COUNT(*) >= 2
       )
@@ -369,16 +346,15 @@ export class VisualizationService {
       LIMIT 10
     `;
 
-    const inferredConnections = db
-      .prepare(query)
-      .all(entityId, entityId, entityId, entityId, entityId) as any[];
+    const res = await pool.query(query, [entityId, entityId, entityId, entityId, entityId]);
+    const inferredConnections = res.rows;
 
-    return inferredConnections.map((conn) => ({
+    return inferredConnections.map((conn: any) => ({
       entity: conn.full_name,
       primaryRole: conn.primary_role,
       redFlagRating: conn.red_flag_rating,
-      confidence: conn.shared_count > 0 ? Math.min(1.0, conn.shared_count * 0.2) : 0,
-      sharedConnectionCount: conn.shared_count,
+      confidence: conn.shared_count > 0 ? Math.min(1.0, parseInt(conn.shared_count, 10) * 0.2) : 0,
+      sharedConnectionCount: parseInt(conn.shared_count, 10),
       reason: `Connected through ${conn.shared_count} shared connections`,
     }));
   }

@@ -1,14 +1,11 @@
-import { getDb } from './connection.js';
+import { getApiPool } from './connection.js';
 
 export const timelineRepository = {
   getTimelineEvents: async () => {
-    const db = getDb();
+    const pool = getApiPool();
     try {
-      // Fetch ONLY Curated Global Events - Timeline should show EVENTS, not documents
-      // Documents and people should be linked FROM events, not shown AS events
-      const globalEvents = (await db
-        .prepare(
-          `
+      // Fetch Curated Global Events
+      const res = await pool.query(`
         SELECT 
           id,
           title,
@@ -21,43 +18,53 @@ export const timelineRepository = {
           source
         FROM global_timeline_events
         ORDER BY date DESC
-      `,
-        )
-        .all()) as any[];
+      `);
+
+      const globalEvents = res.rows;
 
       // Transform Global Events
       const mappedEvents = await Promise.all(
         globalEvents.map(async (e: any) => {
-          // Parse entity IDs and look up their names with IDs for linking
           let entityData: { id: number; name: string }[] = [];
+
+          // Parse entity IDs and look up names
           if (e.entities) {
             try {
-              const entityIds = JSON.parse(e.entities);
+              const entityIds =
+                typeof e.entities === 'string' ? JSON.parse(e.entities) : e.entities;
               if (Array.isArray(entityIds) && entityIds.length > 0) {
-                const placeholders = entityIds.map(() => '?').join(',');
-                const entities = (await db
-                  .prepare(`SELECT id, full_name FROM entities WHERE id IN (${placeholders})`)
-                  .all(...entityIds)) as { id: number; full_name: string }[];
-                entityData = entities.map((ent) => ({ id: ent.id, name: ent.full_name }));
+                // Postgres $1, $2, ... indexing for IN clause
+                const placeholders = entityIds.map((_, idx) => `$${idx + 1}`).join(',');
+                const entRes = await pool.query(
+                  `SELECT id, full_name FROM entities WHERE id IN (${placeholders})`,
+                  entityIds,
+                );
+                entityData = entRes.rows.map((ent: any) => ({ id: ent.id, name: ent.full_name }));
               }
-            } catch {
+            } catch (err) {
+              console.warn('[Timeline] Failed to parse entities for event', e.id, err);
               entityData = [];
             }
           }
 
-          // Lookup related document info if available
+          // Lookup related document info
           let relatedDocument = null;
           if (e.related_document_id) {
             try {
-              const doc = (await db
-                .prepare(`SELECT id, file_name, file_path FROM documents WHERE id = ?`)
-                .get(e.related_document_id)) as
-                | { id: number; file_name: string; file_path: string }
-                | undefined;
+              const docRes = await pool.query(
+                `SELECT id, file_name, file_path FROM documents WHERE id = $1`,
+                [e.related_document_id],
+              );
+              const doc = docRes.rows[0];
               if (doc) {
                 relatedDocument = { id: doc.id, name: doc.file_name, path: doc.file_path };
               }
-            } catch {
+            } catch (err) {
+              console.warn(
+                '[Timeline] Failed to fetch related document',
+                e.related_document_id,
+                err,
+              );
               relatedDocument = null;
             }
           }

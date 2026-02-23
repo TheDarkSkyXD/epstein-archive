@@ -1,4 +1,4 @@
-import { getDb } from '../db/connection.js';
+import { getApiPool } from '../db/connection.js';
 import { randomUUID } from 'crypto';
 
 export interface PipelineRun {
@@ -17,7 +17,7 @@ export const PipelineService = {
    * Start a new pipeline run.
    */
   async startRun(version: string, config: any = {}): Promise<PipelineRun> {
-    const db = getDb();
+    const pool = getApiPool();
     const runUuid = randomUUID();
     const gitCommit = await this.getCurrentGitCommit();
     const envJson = JSON.stringify({
@@ -27,19 +27,18 @@ export const PipelineService = {
       memory: process.memoryUsage(),
     });
 
-    const result = await db
-      .prepare(
-        `
+    const { rows } = await pool.query(
+      `
       INSERT INTO pipeline_runs (
         run_uuid, pipeline_version, git_commit, config_json, environment_json, status
-      ) VALUES (?, ?, ?, ?, ?, 'running')
+      ) VALUES ($1, $2, $3, $4, $5, 'running')
       RETURNING id
     `,
-      )
-      .get(runUuid, version, gitCommit, JSON.stringify(config), envJson);
+      [runUuid, version, gitCommit, JSON.stringify(config), envJson],
+    );
 
     return {
-      id: result.id,
+      id: rows[0].id,
       run_uuid: runUuid,
       pipeline_version: version,
       git_commit: gitCommit,
@@ -58,16 +57,15 @@ export const PipelineService = {
     status: 'succeeded' | 'failed' | 'cancelled',
     errorMessage?: string,
   ): Promise<void> {
-    const db = getDb();
-    await db
-      .prepare(
-        `
+    const pool = getApiPool();
+    await pool.query(
+      `
       UPDATE pipeline_runs 
-      SET status = ?, error_message = ?, finished_at = CURRENT_TIMESTAMP 
-      WHERE id = ?
+      SET status = $1, error_message = $2, finished_at = CURRENT_TIMESTAMP 
+      WHERE id = $3
     `,
-      )
-      .run(status, errorMessage || null, id);
+      [status, errorMessage || null, id],
+    );
   },
 
   /**
@@ -86,15 +84,14 @@ export const PipelineService = {
    * Register a step.
    */
   async registerStep(name: string, description: string): Promise<void> {
-    const db = getDb();
-    await db
-      .prepare(
-        `
+    const pool = getApiPool();
+    await pool.query(
+      `
       INSERT INTO pipeline_steps (step_name, description)
-      VALUES (?, ?)
+      VALUES ($1, $2)
       ON CONFLICT (step_name) DO NOTHING
     `,
-      )
-      .run(name, description);
+      [name, description],
+    );
   },
 };

@@ -23,8 +23,6 @@ export class MediaService {
 
   private async hasTable(tableName: string): Promise<boolean> {
     try {
-      // In Postgres we usually check pg_tables, but PgWrapper translateSql might handle this.
-      // For now, let's use a simpler check or rely on translateSql.
       const row = (await this.db
         .prepare('SELECT tablename FROM pg_catalog.pg_tables WHERE tablename = ?')
         .get(tableName)) as { tablename?: string } | undefined;

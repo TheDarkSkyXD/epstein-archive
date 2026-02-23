@@ -763,7 +763,7 @@ export const AdminDashboard: React.FC = () => {
               <div>
                 <h2 className="text-xl font-bold text-white">Database Backups</h2>
                 <p className="text-slate-400 text-sm">
-                  Compressed SQLite snapshots (Last 7 days retained)
+                  Compressed database snapshots (Last 7 days retained)
                 </p>
               </div>
               <button

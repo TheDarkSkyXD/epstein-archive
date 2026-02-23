@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { statsRepository } from '../db/statsRepository.js';
-import { getDb, getMigrationMetrics } from '../db/connection.js';
+import { getApiPool } from '../db/connection.js';
+import { getMigrationMetrics } from '../db/runtime.js';
 import { config } from '../../config/index.js';
 import {
   getCriticalTableCounts,
@@ -12,7 +13,6 @@ import {
 } from '../db/routesDb.js';
 import { ingestRunsRepository } from '../db/ingestRunsRepository.js';
 import { BackupService } from '../services/BackupService.js';
-import { FtsMaintenanceService } from '../services/ftsMaintenance.js';
 import { cacheMiddleware } from '../middleware/cache.js';
 
 const router = Router();
@@ -90,11 +90,10 @@ router.get('/health', async (_req, res) => {
   let stats = { entities: 0, documents: 0 };
 
   try {
-    const db = getDb();
-    if (db) {
-      dbStatus = 'connected';
-      stats = await getEntityAndDocumentCounts();
-    }
+    const pool = getApiPool();
+    await pool.query('SELECT 1');
+    dbStatus = 'connected';
+    stats = await getEntityAndDocumentCounts();
   } catch (e) {
     dbStatus = 'error';
     console.error('Health check DB error:', e);
@@ -116,10 +115,7 @@ router.get('/health', async (_req, res) => {
 // O(1) Instantaneous Readiness Check (STEP 1)
 router.get('/health/ready', async (_req, res) => {
   try {
-    const db = getDb();
-    if (!db) {
-      return res.status(503).json({ status: 'degraded', error: 'No database' });
-    }
+    const pool = getApiPool();
 
     const pingPromise = pingDatabase();
     const timeoutPromise = new Promise((_, reject) =>
@@ -148,7 +144,7 @@ router.get('/health/deep', async (_req, res) => {
   const startTime = Date.now();
 
   try {
-    getDb();
+    const pool = getApiPool();
 
     // 1. Database connection check
     const dbStart = Date.now();
@@ -221,7 +217,7 @@ router.get('/health/deep', async (_req, res) => {
       overallStatus = 'critical';
     }
 
-    checks.journal_mode = { status: 'pass', message: 'N/A (postgres uses WAL natively)' };
+    checks.journal_mode = { status: 'pass', message: 'N/A (postgres)' };
 
     // 6. Memory check
     const memUsage = process.memoryUsage();
@@ -260,20 +256,9 @@ router.get('/health/deep', async (_req, res) => {
       };
     }
 
-    // 8. FTS Integrity Check
-    const ftsStart = Date.now();
-    try {
-      const ftsStatus = await FtsMaintenanceService.checkIntegrity();
-      const allSynced = ftsStatus.every((s) => s.isSynced);
-      checks.fts_integrity = {
-        status: allSynced ? 'pass' : 'warn',
-        message: allSynced ? 'All FTS tables synced' : 'Desync detected',
-        duration: Date.now() - ftsStart,
-      };
-      if (!allSynced && overallStatus === 'healthy') overallStatus = 'degraded';
-    } catch (e: any) {
-      checks.fts_integrity = { status: 'warn', message: `FTS check failed: ${e.message}` };
-    }
+    // 8. FTS Integrity Check (REMOVED - Postgres handles FTS internally)
+    // const ftsStart = Date.now();
+    // try { ... }
 
     // 9. Backup Status
     try {

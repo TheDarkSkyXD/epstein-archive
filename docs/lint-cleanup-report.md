@@ -38,3 +38,10 @@ The focus was on removing unused variables, fixing React Hook dependencies, and 
 
 - `pnpm lint` passes with 0 errors and 0 warnings.
 - `pnpm type-check` passes with 0 errors.
+
+## Post-Clean Update (Scorched Earth Migration)
+
+- **Removed SQLite**: Completely removed `better-sqlite3` dependency, all `sqlite` related scripts, and documentation references.
+- **Updated `deploy.sh`**: Removed legacy SQLite cleanup steps.
+- **Updated `connection.ts`**: Removed `better-sqlite3` imports and `DB_DIALECT` checks. Now strictly enforces `postgres://` URL.
+- **Updated `package.json`**: Removed `better-sqlite3` from dependencies.

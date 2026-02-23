@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { getDb } from '../db/connection.js';
+import { getApiPool } from '../db/connection.js';
 import { logAudit } from '../utils/auditLogger.js';
 
 // Extend Express Request to include user info
@@ -22,12 +22,14 @@ export const enforceQuarantine = (resourceType: 'document' | 'media') => {
     if (!id) return next(); // Should not happen if route matches :id
 
     try {
-      const db = getDb();
+      const pool = getApiPool();
       const table = resourceType === 'document' ? 'documents' : 'media_items';
 
-      const item = db
-        .prepare(`SELECT is_quarantined, quarantine_reason FROM ${table} WHERE id = ?`)
-        .get(id);
+      const { rows } = await pool.query(
+        `SELECT is_quarantined, quarantine_reason FROM ${table} WHERE id = $1`,
+        [id],
+      );
+      const item = rows[0];
 
       if (item && item.is_quarantined) {
         // Check if user has admin override
@@ -35,7 +37,7 @@ export const enforceQuarantine = (resourceType: 'document' | 'media') => {
         const isAdmin = user?.role === 'admin';
 
         if (!isAdmin) {
-          logAudit('quarantine', user?.id || null, resourceType, id, {
+          await logAudit('quarantine', user?.id || null, resourceType, id, {
             reason: 'access_denied_quarantine',
           });
           return res.status(403).json({
@@ -45,7 +47,9 @@ export const enforceQuarantine = (resourceType: 'document' | 'media') => {
         }
 
         // Admin access to quarantined item - Log it!
-        logAudit('view', user?.id || null, resourceType, id, { reason: 'quarantine_override' });
+        await logAudit('view', user?.id || null, resourceType, id, {
+          reason: 'quarantine_override',
+        });
       }
 
       next();

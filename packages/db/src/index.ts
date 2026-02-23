@@ -177,3 +177,9 @@ export * as relationshipsQueries from './queries/__generated__/relationships.js'
 export * as analyticsQueries from './queries/__generated__/analytics.js';
 export * as articlesQueries from './queries/__generated__/articles.js';
 export * as entityEvidenceQueries from './queries/__generated__/entity_evidence.js';
+export * as evidenceQueries from './queries/__generated__/evidence.js';
+export * as adminQueries from './queries/__generated__/admin.js';
+export * as communicationsQueries from './queries/__generated__/communications.js';
+export * as jobsQueries from './queries/__generated__/jobs.js';
+export * as reviewQueries from './queries/__generated__/review.js';
+export * as graphQueries from './queries/__generated__/graph.js';

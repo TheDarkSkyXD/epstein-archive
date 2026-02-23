@@ -1,4 +1,4 @@
-import { getDb } from '../db/connection.js';
+import { getApiPool } from '../db/connection.js';
 
 export interface InvestigationTask {
   id: number;
@@ -60,28 +60,29 @@ export class InvestigativeTaskService {
     pageSize: number;
     totalPages: number;
   }> {
-    const db = getDb();
+    const pool = getApiPool();
     const { investigationId, status, priority, assignedTo, page = 1, limit = 20 } = filters;
     const offset = (page - 1) * limit;
 
     const where: string[] = [];
-    const params: any = {};
+    const params: any[] = [];
+    let paramCounter = 1;
 
     if (investigationId) {
-      where.push('investigation_id = @investigationId');
-      params.investigationId = investigationId;
+      where.push(`investigation_id = $${paramCounter++}`);
+      params.push(investigationId);
     }
     if (status) {
-      where.push('status = @status');
-      params.status = status;
+      where.push(`status = $${paramCounter++}`);
+      params.push(status);
     }
     if (priority) {
-      where.push('priority = @priority');
-      params.priority = priority;
+      where.push(`priority = $${paramCounter++}`);
+      params.push(priority);
     }
     if (assignedTo) {
-      where.push('assigned_to = @assignedTo');
-      params.assignedTo = assignedTo;
+      where.push(`assigned_to = $${paramCounter++}`);
+      params.push(assignedTo);
     }
 
     const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
@@ -93,13 +94,14 @@ export class InvestigativeTaskService {
       FROM investigation_tasks
       ${whereClause}
       ORDER BY priority DESC, created_at DESC
-      LIMIT @limit OFFSET @offset
+      LIMIT $${paramCounter++} OFFSET $${paramCounter++}
     `;
 
     const countQuery = `SELECT COUNT(*) as total FROM investigation_tasks ${whereClause}`;
 
-    const tasks = db.prepare(query).all({ ...params, limit, offset }) as any[];
-    const { total } = db.prepare(countQuery).get(params) as { total: number };
+    const { rows: tasks } = await pool.query(query, [...params, limit, offset]);
+    const { rows: countRows } = await pool.query(countQuery, params);
+    const total = parseInt(countRows[0].total, 10);
 
     return {
       data: tasks.map((task) => this.mapTask(task)),
@@ -111,29 +113,29 @@ export class InvestigativeTaskService {
   }
 
   async getTaskById(id: number): Promise<InvestigationTask | null> {
-    const db = getDb();
-    const task = db
-      .prepare(
-        `
+    const pool = getApiPool();
+    const { rows } = await pool.query(
+      `
       SELECT id, uuid, investigation_id, title, description, status, priority, 
              assigned_to, due_date, created_by_id, created_at, updated_at, completed_at,
              evidence_ids, related_entities, progress
-      FROM investigation_tasks WHERE id = ?
+      FROM investigation_tasks WHERE id = $1
     `,
-      )
-      .get(id) as any;
+      [id],
+    );
 
+    const task = rows[0];
     if (!task) return null;
 
     return this.mapTask(task);
   }
 
   async createTask(data: CreateInvestigationTaskInput): Promise<InvestigationTask> {
-    const db = getDb();
+    const pool = getApiPool();
     // Generate UUID using crypto.randomUUID() if available, otherwise use a simple implementation
     let uuidValue: string;
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-      uuidValue = crypto.randomUUID();
+    if (typeof crypto !== 'undefined' && (crypto as any).randomUUID) {
+      uuidValue = (crypto as any).randomUUID();
     } else {
       // Simple UUID generation for environments without crypto
       uuidValue = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
@@ -143,30 +145,30 @@ export class InvestigativeTaskService {
       });
     }
 
-    const stmt = db.prepare(`
+    const { rows } = await pool.query(
+      `
       INSERT INTO investigation_tasks (
         uuid, investigation_id, title, description, priority, assigned_to, 
         due_date, created_by_id, evidence_ids, related_entities
       ) VALUES (
-        @uuid, @investigationId, @title, @description, @priority, @assignedTo, 
-        @dueDate, @createdById, @evidenceIds, @relatedEntities
-      )
-    `);
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+      ) RETURNING id
+    `,
+      [
+        uuidValue,
+        data.investigationId,
+        data.title,
+        data.description || null,
+        data.priority || 'medium',
+        data.assignedTo || null,
+        data.dueDate || null,
+        data.createdById,
+        data.evidenceIds ? JSON.stringify(data.evidenceIds) : null,
+        data.relatedEntities ? JSON.stringify(data.relatedEntities) : null,
+      ],
+    );
 
-    const result = stmt.run({
-      uuid: uuidValue,
-      investigationId: data.investigationId,
-      title: data.title,
-      description: data.description || null,
-      priority: data.priority || 'medium',
-      assignedTo: data.assignedTo || null,
-      dueDate: data.dueDate || null,
-      createdById: data.createdById,
-      evidenceIds: data.evidenceIds ? JSON.stringify(data.evidenceIds) : null,
-      relatedEntities: data.relatedEntities ? JSON.stringify(data.relatedEntities) : null,
-    });
-
-    const task = await this.getTaskById(result.lastInsertRowid as number);
+    const task = await this.getTaskById(rows[0].id);
     if (!task) {
       throw new Error('Failed to create task');
     }
@@ -178,175 +180,178 @@ export class InvestigativeTaskService {
     id: number,
     updates: UpdateInvestigationTaskInput,
   ): Promise<InvestigationTask | null> {
-    const db = getDb();
+    const pool = getApiPool();
     const fields: string[] = [];
-    const params: any = { id };
+    const params: any[] = [];
+    let paramCounter = 1;
 
     if (updates.title !== undefined) {
-      fields.push('title = @title');
-      params.title = updates.title;
+      fields.push(`title = $${paramCounter++}`);
+      params.push(updates.title);
     }
     if (updates.description !== undefined) {
-      fields.push('description = @description');
-      params.description = updates.description;
+      fields.push(`description = $${paramCounter++}`);
+      params.push(updates.description);
     }
     if (updates.status !== undefined) {
-      fields.push('status = @status');
-      params.status = updates.status;
+      fields.push(`status = $${paramCounter++}`);
+      params.push(updates.status);
       if (updates.status === 'completed') {
-        fields.push('completed_at = @completedAt');
-        params.completedAt = new Date().toISOString();
+        fields.push(`completed_at = $${paramCounter++}`);
+        params.push(new Date().toISOString());
       }
     }
     if (updates.priority !== undefined) {
-      fields.push('priority = @priority');
-      params.priority = updates.priority;
+      fields.push(`priority = $${paramCounter++}`);
+      params.push(updates.priority);
     }
     if (updates.assignedTo !== undefined) {
-      fields.push('assigned_to = @assignedTo');
-      params.assignedTo = updates.assignedTo;
+      fields.push(`assigned_to = $${paramCounter++}`);
+      params.push(updates.assignedTo);
     }
     if (updates.dueDate !== undefined) {
-      fields.push('due_date = @dueDate');
-      params.dueDate = updates.dueDate;
+      fields.push(`due_date = $${paramCounter++}`);
+      params.push(updates.dueDate);
     }
     if (updates.evidenceIds !== undefined) {
-      fields.push('evidence_ids = @evidenceIds');
-      params.evidenceIds = JSON.stringify(updates.evidenceIds);
+      fields.push(`evidence_ids = $${paramCounter++}`);
+      params.push(JSON.stringify(updates.evidenceIds));
     }
     if (updates.relatedEntities !== undefined) {
-      fields.push('related_entities = @relatedEntities');
-      params.relatedEntities = JSON.stringify(updates.relatedEntities);
+      fields.push(`related_entities = $${paramCounter++}`);
+      params.push(JSON.stringify(updates.relatedEntities));
     }
     if (updates.progress !== undefined) {
-      fields.push('progress = @progress');
-      params.progress = updates.progress;
+      fields.push(`progress = $${paramCounter++}`);
+      params.push(updates.progress);
     }
 
     fields.push('updated_at = CURRENT_TIMESTAMP');
 
-    if (fields.length === 0) {
+    if (fields.length === 1) {
+      // Only updated_at
       return this.getTaskById(id);
     }
 
-    db.prepare(
-      `
+    const query = `
       UPDATE investigation_tasks 
       SET ${fields.join(', ')}
-      WHERE id = @id
-    `,
-    ).run(params);
+      WHERE id = $${paramCounter++}
+    `;
+
+    await pool.query(query, [...params, id]);
 
     return this.getTaskById(id);
   }
 
   async deleteTask(id: number): Promise<boolean> {
-    const db = getDb();
-    const result = db.prepare('DELETE FROM investigation_tasks WHERE id = ?').run(id);
-    return result.changes > 0;
+    const pool = getApiPool();
+    const { rowCount } = await pool.query('DELETE FROM investigation_tasks WHERE id = $1', [id]);
+    return (rowCount ?? 0) > 0;
   }
 
   async getTasksByInvestigation(investigationId: number): Promise<InvestigationTask[]> {
-    const db = getDb();
-    const tasks = db
-      .prepare(
-        `
+    const pool = getApiPool();
+    const { rows: tasks } = await pool.query(
+      `
       SELECT id, uuid, investigation_id, title, description, status, priority, 
              assigned_to, due_date, created_by_id, created_at, updated_at, completed_at,
              evidence_ids, related_entities, progress
       FROM investigation_tasks 
-      WHERE investigation_id = ?
+      WHERE investigation_id = $1
       ORDER BY priority DESC, created_at DESC
     `,
-      )
-      .all(investigationId) as any[];
+      [investigationId],
+    );
 
     return tasks.map((task) => this.mapTask(task));
   }
 
   async getTaskSummary(investigationId: number): Promise<any> {
-    const db = getDb();
+    const pool = getApiPool();
 
     // Get task counts by status
-    const statusCounts = db
-      .prepare(
-        `
+    const { rows: statusCounts } = await pool.query(
+      `
       SELECT status, COUNT(*) as count
       FROM investigation_tasks
-      WHERE investigation_id = ?
+      WHERE investigation_id = $1
       GROUP BY status
     `,
-      )
-      .all(investigationId) as { status: string; count: number }[];
+      [investigationId],
+    );
 
     // Get task counts by priority
-    const priorityCounts = db
-      .prepare(
-        `
+    const { rows: priorityCounts } = await pool.query(
+      `
       SELECT priority, COUNT(*) as count
       FROM investigation_tasks
-      WHERE investigation_id = ?
+      WHERE investigation_id = $1
       GROUP BY priority
     `,
-      )
-      .all(investigationId) as { priority: string; count: number }[];
+      [investigationId],
+    );
 
     // Get overdue tasks
-    const overdueTasks = db
-      .prepare(
-        `
+    const { rows: overdueTasksRows } = await pool.query(
+      `
       SELECT COUNT(*) as count
       FROM investigation_tasks
-      WHERE investigation_id = ?
+      WHERE investigation_id = $1
         AND due_date < CURRENT_DATE
         AND status != 'completed'
     `,
-      )
-      .get(investigationId) as { count: number };
+      [investigationId],
+    );
+    const overdueTasks = overdueTasksRows[0];
 
     // Get average progress
-    const avgProgress = db
-      .prepare(
-        `
-      SELECT AVG(progress) as avgProgress
+    const { rows: avgProgressRows } = await pool.query(
+      `
+      SELECT AVG(progress) as "avgProgress"
       FROM investigation_tasks
-      WHERE investigation_id = ?
+      WHERE investigation_id = $1
         AND progress IS NOT NULL
     `,
-      )
-      .get(investigationId) as { avgProgress: number };
+      [investigationId],
+    );
+    const avgProgress = avgProgressRows[0];
 
     // Get tasks assigned to each user
-    const assignmentCounts = db
-      .prepare(
-        `
+    const { rows: assignmentCounts } = await pool.query(
+      `
       SELECT assigned_to, COUNT(*) as count
       FROM investigation_tasks
-      WHERE investigation_id = ?
+      WHERE investigation_id = $1
         AND assigned_to IS NOT NULL
       GROUP BY assigned_to
     `,
-      )
-      .all(investigationId) as { assigned_to: string; count: number }[];
+      [investigationId],
+    );
 
     return {
       statusBreakdown: statusCounts.reduce(
-        (acc, curr) => {
-          acc[curr.status] = curr.count;
+        (acc: any, curr: any) => {
+          acc[curr.status] = parseInt(curr.count, 10);
           return acc;
         },
         {} as Record<string, number>,
       ),
       priorityBreakdown: priorityCounts.reduce(
-        (acc, curr) => {
-          acc[curr.priority] = curr.count;
+        (acc: any, curr: any) => {
+          acc[curr.priority] = parseInt(curr.count, 10);
           return acc;
         },
         {} as Record<string, number>,
       ),
-      overdueTasks: overdueTasks.count,
-      averageProgress: avgProgress.avgProgress ? Math.round(avgProgress.avgProgress) : 0,
-      assignmentBreakdown: assignmentCounts,
+      overdueTasks: parseInt(overdueTasks.count, 10),
+      averageProgress: avgProgress.avgProgress
+        ? Math.round(parseFloat(avgProgress.avgProgress))
+        : 0,
+      assignmentBreakdown: assignmentCounts.map((row: any) => ({
+        assignedTo: row.assigned_to,
+        count: parseInt(row.count, 10),
+      })),
     };
   }
 
@@ -355,18 +360,17 @@ export class InvestigativeTaskService {
       throw new Error('Progress must be between 0 and 100');
     }
 
-    const db = getDb();
-    const result = db
-      .prepare(
-        `
+    const pool = getApiPool();
+    const { rowCount } = await pool.query(
+      `
       UPDATE investigation_tasks 
-      SET progress = @progress, updated_at = CURRENT_TIMESTAMP
-      WHERE id = @id
+      SET progress = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
     `,
-      )
-      .run({ id: taskId, progress });
+      [progress, taskId],
+    );
 
-    if (result.changes === 0) {
+    if ((rowCount ?? 0) === 0) {
       return null;
     }
 
@@ -374,7 +378,7 @@ export class InvestigativeTaskService {
   }
 
   async getUrgentTasks(userId?: string): Promise<InvestigationTask[]> {
-    const db = getDb();
+    const pool = getApiPool();
 
     let query = `
       SELECT id, uuid, investigation_id, title, description, status, priority, 
@@ -383,21 +387,21 @@ export class InvestigativeTaskService {
       FROM investigation_tasks
       WHERE status != 'completed'
         AND (
-          (priority = 'critical' AND due_date <= date('now', '+3 days')) OR
-          (priority = 'high' AND due_date <= date('now', '+7 days')) OR
-          (due_date <= date('now') AND status != 'completed')
+          (priority = 'critical' AND due_date <= CURRENT_DATE + interval '3 days') OR
+          (priority = 'high' AND due_date <= CURRENT_DATE + interval '7 days') OR
+          (due_date <= CURRENT_DATE AND status != 'completed')
         )
     `;
 
-    const params: any = {};
+    const params: any[] = [];
     if (userId) {
-      query += ` AND assigned_to = @userId`;
-      params.userId = userId;
+      query += ` AND assigned_to = $1`;
+      params.push(userId);
     }
 
     query += ` ORDER BY priority DESC, due_date ASC LIMIT 20`;
 
-    const tasks = db.prepare(query).all(params) as any[];
+    const { rows: tasks } = await pool.query(query, params);
     return tasks.map((task) => this.mapTask(task));
   }
 

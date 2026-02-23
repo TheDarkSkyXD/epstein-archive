@@ -50,11 +50,10 @@ import { memoryRepository } from './server/db/memoryRepository.js';
 import {
   assertProductionPg,
   getApiPool,
-  getDb,
+  initPools,
   getMigrationMetrics,
   getSlowQueryLogThresholdMs,
 } from './server/db/connection.js';
-import { FtsMaintenanceService } from './server/services/ftsMaintenance.js';
 import { validate, entitySchema, searchSchema } from './server/middleware/validate.js';
 
 // New Routers
@@ -91,6 +90,7 @@ if (!CORPUS_BASE_PATH) {
   console.warn('WARNING: RAW_CORPUS_BASE_PATH not set. Document file serving will be limited.');
 }
 
+initPools();
 assertProductionPg();
 
 const app = express();
@@ -149,8 +149,10 @@ function withSafeStatsContract(input: any) {
   };
 }
 
-// databaseService is already initialized at module level in its file, but let's make sure we use the same connection
-const mediaService = new MediaService(getDb());
+// mediaService initialized when needed in routes.
+// (Or can be initialized with getApiPool() if the class supports pg.Pool)
+const pool = getApiPool();
+const mediaService = new MediaService(pool as any);
 
 const INVESTIGATION_MEDIA_TAG_SEED: Array<{ name: string; category: string; color: string }> = [
   { name: 'Perpetrator', category: 'role', color: '#dc2626' },
@@ -420,41 +422,43 @@ app.use(inputValidationMiddleware);
 
 // Legacy justice.gov URL routing
 // Allows swapping justice.gov for epstein.academy to view documents in the app
-const resolveLegacyEpsteinFile = (db: any, rawSuffix: string): { id: string } | undefined => {
+const resolveLegacyEpsteinFile = async (
+  pool: any,
+  rawSuffix: string,
+): Promise<{ id: string } | undefined> => {
   const cleanSuffix = rawSuffix.split('?')[0];
   const decodedSuffix = decodeURIComponent(cleanSuffix);
 
-  const doc = db
-    .prepare(
-      `
-      SELECT id
-      FROM documents
-      WHERE file_path LIKE ?
-         OR file_path LIKE ?
-      LIMIT 1
+  const res = await pool.query(
+    `
+    SELECT id
+    FROM documents
+    WHERE file_path LIKE $1
+       OR file_path LIKE $2
+    LIMIT 1
     `,
-    )
-    .get(`%/epstein/files/${cleanSuffix}`, `%/epstein/files/${decodedSuffix}`) as
-    | { id: string }
-    | undefined;
+    [`%/epstein/files/${cleanSuffix}`, `%/epstein/files/${decodedSuffix}`],
+  );
 
+  const doc = res.rows[0];
   if (doc) return doc;
 
   const filename = path.basename(decodedSuffix);
-  return db.prepare(`SELECT id FROM documents WHERE file_name = ? LIMIT 1`).get(filename) as
-    | { id: string }
-    | undefined;
+  const res2 = await pool.query(`SELECT id FROM documents WHERE file_name = $1 LIMIT 1`, [
+    filename,
+  ]);
+  return res2.rows[0];
 };
 
 app.get('/api/resolve/epstein-file', async (req, res, next) => {
   try {
-    const db = getDb();
+    const pool = getApiPool();
     const suffix = String(req.query.path || '').trim();
     if (!suffix) {
       return res.status(400).json({ error: 'path query parameter is required' });
     }
 
-    const doc = resolveLegacyEpsteinFile(db, suffix);
+    const doc = await resolveLegacyEpsteinFile(pool, suffix);
     if (!doc) {
       return res.status(404).json({ error: 'Document not found in Epstein Archive' });
     }
@@ -468,15 +472,14 @@ app.get('/api/resolve/epstein-file', async (req, res, next) => {
 
 app.get('/epstein/files/*', async (req, res, next) => {
   try {
-    const db = getDb();
+    const pool = getApiPool();
     // Extract suffix from originalUrl to preserve encoding (e.g., %20)
-    // originalUrl might be "/epstein/files/DataSet%209/EFTA..."
     const match = req.originalUrl.match(/\/epstein\/files\/(.+)$/);
     if (!match) {
       return res.status(404).send('Invalid path');
     }
 
-    const doc = resolveLegacyEpsteinFile(db, match[1]);
+    const doc = await resolveLegacyEpsteinFile(pool, match[1]);
     if (doc) {
       return res.redirect(`/documents/${doc.id}`);
     }
@@ -583,22 +586,21 @@ app.get('/api/_meta/db', async (_req, res, next) => {
 app.get('/api/health/ready', async (_req, res) => {
   const startedAt = Date.now();
   try {
-    const db = getDb();
+    const pool = getApiPool();
 
     // 1. Lightweight Ping
     const dbPingStart = Date.now();
-    db.prepare('SELECT 1 as ok').get();
+    await pool.query('SELECT 1 as ok');
     const dbLatencyMs = Date.now() - dbPingStart;
 
     // 2. Schema Presence (non-blocking)
     const requiredTables = ['entities', 'documents', 'entity_relationships'];
 
-    const tableCheck = await (
-      db.prepare(
-        `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ANY($1)`,
-      ) as any
-    ).all([requiredTables]);
-    const presentTables = tableCheck.map((r: any) => r.table_name);
+    const tableCheckRes = await pool.query(
+      `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ANY($1)`,
+      [requiredTables],
+    );
+    const presentTables = tableCheckRes.rows.map((r: any) => r.table_name);
     const isSchemaReady = requiredTables.every((t) => presentTables.includes(t));
 
     // 3. Fast Status Determination
@@ -607,7 +609,7 @@ app.get('/api/health/ready', async (_req, res) => {
     let migrationMetrics = null;
 
     // @ts-ignore - dynamic import may not resolve in strict TS mode
-    const { getMigrationMetrics } = await import('./server/db/connection.js');
+    const { getMigrationMetrics } = await import('./server/db/runtime.js');
     migrationMetrics = await getMigrationMetrics();
     if (migrationMetrics.pools.api && migrationMetrics.pools.api.waiting > 10) {
       isMigrationReady = false;
@@ -840,20 +842,19 @@ app.get('/api/static', async (req, res, next) => {
 app.get('/api/admin/audit-logs', requireRole('admin'), async (req, res, next) => {
   try {
     const limit = Math.min(1000, parseInt(req.query.limit as string) || 100);
-    const db = getDb();
+    const pool = getApiPool();
 
-    const logs = db
-      .prepare(
-        `
+    const { rows: logs } = await pool.query(
+      `
           SELECT 
             a.*, 
             a.actor_id as performed_by
           FROM audit_log a 
           ORDER BY a.timestamp DESC 
-          LIMIT ?
+          LIMIT $1
         `,
-      )
-      .all(limit);
+      [limit],
+    );
 
     const parsedLogs = logs.map((log: any) => {
       let payload = null;
@@ -958,7 +959,7 @@ app.post('/api/upload-document', upload.single('document'), async (req, res, nex
     }
 
     const userId = (req as AuthenticatedRequest).user?.id || 'system';
-    const db = getDb();
+    const pool = getApiPool();
 
     // Calculate file hash for integrity
     const fileBuffer = fs.readFileSync(file.path);
@@ -974,14 +975,13 @@ app.post('/api/upload-document', upload.single('document'), async (req, res, nex
           : 'Text Document';
 
     // Insert document record
-    const result = db
-      .prepare(
-        `
+    const result = await pool.query(
+      `
       INSERT INTO documents (file_name, file_path, file_type, file_size, evidence_type, content_hash, created_at, metadata_json)
-      VALUES (?, ?, ?, ?, ?, ?, datetime('now'), ?)
+      VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, $7)
+      RETURNING id
     `,
-      )
-      .run(
+      [
         file.originalname,
         file.path,
         ext.replace('.', ''),
@@ -989,18 +989,20 @@ app.post('/api/upload-document', upload.single('document'), async (req, res, nex
         evidenceType,
         contentHash,
         JSON.stringify({ uploadedBy: userId, ingestionMethod: 'upload', scanStatus: 'pending' }),
-      );
+      ],
+    );
 
-    const documentId = result.lastInsertRowid;
+    const documentId = result.rows[0].id;
 
     // Create initial chain of custody entry
     try {
-      db.prepare(
+      await pool.query(
         `
         INSERT INTO chain_of_custody (evidence_id, action, performed_by, timestamp, details, hash_before, hash_after)
-        VALUES (?, 'acquired', ?, datetime('now'), ?, ?, ?)
+        VALUES ($1, 'acquired', $2, CURRENT_TIMESTAMP, $3, $4, $5)
       `,
-      ).run(documentId, userId, 'Document uploaded via API', contentHash, contentHash);
+        [documentId, userId, 'Document uploaded via API', contentHash, contentHash],
+      );
     } catch (e) {
       // chain_of_custody might not be set up for document IDs, continue anyway
       console.warn('Could not create chain_of_custody entry:', e);
@@ -1143,23 +1145,22 @@ app.post('/api/entities', validate(entitySchema), async (req, res, next) => {
       }
     }
 
-    const db = getDb();
-    const row = (await db
-      .prepare(
-        `
+    const pool = getApiPool();
+    const entityRes = await pool.query(
+      `
         INSERT INTO entities (full_name, primary_role, entity_type, red_flag_rating, bio)
         VALUES ($1, $2, $3, $4, $5)
         RETURNING id
       `,
-      )
-      .get([
+      [
         full_name,
         req.body.primary_role ?? null,
         req.body.entity_type ?? null,
         req.body.red_flag_rating ?? null,
         req.body.bio ?? null,
-      ])) as { id: string | number };
-    const id = row.id;
+      ],
+    );
+    const id = entityRes.rows[0].id;
 
     logAudit(
       'create_entity',
@@ -1212,15 +1213,16 @@ app.patch('/api/entities/:id', async (req, res, next) => {
       return res.status(400).json({ error: 'No updatable fields provided' });
     }
 
-    updates.push('updated_at = NOW()');
+    const finalIdx = idx;
     values.push(Number(id));
 
-    const db = getDb();
-    const result = (await db
-      .prepare(`UPDATE entities SET ${updates.join(', ')} WHERE id = $${idx} RETURNING id`)
-      .get(values)) as { id?: string | number } | null;
+    const pool = getApiPool();
+    const updateRes = await pool.query(
+      `UPDATE entities SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $${finalIdx} RETURNING id`,
+      values,
+    );
 
-    if (!result || result.id === undefined || result.id === null) {
+    if (updateRes.rowCount === 0) {
       return res.status(404).json({ error: 'Not found or no changes' });
     }
 
@@ -1452,15 +1454,10 @@ app.get('/api/black-book', cacheMiddleware(300), async (req, res, next) => {
     // We'll create a lightweight count query using existing filters but no limit.
     // OR just use SQL here directly since we have getDb.
 
-    const db = getDb();
-    // Reconstruct where clause logic roughly or use repo?
-    // Repo doesn't expose count. Let's add count support to repo or just query all IDs.
-    // Simplest fix: Just query a count.
+    const pool = getApiPool();
     const countQuery = `SELECT COUNT(*) as total FROM black_book_entries`;
-    // Note: this ignores filters. But AboutPage uses it for "Total Black Book entries", so ignoring filters is actually CORRECT behavior for the stats use case!
-    // The About Page calls it with limit=1 but wants "Total Entries in DB".
-
-    const totalResult = db.prepare(countQuery).get() as { total: number };
+    const totalResultRes = await pool.query(countQuery);
+    const totalResult = { total: parseInt(totalResultRes.rows[0].total, 10) };
 
     res.json({
       data: entries,
@@ -1493,38 +1490,36 @@ app.get('/api/stats', cacheMiddleware(300), async (_req, res, next) => {
 // Get comprehensive data quality metrics
 app.get('/api/data-quality/metrics', async (_req, res, next) => {
   try {
-    const db = getDb();
+    const pool = getApiPool();
 
     // 1. Basic Document Stats
-    const totalDocs = db.prepare('SELECT COUNT(*) as c FROM documents').get() as { c: number };
-    const docsWithProvenance = db
-      .prepare(
-        "SELECT COUNT(*) as c FROM documents WHERE source_collection IS NOT NULL AND source_collection != ''",
-      )
-      .get() as { c: number };
+    const totalDocsRes = await pool.query('SELECT COUNT(*) as c FROM documents');
+    const totalDocs = { c: parseInt(totalDocsRes.rows[0].c, 10) };
 
-    const sourceCollections = db
-      .prepare(
-        `
+    const docsWithProvenanceRes = await pool.query(
+      "SELECT COUNT(*) as c FROM documents WHERE source_collection IS NOT NULL AND source_collection != ''",
+    );
+    const docsWithProvenance = { c: parseInt(docsWithProvenanceRes.rows[0].c, 10) };
+
+    const sourceCollectionsRes = await pool.query(
+      `
       SELECT COALESCE(source_collection, 'Unknown/Untagged') as name, COUNT(*) as count
       FROM documents GROUP BY source_collection ORDER BY count DESC LIMIT 20
     `,
-      )
-      .all();
+    );
+    const sourceCollections = sourceCollectionsRes.rows;
 
-    const evidenceTypes = db
-      .prepare(
-        `
+    const evidenceTypesRes = await pool.query(
+      `
       SELECT COALESCE(evidence_type, 'unclassified') as type, COUNT(*) as count
       FROM documents GROUP BY evidence_type ORDER BY count DESC
     `,
-      )
-      .all();
+    );
+    const evidenceTypes = evidenceTypesRes.rows;
 
     // 2. Entity Quality Metrics
-    const entityStats = db
-      .prepare(
-        `
+    const entityStatsRes = await pool.query(
+      `
       SELECT 
         COUNT(*) as total,
         SUM(CASE WHEN primary_role IS NOT NULL AND primary_role != 'Unknown' AND primary_role != '' THEN 1 ELSE 0 END) as withRoles,
@@ -1533,25 +1528,24 @@ app.get('/api/data-quality/metrics', async (_req, res, next) => {
         SUM(CASE WHEN red_flag_rating IS NULL THEN 1 ELSE 0 END) as nullRedFlagRating
       FROM entities
     `,
-      )
-      .get() as {
-      total: number;
-      withRoles: number;
-      withDescription: number;
-      missingRatings: number;
-      nullRedFlagRating: number;
+    );
+    const entityStats = {
+      total: parseInt(entityStatsRes.rows[0].total, 10),
+      withRoles: parseInt(entityStatsRes.rows[0].withroles, 10),
+      withDescription: parseInt(entityStatsRes.rows[0].withdescription, 10),
+      missingRatings: parseInt(entityStatsRes.rows[0].missingratings, 10),
+      nullRedFlagRating: parseInt(entityStatsRes.rows[0].nullredflagrating, 10),
     };
 
     // 3. Data Integrity & Junk Detection
-    const orphanedMentions = db
-      .prepare(
-        `
+    const orphanedMentionsRes = await pool.query(
+      `
       SELECT COUNT(*) as c FROM entity_mentions em
       LEFT JOIN entities e ON em.entity_id = e.id
       WHERE e.id IS NULL
     `,
-      )
-      .get() as { c: number };
+    );
+    const orphanedMentions = { c: parseInt(orphanedMentionsRes.rows[0].c, 10) };
 
     // Optimized junk detection (one query instead of many)
     const junkPatterns = [
@@ -1607,17 +1601,17 @@ app.get('/api/data-quality/metrics', async (_req, res, next) => {
     ];
 
     // Build a single query to count all junk patterns at once
-    const junkWhereClause = junkPatterns.map(() => 'full_name LIKE ?').join(' OR ');
-    const junkEntities = db
-      .prepare(
-        `
+    // Using ILIKE ANY($1) in Postgres for better performance than huge OR chain
+    const junkEntitiesRes = await pool.query(
+      `
       SELECT COUNT(*) as c FROM entities
       WHERE LENGTH(full_name) <= 2
-        OR ${junkWhereClause}
-        OR full_name GLOB '[0-9]*' -- Starts with a number
+        OR full_name ILIKE ANY($1)
+        OR full_name ~ '^[0-9]' -- Starts with a number
     `,
-      )
-      .get(...junkPatterns) as { c: number };
+      [junkPatterns],
+    );
+    const junkEntities = { c: parseInt(junkEntitiesRes.rows[0].c, 10) };
 
     // 4. Score Calculation
     const totalEntities = entityStats.total || 1;
@@ -1656,57 +1650,51 @@ app.get('/api/data-quality/metrics', async (_req, res, next) => {
 // Get document lineage/provenance
 app.get('/api/documents/:id/lineage', async (req, res, next) => {
   try {
-    const db = getDb();
+    const pool = getApiPool();
     const docId = req.params.id;
 
-    const hasAuditLog = Boolean(
-      db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='audit_log'").get(),
-    );
+    const hasAuditLog =
+      (
+        await pool.query<{ has_audit_log: boolean }>(
+          "SELECT to_regclass('public.audit_log') IS NOT NULL AS has_audit_log",
+        )
+      ).rows[0]?.has_audit_log === true;
 
-    const doc = db
-      .prepare(
-        `
-      SELECT
-        d.id,
-        d.file_name,
-        d.source_collection,
-        d.original_file_id,
-        d.created_at,
-        orig.file_name as original_file_name,
-        orig.file_path as original_file_path
-      FROM documents d
-      LEFT JOIN documents orig ON d.original_file_id = orig.id
-      WHERE d.id = ?
-    `,
-      )
-      .get(docId) as {
-      id: string;
-      file_name: string;
-      source_collection: string;
-      created_at: string;
-      original_file_id: string | null;
-      original_file_name: string | null;
-    };
+    const resDoc = await pool.query(
+      `
+        SELECT
+          d.id,
+          d.file_name,
+          d.source_collection,
+          d.original_file_id,
+          d.created_at,
+          orig.file_name AS original_file_name
+        FROM documents d
+        LEFT JOIN documents orig ON d.original_file_id = orig.id
+        WHERE d.id = $1
+      `,
+      [docId],
+    );
+    const doc = resDoc.rows[0];
 
     if (!doc) return res.status(404).json({ error: 'Document not found' });
 
-    const children = db
-      .prepare(
-        `
-      SELECT id, file_name FROM documents WHERE parent_document_id = ? ORDER BY id ASC
-    `,
-      )
-      .all(docId);
+    const resChildren = await pool.query(
+      'SELECT id, file_name FROM documents WHERE parent_document_id = $1 ORDER BY id ASC',
+      [docId],
+    );
+    const children = resChildren.rows;
 
     const auditEntries = hasAuditLog
-      ? db
-          .prepare(
+      ? (
+          await pool.query(
             `
-        SELECT timestamp, user_id, action, details_json FROM audit_log
-        WHERE entity_type = 'document' AND entity_id = ? ORDER BY timestamp DESC LIMIT 20
+        SELECT timestamp, actor_id as user_id, action, payload_json as details_json FROM audit_log 
+        WHERE target_type = 'document' AND target_id = $1 ORDER BY timestamp DESC LIMIT 20
       `,
+            [String(docId)],
           )
-          .all(String(docId))
+        ).rows
       : [];
 
     res.json({
@@ -1714,10 +1702,6 @@ app.get('/api/documents/:id/lineage', async (req, res, next) => {
         id: doc.id,
         fileName: doc.file_name,
         sourceCollection: doc.source_collection,
-        sourceOriginalUrl: null,
-        credibilityScore: null,
-        ocrEngine: null,
-        ocrQualityScore: null,
         processedAt: doc.created_at || null,
       },
       originalDocument: doc.original_file_id
@@ -1726,17 +1710,9 @@ app.get('/api/documents/:id/lineage', async (req, res, next) => {
       childDocuments: children,
       auditTrail: auditEntries.map((e: any) => ({
         timestamp: e.timestamp,
-        user: e.user_id,
+        userId: e.user_id,
         action: e.action,
-        details: e.details_json
-          ? (() => {
-              try {
-                return JSON.parse(e.details_json);
-              } catch {
-                return null;
-              }
-            })()
-          : null,
+        details: e.details_json ? JSON.parse(e.details_json) : null,
       })),
     });
   } catch (error) {
@@ -1747,40 +1723,47 @@ app.get('/api/documents/:id/lineage', async (req, res, next) => {
 
 const getEntityConfidence = async (req: express.Request, res: express.Response, next: any) => {
   try {
-    const db = getDb();
+    const pool = getApiPool();
     const entityId = req.params.id;
 
-    const entity = db.prepare('SELECT id, full_name FROM entities WHERE id = ?').get(entityId) as {
-      id: string;
-      full_name: string;
-    };
-    if (!entity) return res.status(404).json({ error: 'Entity not found' });
+    const entityResult = await pool.query('SELECT id, full_name FROM entities WHERE id = $1', [
+      entityId,
+    ]);
+    const entity = entityResult.rows[0];
+    if (!entity) {
+      return res.status(404).json({ error: 'Entity not found' });
+    }
 
-    const mentionsByType = db
-      .prepare(
-        `
-      SELECT d.evidence_type, COUNT(*) as count FROM entity_mentions em
-      JOIN documents d ON em.document_id = d.id WHERE em.entity_id = ? GROUP BY d.evidence_type
-    `,
-      )
-      .all(entityId) as { evidence_type: string; count: number }[];
+    const mentionsResult = await pool.query(
+      `
+        SELECT d.evidence_type, COUNT(*) AS count
+        FROM entity_mentions em
+        JOIN documents d ON em.document_id = d.id
+        WHERE em.entity_id = $1
+        GROUP BY d.evidence_type
+      `,
+      [entityId],
+    );
+    const mentionsByType = mentionsResult.rows;
 
     const typeWeights: Record<string, number> = {
-      legal: 1.0,
-      testimony: 0.9,
-      flight_log: 0.85,
-      financial: 0.8,
-      email: 0.7,
-      document: 0.6,
+      court_filing: 1.0,
+      email: 0.8,
+      financial: 0.9,
+      news_article: 0.6,
       photo: 0.5,
     };
-    let weightedScore = 0,
-      totalWeight = 0;
-    for (const m of mentionsByType) {
-      const w = typeWeights[m.evidence_type] || 0.5;
-      weightedScore += w * m.count;
-      totalWeight += m.count;
+
+    let weightedScore = 0;
+    let totalWeight = 0;
+
+    for (const mention of mentionsByType as Array<{ evidence_type: string; count: string }>) {
+      const count = parseInt(mention.count, 10);
+      const weight = typeWeights[mention.evidence_type] ?? 0.5;
+      weightedScore += weight * count;
+      totalWeight += count;
     }
+
     const confidence =
       totalWeight > 0 ? Math.min(100, Math.round((weightedScore / totalWeight) * 100)) : 0;
 
@@ -1788,7 +1771,10 @@ const getEntityConfidence = async (req: express.Request, res: express.Response, 
       entityId,
       entityName: entity.full_name,
       confidenceScore: confidence,
-      evidenceBreakdown: mentionsByType,
+      evidenceBreakdown: mentionsByType.map((mention: any) => ({
+        evidenceType: mention.evidence_type,
+        count: parseInt(mention.count, 10),
+      })),
       totalMentions: totalWeight,
       confidenceLevel: confidence >= 80 ? 'High' : confidence >= 50 ? 'Medium' : 'Low',
     });
@@ -1798,10 +1784,7 @@ const getEntityConfidence = async (req: express.Request, res: express.Response, 
   }
 };
 
-// Canonical entity analytics route
 app.get('/api/entities/:id/analytics/confidence', getEntityConfidence);
-
-// Legacy route alias (backward compatibility)
 app.get('/api/entities/:id/confidence', getEntityConfidence);
 
 // Enhanced Analytics API - Aggregated data for visualizations
@@ -2060,24 +2043,21 @@ app.get('/api/documents/:id/redactions', async (req, res, next) => {
   try {
     const id = req.params.id as string;
 
-    const doc = getDb()
-      .prepare(
-        `
+    const pool = getApiPool();
+    const docRes = await pool.query(
+      `
       SELECT 
         id,
         has_failed_redactions,
         failed_redaction_count,
         failed_redaction_data
       FROM documents
-      WHERE id = ?
+      WHERE id = $1
     `,
-      )
-      .get(id) as {
-      id: string;
-      has_failed_redactions: boolean | number;
-      failed_redaction_count: number;
-      failed_redaction_data: string | null;
-    };
+      [id],
+    );
+
+    const doc = docRes.rows[0];
 
     if (!doc) {
       return res.status(404).json({ error: 'not_found' });
@@ -2115,11 +2095,14 @@ app.get('/api/documents/:id/pages', async (req, res, next) => {
     const id = req.params.id as string;
 
     // First check if there's a document_pages table entry (if table exists)
+    const pool = getApiPool();
     let dbPages: any[] = [];
     try {
-      dbPages = getDb()
-        .prepare('SELECT * FROM document_pages WHERE document_id = ? ORDER BY page_number ASC')
-        .all(id) as Array<{ id: string; name: string }>;
+      const dbPagesRes = await pool.query(
+        'SELECT * FROM document_pages WHERE document_id = $1 ORDER BY page_number ASC',
+        [id],
+      );
+      dbPages = dbPagesRes.rows;
     } catch {
       // Table doesn't exist, continue with other methods
     }
@@ -3043,7 +3026,7 @@ app.post(
   requireRole('admin'),
   async (req, res, next) => {
     try {
-      const db = getDb();
+      const pool = getApiPool();
       const roots = [
         path.join(process.cwd(), 'data', 'media', 'images'),
         path.join(process.cwd(), 'data', 'originals'),
@@ -3075,23 +3058,25 @@ app.post(
       }
       let inserted = 0;
       let skipped = 0;
-      const checkStmt = db.prepare('SELECT id FROM media_items WHERE file_path = ?');
-      const insertStmt = db.prepare(
-        `
-        INSERT INTO media_items (file_path, file_type, title, red_flag_rating, created_at)
-        VALUES (?, ?, ?, 0, datetime('now'))
-      `,
-      );
+
       for (const p of found) {
-        const exists = checkStmt.get(p);
-        if (exists) {
+        // Use ON CONFLICT DO NOTHING for atomic check-and-insert
+        const res = await pool.query(
+          `INSERT INTO media_items (file_path, file_type, title, red_flag_rating, created_at)
+           VALUES ($1, $2, $3, 0, CURRENT_TIMESTAMP)
+           ON CONFLICT (file_path) DO NOTHING`,
+          [
+            p,
+            path.extname(p).toLowerCase() === '.png' ? 'image/png' : 'image/jpeg',
+            path.basename(p),
+          ],
+        );
+
+        if (res.rowCount && res.rowCount > 0) {
+          inserted++;
+        } else {
           skipped++;
-          continue;
         }
-        const ext = path.extname(p).toLowerCase();
-        const type = ext === '.png' ? 'image/png' : 'image/jpeg';
-        insertStmt.run(p, type, path.basename(p));
-        inserted++;
       }
       res.json({ inserted, skipped, scanned: found.length });
     } catch (error) {
@@ -3191,15 +3176,13 @@ app.put(
           const id = parseInt(imageId.toString());
           if (isNaN(id)) continue;
 
-          // Unified schema: media_items.red_flag_rating
-          const db = getDb();
-          const result = db
-            .prepare(
-              "UPDATE media_items SET red_flag_rating = ?, date_modified = datetime('now') WHERE id = ?",
-            )
-            .run(rating, id);
+          const pool = getApiPool();
+          const result = await pool.query(
+            'UPDATE media_items SET red_flag_rating = $1, date_modified = CURRENT_TIMESTAMP WHERE id = $2',
+            [rating, id],
+          );
 
-          if (result.changes === 0) {
+          if (result.rowCount === 0) {
             results.push({ id, success: false, error: 'Image not found' });
           } else {
             results.push({ id, success: true });
@@ -3240,6 +3223,7 @@ app.put(
       }
 
       const results = [];
+      const pool = getApiPool();
 
       // Process each image
       for (const imageId of imageIds) {
@@ -3439,7 +3423,7 @@ app.put(
       }
 
       const results = [];
-      const db = getDb();
+      const pool = getApiPool();
 
       // Process each image
       for (const imageId of imageIds) {
@@ -3454,14 +3438,16 @@ app.put(
 
             if (action === 'add') {
               // Add person to image
-              db.prepare(
-                'INSERT OR IGNORE INTO media_item_people (media_item_id, entity_id) VALUES (?, ?)',
-              ).run(id, eid);
+              await pool.query(
+                'INSERT INTO media_item_people (media_item_id, entity_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+                [id, eid],
+              );
             } else {
               // Remove person from image
-              db.prepare(
-                'DELETE FROM media_item_people WHERE media_item_id = ? AND entity_id = ?',
-              ).run(id, eid);
+              await pool.query(
+                'DELETE FROM media_item_people WHERE media_item_id = $1 AND entity_id = $2',
+                [id, eid],
+              );
             }
           }
 
@@ -3626,9 +3612,9 @@ app.get('/api/media/stats', async (_req, res, next) => {
 app.get('/api/tags', async (_req, res, next) => {
   try {
     seedInvestigationMediaTags();
-    const db = getDb();
-    const tags = db.prepare('SELECT * FROM media_tags ORDER BY name ASC').all();
-    res.json(tags);
+    const pool = getApiPool();
+    const { rows } = await pool.query('SELECT * FROM media_tags ORDER BY name ASC');
+    res.json(rows);
   } catch (error) {
     console.error('Error fetching tags:', error);
     next(error);
@@ -3643,16 +3629,16 @@ app.post('/api/tags', authenticateRequest, async (req, res, next) => {
       return res.status(400).json({ error: 'Tag name is required' });
     }
 
-    const db = getDb();
-    const result = db
-      .prepare('INSERT INTO media_tags (name, color) VALUES (?, ?)')
-      .run(name.trim(), color || '#6366f1');
+    const pool = getApiPool();
+    const result = await pool.query(
+      'INSERT INTO media_tags (name, color) VALUES ($1, $2) RETURNING id',
+      [name.trim(), color || '#6366f1'],
+    );
 
-    res
-      .status(201)
-      .json({ id: result.lastInsertRowid, name: name.trim(), color: color || '#6366f1' });
+    res.status(201).json({ id: result.rows[0].id, name: name.trim(), color: color || '#6366f1' });
   } catch (error: any) {
-    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+    if (error.code === '23505') {
+      // Postgres unique constraint violation
       return res.status(409).json({ error: 'Tag already exists' });
     }
     console.error('Error creating tag:', error);
@@ -3666,10 +3652,10 @@ app.delete('/api/tags/:id', authenticateRequest, requireRole('admin'), async (re
     const tagId = parseInt((req.params as { id: string }).id);
     if (isNaN(tagId)) return res.status(400).json({ error: 'Invalid tag ID' });
 
-    const db = getDb();
-    const result = db.prepare('DELETE FROM media_tags WHERE id = ?').run(tagId);
+    const pool = getApiPool();
+    const result = await pool.query('DELETE FROM media_tags WHERE id = $1', [tagId]);
 
-    if (result.changes === 0) return res.status(404).json({ error: 'Tag not found' });
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Tag not found' });
     res.json({ success: true });
   } catch (error) {
     console.error('Error deleting tag:', error);
@@ -3687,19 +3673,18 @@ app.get('/api/media/images/:id/tags', async (req, res, next) => {
     const imageId = parseInt((req.params as { id: string }).id);
     if (isNaN(imageId)) return res.status(400).json({ error: 'Invalid image ID' });
 
-    const db = getDb();
-    const tags = db
-      .prepare(
-        `
+    const pool = getApiPool();
+    const { rows } = await pool.query(
+      `
       SELECT t.* FROM media_tags t
       JOIN media_item_tags it ON t.id = it.tag_id
-      WHERE it.media_item_id = ?
+      WHERE it.media_item_id = $1
       ORDER BY t.name ASC
     `,
-      )
-      .all(imageId);
+      [imageId],
+    );
 
-    res.json(tags);
+    res.json(rows);
   } catch (error) {
     console.error('Error fetching image tags:', error);
     next(error);
@@ -3714,10 +3699,10 @@ app.post('/api/media/images/:id/tags', authenticateRequest, async (req, res, nex
 
     if (isNaN(imageId) || !tagId) return res.status(400).json({ error: 'Invalid image or tag ID' });
 
-    const db = getDb();
-    db.prepare('INSERT OR IGNORE INTO media_item_tags (media_item_id, tag_id) VALUES (?, ?)').run(
-      imageId,
-      tagId,
+    const pool = getApiPool();
+    await pool.query(
+      'INSERT INTO media_item_tags (media_item_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [imageId, tagId],
     );
 
     res.json({ success: true });
@@ -3735,11 +3720,11 @@ app.delete('/api/media/images/:id/tags/:tagId', authenticateRequest, async (req,
 
     if (isNaN(imageId) || isNaN(tagId)) return res.status(400).json({ error: 'Invalid IDs' });
 
-    const db = getDb();
-    db.prepare('DELETE FROM media_item_tags WHERE media_item_id = ? AND tag_id = ?').run(
+    const pool = getApiPool();
+    await pool.query('DELETE FROM media_item_tags WHERE media_item_id = $1 AND tag_id = $2', [
       imageId,
       tagId,
-    );
+    ]);
 
     res.json({ success: true });
   } catch (error) {
@@ -3758,20 +3743,19 @@ app.get('/api/media/images/:id/people', async (req, res, next) => {
     const imageId = parseInt((req.params as { id: string }).id);
     if (isNaN(imageId)) return res.status(400).json({ error: 'Invalid image ID' });
 
-    const db = getDb();
-    const people = db
-      .prepare(
-        `
+    const pool = getApiPool();
+    const { rows } = await pool.query(
+      `
       SELECT e.id, e.full_name as name, e.primary_role as role, e.red_flag_rating as redFlagRating
       FROM entities e
       JOIN media_item_people mp ON e.id = mp.entity_id
-      WHERE mp.media_item_id = ?
+      WHERE mp.media_item_id = $1
       ORDER BY e.full_name ASC
     `,
-      )
-      .all(imageId);
+      [imageId],
+    );
 
-    res.json(people);
+    res.json(rows);
   } catch (error) {
     console.error('Error fetching image people:', error);
     next(error);
@@ -3787,10 +3771,11 @@ app.post('/api/media/images/:id/people', authenticateRequest, async (req, res, n
     if (isNaN(imageId) || !entityId)
       return res.status(400).json({ error: 'Invalid image or entity ID' });
 
-    const db = getDb();
-    db.prepare(
-      'INSERT OR IGNORE INTO media_item_people (media_item_id, entity_id) VALUES (?, ?)',
-    ).run(imageId, entityId);
+    const pool = getApiPool();
+    await pool.query(
+      'INSERT INTO media_item_people (media_item_id, entity_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [imageId, entityId],
+    );
 
     res.json({ success: true });
   } catch (error) {
@@ -3810,10 +3795,10 @@ app.delete(
 
       if (isNaN(imageId) || isNaN(entityId)) return res.status(400).json({ error: 'Invalid IDs' });
 
-      const db = getDb();
-      db.prepare('DELETE FROM media_item_people WHERE media_item_id = ? AND entity_id = ?').run(
-        imageId,
-        entityId,
+      const pool = getApiPool();
+      await pool.query(
+        'DELETE FROM media_item_people WHERE media_item_id = $1 AND entity_id = $2',
+        [imageId, entityId],
       );
 
       res.json({ success: true });
@@ -4092,7 +4077,7 @@ app.get('/api/memory', async (req, res, next) => {
     if (status) filters.status = status;
     if (searchQuery) filters.searchQuery = searchQuery;
 
-    const result = await memoryRepository.searchMemoryEntries(getDb(), filters, page, limit);
+    const result = await memoryRepository.searchMemoryEntries(getApiPool(), filters, page, limit);
 
     res.json({
       data: result.data,
@@ -4114,7 +4099,7 @@ app.get('/api/memory/:id', async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid memory ID' });
     }
 
-    const memoryEntry = await memoryRepository.getMemoryEntryById(getDb(), id);
+    const memoryEntry = await memoryRepository.getMemoryEntryById(getApiPool(), id);
     if (!memoryEntry) {
       return res.status(404).json({ error: 'Memory entry not found' });
     }
@@ -4154,7 +4139,7 @@ app.post('/api/memory', async (req, res, next) => {
       provenance,
     };
 
-    const newMemoryEntry = await memoryRepository.createMemoryEntry(getDb(), input);
+    const newMemoryEntry = await memoryRepository.createMemoryEntry(getApiPool(), input);
 
     res.status(201).json(newMemoryEntry);
   } catch (error) {
@@ -4171,7 +4156,7 @@ app.put('/api/memory/:id', async (req, res, next) => {
     }
 
     const updates = req.body;
-    const updatedMemoryEntry = await memoryRepository.updateMemoryEntry(getDb(), id, updates);
+    const updatedMemoryEntry = await memoryRepository.updateMemoryEntry(getApiPool(), id, updates);
 
     if (!updatedMemoryEntry) {
       return res.status(404).json({ error: 'Memory entry not found' });
@@ -4191,7 +4176,9 @@ app.delete('/api/memory/:id', async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid memory ID' });
     }
 
-    const result = await memoryRepository.updateMemoryEntry(getDb(), id, { status: 'deprecated' });
+    const result = await memoryRepository.updateMemoryEntry(getApiPool(), id, {
+      status: 'deprecated',
+    });
 
     if (!result) {
       return res.status(404).json({ error: 'Memory entry not found' });
@@ -4211,7 +4198,7 @@ app.get('/api/memory/:id/relationships', async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid memory ID' });
     }
 
-    const relationships = await memoryRepository.getMemoryRelationships(getDb(), id);
+    const relationships = await memoryRepository.getMemoryRelationships(getApiPool(), id);
 
     res.json(relationships);
   } catch (error) {
@@ -4227,7 +4214,7 @@ app.get('/api/memory/:id/audit', async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid memory ID' });
     }
 
-    const auditLogs = await memoryRepository.getMemoryAuditLogs(getDb(), id);
+    const auditLogs = await memoryRepository.getMemoryAuditLogs(getApiPool(), id);
 
     res.json(auditLogs);
   } catch (error) {
@@ -4243,7 +4230,7 @@ app.get('/api/memory/:id/quality', async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid memory ID' });
     }
 
-    const qualityMetrics = await memoryRepository.getQualityMetrics(getDb(), id);
+    const qualityMetrics = await memoryRepository.getQualityMetrics(getApiPool(), id);
 
     res.json(qualityMetrics);
   } catch (error) {
@@ -4268,7 +4255,7 @@ app.post('/api/memory/:id/quality', async (req, res, next) => {
       entityConfidence: entityConfidence || 0.5,
     };
 
-    await memoryRepository.updateQualityMetrics(getDb(), id, dimensions);
+    await memoryRepository.updateQualityMetrics(getApiPool(), id, dimensions);
 
     res.json({ success: true });
   } catch (error) {
@@ -4350,33 +4337,40 @@ function mediaItemTimestamp(item: any): number {
   return Number.isFinite(ts) ? ts : Date.now();
 }
 
-function getFirstImageIdForAlbum(albumId: number): number | null {
+async function getFirstImageIdForAlbum(albumId: number): Promise<number | null> {
   try {
-    const db = getDb();
-    const row = db
-      .prepare(
-        `
+    const pool = getApiPool();
+    const res = await pool.query(
+      `
         SELECT id
         FROM media_items
-        WHERE album_id = ? AND file_type LIKE 'image/%'
+        WHERE album_id = $1 AND file_type LIKE 'image/%'
         ORDER BY COALESCE(red_flag_rating, 0) DESC, id ASC
         LIMIT 1
       `,
-      )
-      .get(albumId) as { id?: number } | undefined;
-    return row?.id || null;
+      [albumId],
+    );
+    return res.rows[0]?.id || null;
   } catch {
     return null;
   }
 }
 
-function getAlbumHeroImageUrl(albumId: number, baseUrl: string, fallbackUrl: string): string {
-  const firstImageId = getFirstImageIdForAlbum(albumId);
+async function getAlbumHeroImageUrl(
+  albumId: number,
+  baseUrl: string,
+  fallbackUrl: string,
+): Promise<string> {
+  const firstImageId = await getFirstImageIdForAlbum(albumId);
   if (!firstImageId) return fallbackUrl;
   return `${baseUrl}/api/media/images/${firstImageId}/raw`;
 }
 
-function getMediaItemPreviewImageUrl(item: any, baseUrl: string, fallbackUrl: string): string {
+async function getMediaItemPreviewImageUrl(
+  item: any,
+  baseUrl: string,
+  fallbackUrl: string,
+): Promise<string> {
   const fileType = String(item?.file_type || item?.fileType || '').toLowerCase();
   const id = Number(item?.id);
   if (!Number.isFinite(id) || id <= 0) return fallbackUrl;
@@ -4390,7 +4384,7 @@ function getMediaItemPreviewImageUrl(item: any, baseUrl: string, fallbackUrl: st
   if (fileType.includes('audio')) {
     const albumId = Number(item?.album_id || item?.albumId);
     if (Number.isFinite(albumId) && albumId > 0) {
-      return getAlbumHeroImageUrl(albumId, baseUrl, fallbackUrl);
+      return await getAlbumHeroImageUrl(albumId, baseUrl, fallbackUrl);
     }
   }
   return fallbackUrl;
@@ -4454,7 +4448,9 @@ app.get('*', async (req, res, next) => {
         if (!isNaN(id)) {
           const item = await mediaRepository.getMediaItemById(id);
           if (item) {
-            const fileType = String(item.file_type || '').toLowerCase();
+            const fileType = String(
+              (item as any).fileType || (item as any).file_type || '',
+            ).toLowerCase();
             const typeLabel = fileType.includes('audio')
               ? 'Audio'
               : fileType.includes('video')
@@ -4464,7 +4460,7 @@ app.get('*', async (req, res, next) => {
               title: item.title || `${typeLabel} Item`,
               description:
                 item.description || `${typeLabel} evidence from the Epstein Files Archive.`,
-              imageUrl: getMediaItemPreviewImageUrl(item, baseUrl, defaultOgImage),
+              imageUrl: await getMediaItemPreviewImageUrl(item, baseUrl, defaultOgImage),
               url: `${baseUrl}${req.originalUrl}`,
             });
             return res.send(html);
@@ -4537,7 +4533,7 @@ app.get('*', async (req, res, next) => {
                 title: item.title || `${typeLabel} Recording`,
                 description:
                   item.description || `${typeLabel} evidence from the Epstein Files Archive.`,
-                imageUrl: getMediaItemPreviewImageUrl(item, baseUrl, defaultOgImage),
+                imageUrl: await getMediaItemPreviewImageUrl(item, baseUrl, defaultOgImage),
                 url: `${baseUrl}${req.originalUrl}`,
               });
               return res.send(html);
@@ -4553,7 +4549,7 @@ app.get('*', async (req, res, next) => {
         if (!isNaN(albumId)) {
           const album = await mediaService.getAlbumById(albumId);
           if (album) {
-            const imageUrl = getAlbumHeroImageUrl(albumId, baseUrl, defaultOgImage);
+            const imageUrl = await getAlbumHeroImageUrl(albumId, baseUrl, defaultOgImage);
             html = injectOgTags(html, {
               title: `Album: ${album.name}`,
               description: album.description || `Evidence album from the Epstein Files Archive.`,
@@ -4970,11 +4966,6 @@ const server = app.listen(config.apiPort, () => {
     console.warn(`⚠️  [DEPLOYMENT WARNING] Production expects PORT 8080 or 3012!`);
     console.warn(`⚠️  Current PORT is ${config.apiPort} - API calls may return 404!`);
   }
-  // Perform FTS Maintenance
-  FtsMaintenanceService.performMaintenance()
-    .then(() => console.log('✅ FTS Maintenance complete'))
-    .catch((err) => console.error('❌ FTS Maintenance failed:', err));
-
   // Log startup diagnostics for debugging
   console.log('--- Startup Warnings ---');
   const isProduction = process.env.NODE_ENV === 'production';

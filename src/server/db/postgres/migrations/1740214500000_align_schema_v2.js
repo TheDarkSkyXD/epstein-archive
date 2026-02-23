@@ -1,7 +1,7 @@
 /* eslint-disable no-undef */
 
 export async function up(pgm) {
-  // 1. Align documents table with legacy SQLite expectations
+  // 1. Align documents table with legacy schema expectations
   pgm.sql(`
     DO $$
     BEGIN

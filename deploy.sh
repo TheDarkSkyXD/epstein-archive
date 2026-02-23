@@ -45,13 +45,31 @@ remote_pm2_reload_cmd() {
   cat <<'CMD'
 set -e
 cd /home/deploy/epstein-archive
+export PNPM_HOME="/home/deploy/.local/share/pnpm"
+export PATH="$PNPM_HOME:$PATH"
+export NODE_ENV=production
+
+# 1. Environment & Resource Checks
+echo "Checking environment..."
+node -v | grep -q "v2" || (echo "❌ Node version too old (need v20+), found $(node -v)" && exit 1)
+df -h . | awk 'NR==2 {print $4}' | grep -q "G" || echo "⚠️  Low disk space warning"
+
+# 2. Database Connectivity Gate (Fail closed)
+echo "Checking database connectivity..."
+psql "$DATABASE_URL" -c "SELECT 1" > /dev/null || (echo "❌ Database unreachable" && exit 1)
+psql "$DATABASE_URL" -c "SELECT 1 FROM pg_extension WHERE extname='pg_stat_statements'" | grep -q 1 || (echo "❌ Missing pg_stat_statements extension" && exit 1)
+node --import tsx/esm scripts/pg_explain.ts || (echo "❌ Postgres Explain Plan regression detected" && exit 1)
+
+# 3. Application Restart
+echo "Restarting application..."
 pm2 stop epstein-archive || true
 pm2 delete epstein-archive || true
 # --wait-ready blocks until process.send('ready') or listen_timeout
 pm2 start ecosystem.config.cjs --only epstein-archive --env production --wait-ready
 
-# Verify process is actually online (not errored/stopped)
-pm2 describe epstein-archive | grep -q "online" || (echo "❌ Process failed to start" && exit 1)
+# 4. Verify Process Health
+pm2 describe epstein-archive | grep -q "online" || (echo "❌ Process failed to start (crashed immediately)" && exit 1)
+echo "✅ Application started successfully."
 CMD
 }
 
@@ -67,7 +85,7 @@ export NODE_ENV=production
 pnpm db:check
 
 # CERT_STEP: extension_check_pg_stat_statements
-psql "$DATABASE_URL" -Atqc "SELECT extname FROM pg_extension WHERE extname = 'pg_stat_statements'" | grep -qx 'pg_stat_statements'
+psql "$DATABASE_URL" -c "SELECT 1 FROM pg_extension WHERE extname='pg_stat_statements'" | grep 1 || exit 1
 CMD
 }
 
@@ -83,10 +101,10 @@ export NODE_ENV=production
 pnpm schema:hash:check
 
 # CERT_STEP: pg_explain_plan_gate
-tsx scripts/pg_explain.ts
+node --import tsx/esm scripts/pg_explain.ts || exit 1
 
 # CERT_STEP: db_confirmed_healthy_before_restart
-psql "$DATABASE_URL" -Atqc "SELECT 1"
+psql "$DATABASE_URL" -c "SELECT 1" || exit 1
 CMD
 }
 
@@ -244,9 +262,6 @@ if [ "$DEPLOY_DB" = true ]; then
       # CERT_STEP: schema_hash_verification
       echo 'Running DB certification gates (schema hash + explain + health)...'
       $(remote_db_cert_gate_cmd)
-
-      echo 'Purging legacy SQLite artifacts...'
-      rm -f epstein-archive.db epstein-archive.db.bak epstein-archive.db.snapshot || true
     "
 
     if [ "$DB_ONLY" = true ]; then
@@ -288,8 +303,10 @@ if [ "$DB_ONLY" = false ]; then
       echo 'Syncing code from origin/main...'
       git fetch origin
       git reset --hard origin/main
+      # Scorched Earth: Remove any untracked files (e.g. legacy scripts)
+      git clean -fd
 
-      export PNPM_HOME=\"/home/deploy/.local/share/pnpm\"
+      export PNPM_HOME="/home/deploy/.local/share/pnpm"
       export PATH=\"\$PNPM_HOME:\$PATH\"
       export NODE_ENV=production
 
@@ -339,6 +356,10 @@ if [ "$DRY_RUN" = false ]; then
     perform_rollback
     exit 1
   fi
+
+  log_step "Running DB meta translation gate..."
+  ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" \
+    "curl -sf http://localhost:3012/api/_meta/db | jq '(.translationCount // 0)' | grep '^0$' || exit 1"
 
   # CERT_STEP: health_endpoint_smoke_test
   log_step "Running basic health smoke test..."

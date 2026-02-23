@@ -393,7 +393,7 @@ export const About: React.FC = () => {
             <ul className="text-slate-300 space-y-1 text-sm">
               <li>• Node.js + Express</li>
               <li>• TypeScript</li>
-              <li>• better-sqlite3 database</li>
+              <li>• PostgreSQL database</li>
               <li>• RESTful API architecture</li>
               <li>• MediaService integration</li>
             </ul>
@@ -725,7 +725,7 @@ export const About: React.FC = () => {
                 into the Admin Dashboard.
               </li>
               <li>
-                • **Zero-Downtime Snapshots**: Native SQLite backup system with automated
+                • **Zero-Downtime Snapshots**: Native database backup system with automated
                 compression and 7-day rotation.
               </li>
               <li>

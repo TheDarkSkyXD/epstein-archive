@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { getDb } from '../db/connection.js';
+import { getApiPool } from '../db/connection.js';
 
 export async function validateStartup() {
   console.log('[Startup] Validating environment and configuration...');
@@ -20,7 +20,7 @@ export async function validateStartup() {
     warnings.push(
       'RAW_CORPUS_BASE_PATH is not set. Using default hardcoded path (Risk of failure).',
     );
-  } else if (!fs.existsSync(corpusPath)) {
+  } else if (corpusPath && !fs.existsSync(corpusPath)) {
     warnings.push(`RAW_CORPUS_BASE_PATH is set to ${corpusPath} but directory does not exist.`);
   }
 
@@ -36,10 +36,10 @@ export async function validateStartup() {
 
   // 4. Schema Integrity
   try {
-    const db = getDb();
-    const existingTablesRaw = await db
-      .prepare("SELECT tablename as name FROM pg_catalog.pg_tables WHERE schemaname = 'public'")
-      .all();
+    const pool = getApiPool();
+    const { rows: existingTablesRaw } = await pool.query(
+      "SELECT tablename as name FROM pg_catalog.pg_tables WHERE schemaname = 'public'",
+    );
     const existingTables = existingTablesRaw.map((r: any) => r.name);
 
     // Check critical tables
@@ -74,17 +74,16 @@ export async function validateStartup() {
         ['investigations', 'collaborator_ids'],
       ] as const;
       for (const [table, column] of requiredColumns) {
-        const col = (await db
-          .prepare(
-            `SELECT 1
-             FROM information_schema.columns
-             WHERE table_schema='public'
-               AND table_name = ?
-               AND column_name = ?
-             LIMIT 1`,
-          )
-          .get(table, column)) as any;
-        if (!col) {
+        const { rows: colRows } = await pool.query(
+          `SELECT 1
+           FROM information_schema.columns
+           WHERE table_schema='public'
+             AND table_name = $1
+             AND column_name = $2
+           LIMIT 1`,
+          [table, column],
+        );
+        if (colRows.length === 0) {
           errors.push(`Missing required Postgres column for strict mode: ${table}.${column}`);
         }
       }

@@ -1,4 +1,4 @@
-import { getDb } from '../db/connection.js';
+import { getApiPool } from '../db/connection.js';
 import { relationshipsRepository } from '../db/relationshipsRepository.js';
 
 export interface PatternRecognitionResult {
@@ -47,16 +47,15 @@ export interface EntityRelationshipMap {
 
 export class AdvancedAnalyticsService {
   async detectPatterns(searchTerm?: string): Promise<PatternRecognitionResult[]> {
-    const db = getDb();
+    const pool = getApiPool();
 
-    // Complex pattern detection: find recurring patterns in documents and relationships
     let query = `
       SELECT 
         e1.full_name as entity1,
         e2.full_name as entity2,
         d.evidence_type,
         COUNT(*) as frequency,
-        AVG(er.strength) as avgStrength
+        AVG(er.strength) as avg_strength
       FROM entity_mentions em1
       JOIN entity_mentions em2 ON em1.document_id = em2.document_id AND em1.entity_id != em2.entity_id
       JOIN entities e1 ON em1.entity_id = e1.id
@@ -66,81 +65,78 @@ export class AdvancedAnalyticsService {
       WHERE e1.full_name != e2.full_name
     `;
 
-    const params: any = {};
+    const params: any[] = [];
     if (searchTerm) {
-      query += ` AND (e1.full_name LIKE @searchTerm OR e2.full_name LIKE @searchTerm OR d.content LIKE @searchTerm)`;
-      params.searchTerm = `%${searchTerm}%`;
+      query += ` AND (e1.full_name ILIKE $1 OR e2.full_name ILIKE $1 OR d.content ILIKE $1)`;
+      params.push(`%${searchTerm}%`);
     }
 
     query += ` GROUP BY e1.id, e2.id, d.evidence_type HAVING COUNT(*) > 1 ORDER BY frequency DESC LIMIT 50`;
 
-    const results = db.prepare(query).all(params) as any[];
+    const { rows } = await pool.query(query, params);
 
-    return results.map((row) => ({
+    return rows.map((row) => ({
       patternType: `Co-occurrence Pattern`,
       entities: [row.entity1, row.entity2],
       documents: [row.evidence_type],
-      confidence: Math.min(1.0, row.avgStrength || 0.5),
+      confidence: Math.min(1.0, parseFloat(row.avg_strength) || 0.5),
       description: `Entities "${row.entity1}" and "${row.entity2}" co-occur ${row.frequency} times in ${row.evidence_type} documents`,
     }));
   }
 
   async reconstructTimeline(entityId?: number, searchTerm?: string): Promise<TimelineEvent[]> {
-    const db = getDb();
+    const pool = getApiPool();
 
-    const query = `
+    let query = `
       SELECT 
-        d.id as docId,
+        d.id as doc_id,
         d.file_name as title,
         d.date_created as date,
         d.content,
-        e.full_name as entityName
+        e.full_name as entity_name
       FROM documents d
       LEFT JOIN entity_mentions em ON d.id = em.document_id
       LEFT JOIN entities e ON em.entity_id = e.id
     `;
 
-    let queryWithParams = query;
-    const params: any = {};
-
+    const params: any[] = [];
     if (entityId) {
-      queryWithParams += ` WHERE em.entity_id = @entityId`;
-      params.entityId = entityId;
+      query += ` WHERE em.entity_id = $1`;
+      params.push(entityId);
 
       if (searchTerm) {
-        queryWithParams += ` AND (d.file_name LIKE @searchTerm OR d.content LIKE @searchTerm)`;
-        params.searchTerm = `%${searchTerm}%`;
+        query += ` AND (d.file_name ILIKE $2 OR d.content ILIKE $2)`;
+        params.push(`%${searchTerm}%`);
       }
     } else if (searchTerm) {
-      queryWithParams += ` WHERE (d.file_name LIKE @searchTerm OR d.content LIKE @searchTerm)`;
-      params.searchTerm = `%${searchTerm}%`;
+      query += ` WHERE (d.file_name ILIKE $1 OR d.content ILIKE $1)`;
+      params.push(`%${searchTerm}%`);
     }
 
-    queryWithParams += ` ORDER BY d.date_created ASC LIMIT 100`;
+    query += ` ORDER BY d.date_created ASC LIMIT 100`;
 
-    const results = db.prepare(queryWithParams).all(params) as any[];
+    const { rows } = await pool.query(query, params);
 
-    return results.map((row) => ({
-      id: row.docId,
+    return rows.map((row) => ({
+      id: row.doc_id,
       title: row.title,
-      description: row.content.substring(0, 200) + '...',
+      description: (row.content || '').substring(0, 200) + '...',
       date: row.date,
-      entities: row.entityName ? [row.entityName] : [],
+      entities: row.entity_name ? [row.entity_name] : [],
       documents: [row.title],
       confidence: 0.8,
     }));
   }
 
   async detectAnomalies(): Promise<AnomalyDetectionResult[]> {
-    const db = getDb();
+    const pool = getApiPool();
 
     // Find documents with unusual characteristics
     const anomalies: AnomalyDetectionResult[] = [];
 
     // 1. Documents with high red flag ratings but few mentions
-    const highRiskLowMention = db
-      .prepare(
-        `
+    const { rows: highRiskLowMention } = await pool.query(
+      `
       SELECT 
         d.id,
         d.file_name,
@@ -152,8 +148,7 @@ export class AdvancedAnalyticsService {
       ORDER BY d.red_flag_rating DESC
       LIMIT 10
     `,
-      )
-      .all() as any[];
+    );
 
     for (const doc of highRiskLowMention) {
       anomalies.push({
@@ -171,24 +166,22 @@ export class AdvancedAnalyticsService {
     }
 
     // 2. Entities with unusual relationship patterns
-    const unusualRelationships = db
-      .prepare(
-        `
+    const { rows: unusualRelationships } = await pool.query(
+      `
       SELECT 
         e.id,
         e.full_name,
         e.red_flag_rating,
-        COUNT(er.id) as relationshipCount
+        COUNT(er.id) as relationship_count
       FROM entities e
       LEFT JOIN entity_relationships er ON e.id = er.source_entity_id
       WHERE e.red_flag_rating >= 4
       GROUP BY e.id
-      HAVING relationshipCount < 3
+      HAVING COUNT(er.id) < 3
       ORDER BY e.red_flag_rating DESC
       LIMIT 10
     `,
-      )
-      .all() as any[];
+    );
 
     for (const entity of unusualRelationships) {
       anomalies.push({
@@ -209,7 +202,7 @@ export class AdvancedAnalyticsService {
   }
 
   async assessRisk(entityId?: number): Promise<RiskAssessment[]> {
-    const db = getDb();
+    const pool = getApiPool();
 
     let query = `
       SELECT 
@@ -217,37 +210,33 @@ export class AdvancedAnalyticsService {
         e.full_name,
         e.red_flag_rating,
         e.primary_role,
-        COUNT(er.id) as relationshipCount,
-        AVG(er.strength) as avgRelationshipStrength
+        COUNT(er.id) as relationship_count,
+        AVG(er.strength) as avg_relationship_strength
       FROM entities e
       LEFT JOIN entity_relationships er ON e.id = er.source_entity_id
     `;
 
-    const params: any = {};
-    const conditions: string[] = [];
-
+    const params: any[] = [];
     if (entityId) {
-      conditions.push('e.id = @entityId');
-      params.entityId = entityId;
+      query += ` WHERE e.id = $1`;
+      params.push(entityId);
     }
 
-    if (conditions.length > 0) {
-      query += ` WHERE ${conditions.join(' AND ')}`;
-    }
+    query += ` GROUP BY e.id ORDER BY e.red_flag_rating DESC, relationship_count DESC LIMIT 50`;
 
-    query += ` GROUP BY e.id ORDER BY e.red_flag_rating DESC, relationshipCount DESC LIMIT 50`;
-
-    const results = db.prepare(query).all(params) as any[];
+    const { rows: results } = await pool.query(query, params);
 
     return results.map((row) => {
       const riskScore = Math.min(
         100,
-        row.red_flag_rating * 20 + row.relationshipCount * 2 + row.avgRelationshipStrength * 10,
+        row.red_flag_rating * 20 +
+          parseInt(row.relationship_count, 10) * 2 +
+          parseFloat(row.avg_relationship_strength || '0') * 10,
       );
       const riskFactors: string[] = [];
 
       if (row.red_flag_rating >= 4) riskFactors.push('High Red Flag Rating');
-      if (row.relationshipCount > 10) riskFactors.push('High Connectivity');
+      if (parseInt(row.relationship_count, 10) > 10) riskFactors.push('High Connectivity');
       if (row.primary_role && row.primary_role.toLowerCase().includes('financial'))
         riskFactors.push('Financial Role');
 
@@ -271,13 +260,12 @@ export class AdvancedAnalyticsService {
   ): Promise<EntityRelationshipMap[]> {
     if (!entityId) {
       // If no entity ID provided, return top relationships
-      const db = getDb();
-      const results = db
-        .prepare(
-          `
+      const pool = getApiPool();
+      const { rows: results } = await pool.query(
+        `
         SELECT 
-          e1.full_name as sourceEntity,
-          e2.full_name as targetEntity,
+          e1.full_name as source_entity,
+          e2.full_name as target_entity,
           er.relationship_type,
           er.strength,
           er.confidence
@@ -287,12 +275,11 @@ export class AdvancedAnalyticsService {
         ORDER BY er.strength DESC
         LIMIT 50
       `,
-        )
-        .all() as any[];
+      );
 
       return results.map((row) => ({
-        sourceEntity: row.sourceEntity,
-        targetEntity: row.targetEntity,
+        sourceEntity: row.source_entity,
+        targetEntity: row.target_entity,
         relationshipType: row.relationship_type,
         strength: row.strength,
         confidence: row.confidence,
@@ -313,62 +300,57 @@ export class AdvancedAnalyticsService {
   }
 
   async getPredictiveInsights(): Promise<any[]> {
-    // This would use historical data to predict potential connections or risks
-    // For now, we'll return some example predictive insights based on existing patterns
-
-    const db = getDb();
+    const pool = getApiPool();
 
     // Find entities that are highly connected to high-risk entities but have low risk scores themselves
-    const potentiallyHighRisk = db
-      .prepare(
-        `
+    const { rows: potentiallyHighRisk } = await pool.query(
+      `
       SELECT 
         e.id,
         e.full_name,
         e.red_flag_rating,
-        COUNT(er2.id) as connectionsToHighRisk
+        COUNT(er2.id) as connections_to_high_risk
       FROM entities e
       JOIN entity_relationships er1 ON e.id = er1.source_entity_id
       JOIN entities e2 ON er1.target_entity_id = e2.id
       JOIN entity_relationships er2 ON e2.id = er2.source_entity_id
       WHERE e2.red_flag_rating >= 4
         AND e.red_flag_rating < 2
-      GROUP BY e.id
-      HAVING connectionsToHighRisk >= 3
-      ORDER BY connectionsToHighRisk DESC
+      GROUP BY e.id, e.full_name
+      HAVING COUNT(er2.id) >= 3
+      ORDER BY connections_to_high_risk DESC
       LIMIT 10
     `,
-      )
-      .all() as any[];
+    );
 
     return potentiallyHighRisk.map((row) => ({
       entity: row.full_name,
       currentRiskScore: row.red_flag_rating,
-      connectionsToHighRiskEntities: row.connectionsToHighRisk,
+      connectionsToHighRiskEntities: parseInt(row.connections_to_high_risk, 10),
       predictedRiskTrend: 'increasing',
       confidence: 0.7,
-      explanation: `Entity is highly connected to ${row.connectionsToHighRisk} high-risk entities`,
+      explanation: `Entity is highly connected to ${row.connections_to_high_risk} high-risk entities`,
     }));
   }
 
   async getCrossReferenceValidation(searchTerm: string): Promise<any[]> {
-    const db = getDb();
+    const pool = getApiPool();
 
     // Find mentions of the search term across different document types and validate consistency
     const query = `
       SELECT 
         d.evidence_type,
-        COUNT(*) as mentionCount,
-        AVG(d.red_flag_rating) as avgRedFlag,
-        GROUP_CONCAT(DISTINCT e.full_name) as associatedEntities
+        COUNT(*) as mention_count,
+        AVG(d.red_flag_rating) as avg_red_flag,
+        string_agg(DISTINCT e.full_name, ',') as associated_entities
       FROM documents d
       LEFT JOIN entity_mentions em ON d.id = em.document_id
       LEFT JOIN entities e ON em.entity_id = e.id
-      WHERE d.content LIKE ?
+      WHERE d.content ILIKE $1
       GROUP BY d.evidence_type
     `;
 
-    const results = db.prepare(query).all(`%${searchTerm}%`) as any[];
+    const { rows: results } = await pool.query(query, [`%${searchTerm}%`]);
 
     return results.map((row) => ({
       evidenceType: row.evidence_type,
@@ -398,27 +380,23 @@ export class AdvancedAnalyticsService {
   }
 
   async getInvestigativeTaskSummary(): Promise<any> {
-    const db = getDb();
+    const pool = getApiPool();
 
     // Get overall statistics for investigation planning
-    const entityStats = db.prepare('SELECT COUNT(*) as total FROM entities').get() as {
-      total: number;
-    };
-    const documentStats = db.prepare('SELECT COUNT(*) as total FROM documents').get() as {
-      total: number;
-    };
-    const relationshipStats = db
-      .prepare('SELECT COUNT(*) as total FROM entity_relationships')
-      .get() as { total: number };
-    const highRiskEntities = db
-      .prepare('SELECT COUNT(*) as total FROM entities WHERE red_flag_rating >= 4')
-      .get() as { total: number };
+    const { rows: entityStats } = await pool.query('SELECT COUNT(*) as total FROM entities');
+    const { rows: documentStats } = await pool.query('SELECT COUNT(*) as total FROM documents');
+    const { rows: relationshipStats } = await pool.query(
+      'SELECT COUNT(*) as total FROM entity_relationships',
+    );
+    const { rows: highRiskEntities } = await pool.query(
+      'SELECT COUNT(*) as total FROM entities WHERE red_flag_rating >= 4',
+    );
 
     return {
-      totalEntities: entityStats.total,
-      totalDocuments: documentStats.total,
-      totalRelationships: relationshipStats.total,
-      highRiskEntities: highRiskEntities.total,
+      totalEntities: parseInt(entityStats[0].total, 10),
+      totalDocuments: parseInt(documentStats[0].total, 10),
+      totalRelationships: parseInt(relationshipStats[0].total, 10),
+      highRiskEntities: parseInt(highRiskEntities[0].total, 10),
       dataCompleteness: this.calculateDataCompleteness(),
       investigationReadiness: this.assessInvestigationReadiness(),
     };

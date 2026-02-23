@@ -1,6 +1,6 @@
-import { getDb } from '../db/connection.js';
+import { getApiPool } from '../db/connection.js';
 
-export const logAudit = (
+export const logAudit = async (
   action: string,
   userId: string | null,
   objectType: string,
@@ -8,38 +8,20 @@ export const logAudit = (
   payload?: any,
   ip?: string,
 ) => {
-  (async () => {
-    try {
-      const db = getDb();
+  try {
+    const pool = getApiPool();
 
-      // Ensure audit_log table exists (Postgres schema)
-      db.prepare(
-        `
-          CREATE TABLE IF NOT EXISTS audit_log (
-            id BIGSERIAL PRIMARY KEY,
-            actor_id TEXT NOT NULL,
-            actor_type TEXT NOT NULL,
-            action TEXT NOT NULL,
-            target_type TEXT,
-            target_id TEXT,
-            payload_json JSONB,
-            ip_address TEXT,
-            timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-          )
-        `,
-      ).run();
+    const actorId = userId || 'system';
+    const actorType = userId ? 'user' : 'system';
 
-      const actorId = userId || 'system';
-      const actorType = userId ? 'user' : 'system';
-
-      db.prepare(
-        `
-          INSERT INTO audit_log (
-            actor_id, actor_type, action, target_type, target_id, payload_json, ip_address
-          )
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-        `,
-      ).run(
+    await pool.query(
+      `
+        INSERT INTO audit_log (
+          actor_id, actor_type, action, target_type, target_id, payload_json, ip_address
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `,
+      [
         actorId,
         actorType,
         action,
@@ -47,9 +29,9 @@ export const logAudit = (
         objectId,
         payload ? JSON.stringify(payload) : null,
         ip || null,
-      );
-    } catch (error) {
-      console.error('FAILED TO LOG AUDIT:', error);
-    }
-  })();
+      ],
+    );
+  } catch (error) {
+    console.error('FAILED TO LOG AUDIT:', error);
+  }
 };

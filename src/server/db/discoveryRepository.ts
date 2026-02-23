@@ -1,4 +1,4 @@
-import { getDb } from './connection.js';
+import { getApiPool } from './connection.js';
 import { createHash } from 'crypto';
 
 export interface DocumentPage {
@@ -24,17 +24,16 @@ export const discoveryRepository = {
   /**
    * Add a page record.
    */
-  addPage: (page: DocumentPage): number => {
-    const db = getDb();
-    const result = db
-      .prepare(
-        `
+  addPage: async (page: DocumentPage): Promise<number> => {
+    const pool = getApiPool();
+    const res = await pool.query(
+      `
       INSERT INTO document_pages (
         document_id, page_number, extracted_text, text_source, ocr_confidence_avg, ocr_quality_score, phash
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING id
     `,
-      )
-      .run(
+      [
         page.document_id,
         page.page_number,
         page.extracted_text || null,
@@ -42,48 +41,49 @@ export const discoveryRepository = {
         page.ocr_confidence_avg || null,
         page.ocr_quality_score || null,
         page.phash || null,
-      );
-    return result.lastInsertRowid as number;
+      ],
+    );
+    return res.rows[0].id;
   },
 
   /**
    * Add a sentence record.
    */
-  addSentence: (sentence: DocumentSentence): void => {
-    const db = getDb();
+  addSentence: async (sentence: DocumentSentence): Promise<void> => {
+    const pool = getApiPool();
 
     // 1. Normalize & Hash
     const norm = sentence.sentence_text.toLowerCase().replace(/\s+/g, ' ').trim();
     const hash = createHash('sha256').update(norm).digest('hex');
 
     // 2. Upsert Phrase & Get Status
-    // We use get() because of RETURNING
-    const phrase = db
-      .prepare(
-        `
+    const phraseRes = await pool.query(
+      `
       INSERT INTO boilerplate_phrases (sentence_hash, sentence_text_sample, frequency)
-      VALUES (?, ?, 1)
-      ON CONFLICT(sentence_hash) DO UPDATE SET frequency = frequency + 1
+      VALUES ($1, $2, 1)
+      ON CONFLICT(sentence_hash) DO UPDATE SET frequency = boilerplate_phrases.frequency + 1
       RETURNING status
     `,
-      )
-      .get(hash, sentence.sentence_text) as { status: string };
+      [hash, sentence.sentence_text],
+    );
 
+    const phrase = phraseRes.rows[0];
     const isBoilerplate = phrase && phrase.status === 'confirmed' ? 1 : 0;
 
     // 3. Insert Sentence
-    db.prepare(
+    await pool.query(
       `
       INSERT INTO document_sentences (
         document_id, page_id, sentence_index, sentence_text, is_boilerplate, signal_score
-      ) VALUES (?, ?, ?, ?, ?, 0.0)
+      ) VALUES ($1, $2, $3, $4, $5, 0.0)
     `,
-    ).run(
-      sentence.document_id,
-      sentence.page_id || null,
-      sentence.sentence_index,
-      sentence.sentence_text,
-      isBoilerplate,
+      [
+        sentence.document_id,
+        sentence.page_id || null,
+        sentence.sentence_index,
+        sentence.sentence_text,
+        isBoilerplate,
+      ],
     );
   },
 };

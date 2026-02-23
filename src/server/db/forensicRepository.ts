@@ -1,68 +1,44 @@
-import { getDb } from './connection.js';
+import { getApiPool } from './connection.js';
 
 export const forensicRepository = {
   /**
    * Get forensic metrics for a document
    */
   getMetrics: async (documentId: number | string) => {
-    const db = getDb();
-    return await db
-      .prepare('SELECT * FROM document_forensic_metrics WHERE document_id = ?')
-      .get(documentId);
+    const pool = getApiPool();
+    const res = await pool.query('SELECT * FROM document_forensic_metrics WHERE document_id = $1', [
+      documentId,
+    ]);
+    return res.rows[0];
   },
 
   /**
    * Save or update forensic metrics
    */
   saveMetrics: async (documentId: number | string, metrics: any, authenticityScore?: number) => {
-    const db = getDb();
-    const existing = (await db
-      .prepare('SELECT id FROM document_forensic_metrics WHERE document_id = ?')
-      .get(documentId)) as any;
+    const pool = getApiPool();
+    const sql = `
+      INSERT INTO document_forensic_metrics (document_id, metrics_json, authenticity_score, last_analyzed_at)
+      VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+      ON CONFLICT(document_id) DO UPDATE SET
+        metrics_json = EXCLUDED.metrics_json,
+        authenticity_score = EXCLUDED.authenticity_score,
+        last_analyzed_at = CURRENT_TIMESTAMP
+    `;
 
-    if (existing) {
-      await db
-        .prepare(
-          `
-        UPDATE document_forensic_metrics 
-        SET metrics_json = @metrics, 
-            authenticity_score = @score, 
-            last_analyzed_at = CURRENT_TIMESTAMP 
-        WHERE document_id = @docId
-      `,
-        )
-        .run({
-          metrics: JSON.stringify(metrics),
-          score: authenticityScore || 0,
-          docId: documentId,
-        });
-    } else {
-      await db
-        .prepare(
-          `
-        INSERT INTO document_forensic_metrics (document_id, metrics_json, authenticity_score)
-        VALUES (@docId, @metrics, @score)
-      `,
-        )
-        .run({
-          docId: documentId,
-          metrics: JSON.stringify(metrics),
-          score: authenticityScore || 0,
-        });
-    }
+    await pool.query(sql, [documentId, JSON.stringify(metrics), authenticityScore || 0]);
   },
 
   /**
    * Get chain of custody for an evidence item (or document)
-   * Note: In our schema, chain_of_custody links to 'evidence', but often we use 'document' IDs.
-   * We might need to resolve document_id -> evidence_id or store document_id in chain directly.
-   * For now, assuming evidence_id corresponds to document_id in simple cases or we handle mapping elsewhere.
    */
   getChainOfCustody: async (evidenceId: number | string) => {
-    const db = getDb();
-    return (await db
-      .prepare('SELECT * FROM chain_of_custody WHERE evidence_id = ? ORDER BY date DESC')
-      .all(evidenceId)) as any[];
+    const pool = getApiPool();
+    const res = await pool.query(
+      'SELECT * FROM chain_of_custody WHERE evidence_id = $1 ORDER BY date DESC',
+      [evidenceId],
+    );
+    return res.rows;
   },
 
   /**
@@ -76,103 +52,74 @@ export const forensicRepository = {
     notes?: string;
     signature?: string;
   }) => {
-    const db = getDb();
-    await db
-      .prepare(
-        `
+    const pool = getApiPool();
+    const sql = `
       INSERT INTO chain_of_custody (evidence_id, actor, action, date, notes, signature)
-      VALUES (@evidenceId, @actor, @action, @date, @notes, @signature)
-    `,
-      )
-      .run({
-        evidenceId: event.evidenceId,
-        actor: event.actor,
-        action: event.action,
-        date: event.date || new Date().toISOString(),
-        notes: event.notes || '',
-        signature: event.signature || '',
-      });
+      VALUES ($1, $2, $3, $4, $5, $6)
+    `;
+    await pool.query(sql, [
+      event.evidenceId,
+      event.actor,
+      event.action,
+      event.date || new Date().toISOString(),
+      event.notes || '',
+      event.signature || '',
+    ]);
   },
 
   /**
-   * Get aggregated forensic metrics summary (Tier 3.3 - Advanced Analytics)
+   * Get aggregated forensic metrics summary
    */
   getMetricsSummary: async () => {
-    const db = getDb();
+    const pool = getApiPool();
 
-    // Total documents analyzed
-    const totalAnalyzed = (await db
-      .prepare(
-        `
-      SELECT COUNT(*) as count FROM document_forensic_metrics
-    `,
-      )
-      .get()) as { count: number };
+    const [totalRes, avgRes, riskRes, topRiskRes, pendingRes] = await Promise.all([
+      pool.query('SELECT COUNT(*) as count FROM document_forensic_metrics'),
+      pool.query(
+        'SELECT AVG(authenticity_score) as avg FROM document_forensic_metrics WHERE authenticity_score IS NOT NULL AND authenticity_score > 0',
+      ),
+      pool.query(`
+        SELECT 
+          SUM(CASE WHEN red_flag_rating <= 1 THEN 1 ELSE 0 END) as low,
+          SUM(CASE WHEN red_flag_rating = 2 THEN 1 ELSE 0 END) as medium,
+          SUM(CASE WHEN red_flag_rating = 3 OR red_flag_rating = 4 THEN 1 ELSE 0 END) as high,
+          SUM(CASE WHEN red_flag_rating >= 5 THEN 1 ELSE 0 END) as critical
+        FROM documents
+      `),
+      pool.query(`
+        SELECT 
+          d.id, d.file_name as "fileName", d.red_flag_rating as "redFlagRating",
+          d.evidence_type as "evidenceType", d.word_count as "wordCount",
+          dfm.authenticity_score as "authenticityScore",
+          dfm.last_analyzed_at as "lastAnalyzedAt"
+        FROM documents d
+        LEFT JOIN document_forensic_metrics dfm ON dfm.document_id = d.id
+        WHERE d.red_flag_rating >= 3
+        ORDER BY d.red_flag_rating DESC, dfm.authenticity_score ASC
+        LIMIT 10
+      `),
+      pool.query(`
+        SELECT COUNT(*) as count FROM documents d
+        LEFT JOIN document_forensic_metrics dfm ON dfm.document_id = d.id
+        WHERE dfm.id IS NULL
+      `),
+    ]);
 
-    // Average authenticity score
-    const avgScore = (await db
-      .prepare(
-        `
-      SELECT AVG(authenticity_score) as avg FROM document_forensic_metrics 
-      WHERE authenticity_score IS NOT NULL AND authenticity_score > 0
-    `,
-      )
-      .get()) as { avg: number | null };
-
-    // Risk distribution from documents table
-    const riskDistribution = (await db
-      .prepare(
-        `
-      SELECT 
-        SUM(CASE WHEN red_flag_rating <= 1 THEN 1 ELSE 0 END) as low,
-        SUM(CASE WHEN red_flag_rating = 2 THEN 1 ELSE 0 END) as medium,
-        SUM(CASE WHEN red_flag_rating = 3 OR red_flag_rating = 4 THEN 1 ELSE 0 END) as high,
-        SUM(CASE WHEN red_flag_rating >= 5 THEN 1 ELSE 0 END) as critical
-      FROM documents
-    `,
-      )
-      .get()) as { low: number; medium: number; high: number; critical: number };
-
-    // Top 10 high-risk documents with forensic metrics
-    const topRiskDocuments = (await db
-      .prepare(
-        `
-      SELECT 
-        d.id, d.file_name as "fileName", d.red_flag_rating as "redFlagRating",
-        d.evidence_type as "evidenceType", d.word_count as "wordCount",
-        dfm.authenticity_score as "authenticityScore",
-        dfm.last_analyzed_at as "lastAnalyzedAt"
-      FROM documents d
-      LEFT JOIN document_forensic_metrics dfm ON dfm.document_id = d.id
-      WHERE d.red_flag_rating >= 3
-      ORDER BY d.red_flag_rating DESC, dfm.authenticity_score ASC
-      LIMIT 10
-    `,
-      )
-      .all()) as any[];
-
-    // Documents needing analysis (no forensic metrics yet)
-    const pendingAnalysis = (await db
-      .prepare(
-        `
-      SELECT COUNT(*) as count FROM documents d
-      LEFT JOIN document_forensic_metrics dfm ON dfm.document_id = d.id
-      WHERE dfm.id IS NULL
-    `,
-      )
-      .get()) as { count: number };
+    const riskDist = riskRes.rows[0];
 
     return {
-      totalDocumentsAnalyzed: totalAnalyzed.count,
-      averageAuthenticityScore: avgScore.avg ? Math.round(avgScore.avg * 100) / 100 : null,
+      totalDocumentsAnalyzed: parseInt(totalRes.rows[0].count, 10),
+      averageAuthenticityScore: avgRes.rows[0].avg
+        ? Math.round(parseFloat(avgRes.rows[0].avg) * 100) / 100
+        : null,
       riskDistribution: {
-        low: riskDistribution?.low || 0,
-        medium: riskDistribution?.medium || 0,
-        high: riskDistribution?.high || 0,
-        critical: riskDistribution?.critical || 0,
+        low: parseInt(riskDist?.low || '0', 10),
+        medium: parseInt(riskDist?.medium || '0', 10),
+        high: parseInt(riskDist?.high || '0', 10),
+        critical: parseInt(riskDist?.critical || '0', 10),
       },
-      topRiskDocuments,
-      pendingAnalysisCount: pendingAnalysis.count,
+      topRiskDocuments: topRiskRes.rows,
+      pendingAnalysisCount: parseInt(pendingRes.rows[0].count, 10),
       lastUpdated: new Date().toISOString(),
     };
   },

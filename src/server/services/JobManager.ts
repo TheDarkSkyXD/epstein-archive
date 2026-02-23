@@ -1,4 +1,4 @@
-import { getDb } from '../db/connection.js';
+import { getApiPool } from '../db/connection.js';
 import os from 'os';
 
 export class JobManager {
@@ -13,11 +13,12 @@ export class JobManager {
    * Acquires a lock on the next available document
    */
   async acquireJob(ttlSeconds: number = 300) {
-    const db = getDb();
+    const pool = getApiPool();
+    const client = await pool.connect();
 
-    // 1. Find and lock a candidate atomically using FOR UPDATE SKIP LOCKED
-    // We look for 'queued' items OR 'processing' items with expired leases
-    return await db.transaction(async (client) => {
+    try {
+      await client.query('BEGIN');
+
       const findSql = `
         SELECT id, file_path, processing_attempts 
         FROM documents 
@@ -30,10 +31,13 @@ export class JobManager {
         FOR UPDATE SKIP LOCKED
       `;
 
-      const res = await client.query(findSql);
-      const candidate = res.rows[0];
+      const { rows } = await client.query(findSql);
+      const candidate = rows[0];
 
-      if (!candidate) return null;
+      if (!candidate) {
+        await client.query('ROLLBACK');
+        return null;
+      }
 
       // 2. Lock it
       const lockSql = `
@@ -41,27 +45,33 @@ export class JobManager {
         SET 
           processing_status = 'processing',
           worker_id = $1,
-          lease_expires_at = now() + interval '$2 seconds',
+          lease_expires_at = now() + ($2 || ' seconds')::interval,
           processing_attempts = processing_attempts + 1,
           last_processed_at = now()
         WHERE id = $3
       `;
 
       await client.query(lockSql, [this.workerId, ttlSeconds, candidate.id]);
+      await client.query('COMMIT');
 
       return candidate;
-    })();
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
   }
 
   /**
    * Heartbeat to keep the job alive
    */
   async renewLease(documentId: number | string, ttlSeconds: number = 300) {
-    const db = getDb();
-    await db.run(
+    const pool = getApiPool();
+    await pool.query(
       `
       UPDATE documents 
-      SET lease_expires_at = now() + interval '$1 seconds'
+      SET lease_expires_at = now() + ($1 || ' seconds')::interval
       WHERE id = $2 AND worker_id = $3
     `,
       [ttlSeconds, documentId, this.workerId],
@@ -72,8 +82,8 @@ export class JobManager {
    * Mark job as complete
    */
   async completeJob(documentId: number | string) {
-    const db = getDb();
-    await db.run(
+    const pool = getApiPool();
+    await pool.query(
       `
       UPDATE documents 
       SET 
@@ -91,8 +101,8 @@ export class JobManager {
    * Fail the job
    */
   async failJob(documentId: number | string, error: string) {
-    const db = getDb();
-    await db.run(
+    const pool = getApiPool();
+    await pool.query(
       `
       UPDATE documents 
       SET 

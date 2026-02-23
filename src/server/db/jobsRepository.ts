@@ -1,4 +1,5 @@
-import { getDb } from './connection.js';
+import { getApiPool } from './connection.js';
+import pg from 'pg';
 
 export interface ProcessingJob {
   id: number;
@@ -25,50 +26,53 @@ export const jobsRepository = {
    * Create a new processing job.
    */
   createJob: async (job: Omit<ProcessingJob, 'id' | 'status' | 'attempts' | 'priority'>) => {
-    const db = getDb();
-    return await db
-      .prepare(
-        `
+    const pool = getApiPool();
+    const res = await pool.query(
+      `
       INSERT INTO processing_jobs (run_id, step_name, target_type, target_id)
-      VALUES (?, ?, ?, ?)
+      VALUES ($1, $2, $3, $4)
       RETURNING id
     `,
-      )
-      .get(job.run_id, job.step_name, job.target_type, job.target_id);
+      [job.run_id, job.step_name, job.target_type, job.target_id],
+    );
+    return res.rows[0];
   },
 
   /**
    * List jobs with filtering.
    */
   listJobs: async (status?: string, targetType?: string) => {
-    const db = getDb();
+    const pool = getApiPool();
     const where: string[] = [];
-    const params: any = [];
+    const params: any[] = [];
+    let i = 1;
 
     if (status) {
-      where.push('status = ?');
+      where.push(`status = $${i++}`);
       params.push(status);
     }
 
     if (targetType) {
-      where.push('target_type = ?');
+      where.push(`target_type = $${i++}`);
       params.push(targetType);
     }
 
     const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
-    return await db.all(
+    const res = await pool.query(
       `SELECT * FROM processing_jobs ${whereClause} ORDER BY priority DESC, created_at ASC`,
       params,
     );
+    return res.rows;
   },
 
   /**
    * Update job status and record attempt.
    */
   updateJobStatus: async (id: number, status: ProcessingJob['status'], error?: string) => {
-    const db = getDb();
-
-    await db.transaction(async (client) => {
+    const pool = getApiPool();
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
       await client.query(
         `
         UPDATE processing_jobs 
@@ -85,7 +89,13 @@ export const jobsRepository = {
       `,
         [id],
       );
-    })();
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
   },
 
   /**
@@ -93,13 +103,13 @@ export const jobsRepository = {
    * Atomically finds and locks a job.
    */
   leaseJob: async (workerId: string, leaseTimeMinutes: number = 15) => {
-    const db = getDb();
+    const pool = getApiPool();
+    const client = await pool.connect();
 
-    // PG uses internal 'now() - interval' syntax which translateSql handles
-    const leaseExpirySql = `now() - interval '${leaseTimeMinutes} minutes'`;
+    try {
+      await client.query('BEGIN');
+      const leaseExpirySql = `CURRENT_TIMESTAMP - INTERVAL '${leaseTimeMinutes} minutes'`;
 
-    return await db.transaction(async (client) => {
-      // Use FOR UPDATE SKIP LOCKED for high-concurrency safety
       const findSql = `
         SELECT id FROM processing_jobs 
         WHERE (status = 'queued' OR (status = 'running' AND locked_at < ${leaseExpirySql}))
@@ -110,7 +120,10 @@ export const jobsRepository = {
 
       const res = await client.query(findSql);
       const job = res.rows[0];
-      if (!job) return null;
+      if (!job) {
+        await client.query('ROLLBACK');
+        return null;
+      }
 
       const lockSql = `
         UPDATE processing_jobs 
@@ -124,7 +137,13 @@ export const jobsRepository = {
       `;
 
       const updateRes = await client.query(lockSql, [workerId, job.id]);
+      await client.query('COMMIT');
       return updateRes.rows[0] as ProcessingJob;
-    })();
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
   },
 };

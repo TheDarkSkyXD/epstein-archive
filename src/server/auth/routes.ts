@@ -1,7 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { getDb } from '../db/connection.js';
+import { getApiPool } from '../db/connection.js';
 import { authenticateRequest, optionalAuthenticate } from './middleware.js';
 
 import rateLimit from 'express-rate-limit';
@@ -40,7 +40,7 @@ const generateRefreshToken = (user: any) => {
 };
 
 // POST /api/auth/login
-router.post('/login', authLimiter, (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
   const { username, password } = req.body;
 
   if (!username || !password) {
@@ -48,8 +48,9 @@ router.post('/login', authLimiter, (req, res) => {
   }
 
   try {
-    const db = getDb();
-    const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username) as any;
+    const pool = getApiPool();
+    const { rows } = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+    const user = rows[0];
 
     if (!user || !user.password_hash || !bcrypt.compareSync(password, user.password_hash)) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -60,7 +61,7 @@ router.post('/login', authLimiter, (req, res) => {
     const refreshToken = generateRefreshToken(user);
 
     // Update last_active
-    db.prepare('UPDATE users SET last_active = CURRENT_TIMESTAMP WHERE id = ?').run(user.id);
+    await pool.query('UPDATE users SET last_active = CURRENT_TIMESTAMP WHERE id = $1', [user.id]);
 
     // Set Refresh Token in Secure Cookie
     res.cookie('refreshToken', refreshToken, {
@@ -85,7 +86,7 @@ router.post('/login', authLimiter, (req, res) => {
 });
 
 // POST /api/auth/refresh
-router.post('/refresh', authLimiter, (req, res) => {
+router.post('/refresh', authLimiter, async (req, res) => {
   const refreshToken = req.cookies.refreshToken;
 
   if (!refreshToken) {
@@ -94,8 +95,9 @@ router.post('/refresh', authLimiter, (req, res) => {
 
   try {
     const decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET) as any;
-    const db = getDb();
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(decoded.id) as any;
+    const pool = getApiPool();
+    const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [decoded.id]);
+    const user = rows[0];
 
     if (!user) {
       return res.status(401).json({ error: 'User not found' });
@@ -131,7 +133,7 @@ router.get('/me', optionalAuthenticate, (req: any, res) => {
 });
 
 // POST /api/auth/change-password
-router.post('/change-password', authenticateRequest, (req: any, res) => {
+router.post('/change-password', authenticateRequest, async (req: any, res) => {
   const { currentPassword, newPassword } = req.body;
 
   if (!newPassword || newPassword.length < 8) {
@@ -139,15 +141,16 @@ router.post('/change-password', authenticateRequest, (req: any, res) => {
   }
 
   try {
-    const db = getDb();
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id) as any;
+    const pool = getApiPool();
+    const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    const user = rows[0];
 
     if (!user || !bcrypt.compareSync(currentPassword, user.password_hash)) {
       return res.status(401).json({ error: 'Incorrect current password' });
     }
 
     const newHash = bcrypt.hashSync(newPassword, 12); // Slightly higher rounds for prod
-    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(newHash, req.user.id);
+    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [newHash, req.user.id]);
 
     res.json({ success: true });
   } catch (e) {

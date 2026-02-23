@@ -1,4 +1,4 @@
-import { getDb } from '../db/connection.js';
+import { getApiPool } from '../db/connection.js';
 
 export interface AuditLogEntry {
   actorId: string;
@@ -16,22 +16,23 @@ export const ContentAccessService = {
    * Log an access event to the audit table.
    */
   async logAccess(entry: AuditLogEntry): Promise<void> {
-    const db = getDb();
-    db.prepare(
+    const pool = getApiPool();
+    await pool.query(
       `
       INSERT INTO content_access_audit (
         actor_id, actor_type, action, target_type, target_id, reason, ip_address, user_agent
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     `,
-    ).run(
-      entry.actorId,
-      entry.actorType,
-      entry.action,
-      entry.targetType,
-      entry.targetId,
-      entry.reason || null,
-      entry.ipAddress || null,
-      entry.userAgent || null,
+      [
+        entry.actorId,
+        entry.actorType,
+        entry.action,
+        entry.targetType,
+        entry.targetId,
+        entry.reason || null,
+        entry.ipAddress || null,
+        entry.userAgent || null,
+      ],
     );
   },
 
@@ -44,12 +45,13 @@ export const ContentAccessService = {
     actorId: string,
     reason?: string,
   ): Promise<{ allowed: boolean; message?: string }> {
-    const db = getDb();
+    const pool = getApiPool();
 
     // Check if document is quarantined
-    const doc = db
-      .prepare('SELECT quarantine_status FROM documents WHERE id = ?')
-      .get(documentId) as { quarantine_status: string } | undefined;
+    const { rows } = await pool.query('SELECT quarantine_status FROM documents WHERE id = $1', [
+      documentId,
+    ]);
+    const doc = rows[0];
 
     if (!doc) {
       return { allowed: false, message: 'Document not found' };

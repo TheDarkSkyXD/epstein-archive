@@ -84,6 +84,11 @@ node --import tsx/esm scripts/pg_explain.ts || (echo "❌ Postgres Explain Plan 
 echo "Restarting application..."
 pm2 stop epstein-archive || true
 pm2 delete epstein-archive || true
+
+# Nuclear Option: Ensure port 3012 is free
+echo "Ensuring port 3012 is free..."
+lsof -t -i:3012 | xargs -r kill -9 || true
+
 # --wait-ready blocks until process.send('ready') or listen_timeout
 pm2 start ecosystem.config.cjs --only epstein-archive --env production --wait-ready
 

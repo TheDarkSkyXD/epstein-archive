@@ -156,35 +156,71 @@ export const documentsRepository = {
         ? filters.source.split(',').map((s) => s.trim())
         : null;
 
-    const docs = await (documentsQueries.getDocuments as any).run(
-      {
-        search: search ? `%${search}%` : null,
-        fileTypes,
-        evidenceType:
-          filters.evidenceType && filters.evidenceType !== 'all' ? filters.evidenceType : null,
-        sources,
-        startDate: filters.startDate || null,
-        endDate: filters.endDate || null,
-        hasFailedRedactions: filters.hasFailedRedactions ? 1 : null,
-        minRedFlag: filters.minRedFlag || null,
-        maxRedFlag: filters.maxRedFlag || null,
-        sortBy: filters.sortBy || 'red_flag',
-        limit: limit,
-        offset: offset,
-      },
-      getApiPool(),
-    );
+    const evidenceType =
+      filters.evidenceType && filters.evidenceType !== 'all' ? filters.evidenceType : null;
+    const sortBy = filters.sortBy || 'red_flag';
+    const docsSql = `
+      SELECT
+        id,
+        file_name as "fileName",
+        file_type as "fileType",
+        file_size as "fileSize",
+        date_created as "dateCreated",
+        content_refined as "contentRefined",
+        evidence_type as "evidenceType",
+        metadata_json as "metadata",
+        word_count as "wordCount",
+        red_flag_rating as "redFlagRating",
+        COALESCE(NULLIF(title, ''), file_name) as "title",
+        source_collection as "sourceCollection"
+      FROM documents
+      WHERE ($1::text IS NULL OR file_name ILIKE $1 OR content_refined ILIKE $1 OR source_collection ILIKE $1 OR file_path ILIKE $1)
+        AND (file_type = ANY($2::text[]) OR $2::text[] IS NULL)
+        AND (evidence_type = $3::text OR $3::text IS NULL)
+        AND (source_collection = ANY($4::text[]) OR $4::text[] IS NULL)
+        AND (date_created >= $5::timestamp OR $5::timestamp IS NULL)
+        AND (date_created <= $6::timestamp OR $6::timestamp IS NULL)
+        AND (has_failed_redactions = 1 OR $7::int IS NULL)
+        AND (red_flag_rating >= $8::int OR $8::int IS NULL)
+        AND (red_flag_rating <= $9::int OR $9::int IS NULL)
+      ORDER BY
+        CASE WHEN $10::text = 'date' THEN date_created END DESC,
+        CASE WHEN $10::text = 'title' THEN file_name END ASC,
+        CASE WHEN $10::text = 'red_flag' OR $10::text IS NULL THEN red_flag_rating END DESC,
+        date_created DESC
+      LIMIT $11::int OFFSET $12::int
+    `;
+    const docsRes = await getApiPool().query(docsSql, [
+      search ? `%${search}%` : null,
+      fileTypes,
+      evidenceType,
+      sources,
+      filters.startDate || null,
+      filters.endDate || null,
+      filters.hasFailedRedactions ? 1 : null,
+      filters.minRedFlag || null,
+      filters.maxRedFlag || null,
+      sortBy,
+      limit,
+      offset,
+    ]);
+    const docs = docsRes.rows as any[];
 
-    const countResult = await (documentsQueries.countDocuments as any).run(
-      {
-        search: search ? `%${search}%` : null,
-        fileTypes,
-        evidenceType:
-          filters.evidenceType && filters.evidenceType !== 'all' ? filters.evidenceType : null,
-        sources,
-      },
-      getApiPool(),
-    );
+    const countSql = `
+      SELECT COUNT(*) as total
+      FROM documents
+      WHERE ($1::text IS NULL OR file_name ILIKE $1 OR content_refined ILIKE $1 OR source_collection ILIKE $1 OR file_path ILIKE $1)
+        AND (file_type = ANY($2::text[]) OR $2::text[] IS NULL)
+        AND (evidence_type = $3::text OR $3::text IS NULL)
+        AND (source_collection = ANY($4::text[]) OR $4::text[] IS NULL)
+    `;
+    const countResultRes = await getApiPool().query(countSql, [
+      search ? `%${search}%` : null,
+      fileTypes,
+      evidenceType,
+      sources,
+    ]);
+    const countResult = countResultRes.rows as Array<{ total?: string | number | null }>;
 
     const total = Number(countResult[0]?.total || 0);
 

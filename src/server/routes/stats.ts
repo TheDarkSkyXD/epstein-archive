@@ -115,8 +115,6 @@ router.get('/health', async (_req, res) => {
 // O(1) Instantaneous Readiness Check (STEP 1)
 router.get('/health/ready', async (_req, res) => {
   try {
-    const pool = getApiPool();
-
     const pingPromise = pingDatabase();
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('timeout')), 50),
@@ -142,10 +140,7 @@ router.get('/health/deep', async (_req, res) => {
   let overallStatus: 'healthy' | 'degraded' | 'critical' = 'healthy';
 
   const startTime = Date.now();
-
   try {
-    const pool = getApiPool();
-
     // 1. Database connection check
     const dbStart = Date.now();
     try {

@@ -55,17 +55,15 @@ export const bulkOperationsRepository = {
         // Insert documents and mentions
         if (entityData.fileReferences && entityData.fileReferences.length > 0) {
           for (const fileRef of entityData.fileReferences) {
-            let documentId: number | bigint;
-
             const { rows: existingDocs } = await client.query(
               'SELECT id FROM documents WHERE file_path = $1',
               [fileRef.filePath],
             );
 
             if (existingDocs.length > 0) {
-              documentId = existingDocs[0].id;
+              // Document exists
             } else {
-              const { rows: docRows } = await client.query(
+              await client.query(
                 `
                 INSERT INTO documents (file_name, file_path, file_type, file_size, date_created, content, metadata_json, word_count, red_flag_rating, content_hash)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -84,7 +82,6 @@ export const bulkOperationsRepository = {
                   fileRef.md5Hash || '',
                 ],
               );
-              documentId = docRows[0].id;
             }
           }
         }

@@ -224,6 +224,7 @@ export const propertiesRepository = {
     const params = searchTerms.map((t) => `%${t}%`);
 
     // Postgres simple matching logic - counting how many terms match via subquery
+    /*
     const sql = `
       SELECT id, full_name, 
         (SELECT COUNT(*) FROM (
@@ -235,7 +236,7 @@ export const propertiesRepository = {
       ORDER BY red_flag_rating DESC
       LIMIT 5
     `;
-
+    */
     // Note: The count logic above is simplified for the migration.
     // In Postgres, we should ideally use Word Similarity or TSVector for scores.
     // Keeping it simple to match the functional requirement.

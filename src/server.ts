@@ -3203,7 +3203,7 @@ app.put(
       }
 
       const results = [];
-      const pool = getApiPool();
+      // const pool = getApiPool();
 
       // Process each image
       for (const imageId of imageIds) {
@@ -3403,7 +3403,6 @@ app.put(
       }
 
       const results = [];
-      const pool = getApiPool();
 
       // Process each image
       for (const imageId of imageIds) {

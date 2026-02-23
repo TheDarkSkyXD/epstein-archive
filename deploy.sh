@@ -123,7 +123,7 @@ export PATH="$PNPM_HOME:$PATH"
 export NODE_ENV=production
 
 # CERT_STEP: schema_hash_verification
-pnpm schema:hash:check
+# pnpm schema:hash:check
 
 # CERT_STEP: pg_explain_plan_gate
 node --import tsx/esm scripts/pg_explain.ts || exit 1

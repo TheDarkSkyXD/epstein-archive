@@ -1,6 +1,4 @@
 import { getApiPool } from './connection.js';
-import pg from 'pg';
-
 export interface ProcessingJob {
   id: number;
   run_id: number;

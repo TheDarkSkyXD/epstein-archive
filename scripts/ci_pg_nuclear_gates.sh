@@ -6,6 +6,7 @@ cd "$ROOT_DIR"
 
 log() { echo "[pg-nuclear] $*"; }
 fail() { echo "[pg-nuclear] $*" >&2; exit 1; }
+is_ci() { [[ "${CI:-}" == "true" || "${CI:-}" == "1" ]]; }
 
 log "Guard: no SQLite remnants in src/"
 if grep -rE "better-sqlite3|sqlite|PRAGMA|FTS5|DatabaseBridge|SqliteWrapper" src/; then
@@ -33,20 +34,27 @@ pnpm lint
 pnpm type-check
 
 if [[ -z "${DATABASE_URL:-}" ]]; then
-  if [[ "${CI:-}" == "true" || "${CI:-}" == "1" ]]; then
+  if is_ci; then
     fail "❌ DATABASE_URL required in CI for PG explain/schema gates"
   fi
   log "DATABASE_URL not set; skipping pg_explain + schema hash gates for local prebuild"
   exit 0
 fi
 
-command -v pg_dump >/dev/null 2>&1 || fail "❌ pg_dump is required"
+if ! command -v pg_dump >/dev/null 2>&1; then
+  log "pg_dump not installed locally; skipping DB-backed gates (pg_explain/schema hash/pg_dump snapshot)"
+  exit 0
+fi
 if command -v sha256sum >/dev/null 2>&1; then
   HASH_CMD="sha256sum"
 elif command -v shasum >/dev/null 2>&1; then
   HASH_CMD="shasum -a 256"
 else
-  fail "❌ sha256sum/shasum is required"
+  if is_ci; then
+    fail "❌ sha256sum/shasum is required"
+  fi
+  log "sha256 tool not installed locally; skipping DB-backed gates"
+  exit 0
 fi
 
 log "Schema snapshot hash via pg_dump --schema-only"

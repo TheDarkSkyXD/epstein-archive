@@ -10,8 +10,6 @@ PRODUCTION_USER="deploy"
 PRODUCTION_HOST="194.195.248.217"
 PRODUCTION_PATH="/home/deploy/epstein-archive"
 SSH_KEY_PATH="$HOME/.ssh/id_glasscode"
-LOCAL_DB="epstein-archive.db"
-REMOTE_TEMP="${PRODUCTION_PATH}/epstein-archive.db.new"
 
 # Colors
 GREEN='\033[0;32m'
@@ -162,63 +160,41 @@ if [ "$DRY_RUN" = false ] && [ "$DB_ONLY" = false ]; then
 fi
 
 # ============================================
-# PHASE 1: DATABASE DEPLOYMENT (opt-in for full deploy)
+# PHASE 1: DATABASE DEPLOYMENT (PostgreSQL-only)
 # ============================================
 if [ "$DEPLOY_DB" = true ]; then
-  log_step "Phase 1: Database deployment..."
+  log_step "Phase 1: Database deployment (PostgreSQL migrations)..."
 
   if [ "$DRY_RUN" = true ]; then
-    log_warning "DRY RUN: Would upload and swap database"
+    log_warning "DRY RUN: Would run Postgres migrations on remote host"
   else
-    if [ ! -f "$LOCAL_DB" ]; then
-      log_error "Local database file not found: $LOCAL_DB"
-      exit 1
-    fi
-
-    SNAPSHOT_DB="${LOCAL_DB}.snapshot"
-    log_step "Creating consistent local snapshot..."
-    rm -f "$SNAPSHOT_DB"
-    sqlite3 "$LOCAL_DB" ".backup '$SNAPSHOT_DB'"
-
-    if [ "$SKIP_INTEGRITY" = true ]; then
-      log_warning "Skipping local integrity check (--skip-integrity)"
-    else
-      log_step "Running local PRAGMA integrity_check..."
-      if ! sqlite3 "$SNAPSHOT_DB" "PRAGMA integrity_check;" | grep -q "^ok$"; then
-        log_error "Snapshot integrity check failed."
-        rm -f "$SNAPSHOT_DB"
-        exit 1
-      fi
-      log_success "Local integrity check passed."
-    fi
-
     DEPLOY_MUTATION_STARTED=true
 
-    log_step "Uploading snapshot to remote temp path..."
-    rsync -az --progress -e "ssh -i $SSH_KEY_PATH" "$SNAPSHOT_DB" "${PRODUCTION_USER}@${PRODUCTION_HOST}:${REMOTE_TEMP}"
-    rm -f "$SNAPSHOT_DB"
-
-    log_step "Running remote PRAGMA integrity_check..."
-    ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "sqlite3 $REMOTE_TEMP 'PRAGMA integrity_check;' | grep -q '^ok$'"
-
-    log_step "Swapping database on remote host..."
     ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "
       set -e
       cd ${PRODUCTION_PATH}
-      pm2 stop epstein-archive || true
-      sleep 5
-      cp -f epstein-archive.db epstein-archive.db.bak
-      mv -f epstein-archive.db.new epstein-archive.db
+
+      export PNPM_HOME=\"/home/deploy/.local/share/pnpm\"
+      export PATH=\"\$PNPM_HOME:\$PATH\"
+      export NODE_ENV=production
+
+      echo 'Running Postgres migrations...'
+      pnpm db:migrate:pg
+      echo 'Running Postgres analyze after migrate...'
+      pnpm db:analyze
+
+      echo 'Purging legacy SQLite artifacts...'
+      rm -f epstein-archive.db epstein-archive.db.bak epstein-archive.db.snapshot || true
     "
 
     if [ "$DB_ONLY" = true ]; then
       ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "$(remote_pm2_reload_cmd)"
     fi
 
-    log_success "Database swap complete."
+    log_success "Postgres database deployment complete."
   fi
 else
-  log_step "Skipping database deployment (use --with-db or --db-only to deploy DB)"
+  log_step "Skipping database deployment (use --with-db or --db-only to run Postgres migrations)"
 fi
 
 # ============================================

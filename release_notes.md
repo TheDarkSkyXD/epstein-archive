@@ -1,3 +1,17 @@
+## v14.4.0 - 2026-02-23 - PostgreSQL-Only Cutover & SQLite Purge
+
+### Database & Deployment
+
+- Enforced Postgres as the sole production datastore; removed all SQLite-based deployment flows.
+- Replaced deploy-time SQLite snapshotting with remote `pnpm db:migrate:pg` + `pnpm db:analyze` on the production host.
+- Added automatic purge of legacy `epstein-archive.db` files on the server during `--with-db` / `--db-only` deploys.
+- Hardened CI/ops guardrails so `better-sqlite3` usage is restricted to quarantined one-off tooling only.
+
+### Reliability & Verification
+
+- Kept existing Postgres schema hash, EXPLAIN, and DTO contract tests as mandatory pre-flight for releases.
+- Verified core investigative flows (`/api/entities/:id`, `/api/documents`, `/api/investigations`, `/api/emails`, `/api/_meta/db`) against the Postgres-backed stack after deploy.
+
 ## v14.3.0 - 2026-02-22 - Entity Detail + Global Stats Incident Fix
 
 ### Incident Resolution

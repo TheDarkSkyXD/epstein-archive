@@ -78,9 +78,20 @@ export async function up(pgm) {
     { ifNotExists: true },
   );
 
-  pgm.addConstraint('entity_adjacency', 'pk_entity_adjacency', {
-    primaryKey: ['entity_id', 'neighbor_id'],
-  }); // Note: addConstraint might fail if exists, but usually safe to ignore or wrap
+  pgm.sql(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'pk_entity_adjacency'
+      ) THEN
+        ALTER TABLE entity_adjacency
+          ADD CONSTRAINT pk_entity_adjacency PRIMARY KEY (entity_id, neighbor_id);
+      END IF;
+    END;
+    $$;
+  `);
 
   pgm.createTable(
     'graph_cache_state',

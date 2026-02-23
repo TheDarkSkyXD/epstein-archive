@@ -308,6 +308,11 @@ if [ "$DEPLOY_DB" = true ]; then
       set -e
       cd ${PRODUCTION_PATH}
 
+      echo 'Syncing code from origin/main for migration phase...'
+      git fetch origin
+      git reset --hard origin/main
+      git clean -fd
+
       export PNPM_HOME=\"/home/deploy/.local/share/pnpm\"
       export PATH=\"\$PNPM_HOME:\$PATH\"
       export NODE_ENV=production
@@ -318,6 +323,9 @@ if [ "$DEPLOY_DB" = true ]; then
         set +a
       fi
       [ -n \"\${DATABASE_URL:-}\" ] || (echo '❌ DATABASE_URL missing in DB deployment phase' && exit 1)
+
+      echo 'Installing dependencies for migration phase...'
+      pnpm install --frozen-lockfile
 
       # CERT_STEP: pg_connectivity_pre_migration
       echo 'Running Postgres preflight (connectivity + extension checks)...'

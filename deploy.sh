@@ -189,8 +189,18 @@ if [ "$DRY_RUN" = false ] && [ "$DB_ONLY" = false ]; then
     log_step "Working tree is dirty; auto-committing changes before deploy..."
     git status --short
     git add -A
-    git commit -m "chore: auto-commit before deploy"
-    log_success "Auto-commit created for pending changes."
+    # Prompt for meaningful commit message if interactive, otherwise use context-aware default
+    if [ -t 0 ]; then
+      read -p "Enter commit message: " COMMIT_MSG
+      if [ -z "$COMMIT_MSG" ]; then
+        log_error "Commit message required."
+        exit 1
+      fi
+    else
+      COMMIT_MSG="deploy: auto-commit pre-deployment changes"
+    fi
+    git commit -m "$COMMIT_MSG"
+    log_success "Commit created: $COMMIT_MSG"
   fi
 
   log_step "Building locally to verify integrity..."

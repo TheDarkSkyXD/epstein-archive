@@ -1,7 +1,6 @@
 import express from 'express';
 import fs from 'fs';
 import { logAudit } from '../utils/auditLogger.js';
-// import { getDb } from '../db/connection.js';
 
 const router = express.Router();
 

@@ -6,7 +6,7 @@ import { config } from '../../config/index.js';
 import {
   getCriticalTableCounts,
   getCurrentDatabaseSizeBytes,
-  getDbMeta,
+  getDatabaseMetadata,
   getEntityAndDocumentCounts,
   getSampleEntityWithMentions,
   pingDatabase,
@@ -59,7 +59,7 @@ function withSafeStatsContract(input: any) {
 // ── /meta/db ─── Canary endpoint: database dialect, version, timeouts, pool stats
 router.get('/meta/db', async (_req, res, next) => {
   try {
-    const rows = await getDbMeta();
+    const rows = await getDatabaseMetadata();
     const metrics = await getMigrationMetrics();
     res.json({
       dialect: 'postgres',

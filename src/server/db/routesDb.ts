@@ -1,8 +1,7 @@
 import { adminQueries, analyticsQueries, graphQueries } from '@epstein/db';
 import { getApiPool } from './connection.js';
-import { getDb } from './runtime.js';
 
-export async function getDbMeta() {
+export async function getDatabaseMetadata() {
   const rows = await (adminQueries.getDbStats as any).run(undefined, getApiPool());
   return rows;
 }

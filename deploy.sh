@@ -51,6 +51,41 @@ pm2 start ecosystem.config.cjs --only epstein-archive --env production
 CMD
 }
 
+remote_db_preflight_cmd() {
+  cat <<'CMD'
+set -e
+cd /home/deploy/epstein-archive
+export PNPM_HOME="/home/deploy/.local/share/pnpm"
+export PATH="$PNPM_HOME:$PATH"
+export NODE_ENV=production
+
+# CERT_STEP: pg_connectivity_pre_migration
+pnpm db:check
+
+# CERT_STEP: extension_check_pg_stat_statements
+psql "$DATABASE_URL" -Atqc "SELECT extname FROM pg_extension WHERE extname = 'pg_stat_statements'" | grep -qx 'pg_stat_statements'
+CMD
+}
+
+remote_db_cert_gate_cmd() {
+  cat <<'CMD'
+set -e
+cd /home/deploy/epstein-archive
+export PNPM_HOME="/home/deploy/.local/share/pnpm"
+export PATH="$PNPM_HOME:$PATH"
+export NODE_ENV=production
+
+# CERT_STEP: schema_hash_verification
+pnpm schema:hash:check
+
+# CERT_STEP: pg_explain_plan_gate
+tsx scripts/pg_explain.ts
+
+# CERT_STEP: db_confirmed_healthy_before_restart
+psql "$DATABASE_URL" -Atqc "SELECT 1"
+CMD
+}
+
 # Runtime flags (used by trap/rollback)
 DEPLOY_MUTATION_STARTED=false
 ROLLBACK_IN_PROGRESS=false
@@ -180,16 +215,28 @@ if [ "$DEPLOY_DB" = true ]; then
       export PATH=\"\$PNPM_HOME:\$PATH\"
       export NODE_ENV=production
 
-      echo 'Running Postgres migrations...'
+      # CERT_STEP: pg_connectivity_pre_migration
+      echo 'Running Postgres preflight (connectivity + extension checks)...'
+      $(remote_db_preflight_cmd)
+
+      # CERT_STEP: migrations_idempotent
+      echo 'Running Postgres migrations (pass 1)...'
+      pnpm db:migrate:pg
+      echo 'Running Postgres migrations (pass 2 idempotency check)...'
       pnpm db:migrate:pg
       echo 'Running Postgres analyze after migrate...'
       pnpm db:analyze
+
+      # CERT_STEP: schema_hash_verification
+      echo 'Running DB certification gates (schema hash + explain + health)...'
+      $(remote_db_cert_gate_cmd)
 
       echo 'Purging legacy SQLite artifacts...'
       rm -f epstein-archive.db epstein-archive.db.bak epstein-archive.db.snapshot || true
     "
 
     if [ "$DB_ONLY" = true ]; then
+      # CERT_STEP: app_restart_after_db_healthy
       ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "$(remote_pm2_reload_cmd)"
     fi
 
@@ -217,6 +264,13 @@ if [ "$DB_ONLY" = false ]; then
       echo 'Saving rollback commit...'
       git rev-parse HEAD > .rollback_commit
 
+      # CERT_STEP: rollback_safety_previous_image_retained
+      echo 'Retaining previous build artifact for rollback...'
+      rm -f .rollback_dist.tgz
+      if [ -d dist ]; then
+        tar -czf .rollback_dist.tgz dist ecosystem.config.cjs package.json pnpm-lock.yaml 2>/dev/null || true
+      fi
+
       echo 'Syncing code from origin/main...'
       git fetch origin
       git reset --hard origin/main
@@ -229,6 +283,7 @@ if [ "$DB_ONLY" = false ]; then
       pnpm build:prod
     "
 
+    # CERT_STEP: app_restart_after_db_healthy
     ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "$(remote_pm2_reload_cmd)"
     log_success "Code deployment complete."
   fi
@@ -267,6 +322,17 @@ if [ "$DRY_RUN" = false ]; then
 
   if [ "$READY_SUCCESS" != true ]; then
     log_error "Readiness checks failed after $READY_MAX_RETRIES attempts."
+    perform_rollback
+    exit 1
+  fi
+
+  # CERT_STEP: health_endpoint_smoke_test
+  log_step "Running basic health smoke test..."
+  BASIC_HEALTH=$(ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "curl -sS --max-time 3 -w ' HTTP_STATUS:%{http_code}' http://localhost:3012/api/health" || echo "HTTP_STATUS:000")
+  BASIC_HEALTH_STATUS="${BASIC_HEALTH##*HTTP_STATUS:}"
+  BASIC_HEALTH_BODY="${BASIC_HEALTH% HTTP_STATUS:*}"
+  if [ "$BASIC_HEALTH_STATUS" != "200" ] || ! echo "$BASIC_HEALTH_BODY" | grep -Eq '"status"[[:space:]]*:[[:space:]]*"ok"'; then
+    log_error "Basic /api/health smoke test failed (status=${BASIC_HEALTH_STATUS})."
     perform_rollback
     exit 1
   fi

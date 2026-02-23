@@ -1,12 +1,13 @@
-import { db, adminQueries, analyticsQueries, graphQueries } from '@epstein/db';
+import { adminQueries, analyticsQueries, graphQueries } from '@epstein/db';
+import { getApiPool, getDb } from './connection.js';
 
 export async function getDbMeta() {
-  const rows = await adminQueries.getDbStats.run(undefined, db);
+  const rows = await (adminQueries.getDbStats as any).run(undefined, getApiPool());
   return rows;
 }
 
 export async function getEntityAndDocumentCounts() {
-  const rows = await analyticsQueries.getTotalCounts.run(undefined, db);
+  const rows = await (analyticsQueries.getTotalCounts as any).run(undefined, getApiPool());
   const counts = rows[0];
   return {
     entities: Number(counts?.entities || 0),
@@ -15,7 +16,17 @@ export async function getEntityAndDocumentCounts() {
 }
 
 export async function pingDatabase() {
-  await db.query('SELECT 1');
+  await getApiPool().query('SELECT 1');
+}
+
+export async function getCurrentDatabaseSizeBytes(): Promise<number | null> {
+  const { rows } = await getApiPool().query<{ size_bytes: string | number | null }>(
+    'SELECT pg_database_size(current_database()) AS size_bytes',
+  );
+  const raw = rows[0]?.size_bytes;
+  if (raw === null || raw === undefined) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
 }
 
 export async function getCriticalTableCounts(tables: string[]) {
@@ -30,7 +41,7 @@ export async function getCriticalTableCounts(tables: string[]) {
   for (const table of tables) {
     try {
       // Use raw query for dynamic table name safely here since this is an admin/internal tool
-      const { rows } = await db.query(`SELECT COUNT(*) as count FROM ${table}`);
+      const { rows } = await getApiPool().query(`SELECT COUNT(*) as count FROM ${table}`);
       results[table] = { ok: true, count: Number(rows[0].count) };
     } catch (e: any) {
       results[table] = { ok: false, count: 0, error: e.message };
@@ -40,7 +51,9 @@ export async function getCriticalTableCounts(tables: string[]) {
 }
 
 export async function getSampleEntityWithMentions() {
-  const { rows } = await db.query('SELECT id, full_name FROM entities WHERE mentions > 0 LIMIT 1');
+  const { rows } = await getApiPool().query(
+    'SELECT id, full_name FROM entities WHERE mentions > 0 LIMIT 1',
+  );
   return rows[0] as { id: number; full_name: string } | undefined;
 }
 
@@ -52,7 +65,7 @@ export async function insertUploadedDocument(params: {
   title: string;
   metadataJson: string;
 }) {
-  const { rows } = await db.query(
+  const { rows } = await getApiPool().query(
     `
       INSERT INTO documents (
         file_name, 
@@ -79,7 +92,7 @@ export async function insertUploadedDocument(params: {
 }
 
 export async function getEvidenceTypes() {
-  const { rows } = await db.query(
+  const { rows } = await getApiPool().query(
     `
       SELECT evidence_type as type, COUNT(*) as count 
       FROM documents 
@@ -91,17 +104,17 @@ export async function getEvidenceTypes() {
 }
 
 export async function resetJunkFlags() {
-  const rows = await adminQueries.resetJunkFlags.run(undefined, db);
+  const rows = await (adminQueries.resetJunkFlags as any).run(undefined, getApiPool());
   return rows.length; // Or return total count if we change resetJunkFlags to return count
 }
 
 export async function listUsers() {
-  const rows = await adminQueries.listUsers.run(undefined, db);
+  const rows = await (adminQueries.listUsers as any).run(undefined, getApiPool());
   return rows;
 }
 
 export async function getUserById(id: string) {
-  const rows = await adminQueries.getUserById.run({ id }, db);
+  const rows = await (adminQueries.getUserById as any).run({ id }, getApiPool());
   return rows[0];
 }
 
@@ -112,7 +125,7 @@ export async function createUser(params: {
   role: string;
   passwordHash: string;
 }) {
-  await adminQueries.createUser.run(params, db);
+  await (adminQueries.createUser as any).run(params, getApiPool());
 }
 
 export async function updateUser(
@@ -149,13 +162,16 @@ export async function updateUser(
   }
 
   params.push(id);
-  await db.query(`UPDATE users SET ${updates.join(', ')} WHERE id = $${params.length}`, params);
+  await getApiPool().query(
+    `UPDATE users SET ${updates.join(', ')} WHERE id = $${params.length}`,
+    params,
+  );
 }
 
 // DEPRECATED: Review Queue logic moved to reviewQueueRepository.ts
 
 export async function getMapEntities(minRisk: number, limit: number) {
-  return graphQueries.getMapEntities.run({ minRisk, limit }, db);
+  return (graphQueries.getMapEntities as any).run({ minRisk, limit }, getApiPool());
 }
 
 export interface WebVitalsPayload {
@@ -168,19 +184,204 @@ export interface WebVitalsPayload {
 }
 
 export async function recordWebVitals(payload: WebVitalsPayload) {
-  await analyticsQueries.recordWebVitals.run(payload, db);
+  await (analyticsQueries.recordWebVitals as any).run(payload, getApiPool());
 }
 
 export async function getWebVitalsAggregates(days: number) {
-  return analyticsQueries.getWebVitalsAggregates.run({ days: days.toString() }, db);
+  return (analyticsQueries.getWebVitalsAggregates as any).run(
+    { days: days.toString() },
+    getApiPool(),
+  );
 }
 
 export async function getWebVitalsAggregatesAverage(days: number) {
-  return analyticsQueries.getWebVitalsAggregatesAverage.run({ days: days.toString() }, db);
+  return (analyticsQueries.getWebVitalsAggregatesAverage as any).run(
+    { days: days.toString() },
+    getApiPool(),
+  );
 }
 
 export async function getGraphCommunities() {
-  return graphQueries.getGraphCommunities.run(undefined, db);
+  return (graphQueries.getGraphCommunities as any).run(undefined, getApiPool());
+}
+
+export async function getEmailThreadMessageHeaders(threadId: string) {
+  const db = getDb();
+  return (await db
+    .prepare(
+      `
+      SELECT
+        d.id AS "messageId",
+        COALESCE(
+          json_extract(d.metadata_json, '$.thread_id'),
+          json_extract(d.metadata_json, '$.threadId'),
+          json_extract(d.metadata_json, '$.conversation_id'),
+          json_extract(d.metadata_json, '$.message_id'),
+          CAST(d.id AS TEXT)
+        ) AS "threadId",
+        COALESCE(json_extract(d.metadata_json, '$.subject'), d.file_name, d.title, 'No Subject') AS subject,
+        COALESCE(json_extract(d.metadata_json, '$.from'), '') AS "fromAddress",
+        COALESCE(json_extract(d.metadata_json, '$.to'), '') AS "toAddresses",
+        COALESCE(json_extract(d.metadata_json, '$.cc'), '') AS "ccAddresses",
+        COALESCE(d.date_created, '1970-01-01T00:00:00.000Z') AS "dateCreated",
+        COALESCE(d.content_refined, '') AS snippet,
+        CASE WHEN CAST(COALESCE(json_extract(d.metadata_json, '$.attachments_count'), '0') AS INTEGER) > 0 THEN 1 ELSE 0 END AS "hasAttachments",
+        COALESCE(json_extract(d.metadata_json, '$.attachments'), '[]') AS "attachmentsMetaRaw",
+        NULL AS "ingestRunId",
+        NULL AS "pipelineVersion",
+        COALESCE(json_extract(d.metadata_json, '$.confidence'), json_extract(d.metadata_json, '$.significance_score')) AS confidence,
+        COALESCE(json_extract(d.metadata_json, '$.ladder'), json_extract(d.metadata_json, '$.evidence_ladder')) AS ladder,
+        COALESCE(json_extract(d.metadata_json, '$.was_agentic'), 0) AS "wasAgentic",
+        d.red_flag_rating AS "redFlagRating"
+      FROM documents d
+      WHERE d.evidence_type = 'email'
+        AND COALESCE(
+          json_extract(d.metadata_json, '$.thread_id'),
+          json_extract(d.metadata_json, '$.threadId'),
+          json_extract(d.metadata_json, '$.conversation_id'),
+          json_extract(d.metadata_json, '$.message_id'),
+          CAST(d.id AS TEXT)
+        ) = ?
+      ORDER BY "dateCreated" ASC, d.id ASC
+      `,
+    )
+    .all(threadId)) as any[];
+}
+
+export async function getEmailLinkedEntitiesForMessages(messageIds: number[]) {
+  if (messageIds.length === 0) return [];
+  const db = getDb();
+  return (await db
+    .prepare(
+      `
+        SELECT
+          em.document_id AS "messageId",
+          em.entity_id AS "entityId",
+          e.full_name AS name,
+          e.primary_role AS role
+        FROM entity_mentions em
+        JOIN entities e ON e.id = em.entity_id
+        WHERE em.document_id IN (${messageIds.map(() => '?').join(',')})
+        ORDER BY em.document_id ASC, e.full_name ASC
+      `,
+    )
+    .all(...messageIds)) as any[];
+}
+
+export async function getEmailMessageBodyRecord(messageId: string) {
+  const db = getDb();
+  return (await db
+    .prepare(
+      `
+      SELECT
+        d.id,
+        d.content,
+        d.content_refined AS content_preview,
+        d.metadata_json,
+        NULL AS "ingestRunId",
+        NULL AS "pipelineVersion",
+        d.date_created AS "dateCreated",
+        d.file_name AS "fileName",
+        d.file_path AS "filePath"
+      FROM documents d
+      WHERE d.evidence_type = 'email' AND d.id = ?
+      LIMIT 1
+      `,
+    )
+    .get(messageId)) as any;
+}
+
+export async function getEmailMessageThreadPointer(messageId: string) {
+  const db = getDb();
+  return (await db
+    .prepare(
+      `
+      SELECT
+        id,
+        metadata_json
+      FROM documents
+      WHERE evidence_type = 'email' AND id = ?
+      LIMIT 1
+      `,
+    )
+    .get(messageId)) as any;
+}
+
+export async function getEmailRawMessageRecord(messageId: string) {
+  const db = getDb();
+  return (await db
+    .prepare(
+      `
+      SELECT id, content, metadata_json
+      FROM documents
+      WHERE evidence_type = 'email' AND id = ?
+      LIMIT 1
+      `,
+    )
+    .get(messageId)) as any;
+}
+
+export async function searchEmailMessagesLegacy(params: {
+  q: string;
+  mailboxEntityId?: number | null;
+  limit: number;
+}) {
+  const db = getDb();
+  let mailboxClause = '';
+  const sqlParams: Array<string | number> = [];
+  if (
+    params.mailboxEntityId &&
+    Number.isFinite(params.mailboxEntityId) &&
+    params.mailboxEntityId > 0
+  ) {
+    mailboxClause = `
+      AND EXISTS (
+        SELECT 1 FROM entity_mentions em
+        WHERE em.document_id = d.id AND em.entity_id = ?
+      )
+    `;
+    sqlParams.push(params.mailboxEntityId);
+  }
+
+  const like = `%${params.q.toLowerCase()}%`;
+  const sql = `
+      SELECT
+        d.id AS messageId,
+        COALESCE(
+          json_extract(d.metadata_json, '$.thread_id'),
+          json_extract(d.metadata_json, '$.threadId'),
+          json_extract(d.metadata_json, '$.conversation_id'),
+          json_extract(d.metadata_json, '$.message_id'),
+          CAST(d.id AS TEXT)
+        ) AS threadId,
+        COALESCE(json_extract(d.metadata_json, '$.subject'), d.file_name, d.title, 'No Subject') AS subject,
+        COALESCE(json_extract(d.metadata_json, '$.from'), '') AS fromAddress,
+        COALESCE(d.date_created, '1970-01-01T00:00:00.000Z') AS dateCreated,
+        COALESCE(d.content_refined, '') AS snippet
+      FROM documents d
+      WHERE d.evidence_type = 'email'
+        ${mailboxClause}
+        AND (
+          lower(COALESCE(json_extract(d.metadata_json, '$.subject'), '')) LIKE ?
+          OR lower(COALESCE(json_extract(d.metadata_json, '$.from'), '')) LIKE ?
+          OR lower(COALESCE(json_extract(d.metadata_json, '$.to'), '')) LIKE ?
+          OR lower(COALESCE(d.content_refined, '')) LIKE ?
+        )
+      ORDER BY COALESCE(d.date_created, '1970-01-01T00:00:00.000Z') DESC, d.id ASC
+      LIMIT ?
+    `;
+  return (await db.prepare(sql).all(...sqlParams, like, like, like, like, params.limit)) as any[];
+}
+
+export async function getEmailDocumentContentById(id: string) {
+  const db = getDb();
+  return (await db
+    .prepare(
+      `
+      SELECT content FROM documents WHERE id = ? AND evidence_type = 'email'
+      `,
+    )
+    .get(id)) as any;
 }
 
 export async function getGraphNeighbors(
@@ -188,28 +389,28 @@ export async function getGraphNeighbors(
   startDate?: string,
   endDate?: string,
 ) {
-  return graphQueries.getGraphNeighbors.run(
+  return (graphQueries.getGraphNeighbors as any).run(
     {
       sourceCanonicalId,
       startDate: startDate || null,
       endDate: endDate || null,
     },
-    db,
+    getApiPool(),
   );
 }
 
 export async function getGraphPathNodes(pathNodes: string[]) {
-  return graphQueries.getGraphPathNodes.run({ pathNodes }, db);
+  return (graphQueries.getGraphPathNodes as any).run({ pathNodes }, getApiPool());
 }
 
 export async function getGraphPathEdges(pathNodes: string[], startDate?: string, endDate?: string) {
-  return graphQueries.getGraphPathEdges.run(
+  return (graphQueries.getGraphPathEdges as any).run(
     {
       pathNodes,
       startDate: startDate || null,
       endDate: endDate || null,
     },
-    db,
+    getApiPool(),
   );
 }
 
@@ -219,14 +420,14 @@ export async function getGlobalGraphNodes(params: {
   startDate?: string;
   endDate?: string;
 }) {
-  return graphQueries.getGlobalGraphNodes.run(
+  return (graphQueries.getGlobalGraphNodes as any).run(
     {
       minRisk: params.minRisk,
       limit: params.limit,
       startDate: params.startDate || null,
       endDate: params.endDate || null,
     },
-    db,
+    getApiPool(),
   );
 }
 
@@ -235,22 +436,25 @@ export async function getGlobalGraphEdges(params: {
   startDate?: string;
   endDate?: string;
 }) {
-  return graphQueries.getGlobalGraphEdges.run(
+  return (graphQueries.getGlobalGraphEdges as any).run(
     {
       canonicalIds: params.canonicalIds,
       startDate: params.startDate || null,
       endDate: params.endDate || null,
     },
-    db,
+    getApiPool(),
   );
 }
 
 export async function getEdgeEvidenceDocuments(sourceId: string, targetId: string) {
-  return graphQueries.getEdgeEvidenceDocuments.run({ sourceId, targetId }, db);
+  return (graphQueries.getEdgeEvidenceDocuments as any).run({ sourceId, targetId }, getApiPool());
 }
 
 export async function getEdgeRelationship(sourceId: string, targetId: string) {
-  const rows = await graphQueries.getEdgeRelationship.run({ sourceId, targetId }, db);
+  const rows = await (graphQueries.getEdgeRelationship as any).run(
+    { sourceId, targetId },
+    getApiPool(),
+  );
   return rows[0];
 }
 
@@ -273,21 +477,6 @@ export interface EmailMetadata {
   category?: 'primary' | 'updates' | 'promotions';
 }
 
-interface EmailThreadRow {
-  threadId: string;
-  subject: string;
-  participantsRaw: string;
-  participantCount: number;
-  lastMessageAt: string;
-  snippet: string;
-  messageCount: number;
-  hasAttachments: number;
-  linkedEntityIdsRaw: string;
-  risk: number | null;
-  ladder: string | null;
-  confidence: number | null;
-}
-
 export async function getEmailMetadataPage(params: {
   page: number;
   limit: number;
@@ -307,7 +496,7 @@ export async function getEmailMetadataPage(params: {
   }
   const whereClause = `WHERE ${whereParts.join(' AND ')}`;
 
-  const { rows: countRows } = await db.query(
+  const { rows: countRows } = await getApiPool().query(
     `SELECT COUNT(*) as count FROM documents ${whereClause}`,
     queryParams,
   );
@@ -330,7 +519,7 @@ export async function getEmailMetadataPage(params: {
       LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
     `;
 
-  const { rows: emails } = await db.query(query, [...queryParams, limit, offset]);
+  const { rows: emails } = await getApiPool().query(query, [...queryParams, limit, offset]);
 
   return { data: emails as EmailMetadata[], total };
 }
@@ -341,7 +530,7 @@ export async function getEmailBodyById(id: string): Promise<{ body: string } | u
       FROM documents
       WHERE id = $1 AND evidence_type = 'email'
     `;
-  const { rows } = await db.query(query, [id]);
+  const { rows } = await getApiPool().query(query, [id]);
   return rows[0] as { body: string } | undefined;
 }
 
@@ -354,7 +543,7 @@ export async function getEmailCategoriesCounts(): Promise<EmailCategoriesCounts>
       WHERE evidence_type = 'email'
       GROUP BY category
     `;
-  const { rows } = await db.query(query);
+  const { rows } = await getApiPool().query(query);
 
   const counts: EmailCategoriesCounts = {
     all: 0,
@@ -480,7 +669,7 @@ const getJunkFilterClause = (showSuppressedJunk: boolean) => {
 export async function getEmailMailboxes(showSuppressedJunk: boolean) {
   const junkFilter = getJunkFilterClause(showSuppressedJunk);
 
-  const { rows: totalsRows } = await db.query(
+  const { rows: totalsRows } = await getApiPool().query(
     `
       SELECT
         COUNT(DISTINCT COALESCE(
@@ -499,7 +688,7 @@ export async function getEmailMailboxes(showSuppressedJunk: boolean) {
   );
   const totals = totalsRows[0];
 
-  const { rows } = await db.query(
+  const { rows } = await getApiPool().query(
     `
       SELECT
         em.entity_id AS "entityId",
@@ -620,7 +809,7 @@ export async function getEmailThreads(params: {
 
   const baseSql = buildThreadBaseSql(where);
 
-  const { rows: countRows } = await db.query(
+  const { rows: countRows } = await getApiPool().query(
     `SELECT COUNT(*) as total FROM (${baseSql}) threads`,
     queryParams,
   );
@@ -639,7 +828,7 @@ export async function getEmailThreads(params: {
       LIMIT $${queryParams.length + cursorParams.length + 1}
     `;
 
-  const { rows } = await db.query(listSql, [...queryParams, ...cursorParams, limit + 1]);
+  const { rows } = await getApiPool().query(listSql, [...queryParams, ...cursorParams, limit + 1]);
 
   return { rows, countRow: { total } };
 }

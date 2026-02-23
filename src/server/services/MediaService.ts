@@ -29,7 +29,7 @@ export class MediaService {
         .prepare('SELECT tablename FROM pg_catalog.pg_tables WHERE tablename = ?')
         .get(tableName)) as { tablename?: string } | undefined;
       return !!row?.tablename;
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }

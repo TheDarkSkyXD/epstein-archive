@@ -16,7 +16,7 @@ import { NetworkGraph } from '../visualizations/NetworkGraph';
 import { EvidenceDrawer } from '../visualizations/EvidenceDrawer';
 import { filterPeopleOnly } from '../../utils/entityFilters';
 import { InteractiveEntityMap } from '../visualizations/InteractiveEntityMap';
-import { useFilters } from '../../contexts/FilterContext';
+import { useFilters } from '../../contexts/useFilters';
 import { apiClient } from '../../services/apiClient';
 
 interface EnhancedAnalyticsProps {

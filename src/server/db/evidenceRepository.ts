@@ -1,40 +1,47 @@
-import { db, evidenceQueries } from '@epstein/db';
+import { evidenceQueries } from '@epstein/db';
+import { getApiPool } from './connection.js';
 
 export const evidenceRepository = {
   // Get evidence summary for a specific entity
   getEntityEvidence: async (entityId: string) => {
     // Get entity details
-    const [entity] = await evidenceQueries.getEntitySummary.run({ entityId }, db);
+    const [entity] = await (evidenceQueries.getEntitySummary as any).run(
+      { entityId },
+      getApiPool(),
+    );
 
     if (!entity) {
       return null;
     }
 
     // Get evidence linked to this entity
-    const evidenceRecords = await evidenceQueries.getEntityEvidence.run(
+    const evidenceRecords = await (evidenceQueries.getEntityEvidence as any).run(
       { entityId, limit: 100, offset: 0 },
-      db,
+      getApiPool(),
     );
 
     // Get evidence type breakdown
-    const typeBreakdown = await evidenceQueries.getEvidenceTypeBreakdownByEntity.run(
+    const typeBreakdown = await (evidenceQueries.getEvidenceTypeBreakdownByEntity as any).run(
       { entityId },
-      db,
+      getApiPool(),
     );
 
     // Get role breakdown
-    const roleBreakdown = await evidenceQueries.getRoleBreakdownByEntity.run({ entityId }, db);
+    const roleBreakdown = await (evidenceQueries.getRoleBreakdownByEntity as any).run(
+      { entityId },
+      getApiPool(),
+    );
 
     // Get red flag distribution
-    const redFlagDistribution = await evidenceQueries.getRedFlagDistributionByEntity.run(
+    const redFlagDistribution = await (evidenceQueries.getRedFlagDistributionByEntity as any).run(
       { entityId },
-      db,
+      getApiPool(),
     );
 
     // Get related entities (entities that appear in same evidence)
-    const relatedEntities = await evidenceQueries.getRelatedEntitiesByEntity.run(
+    const relatedEntities = await (evidenceQueries.getRelatedEntitiesByEntity as any).run(
       { entityId, limit: 20 },
-      db,
+      getApiPool(),
     );
 
     return {
@@ -60,12 +67,15 @@ export const evidenceRepository = {
     notes: string,
     relevance: string,
   ) => {
-    const [doc] = await evidenceQueries.getDocumentDetailsForEvidence.run({ id: documentId }, db);
+    const [doc] = await (evidenceQueries.getDocumentDetailsForEvidence as any).run(
+      { id: documentId },
+      getApiPool(),
+    );
     if (!doc) {
       throw new Error('Document not found');
     }
     const sourcePath = doc.file_path || `doc:${doc.id}`;
-    const [evidenceIdRow] = await evidenceQueries.createEvidenceFull.run(
+    const [evidenceIdRow] = await (evidenceQueries.createEvidenceFull as any).run(
       {
         evidenceType: doc.evidence_type || 'investigative_report',
         sourcePath,
@@ -77,21 +87,24 @@ export const evidenceRepository = {
         evidenceTags: '[]',
         metadata: JSON.stringify({ document_id: doc.id }),
       },
-      db,
+      getApiPool(),
     );
     const evidenceId = String(evidenceIdRow.id);
 
-    const [link] = await evidenceQueries.addEvidenceToInvestigation.run(
+    const [link] = await (evidenceQueries.addEvidenceToInvestigation as any).run(
       {
         investigationId,
         evidenceId,
         notes: notes || '',
         relevance: relevance || 'medium',
       },
-      db,
+      getApiPool(),
     );
 
-    const [evidence] = await evidenceQueries.getEvidenceByIdDetailed.run({ id: evidenceId }, db);
+    const [evidence] = await (evidenceQueries.getEvidenceByIdDetailed as any).run(
+      { id: evidenceId },
+      getApiPool(),
+    );
     return {
       investigationEvidenceId: link.id,
       evidence,
@@ -106,24 +119,30 @@ export const evidenceRepository = {
     relevance: string,
   ) => {
     // Get evidence details
-    const [evidence] = await evidenceQueries.getEvidenceByIdDetailed.run({ id: evidenceId }, db);
+    const [evidence] = await (evidenceQueries.getEvidenceByIdDetailed as any).run(
+      { id: evidenceId },
+      getApiPool(),
+    );
 
     if (!evidence) {
       throw new Error('Evidence not found');
     }
 
     // Get entities linked to this evidence
-    const entities = await evidenceQueries.getEvidenceEntities.run({ evidenceId }, db);
+    const entities = await (evidenceQueries.getEvidenceEntities as any).run(
+      { evidenceId },
+      getApiPool(),
+    );
 
     // Insert into investigation_evidence table
-    const [result] = await evidenceQueries.addEvidenceToInvestigation.run(
+    const [result] = await (evidenceQueries.addEvidenceToInvestigation as any).run(
       {
         investigationId,
         evidenceId,
         notes: notes || '',
         relevance: relevance || 'medium',
       },
-      db,
+      getApiPool(),
     );
 
     return {
@@ -138,12 +157,18 @@ export const evidenceRepository = {
     notes: string,
     relevance: string,
   ) => {
-    const [media] = await evidenceQueries.getMediaItemForEvidence.run({ id: mediaItemId }, db);
+    const [media] = await (evidenceQueries.getMediaItemForEvidence as any).run(
+      { id: mediaItemId },
+      getApiPool(),
+    );
     if (!media) {
       throw new Error('Media not found');
     }
     const sourcePath = media.filePath;
-    const [existing] = await evidenceQueries.getEvidenceBySourcePath.run({ sourcePath }, db);
+    const [existing] = await (evidenceQueries.getEvidenceBySourcePath as any).run(
+      { sourcePath },
+      getApiPool(),
+    );
 
     let evidenceId: string;
     if (existing) {
@@ -166,10 +191,13 @@ export const evidenceRepository = {
       const evidenceType =
         media.fileType === 'audio' ? 'audio' : media.fileType === 'video' ? 'video' : 'media_scan';
 
-      const tags = await evidenceQueries.getMediaItemTags.run({ mediaItemId }, db);
-      const evidenceTags = JSON.stringify(tags.map((t) => t.name));
+      const tags = await (evidenceQueries.getMediaItemTags as any).run(
+        { mediaItemId },
+        getApiPool(),
+      );
+      const evidenceTags = JSON.stringify(tags.map((t: any) => t.name));
 
-      const [ins] = await evidenceQueries.createEvidenceFull.run(
+      const [ins] = await (evidenceQueries.createEvidenceFull as any).run(
         {
           evidenceType,
           sourcePath,
@@ -186,13 +214,16 @@ export const evidenceRepository = {
             chapters: metadata.chapters,
           }),
         },
-        db,
+        getApiPool(),
       );
       evidenceId = String(ins.id);
 
-      const people = await evidenceQueries.getMediaItemPeople.run({ mediaItemId }, db);
+      const people = await (evidenceQueries.getMediaItemPeople as any).run(
+        { mediaItemId },
+        getApiPool(),
+      );
       for (const p of people) {
-        await evidenceQueries.insertEvidenceEntity.run(
+        await (evidenceQueries.insertEvidenceEntity as any).run(
           {
             evidenceId,
             entityId: String(p.entity_id),
@@ -200,22 +231,25 @@ export const evidenceRepository = {
             confidence: 0.8,
             mentionContext: '',
           },
-          db,
+          getApiPool(),
         );
       }
     }
 
-    const [res] = await evidenceQueries.addEvidenceToInvestigation.run(
+    const [res] = await (evidenceQueries.addEvidenceToInvestigation as any).run(
       {
         investigationId,
         evidenceId,
         notes: notes || '',
         relevance: relevance || 'medium',
       },
-      db,
+      getApiPool(),
     );
 
-    const [evidence] = await evidenceQueries.getEvidenceByIdDetailed.run({ id: evidenceId }, db);
+    const [evidence] = await (evidenceQueries.getEvidenceByIdDetailed as any).run(
+      { id: evidenceId },
+      getApiPool(),
+    );
     return {
       investigationEvidenceId: res.id,
       evidence,
@@ -225,15 +259,15 @@ export const evidenceRepository = {
   // Get evidence summary for an investigation
   getInvestigationEvidenceSummary: async (investigationId: string) => {
     // Get all evidence for this investigation
-    const evidence = await evidenceQueries.getInvestigationEvidenceSummary.run(
+    const evidence = await (evidenceQueries.getInvestigationEvidenceSummary as any).run(
       { investigationId },
-      db,
+      getApiPool(),
     );
 
     // Get entity coverage
-    const entityCoverage = await evidenceQueries.getInvestigationEntityCoverage.run(
+    const entityCoverage = await (evidenceQueries.getInvestigationEntityCoverage as any).run(
       { investigationId, limit: 50 },
-      db,
+      getApiPool(),
     );
 
     return {
@@ -253,9 +287,9 @@ export const evidenceRepository = {
 
   // Remove evidence from an investigation
   removeEvidenceFromInvestigation: async (investigationEvidenceId: string) => {
-    const result = await evidenceQueries.removeEvidenceFromInvestigation.run(
+    const result = await (evidenceQueries.removeEvidenceFromInvestigation as any).run(
       { id: investigationEvidenceId },
-      db,
+      getApiPool(),
     );
     return result.length > 0;
   },
@@ -268,7 +302,6 @@ export const evidenceRepository = {
     dateFrom?: string;
     dateTo?: string;
     redFlagMin?: string;
-    tags?: string;
     page?: string;
     limit?: string;
   }) => {
@@ -279,7 +312,6 @@ export const evidenceRepository = {
       dateFrom,
       dateTo,
       redFlagMin,
-      tags,
       page = '1',
       limit = '20',
     } = params;
@@ -288,7 +320,7 @@ export const evidenceRepository = {
     const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
     const offset = (pageNum - 1) * limitNum;
 
-    const results = await evidenceQueries.searchEvidenceFull.run(
+    const results = await (evidenceQueries.searchEvidenceFull as any).run(
       {
         query: q || '',
         type: type || null,
@@ -299,10 +331,10 @@ export const evidenceRepository = {
         limit: limitNum,
         offset: offset,
       },
-      db,
+      getApiPool(),
     );
 
-    const [{ total }] = await evidenceQueries.countSearchEvidenceFull.run(
+    const [{ total }] = await (evidenceQueries.countSearchEvidenceFull as any).run(
       {
         query: q || '',
         type: type || null,
@@ -311,15 +343,15 @@ export const evidenceRepository = {
         dateTo: dateTo || null,
         redFlagMin: redFlagMin ? Number(redFlagMin) : null,
       },
-      db,
+      getApiPool(),
     );
 
     // Enrich with entities
     const finalResults = await Promise.all(
       results.map(async (result: any) => {
-        const entities = await evidenceQueries.getEvidenceEntities.run(
+        const entities = await (evidenceQueries.getEvidenceEntities as any).run(
           { evidenceId: result.id },
-          db,
+          getApiPool(),
         );
         return {
           ...result,
@@ -350,17 +382,26 @@ export const evidenceRepository = {
 
   // Get single evidence record with full details
   getEvidenceById: async (id: string) => {
-    const [evidence] = await evidenceQueries.getEvidenceByIdDetailed.run({ id }, db);
+    const [evidence] = await (evidenceQueries.getEvidenceByIdDetailed as any).run(
+      { id },
+      getApiPool(),
+    );
 
     if (!evidence) {
       return null;
     }
 
     // Get linked entities
-    const entities = await evidenceQueries.getEvidenceEntities.run({ evidenceId: id }, db);
+    const entities = await (evidenceQueries.getEvidenceEntities as any).run(
+      { evidenceId: id },
+      getApiPool(),
+    );
 
     // Get timeline events if any
-    const events = await evidenceQueries.getEvidenceTimelineEvents.run({ evidenceId: id }, db);
+    const events = await (evidenceQueries.getEvidenceTimelineEvents as any).run(
+      { evidenceId: id },
+      getApiPool(),
+    );
 
     return {
       ...evidence,
@@ -372,7 +413,7 @@ export const evidenceRepository = {
 
   // List all evidence types with counts
   getEvidenceTypes: async () => {
-    const types = await evidenceQueries.getEvidenceTypeCounts.run(undefined, db);
+    const types = await (evidenceQueries.getEvidenceTypeCounts as any).run(undefined, getApiPool());
 
     // Add descriptions
     const typeDescriptions: Record<string, string> = {
@@ -407,22 +448,22 @@ export const evidenceRepository = {
     const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
     const offset = (pageNum - 1) * limitNum;
 
-    const results = await evidenceQueries.getEntityEvidenceDetailed.run(
+    const results = await (evidenceQueries.getEntityEvidenceDetailed as any).run(
       {
         entityId,
         type: type || null,
         limit: limitNum,
         offset: offset,
       },
-      db,
+      getApiPool(),
     );
 
-    const [{ total }] = await evidenceQueries.countEntityEvidenceDetailed.run(
+    const [{ total }] = await (evidenceQueries.countEntityEvidenceDetailed as any).run(
       {
         entityId,
         type: type || null,
       },
-      db,
+      getApiPool(),
     );
 
     const totalNum = Number(total || 0);

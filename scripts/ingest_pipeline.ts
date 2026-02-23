@@ -37,8 +37,9 @@ import { convert } from 'html-to-text';
 import AdmZip from 'adm-zip';
 import { RedactionResolver } from '../src/server/services/RedactionResolver.js';
 import { TextCleaner } from './utils/text_cleaner.js';
-import { getDb } from '../src/server/db/connection.js';
+import { getDb, getIngestDb } from '../src/server/db/connection.js';
 import { AIEnrichmentService } from '../src/server/services/AIEnrichmentService.js';
+import { markViewsDirty } from '../src/server/services/matViewRefresh.js';
 
 // ============================================================================
 // CONFIGURATION & VERSIONING
@@ -206,8 +207,8 @@ const COLLECTIONS: CollectionConfig[] = [
 let db: any;
 
 async function initDb() {
-  db = getDb();
-  console.log('✅ Database gateway initialized (Postgres)');
+  db = getIngestDb();
+  console.log('✅ Database gateway initialized (Postgres ingest pool)');
 }
 
 import { PipelineService, PipelineRun } from '../src/server/services/pipelineService.js';
@@ -1632,6 +1633,12 @@ async function main() {
   // End Pipeline Run
   await PipelineService.updateRunStatus(currentRun.id, 'succeeded');
 
+  if (stats.totalProcessed > 0) {
+    await db.run('ANALYZE documents');
+    await db.run('ANALYZE entities');
+    markViewsDirty();
+  }
+
   // Collection breakdown
   console.log('\nBy Collection:');
   const collections = (await db.all(
@@ -1650,7 +1657,7 @@ async function main() {
 
 async function processQueue() {
   const jobManager = new JobManager();
-  const dbSync = getDb();
+  const dbSync = getIngestDb();
   console.log('\n📬 Processing Queue with Robust Leasing (Phase 9)...');
 
   // Enforce Exo cluster usage
@@ -1724,6 +1731,8 @@ async function processQueue() {
   if (processedCount === 0) {
     console.log('\n   (No queued jobs found)');
   } else {
+    await dbSync.run('ANALYZE documents');
+    markViewsDirty();
     console.log(`\n\n   ✅ Processed ${processedCount} queued jobs reliably.`);
   }
 }

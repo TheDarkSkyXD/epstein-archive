@@ -67,9 +67,6 @@ router.get('/:entityId/documents', async (req: Request, res: Response) => {
     const { entityId } = req.params as { entityId: string };
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 50;
-    const search = (req.query.search as string) || '';
-    const source = (req.query.source as string) || 'all';
-    const sort = (req.query.sort as string) || 'relevance';
 
     const { entitiesRepository } = await import('../db/entitiesRepository.js');
 

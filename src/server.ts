@@ -52,6 +52,7 @@ import {
   getApiPool,
   getDb,
   getMigrationMetrics,
+  getSlowQueryLogThresholdMs,
 } from './server/db/connection.js';
 import { FtsMaintenanceService } from './server/services/ftsMaintenance.js';
 import { validate, entitySchema, searchSchema } from './server/middleware/validate.js';
@@ -571,6 +572,7 @@ app.get('/api/_meta/db', async (_req, res, next) => {
       featureFlags,
       version: versionTag,
       lastMatViewRefresh,
+      slowQueryLogThresholdMs: getSlowQueryLogThresholdMs(),
     });
   } catch (error) {
     next(error);

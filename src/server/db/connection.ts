@@ -36,6 +36,11 @@ let ingressPool: pg.Pool | null = null;
 let replayPool: pg.Pool | null = null;
 
 let pgWrapper: PgWrapper | null = null;
+let ingestPgWrapper: PgWrapper | null = null;
+const SLOW_QUERY_LOG_THRESHOLD_MS = Math.max(
+  1,
+  parseInt(process.env.PG_SLOW_QUERY_LOG_MS ?? '300', 10) || 300,
+);
 
 function wrapPool(pool: pg.Pool, label: string): pg.Pool {
   const originalQuery = pool.query.bind(pool);
@@ -51,7 +56,7 @@ function wrapPool(pool: pg.Pool, label: string): pg.Pool {
       const durationMs = Date.now() - startedAt;
       const debugPg =
         process.env.DEBUG_PG && process.env.DEBUG_PG !== '0' && process.env.DEBUG_PG !== 'false';
-      const shouldLog = debugPg || durationMs > 300;
+      const shouldLog = debugPg || durationMs > SLOW_QUERY_LOG_THRESHOLD_MS;
       if (shouldLog) {
         const store = requestContext.getStore();
         const requestId = store?.requestId || 'no-req-id';
@@ -98,6 +103,17 @@ export function getMaintenancePool(): pg.Pool {
   return maintenancePool;
 }
 
+export function getIngressPool(): pg.Pool {
+  if (!ingressPool) throw new Error('PG ingest pool not initialised');
+  return ingressPool;
+}
+
+export const getIngestPool = getIngressPool;
+
+export function getSlowQueryLogThresholdMs(): number {
+  return SLOW_QUERY_LOG_THRESHOLD_MS;
+}
+
 // ─── Translation warning counter ─────────────────────────────────────────────
 // AT-2: assert count is 0 in production tests to confirm SQLite-shaped SQL is gone
 // In production, each unique translation emits CRITICAL log + sql_hash metric.
@@ -128,7 +144,9 @@ function recordTranslation(originalSql: string): void {
       `[CRITICAL] translationCount=${_translationCount} sql_hash=${sqlHash} ` +
         `SQLite-shaped SQL reached Postgres in production. SQL: ${sig}`,
     );
-    // Emit to metrics (increment counter visible on /api/_meta/db)
+    throw new Error(
+      `[FATAL] SQLite-shaped SQL translation is disabled in production (sql_hash=${sqlHash}).`,
+    );
   }
 }
 
@@ -136,6 +154,10 @@ function recordTranslation(originalSql: string): void {
 
 export function assertProductionPg(): void {
   if (process.env.NODE_ENV !== 'production') return;
+
+  if ((process.env.DB_DIALECT || '').trim().toLowerCase() !== 'postgres') {
+    throw new Error('[FATAL] DB_DIALECT=postgres is required in production. Refusing to start.');
+  }
 
   if (!process.env.DATABASE_URL?.startsWith('postgres')) {
     throw new Error(
@@ -267,7 +289,7 @@ class PgWrapper implements DbWrapper {
             process.env.DEBUG_PG &&
             process.env.DEBUG_PG !== '0' &&
             process.env.DEBUG_PG !== 'false';
-          const shouldLog = debugPg || durationMs > 300;
+          const shouldLog = debugPg || durationMs > SLOW_QUERY_LOG_THRESHOLD_MS;
           if (shouldLog) {
             const store = requestContext.getStore();
             const requestId = store?.requestId || 'no-req-id';
@@ -305,7 +327,7 @@ class PgWrapper implements DbWrapper {
             process.env.DEBUG_PG &&
             process.env.DEBUG_PG !== '0' &&
             process.env.DEBUG_PG !== 'false';
-          const shouldLog = debugPg || durationMs > 300;
+          const shouldLog = debugPg || durationMs > SLOW_QUERY_LOG_THRESHOLD_MS;
           if (shouldLog) {
             const store = requestContext.getStore();
             const requestId = store?.requestId || 'no-req-id';
@@ -343,7 +365,7 @@ class PgWrapper implements DbWrapper {
             process.env.DEBUG_PG &&
             process.env.DEBUG_PG !== '0' &&
             process.env.DEBUG_PG !== 'false';
-          const shouldLog = debugPg || durationMs > 300;
+          const shouldLog = debugPg || durationMs > SLOW_QUERY_LOG_THRESHOLD_MS;
           if (shouldLog) {
             const store = requestContext.getStore();
             const requestId = store?.requestId || 'no-req-id';
@@ -487,6 +509,17 @@ export function getDb(): DbWrapper {
 
   pgWrapper = new PgWrapper(apiPool);
   return pgWrapper;
+}
+
+export function getIngestDb(): DbWrapper {
+  if (ingestPgWrapper) return ingestPgWrapper;
+  // Ensure pools are initialised
+  getDb();
+  if (!ingressPool) {
+    throw new Error('PG ingest pool not initialised');
+  }
+  ingestPgWrapper = new PgWrapper(ingressPool);
+  return ingestPgWrapper;
 }
 
 // ─── Metrics / observability ──────────────────────────────────────────────────

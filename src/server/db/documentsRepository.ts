@@ -1,4 +1,5 @@
-import { db, documentsQueries } from '@epstein/db';
+import { documentsQueries } from '@epstein/db';
+import { getApiPool } from './connection.js';
 
 const PREVIEW_MAX_CHARS = 320;
 
@@ -155,7 +156,7 @@ export const documentsRepository = {
         ? filters.source.split(',').map((s) => s.trim())
         : null;
 
-    const docs = await documentsQueries.getDocuments.run(
+    const docs = await (documentsQueries.getDocuments as any).run(
       {
         search: search ? `%${search}%` : null,
         fileTypes,
@@ -168,13 +169,13 @@ export const documentsRepository = {
         minRedFlag: filters.minRedFlag || null,
         maxRedFlag: filters.maxRedFlag || null,
         sortBy: filters.sortBy || 'red_flag',
-        limit: BigInt(limit),
-        offset: BigInt(offset),
+        limit: limit,
+        offset: offset,
       },
-      db,
+      getApiPool(),
     );
 
-    const countResult = await documentsQueries.countDocuments.run(
+    const countResult = await (documentsQueries.countDocuments as any).run(
       {
         search: search ? `%${search}%` : null,
         fileTypes,
@@ -182,7 +183,7 @@ export const documentsRepository = {
           filters.evidenceType && filters.evidenceType !== 'all' ? filters.evidenceType : null,
         sources,
       },
-      db,
+      getApiPool(),
     );
 
     const total = Number(countResult[0]?.total || 0);
@@ -200,9 +201,9 @@ export const documentsRepository = {
         });
 
         // Get top entities
-        const entities = await documentsQueries.getDocumentEntities.run(
+        const entities = await (documentsQueries.getDocumentEntities as any).run(
           { documentId: Number(doc.id) },
-          db,
+          getApiPool(),
         );
         const entityCount = entities.reduce((acc, e) => acc + Number(e.mentions), 0);
         const keyEntities = entities.slice(0, 3).map((e) => e.name || 'Unknown');
@@ -247,7 +248,7 @@ export const documentsRepository = {
 
   getDocumentById: async (id: string): Promise<any | null> => {
     const docId = Number(id);
-    const rows = await documentsQueries.getDocumentById.run({ id: BigInt(docId) }, db);
+    const rows = await (documentsQueries.getDocumentById as any).run({ id: docId }, getApiPool());
     const document = rows[0];
 
     if (!document) return null;
@@ -263,13 +264,16 @@ export const documentsRepository = {
       metadata = document.metadataJson;
     }
 
-    const entityRows = await documentsQueries.getDocumentEntities.run({ documentId: docId }, db);
+    const entityRows = await (documentsQueries.getDocumentEntities as any).run(
+      { documentId: docId },
+      getApiPool(),
+    );
 
     const entities = [];
     for (const row of entityRows) {
-      const contextRows = await documentsQueries.getMentionContexts.run(
+      const contextRows = await (documentsQueries.getMentionContexts as any).run(
         { documentId: docId, entityId: Number(row.entityId) },
-        db,
+        getApiPool(),
       );
 
       const significance =
@@ -292,9 +296,18 @@ export const documentsRepository = {
       });
     }
 
-    const redactionSpans = await documentsQueries.getRedactionSpans.run({ documentId: docId }, db);
-    const claims = await documentsQueries.getClaimTriples.run({ documentId: docId }, db);
-    const sentences = await documentsQueries.getDocumentSentences.run({ documentId: docId }, db);
+    const redactionSpans = await (documentsQueries.getRedactionSpans as any).run(
+      { documentId: docId },
+      getApiPool(),
+    );
+    const claims = await (documentsQueries.getClaimTriples as any).run(
+      { documentId: docId },
+      getApiPool(),
+    );
+    const sentences = await (documentsQueries.getDocumentSentences as any).run(
+      { documentId: docId },
+      getApiPool(),
+    );
 
     const normalizedDocument = {
       ...document,
@@ -342,9 +355,9 @@ export const documentsRepository = {
 
   getRelatedDocuments: async (documentId: string, limit: number = 10) => {
     const docId = Number(documentId);
-    const related = await documentsQueries.getRelatedDocuments.run(
-      { documentId: docId, limit: BigInt(limit) },
-      db,
+    const related = await (documentsQueries.getRelatedDocuments as any).run(
+      { documentId: docId, limit: limit },
+      getApiPool(),
     );
 
     return related.map((doc) => ({

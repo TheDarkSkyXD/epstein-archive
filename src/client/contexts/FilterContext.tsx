@@ -1,4 +1,4 @@
-import React, { useContext, useState, ReactNode, useCallback, useEffect, useRef } from 'react';
+import React, { useState, ReactNode, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   FilterState,
@@ -65,12 +65,4 @@ export const FilterProvider = ({ children }: { children: ReactNode }) => {
       {children}
     </FilterContext.Provider>
   );
-};
-
-export const useFilters = () => {
-  const context = useContext(FilterContext);
-  if (!context) {
-    throw new Error('useFilters must be used within a FilterProvider');
-  }
-  return context;
 };

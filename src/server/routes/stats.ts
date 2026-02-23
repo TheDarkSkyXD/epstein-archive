@@ -4,6 +4,7 @@ import { getDb, getMigrationMetrics } from '../db/connection.js';
 import { config } from '../../config/index.js';
 import {
   getCriticalTableCounts,
+  getCurrentDatabaseSizeBytes,
   getDbMeta,
   getEntityAndDocumentCounts,
   getSampleEntityWithMentions,
@@ -242,12 +243,9 @@ router.get('/health/deep', async (_req, res) => {
 
     // 7. Database size check (Postgres)
     try {
-      const db = getDb();
-      const row = (await db
-        .prepare('SELECT pg_database_size(current_database()) AS size_bytes')
-        .get()) as { size_bytes?: number } | null;
-      if (row && typeof row.size_bytes === 'number') {
-        const dbSizeMB = Math.round(row.size_bytes / 1024 / 1024);
+      const sizeBytes = await getCurrentDatabaseSizeBytes();
+      if (typeof sizeBytes === 'number') {
+        const dbSizeMB = Math.round(sizeBytes / 1024 / 1024);
         checks.database_size = { status: 'pass', message: `${dbSizeMB} MB` };
       } else {
         checks.database_size = {

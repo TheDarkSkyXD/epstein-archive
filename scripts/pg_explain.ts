@@ -78,6 +78,7 @@ async function main() {
 
   const results: Record<string, any> = {};
   const regressions: string[] = [];
+  const failures: string[] = [];
 
   for (const { name, sql, params } of QUERIES) {
     console.log(`\nEXPLAIN: ${name}`);
@@ -103,6 +104,7 @@ async function main() {
       console.log(`  → OK`);
     } catch (err: any) {
       results[name] = { error: err.message };
+      failures.push(`${name}: ${err.message}`);
       console.warn(`  → FAILED: ${err.message}`);
     }
   }
@@ -110,6 +112,13 @@ async function main() {
   const outFile = `${outDir}/${ts}-${gitSha}.json`;
   fs.writeFileSync(outFile, JSON.stringify(results, null, 2));
   console.log(`\nEXPLAIN outputs written to ${outFile}`);
+
+  if (failures.length > 0) {
+    console.error('\nEXPLAIN execution failures:');
+    failures.forEach((f) => console.error(' ', f));
+    await pool.end();
+    process.exit(1);
+  }
 
   if (regressions.length > 0) {
     console.error('\nPlan Regressions Detected:');

@@ -147,6 +147,27 @@ psql "$DATABASE_URL" -c "SELECT 1" || exit 1
 CMD
 }
 
+remote_env_sanity_cmd() {
+  cat <<'CMD'
+set -e
+cd /home/deploy/epstein-archive
+export PNPM_HOME="/home/deploy/.local/share/pnpm"
+export PATH="$PNPM_HOME:$PATH"
+export NODE_ENV=production
+
+if [ -f .env ]; then
+  set -a
+  source .env
+  set +a
+fi
+[ -n "${DATABASE_URL:-}" ] || (echo "❌ DATABASE_URL missing in remote .env" && exit 1)
+
+echo "Remote env sanity (masked DATABASE_URL):"
+printf '%s\n' "$DATABASE_URL" | sed -E 's#(postgres(ql)?://[^:/]+):[^@]*@#\1:***@#'
+pnpm db:check
+CMD
+}
+
 # Runtime flags (used by trap/rollback)
 DEPLOY_MUTATION_STARTED=false
 ROLLBACK_IN_PROGRESS=false
@@ -265,6 +286,11 @@ if [ "$DRY_RUN" = false ] && [ "$DB_ONLY" = false ]; then
 
   log_step "Pushing code to origin..."
   git push origin main --no-verify
+fi
+
+if [ "$DRY_RUN" = false ]; then
+  log_step "Running remote env sanity gate (non-mutating)..."
+  ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" "$(remote_env_sanity_cmd)"
 fi
 
 # ============================================

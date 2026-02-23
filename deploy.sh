@@ -163,7 +163,14 @@ fi
 [ -n "${DATABASE_URL:-}" ] || (echo "❌ DATABASE_URL missing in remote .env" && exit 1)
 
 echo "Remote env sanity (masked DATABASE_URL):"
-printf '%s\n' "$DATABASE_URL" | sed -E 's#(postgres(ql)?://[^:/]+):[^@]*@#\1:***@#'
+  # Safely check for credentials without leaking full URL
+  if printf '%s\n' "$DATABASE_URL" | grep -qv "@"; then
+    echo "❌ FATAL: DATABASE_URL is missing credentials (username:password@)."
+    echo "   Postgres is defaulting to system user '$(whoami)', who lacks DB roles."
+    echo "   Update your production .env with: DATABASE_URL=postgresql://USER:PASS@HOST/DB"
+    exit 1
+  fi
+  printf '%s\n' "$DATABASE_URL" | sed -E 's#(postgres(ql)?://[^:/]+):[^@]*@#\1:***@#'
 pnpm db:check
 CMD
 }

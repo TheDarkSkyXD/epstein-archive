@@ -158,7 +158,13 @@ export function getSlowQueryLogThresholdMs(): number {
 export function assertProductionPg(): void {
   if (process.env.NODE_ENV !== 'production') return;
 
-  if (process.env.DATABASE_URL && !process.env.DATABASE_URL.startsWith('postgres')) {
+  if (!process.env.DATABASE_URL) {
+    throw new Error(
+      '[FATAL] DATABASE_URL is missing in production. Refusing to boot without primary database engine.',
+    );
+  }
+
+  if (!process.env.DATABASE_URL.startsWith('postgres')) {
     throw new Error(
       '[FATAL] DATABASE_URL must be a postgres:// or postgresql:// URI in production. Refusing to start.',
     );

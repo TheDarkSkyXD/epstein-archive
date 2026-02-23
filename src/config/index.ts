@@ -57,10 +57,10 @@ const getCorsOrigin = (): string | string[] => {
 export const config: Config = {
   nodeEnv: getEnvVar('NODE_ENV', 'development'),
   apiPort: getEnvVarAsNumber('PORT', 3012),
-  databaseUrl: getEnvVar('DATABASE_URL', './epstein-archive.db'),
+  databaseUrl: getEnvVar('DATABASE_URL'),
   dbEncryptionKey: getEnvVar('DB_ENCRYPTION_KEY', 'default-encryption-key'),
-  jwtSecret: getEnvVar('JWT_SECRET', 'default-jwt-secret'),
-  sessionSecret: getEnvVar('SESSION_SECRET', 'default-session-secret'),
+  jwtSecret: getEnvVar('JWT_SECRET'),
+  sessionSecret: getEnvVar('SESSION_SECRET'),
   rateLimitWindowMs: getEnvVarAsNumber('RATE_LIMIT_WINDOW_MS', 900000), // 15 minutes
   rateLimitMaxRequests: getEnvVarAsNumber('RATE_LIMIT_MAX_REQUESTS', 1000), // Increased from 100 for media app
   corsOrigin: getCorsOrigin(),

@@ -240,6 +240,10 @@ class ApiClient {
       if (token && !headers.has('Authorization')) {
         headers.set('Authorization', `Bearer ${token}`);
       }
+      if (retryCount > 0) {
+        headers.set('x-retry-count', String(retryCount));
+        headers.set('x-retry-attempt', String(retryCount));
+      }
       if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
 
       const releaseGlobal = await globalSemaphore.acquire();
@@ -1022,9 +1026,11 @@ class ApiClient {
     status: 'ok' | 'degraded' | 'down';
     timestamp: string;
     checks: {
-      db: { ok: boolean; latencyMs?: number; error?: string };
-      schema: { missingTables: string[]; missingOptionalTables: string[] };
-      data: { entities: number; documents: number };
+      db: { ok: boolean; latencyMs?: number; error?: string; dialect?: string };
+      schema?: { missingTables?: string[]; missingOptionalTables?: string[] };
+      data?: { entities?: number; documents?: number };
+      pool?: { total?: number; idle?: number; waiting?: number; max?: number } | null;
+      readiness?: { mode?: string };
     };
     durationMs: number;
   }> {

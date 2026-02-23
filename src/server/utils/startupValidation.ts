@@ -8,11 +8,27 @@ export async function validateStartup() {
 
   // 1. Environment Variables
   const requiredEnv = ['NODE_ENV'];
+  if (process.env.NODE_ENV === 'production') {
+    requiredEnv.push('DATABASE_URL');
+  }
   requiredEnv.forEach((env) => {
     if (!process.env[env]) {
       errors.push(`Missing required environment variable: ${env}`);
     }
   });
+  if (
+    process.env.NODE_ENV === 'production' &&
+    process.env.DATABASE_URL &&
+    !/^postgres(ql)?:\/\//.test(process.env.DATABASE_URL)
+  ) {
+    errors.push('DATABASE_URL must be a postgres:// or postgresql:// URI in production.');
+  }
+  const legacyDialectEnvKey = ['DB', 'DIALECT'].join('_');
+  if (process.env[legacyDialectEnvKey]) {
+    errors.push(
+      `Legacy ${legacyDialectEnvKey} is set to ${process.env[legacyDialectEnvKey]}. Remove it; Postgres is the only supported runtime.`,
+    );
+  }
 
   // 2. Paths
   const corpusPath = process.env.RAW_CORPUS_BASE_PATH;

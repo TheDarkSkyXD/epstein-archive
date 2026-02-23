@@ -587,47 +587,27 @@ app.get('/api/health/ready', async (_req, res) => {
   const startedAt = Date.now();
   try {
     const pool = getApiPool();
-
-    // 1. Lightweight Ping
-    const dbPingStart = Date.now();
-    await pool.query('SELECT 1 as ok');
-    const dbLatencyMs = Date.now() - dbPingStart;
-
-    // 2. Schema Presence (non-blocking)
-    const requiredTables = ['entities', 'documents', 'entity_relationships'];
-
-    const tableCheckRes = await pool.query(
-      `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ANY($1)`,
-      [requiredTables],
+    const pingPromise = pool.query('SELECT 1 AS ok');
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('timeout')), 50),
     );
-    const presentTables = tableCheckRes.rows.map((r: any) => r.table_name);
-    const isSchemaReady = requiredTables.every((t) => presentTables.includes(t));
 
-    // 3. Fast Status Determination
-    let isMigrationReady = true;
-    let fallbackReason = '';
-    let migrationMetrics = null;
+    // O(1) readiness: Postgres ping only (no schema scans / heavy queries)
+    const dbPingStart = Date.now();
+    await Promise.race([pingPromise, timeoutPromise]);
+    const dbLatencyMs = Date.now() - dbPingStart;
+    const migrationMetrics = await getMigrationMetrics();
+    const apiPoolMetrics = migrationMetrics.pools.api;
+    const saturated = Boolean(apiPoolMetrics && apiPoolMetrics.waiting >= 3);
+    const status = saturated ? 'degraded' : 'ok';
 
-    // @ts-ignore - dynamic import may not resolve in strict TS mode
-    const { getMigrationMetrics } = await import('./server/db/runtime.js');
-    migrationMetrics = await getMigrationMetrics();
-    if (migrationMetrics.pools.api && migrationMetrics.pools.api.waiting > 10) {
-      isMigrationReady = false;
-      fallbackReason = 'api_pool_saturated';
-    }
-
-    const status = isSchemaReady && isMigrationReady ? 'ok' : 'degraded';
-    const code = status === 'ok' ? 200 : 503;
-
-    return res.status(code).json({
+    return res.status(saturated ? 503 : 200).json({
       status,
       timestamp: new Date().toISOString(),
       checks: {
         db: { ok: true, latencyMs: dbLatencyMs, dialect: 'postgres' },
-        schema: { ready: isSchemaReady, present: presentTables },
-        migration: migrationMetrics
-          ? { ready: isMigrationReady, reason: fallbackReason, metrics: migrationMetrics }
-          : undefined,
+        pool: apiPoolMetrics,
+        readiness: { mode: 'o1-select-1' },
       },
       durationMs: Date.now() - startedAt,
     });
@@ -4923,10 +4903,10 @@ app.get('*', async (req, res, next) => {
 });
 
 // Start server
-// Ensure migrations are run before starting
+// Ensure Postgres migration parity is satisfied before starting
 try {
+  await runMigrations();
   await validateStartup();
-  runMigrations();
   await seedInvestigationMediaTags();
 
   // Phase 6 Resilience: Background Junk Flag Backfill
@@ -4953,7 +4933,7 @@ try {
   }, 5000);
   */
 } catch (err) {
-  console.error('Failed to run migrations:', err);
+  console.error('Startup preflight failed:', err);
   process.exit(1);
 }
 

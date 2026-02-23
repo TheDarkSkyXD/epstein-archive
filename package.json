@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "prebuild:prod": "bash scripts/ci_pg_nuclear_gates.sh",
     "build:prod": "pnpm --filter @epstein/db build && vite build && tsc -p tsconfig.server.json",
     "start": "NODE_ENV=production RAW_CORPUS_BASE_PATH=./data node dist/server.js",
     "server": "tsx src/server.ts",
@@ -43,6 +44,7 @@
     "test:e2e": "playwright test",
     "deploy:prod": "./deploy.sh",
     "audit:pg": "bash scripts/run_audit_suite.sh",
+    "ci:pg:nuclear": "bash scripts/ci_pg_nuclear_gates.sh",
     "db:check": "psql \"$DATABASE_URL\" -c 'SELECT 1' >/dev/null && echo '✅ Database connectivity OK' || (echo '❌ Database connectivity failed'; exit 1)",
     "schema:hash:check": "tsx scripts/pg_schema_hash.ts check",
     "schema:hash:update": "tsx scripts/pg_schema_hash.ts update",

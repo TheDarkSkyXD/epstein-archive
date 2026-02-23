@@ -140,7 +140,7 @@ ROLLBACK_IN_PROGRESS=false
 # Parse args
 CODE_ONLY=false
 DB_ONLY=false
-DEPLOY_DB=false
+DEPLOY_DB=true
 DRY_RUN=false
 SKIP_INTEGRITY=false
 
@@ -297,7 +297,7 @@ if [ "$DEPLOY_DB" = true ]; then
     log_success "Postgres database deployment complete."
   fi
 else
-  log_step "Skipping database deployment (use --with-db or --db-only to run Postgres migrations)"
+  log_step "Skipping database deployment (--code-only explicitly requested)"
 fi
 
 # ============================================
@@ -331,8 +331,13 @@ if [ "$DB_ONLY" = false ]; then
       # Scorched Earth: Remove any untracked files (e.g. legacy scripts)
       git clean -fd
 
+      # CRITICAL: Purge stale build artifacts to prevent deployment desync
+      echo 'Purging stale build artifacts...'
+      rm -rf dist
+      rm -rf packages/db/dist
+
       export PNPM_HOME="/home/deploy/.local/share/pnpm"
-      export PATH=\"\$PNPM_HOME:\$PATH\"
+      export PATH="$PNPM_HOME:$PATH"
       export NODE_ENV=production
 
       pnpm install --frozen-lockfile
@@ -382,9 +387,9 @@ if [ "$DRY_RUN" = false ]; then
     exit 1
   fi
 
-  log_step "Running DB meta translation gate..."
+  log_step "Running DB meta Postgres gate..."
   ssh -i "$SSH_KEY_PATH" "${PRODUCTION_USER}@${PRODUCTION_HOST}" \
-    "curl -sf http://localhost:3012/api/_meta/db | jq '(.translationCount // 0)' | grep '^0$' || exit 1"
+    "curl -sf http://localhost:3012/api/_meta/db | jq -e '(.dialect == \"postgres\") and ((has(\"translationCount\") | not) or (.translationCount == 0))' >/dev/null || exit 1"
 
   # CERT_STEP: health_endpoint_smoke_test
   log_step "Running basic health smoke test..."

@@ -47,7 +47,11 @@ set -e
 cd /home/deploy/epstein-archive
 pm2 stop epstein-archive || true
 pm2 delete epstein-archive || true
-pm2 start ecosystem.config.cjs --only epstein-archive --env production
+# --wait-ready blocks until process.send('ready') or listen_timeout
+pm2 start ecosystem.config.cjs --only epstein-archive --env production --wait-ready
+
+# Verify process is actually online (not errored/stopped)
+pm2 describe epstein-archive | grep -q "online" || (echo "❌ Process failed to start" && exit 1)
 CMD
 }
 

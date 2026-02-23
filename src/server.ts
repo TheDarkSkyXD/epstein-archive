@@ -20,7 +20,6 @@ import { searchRepository } from './server/db/searchRepository.js';
 import { timelineRepository } from './server/db/timelineRepository.js';
 import { forensicRepository } from './server/db/forensicRepository.js';
 import { runMigrations } from './server/db/migrator.js';
-import { relationshipsRepository } from './server/db/relationshipsRepository.js';
 import { validateStartup } from './server/utils/startupValidation.js';
 import { authenticateRequest, requireRole } from './server/auth/middleware.js';
 import authRoutes from './server/auth/routes.js';
@@ -2595,7 +2594,7 @@ app.get('/api/media/audio/:id/stream', async (req, res, next) => {
 
     // Resolve path similar to images
     // Resolve path robustly
-    let filePath = item.file_path || item.filePath;
+    let filePath = (item as any).file_path || item.filePath;
 
     // If path is relative, resolve it against CWD
     if (!path.isAbsolute(filePath)) {
@@ -2659,7 +2658,7 @@ app.get('/api/media/video/:id/stream', async (req, res, next) => {
 
     // Resolve path similar to images
     // Resolve path robustly
-    let filePath = item.file_path || item.filePath;
+    let filePath = (item as any).file_path || item.filePath;
 
     // If path is relative, resolve it against CWD
     if (!path.isAbsolute(filePath)) {
@@ -2685,7 +2684,7 @@ app.get('/api/media/video/:id/thumbnail', async (req, res, next) => {
     if (!item) return res.status(404).json({ error: 'Video not found' });
 
     // Check metadata for thumbnail path
-    const thumbnailPath = item.metadata?.thumbnailPath;
+    const thumbnailPath = (item.metadata as any)?.thumbnailPath;
 
     if (!thumbnailPath) {
       // Fallback or 404?
@@ -4334,17 +4333,6 @@ function injectOgTags(
   }
 }
 
-// Ensure articles repository-like access (quick inline helper since no repo file exists yet)
-// Ensure articles repository-like access (quick inline helper since no repo file exists yet)
-async function getArticleById(id: number | string) {
-  try {
-    return await articlesRepository.getArticleById(id);
-  } catch (e) {
-    console.error('Error fetching article for OG tags:', e);
-    return null;
-  }
-}
-
 function getPublicBaseUrl(req: express.Request): string {
   const host = req.get('host') || 'epstein.academy';
   const forwardedProtoRaw = String(req.headers['x-forwarded-proto'] || '')
@@ -4536,7 +4524,7 @@ app.get('*', async (req, res, next) => {
           if (!isNaN(id)) {
             const item = await mediaRepository.getMediaItemById(id);
             if (item) {
-              const fileType = String(item.file_type || '').toLowerCase();
+              const fileType = String((item as any).file_type || '').toLowerCase();
               const typeLabel = fileType.includes('audio')
                 ? 'Audio'
                 : fileType.includes('video')
@@ -4939,9 +4927,9 @@ app.get('*', async (req, res, next) => {
 // Start server
 // Ensure migrations are run before starting
 try {
-  validateStartup();
+  await validateStartup();
   runMigrations();
-  seedInvestigationMediaTags();
+  await seedInvestigationMediaTags();
 
   // Phase 6 Resilience: Background Junk Flag Backfill
   // DISABLED FOR STABILITY: Run manually via scripts/maintenance.ts

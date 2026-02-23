@@ -13,7 +13,6 @@ import {
 import { Document } from '../../types/documents';
 import { DocumentAnnotationSystem } from './DocumentAnnotationSystem';
 import { prettifyOCRText } from '../../utils/prettifyOCR';
-import { apiClient } from '../../services/apiClient';
 
 interface DocumentContentRendererProps {
   document: Document | any; // Accept any for flexibility with legacy types

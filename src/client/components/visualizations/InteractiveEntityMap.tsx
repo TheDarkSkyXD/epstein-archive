@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -68,11 +68,7 @@ export const InteractiveEntityMap: React.FC<InteractiveEntityMapProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  useEffect(() => {
-    fetchMapEntities();
-  }, [minRiskLevel]);
-
-  const fetchMapEntities = async () => {
+  const fetchMapEntities = useCallback(async () => {
     try {
       setLoading(true);
       const res = await apiClient.get<MapEntity[]>(`/map/entities?minRisk=${minRiskLevel}`, {
@@ -87,7 +83,11 @@ export const InteractiveEntityMap: React.FC<InteractiveEntityMapProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [minRiskLevel]);
+
+  useEffect(() => {
+    fetchMapEntities();
+  }, [fetchMapEntities]);
 
   const getMarkerIcon = (riskScore: number) => {
     // Dynamic color based on risk

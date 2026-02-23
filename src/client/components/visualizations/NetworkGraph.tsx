@@ -350,13 +350,21 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({
         if (blob.size < 100) throw new Error('Too small');
         const objectUrl = URL.createObjectURL(blob);
         setAvatarUrls((prev) => ({ ...prev, [node.id]: objectUrl }));
-      } catch (e) {
+      } catch {
         setAvatarUrls((prev) => ({ ...prev, [node.id]: 'error' }));
       } finally {
         release();
       }
     });
-  }, [filteredNodes, transform.k, hoveredNode, selectedNodeId, transform.x, transform.y]);
+  }, [
+    filteredNodes,
+    transform.k,
+    hoveredNode,
+    selectedNodeId,
+    transform.x,
+    transform.y,
+    avatarUrls,
+  ]);
 
   // Physics simulation
   useEffect(() => {

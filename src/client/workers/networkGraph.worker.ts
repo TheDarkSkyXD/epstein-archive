@@ -43,7 +43,6 @@ function applyCollisionResolution(draggedNodeId: string | number | null): GraphN
     // 1. Centering Force (Gentle pull to middle)
     const cdx = CENTER_X - node.x;
     const cdy = CENTER_Y - node.y;
-    const centerDist = Math.sqrt(cdx * cdx + cdy * cdy);
 
     // Stronger centering for Jeffrey Epstein, slightly weaker for others
     let centerStrength = 0.005; // Tuned general centering force

@@ -1,4 +1,4 @@
-import { db, documentsQueries, entitiesQueries } from '@epstein/db';
+import { db, documentsQueries } from '@epstein/db';
 
 const PREVIEW_MAX_CHARS = 320;
 
@@ -80,30 +80,6 @@ const normalizeSourceType = (evidenceType?: string | null, fileType?: string | n
   if (value.includes('financial')) return 'Financial';
   if (value.includes('flight')) return 'Flight';
   return 'Document';
-};
-
-const buildSearchVariants = (rawQuery: string): string[] => {
-  const normalized = rawQuery.trim();
-  if (!normalized) return [];
-  const variants = new Set<string>([normalized]);
-  const lower = normalized.toLowerCase();
-  if (lower.includes('dataset')) {
-    variants.add(normalized.replace(/dataset/gi, 'data set'));
-  }
-  if (lower.includes('data set')) {
-    variants.add(normalized.replace(/data\s+set/gi, 'dataset'));
-  }
-  const rangeMatch = lower.match(/(?:data\s*set|dataset)\s*(\d+)\s*-\s*(\d+)/i);
-  if (rangeMatch) {
-    const from = Number(rangeMatch[1]);
-    const to = Number(rangeMatch[2]);
-    if (Number.isFinite(from) && Number.isFinite(to) && to >= from) {
-      for (let i = from; i <= to; i += 1) {
-        variants.add(`DOJ Data Set ${i}`);
-      }
-    }
-  }
-  return Array.from(variants).filter((value) => value.trim().length > 0);
 };
 
 const buildPreview = (doc: {
@@ -280,7 +256,7 @@ export const documentsRepository = {
     if (document.metadataJson && typeof document.metadataJson === 'string') {
       try {
         metadata = JSON.parse(document.metadataJson);
-      } catch (e) {
+      } catch (_e) {
         metadata = {};
       }
     } else if (document.metadataJson) {

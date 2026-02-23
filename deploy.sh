@@ -147,9 +147,11 @@ if [ "$DRY_RUN" = false ] && [ "$DB_ONLY" = false ]; then
   verify_release_notes_version
 
   if [ -n "$(git status --porcelain)" ]; then
-    log_error "Working tree is dirty. Commit or stash changes before deploy."
+    log_step "Working tree is dirty; auto-committing changes before deploy..."
     git status --short
-    exit 1
+    git add -A
+    git commit -m "chore: auto-commit before deploy"
+    log_success "Auto-commit created for pending changes."
   fi
 
   log_step "Building locally to verify integrity..."

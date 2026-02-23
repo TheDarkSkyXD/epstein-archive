@@ -49,12 +49,12 @@ export PNPM_HOME="/home/deploy/.local/share/pnpm"
 export PATH="$PNPM_HOME:$PATH"
 export NODE_ENV=production
 
-# Load env vars from .env for psql checks
 if [ -f .env ]; then
   set -a
   source .env
   set +a
 fi
+[ -n "${DATABASE_URL:-}" ] || (echo "❌ DATABASE_URL missing in remote PM2 restart checks" && exit 1)
 
 # 1. Environment & Resource Checks
 echo "Checking environment..."
@@ -106,6 +106,13 @@ export PNPM_HOME="/home/deploy/.local/share/pnpm"
 export PATH="$PNPM_HOME:$PATH"
 export NODE_ENV=production
 
+if [ -f .env ]; then
+  set -a
+  source .env
+  set +a
+fi
+[ -n "${DATABASE_URL:-}" ] || (echo "❌ DATABASE_URL missing in remote DB preflight" && exit 1)
+
 # CERT_STEP: pg_connectivity_pre_migration
 pnpm db:check
 
@@ -121,6 +128,13 @@ cd /home/deploy/epstein-archive
 export PNPM_HOME="/home/deploy/.local/share/pnpm"
 export PATH="$PNPM_HOME:$PATH"
 export NODE_ENV=production
+
+if [ -f .env ]; then
+  set -a
+  source .env
+  set +a
+fi
+[ -n "${DATABASE_URL:-}" ] || (echo "❌ DATABASE_URL missing in remote DB cert gates" && exit 1)
 
 # CERT_STEP: schema_hash_verification
 # pnpm schema:hash:check
@@ -271,6 +285,13 @@ if [ "$DEPLOY_DB" = true ]; then
       export PNPM_HOME=\"/home/deploy/.local/share/pnpm\"
       export PATH=\"\$PNPM_HOME:\$PATH\"
       export NODE_ENV=production
+
+      if [ -f .env ]; then
+        set -a
+        source .env
+        set +a
+      fi
+      [ -n \"\${DATABASE_URL:-}\" ] || (echo '❌ DATABASE_URL missing in DB deployment phase' && exit 1)
 
       # CERT_STEP: pg_connectivity_pre_migration
       echo 'Running Postgres preflight (connectivity + extension checks)...'

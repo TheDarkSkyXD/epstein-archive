@@ -45,7 +45,7 @@
     "deploy:prod": "./deploy.sh",
     "audit:pg": "bash scripts/run_audit_suite.sh",
     "ci:pg:nuclear": "bash scripts/ci_pg_nuclear_gates.sh",
-    "db:check": "psql \"$DATABASE_URL\" -c 'SELECT 1' >/dev/null && echo '✅ Database connectivity OK' || (echo '❌ Database connectivity failed'; exit 1)",
+    "db:check": "node -e 'const { Client } = require(\"pg\"); const client = new Client({ connectionString: process.env.DATABASE_URL }); client.connect().then(() => { console.log(\"✅ DB OK\"); client.end(); process.exit(0); }).catch((e) => { console.error(\"❌ DB Fail:\", e.message); process.exit(1); });'",
     "schema:hash:check": "tsx scripts/pg_schema_hash.ts check",
     "schema:hash:update": "tsx scripts/pg_schema_hash.ts update",
     "prepare": "husky",

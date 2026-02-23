@@ -70,7 +70,7 @@ export const bulkOperationsRepository = {
                 RETURNING id
               `,
                 [
-                  fileRef.fileName,
+                  fileRef.fileName || '',
                   fileRef.filePath || fileRef.path,
                   fileRef.fileType,
                   fileRef.fileSize || 0,

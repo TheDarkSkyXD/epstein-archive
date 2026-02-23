@@ -115,6 +115,7 @@ router.get('/health', async (_req, res) => {
 // O(1) Instantaneous Readiness Check (STEP 1)
 router.get('/health/ready', async (_req, res) => {
   try {
+    // const _pool = getApiPool();
     const pingPromise = pingDatabase();
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('timeout')), 50),

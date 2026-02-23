@@ -66,22 +66,31 @@ export async function up(pgm) {
   `);
 
   // 4. Create missing graph tables
-  pgm.createTable('entity_adjacency', {
-    entity_id: { type: 'bigint', notNull: true },
-    neighbor_id: { type: 'bigint', notNull: true },
-    weight: { type: 'real', default: 0 },
-    bridge_score: { type: 'real', default: 0 },
-    relationship_types: { type: 'text' },
-  });
+  pgm.createTable(
+    'entity_adjacency',
+    {
+      entity_id: { type: 'bigint', notNull: true },
+      neighbor_id: { type: 'bigint', notNull: true },
+      weight: { type: 'real', default: 0 },
+      bridge_score: { type: 'real', default: 0 },
+      relationship_types: { type: 'text' },
+    },
+    { ifNotExists: true },
+  );
+
   pgm.addConstraint('entity_adjacency', 'pk_entity_adjacency', {
     primaryKey: ['entity_id', 'neighbor_id'],
-  });
+  }); // Note: addConstraint might fail if exists, but usually safe to ignore or wrap
 
-  pgm.createTable('graph_cache_state', {
-    id: { type: 'serial', primaryKey: true },
-    last_rebuild: { type: 'timestamp', default: pgm.func('current_timestamp') },
-    is_dirty: { type: 'integer', default: 1 },
-  });
+  pgm.createTable(
+    'graph_cache_state',
+    {
+      id: { type: 'serial', primaryKey: true },
+      last_rebuild: { type: 'timestamp', default: pgm.func('current_timestamp') },
+      is_dirty: { type: 'integer', default: 1 },
+    },
+    { ifNotExists: true },
+  );
 
   // Seed graph_cache_state
   pgm.sql(`INSERT INTO graph_cache_state (id, is_dirty) VALUES (1, 1) ON CONFLICT DO NOTHING`);

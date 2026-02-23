@@ -12,20 +12,15 @@
 
 import { Router, Request, Response } from 'express';
 import { performanceCache } from '../performanceCache';
+import {
+  EmailCategoriesCounts,
+  EmailMetadata,
+  getEmailBodyById,
+  getEmailCategoriesCounts,
+  getEmailMetadataPage,
+} from '../db/routesDb.js';
 
 const router = Router();
-
-interface EmailMetadata {
-  id: number;
-  threadId: string;
-  subject: string;
-  from: string;
-  to: string;
-  date: string;
-  snippet: string;
-  hasAttachments: boolean;
-  category?: 'primary' | 'updates' | 'promotions';
-}
 
 /**
  * GET /api/emails
@@ -35,7 +30,6 @@ interface EmailMetadata {
  */
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const db = (req as any).db as any;
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 500;
     const category = req.query.category as string;
@@ -48,40 +42,7 @@ router.get('/', async (req: Request, res: Response) => {
       return res.json(cached);
     }
 
-    // Build query
-    const whereParts = ["type = 'email'"];
-    const queryParams: Array<string | number> = [];
-    if (category && category !== 'all') {
-      whereParts.push("json_extract(metadata_json, '$.category') = ?");
-      queryParams.push(category);
-    }
-    const whereClause = `WHERE ${whereParts.join(' AND ')}`;
-
-    // Get total count
-    const countQuery = `SELECT COUNT(*) as count FROM documents ${whereClause}`;
-    const { count: total } = db.prepare(countQuery).get(...queryParams) as { count: number };
-
-    // Get emails with metadata only (NO body_raw, NO content)
-    const query = `
-      SELECT 
-        id,
-        json_extract(metadata_json, '$.thread_id') as threadId,
-        json_extract(metadata_json, '$.subject') as subject,
-        json_extract(metadata_json, '$.from') as "from",
-        json_extract(metadata_json, '$.to') as "to",
-        date_created as date,
-        SUBSTR(content_preview, 1, 150) as snippet,
-        0 as hasAttachments,
-        json_extract(metadata_json, '$.category') as category
-      FROM documents
-      ${whereClause}
-      ORDER BY date_created DESC
-      LIMIT ? OFFSET ?
-    `;
-
-    const emails = db.prepare(query).all(...queryParams, limit, offset) as EmailMetadata[];
-
-    const result = { data: emails, total };
+    const result = getEmailMetadataPage({ page, limit, category });
 
     // Cache for 30s
     performanceCache.set(cacheKey, result, 30);
@@ -101,7 +62,6 @@ router.get('/', async (req: Request, res: Response) => {
  */
 router.get('/:id/body', async (req: Request, res: Response) => {
   try {
-    const db = (req as any).db as any;
     const { id } = req.params;
 
     // Check cache
@@ -111,14 +71,7 @@ router.get('/:id/body', async (req: Request, res: Response) => {
       return res.json(cached);
     }
 
-    // Fetch body only
-    const query = `
-      SELECT content as body
-      FROM documents
-      WHERE id = ? AND type = 'email'
-    `;
-
-    const result = db.prepare(query).get(id) as { body: string } | undefined;
+    const result = getEmailBodyById(id);
 
     if (!result) {
       return res.status(404).json({ error: 'Email not found' });
@@ -141,37 +94,13 @@ router.get('/:id/body', async (req: Request, res: Response) => {
  */
 router.get('/categories', async (req: Request, res: Response) => {
   try {
-    const db = (req as any).db as any;
-
     // Check cache
     const cached = performanceCache.get<Record<string, number>>('email:categories');
     if (cached) {
       return res.json(cached);
     }
 
-    const query = `
-      SELECT 
-        json_extract(metadata_json, '$.category') as category,
-        COUNT(*) as count
-      FROM documents
-      WHERE type = 'email'
-      GROUP BY category
-    `;
-
-    const rows = db.prepare(query).all() as Array<{ category: string; count: number }>;
-
-    const counts: Record<string, number> = {
-      all: 0,
-      primary: 0,
-      updates: 0,
-      promotions: 0,
-    };
-
-    for (const row of rows) {
-      const category = row.category || 'primary';
-      counts[category] = row.count;
-      counts.all += row.count;
-    }
+    const counts: EmailCategoriesCounts = getEmailCategoriesCounts();
 
     // Cache for 60s
     performanceCache.set('email:categories', counts, 60);

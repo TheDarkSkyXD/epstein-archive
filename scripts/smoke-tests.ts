@@ -3,26 +3,23 @@ import path from 'path';
 
 console.log('Running Smoke Tests...');
 
-// 1. Check DB existence
-const dbPath = process.env.DB_PATH || 'epstein-archive.db';
-if (!fs.existsSync(dbPath)) {
-  console.error(`❌ Database not found at ${dbPath}`);
+const dbConnectionModule = path.resolve('src/server/db/connection.ts');
+if (!fs.existsSync(dbConnectionModule)) {
+  console.error('❌ src/server/db/connection.ts missing');
   process.exit(1);
 }
-console.log('✅ Database file exists');
+console.log('✅ DB connection module present');
 
-// 2. Check Source Integrity
-const mainApp = path.resolve('src/App.tsx');
+const mainApp = path.resolve('src/client/App.tsx');
 if (!fs.existsSync(mainApp)) {
-  console.error('❌ src/App.tsx missing');
+  console.error('❌ src/client/App.tsx missing');
   process.exit(1);
 }
 
-// 3. Check for specific reorganized paths
 const checkPaths = [
-  'src/components/common/Card.tsx',
-  'src/components/layout/Footer.tsx',
-  'src/components/investigation/InvestigationWorkspace.tsx',
+  'src/client/components/entities/SubjectCardV2.tsx',
+  'src/client/components/layout/Footer.tsx',
+  'src/client/components/investigation/InvestigationWorkspace.tsx',
 ];
 
 let failed = false;

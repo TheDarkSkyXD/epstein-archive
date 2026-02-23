@@ -1,20 +1,19 @@
-import { getDb } from './connection.js';
+import { db, articlesQueries } from '@epstein/db';
 
 export interface Article {
-  id: number;
+  id: string;
   title: string;
   link?: string;
   url?: string;
   source?: string;
   publication?: string;
-  pub_date?: string;
-  published_date?: string;
+  pubDate?: string;
   description?: string;
   summary?: string;
   tags?: string;
-  red_flag_rating?: number;
-  image_url?: string;
-  reading_time?: string;
+  redFlagRating?: number;
+  imageUrl?: string;
+  readingTime?: string;
 }
 
 export class ArticlesRepository {
@@ -27,51 +26,69 @@ export class ArticlesRepository {
     search?: string,
     publication?: string,
     sort: 'date' | 'redFlag' = 'redFlag',
-  ): Promise<{ articles: Article[]; total: number }> {
-    const db = getDb();
-    let query = 'SELECT * FROM articles WHERE 1=1';
-    let countQuery = 'SELECT COUNT(*) as total FROM articles WHERE 1=1';
-    const params: (string | number)[] = [];
-
-    if (search) {
-      const searchTerm = `%${search}%`;
-      const searchClause = ` AND (title LIKE ? OR description LIKE ? OR tags LIKE ?)`;
-      query += searchClause;
-      countQuery += searchClause;
-      params.push(searchTerm, searchTerm, searchTerm);
-    }
-
-    if (publication) {
-      query += ` AND (source = ? OR publication = ?)`;
-      countQuery += ` AND (source = ? OR publication = ?)`;
-      params.push(publication, publication);
-    }
-
-    // Sorting
-    if (sort === 'redFlag') {
-      query += ' ORDER BY red_flag_rating DESC, pub_date DESC';
-    } else {
-      query += ' ORDER BY pub_date DESC';
-    }
-
-    // Pagination
-    query += ' LIMIT ? OFFSET ?';
-
-    // Get total count
-    const countResult = (await db.prepare(countQuery).get(...params)) as { total: number };
-
-    // Get paginated items (add limit/offset to params)
-    const articles = (await db.prepare(query).all(...params, limit, offset)) as Article[];
+  ): Promise<{ articles: any[]; total: number }> {
+    const [articles, countResult] = await Promise.all([
+      articlesQueries.getArticles.run(
+        {
+          limit: BigInt(limit),
+          offset: BigInt(offset),
+          search: search ? `%${search}%` : null,
+          publication: publication || null,
+          sortBy: sort,
+        },
+        db,
+      ),
+      articlesQueries.countArticles.run(
+        {
+          search: search ? `%${search}%` : null,
+          publication: publication || null,
+        },
+        db,
+      ),
+    ]);
 
     return {
-      articles,
-      total: countResult.total,
+      articles: articles.map((a) => ({
+        ...a,
+        id: String(a.id),
+      })),
+      total: Number(countResult[0]?.total || 0),
     };
   }
 
-  async getArticleById(id: number | string): Promise<Article | undefined> {
-    const db = getDb();
-    return (await db.prepare('SELECT * FROM articles WHERE id = ?').get(id)) as Article;
+  async getArticleById(id: number | string): Promise<any | undefined> {
+    const rows = await articlesQueries.getArticleById.run({ id: BigInt(id) }, db);
+    if (!rows[0]) return undefined;
+    return {
+      ...rows[0],
+      id: String(rows[0].id),
+    };
+  }
+
+  /**
+   * Insert or update an article (Consolidated from legacy articleRepository)
+   */
+  async insertArticle(article: any): Promise<void> {
+    try {
+      await articlesQueries.insertArticle.run(
+        {
+          title: article.title,
+          link: article.link,
+          description: article.description || '',
+          content: article.content || '',
+          pubDate: article.pubDate || null,
+          author: article.author || 'Unknown',
+          source: article.source || 'rss',
+          imageUrl: article.imageUrl || null,
+          guid: article.guid || article.link,
+          redFlagRating: article.redFlagRating || 0,
+        },
+        db,
+      );
+    } catch (error) {
+      console.error('[ArticlesRepository] Error inserting article:', error);
+      throw error;
+    }
   }
 }
 

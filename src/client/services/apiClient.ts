@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+import { z } from 'zod';
 import { Person } from '../types';
 import type { SearchFilters, PaginatedResponse } from './optimizedDataLoader';
 import type {
@@ -13,6 +14,14 @@ import type {
 import type { DocumentsListResponseDto } from '@shared/dto/documents';
 import type { EntityListResponseDto, SubjectsListResponseDto } from '@shared/dto/entities';
 import type { InvestigationEvidenceListResponseDto } from '@shared/dto/investigations';
+import {
+  documentsListResponseSchema,
+  emailThreadDetailsResponseSchema,
+  emailThreadsResponseSchema,
+  entityListResponseSchema,
+  investigationEvidenceListResponseSchema,
+  subjectsListResponseSchema,
+} from '@shared/contracts';
 import { Semaphore, isHeavyRoute } from '../utils/semaphore';
 import { singleFlight, stableStringify } from '../utils/singleFlight';
 
@@ -70,11 +79,29 @@ function invalidateCache(pattern?: string): void {
     return;
   }
 
-  // Invalidate entries matching pattern
   for (const key of cache.keys()) {
     if (key.includes(pattern)) {
       cache.delete(key);
     }
+  }
+}
+
+class ContractError extends Error {
+  isContractError: boolean;
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'ContractError';
+    this.isContractError = true;
+  }
+}
+
+function parseWithSchema<T>(data: unknown, schema: z.ZodTypeAny, context: string): T {
+  try {
+    return schema.parse(data);
+  } catch (err) {
+    console.error('[API CONTRACT VIOLATION]', context, err);
+    throw new ContractError(`API contract violation for ${context}`);
   }
 }
 
@@ -299,9 +326,12 @@ class ApiClient {
       }
 
       if (shouldCache) setCachedData(url, data, cacheTtl);
-      return data;
+      return data as T;
     } catch (error: any) {
       if (error.name === 'AbortError') throw error;
+      if (error instanceof ContractError || (error as any).isContractError) {
+        throw error;
+      }
 
       if (!error.status) {
         if (method === 'GET' && retryCount < 1) {
@@ -398,12 +428,18 @@ class ApiClient {
         queryParams.append('likelihoodScore', filters.likelihood);
       }
     }
-    // Cache bust to avoid stale front-page results during development
     queryParams.append('v', String(Date.now()));
 
-    return this.fetchWithErrorHandling<SubjectsListResponseDto>(
+    const raw = await this.fetchWithErrorHandling<unknown>(
       `/api/subjects?${queryParams.toString()}`,
-      { useCache: false },
+      {
+        useCache: false,
+      },
+    );
+    return parseWithSchema<SubjectsListResponseDto>(
+      raw,
+      subjectsListResponseSchema,
+      '/api/subjects',
     );
   }
 
@@ -436,8 +472,13 @@ class ApiClient {
     if (limit !== 24) params.append('limit', limit.toString());
 
     const url = `${API_BASE_URL}/entities${params.toString() ? `?${params.toString()}` : ''}`;
-    const resp = await this.fetchWithErrorHandling<EntityListResponseDto>(url);
-    const data = Array.isArray((resp as any).data) ? (resp as any).data : [];
+    const raw = await this.fetchWithErrorHandling<unknown>(url);
+    const resp = parseWithSchema<EntityListResponseDto>(
+      raw,
+      entityListResponseSchema,
+      '/api/entities',
+    );
+    const data = Array.isArray(resp.data) ? resp.data : [];
     const normalized = data.map((e: any) => ({
       ...e,
       name: e.name ?? e.fullName ?? e.full_name,
@@ -535,15 +576,22 @@ class ApiClient {
     if (params.limit) usp.append('limit', String(params.limit));
     if (params.showSuppressedJunk) usp.append('showSuppressedJunk', '1');
     const url = `${API_BASE_URL}/emails/threads${usp.toString() ? `?${usp.toString()}` : ''}`;
-    return this.fetchWithErrorHandling(url, { useCache: true, cacheTtl: 30000 });
+    const raw = await this.fetchWithErrorHandling<unknown>(url, {
+      useCache: true,
+      cacheTtl: 30000,
+    });
+    const parsed = parseWithSchema(raw, emailThreadsResponseSchema, '/emails/threads');
+    return parsed as EmailThreadsResponseDto;
   }
 
   async getEmailThread(threadId: string): Promise<EmailThreadDetailsDto> {
     const url = `${API_BASE_URL}/emails/threads/${encodeURIComponent(threadId)}`;
-    return this.fetchWithErrorHandling<EmailThreadDetailsDto>(url, {
+    const raw = await this.fetchWithErrorHandling<unknown>(url, {
       useCache: true,
       cacheTtl: 30000,
     });
+    const parsed = parseWithSchema(raw, emailThreadDetailsResponseSchema, '/emails/threads/:id');
+    return parsed as EmailThreadDetailsDto;
   }
 
   async getEmailMessageBody(
@@ -911,9 +959,14 @@ class ApiClient {
       limit: String(params.limit),
       offset: String(params.offset),
     });
-    return this.fetchWithErrorHandling<InvestigationEvidenceListResponseDto>(
+    const raw = await this.fetchWithErrorHandling<unknown>(
       `${API_BASE_URL}/investigations/${id}/evidence?${usp.toString()}`,
       { useCache: false },
+    );
+    return parseWithSchema<InvestigationEvidenceListResponseDto>(
+      raw,
+      investigationEvidenceListResponseSchema,
+      '/investigations/:id/evidence',
     );
   }
 
@@ -950,7 +1003,12 @@ class ApiClient {
     if (filters.evidenceType) params.append('evidenceType', filters.evidenceType);
 
     const url = `${API_BASE_URL}/documents?${params.toString()}`;
-    return this.fetchWithErrorHandling<DocumentsListResponseDto>(url);
+    const raw = await this.fetchWithErrorHandling<unknown>(url);
+    return parseWithSchema<DocumentsListResponseDto>(
+      raw,
+      documentsListResponseSchema,
+      '/documents',
+    );
   }
 
   async healthCheck(): Promise<{ status: string; timestamp: string; database: string }> {

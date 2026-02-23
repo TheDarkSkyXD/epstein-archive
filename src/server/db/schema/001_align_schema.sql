@@ -1,2 +1,0 @@
--- Align Schema (Skipped)
--- Production schema is already up to date or manual alignment required

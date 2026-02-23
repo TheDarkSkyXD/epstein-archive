@@ -22,8 +22,8 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install production dependencies only — --ignore-optional excludes better-sqlite3
-RUN npm install -g pnpm && pnpm install --prod --frozen-lockfile --ignore-optional
+# Install production dependencies only
+RUN npm install -g pnpm && pnpm install --prod --frozen-lockfile
 
 # Copy built assets from builder
 COPY --from=builder /app/dist ./dist
@@ -43,7 +43,6 @@ RUN pnpm add -g tsx
 # Environment variables
 ENV NODE_ENV=production
 ENV PORT=3012
-ENV DB_DIALECT=postgres
 
 # Create data directory
 RUN mkdir -p /data

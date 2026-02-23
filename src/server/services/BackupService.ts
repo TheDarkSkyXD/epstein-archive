@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import archiver from 'archiver';
-import { getDb } from '../db/connection.js';
+import { spawn } from 'child_process';
 
 export interface BackupInfo {
   filename: string;
@@ -12,41 +12,32 @@ export interface BackupInfo {
 export class BackupService {
   private static BACKUP_DIR = path.join(process.cwd(), 'backups');
 
-  /**
-   * Initialize backup directory
-   */
   private static ensureBackupDir() {
     if (!fs.existsSync(this.BACKUP_DIR)) {
       fs.mkdirSync(this.BACKUP_DIR, { recursive: true });
     }
   }
 
-  /**
-   * Create a zero-downtime backup of the SQLite database
-   */
   static async createBackup(): Promise<string> {
     this.ensureBackupDir();
 
-    const db = getDb();
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const snapshotPath = path.join(this.BACKUP_DIR, `snapshot-${timestamp}.db`);
+    const snapshotPath = path.join(this.BACKUP_DIR, `snapshot-${timestamp}.dump`);
     const zipPath = path.join(this.BACKUP_DIR, `backup-${timestamp}.zip`);
 
-    console.log(`[BackupService] Starting backup to ${snapshotPath}...`);
+    console.log(`[BackupService] Starting Postgres backup to ${snapshotPath}...`);
 
     try {
-      // 1. Snapshot using better-sqlite3 backup API (zero-downtime)
-      await db.backup(snapshotPath);
+      await this.runPgDump(snapshotPath);
 
       console.log(`[BackupService] Snapshot created. Compressing to ${zipPath}...`);
 
-      // 2. Compress the snapshot
       await this.compressFile(snapshotPath, zipPath);
 
-      // 3. Remove the temporary raw database file
-      fs.unlinkSync(snapshotPath);
+      if (fs.existsSync(snapshotPath)) {
+        fs.unlinkSync(snapshotPath);
+      }
 
-      // 4. Run rotation logic
       this.rotateBackups();
 
       console.log(`[BackupService] Backup completed: ${zipPath}`);
@@ -58,9 +49,6 @@ export class BackupService {
     }
   }
 
-  /**
-   * List available backups
-   */
   static listBackups(): BackupInfo[] {
     this.ensureBackupDir();
 
@@ -78,9 +66,6 @@ export class BackupService {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
-  /**
-   * Zip a single file
-   */
   private static compressFile(source: string, destination: string): Promise<void> {
     return new Promise((resolve, reject) => {
       const output = fs.createWriteStream(destination);
@@ -95,9 +80,6 @@ export class BackupService {
     });
   }
 
-  /**
-   * Keep only the last 7 backups
-   */
   private static rotateBackups() {
     const backups = this.listBackups();
     if (backups.length > 7) {
@@ -111,5 +93,41 @@ export class BackupService {
         }
       }
     }
+  }
+
+  private static runPgDump(outputPath: string): Promise<void> {
+    const url = process.env.DATABASE_URL;
+    if (!url) {
+      throw new Error('DATABASE_URL is required for Postgres backup');
+    }
+
+    const parsed = new URL(url);
+    const database = parsed.pathname.replace(/^\//, '');
+    const host = parsed.hostname || 'localhost';
+    const port = parsed.port || '5432';
+    const user = decodeURIComponent(parsed.username || '');
+
+    const env = { ...process.env };
+    if (parsed.password) {
+      env.PGPASSWORD = decodeURIComponent(parsed.password);
+    }
+
+    const args = ['-h', host, '-p', port, '-U', user, '-F', 'c', '-f', outputPath, database];
+
+    return new Promise((resolve, reject) => {
+      const child = spawn('pg_dump', args, { env });
+
+      child.on('error', (err) => {
+        reject(err);
+      });
+
+      child.on('exit', (code) => {
+        if (code === 0) {
+          resolve();
+        } else {
+          reject(new Error(`pg_dump exited with code ${code}`));
+        }
+      });
+    });
   }
 }

@@ -2,7 +2,7 @@
  * tests/pg-hardening-v2.spec.ts
  *
  * Acceptance test suite for Next-Level Postgres Hardening.
- * Run with: DATABASE_URL=postgres://... DB_DIALECT=postgres npx jest tests/pg-hardening-v2.spec.ts
+ * Run with: DATABASE_URL=postgres://... npx jest tests/pg-hardening-v2.spec.ts
  */
 
 import pg from 'pg';

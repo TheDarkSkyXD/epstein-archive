@@ -1,87 +1,29 @@
-import { getDb } from './connection.js';
+import { db, entityEvidenceQueries } from '@epstein/db';
 
 export const entityEvidenceRepository = {
   async getEntityMentionEvidence(entityId: string) {
-    const db = getDb();
+    const eid = BigInt(entityId);
 
     // Basic entity lookup
-    const entity = db
-      .prepare(
-        `
-        SELECT id, full_name, primary_role, entity_category, risk_level, red_flag_rating
-        FROM entities
-        WHERE id = ?
-      `,
-      )
-      .get(entityId);
+    const entityRows = await entityEvidenceQueries.getEntityMentionDetails.run(
+      { entityId: eid },
+      db,
+    );
+    const entity = entityRows[0];
 
     if (!entity) {
       return null;
     }
 
-    // Detect optional tables/columns so we can operate against older DBs.
-    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as {
-      name: string;
-    }[];
-    const tableNames = new Set(tables.map((t) => t.name));
-
-    const hasMentions = tableNames.has('mentions');
-    const hasQualityFlags = tableNames.has('quality_flags');
-    const hasRelations = tableNames.has('relations');
-
     // Core mention-derived evidence items
-    let evidenceRows: any[] = [];
-    if (hasMentions) {
-      const sql = `
-        SELECT
-          em.rowid as id,
-          em.document_id,
-          em.mention_context,
-          em.confidence_score as score,
-          em.id as mention_id,
-          d.title,
-          d.file_path,
-          d.evidence_type,
-          d.red_flag_rating,
-          d.date_created,
-          q.flag_type,
-          q.severity
-        FROM entity_mentions em
-        JOIN documents d ON d.id = em.document_id
-        LEFT JOIN quality_flags q
-          ON ${hasQualityFlags ? "q.target_type = 'mention' AND q.target_id = em.id" : '1=0'}
-        WHERE em.entity_id = ?
-        ORDER BY d.date_created DESC, em.rowid DESC
-        LIMIT 200
-      `;
-      evidenceRows = db.prepare(sql).all(entityId) as any[];
-    } else {
-      const sql = `
-        SELECT
-          em.rowid as id,
-          em.document_id,
-          em.mention_context,
-          em.confidence_score as score,
-          em.id as mention_id,
-          d.title,
-          d.file_path,
-          d.evidence_type,
-          d.red_flag_rating,
-          d.date_created,
-          NULL as flag_type,
-          NULL as severity
-        FROM entity_mentions em
-        JOIN documents d ON d.id = em.document_id
-        WHERE em.entity_id = ?
-        ORDER BY d.date_created DESC, em.rowid DESC
-        LIMIT 200
-      `;
-      evidenceRows = db.prepare(sql).all(entityId) as any[];
-    }
+    const evidenceRows = await entityEvidenceQueries.getMentionDerivedEvidence.run(
+      { entityId: eid, limit: BigInt(200) },
+      db,
+    );
 
     // Normalize evidence shape to match EntityEvidencePanel expectations
     const evidence = evidenceRows.map((row) => ({
-      id: row.id,
+      id: row.evidence_id,
       evidence_type: row.evidence_type || 'document_context',
       title: row.title || `Document ${row.document_id}`,
       description: '',
@@ -116,7 +58,7 @@ export const entityEvidenceRepository = {
       count,
     }));
 
-    // Role breakdown (currently all 'mentioned', but keep shape for UI)
+    // Role breakdown
     const roleMap = new Map<string, number>();
     for (const e of evidence) {
       const key = e.role || 'mentioned';
@@ -127,28 +69,15 @@ export const entityEvidenceRepository = {
       count,
     }));
 
-    // Related entities via relations graph when available
-    let relatedEntities: any[] = [];
-    if (hasRelations) {
-      const relSql = `
-        SELECT
-          other.id,
-          other.full_name,
-          other.entity_category,
-          SUM(r.weight) as shared_evidence_count
-        FROM relations r
-        JOIN entities other ON
-          other.id = CASE
-            WHEN r.subject_entity_id = :entityId THEN r.object_entity_id
-            ELSE r.subject_entity_id
-          END
-        WHERE r.subject_entity_id = :entityId OR r.object_entity_id = :entityId
-        GROUP BY other.id, other.full_name, other.entity_category
-        ORDER BY shared_evidence_count DESC
-        LIMIT 20
-      `;
-      relatedEntities = db.prepare(relSql).all({ entityId: Number(entityId) }) as any[];
-    }
+    // Related entities via relations graph
+    const relatedEntitiesRaw = await entityEvidenceQueries.getRelatedEntitiesByRelations.run(
+      { entityId: eid, limit: BigInt(20) },
+      db,
+    );
+    const relatedEntities = relatedEntitiesRaw.map((r) => ({
+      ...r,
+      shared_evidence_count: Number(r.shared_evidence_count),
+    }));
 
     const highRiskCount = evidence.filter((e: any) => (e.red_flag_rating || 0) >= 4).length;
     const averageConfidence =
@@ -156,7 +85,10 @@ export const entityEvidenceRepository = {
       (evidence.length || 1);
 
     return {
-      entity,
+      entity: {
+        ...entity,
+        id: String(entity.id),
+      },
       evidence,
       stats: {
         totalEvidence,
@@ -169,45 +101,12 @@ export const entityEvidenceRepository = {
     };
   },
 
-  async getRelationEvidenceForEntity(entityId: string) {
-    const db = getDb();
-
-    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as {
-      name: string;
-    }[];
-    const names = new Set(tables.map((t) => t.name));
-    if (!names.has('relations') || !names.has('relation_evidence')) {
-      return { relations: [], evidence: [] };
-    }
-
-    const rows = db
-      .prepare(
-        `
-        SELECT
-          r.id as relation_id,
-          r.subject_entity_id,
-          r.object_entity_id,
-          r.predicate,
-          r.direction,
-          r.weight,
-          r.first_seen_at,
-          r.last_seen_at,
-          re.id as relation_evidence_id,
-          re.document_id,
-          re.span_id,
-          re.quote_text,
-          re.confidence,
-          re.mention_ids,
-          d.title as document_title,
-          d.file_path as document_path
-        FROM relations r
-        JOIN relation_evidence re ON re.relation_id = r.id
-        LEFT JOIN documents d ON d.id = re.document_id
-        WHERE r.subject_entity_id = ? OR r.object_entity_id = ?
-        ORDER BY r.weight DESC, re.confidence DESC
-      `,
-      )
-      .all(entityId, entityId) as any[];
+  async getRelationEvidenceForEntity(entityId: string | number) {
+    const eid = BigInt(entityId);
+    const rows = await entityEvidenceQueries.getRelationEvidenceForEntity.run(
+      { entityId: eid },
+      db,
+    );
 
     const byRelation = new Map<string, any>();
 
@@ -216,8 +115,8 @@ export const entityEvidenceRepository = {
       if (!rel) {
         rel = {
           id: row.relation_id,
-          subject_entity_id: row.subject_entity_id,
-          object_entity_id: row.object_entity_id,
+          subject_entity_id: String(row.subject_entity_id),
+          object_entity_id: String(row.object_entity_id),
           predicate: row.predicate,
           direction: row.direction,
           weight: row.weight,
@@ -229,7 +128,7 @@ export const entityEvidenceRepository = {
       }
       rel.evidence.push({
         id: row.relation_evidence_id,
-        document_id: row.document_id,
+        document_id: String(row.document_id),
         span_id: row.span_id,
         quote_text: row.quote_text,
         confidence: row.confidence,

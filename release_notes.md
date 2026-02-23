@@ -1,3 +1,34 @@
+## v14.4.0 - 2026-02-23 - PostgreSQL-Only Cutover & SQLite Purge
+
+### Database & Deployment
+
+- Enforced Postgres as the sole production datastore; removed all SQLite-based deployment flows.
+- Replaced deploy-time SQLite snapshotting with remote `pnpm db:migrate:pg` + `pnpm db:analyze` on the production host.
+- Added automatic purge of legacy `epstein-archive.db` files on the server during `--with-db` / `--db-only` deploys.
+- Hardened CI/ops guardrails so `better-sqlite3` usage is restricted to quarantined one-off tooling only.
+
+### Reliability & Verification
+
+- Kept existing Postgres schema hash, EXPLAIN, and DTO contract tests as mandatory pre-flight for releases.
+- Verified core investigative flows (`/api/entities/:id`, `/api/documents`, `/api/investigations`, `/api/emails`, `/api/_meta/db`) against the Postgres-backed stack after deploy.
+
+## v14.3.0 - 2026-02-22 - Entity Detail + Global Stats Incident Fix
+
+### Incident Resolution
+
+- **Fixed `/api/entities/:id` production 500**: corrected entity-detail query path for Postgres type compatibility (`bigint`/`text` join mismatch in media enrichment) and ensured async repository execution path is fully awaited.
+- **Removed silent data-shape masking in entity detail**: no placeholder unknown entity payloads; endpoint now returns real data or explicit API error JSON.
+- **Fixed `/api/analytics/enhanced` schema drift**: aligned route SQL with materialized view columns (`sensitive`/`avg_signal`) and preserved client contract fields (`redacted`, `avgRisk`) via explicit aliasing.
+- **Fixed global stats zeros**: corrected Postgres aggregate alias casing and numeric coercion so `totalEntities`/`totalDocuments` return true counts instead of zeroed contract defaults.
+- **Contract integrity**: stats/entity responses now consistently emit explicit arrays/fields for frontend safety (`likelihoodDistribution`, evidence arrays, media arrays), preventing `undefined` access crashes.
+
+### Production Verification
+
+- Verified 200 responses for core routes: `/api/entities/1`, `/api/stats`, `/api/analytics/enhanced`, `/api/investigations`, `/api/documents?limit=1`, `/api/subjects?page=1&limit=1&sortBy=red_flag`, `/api/emails/threads?mailboxId=all&q=&tab=all&limit=1`, `/api/_meta/db`.
+- Confirmed live Postgres counts are non-zero and consistent with API totals:
+  - `entities = 131342`
+  - `documents = 1382479`
+
 ## v14.2.0 - 2026-02-20 - Postgres Hardening Patch
 
 ### Database Hardening

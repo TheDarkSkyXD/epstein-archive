@@ -1,0 +1,11 @@
+{
+  "srcDir": ".",
+  "dbUrl": "postgresql://epstein:epstein@localhost:5435/epstein_archive",
+  "transforms": [
+    {
+      "mode": "sql",
+      "include": "./src/queries/*.sql",
+      "emitTemplate": "./src/queries/__generated__/{{name}}.ts"
+    }
+  ]
+}

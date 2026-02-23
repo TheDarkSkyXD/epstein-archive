@@ -1,8 +1,7 @@
 import pg from 'pg';
 import crypto from 'crypto';
-import { fileURLToPath } from 'url';
-import path from 'path';
 import { createRequire } from 'module';
+import { requestContext } from '../middleware/requestId.js';
 
 const require = createRequire(import.meta.url);
 
@@ -37,8 +36,47 @@ let ingressPool: pg.Pool | null = null;
 let replayPool: pg.Pool | null = null;
 
 let pgWrapper: PgWrapper | null = null;
-let sqliteInstance: any = null;
-let sqliteWrapper: SqliteWrapper | null = null;
+
+function wrapPool(pool: pg.Pool, label: string): pg.Pool {
+  const originalQuery = pool.query.bind(pool);
+  pool.query = (async (...args: any[]) => {
+    const startedAt = Date.now();
+    const waitingBefore = pool.waitingCount;
+    let queryName = label;
+    if (args.length > 0 && args[0] && typeof args[0] === 'object' && 'name' in args[0]) {
+      queryName = (args[0] as any).name || label;
+    }
+    try {
+      const res = await originalQuery(...args);
+      const durationMs = Date.now() - startedAt;
+      const debugPg =
+        process.env.DEBUG_PG && process.env.DEBUG_PG !== '0' && process.env.DEBUG_PG !== 'false';
+      const shouldLog = debugPg || durationMs > 300;
+      if (shouldLog) {
+        const store = requestContext.getStore();
+        const requestId = store?.requestId || 'no-req-id';
+        const rowCount = (res as any).rowCount ?? (res as any).rows?.length ?? 0;
+        console.warn('[PG_QUERY]', {
+          requestId,
+          queryName,
+          durationMs,
+          rowCount,
+          pool: {
+            total: pool.totalCount,
+            idle: pool.idleCount,
+            waitingBefore,
+            waitingAfter: pool.waitingCount,
+          },
+        });
+      }
+      return res;
+    } catch (err: any) {
+      (err as any)._pgQueryName = queryName;
+      throw err;
+    }
+  }) as any;
+  return pool;
+}
 
 // Pool sizing — matches connection budget in runbook §3:
 // apiPool=18, ingestPool=8, maintenancePool=2, replayPool=2
@@ -99,31 +137,26 @@ function recordTranslation(originalSql: string): void {
 export function assertProductionPg(): void {
   if (process.env.NODE_ENV !== 'production') return;
 
-  if (process.env.DB_DIALECT !== 'postgres') {
-    throw new Error(
-      '[FATAL] DB_DIALECT must be "postgres" in production. ' +
-        'Set DB_DIALECT=postgres and DATABASE_URL=postgres://... Refusing to start.',
-    );
-  }
-
   if (!process.env.DATABASE_URL?.startsWith('postgres')) {
     throw new Error(
       '[FATAL] DATABASE_URL must be a postgres:// or postgresql:// URI in production. Refusing to start.',
     );
   }
 
-  // Crash if SQLite was accidentally installed (e.g. missing --ignore-optional)
+  if (process.env.DB_PATH) {
+    throw new Error(
+      '[FATAL] DB_PATH is set in production, but the application now uses Postgres only. Refusing to start.',
+    );
+  }
+
   try {
     require.resolve('better-sqlite3');
-    // If we get here, the module was found — in production this should ideally be fatal,
-    // but we'll downgrade to a warning during the transition phase.
-    console.warn(
-      '[WARNING] better-sqlite3 is installed in the production environment. ' +
-        'To fully harden, rebuild with `pnpm install --prod --ignore-optional`.',
+    throw new Error(
+      '[FATAL] better-sqlite3 is installed in the production environment. The application is Postgres-only. Refusing to start.',
     );
   } catch (e: any) {
-    if (e.code === 'MODULE_NOT_FOUND') return; // ✅ not installed, safe to proceed
-    throw e; // re-throw our own fatal error
+    if (e.code === 'MODULE_NOT_FOUND') return;
+    throw e;
   }
 }
 
@@ -226,36 +259,117 @@ class PgWrapper implements DbWrapper {
       all: async (...args: any[]) => {
         const raw = args.length === 1 ? args[0] : args.length > 1 ? args : undefined;
         const { pgSql, values } = this.translateSql(sql, raw);
+        const startedAt = Date.now();
         try {
           const res = await this.pool.query({ name: `${stmtName}_all`, text: pgSql }, values);
+          const durationMs = Date.now() - startedAt;
+          const debugPg =
+            process.env.DEBUG_PG &&
+            process.env.DEBUG_PG !== '0' &&
+            process.env.DEBUG_PG !== 'false';
+          const shouldLog = debugPg || durationMs > 300;
+          if (shouldLog) {
+            const store = requestContext.getStore();
+            const requestId = store?.requestId || 'no-req-id';
+            console.warn('[DEBUG_PG] slow query', {
+              requestId,
+              queryName: `${stmtName}_all`,
+              durationMs,
+              pool: {
+                total: this.pool.totalCount,
+                idle: this.pool.idleCount,
+                waiting: this.pool.waitingCount,
+              },
+            });
+          }
           return res.rows;
         } catch (err: any) {
           console.error('[PG] .all() error:', err.message, '\nSQL:', pgSql);
+          (err as any)._pgQueryName = `${stmtName}_all`;
+          (err as any)._pgSqlHash = crypto
+            .createHash('sha256')
+            .update(pgSql)
+            .digest('hex')
+            .slice(0, 16);
           throw err;
         }
       },
       get: async (...args: any[]) => {
         const raw = args.length === 1 ? args[0] : args.length > 1 ? args : undefined;
         const { pgSql, values } = this.translateSql(sql, raw);
+        const startedAt = Date.now();
         try {
           const res = await this.pool.query({ name: `${stmtName}_get`, text: pgSql }, values);
+          const durationMs = Date.now() - startedAt;
+          const debugPg =
+            process.env.DEBUG_PG &&
+            process.env.DEBUG_PG !== '0' &&
+            process.env.DEBUG_PG !== 'false';
+          const shouldLog = debugPg || durationMs > 300;
+          if (shouldLog) {
+            const store = requestContext.getStore();
+            const requestId = store?.requestId || 'no-req-id';
+            console.warn('[DEBUG_PG] slow query', {
+              requestId,
+              queryName: `${stmtName}_get`,
+              durationMs,
+              pool: {
+                total: this.pool.totalCount,
+                idle: this.pool.idleCount,
+                waiting: this.pool.waitingCount,
+              },
+            });
+          }
           return res.rows[0] ?? null;
         } catch (err: any) {
           console.error('[PG] .get() error:', err.message, '\nSQL:', pgSql);
+          (err as any)._pgQueryName = `${stmtName}_get`;
+          (err as any)._pgSqlHash = crypto
+            .createHash('sha256')
+            .update(pgSql)
+            .digest('hex')
+            .slice(0, 16);
           throw err;
         }
       },
       run: async (...args: any[]) => {
         const raw = args.length === 1 ? args[0] : args.length > 1 ? args : undefined;
         const { pgSql, values } = this.translateSql(sql, raw);
+        const startedAt = Date.now();
         try {
           const res = await this.pool.query(pgSql, values);
+          const durationMs = Date.now() - startedAt;
+          const debugPg =
+            process.env.DEBUG_PG &&
+            process.env.DEBUG_PG !== '0' &&
+            process.env.DEBUG_PG !== 'false';
+          const shouldLog = debugPg || durationMs > 300;
+          if (shouldLog) {
+            const store = requestContext.getStore();
+            const requestId = store?.requestId || 'no-req-id';
+            console.warn('[DEBUG_PG] slow query', {
+              requestId,
+              queryName: `${stmtName}_run`,
+              durationMs,
+              pool: {
+                total: this.pool.totalCount,
+                idle: this.pool.idleCount,
+                waiting: this.pool.waitingCount,
+              },
+            });
+          }
           return {
             changes: res.rowCount ?? 0,
             lastInsertRowid: res.rows[0]?.id ?? res.rows[0]?.ID ?? null,
           };
         } catch (err: any) {
           console.error('[PG] .run() error:', err.message, '\nSQL:', pgSql);
+          (err as any)._pgQueryName = `${stmtName}_run`;
+          (err as any)._pgSqlHash = crypto
+            .createHash('sha256')
+            .update(pgSql)
+            .digest('hex')
+            .slice(0, 16);
           throw err;
         }
       },
@@ -299,175 +413,87 @@ class PgWrapper implements DbWrapper {
   }
 }
 
-// ─── SqliteWrapper — dev/test only ───────────────────────────────────────────
-
-class SqliteWrapper implements DbWrapper {
-  constructor(private db: any) {}
-
-  getSqlite() {
-    return this.db;
-  }
-
-  prepare(sql: string): PreparedStatement {
-    const stmt = this.db.prepare(sql);
-    const withTimeout = <T>(fn: () => T): T => {
-      const timer = setTimeout(() => {
-        try {
-          this.db.interrupt();
-        } catch (_e) {
-          /* interrupt is best-effort */
-        }
-      }, 5000);
-      try {
-        const r = fn();
-        clearTimeout(timer);
-        return r;
-      } catch (err: any) {
-        clearTimeout(timer);
-        if (err.message?.includes('interrupted')) {
-          const e = new Error('Database Gateway Timeout');
-          (e as any).status = 504;
-          throw e;
-        }
-        throw err;
-      }
-    };
-    return {
-      all: (...args: any[]) =>
-        withTimeout(() => (args.length === 0 ? stmt.all() : stmt.all(...args))),
-      get: (...args: any[]) =>
-        withTimeout(() => (args.length === 0 ? stmt.get() : stmt.get(...args))),
-      run: (...args: any[]) =>
-        withTimeout(() => (args.length === 0 ? stmt.run() : stmt.run(...args))),
-    };
-  }
-
-  async get(sql: string, params: any = []): Promise<any> {
-    const paramsArr = Array.isArray(params) ? params : [params];
-    return this.prepare(sql).get(...paramsArr);
-  }
-
-  async all(sql: string, params: any = []): Promise<any[]> {
-    const paramsArr = Array.isArray(params) ? params : [params];
-    return this.prepare(sql).all(...paramsArr);
-  }
-
-  async run(sql: string, params: any = []): Promise<{ changes: number }> {
-    const paramsArr = Array.isArray(params) ? params : [params];
-    return this.prepare(sql).run(...paramsArr);
-  }
-
-  transaction(fn: any) {
-    return this.db.transaction(fn);
-  }
-  pragma(sql: string) {
-    return this.db.pragma(sql);
-  }
-  exec(sql: string) {
-    return this.db.exec(sql);
-  }
-  interrupt() {
-    return this.db.interrupt();
-  }
-}
-
 // ─── getDb() — public entry point ─────────────────────────────────────────────
 
 export function getDb(): DbWrapper {
   if (pgWrapper) return pgWrapper;
-  if (sqliteWrapper && process.env.DB_DIALECT !== 'postgres') return sqliteWrapper;
 
   assertProductionPg();
 
-  if (process.env.DB_DIALECT === 'postgres') {
-    // ── API pool — max 18 connections (not 20) to reduce worst-case work_mem exposure
-    apiPool = new pg.Pool({
-      connectionString: process.env.DATABASE_URL,
-      max: POOL_SIZES.api,
-      idleTimeoutMillis: 10_000,
-      connectionTimeoutMillis: 10_000,
-      application_name: 'epstein-api',
-      // Robust retry logic for transient connection failures
-      maxUses: 7500, // Close connections occasionally to prevent memory leaks/bloat
-    });
-    apiPool.on('connect', (client) => applyApiSessionSettings(client));
-    apiPool.on('error', (err) => {
-      console.error('[PG API POOL] Unexpected error:', err.message);
-    });
-
-    // ── Maintenance pool — max 2 connections; never used for API requests
-    maintenancePool = new pg.Pool({
-      connectionString: process.env.DATABASE_URL,
-      max: POOL_SIZES.maintenance,
-      idleTimeoutMillis: 60_000,
-      connectionTimeoutMillis: 15_000,
-      application_name: 'epstein-maintenance',
-    });
-    maintenancePool.on('connect', (client) => applyMaintenanceSessionSettings(client));
-    maintenancePool.on('error', (err) => {
-      console.error('[PG MAINTENANCE POOL] Unexpected error:', err.message);
-    });
-
-    // ── Ingest pool — for ETL pipeline / backfill (max 8)
-    ingressPool = new pg.Pool({
-      connectionString: process.env.DATABASE_URL,
-      max: POOL_SIZES.ingress,
-      idleTimeoutMillis: 60_000,
-      connectionTimeoutMillis: 15_000,
-      application_name: 'epstein-ingest',
-    });
-    ingressPool.on('connect', (client) => {
-      client
-        .query(
-          [
-            "SET statement_timeout = '60000ms'",
-            "SET lock_timeout = '500ms'",
-            "SET idle_in_transaction_session_timeout = '3000ms'",
-          ].join('; '),
-        )
-        .catch(() => {});
-    });
-
-    // ── Replay pool — for pg_replay.ts; small and slow
-    replayPool = new pg.Pool({
-      connectionString: process.env.DATABASE_URL,
-      max: POOL_SIZES.replay,
-      application_name: 'epstein-replay',
-    });
-
-    pgWrapper = new PgWrapper(apiPool);
-    return pgWrapper;
+  if (!process.env.DATABASE_URL) {
+    throw new Error(
+      'DATABASE_URL is required. SQLite support has been removed; configure Postgres instead.',
+    );
   }
 
-  // SQLite path — dev/test only
-  const { default: Database } = sqlite_require();
-  const dbPath = process.env.DB_PATH || resolveDefaultDbPath();
-  sqliteInstance = new Database(dbPath, { timeout: 30_000 });
-  sqliteInstance.pragma('journal_mode = WAL');
-  sqliteInstance.pragma('foreign_keys = ON');
-  sqliteInstance.pragma('synchronous = NORMAL');
-  sqliteInstance.pragma('temp_store = MEMORY');
-  sqliteInstance.pragma('mmap_size = 2000000000');
-  sqliteInstance.pragma('cache_size = -500000');
-  sqliteWrapper = new SqliteWrapper(sqliteInstance);
-  return sqliteWrapper;
-}
+  // ── API pool — max 18 connections (not 20) to reduce worst-case work_mem exposure
+  apiPool = new pg.Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: POOL_SIZES.api,
+    idleTimeoutMillis: 10_000,
+    connectionTimeoutMillis: 10_000,
+    application_name: 'epstein-api',
+    // Robust retry logic for transient connection failures
+    maxUses: 7500, // Close connections occasionally to prevent memory leaks/bloat
+  });
+  apiPool = wrapPool(apiPool, 'apiPool');
+  apiPool.on('connect', (client) => applyApiSessionSettings(client));
+  apiPool.on('error', (err) => {
+    console.error('[PG API POOL] Unexpected error:', err.message);
+  });
 
-function resolveDefaultDbPath(): string {
-  const currentFile = fileURLToPath(import.meta.url);
-  return path.resolve(path.dirname(currentFile), '..', '..', '..', 'epstein-archive.db');
-}
+  // ── Maintenance pool — max 2 connections; never used for API requests
+  maintenancePool = new pg.Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: POOL_SIZES.maintenance,
+    idleTimeoutMillis: 60_000,
+    connectionTimeoutMillis: 15_000,
+    application_name: 'epstein-maintenance',
+  });
+  maintenancePool = wrapPool(maintenancePool, 'maintenancePool');
+  maintenancePool.on('connect', (client) => applyMaintenanceSessionSettings(client));
+  maintenancePool.on('error', (err) => {
+    console.error('[PG MAINTENANCE POOL] Unexpected error:', err.message);
+  });
 
-function sqlite_require(): any {
-  return { default: require('better-sqlite3') };
+  // ── Ingest pool — for ETL pipeline / backfill (max 8)
+  ingressPool = new pg.Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: POOL_SIZES.ingress,
+    idleTimeoutMillis: 60_000,
+    connectionTimeoutMillis: 15_000,
+    application_name: 'epstein-ingest',
+  });
+  ingressPool = wrapPool(ingressPool, 'ingressPool');
+  ingressPool.on('connect', (client) => {
+    client
+      .query(
+        [
+          "SET statement_timeout = '60000ms'",
+          "SET lock_timeout = '500ms'",
+          "SET idle_in_transaction_session_timeout = '3000ms'",
+        ].join('; '),
+      )
+      .catch(() => {});
+  });
+
+  // ── Replay pool — for pg_replay.ts; small and slow
+  replayPool = new pg.Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: POOL_SIZES.replay,
+    application_name: 'epstein-replay',
+  });
+  replayPool = wrapPool(replayPool, 'replayPool');
+
+  pgWrapper = new PgWrapper(apiPool);
+  return pgWrapper;
 }
 
 // ─── Metrics / observability ──────────────────────────────────────────────────
 
 export async function getMigrationMetrics() {
   return {
-    dialect: process.env.DB_DIALECT || 'sqlite',
-    translationCount: _translationCount, // must be 0 in production
+    dialect: 'postgres',
     pools: {
       api: apiPool
         ? {

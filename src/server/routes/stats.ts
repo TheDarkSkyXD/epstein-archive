@@ -1,8 +1,14 @@
 import { Router } from 'express';
 import { statsRepository } from '../db/statsRepository.js';
-import { getDb, getApiPool, getMigrationMetrics } from '../db/connection.js';
+import { getDb, getMigrationMetrics } from '../db/connection.js';
 import { config } from '../../config/index.js';
-import fs from 'fs';
+import {
+  getCriticalTableCounts,
+  getDbMeta,
+  getEntityAndDocumentCounts,
+  getSampleEntityWithMentions,
+  pingDatabase,
+} from '../db/routesDb.js';
 import { ingestRunsRepository } from '../db/ingestRunsRepository.js';
 import { BackupService } from '../services/BackupService.js';
 import { FtsMaintenanceService } from '../services/ftsMaintenance.js';
@@ -52,20 +58,10 @@ function withSafeStatsContract(input: any) {
 // ── /meta/db ─── Canary endpoint: database dialect, version, timeouts, pool stats
 router.get('/meta/db', async (_req, res, next) => {
   try {
-    const pool = getApiPool();
-    const { rows } = await pool.query<{
-      server_version: string;
-      statement_timeout: string;
-      lock_timeout: string;
-    }>(`
-      SELECT
-        version() AS server_version,
-        current_setting('statement_timeout') AS statement_timeout,
-        current_setting('lock_timeout') AS lock_timeout
-    `);
+    const rows = await getDbMeta();
     const metrics = await getMigrationMetrics();
     res.json({
-      dialect: process.env.DB_DIALECT || 'sqlite',
+      dialect: 'postgres',
       server_version: rows[0]?.server_version,
       statement_timeout: rows[0]?.statement_timeout,
       lock_timeout: rows[0]?.lock_timeout,
@@ -80,13 +76,6 @@ router.get('/meta/db', async (_req, res, next) => {
 // Cache for 5 minutes (300 seconds)
 router.get('/', cacheMiddleware(300), async (_req, res, next) => {
   try {
-    if (
-      process.env.DISABLE_INVESTIGATIONS_STATS === '1' ||
-      process.env.DISABLE_INVESTIGATIONS_STATS === 'true'
-    ) {
-      return res.json(withSafeStatsContract({}));
-    }
-
     const stats = statsRepository.getStatistics();
     res.json(withSafeStatsContract(await stats));
   } catch (e) {
@@ -103,13 +92,7 @@ router.get('/health', async (_req, res) => {
     const db = getDb();
     if (db) {
       dbStatus = 'connected';
-      const entityCount = (await db.prepare('SELECT COUNT(*) as count FROM entities').get()) as {
-        count: number;
-      };
-      const docCount = (await db.prepare('SELECT COUNT(*) as count FROM documents').get()) as {
-        count: number;
-      };
-      stats = { entities: entityCount.count, documents: docCount.count };
+      stats = getEntityAndDocumentCounts();
     }
   } catch (e) {
     dbStatus = 'error';
@@ -137,8 +120,7 @@ router.get('/health/ready', async (_req, res) => {
       return res.status(503).json({ status: 'degraded', error: 'No database' });
     }
 
-    // Ping the DB strictly, wrapped in a 50ms Promise.race timeout
-    const pingPromise = Promise.resolve(db.prepare('SELECT 1').get());
+    const pingPromise = pingDatabase();
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('timeout')), 50),
     );
@@ -165,12 +147,12 @@ router.get('/health/deep', async (_req, res) => {
   const startTime = Date.now();
 
   try {
-    const db = getDb();
+    getDb();
 
     // 1. Database connection check
     const dbStart = Date.now();
     try {
-      await db.prepare('SELECT 1').get();
+      await pingDatabase();
       checks.database_connection = {
         status: 'pass',
         message: 'Database connected',
@@ -184,34 +166,7 @@ router.get('/health/deep', async (_req, res) => {
       overallStatus = 'critical';
     }
 
-    // 2. Database integrity check (SQLite only — PG uses table-level checks instead)
-    const integrityStart = Date.now();
-    if (process.env.DB_DIALECT !== 'postgres' && db.pragma) {
-      try {
-        const integrity = db.pragma('integrity_check') as Array<{ integrity_check: string }>;
-        if (integrity[0]?.integrity_check === 'ok') {
-          checks.database_integrity = {
-            status: 'pass',
-            message: 'Database integrity OK',
-            duration: Date.now() - integrityStart,
-          };
-        } else {
-          checks.database_integrity = {
-            status: 'fail',
-            message: `Integrity check failed: ${integrity[0]?.integrity_check}`,
-          };
-          overallStatus = 'critical';
-        }
-      } catch (e: any) {
-        checks.database_integrity = {
-          status: 'fail',
-          message: `Integrity check error: ${e.message}`,
-        };
-        overallStatus = 'critical';
-      }
-    } else {
-      checks.database_integrity = { status: 'pass', message: 'N/A (postgres)' };
-    }
+    checks.database_integrity = { status: 'pass', message: 'N/A (postgres)' };
 
     // 3. Critical tables exist and have data
     const criticalTables = [
@@ -221,28 +176,28 @@ router.get('/health/deep', async (_req, res) => {
       'investigations',
       'black_book_entries',
     ];
+    const tableCounts = getCriticalTableCounts(criticalTables);
     for (const table of criticalTables) {
       const tableStart = Date.now();
-      try {
-        const count = (await db.prepare(`SELECT COUNT(*) as count FROM ${table}`).get()) as {
-          count: number;
+      const info = tableCounts[table];
+      if (info.ok && info.count > 0) {
+        checks[`table_${table}`] = {
+          status: 'pass',
+          message: `${info.count} rows`,
+          duration: Date.now() - tableStart,
         };
-        if (count.count > 0) {
-          checks[`table_${table}`] = {
-            status: 'pass',
-            message: `${count.count} rows`,
-            duration: Date.now() - tableStart,
-          };
-        } else {
-          checks[`table_${table}`] = {
-            status: 'warn',
-            message: 'Table empty',
-            duration: Date.now() - tableStart,
-          };
-          if (overallStatus === 'healthy') overallStatus = 'degraded';
-        }
-      } catch (e: any) {
-        checks[`table_${table}`] = { status: 'fail', message: `Table check failed: ${e.message}` };
+      } else if (info.ok) {
+        checks[`table_${table}`] = {
+          status: 'warn',
+          message: 'Table empty',
+          duration: Date.now() - tableStart,
+        };
+        if (overallStatus === 'healthy') overallStatus = 'degraded';
+      } else {
+        checks[`table_${table}`] = {
+          status: 'fail',
+          message: `Table check failed: ${info.error}`,
+        };
         overallStatus = 'critical';
       }
     }
@@ -250,9 +205,7 @@ router.get('/health/deep', async (_req, res) => {
     // 4. Test a real query
     const queryStart = Date.now();
     try {
-      const entity = await db
-        .prepare('SELECT id, full_name FROM entities WHERE mentions > 0 LIMIT 1')
-        .get();
+      const entity = getSampleEntityWithMentions();
       if (entity) {
         checks.query_execution = {
           status: 'pass',
@@ -267,24 +220,7 @@ router.get('/health/deep', async (_req, res) => {
       overallStatus = 'critical';
     }
 
-    // 5. Check WAL mode (SQLite only)
-    if (process.env.DB_DIALECT !== 'postgres' && db.pragma) {
-      try {
-        const journalMode = db.pragma('journal_mode') as Array<{ journal_mode: string }>;
-        const mode = journalMode[0]?.journal_mode;
-        checks.journal_mode = {
-          status: mode === 'wal' ? 'pass' : 'warn',
-          message: `Journal mode: ${mode}`,
-        };
-      } catch (e: any) {
-        checks.journal_mode = {
-          status: 'warn',
-          message: `Could not check journal mode: ${e.message}`,
-        };
-      }
-    } else {
-      checks.journal_mode = { status: 'pass', message: 'N/A (postgres uses WAL natively)' };
-    }
+    checks.journal_mode = { status: 'pass', message: 'N/A (postgres uses WAL natively)' };
 
     // 6. Memory check
     const memUsage = process.memoryUsage();
@@ -304,16 +240,26 @@ router.get('/health/deep', async (_req, res) => {
       };
     }
 
-    // 7. Disk space check
+    // 7. Database size check (Postgres)
     try {
-      const dbPath = process.env.DB_PATH || './epstein-archive.db';
-      if (fs.existsSync(dbPath)) {
-        const stats = fs.statSync(dbPath);
-        const dbSizeMB = Math.round(stats.size / 1024 / 1024);
+      const db = getDb();
+      const row = (await db
+        .prepare('SELECT pg_database_size(current_database()) AS size_bytes')
+        .get()) as { size_bytes?: number } | null;
+      if (row && typeof row.size_bytes === 'number') {
+        const dbSizeMB = Math.round(row.size_bytes / 1024 / 1024);
         checks.database_size = { status: 'pass', message: `${dbSizeMB} MB` };
+      } else {
+        checks.database_size = {
+          status: 'warn',
+          message: 'Could not determine Postgres database size',
+        };
       }
     } catch (e: any) {
-      checks.database_size = { status: 'warn', message: `Could not check DB size: ${e.message}` };
+      checks.database_size = {
+        status: 'warn',
+        message: `Could not check Postgres DB size: ${e.message}`,
+      };
     }
 
     // 8. FTS Integrity Check

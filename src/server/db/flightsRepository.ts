@@ -1,4 +1,4 @@
-import { getDb } from './connection.js';
+import { db, flightsQueries } from '@epstein/db';
 
 export interface Flight {
   id: number;
@@ -66,417 +66,263 @@ export const flightsRepository = {
       airport?: string;
     } = {},
   ) => {
-    const db = getDb();
-    const { page = 1, limit = 50, startDate, endDate, passenger, airport } = filters;
+    const page = filters.page || 1;
+    const limit = filters.limit || 50;
     const offset = (page - 1) * limit;
 
-    const conditions: string[] = [];
-    const params: any[] = [];
+    const flights = await flightsQueries.getFlights.run(
+      {
+        startDate: filters.startDate || null,
+        endDate: filters.endDate || null,
+        airport: filters.airport || null,
+        limit: BigInt(limit),
+        offset: BigInt(offset),
+      },
+      db,
+    );
 
-    if (startDate) {
-      conditions.push('f.date >= ?');
-      params.push(startDate);
-    }
-    if (endDate) {
-      conditions.push('f.date <= ?');
-      params.push(endDate);
-    }
-    if (passenger) {
-      conditions.push(
-        'f.id IN (SELECT flight_id FROM flight_passengers WHERE passenger_name LIKE ?)',
-      );
-      params.push(`%${passenger}%`);
-    }
-    if (airport) {
-      conditions.push('(f.departure_airport = ? OR f.arrival_airport = ?)');
-      params.push(airport, airport);
-    }
+    if (flights.length === 0) return { flights: [], total: 0 };
 
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const flightIds = flights.map((f) => f.id);
+    const passengers = await flightsQueries.getFlightPassengers.run({ flightIds }, db);
 
-    // Get total count
-    const countQuery = `SELECT COUNT(*) as total FROM flights f ${whereClause}`;
-    const totalRow = (await db.prepare(countQuery).get(...params)) as { total: number };
-    const total = totalRow.total;
-
-    // Get flights
-    const query = `
-      SELECT f.* FROM flights f
-      ${whereClause}
-      ORDER BY f.date DESC
-      LIMIT ? OFFSET ?
-    `;
-    const flights = (await db.prepare(query).all(...params, limit, offset)) as Flight[];
-
-    // Get passengers for each flight
-    const passengerStmt = db.prepare(`
-      SELECT * FROM flight_passengers WHERE flight_id = ?
-    `);
-
-    for (const flight of flights) {
-      flight.passengers = (await passengerStmt.all(flight.id)) as FlightPassenger[];
-    }
+    const flightsWithPassengers = flights.map((f) => ({
+      ...f,
+      id: Number(f.id),
+      departure_airport: f.departureAirport || '',
+      departure_city: f.departureCity || '',
+      departure_country: f.departureCountry || '',
+      arrival_airport: f.arrivalAirport || '',
+      arrival_city: f.arrivalCity || '',
+      arrival_country: f.arrivalCountry || '',
+      aircraft_tail: f.aircraftTail || '',
+      aircraft_type: f.aircraftType || '',
+      passengers: passengers
+        .filter((p) => p.flightId === f.id)
+        .map((p) => ({
+          ...p,
+          id: Number(p.id),
+          flight_id: Number(p.flightId),
+          entity_id: p.entityId ? Number(p.entityId) : undefined,
+          passenger_name: p.passengerName,
+        })),
+    }));
 
     return {
-      flights,
-      total,
-      page,
-      pageSize: limit,
-      totalPages: Math.ceil(total / limit),
+      flights: flightsWithPassengers,
+      total: 0,
     };
   },
 
   getFlightById: async (id: number): Promise<Flight | null> => {
-    const db = getDb();
-    const flight = (await db.prepare('SELECT * FROM flights WHERE id = ?').get(id)) as
-      | Flight
-      | undefined;
+    const flightRows = await flightsQueries.getFlightById.run({ id: BigInt(id) }, db);
+    const f = flightRows[0];
+    if (!f) return null;
 
-    if (!flight) return null;
+    const passengers = await flightsQueries.getFlightPassengers.run({ flightIds: [f.id] }, db);
 
-    flight.passengers = (await db
-      .prepare('SELECT * FROM flight_passengers WHERE flight_id = ?')
-      .all(id)) as FlightPassenger[];
-
-    return flight;
+    return {
+      ...f,
+      id: Number(f.id),
+      departure_airport: f.departureAirport || '',
+      departure_city: f.departureCity || '',
+      departure_country: f.departureCountry || '',
+      arrival_airport: f.arrivalAirport || '',
+      arrival_city: f.arrivalCity || '',
+      arrival_country: f.arrivalCountry || '',
+      aircraft_tail: f.aircraftTail || '',
+      aircraft_type: f.aircraftType || '',
+      passengers: passengers.map((p) => ({
+        ...p,
+        id: Number(p.id),
+        flight_id: Number(p.flightId),
+        entity_id: p.entityId ? Number(p.entityId) : undefined,
+        passenger_name: p.passengerName,
+      })),
+    };
   },
 
   getFlightStats: async (): Promise<FlightStats> => {
-    const db = getDb();
-
-    const totalFlights = (
-      (await db.prepare('SELECT COUNT(*) as count FROM flights').get()) as { count: number }
-    ).count;
-
-    const uniquePassengers = (
-      (await db
-        .prepare('SELECT COUNT(DISTINCT passenger_name) as count FROM flight_passengers')
-        .get()) as {
-        count: number;
-      }
-    ).count;
-
-    const topPassengers = (await db
-      .prepare(
-        `
-      SELECT passenger_name as name, COUNT(*) as count
-      FROM flight_passengers
-      WHERE passenger_name != 'Jeffrey Epstein'
-      GROUP BY passenger_name
-      ORDER BY count DESC
-      LIMIT 10
-    `,
-      )
-      .all()) as { name: string; count: number }[];
-
-    const topRoutes = (await db
-      .prepare(
-        `
-      SELECT departure_airport || ' → ' || arrival_airport as route, COUNT(*) as count
-      FROM flights
-      GROUP BY route
-      ORDER BY count DESC
-      LIMIT 10
-    `,
-      )
-      .all()) as { route: string; count: number }[];
-
-    const flightsByYear = (await db
-      .prepare(
-        `
-      SELECT substr(date, 1, 4) as year, COUNT(*) as count
-      FROM flights
-      GROUP BY year
-      ORDER BY year ASC
-    `,
-      )
-      .all()) as { year: string; count: number }[];
-
-    // Get all airports used
-    const airports = (await db
-      .prepare(
-        `
-      SELECT airport, SUM(cnt) as count FROM (
-        SELECT departure_airport as airport, COUNT(*) as cnt FROM flights GROUP BY departure_airport
-        UNION ALL
-        SELECT arrival_airport as airport, COUNT(*) as cnt FROM flights GROUP BY arrival_airport
-      ) GROUP BY airport ORDER BY count DESC
-    `,
-      )
-      .all()) as { airport: string; count: number }[];
-
-    const airportsWithCity = airports.map((a) => ({
-      code: a.airport,
-      city: AIRPORT_COORDS[a.airport]?.city || a.airport,
-      count: a.count,
-    }));
+    const [basicStats] = await flightsQueries.getFlightStats.run(undefined, db);
+    const topPassengers = await flightsQueries.getTopPassengers.run({ limit: BigInt(10) }, db);
+    const topRoutes = await flightsQueries.getTopRoutes.run({ limit: BigInt(10) }, db);
+    const flightsByYear = await flightsQueries.getFlightsByYear.run(undefined, db);
+    const airportStats = await flightsQueries.getAirportStats.run(undefined, db);
 
     return {
-      totalFlights,
-      uniquePassengers,
-      topPassengers,
-      topRoutes,
-      flightsByYear,
-      airports: airportsWithCity,
+      totalFlights: Number(basicStats?.totalFlights || 0),
+      uniquePassengers: Number(basicStats?.uniquePassengers || 0),
+      topPassengers: topPassengers.map((p) => ({ name: p.name, count: Number(p.count || 0) })),
+      topRoutes: topRoutes.map((r) => ({
+        route: r.route || 'Unknown',
+        count: Number(r.count || 0),
+      })),
+      flightsByYear: flightsByYear.map((y) => ({
+        year: y.year || 'Unknown',
+        count: Number(y.count || 0),
+      })),
+      airports: airportStats.map((a) => ({
+        code: a.airport || 'Unknown',
+        city: a.city || 'Unknown',
+        count: Number(a.count || 0),
+      })),
     };
   },
 
   getPassengerFlights: async (passengerName: string) => {
-    const db = getDb();
-
-    const flights = (await db
-      .prepare(
-        `
+    const rows = await db.query(
+      db.apiPool,
+      `
       SELECT f.*
       FROM flights f
       INNER JOIN flight_passengers fp ON f.id = fp.flight_id
-      WHERE fp.passenger_name LIKE ?
+      WHERE fp.passenger_name ILIKE $1
       ORDER BY f.date DESC
     `,
-      )
-      .all(`%${passengerName}%`)) as Flight[];
+      [`%${passengerName}%`],
+    );
 
-    // Get passengers for each flight
-    const passengerStmt = db.prepare('SELECT * FROM flight_passengers WHERE flight_id = ?');
-    for (const flight of flights) {
-      flight.passengers = (await passengerStmt.all(flight.id)) as FlightPassenger[];
-    }
-
-    return flights;
+    return rows.rows.map((f) => ({
+      ...f,
+      id: Number(f.id),
+    }));
   },
 
   getUniquePassengers: async () => {
-    const db = getDb();
-    return (await db
-      .prepare(
-        `
-      SELECT DISTINCT fp.passenger_name as name, fp.entity_id, COUNT(*) as flight_count
-      FROM flight_passengers fp
-      GROUP BY fp.passenger_name
-      ORDER BY flight_count DESC
-    `,
-      )
-      .all()) as { name: string; entity_id: number | null; flight_count: number }[];
+    const rows = await db.query(
+      db.apiPool,
+      'SELECT DISTINCT passenger_name FROM flight_passengers ORDER BY passenger_name ASC',
+    );
+    return rows.rows.map((r) => r.passenger_name);
   },
 
   getAirportCoords: async () => {
     return AIRPORT_COORDS;
   },
 
-  /**
-   * Get passenger co-occurrence matrix - who flew together and how often
-   */
-  getPassengerCoOccurrences: async (
-    minFlights = 2,
-  ): Promise<
-    {
-      passenger1: string;
-      passenger2: string;
-      flightsTogether: number;
-      firstFlight: string;
-      lastFlight: string;
-    }[]
-  > => {
-    const db = getDb();
-    return (await db
-      .prepare(
-        `
+  getPassengerCoOccurrences: async (minFlights = 2) => {
+    const rows = await db.query(
+      db.apiPool,
+      `
       SELECT 
-        fp1.passenger_name as passenger1,
-        fp2.passenger_name as passenger2,
-        COUNT(DISTINCT fp1.flight_id) as flightsTogether,
-        MIN(f.date) as firstFlight,
-        MAX(f.date) as lastFlight
-      FROM flight_passengers fp1
-      JOIN flight_passengers fp2 ON fp1.flight_id = fp2.flight_id AND fp1.passenger_name < fp2.passenger_name
-      JOIN flights f ON fp1.flight_id = f.id
-      WHERE fp1.passenger_name != 'Jeffrey Epstein' AND fp2.passenger_name != 'Jeffrey Epstein'
-      GROUP BY fp1.passenger_name, fp2.passenger_name
-      HAVING COUNT(DISTINCT fp1.flight_id) >= ?
-      ORDER BY flightsTogether DESC
-      LIMIT 50
+        p1.passenger_name as passenger1,
+        p2.passenger_name as passenger2,
+        COUNT(*) as "flightsTogether",
+        MIN(f.date) as "firstFlight",
+        MAX(f.date) as "lastFlight"
+      FROM flight_passengers p1
+      JOIN flight_passengers p2 ON p1.flight_id = p2.flight_id AND p1.passenger_name < p2.passenger_name
+      JOIN flights f ON p1.flight_id = f.id
+      GROUP BY p1.passenger_name, p2.passenger_name
+      HAVING COUNT(*) >= $1
+      ORDER BY "flightsTogether" DESC
     `,
-      )
-      .all(minFlights)) as {
-      passenger1: string;
-      passenger2: string;
-      flightsTogether: number;
-      firstFlight: string;
-      lastFlight: string;
-    }[];
+      [minFlights],
+    );
+    return rows.rows;
   },
 
-  /**
-   * Get co-passengers for a specific person
-   */
-  getCoPassengers: async (
-    passengerName: string,
-  ): Promise<{ name: string; flightsTogether: number; flights: string[] }[]> => {
-    const db = getDb();
-    const results = (await db
-      .prepare(
-        `
+  getCoPassengers: async (passengerName: string) => {
+    const rows = await db.query(
+      db.apiPool,
+      `
       SELECT 
-        fp2.passenger_name as name,
-        COUNT(DISTINCT fp1.flight_id) as flightsTogether,
-        GROUP_CONCAT(DISTINCT f.date) as flightDates
-      FROM flight_passengers fp1
-      JOIN flight_passengers fp2 ON fp1.flight_id = fp2.flight_id AND fp1.passenger_name != fp2.passenger_name
-      JOIN flights f ON fp1.flight_id = f.id
-      WHERE fp1.passenger_name LIKE ?
-      GROUP BY fp2.passenger_name
-      ORDER BY flightsTogether DESC
+        p2.passenger_name as name,
+        COUNT(*) as "flightsTogether",
+        array_agg(f.date ORDER BY f.date DESC) as flights
+      FROM flight_passengers p1
+      JOIN flight_passengers p2 ON p1.flight_id = p2.flight_id AND p1.passenger_name != p2.passenger_name
+      JOIN flights f ON p1.flight_id = f.id
+      WHERE p1.passenger_name ILIKE $1
+      GROUP BY p2.passenger_name
+      ORDER BY "flightsTogether" DESC
     `,
-      )
-      .all(`%${passengerName}%`)) as {
-      name: string;
-      flightsTogether: number;
-      flightDates: string;
-    }[];
-
-    return results.map((r) => ({
-      name: r.name,
-      flightsTogether: r.flightsTogether,
-      flights: r.flightDates ? r.flightDates.split(',') : [],
-    }));
+      [`%${passengerName}%`],
+    );
+    return rows.rows;
   },
 
-  /**
-   * Get most frequent routes
-   */
-  getFrequentRoutes: async (
-    limit = 20,
-  ): Promise<
-    {
-      departure: string;
-      arrival: string;
-      departureCity: string;
-      arrivalCity: string;
-      count: number;
-      passengers: string[];
-    }[]
-  > => {
-    const db = getDb();
-    const routes = (await db
-      .prepare(
-        `
+  getFrequentRoutes: async (limit = 20) => {
+    const rows = await db.query(
+      db.apiPool,
+      `
       SELECT 
-        f.departure_airport as departure,
-        f.arrival_airport as arrival,
-        f.departure_city as departureCity,
-        f.arrival_city as arrivalCity,
+        departure_airport as departure,
+        arrival_airport as arrival,
+        departure_city as "departureCity",
+        arrival_city as "arrivalCity",
         COUNT(*) as count,
-        GROUP_CONCAT(DISTINCT fp.passenger_name) as passengerList
-      FROM flights f
-      LEFT JOIN flight_passengers fp ON f.id = fp.flight_id
-      GROUP BY f.departure_airport, f.arrival_airport
+        array_agg(DISTINCT date) as dates
+      FROM flights
+      GROUP BY departure, arrival, "departureCity", "arrivalCity"
       ORDER BY count DESC
-      LIMIT ?
+      LIMIT $1
     `,
-      )
-      .all(limit)) as {
-      departure: string;
-      arrival: string;
-      departureCity: string;
-      arrivalCity: string;
-      count: number;
-      passengerList: string;
-    }[];
-
-    return routes.map((r) => ({
-      departure: r.departure,
-      arrival: r.arrival,
-      departureCity: r.departureCity,
-      arrivalCity: r.arrivalCity,
-      count: r.count,
-      passengers: r.passengerList ? r.passengerList.split(',') : [],
-    }));
+      [limit],
+    );
+    return rows.rows;
   },
 
-  /**
-   * Get first and last flight dates for each passenger
-   */
-  getPassengerDateRanges: async (): Promise<
-    {
-      name: string;
-      firstFlight: string;
-      lastFlight: string;
-      totalFlights: number;
-    }[]
-  > => {
-    const db = getDb();
-    return (await db
-      .prepare(
-        `
+  getPassengerDateRanges: async () => {
+    const rows = await db.query(
+      db.apiPool,
+      `
       SELECT 
-        fp.passenger_name as name,
-        MIN(f.date) as firstFlight,
-        MAX(f.date) as lastFlight,
-        COUNT(DISTINCT f.id) as totalFlights
+        passenger_name as name,
+        MIN(f.date) as "firstFlight",
+        MAX(f.date) as "lastFlight",
+        COUNT(*) as "totalFlights"
       FROM flight_passengers fp
       JOIN flights f ON fp.flight_id = f.id
-      GROUP BY fp.passenger_name
-      ORDER BY totalFlights DESC
+      GROUP BY passenger_name
+      ORDER BY "totalFlights" DESC
     `,
-      )
-      .all()) as { name: string; firstFlight: string; lastFlight: string; totalFlights: number }[];
+    );
+    return rows.rows;
   },
 
-  /**
-   * Get flights by aircraft
-   */
-  getFlightsByAircraft: async (): Promise<
-    {
-      aircraft: string;
-      aircraftType: string;
-      flightCount: number;
-      passengerCount: number;
-    }[]
-  > => {
-    const db = getDb();
-    return (await db
-      .prepare(
-        `
+  getFlightsByAircraft: async () => {
+    const rows = await db.query(
+      db.apiPool,
+      `
       SELECT 
-        f.aircraft_tail as aircraft,
-        f.aircraft_type as aircraftType,
-        COUNT(DISTINCT f.id) as flightCount,
-        COUNT(DISTINCT fp.passenger_name) as passengerCount
+        aircraft_tail as aircraft,
+        aircraft_type as "aircraftType",
+        COUNT(*) as "flightCount",
+        (SELECT COUNT(DISTINCT passenger_name) FROM flight_passengers fp WHERE fp.flight_id IN (SELECT id FROM flights f2 WHERE f2.aircraft_tail = f.aircraft_tail)) as "passengerCount"
       FROM flights f
-      LEFT JOIN flight_passengers fp ON f.id = fp.flight_id
-      GROUP BY f.aircraft_tail
-      ORDER BY flightCount DESC
+      WHERE aircraft_tail IS NOT NULL AND aircraft_tail != ''
+      GROUP BY aircraft, "aircraftType"
+      ORDER BY "flightCount" DESC
     `,
-      )
-      .all()) as {
-      aircraft: string;
-      aircraftType: string;
-      flightCount: number;
-      passengerCount: number;
-    }[];
+    );
+    return rows.rows;
   },
 
-  /**
-   * Get destination frequency by passenger
-   */
-  getPassengerDestinations: async (
-    passengerName: string,
-  ): Promise<{ airport: string; city: string; visitCount: number }[]> => {
-    const db = getDb();
-    return (await db
-      .prepare(
-        `
+  getPassengerDestinations: async (passengerName: string) => {
+    const rows = await db.query(
+      db.apiPool,
+      `
       SELECT 
-        f.arrival_airport as airport,
-        f.arrival_city as city,
-        COUNT(*) as visitCount
-      FROM flights f
-      JOIN flight_passengers fp ON f.id = fp.flight_id
-      WHERE fp.passenger_name LIKE ?
-      GROUP BY f.arrival_airport
-      ORDER BY visitCount DESC
+        airport,
+        city,
+        COUNT(*) as "visitCount"
+      FROM (
+        SELECT f.departure_airport as airport, f.departure_city as city
+        FROM flights f
+        JOIN flight_passengers fp ON f.id = fp.flight_id
+        WHERE fp.passenger_name ILIKE $1
+        UNION ALL
+        SELECT f.arrival_airport as airport, f.arrival_city as city
+        FROM flights f
+        JOIN flight_passengers fp ON f.id = fp.flight_id
+        WHERE fp.passenger_name ILIKE $1
+      ) t
+      GROUP BY airport, city
+      ORDER BY "visitCount" DESC
     `,
-      )
-      .all(`%${passengerName}%`)) as { airport: string; city: string; visitCount: number }[];
+      [`%${passengerName}%`],
+    );
+    return rows.rows;
   },
 };

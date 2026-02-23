@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { getDatabaseService } from '../services/DatabaseService.js';
+import { evidenceRepository } from '../db/evidenceRepository.js';
 
 const router = Router();
 
@@ -10,7 +10,7 @@ const router = Router();
 router.get('/evidence/:entityId', async (req: Request, res: Response) => {
   try {
     const { entityId } = req.params as { entityId: string };
-    const result = await getDatabaseService().getEntityEvidence(entityId);
+    const result = await evidenceRepository.getEntityEvidence(entityId);
 
     if (!result) {
       return res.status(404).json({ error: 'Entity not found' });
@@ -33,7 +33,7 @@ router.post('/add-evidence', async (req: Request, res: Response) => {
     if (!investigationId || !evidenceId) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-    const result = await getDatabaseService().addEvidenceToInvestigation(
+    const result = await evidenceRepository.addEvidenceToInvestigation(
       investigationId,
       evidenceId,
       notes,
@@ -55,7 +55,7 @@ router.post('/add-media', async (req: Request, res: Response) => {
     if (!investigationId || !mediaItemId) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-    const result = await getDatabaseService().addMediaToInvestigation(
+    const result = await evidenceRepository.addMediaToInvestigation(
       investigationId,
       mediaItemId,
       notes,
@@ -81,7 +81,7 @@ router.post('/add-snippet', async (req: Request, res: Response) => {
     if (!investigationId || !documentId || !snippetText) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-    const result = await getDatabaseService().addSnippetToInvestigation(
+    const result = await evidenceRepository.addSnippetToInvestigation(
       investigationId,
       documentId,
       snippetText,
@@ -105,10 +105,8 @@ router.post('/add-snippet', async (req: Request, res: Response) => {
 router.get('/:investigationId/evidence-summary', async (req: Request, res: Response) => {
   try {
     const { investigationId } = req.params as { investigationId: string };
-
-    const result = await getDatabaseService().getInvestigationEvidenceSummary(investigationId);
-
-    res.json(result);
+    const summary = await evidenceRepository.getInvestigationEvidenceSummary(investigationId);
+    res.json(summary);
   } catch (error) {
     console.error('Error fetching investigation evidence summary:', error);
     res.status(500).json({ error: 'Failed to fetch investigation evidence summary' });
@@ -124,7 +122,7 @@ router.delete('/remove-evidence/:investigationEvidenceId', async (req: Request, 
     const { investigationEvidenceId } = req.params as { investigationEvidenceId: string };
 
     const success =
-      await getDatabaseService().removeEvidenceFromInvestigation(investigationEvidenceId);
+      await evidenceRepository.removeEvidenceFromInvestigation(investigationEvidenceId);
 
     res.json({ success });
   } catch (error) {

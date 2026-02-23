@@ -3,7 +3,7 @@
  * pg_explain.ts — Captures EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) for the
  * 6 heaviest production queries. Run after deployments to detect plan regressions.
  *
- * Usage: DB_DIALECT=postgres DATABASE_URL=postgres://... tsx scripts/pg_explain.ts
+ * Usage: DATABASE_URL=postgres://... tsx scripts/pg_explain.ts
  * Output: docs/explain/<timestamp>-<githash>.json
  */
 

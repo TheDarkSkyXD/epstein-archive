@@ -1,5 +1,7 @@
-import { getDatabaseService } from './DatabaseService';
 import { Person, SearchFilters, SortOption } from '../../types';
+import { entitiesRepository } from '../db/entitiesRepository.js';
+import { statsRepository } from '../db/statsRepository.js';
+import { searchRepository } from '../db/searchRepository.js';
 
 export class DatabaseDataService {
   private static instance: DatabaseDataService;
@@ -34,13 +36,14 @@ export class DatabaseDataService {
         return { entities: cached.results, total: cached.results.length };
       }
 
-      // Query database instead of loading JSON
-      const result = await getDatabaseService().getEntities(page, limit, filters, sortBy);
+      const result = await entitiesRepository.getSubjectCards(page, limit, filters, sortBy);
 
-      // Cache the results
-      this.searchCache.set(cacheKey, { results: result.entities, timestamp: Date.now() });
+      this.searchCache.set(cacheKey, {
+        results: result.subjects as Person[],
+        timestamp: Date.now(),
+      });
 
-      return result;
+      return { entities: result.subjects as Person[], total: result.total };
     } catch (error) {
       console.error('Error fetching entities from database:', error);
       throw new Error(
@@ -54,7 +57,8 @@ export class DatabaseDataService {
    */
   async getEntityById(id: string): Promise<Person | null> {
     try {
-      return await getDatabaseService().getEntityById(id);
+      const subject = await entitiesRepository.getEntityById(id);
+      return subject as Person | null;
     } catch (error) {
       console.error(`Error fetching entity ${id} from database:`, error);
       throw new Error(
@@ -75,8 +79,11 @@ export class DatabaseDataService {
         return { entities: [], documents: [] };
       }
 
-      const searchResults = await getDatabaseService().search(query.trim(), limit);
-      return searchResults;
+      const searchResults = await searchRepository.search(query.trim(), limit, {
+        mode: 'web',
+        evidenceType: 'ALL',
+      });
+      return searchResults as { entities: Person[]; documents: any[] };
     } catch (error) {
       console.error('Error searching entities:', error);
       throw new Error(`Search failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -95,7 +102,7 @@ export class DatabaseDataService {
     likelihoodDistribution: { level: string; count: number }[];
   }> {
     try {
-      return await getDatabaseService().getStatistics();
+      return await statsRepository.getStatistics();
     } catch (error) {
       console.error('Error fetching statistics:', error);
       throw new Error(
@@ -212,7 +219,7 @@ export class DatabaseDataService {
    */
   async isDatabaseReady(): Promise<boolean> {
     try {
-      const stats = await getDatabaseService().getStatistics();
+      const stats = await statsRepository.getStatistics();
       return stats.totalEntities > 0;
     } catch (error) {
       console.error('Database readiness check failed:', error);
@@ -224,7 +231,8 @@ export class DatabaseDataService {
    * Get database size for monitoring
    */
   getDatabaseSize(): number {
-    return getDatabaseService().getDatabaseSize();
+    // Database size is managed by Postgres; not available via this service anymore.
+    return 0;
   }
 
   /**
@@ -233,12 +241,12 @@ export class DatabaseDataService {
   async exportData(format: 'json' | 'csv' = 'json', filters?: SearchFilters): Promise<string> {
     try {
       // Get all entities (no pagination for export)
-      const { entities } = await getDatabaseService().getEntities(1, 100000, filters, 'name');
+      const { subjects } = await entitiesRepository.getSubjectCards(1, 100000, filters, 'name');
 
       if (format === 'csv') {
-        return this.convertToCSV(entities);
+        return this.convertToCSV(subjects as any[]);
       } else {
-        return JSON.stringify(entities, null, 2);
+        return JSON.stringify(subjects, null, 2);
       }
     } catch (error) {
       console.error('Data export failed:', error);

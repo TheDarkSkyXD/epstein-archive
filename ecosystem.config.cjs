@@ -18,8 +18,8 @@ module.exports = {
     {
       name: 'epstein-archive',
       script: 'dist/server.js',
-      instances: 1, // Single instance for SQLite (no locking issues)
-      exec_mode: 'fork', // CRITICAL: Must be 'fork' not 'cluster' for SQLite!
+      instances: 1,
+      exec_mode: 'fork',
 
       // === RELIABILITY & CRASH RECOVERY ===
       autorestart: true,
@@ -59,25 +59,18 @@ module.exports = {
       // === ENVIRONMENT ===
       env: {
         NODE_ENV: 'production',
-        DB_DIALECT: 'postgres',
-        DB_PATH: './epstein-archive.db',
-        PORT: 3012, // CRITICAL: Must match Nginx proxy_pass for glasscode.academy
+        PORT: 3012,
         RAW_CORPUS_BASE_PATH: './data',
         JWT_REFRESH_SECRET: 'epstein-archive-prod-refresh-secret-2026',
         CORS_ORIGIN:
           'https://epstein.academy,https://www.epstein.academy,https://glasscode.academy,https://www.glasscode.academy',
-        // Database safety settings
-        SQLITE_BUSY_TIMEOUT: '30000', // 30s timeout for busy database
         EXO_MODEL: 'mlx-community/Qwen3-30B-A3B-4bit',
       },
       env_production: {
         NODE_ENV: 'production',
-        DB_DIALECT: 'postgres',
         PORT: 3012,
-        DB_PATH: './epstein-archive.db',
         RAW_CORPUS_BASE_PATH: './data',
         JWT_REFRESH_SECRET: 'epstein-archive-prod-refresh-secret-2026',
-        SQLITE_BUSY_TIMEOUT: '30000',
         EXO_MODEL: 'mlx-community/Qwen3-30B-A3B-4bit',
       },
     },
@@ -92,9 +85,6 @@ module.exports = {
       max_memory_restart: '2G',
       env: {
         NODE_ENV: 'production',
-        DB_DIALECT: 'postgres',
-        DB_PATH: './epstein-archive.db',
-        SQLITE_BUSY_TIMEOUT: '30000',
         EXO_MODEL: 'mlx-community/Qwen3-30B-A3B-4bit',
       },
     },

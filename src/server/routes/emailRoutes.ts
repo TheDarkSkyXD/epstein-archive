@@ -14,6 +14,7 @@ import {
   mapEmailThreadDetailsDto,
   mapEmailThreadsResponseDto,
 } from '../mappers/emailsDtoMapper.js';
+import { getEmailMailboxes, getEmailThreads, getEmailCategoriesCounts } from '../db/routesDb.js';
 
 const router = express.Router();
 
@@ -25,21 +26,6 @@ const BODY_TTL_SECONDS = 60;
 interface ParsedCursor {
   lastMessageAt: string;
   threadId: string;
-}
-
-interface EmailThreadRow {
-  threadId: string;
-  subject: string;
-  participantsRaw: string;
-  participantCount: number;
-  lastMessageAt: string;
-  snippet: string;
-  messageCount: number;
-  hasAttachments: number;
-  linkedEntityIdsRaw: string;
-  risk: number | null;
-  ladder: string | null;
-  confidence: number | null;
 }
 
 interface EmailMessageHeaderRow {
@@ -112,130 +98,6 @@ const normalizeTab = (tab: string | undefined): 'all' | 'primary' | 'updates' | 
   return 'all';
 };
 
-const buildCategoryCaseSql = `
-CASE
-  WHEN lower(coalesce(json_extract(metadata_json, '$.from'), '')) LIKE '%amazon.com%'
-    OR lower(coalesce(json_extract(metadata_json, '$.from'), '')) LIKE '%noreply@%'
-    OR lower(coalesce(json_extract(metadata_json, '$.from'), '')) LIKE '%no-reply@%'
-    OR lower(coalesce(content_refined, '')) LIKE '%order %'
-    OR lower(coalesce(content_refined, '')) LIKE '%shipping%'
-  THEN 'updates'
-  WHEN lower(coalesce(json_extract(metadata_json, '$.from'), '')) LIKE '%@houzz.com%'
-    OR lower(coalesce(json_extract(metadata_json, '$.from'), '')) LIKE '%@response.cnbc.com%'
-    OR lower(coalesce(content_refined, '')) LIKE '%unsubscribe%'
-    OR lower(coalesce(content_refined, '')) LIKE '%newsletter%'
-  THEN 'promotions'
-  ELSE 'primary'
-END
-`;
-
-const buildThreadBaseSql = (where: string) => `
-WITH email_docs AS (
-  SELECT
-    d.id,
-    COALESCE(d.date_created, '1970-01-01T00:00:00.000Z') AS dateCreated,
-    COALESCE(
-      json_extract(d.metadata_json, '$.thread_id'),
-      json_extract(d.metadata_json, '$.threadId'),
-      json_extract(d.metadata_json, '$.conversation_id'),
-      json_extract(d.metadata_json, '$.message_id'),
-      CAST(d.id AS TEXT)
-    ) AS threadId,
-    COALESCE(json_extract(d.metadata_json, '$.subject'), d.file_name, d.title, 'No Subject') AS subject,
-    COALESCE(json_extract(d.metadata_json, '$.from'), '') AS fromAddress,
-    COALESCE(json_extract(d.metadata_json, '$.to'), '') AS toAddress,
-    COALESCE(d.content_refined, '') AS snippet,
-    d.red_flag_rating,
-    d.metadata_json,
-    ${buildCategoryCaseSql} AS mailboxTab
-  FROM documents d
-  WHERE d.evidence_type = 'email'
-    ${where}
-),
-threaded AS (
-  SELECT
-    threadId,
-    MIN(subject) AS subject,
-    MAX(dateCreated) AS lastMessageAt,
-    COUNT(*) AS messageCount,
-    GROUP_CONCAT(DISTINCT fromAddress) AS participantsRaw,
-    MAX(COALESCE(red_flag_rating, 0)) AS risk,
-    MAX(COALESCE(json_extract(metadata_json, '$.confidence'), json_extract(metadata_json, '$.significance_score'))) AS confidence,
-    MAX(COALESCE(json_extract(metadata_json, '$.ladder'), json_extract(metadata_json, '$.evidence_ladder'))) AS ladder,
-    MAX(CASE WHEN CAST(COALESCE(json_extract(metadata_json, '$.attachments_count'), '0') AS INTEGER) > 0 THEN 1 ELSE 0 END) AS hasAttachments,
-    NULL AS linkedEntityIdsRaw,
-    (
-      SELECT COALESCE(d3.content_refined, '')
-      FROM documents d3
-      WHERE d3.evidence_type = 'email'
-        AND COALESCE(
-          json_extract(d3.metadata_json, '$.thread_id'),
-          json_extract(d3.metadata_json, '$.threadId'),
-          json_extract(d3.metadata_json, '$.conversation_id'),
-          json_extract(d3.metadata_json, '$.message_id'),
-          CAST(d3.id AS TEXT)
-        ) = email_docs.threadId
-      ORDER BY COALESCE(d3.date_created, '1970-01-01T00:00:00.000Z') DESC, d3.id DESC
-      LIMIT 1
-    ) AS snippet
-  FROM email_docs
-  GROUP BY threadId
-)
-SELECT
-  threadId,
-  subject,
-  participantsRaw,
-  COALESCE(
-    CASE WHEN participantsRaw = '' THEN 0
-         ELSE (LENGTH(participantsRaw) - LENGTH(REPLACE(participantsRaw, ',', '')) + 1)
-    END,
-    0
-  ) AS participantCount,
-  lastMessageAt,
-  snippet,
-  messageCount,
-  hasAttachments,
-  linkedEntityIdsRaw,
-  risk,
-  ladder,
-  confidence
-FROM threaded
-`;
-
-const getJunkFilterClause = async (db: any, showSuppressedJunk: boolean): Promise<string> => {
-  if (showSuppressedJunk) return '';
-
-  let hasJunkFlag = false;
-  if (process.env.DB_DIALECT === 'postgres') {
-    const entityCols = (await db
-      .prepare(
-        `SELECT column_name AS name
-         FROM information_schema.columns
-         WHERE table_schema = 'public'
-           AND table_name = 'entities'`,
-      )
-      .all()) as Array<{ name: string }>;
-    hasJunkFlag = entityCols.some((column) => column.name === 'junk_flag');
-  } else {
-    const entityCols = (await db.prepare(`PRAGMA table_info(entities)`).all()) as Array<{
-      name: string;
-    }>;
-    hasJunkFlag = entityCols.some((column) => column.name === 'junk_flag');
-  }
-
-  if (!hasJunkFlag) return '';
-
-  return `
-  AND NOT EXISTS (
-    SELECT 1
-    FROM entity_mentions em
-    JOIN entities e ON e.id = em.entity_id
-    WHERE em.document_id = d.id
-      AND COALESCE(e.junk_flag, 0) = 1
-  )
-  `;
-};
-
 const parseEntityIds = (raw: string | null): number[] => {
   if (!raw) return [];
   return Array.from(
@@ -251,7 +113,6 @@ const parseEntityIds = (raw: string | null): number[] => {
 // GET /api/emails/mailboxes
 router.get('/mailboxes', async (req, res, next) => {
   try {
-    const db = getDb();
     const showSuppressedJunk = req.query.showSuppressedJunk === '1';
     const cacheKey = `emails:mailboxes:${showSuppressedJunk ? 'all' : 'filtered'}`;
     const cached = performanceCache.get<any>(cacheKey);
@@ -259,63 +120,7 @@ router.get('/mailboxes', async (req, res, next) => {
       return res.json(cached);
     }
 
-    const junkFilter = await getJunkFilterClause(db, showSuppressedJunk);
-
-    const totals = (await db
-      .prepare(
-        `
-      SELECT
-        COUNT(DISTINCT COALESCE(
-          json_extract(d.metadata_json, '$.thread_id'),
-          json_extract(d.metadata_json, '$.threadId'),
-          json_extract(d.metadata_json, '$.conversation_id'),
-          json_extract(d.metadata_json, '$.message_id'),
-          CAST(d.id AS TEXT)
-        )) AS "totalThreads",
-        COUNT(*) AS "totalMessages",
-        MAX(COALESCE(d.date_created, '1970-01-01T00:00:00.000Z')) AS "lastActivityAt"
-      FROM documents d
-      WHERE d.evidence_type = 'email'
-      ${junkFilter}
-    `,
-      )
-      .get()) as { totalThreads: number; totalMessages: number; lastActivityAt: string | null };
-
-    const rows = (await db
-      .prepare(
-        `
-      SELECT
-        em.entity_id AS "entityId",
-        e.full_name AS "displayName",
-        COUNT(DISTINCT COALESCE(
-          json_extract(d.metadata_json, '$.thread_id'),
-          json_extract(d.metadata_json, '$.threadId'),
-          json_extract(d.metadata_json, '$.conversation_id'),
-          json_extract(d.metadata_json, '$.message_id'),
-          CAST(d.id AS TEXT)
-        )) AS "totalThreads",
-        COUNT(*) AS "totalMessages",
-        MAX(COALESCE(d.date_created, '1970-01-01T00:00:00.000Z')) AS "lastActivityAt",
-        MAX(COALESCE(d.red_flag_rating, 0)) AS "topRisk"
-      FROM entity_mentions em
-      JOIN documents d ON d.id = em.document_id
-      JOIN entities e ON e.id = em.entity_id
-      WHERE d.evidence_type = 'email'
-        ${showSuppressedJunk ? '' : 'AND COALESCE(e.junk_flag, 0) = 0'}
-      GROUP BY em.entity_id
-      HAVING COUNT(*) >= 2
-      ORDER BY "totalThreads" DESC, "totalMessages" DESC, "displayName" ASC
-      LIMIT 60
-    `,
-      )
-      .all()) as Array<{
-      entityId: number;
-      displayName: string;
-      totalThreads: number;
-      totalMessages: number;
-      lastActivityAt: string | null;
-      topRisk: number;
-    }>;
+    const { totals, rows } = await getEmailMailboxes(showSuppressedJunk);
 
     const payload = {
       revisionKey: `${process.env.INGEST_RUN_ID || process.env.LATEST_INGEST_RUN_ID || 'default'}:${process.env.RULESET_VERSION || 'v1'}`,
@@ -361,7 +166,6 @@ router.get('/mailboxes', async (req, res, next) => {
 // GET /api/emails/threads
 router.get('/threads', async (req, res, next) => {
   try {
-    const db = getDb();
     const mailboxId = String(req.query.mailboxId || 'all');
     const query = String(req.query.q || '').trim();
     const fromFilter = String(req.query.from || '').trim();
@@ -378,92 +182,20 @@ router.get('/threads', async (req, res, next) => {
     );
     const showSuppressedJunk = req.query.showSuppressedJunk === '1';
 
-    const queryParams: Array<string | number> = [];
-    let where = await getJunkFilterClause(db, showSuppressedJunk);
-
-    if (tab !== 'all') {
-      where += ` AND (${buildCategoryCaseSql}) = ?`;
-      queryParams.push(tab);
-    }
-
-    if (mailboxId.startsWith('entity:')) {
-      const entityId = Number(mailboxId.replace('entity:', ''));
-      if (Number.isFinite(entityId) && entityId > 0) {
-        where += ` AND EXISTS (
-          SELECT 1 FROM entity_mentions em
-          WHERE em.document_id = d.id
-            AND em.entity_id = ?
-        )`;
-        queryParams.push(entityId);
-      }
-    }
-
-    if (query.length > 0) {
-      where += ` AND (
-        lower(COALESCE(json_extract(d.metadata_json, '$.subject'), d.file_name, d.title, '')) LIKE lower(?)
-        OR lower(COALESCE(json_extract(d.metadata_json, '$.from'), '')) LIKE lower(?)
-        OR lower(COALESCE(json_extract(d.metadata_json, '$.to'), '')) LIKE lower(?)
-        OR lower(COALESCE(d.content_refined, '')) LIKE lower(?)
-      )`;
-      const likeQuery = `%${query}%`;
-      queryParams.push(likeQuery, likeQuery, likeQuery, likeQuery);
-    }
-
-    if (fromFilter.length > 0) {
-      where += ` AND lower(COALESCE(json_extract(d.metadata_json, '$.from'), '')) LIKE lower(?)`;
-      queryParams.push(`%${fromFilter}%`);
-    }
-
-    if (toFilter.length > 0) {
-      where += ` AND lower(COALESCE(json_extract(d.metadata_json, '$.to'), '')) LIKE lower(?)`;
-      queryParams.push(`%${toFilter}%`);
-    }
-
-    if (dateFrom.length > 0) {
-      where += ` AND COALESCE(d.date_created, '1970-01-01T00:00:00.000Z') >= ?`;
-      queryParams.push(dateFrom);
-    }
-
-    if (dateTo.length > 0) {
-      where += ` AND COALESCE(d.date_created, '1970-01-01T00:00:00.000Z') <= ?`;
-      queryParams.push(dateTo);
-    }
-
-    if (hasAttachments) {
-      where += ` AND CAST(COALESCE(json_extract(d.metadata_json, '$.attachments_count'), '0') AS INTEGER) > 0`;
-    }
-
-    if (Number.isFinite(minRisk) && minRisk > 0) {
-      where += ` AND COALESCE(d.red_flag_rating, 0) >= ?`;
-      queryParams.push(minRisk);
-    }
-
-    const baseSql = buildThreadBaseSql(where);
-
-    const countRow = (await db
-      .prepare(`SELECT COUNT(*) as total FROM (${baseSql}) threads`)
-      .get(...queryParams)) as { total: number };
-
-    const cursorParams: Array<string> = [];
-    let cursorClause = '';
-    if (parsedCursor) {
-      cursorClause = ` WHERE (lastMessageAt < ? OR (lastMessageAt = ? AND threadId > ?)) `;
-      cursorParams.push(
-        parsedCursor.lastMessageAt,
-        parsedCursor.lastMessageAt,
-        parsedCursor.threadId,
-      );
-    }
-
-    const listSql = `${baseSql}
-      ${cursorClause}
-      ORDER BY lastMessageAt DESC, threadId ASC
-      LIMIT ?
-    `;
-
-    const rows = (await db
-      .prepare(listSql)
-      .all(...queryParams, ...cursorParams, limit + 1)) as EmailThreadRow[];
+    const { rows, countRow } = await getEmailThreads({
+      mailboxId,
+      query,
+      fromFilter,
+      toFilter,
+      dateFrom,
+      dateTo,
+      hasAttachments,
+      minRisk,
+      tab,
+      limit,
+      parsedCursor,
+      showSuppressedJunk,
+    });
 
     const hasMore = rows.length > limit;
     const pageRows = hasMore ? rows.slice(0, limit) : rows;
@@ -886,26 +618,7 @@ router.get('/search', async (req, res, next) => {
 // GET /api/emails/categories (legacy support)
 router.get('/categories', async (_req, res, next) => {
   try {
-    const db = getDb();
-    const rows = (await db
-      .prepare(
-        `
-      SELECT
-        ${buildCategoryCaseSql} AS category,
-        COUNT(*) AS count
-      FROM documents d
-      WHERE d.evidence_type = 'email'
-      GROUP BY category
-      `,
-      )
-      .all()) as Array<{ category: 'primary' | 'updates' | 'promotions'; count: number }>;
-
-    const counts: Record<string, number> = { all: 0, primary: 0, updates: 0, promotions: 0 };
-    for (const row of rows) {
-      counts[row.category] = row.count;
-      counts.all += row.count;
-    }
-
+    const counts = getEmailCategoriesCounts();
     res.json(counts);
   } catch (error) {
     next(error);

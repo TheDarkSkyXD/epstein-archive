@@ -49,6 +49,13 @@ export PNPM_HOME="/home/deploy/.local/share/pnpm"
 export PATH="$PNPM_HOME:$PATH"
 export NODE_ENV=production
 
+# Load env vars from .env for psql checks
+if [ -f .env ]; then
+  set -a
+  source .env
+  set +a
+fi
+
 # 1. Environment & Resource Checks
 echo "Checking environment..."
 node -v | grep -q "v2" || (echo "❌ Node version too old (need v20+), found $(node -v)" && exit 1)
@@ -56,8 +63,21 @@ df -h . | awk 'NR==2 {print $4}' | grep -q "G" || echo "⚠️  Low disk space w
 
 # 2. Database Connectivity Gate (Fail closed)
 echo "Checking database connectivity..."
-psql "$DATABASE_URL" -c "SELECT 1" > /dev/null || (echo "❌ Database unreachable" && exit 1)
-psql "$DATABASE_URL" -c "SELECT 1 FROM pg_extension WHERE extname='pg_stat_statements'" | grep -q 1 || (echo "❌ Missing pg_stat_statements extension" && exit 1)
+node -e '
+  const { Client } = require("pg");
+  if (!process.env.DATABASE_URL) { console.error("❌ DATABASE_URL missing"); process.exit(1); }
+  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  client.connect()
+    .then(() => client.query("SELECT 1 FROM pg_extension WHERE extname=\047pg_stat_statements\047"))
+    .then((res) => {
+      if (res.rows.length === 0) { console.error("❌ Missing pg_stat_statements"); process.exit(1); }
+      console.log("✅ DB Connected & Extensions OK");
+      client.end();
+      process.exit(0);
+    })
+    .catch((e) => { console.error("❌ DB Connection Failed:", e.message); process.exit(1); });
+' || exit 1
+
 node --import tsx/esm scripts/pg_explain.ts || (echo "❌ Postgres Explain Plan regression detected" && exit 1)
 
 # 3. Application Restart

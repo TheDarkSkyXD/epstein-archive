@@ -54,7 +54,7 @@ router.get('/by-title', async (req, res, next) => {
 // Create investigation
 router.post('/', authenticateRequest, async (req, res, next) => {
   try {
-    const { title, description, scope, ownerId, collaboratorIds } = req.body;
+    const { title, description, ownerId } = req.body;
 
     if (!title) {
       return res.status(400).json({ error: 'Title is required' });

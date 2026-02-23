@@ -307,40 +307,43 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
 
   const isItemLoaded = (index: number) => !hasNextPage || index < documents.length;
 
-  const loadNextPage = async (startIndex: number, stopIndex: number) => {
-    if (isNextPageLoading) return;
-    setIsNextPageLoading(true);
+  const loadNextPage = useCallback(
+    async (startIndex: number) => {
+      if (isNextPageLoading) return;
+      setIsNextPageLoading(true);
 
-    try {
-      const page = Math.floor(startIndex / 50) + 1;
-      const qs = new URLSearchParams();
-      if (docFilters.search.trim()) qs.set('search', docFilters.search.trim());
-      qs.set('page', String(page));
-      qs.set('limit', '50');
-      if (docFilters.source !== 'all') qs.set('source', docFilters.source);
-      qs.set('sort', docFilters.sort);
+      try {
+        const page = Math.floor(startIndex / 50) + 1;
+        const qs = new URLSearchParams();
+        if (docFilters.search.trim()) qs.set('search', docFilters.search.trim());
+        qs.set('page', String(page));
+        qs.set('limit', '50');
+        if (docFilters.source !== 'all') qs.set('source', docFilters.source);
+        qs.set('sort', docFilters.sort);
 
-      const endpoint = `/entities/${entityId}/documents?${qs.toString()}`;
-      const response = (await apiClient.get(endpoint)) as any;
+        const endpoint = `/entities/${entityId}/documents?${qs.toString()}`;
+        const response = (await apiClient.get(endpoint)) as any;
 
-      const newDocs = response.data || [];
-      const total = response.total || 0;
+        const newDocs = response.data || [];
+        const total = response.total || 0;
 
-      setDocuments((prev) => {
-        // Ensure we don't add duplicates if react-window calls this multiple times
-        const currentIds = new Set(prev.map((d) => d.id));
-        const filteredNewDocs = newDocs.filter((d: any) => !currentIds.has(d.id));
-        return [...prev, ...filteredNewDocs];
-      });
-      setTotalDocs(total);
-      setHasNextPage(documents.length + newDocs.length < total);
-    } catch (error) {
-      console.error('Error loading next page of evidence', error);
-    } finally {
-      setIsNextPageLoading(false);
-      setDocsInitialized(true);
-    }
-  };
+        setDocuments((prev) => {
+          // Ensure we don't add duplicates if react-window calls this multiple times
+          const currentIds = new Set(prev.map((d) => d.id));
+          const filteredNewDocs = newDocs.filter((d: any) => !currentIds.has(d.id));
+          return [...prev, ...filteredNewDocs];
+        });
+        setTotalDocs(total);
+        setHasNextPage(documents.length + newDocs.length < total);
+      } catch (error) {
+        console.error('Error loading next page of evidence', error);
+      } finally {
+        setIsNextPageLoading(false);
+        setDocsInitialized(true);
+      }
+    },
+    [isNextPageLoading, docFilters, entityId, documents.length],
+  );
 
   useEffect(() => {
     if (!(isOpen && entityId && activeTab === 'evidence' && tabsLoaded.has('evidence'))) return;
@@ -348,9 +351,18 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
     // Initial load
     if (!docsInitialized && !isDocsLoading) {
       setIsDocsLoading(true);
-      loadNextPage(0, 49).finally(() => setIsDocsLoading(false));
+      loadNextPage(0).finally(() => setIsDocsLoading(false));
     }
-  }, [activeTab, docFilters, entityId, isOpen, tabsLoaded, docsInitialized, isDocsLoading]);
+  }, [
+    activeTab,
+    docFilters,
+    entityId,
+    isOpen,
+    tabsLoaded,
+    docsInitialized,
+    isDocsLoading,
+    loadNextPage,
+  ]);
 
   useEffect(() => {
     // Only load relationships if network tab has been activated

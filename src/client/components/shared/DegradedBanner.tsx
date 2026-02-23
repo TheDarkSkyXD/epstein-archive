@@ -1,6 +1,6 @@
 import React from 'react';
 import { AlertTriangle } from 'lucide-react';
-import { useDegradedMode } from '../../contexts/DegradedModeContext';
+import { useDegradedMode } from '../../contexts/useDegradedMode';
 
 export const DegradedBanner: React.FC = () => {
   const { isDegraded } = useDegradedMode();

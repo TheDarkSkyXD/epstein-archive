@@ -63,7 +63,7 @@ export async function refreshIfDue(): Promise<void> {
 
     try {
       await pool.query(`REFRESH MATERIALIZED VIEW CONCURRENTLY ${view}`);
-    } catch (concErr: any) {
+    } catch (_concErr: any) {
       // CONCURRENTLY requires a unique index — fall back to blocking refresh
       status = 'ok-nonconc';
       try {

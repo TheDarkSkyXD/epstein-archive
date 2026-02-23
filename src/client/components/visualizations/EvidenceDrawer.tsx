@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, FileText, ArrowRight, ShieldAlert, AlertTriangle, File } from 'lucide-react';
+import { X, FileText, ArrowRight, ShieldAlert } from 'lucide-react';
 
 export interface Evidence {
   id: string;

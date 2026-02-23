@@ -76,7 +76,7 @@ export const EntityGraphPanel: React.FC<EntityGraphPanelProps> = ({ entityId }) 
     const remapped = GraphService.remapEdges(edges, contextNodes);
 
     // 2. Map to Mapper Relationship Interface
-    return remapped.map((e, idx) => ({
+    return remapped.map((e, _idx) => ({
       id: e.id,
       from: e.source,
       to: e.target,

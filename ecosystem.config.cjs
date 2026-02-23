@@ -59,6 +59,7 @@ module.exports = {
       // === ENVIRONMENT ===
       env: {
         NODE_ENV: 'production',
+        DB_DIALECT: 'postgres',
         PORT: 3012,
         RAW_CORPUS_BASE_PATH: './data',
         JWT_REFRESH_SECRET: 'epstein-archive-prod-refresh-secret-2026',
@@ -68,6 +69,7 @@ module.exports = {
       },
       env_production: {
         NODE_ENV: 'production',
+        DB_DIALECT: 'postgres',
         PORT: 3012,
         RAW_CORPUS_BASE_PATH: './data',
         JWT_REFRESH_SECRET: 'epstein-archive-prod-refresh-secret-2026',

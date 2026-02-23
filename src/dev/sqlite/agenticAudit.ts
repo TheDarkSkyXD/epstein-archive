@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3';
-import { makeId } from './id_utils.js'; // Assuming it exists or I'll create it
+import { makeId } from '../../server/utils/id_utils.js';
 
 const DB_PATH = process.env.DB_PATH || 'epstein-archive.db';
 

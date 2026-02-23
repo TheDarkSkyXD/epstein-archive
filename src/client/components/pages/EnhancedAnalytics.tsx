@@ -16,7 +16,7 @@ import { NetworkGraph } from '../visualizations/NetworkGraph';
 import { EvidenceDrawer } from '../visualizations/EvidenceDrawer';
 import { filterPeopleOnly } from '../../utils/entityFilters';
 import { InteractiveEntityMap } from '../visualizations/InteractiveEntityMap';
-import { useFilters } from '../../contexts/FilterContext';
+import { useFilters } from '../../contexts/useFilters';
 import { apiClient } from '../../services/apiClient';
 
 interface EnhancedAnalyticsProps {
@@ -125,8 +125,6 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
   const [pathSource, setPathSource] = useState<any>(null);
   const [pathTarget, setPathTarget] = useState<any>(null);
 
-  const [isTemporalSyncing, setIsTemporalSyncing] = useState(false);
-
   const handlePathNodeClick = (entity: any) => {
     if (!pathSource) {
       setPathSource(entity);
@@ -191,74 +189,77 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
       });
       setFilters({ limit: data.topConnectedEntities.length });
     }
-  }, [data]);
+  }, [data, setFilters]);
 
   // Handle Zoom LOD
-  const handleZoomLevelChange = async (zoom: number) => {
-    // Thresholds:
-    // < 0.5: Super Cluster (Aggregated)
-    // 0.5 - 1.0: 100 nodes (Overview)
-    // 1.0 - 2.5: 500 nodes
-    // > 2.5: 1500 nodes (Max Detail)
+  const handleZoomLevelChange = React.useCallback(
+    async (zoom: number) => {
+      // Thresholds:
+      // < 0.5: Super Cluster (Aggregated)
+      // 0.5 - 1.0: 100 nodes (Overview)
+      // 1.0 - 2.5: 500 nodes
+      // > 2.5: 1500 nodes (Max Detail)
 
-    let targetLimit = 100;
-    let targetMode: 'default' | 'cluster' = 'default';
+      let targetLimit = 100;
+      let targetMode: 'default' | 'cluster' = 'default';
 
-    if (zoom < 0.5) {
-      targetMode = 'cluster';
-      targetLimit = 50;
-    } else if (zoom > 2.5) {
-      targetLimit = 1500;
-    } else if (zoom > 1.0) {
-      targetLimit = 500;
-    }
-
-    // Fetch if:
-    // 1. Mode changed (Cluster <-> Default)
-    // 2. Limit increased in Default mode
-    const needsFetch =
-      targetMode !== graphMode || (targetMode === 'default' && targetLimit > filters.limit);
-
-    if (needsFetch && !isGraphLoading) {
-      console.log(`Zoom ${zoom.toFixed(2)} -> Fetching ${targetMode} / ${targetLimit}...`);
-
-      // Optimistic updates
-      setFilters({ limit: targetLimit });
-      setGraphMode(targetMode);
-      setIsGraphLoading(true);
-
-      try {
-        const [startDate, endDate] = filters.timeRange;
-        const endpoint =
-          targetMode === 'cluster'
-            ? `/graph/global?mode=cluster&startDate=${startDate || ''}&endDate=${endDate || ''}`
-            : `/graph/global?limit=${targetLimit}&startDate=${startDate || ''}&endDate=${endDate || ''}`;
-
-        const newData = await apiClient.get<any>(endpoint, { useCache: false });
-
-        // Map to Legacy Interface expectations
-        const mappedNodes = newData.nodes.map((n: any) => ({
-          ...n,
-          name: n.label,
-          riskLevel: n.risk,
-          photoUrl: n.image,
-        }));
-
-        const mappedEdges = newData.edges.map((e: any) => ({
-          source: e.source,
-          target: e.target,
-          type: e.type,
-          strength: e.weight,
-        }));
-
-        setGraphData({ nodes: mappedNodes, edges: mappedEdges });
-      } catch (e) {
-        console.error('LOD Fetch Error:', e);
-      } finally {
-        setIsGraphLoading(false);
+      if (zoom < 0.5) {
+        targetMode = 'cluster';
+        targetLimit = 50;
+      } else if (zoom > 2.5) {
+        targetLimit = 1500;
+      } else if (zoom > 1.0) {
+        targetLimit = 500;
       }
-    }
-  };
+
+      // Fetch if:
+      // 1. Mode changed (Cluster <-> Default)
+      // 2. Limit increased in Default mode
+      const needsFetch =
+        targetMode !== graphMode || (targetMode === 'default' && targetLimit > filters.limit);
+
+      if (needsFetch && !isGraphLoading) {
+        console.log(`Zoom ${zoom.toFixed(2)} -> Fetching ${targetMode} / ${targetLimit}...`);
+
+        // Optimistic updates
+        setFilters({ limit: targetLimit });
+        setGraphMode(targetMode);
+        setIsGraphLoading(true);
+
+        try {
+          const [startDate, endDate] = filters.timeRange;
+          const endpoint =
+            targetMode === 'cluster'
+              ? `/graph/global?mode=cluster&startDate=${startDate || ''}&endDate=${endDate || ''}`
+              : `/graph/global?limit=${targetLimit}&startDate=${startDate || ''}&endDate=${endDate || ''}`;
+
+          const newData = await apiClient.get<any>(endpoint, { useCache: false });
+
+          // Map to Legacy Interface expectations
+          const mappedNodes = newData.nodes.map((n: any) => ({
+            ...n,
+            name: n.label,
+            riskLevel: n.risk,
+            photoUrl: n.image,
+          }));
+
+          const mappedEdges = newData.edges.map((e: any) => ({
+            source: e.source,
+            target: e.target,
+            type: e.type,
+            strength: e.weight,
+          }));
+
+          setGraphData({ nodes: mappedNodes, edges: mappedEdges });
+        } catch (e) {
+          console.error('LOD Fetch Error:', e);
+        } finally {
+          setIsGraphLoading(false);
+        }
+      }
+    },
+    [graphMode, filters.limit, isGraphLoading, filters.timeRange, setFilters],
+  );
 
   const evidenceCache = React.useRef<Map<string, any[]>>(new Map());
 
@@ -307,7 +308,7 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
     if (data) {
       handleZoomLevelChange(1.0); // Trigger a refresh at current zoom
     }
-  }, [filters.timeRange]);
+  }, [filters.timeRange, data, handleZoomLevelChange]);
 
   const fetchAnalytics = async () => {
     try {

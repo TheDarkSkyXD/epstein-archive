@@ -9,7 +9,6 @@ import { Search, Copy, Check, Download, ChevronLeft, ChevronRight, Bookmark } fr
 import { prettifyOCRText } from '../../utils/prettifyOCR';
 import { RedactionPlaceholder } from './RedactionPlaceholder';
 import { WikiLink } from '../common/WikiLink';
-import { apiClient } from '../../services/apiClient';
 
 interface DocumentViewerProps {
   evidence: {

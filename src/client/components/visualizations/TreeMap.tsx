@@ -1,5 +1,4 @@
 import React, { useState, useRef } from 'react';
-import { Person } from '../../types';
 import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { filterPeopleOnly } from '../../utils/entityFilters';
 

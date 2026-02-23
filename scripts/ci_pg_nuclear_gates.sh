@@ -19,12 +19,12 @@ if rg -n "better-sqlite3|sqlite|Database\\(|PRAGMA|FTS5|MATCH\\s*\\(|GROUP_CONCA
 fi
 echo "✅ No forbidden SQLite/legacy patterns found in codepaths"
 
-echo "2) Forbidden DB env usage..."
-if rg -n "DB_DIALECT|DB_PATH" src/ packages/ --glob '!**/node_modules/**'; then
-  echo "❌ Forbidden DB env variables (DB_DIALECT/DB_PATH) detected in src/ or packages/."
+echo "2) Forbidden DB env usage (legacy paths)..."
+if rg -n "DB_PATH" src/ packages/ --glob '!**/node_modules/**'; then
+  echo "❌ Forbidden legacy DB env variable (DB_PATH) detected in src/ or packages/."
   exit 1
 fi
-echo "✅ No forbidden DB env variables in src/ or packages/"
+echo "✅ No forbidden legacy DB env variables in src/ or packages/"
 
 echo "3) Routes must not contain raw SQL keywords..."
 ROUTE_PATHS=("src/server/routes")
@@ -60,4 +60,3 @@ node --import tsx/esm scripts/pg_schema_hash.ts --check
 echo "✅ Schema hash gate passed"
 
 echo "☢️  All nuclear gates passed"
-

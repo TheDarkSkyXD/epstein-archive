@@ -490,6 +490,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
     filters.dateRange,
     filters.fileType,
     filters.redFlagLevel,
+    fetchBlockedUntil,
   ]);
 
   // Reset pagination when filters change

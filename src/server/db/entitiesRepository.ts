@@ -1,11 +1,7 @@
-import { db, entitiesQueries } from '@epstein/db';
+import { entitiesQueries } from '@epstein/db';
 import { Person, SearchFilters, SortOption } from '../../types.js';
 import type { SubjectCardListItemDto } from '@shared/dto/entities';
-import {
-  ENTITY_BLACKLIST_PATTERNS,
-  ENTITY_PARTIAL_BLOCKLIST,
-  ENTITY_BLACKLIST_REGEX,
-} from '../../config/entityBlacklist.js';
+import { getApiPool } from './connection.js';
 
 export interface EntityRepositoryResult {
   entities: any[];
@@ -50,19 +46,6 @@ const VIP_TITLE_PREFIXES = [
   'justice',
   'secretary',
 ];
-
-const FIVE_FLAG_BASELINE_ALIASES = new Set([
-  'jeffrey epstein',
-  'epstein',
-  'ghislaine maxwell',
-  'maxwell',
-  'donald trump',
-  'donald j trump',
-  'donald john trump',
-  'president donald trump',
-  'djt',
-  'the donald',
-]);
 
 function normalizeVipDisplayName(value: string): string {
   return value
@@ -109,7 +92,7 @@ function upsertVipAlias(
 }
 
 async function buildVipDisplayLookup(): Promise<Map<string, string>> {
-  const raw = await entitiesQueries.getVipEntities.run(undefined, db);
+  const raw = await (entitiesQueries.getVipEntities as any).run(undefined, getApiPool());
   const bestByAlias = new Map<string, { canonicalName: string; score: number }>();
 
   for (const row of raw) {
@@ -169,7 +152,7 @@ export const entitiesRepository = {
       ? filters.likelihoodScore.map((s) => String(s).toUpperCase())
       : null;
 
-    const rawEntities = await entitiesQueries.getSubjectCards.run(
+    const rawEntities = await (entitiesQueries.getSubjectCards as any).run(
       {
         searchTerm,
         riskLevels,
@@ -177,23 +160,26 @@ export const entitiesRepository = {
         maxRedFlag: filters?.maxRedFlagIndex !== undefined ? filters.maxRedFlagIndex : null,
         role: filters?.role && filters.role !== 'all' ? filters.role : null,
         sortBy: sortBy || 'risk',
-        limit: BigInt(limit),
-        offset: BigInt(offset),
+        limit: limit,
+        offset: offset,
       },
-      db,
+      getApiPool(),
     );
 
-    const countResult = await entitiesQueries.countSubjectCards.run(
+    const countResult = await (entitiesQueries.countSubjectCards as any).run(
       {
         searchTerm,
         riskLevels,
       },
-      db,
+      getApiPool(),
     );
 
     const total = Number(countResult[0]?.total || 0);
 
-    const maxConnResult = await entitiesQueries.getMaxConnectivity.run(undefined, db);
+    const maxConnResult = await (entitiesQueries.getMaxConnectivity as any).run(
+      undefined,
+      getApiPool(),
+    );
     const maxConnectivityCount = Number(maxConnResult[0]?.maxConn || 1);
 
     const vipDisplayLookup = await buildVipDisplayLookup();
@@ -278,7 +264,7 @@ export const entitiesRepository = {
       ? filters.likelihoodScore.map((s) => String(s).toUpperCase())
       : null;
 
-    const rawEntities = await entitiesQueries.getSubjectCards.run(
+    const rawEntities = await (entitiesQueries.getSubjectCards as any).run(
       {
         searchTerm,
         riskLevels,
@@ -286,18 +272,18 @@ export const entitiesRepository = {
         maxRedFlag: filters?.maxRedFlagIndex !== undefined ? filters.maxRedFlagIndex : null,
         role: filters?.role && filters.role !== 'all' ? filters.role : null,
         sortBy: sortBy || 'risk',
-        limit: BigInt(limit),
-        offset: BigInt(offset),
+        limit: limit,
+        offset: offset,
       },
-      db,
+      getApiPool(),
     );
 
-    const countResult = await entitiesQueries.countSubjectCards.run(
+    const countResult = await (entitiesQueries.countSubjectCards as any).run(
       {
         searchTerm,
         riskLevels,
       },
-      db,
+      getApiPool(),
     );
 
     const total = Number(countResult[0]?.total || 0);
@@ -326,7 +312,7 @@ export const entitiesRepository = {
   },
 
   getAllEntities: async (limit: number = 0): Promise<any[]> => {
-    const rows = await entitiesQueries.getSubjectCards.run(
+    const rows = await (entitiesQueries.getSubjectCards as any).run(
       {
         searchTerm: null,
         riskLevels: null,
@@ -334,26 +320,29 @@ export const entitiesRepository = {
         maxRedFlag: null,
         role: null,
         sortBy: 'name',
-        limit: limit > 0 ? BigInt(limit) : BigInt(1000),
-        offset: BigInt(0),
+        limit: limit > 0 ? limit : 1000,
+        offset: 0,
       },
-      db,
+      getApiPool(),
     );
     return rows;
   },
 
   getEntityById: async (id: string | number): Promise<Person | null> => {
     const entityId = Number(id);
-    const rows = await entitiesQueries.getEntityById.run({ id: BigInt(entityId) }, db);
+    const rows = await (entitiesQueries.getEntityById as any).run({ id: entityId }, getApiPool());
     const entity = rows[0];
 
     if (!entity) return null;
 
-    const mentions = await entitiesQueries.getEntityMentions.run(
-      { entityId, limit: BigInt(100) },
-      db,
+    const mentions = await (entitiesQueries.getEntityMentions as any).run(
+      { entityId, limit: 100 },
+      getApiPool(),
     );
-    const relationships = await entitiesQueries.getEntityRelationships.run({ entityId }, db);
+    const relationships = await (entitiesQueries.getEntityRelationships as any).run(
+      { entityId },
+      getApiPool(),
+    );
 
     const vipDisplayLookup = await buildVipDisplayLookup();
 
@@ -390,15 +379,18 @@ export const entitiesRepository = {
 
   getEntitySummarySource: async (entityId: number | string, topN: number = 10): Promise<any> => {
     const id = Number(entityId);
-    const rows = await entitiesQueries.getEntityById.run({ id: BigInt(id) }, db);
+    const rows = await (entitiesQueries.getEntityById as any).run({ id: id }, getApiPool());
     const entity = rows[0];
 
     if (!entity) return null;
 
-    const relationships = await entitiesQueries.getEntityRelationships.run({ entityId: id }, db);
-    const mentions = await entitiesQueries.getEntityMentions.run(
-      { entityId: id, limit: BigInt(topN) },
-      db,
+    const relationships = await (entitiesQueries.getEntityRelationships as any).run(
+      { entityId: id },
+      getApiPool(),
+    );
+    const mentions = await (entitiesQueries.getEntityMentions as any).run(
+      { entityId: id, limit: topN },
+      getApiPool(),
     );
 
     return {
@@ -421,11 +413,11 @@ export const entitiesRepository = {
 
   getEntityDocuments: async (entityId: string): Promise<any[]> => {
     const id = Number(entityId);
-    const mentions = await entitiesQueries.getEntityMentions.run(
-      { entityId: id, limit: BigInt(1000) },
-      db,
+    const mentions = await (entitiesQueries.getEntityMentions as any).run(
+      { entityId: id, limit: 1000 },
+      getApiPool(),
     );
-    return mentions.map((m) => ({
+    return mentions.map((m: any) => ({
       id: String(m.document_id),
       title: m.documentTitle,
       dateCreated: m.documentDate,
@@ -434,9 +426,9 @@ export const entitiesRepository = {
 
   getEntityDocumentCount: async (entityId: string): Promise<number> => {
     const id = Number(entityId);
-    const result = await entitiesQueries.getEntityMentions.run(
-      { entityId: id, limit: BigInt(1000) },
-      db,
+    const result = await (entitiesQueries.getEntityMentions as any).run(
+      { entityId: id, limit: 1000 },
+      getApiPool(),
     );
     return result.length;
   },
@@ -447,12 +439,12 @@ export const entitiesRepository = {
     limit: number = 50,
   ): Promise<any[]> => {
     const id = Number(entityId);
-    const mentions = await entitiesQueries.getEntityMentions.run(
-      { entityId: id, limit: BigInt(1000) },
-      db,
+    const mentions = await (entitiesQueries.getEntityMentions as any).run(
+      { entityId: id, limit: 1000 },
+      getApiPool(),
     );
     const slice = mentions.slice((page - 1) * limit, page * limit);
-    return slice.map((m) => ({
+    return slice.map((m: any) => ({
       id: String(m.document_id),
       title: m.documentTitle,
       dateCreated: m.documentDate,

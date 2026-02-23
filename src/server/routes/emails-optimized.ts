@@ -33,7 +33,6 @@ router.get('/', async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 500;
     const category = req.query.category as string;
-    const offset = (page - 1) * limit;
 
     // Check cache
     const cacheKey = `emails:${category || 'all'}:page${page}:limit${limit}`;

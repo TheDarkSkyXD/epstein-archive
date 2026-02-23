@@ -1,11 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-
-interface DegradedModeState {
-  isDegraded: boolean;
-  setDegraded: (degraded: boolean) => void;
-}
-
-const DegradedModeContext = createContext<DegradedModeState | undefined>(undefined);
+import React, { useState, useEffect } from 'react';
+import { DegradedModeContext } from './DegradedModeContext.helpers';
 
 export function DegradedModeProvider({ children }: { children: React.ReactNode }) {
   const [isDegraded, setDegraded] = useState(false);
@@ -34,10 +28,4 @@ export function DegradedModeProvider({ children }: { children: React.ReactNode }
       {children}
     </DegradedModeContext.Provider>
   );
-}
-
-export function useDegradedMode() {
-  const context = useContext(DegradedModeContext);
-  if (!context) throw new Error('useDegradedMode must be used within DegradedModeProvider');
-  return context;
 }

@@ -48,6 +48,7 @@
     "test:route-sync": "playwright test tests/route-ui-sync.spec.ts --project=chromium --workers=1",
     "test:e2e": "playwright test",
     "deploy:prod": "./deploy.sh",
+    "audit:pg": "bash scripts/run_audit_suite.sh",
     "db:check": "psql \"$DATABASE_URL\" -c 'SELECT 1' >/dev/null && echo '✅ Database connectivity OK' || (echo '❌ Database connectivity failed'; exit 1)",
     "schema:hash:check": "tsx scripts/pg_schema_hash.ts check",
     "schema:hash:update": "tsx scripts/pg_schema_hash.ts update",

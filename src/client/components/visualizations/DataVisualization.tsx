@@ -158,41 +158,6 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
     ];
   }, [filteredPersons, analyticsData]);
 
-  // Prepare Data for TreeMap
-  const treeMapNodes = useMemo(() => {
-    // 1. Prefer analyticsData.roleDistribution (server-side aggregated)
-    if (analyticsData?.roleDistribution && Array.isArray(analyticsData.roleDistribution)) {
-      return analyticsData.roleDistribution
-        .filter((d: any) => d.role && d.count > 0)
-        .map((d: any) => ({
-          name: d.role,
-          value: d.count,
-        }));
-    }
-
-    // 2. Fallback to filteredPersons (client-side)
-    const roleCounts: { [key: string]: number } = {};
-    filteredPersons.forEach((p) => {
-      const roles: string[] = [];
-      if (p.role) roles.push(p.role);
-      if (p.secondaryRoles && Array.isArray(p.secondaryRoles)) {
-        roles.push(...p.secondaryRoles);
-      } else if (p.secondary_roles) {
-        roles.push(...p.secondary_roles.split(',').map((r) => r.trim()));
-      }
-
-      roles.forEach((role) => {
-        if (role) {
-          roleCounts[role] = (roleCounts[role] || 0) + 1;
-        }
-      });
-    });
-
-    return Object.entries(roleCounts)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
-  }, [filteredPersons, analyticsData]);
-
   // Prepare Data for Top Entities (Bar Chart)
   const topEntities = useMemo(() => {
     const source =

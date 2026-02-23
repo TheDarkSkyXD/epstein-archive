@@ -1,5 +1,4 @@
 import express from 'express';
-import { getDb } from '../db/connection.js';
 import { cleanMime } from '../services/mimeCleaner.js';
 import {
   getEntitiesInEmail,
@@ -14,7 +13,18 @@ import {
   mapEmailThreadDetailsDto,
   mapEmailThreadsResponseDto,
 } from '../mappers/emailsDtoMapper.js';
-import { getEmailMailboxes, getEmailThreads, getEmailCategoriesCounts } from '../db/routesDb.js';
+import {
+  getEmailCategoriesCounts,
+  getEmailDocumentContentById,
+  getEmailLinkedEntitiesForMessages,
+  getEmailMailboxes,
+  getEmailMessageBodyRecord,
+  getEmailMessageThreadPointer,
+  getEmailRawMessageRecord,
+  getEmailThreadMessageHeaders,
+  getEmailThreads,
+  searchEmailMessagesLegacy,
+} from '../db/routesDb.js';
 
 const router = express.Router();
 
@@ -238,48 +248,8 @@ router.get('/threads', async (req, res, next) => {
 // GET /api/emails/threads/:threadId
 router.get('/threads/:threadId', async (req, res, next) => {
   try {
-    const db = getDb();
     const threadId = req.params.threadId;
-
-    const rows = (await db
-      .prepare(
-        `
-      SELECT
-        d.id AS "messageId",
-        COALESCE(
-          json_extract(d.metadata_json, '$.thread_id'),
-          json_extract(d.metadata_json, '$.threadId'),
-          json_extract(d.metadata_json, '$.conversation_id'),
-          json_extract(d.metadata_json, '$.message_id'),
-          CAST(d.id AS TEXT)
-        ) AS "threadId",
-        COALESCE(json_extract(d.metadata_json, '$.subject'), d.file_name, d.title, 'No Subject') AS subject,
-        COALESCE(json_extract(d.metadata_json, '$.from'), '') AS "fromAddress",
-        COALESCE(json_extract(d.metadata_json, '$.to'), '') AS "toAddresses",
-        COALESCE(json_extract(d.metadata_json, '$.cc'), '') AS "ccAddresses",
-        COALESCE(d.date_created, '1970-01-01T00:00:00.000Z') AS "dateCreated",
-        COALESCE(d.content_refined, '') AS snippet,
-        CASE WHEN CAST(COALESCE(json_extract(d.metadata_json, '$.attachments_count'), '0') AS INTEGER) > 0 THEN 1 ELSE 0 END AS "hasAttachments",
-        COALESCE(json_extract(d.metadata_json, '$.attachments'), '[]') AS "attachmentsMetaRaw",
-        NULL AS "ingestRunId",
-        NULL AS "pipelineVersion",
-        COALESCE(json_extract(d.metadata_json, '$.confidence'), json_extract(d.metadata_json, '$.significance_score')) AS confidence,
-        COALESCE(json_extract(d.metadata_json, '$.ladder'), json_extract(d.metadata_json, '$.evidence_ladder')) AS ladder,
-        COALESCE(json_extract(d.metadata_json, '$.was_agentic'), 0) AS "wasAgentic",
-        d.red_flag_rating AS "redFlagRating"
-      FROM documents d
-      WHERE d.evidence_type = 'email'
-        AND COALESCE(
-          json_extract(d.metadata_json, '$.thread_id'),
-          json_extract(d.metadata_json, '$.threadId'),
-          json_extract(d.metadata_json, '$.conversation_id'),
-          json_extract(d.metadata_json, '$.message_id'),
-          CAST(d.id AS TEXT)
-        ) = ?
-      ORDER BY "dateCreated" ASC, d.id ASC
-      `,
-      )
-      .all(threadId)) as EmailMessageHeaderRow[];
+    const rows = (await getEmailThreadMessageHeaders(threadId)) as EmailMessageHeaderRow[];
 
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Thread not found' });
@@ -288,21 +258,7 @@ router.get('/threads/:threadId', async (req, res, next) => {
     const messageIds = rows.map((row) => row.messageId);
     const entityRows =
       messageIds.length > 0
-        ? ((await db
-            .prepare(
-              `
-        SELECT
-          em.document_id AS "messageId",
-          em.entity_id AS "entityId",
-          e.full_name AS name,
-          e.primary_role AS role
-        FROM entity_mentions em
-        JOIN entities e ON e.id = em.entity_id
-        WHERE em.document_id IN (${messageIds.map(() => '?').join(',')})
-        ORDER BY em.document_id ASC, e.full_name ASC
-        `,
-            )
-            .all(...messageIds)) as Array<{
+        ? ((await getEmailLinkedEntitiesForMessages(messageIds)) as Array<{
             messageId: number;
             entityId: number;
             name: string;
@@ -362,7 +318,6 @@ router.get('/threads/:threadId', async (req, res, next) => {
 // GET /api/emails/messages/:messageId/body
 router.get('/messages/:messageId/body', async (req, res, next) => {
   try {
-    const db = getDb();
     const messageId = req.params.messageId;
     const showQuoted = req.query.showQuoted === '1';
     const cacheKey = `emails:message:${messageId}:body:${showQuoted ? 'quoted' : 'collapsed'}`;
@@ -371,25 +326,7 @@ router.get('/messages/:messageId/body', async (req, res, next) => {
       return res.json(cached);
     }
 
-    const row = (await db
-      .prepare(
-        `
-      SELECT
-        d.id,
-        d.content,
-        d.content_refined AS content_preview,
-        d.metadata_json,
-        NULL AS "ingestRunId",
-        NULL AS "pipelineVersion",
-        d.date_created AS "dateCreated",
-        d.file_name AS "fileName",
-        d.file_path AS "filePath"
-      FROM documents d
-      WHERE d.evidence_type = 'email' AND d.id = ?
-      LIMIT 1
-      `,
-      )
-      .get(messageId)) as
+    const row = (await getEmailMessageBodyRecord(messageId)) as
       | {
           id: number;
           content: string | null;
@@ -461,19 +398,9 @@ router.get('/messages/:messageId/body', async (req, res, next) => {
 // GET /api/emails/messages/:messageId/thread
 router.get('/messages/:messageId/thread', async (req, res, next) => {
   try {
-    const db = getDb();
-    const row = (await db
-      .prepare(
-        `
-      SELECT
-        id,
-        metadata_json
-      FROM documents
-      WHERE evidence_type = 'email' AND id = ?
-      LIMIT 1
-      `,
-      )
-      .get(req.params.messageId)) as { id: number; metadata_json: string | null } | undefined;
+    const row = (await getEmailMessageThreadPointer(req.params.messageId)) as
+      | { id: number; metadata_json: string | null }
+      | undefined;
 
     if (!row) {
       return res.status(404).json({ error: 'Message not found' });
@@ -489,17 +416,7 @@ router.get('/messages/:messageId/thread', async (req, res, next) => {
 // GET /api/emails/messages/:messageId/raw
 router.get('/messages/:messageId/raw', async (req, res, next) => {
   try {
-    const db = getDb();
-    const row = (await db
-      .prepare(
-        `
-      SELECT id, content, metadata_json
-      FROM documents
-      WHERE evidence_type = 'email' AND id = ?
-      LIMIT 1
-      `,
-      )
-      .get(req.params.messageId)) as
+    const row = (await getEmailRawMessageRecord(req.params.messageId)) as
       | { id: number; content: string | null; metadata_json: string | null }
       | undefined;
 
@@ -527,7 +444,6 @@ router.get('/messages/:messageId/raw', async (req, res, next) => {
 // GET /api/emails/search
 router.get('/search', async (req, res, next) => {
   try {
-    const db = getDb();
     const q = String(req.query.q || '').trim();
     if (!q) {
       return res.status(400).json({ error: 'Query is required' });
@@ -537,50 +453,18 @@ router.get('/search', async (req, res, next) => {
     const mailboxId = String(req.query.mailboxId || 'all');
     const limit = Math.min(MAX_LIMIT, Math.max(1, Number(req.query.limit) || DEFAULT_LIMIT));
 
-    let mailboxClause = '';
-    const params: Array<string | number> = [];
+    let mailboxEntityId: number | null = null;
     if (scope === 'mailbox' && mailboxId.startsWith('entity:')) {
       const entityId = Number(mailboxId.replace('entity:', ''));
       if (Number.isFinite(entityId) && entityId > 0) {
-        mailboxClause = `
-          AND EXISTS (
-            SELECT 1 FROM entity_mentions em
-            WHERE em.document_id = d.id AND em.entity_id = ?
-          )
-        `;
-        params.push(entityId);
+        mailboxEntityId = entityId;
       }
     }
-
-    const like = `%${q.toLowerCase()}%`;
-    const sql = `
-      SELECT
-        d.id AS messageId,
-        COALESCE(
-          json_extract(d.metadata_json, '$.thread_id'),
-          json_extract(d.metadata_json, '$.threadId'),
-          json_extract(d.metadata_json, '$.conversation_id'),
-          json_extract(d.metadata_json, '$.message_id'),
-          CAST(d.id AS TEXT)
-        ) AS threadId,
-        COALESCE(json_extract(d.metadata_json, '$.subject'), d.file_name, d.title, 'No Subject') AS subject,
-        COALESCE(json_extract(d.metadata_json, '$.from'), '') AS fromAddress,
-        COALESCE(d.date_created, '1970-01-01T00:00:00.000Z') AS dateCreated,
-        COALESCE(d.content_refined, '') AS snippet
-      FROM documents d
-      WHERE d.evidence_type = 'email'
-        ${mailboxClause}
-        AND (
-          lower(COALESCE(json_extract(d.metadata_json, '$.subject'), '')) LIKE ?
-          OR lower(COALESCE(json_extract(d.metadata_json, '$.from'), '')) LIKE ?
-          OR lower(COALESCE(json_extract(d.metadata_json, '$.to'), '')) LIKE ?
-          OR lower(COALESCE(d.content_refined, '')) LIKE ?
-        )
-      ORDER BY COALESCE(d.date_created, '1970-01-01T00:00:00.000Z') DESC, d.id ASC
-      LIMIT ?
-    `;
-
-    const rows = (await db.prepare(sql).all(...params, like, like, like, like, limit)) as Array<{
+    const rows = (await searchEmailMessagesLegacy({
+      q,
+      mailboxEntityId,
+      limit,
+    })) as Array<{
       messageId: number;
       threadId: string;
       subject: string;
@@ -628,14 +512,9 @@ router.get('/categories', async (_req, res, next) => {
 // GET /api/emails/:id/entities (legacy + current UI support)
 router.get('/:id/entities', async (req, res, next) => {
   try {
-    const db = getDb();
-    const email = (await db
-      .prepare(
-        `
-      SELECT content FROM documents WHERE id = ? AND evidence_type = 'email'
-      `,
-      )
-      .get(req.params.id)) as { content: string } | undefined;
+    const email = (await getEmailDocumentContentById(req.params.id)) as
+      | { content: string }
+      | undefined;
 
     if (!email) {
       return res.status(404).json({ error: 'Email not found' });

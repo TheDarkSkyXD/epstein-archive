@@ -399,7 +399,7 @@ if [ "$DB_ONLY" = false ]; then
       rm -rf packages/db/dist
 
       export PNPM_HOME="/home/deploy/.local/share/pnpm"
-      export PATH="$PNPM_HOME:$PATH"
+      export PATH="\$PNPM_HOME:\$PATH"
       export NODE_ENV=production
 
       pnpm install --frozen-lockfile

@@ -8,9 +8,6 @@ export function pgSaturationShed(req: Request, res: Response, next: NextFunction
     return next();
   }
 
-  // Only active in PG mode
-  if (process.env.DB_DIALECT !== 'postgres') return next();
-
   let pool: ReturnType<typeof getApiPool> | null = null;
   try {
     pool = getApiPool();

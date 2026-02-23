@@ -185,10 +185,12 @@ export class PredictiveAnalyticsService {
     const params = entityId ? [entityId, entityId, entityId, entityId, entityId] : [1, 1, 1, 1, 1];
     const results = db.prepare(query).all(...params) as any[];
 
+    const sourceEntity = entityId
+      ? ((await entitiesRepository.getEntityById(entityId))?.fullName ?? 'Unknown')
+      : 'Multiple';
+
     return results.map((row) => ({
-      sourceEntity: entityId
-        ? entitiesRepository.getEntityById(entityId)?.fullName || 'Unknown'
-        : 'Multiple',
+      sourceEntity,
       targetEntity: row.full_name,
       inferredRelationship: 'potential connection',
       confidence: Math.min(1.0, row.shared_connections * 0.2),

@@ -1,60 +1,54 @@
-import { getDb } from './connection.js';
-
-export interface ReviewItem {
-  id: string;
-  type: string;
-  subject_id: string;
-  ingest_run_id: string;
-  status: 'pending' | 'reviewed' | 'rejected';
-  priority: 'high' | 'medium' | 'low';
-  payload_json: any;
-  notes?: string;
-  created_at: string;
-}
+import { db, reviewQueries } from '@epstein/db';
+import {
+  IGetMentionsQueueResult,
+  IGetClaimsQueueResult,
+} from '@epstein/db/src/queries/__generated__/review.js';
 
 export const reviewQueueRepository = {
-  async getPendingItems(limit = 100): Promise<ReviewItem[]> {
-    const db = getDb();
-    const rows = (await db
-      .prepare(
-        `
-      SELECT * FROM review_queue 
-      WHERE status = 'pending' 
-      ORDER BY 
-        CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
-        created_at ASC
-      LIMIT ?
-    `,
-      )
-      .all(limit)) as any[];
-
-    return rows.map((row) => ({
-      ...row,
-      payload_json: JSON.parse(row.payload_json),
+  async getMentionsQueue(limit: number = 50) {
+    const rows = await reviewQueries.getMentionsQueue.run({ limit }, db);
+    return rows.map((r: IGetMentionsQueueResult) => ({
+      id: r.id,
+      entity_id: r.entityId,
+      document_id: r.documentId,
+      mention_context: r.mentionContext,
+      confidence_score: r.confidenceScore,
+      entity_name: r.entityName,
+      file_name: r.fileName,
+      signal_score: r.signalScore,
     }));
   },
 
-  async updateDecision(
-    id: string,
-    decision: 'reviewed' | 'rejected',
-    reviewerId: string,
-    notes?: string,
-  ) {
-    const db = getDb();
-    const result = (await db
-      .prepare(
-        `
-      UPDATE review_queue 
-      SET status = ?, 
-          decision = ?, 
-          reviewer_id = ?, 
-          notes = ?, 
-          reviewed_at = CURRENT_TIMESTAMP 
-      WHERE id = ?
-    `,
-      )
-      .run(decision, decision, reviewerId, notes, id)) as any;
+  async verifyMention(id: number, verifiedBy: string = 'system') {
+    await reviewQueries.verifyMention.run({ id, verifiedBy }, db);
+    return { success: true };
+  },
 
-    return result.changes > 0;
+  async rejectMention(id: number, reason: string, verifiedBy: string = 'system') {
+    await reviewQueries.rejectMention.run({ id, reason, verifiedBy }, db);
+    return { success: true };
+  },
+
+  async getClaimsQueue(limit: number = 50) {
+    const rows = await reviewQueries.getClaimsQueue.run({ limit }, db);
+    return rows.map((r: IGetClaimsQueueResult) => ({
+      id: r.id,
+      subject_entity_id: r.subjectEntityId,
+      predicate: r.predicate,
+      object_text: r.objectText,
+      confidence: r.confidence,
+      signal_score: r.signalScore,
+      file_name: r.fileName,
+    }));
+  },
+
+  async verifyClaim(id: number, verifiedBy: string = 'system') {
+    await reviewQueries.verifyClaim.run({ id, verifiedBy }, db);
+    return { success: true };
+  },
+
+  async rejectClaim(id: number, reason: string, verifiedBy: string = 'system') {
+    await reviewQueries.rejectClaim.run({ id, reason, verifiedBy }, db);
+    return { success: true };
   },
 };

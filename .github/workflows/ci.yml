@@ -151,3 +151,29 @@ jobs:
             exit 1
           fi
           echo "✅ Build successful"
+
+  pg_nuclear_gates:
+    name: ☢️ PG Nuclear Gates
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run PG Nuclear Gates
+        env:
+          DATABASE_URL: ${{ secrets.CI_DATABASE_URL }}
+        run: bash scripts/ci_pg_nuclear_gates.sh

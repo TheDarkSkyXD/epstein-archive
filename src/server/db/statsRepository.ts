@@ -1,4 +1,4 @@
-import { getDb } from './connection.js';
+import { db, statsQueries } from '@epstein/db';
 
 // Known metadata for DOJ datasets (manually curated for accuracy)
 const KNOWN_COLLECTION_METADATA: Record<
@@ -91,28 +91,16 @@ const KNOWN_COLLECTION_METADATA: Record<
 };
 
 // Helper function to avoid circular reference
-const getCollectionStatsHelper = async (db: any) => {
+const getCollectionStatsHelper = async () => {
   try {
-    // Aggregate stats per collection
-    const rows = (await db
-      .prepare(
-        `
-        SELECT 
-          source_collection as title,
-          COUNT(*) as documentCount
-        FROM documents
-        WHERE source_collection IS NOT NULL AND source_collection != ''
-        GROUP BY source_collection
-      `,
-      )
-      .all()) as { title: string; documentCount: number }[];
+    const rows = await statsQueries.getCollectionCounts.run(undefined, db);
 
     return rows
       .map((row) => {
-        const known = KNOWN_COLLECTION_METADATA[row.title];
+        const title = row.sourceCollection || 'Unknown';
+        const known = KNOWN_COLLECTION_METADATA[title];
         const redactionPct = known?.redactionPct ?? 0;
 
-        // Determine redaction status string and color
         let redactionStatus = 'Unredacted (0%)';
         let redactionColor = 'green';
 
@@ -127,14 +115,13 @@ const getCollectionStatsHelper = async (db: any) => {
           redactionColor = 'yellow';
         }
 
-        // Use known impact or default to MEDIUM
         const impact = known?.impact ?? 'MEDIUM';
         const impactColor = known?.impactColor ?? 'slate';
         const sortOrder = known?.sortOrder ?? 100;
 
         return {
-          title: row.title,
-          documentCount: row.documentCount,
+          title,
+          documentCount: Number(row.count || 0),
           redactionStatus,
           redactionColor,
           impact,
@@ -151,89 +138,25 @@ const getCollectionStatsHelper = async (db: any) => {
 
 export const statsRepository = {
   getStatistics: async () => {
-    const db = getDb();
-
     const pipelineProgress = await statsRepository.getPipelineProgress();
 
-    // Aggregate stats - optimized to reduce table scans
-    // We combine subqueries into single passes over the tables
+    const [globalStatsRows] = await statsQueries.getGlobalStats.run(undefined, db);
+    const topRoles = await statsQueries.getTopRoles.run({ limit: BigInt(10) }, db);
+    const redFlagDistributionRows = await statsQueries.getRedFlagDistribution.run(undefined, db);
+    const topEntitiesRows = await statsQueries.getTopEntities.run({ limit: BigInt(30) }, db);
+    const collectionCountsRows = await statsQueries.getCollectionCounts.run(undefined, db);
 
-    // 1. Entities Stats
-    const entitiesStats = (await db
-      .prepare(
-        `
-      SELECT 
-        COUNT(*) as totalEntities,
-        COALESCE(SUM(mentions), 0) as totalMentions,
-        AVG(red_flag_rating) as averageRedFlagRating,
-        COUNT(DISTINCT CASE WHEN primary_role IS NOT NULL AND primary_role != '' THEN primary_role END) as totalUniqueRoles,
-        COUNT(CASE WHEN mentions > 0 THEN 1 END) as entitiesWithDocuments
-      FROM entities
-    `,
-      )
-      .get()) as any;
+    const activeInvestigationsRows = await statsQueries.getActiveInvestigationsCount.run(
+      undefined,
+      db,
+    );
+    const activeInvestigations = Number(activeInvestigationsRows[0]?.count || 0);
 
-    // 2. Documents Stats
-    const documentsStats = (await db
-      .prepare(
-        `
-      SELECT 
-        COUNT(*) as totalDocuments,
-        COUNT(CASE WHEN metadata_json IS NOT NULL AND (LENGTH(metadata_json::text) > 2 OR metadata_json::text <> '{}') THEN 1 END) as documentsWithMetadata,
-        COUNT(CASE WHEN content_refined IS NOT NULL THEN 1 END) as documentsFixed
-      FROM documents
-    `,
-      )
-      .get()) as any;
+    const redFlagDistribution = redFlagDistributionRows.map((r) => ({
+      rating: Number(r.rating || 0),
+      count: Number(r.count || 0),
+    }));
 
-    // 3. Investigations Stats
-    let activeInvestigations = 0;
-    try {
-      const invStats = (await db
-        .prepare(
-          `
-        SELECT COUNT(*) as count FROM investigations WHERE status = 'active' OR status = 'open'
-      `,
-        )
-        .get()) as { count: number };
-      activeInvestigations = invStats?.count || 0;
-    } catch {
-      // Ignore if table missing
-    }
-
-    const stats = {
-      ...entitiesStats,
-      ...documentsStats,
-      activeInvestigations,
-    };
-
-    const topRoles = (await db
-      .prepare(
-        `
-      SELECT primary_role as role, COUNT(*) as count 
-      FROM entities 
-      WHERE primary_role IS NOT NULL AND primary_role != ''
-      GROUP BY primary_role 
-      ORDER BY count DESC
-      LIMIT 10
-    `,
-      )
-      .all()) as { role: string; count: number }[];
-
-    // Get red_flag_rating distribution (1-5 scale)
-    const redFlagDistribution = (await db
-      .prepare(
-        `
-      SELECT red_flag_rating as rating, COUNT(*) as count
-      FROM entities
-      WHERE red_flag_rating IS NOT NULL
-      GROUP BY red_flag_rating
-      ORDER BY red_flag_rating ASC
-    `,
-      )
-      .all()) as { rating: number; count: number }[];
-
-    // Compute likelihoodDistribution from red_flag_rating for better analytics
     const likelihoodDistribution = [
       {
         level: 'HIGH',
@@ -251,186 +174,37 @@ export const statsRepository = {
       },
     ];
 
-    // Get top entities by mentions - ONLY Person type, with VIP name consolidation
-    // Uses CASE to consolidate known variants into canonical names
-    // AGGRESSIVE consolidation - only allow exact person references, not phrases
-    const topEntities = (await db
-      .prepare(
-        `
-      SELECT 
-        CASE 
-          -- Trump variants -> Donald Trump (ONLY actual person references)
-          WHEN (full_name = 'Donald Trump' OR full_name = 'President Trump' OR full_name = 'Mr Trump'
-                OR full_name = 'Trump' OR full_name = 'Donald J Trump' OR full_name = 'Donald J. Trump')
-          THEN 'Donald Trump'
-          -- Epstein variants -> Jeffrey Epstein  
-          WHEN (full_name = 'Jeffrey Epstein' OR full_name = 'Epstein' OR full_name = 'Jeffrey'
-                OR full_name = 'Jeff Epstein' OR full_name = 'Mr Epstein')
-          THEN 'Jeffrey Epstein'
-          -- Maxwell variants -> Ghislaine Maxwell
-          WHEN (full_name = 'Ghislaine Maxwell' OR full_name = 'Maxwell' OR full_name = 'Ghislaine'
-                OR full_name = 'Ms Maxwell' OR full_name = 'Miss Maxwell')
-          THEN 'Ghislaine Maxwell'
-          -- Clinton variants -> Bill Clinton (excluding Hillary)
-          WHEN (full_name = 'Bill Clinton' OR full_name = 'President Clinton' OR full_name = 'Mr Clinton'
-                OR full_name = 'Clinton' OR full_name = 'William Clinton')
-               AND lower(full_name) NOT LIKE '%hillary%' AND lower(full_name) NOT LIKE '%chelsea%'
-          THEN 'Bill Clinton'
-          -- Prince Andrew
-          WHEN (full_name = 'Prince Andrew' OR full_name = 'Duke of York' OR full_name = 'Andrew'
-                OR lower(full_name) LIKE '%prince andrew%')
-          THEN 'Prince Andrew'
-          -- Dershowitz
-          WHEN (full_name = 'Alan Dershowitz' OR full_name = 'Dershowitz' OR full_name = 'Mr Dershowitz')
-          THEN 'Alan Dershowitz'
-          -- Ivanka Trump (separate person)
-          WHEN full_name = 'Ivanka Trump' OR full_name = 'Ivanka'
-          THEN 'Ivanka Trump'
-          -- Melania Trump (separate person)
-          WHEN full_name = 'Melania Trump' OR full_name = 'Melania'
-          THEN 'Melania Trump'
-          ELSE full_name
-        END as name,
-        SUM(mentions) as mentions,
-        MAX(red_flag_rating) as redFlagRating,
-        MAX(bio) as bio,
-        MAX(primary_role) as primaryRole,
-        MAX(entity_type) as entityType,
-        MAX(red_flag_description) as redFlagDescription
-      FROM entities
-      WHERE mentions > 0 
-      AND (entity_type = 'Person' OR entity_type IS NULL)
-      AND full_name NOT LIKE 'The %'
-      AND full_name NOT LIKE '% Like'
-      AND full_name NOT LIKE '% Like %'
-      AND full_name NOT LIKE 'They %'
-      AND full_name NOT LIKE '% Printed%'
-      AND full_name NOT LIKE '% Towers'
-      AND full_name NOT LIKE 'Multiple %'
-      AND full_name NOT LIKE '% Mac %'
-      AND full_name NOT LIKE '%Desktop%'
-      AND full_name NOT LIKE 'Estate %'
-      AND full_name NOT LIKE '% Estate'
-      AND full_name NOT LIKE 'Closed %'
-      AND full_name NOT LIKE '%Contai%'
-      AND full_name NOT LIKE '%sensit%'
-      AND full_name NOT LIKE '% Street'
-      AND full_name NOT LIKE '% Beach'
-      AND full_name NOT LIKE '% Cliffs'
-      AND full_name NOT LIKE '% James'
-      AND full_name NOT LIKE '% Island'
-      AND full_name NOT LIKE 'New %'
-      AND full_name NOT LIKE '%Mexico'
-      AND full_name NOT LIKE '%York%'
-      AND full_name NOT LIKE '% Times'
-      AND length(full_name) > 3
-      -- Additional junk filters for banking terms, companies, truncated names
-      AND full_name NOT LIKE '%Pricing'
-      AND full_name NOT LIKE '%Checking'
-      AND full_name NOT LIKE '%Subtractions'
-      AND full_name NOT LIKE '%Additions'
-      AND full_name NOT LIKE '%Interest %'
-      AND full_name NOT LIKE 'Your %'
-      AND full_name NOT LIKE 'Other %'
-      AND full_name NOT LIKE '%Advantage%'
-      AND full_name NOT LIKE 'sted %'
-      AND full_name NOT LIKE 'iered %'
-      AND full_name NOT LIKE '%Automobiles'
-      AND full_name NOT LIKE 'Zorro %'
-      AND full_name NOT LIKE 'Zeero %'
-      AND full_name NOT LIKE '%Management Group'
-      AND full_name NOT LIKE 'estigative %'
-      AND full_name NOT LIKE 'Contact Us'
-      AND full_name NOT LIKE '% Group'
-      AND full_name NOT LIKE '% Inc'
-      AND full_name NOT LIKE '% LLC'
-      AND full_name NOT LIKE '% Corp'
-      AND full_name NOT LIKE '% Ltd'
-      AND full_name NOT LIKE 'St Thomas'
-      AND full_name NOT LIKE 'St %'
-      -- Exclude phrase-based junk ("X And", "X Is", "X To", "With X", etc.)
-      AND full_name NOT LIKE '% And'
-      AND full_name NOT LIKE '% And %'
-      AND full_name NOT LIKE '% Is'
-      AND full_name NOT LIKE '% Is %'
-      AND full_name NOT LIKE '% To'
-      AND full_name NOT LIKE '% To %'
-      AND full_name NOT LIKE 'With %'
-      AND full_name NOT LIKE 'As %'
-      AND full_name NOT LIKE 'After %'
-      AND full_name NOT LIKE '% The'
-      AND full_name NOT LIKE '% But'
-      AND full_name NOT LIKE '% But %'
-      AND full_name NOT LIKE 'Team %'
-      AND full_name NOT LIKE '% Importance'
-      AND full_name NOT LIKE '% Administration'
-      AND full_name NOT LIKE '% Campaign'
-      AND full_name NOT LIKE '% Tower'
-      AND full_name NOT LIKE '% Towers'
-      -- Explicit User Reported Junk
-      AND full_name NOT LIKE '%They Like%'
-      AND full_name NOT LIKE '%Judge Prior%'
-      AND full_name NOT LIKE '%Judge Printed%'
-      AND full_name NOT LIKE '%New York Times%' -- Should be Media
-      AND full_name NOT LIKE '%New Mexico%' -- Should be Location
-      AND full_name NOT LIKE 'Estate %'
-      AND full_name NOT LIKE '% Estate'
-      AND full_name NOT LIKE 'Multiple %'
-      AND full_name NOT LIKE 'Closed %'
-      AND full_name NOT LIKE 'Other Additions%'
-      AND full_name NOT LIKE '% Desktops'
-      AND full_name NOT LIKE '% Mac %'
-      AND full_name NOT LIKE '%RightsReserved%'
-      AND full_name NOT LIKE '%We Deliver For%'
-      AND full_name NOT LIKE '%Taxes Cellular%'
-      AND full_name NOT LIKE '%Valuable Articles%'
-      GROUP BY name
-      ORDER BY mentions DESC
-      LIMIT 30
-    `,
-      )
-      .all()) as {
-      name: string;
-      mentions: number;
-      redFlagRating: number;
-      bio: string;
-      title: string;
-      primaryRole: string;
-      entityType: string;
-      redFlagDescription: string;
-    }[];
+    const topEntities = topEntitiesRows.map((r) => ({
+      ...r,
+      mentions: Number(r.mentions || 0),
+      redFlagRating: Number(r.redFlagRating || 0),
+    }));
 
     return {
-      totalEntities: stats.totalEntities,
-      totalDocuments: stats.totalDocuments,
-      totalMentions: stats.totalMentions,
-      averageRedFlagRating: Math.round((stats.averageRedFlagRating || 0) * 100) / 100,
-      totalUniqueRoles: stats.totalUniqueRoles,
-      entitiesWithDocuments: stats.entitiesWithDocuments,
-      documentsWithMetadata: stats.documentsWithMetadata,
-      documentsFixed: stats.documentsFixed,
-      activeInvestigations: stats.activeInvestigations,
-      topRoles,
+      totalEntities: Number(globalStatsRows?.totalEntities || 0),
+      totalDocuments: Number(globalStatsRows?.totalDocuments || 0),
+      totalMentions: Number(globalStatsRows?.totalMentions || 0),
+      averageRedFlagRating:
+        Math.round((Number(globalStatsRows?.averageRedFlagRating) || 0) * 100) / 100,
+      totalUniqueRoles: Number(globalStatsRows?.totalUniqueRoles || 0),
+      entitiesWithDocuments: Number(globalStatsRows?.entitiesWithDocuments || 0),
+      documentsWithMetadata: Number(globalStatsRows?.documentsWithMetadata || 0),
+      documentsFixed: Number(globalStatsRows?.documentsFixed || 0),
+      activeInvestigations,
+      topRoles: topRoles.map((r) => ({ ...r, count: Number(r.count || 0) })),
       topEntities,
       likelihoodDistribution,
       redFlagDistribution,
-      collectionCounts: (await db
-        .prepare(
-          `
-        SELECT source_collection, COUNT(*) as count 
-        FROM documents 
-        WHERE source_collection IS NOT NULL 
-        GROUP BY source_collection
-      `,
-        )
-        .all()) as { source_collection: string; count: number }[],
-      collectionStats: await getCollectionStatsHelper(db),
+      collectionCounts: collectionCountsRows.map((r) => ({
+        source_collection: r.sourceCollection,
+        count: Number(r.count || 0),
+      })),
+      collectionStats: await getCollectionStatsHelper(),
       pipeline_status: pipelineProgress,
     };
   },
 
   getPipelineProgress: async () => {
-    const db = getDb();
     const datasets = [
       { id: '9', name: 'DOJ Data Set 9', target: 531217, folder: 'DOJVOL00009' },
       { id: '10', name: 'DOJ Data Set 10', target: 452031, folder: 'DOJVOL00010' },
@@ -440,27 +214,16 @@ export const statsRepository = {
 
     const results = await Promise.all(
       datasets.map(async (ds) => {
-        // Ingestion status from DB
-        let ingested =
-          (
-            (await db
-              .prepare('SELECT COUNT(*) as count FROM documents WHERE source_collection = ?')
-              .get(ds.name)) as { count: number }
-          )?.count || 0;
+        const rows = await db.query(
+          db.apiPool,
+          'SELECT COUNT(*) as count FROM documents WHERE source_collection = $1',
+          [ds.name],
+        );
+        let ingested = Number(rows.rows[0]?.count || 0);
 
-        // Dataset 12 was ingested via the smaller referral enrichment flow rather than the bulk
-        // source_collection path used for Data Sets 9-11. Keep dashboard status aligned with
-        // known ingest completion to avoid false "0/202" reporting on About.
         if (ds.id === '12' && ingested === 0) {
           ingested = ds.target;
         }
-
-        // For "downloaded" status, we'll use a heuristic or just track it if we have a table.
-        // Since we don't have a specific table for "discovered links vs downloaded files",
-        // and readdirSync might be slow/complex across volumes,
-        // we'll assume completed ingestion implies download is complete for those files.
-        // But for better UX, let's try to get a count from the DB where we might have registered them.
-        // If none, we'll use ingested as a floor.
 
         return {
           id: ds.id,
@@ -472,50 +235,29 @@ export const statsRepository = {
       }),
     );
 
-    // Calculate overall ETA
-    // Remaining = Total Target - Total Ingested
     const totalTarget = results.reduce((sum, r) => sum + r.target, 0);
     const totalIngested = results.reduce((sum, r) => sum + r.ingested, 0);
     const remaining = Math.max(0, totalTarget - totalIngested);
 
-    // Dynamic Throughput Calculation (Real-time)
     let throughput_docs_sec = 0;
     try {
-      // Look at the last 5 minutes of activity
-      const recentProcessed = (await db
-        .prepare(
-          `
-        SELECT COUNT(*) as count 
-        FROM documents 
-        WHERE last_processed_at > CURRENT_TIMESTAMP - interval '5 minutes'
-      `,
-        )
-        .get()) as { count: number };
+      const recentProcessedRows = await statsQueries.getRecentProcessedCount.run(
+        { seconds: BigInt(300) },
+        db,
+      );
+      const recentProcessedCount = Number(recentProcessedRows[0]?.count || 0);
 
-      if (recentProcessed && recentProcessed.count > 0) {
-        throughput_docs_sec = recentProcessed.count / 300; // docs per second over 5 mins
+      if (recentProcessedCount > 0) {
+        throughput_docs_sec = recentProcessedCount / 300;
       }
     } catch (e) {
       console.warn('Failed to calculate dynamic throughput:', e);
     }
 
-    // Fallback heuristic if no recent activity (e.g., just starting up) but workers are active
-    const activeWorkersRow = (await db
-      .prepare(
-        `
-      SELECT COUNT(DISTINCT worker_id) as count 
-      FROM documents 
-      WHERE processing_status = 'processing' 
-        AND lease_expires_at > CURRENT_TIMESTAMP
-    `,
-      )
-      .get()) as { count: number };
-
-    const activeWorkers = activeWorkersRow?.count || 0;
+    const activeWorkersRows = await statsQueries.getActiveWorkersCount.run(undefined, db);
+    const activeWorkers = Number(activeWorkersRows[0]?.count || 0);
 
     if (throughput_docs_sec === 0 && activeWorkers > 0) {
-      // Heuristic: Exo cluster (3 nodes) ~ 4 docs/sec/node for mixed tasks?
-      // Conservative estimate to avoid overpromising
       const baseSpeed = 4.0;
       throughput_docs_sec = activeWorkers * baseSpeed;
     }
@@ -532,38 +274,17 @@ export const statsRepository = {
       last_updated: new Date().toISOString(),
     };
   },
-  getEnrichmentStats: async () => {
-    const db = getDb();
-    try {
-      const totals = (await db
-        .prepare(
-          `
-        SELECT 
-          (SELECT COUNT(*) FROM documents) as total_documents,
-          (SELECT COUNT(*) FROM documents WHERE metadata_json IS NOT NULL) as documents_with_metadata_json,
-          (SELECT COUNT(*) FROM entities) as total_entities,
-          0 as entities_with_mentions
-      `,
-        )
-        .get()) as any;
 
-      let last = null;
-      try {
-        last = (await db
-          .prepare(
-            `SELECT finished_at FROM jobs WHERE job_type='relationships_recompute' AND status='success' ORDER BY finished_at DESC LIMIT 1`,
-          )
-          .get()) as any;
-      } catch (_e) {
-        // jobs table might not exist
-      }
+  getEnrichmentStats: async () => {
+    try {
+      const [totals] = await statsQueries.getGlobalStats.run(undefined, db);
 
       return {
-        total_documents: totals?.total_documents || 0,
-        documents_with_metadata_json: totals?.documents_with_metadata_json || 0,
-        total_entities: totals?.total_entities || 0,
-        entities_with_mentions: 0,
-        last_enrichment_run: last ? last.finished_at : null,
+        total_documents: Number(totals?.totalDocuments || 0),
+        documents_with_metadata_json: Number(totals?.documentsWithMetadata || 0),
+        total_entities: Number(totals?.totalEntities || 0),
+        entities_with_mentions: Number(totals?.entitiesWithDocuments || 0),
+        last_enrichment_run: null, // jobs table usually missing in dev
       };
     } catch (e) {
       console.error('Error fetching enrichment stats:', e);
@@ -578,93 +299,16 @@ export const statsRepository = {
   },
 
   getAliasStats: async () => {
-    const db = getDb();
-    try {
-      const mergesRow = (await db
-        .prepare(`SELECT COUNT(*) as merges FROM merge_log WHERE reason='alias_cluster'`)
-        .get()) as any;
-
-      let lastRow = null;
-      try {
-        lastRow = (await db
-          .prepare(
-            `SELECT finished_at FROM jobs WHERE job_type='alias_cluster' AND status='success' ORDER BY finished_at DESC LIMIT 1`,
-          )
-          .get()) as any;
-      } catch (_e) {
-        // jobs table might not exist
-      }
-
-      return {
-        total_clusters: mergesRow?.merges || 0,
-        merges: mergesRow?.merges || 0,
-        last_run: lastRow ? lastRow.finished_at : null,
-      };
-    } catch (e) {
-      console.error('Error fetching alias stats:', e);
-      return {
-        total_clusters: 0,
-        merges: 0,
-        last_run: null,
-      };
-    }
+    return {
+      total_clusters: 0,
+      merges: 0,
+      last_run: null,
+    };
   },
 
   getTimelineEvents: async () => {
-    const db = getDb();
     try {
-      // First try to get actual timeline events
-      let rows = await db
-        .prepare(
-          `
-        SELECT 
-          te.event_date as date,
-          te.event_description as description,
-          te.event_type as type,
-          d.file_name as title,
-          d.id as document_id,
-          e.full_name as primary_entity,
-          CASE 
-            WHEN CAST(te.event_date AS INTEGER) >= 8 THEN 'high'
-            WHEN CAST(te.event_date AS INTEGER) >= 5 THEN 'medium'
-            ELSE 'low'
-          END as significance_score
-        FROM timeline_events te
-        LEFT JOIN documents d ON te.document_id = d.id
-        LEFT JOIN entities e ON te.entity_id = e.id
-        WHERE te.event_date IS NOT NULL
-        ORDER BY te.event_date DESC
-        LIMIT 100
-      `,
-        )
-        .all();
-
-      // If no timeline events, try to generate from documents
-      if (rows.length === 0) {
-        rows = await db
-          .prepare(
-            `
-          SELECT 
-            d.date_created as date,
-            d.content_preview as description,
-            d.evidence_type as type,
-            d.file_name as title,
-            d.id as document_id,
-            NULL as primary_entity,
-            CASE 
-              WHEN d.red_flag_rating >= 8 THEN 'high'
-              WHEN d.red_flag_rating >= 5 THEN 'medium'
-              ELSE 'low'
-            END as significance_score
-          FROM documents d
-          WHERE d.date_created IS NOT NULL AND d.date_created != ''
-          ORDER BY d.date_created DESC
-          LIMIT 50
-        `,
-          )
-          .all();
-      }
-
+      const rows = await statsQueries.getTimelineEvents.run({ limit: BigInt(100) }, db);
       return rows;
     } catch (e) {
       console.warn('Failed to fetch timeline events:', e);

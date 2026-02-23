@@ -1,6 +1,15 @@
 import { Router } from 'express';
-import { getDb } from '../db/connection.js';
 import { graphRateLimiter } from '../middleware/rateLimit.js';
+import {
+  getEdgeEvidenceDocuments,
+  getEdgeRelationship,
+  getGlobalGraphEdges,
+  getGlobalGraphNodes,
+  getGraphCommunities,
+  getGraphNeighbors,
+  getGraphPathEdges,
+  getGraphPathNodes,
+} from '../db/routesDb.js';
 
 const router = Router();
 
@@ -27,36 +36,10 @@ router.get('/global', graphRateLimiter, async (req, res, next) => {
     const endDate = req.query.endDate as string;
 
     console.time('graph-global-fetch');
-    const db = getDb();
 
     if (mode === 'cluster') {
       // Super Cluster Mode: Aggregated by Structural Community (LPA)
-      const clusters = (await db
-        .prepare(
-          `
-            SELECT 
-                'community-' || community_id as id,
-                -- Get name of the highest risk/mentioned person in the cluster
-                (
-                    SELECT full_name 
-                    FROM entities e2 
-                    WHERE e2.community_id = entities.community_id 
-                    ORDER BY red_flag_rating DESC, mentions DESC 
-                    LIMIT 1
-                ) || ' Group' as label,
-                'cluster' as type,
-                MAX(red_flag_rating) as risk,
-                COUNT(*) as size,
-                SUM(mentions) as mentions
-            FROM entities
-            WHERE community_id IS NOT NULL AND entity_type = 'Person'
-            GROUP BY community_id
-            HAVING size > 10 -- Filter for significant clusters
-            ORDER BY size DESC
-            LIMIT 50
-        `,
-        )
-        .all()) as any[];
+      const clusters = getGraphCommunities();
 
       // Enhance labels (optional)
 
@@ -94,17 +77,6 @@ router.get('/global', graphRateLimiter, async (req, res, next) => {
       const maxNodes = 5000;
       let nodesExplored = 0;
 
-      const getNeighbors = db.prepare(`
-            SELECT t.canonical_id, MAX(er.strength) as weight 
-            FROM entity_relationships er
-            JOIN entities s ON er.source_entity_id = s.id
-            JOIN entities t ON er.target_entity_id = t.id
-            WHERE s.canonical_id = ?
-              AND (? IS NULL OR er.first_seen_at <= ?)
-              AND (? IS NULL OR er.last_seen_at >= ?)
-            GROUP BY t.canonical_id
-        `);
-
       while (pq.length > 0 && nodesExplored < maxNodes) {
         pq.sort((a, b) => a.dist - b.dist);
         const { id: curr, dist } = pq.shift()!;
@@ -118,13 +90,7 @@ router.get('/global', graphRateLimiter, async (req, res, next) => {
           break;
         }
 
-        const neighbors = (await getNeighbors.all(
-          curr,
-          endDate || null,
-          endDate || null,
-          startDate || null,
-          startDate || null,
-        )) as { canonical_id: number; weight: number }[];
+        const neighbors = getGraphNeighbors(curr, startDate, endDate);
         for (const n of neighbors) {
           const nid = String(n.canonical_id);
           const weight = n.weight || 0.1;
@@ -151,57 +117,8 @@ router.get('/global', graphRateLimiter, async (req, res, next) => {
         curr = previous.get(curr) || null;
       }
 
-      const placeholders = Array.from(pathNodes)
-        .map(() => '?')
-        .join(',');
-      const nodes = (await db
-        .prepare(
-          `
-            SELECT 
-                canonical_id as id, 
-                full_name as label, 
-                MAX(red_flag_rating) as risk, 
-                MAX(primary_role) as type,
-                SUM(mentions) as val,
-                MAX(community_id) as community
-            FROM entities 
-            WHERE canonical_id IN (${placeholders})
-            GROUP BY canonical_id
-        `,
-        )
-        .all(...pathNodes)) as any[];
-
-      const edges = (await db
-        .prepare(
-          `
-            SELECT 
-                s.canonical_id as source, 
-                t.canonical_id as target, 
-                er.relationship_type as type,
-                MAX(er.strength) as weight,
-                MAX(er.confidence) as confidence,
-                CASE 
-                    WHEN er.relationship_type LIKE '%infer%' OR er.confidence < 0.8 THEN 'INFERRED' 
-                    ELSE 'EVIDENCE_BACKED' 
-                END as classification
-            FROM entity_relationships er
-            JOIN entities s ON er.source_entity_id = s.id
-            JOIN entities t ON er.target_entity_id = t.id
-            WHERE s.canonical_id IN (${placeholders}) 
-              AND t.canonical_id IN (${placeholders})
-              AND (? IS NULL OR er.first_seen_at <= ?)
-              AND (? IS NULL OR er.last_seen_at >= ?)
-            GROUP BY s.canonical_id, t.canonical_id, er.relationship_type
-        `,
-        )
-        .all(
-          ...pathNodes,
-          ...pathNodes,
-          endDate || null,
-          endDate || null,
-          startDate || null,
-          startDate || null,
-        )) as any[];
+      const nodes = getGraphPathNodes(pathNodes);
+      const edges = getGraphPathEdges(pathNodes, startDate, endDate);
 
       console.timeEnd('path-search');
       return res.json({
@@ -226,51 +143,7 @@ router.get('/global', graphRateLimiter, async (req, res, next) => {
 
     // 1. Fetch Top Entities (Nodes) - Aggregated by Canonical ID
     // Deterministic Sort: Risk DESC, Degree DESC, ID ASC
-    const nodesArr = (await db
-      .prepare(
-        `
-      WITH rel_counts AS (
-        SELECT entity_id, SUM(cnt) as degree FROM (
-          SELECT source_entity_id as entity_id, COUNT(*) as cnt FROM entity_relationships 
-          WHERE (? IS NULL OR first_seen_at <= ?) AND (? IS NULL OR last_seen_at >= ?)
-          GROUP BY source_entity_id
-          UNION ALL
-          SELECT target_entity_id as entity_id, COUNT(*) as cnt FROM entity_relationships 
-          WHERE (? IS NULL OR first_seen_at <= ?) AND (? IS NULL OR last_seen_at >= ?)
-          GROUP BY target_entity_id
-        ) t
-        GROUP BY entity_id
-      )
-      SELECT 
-        e.canonical_id as id,
-        MAX(e.full_name) as label, 
-        MAX(e.primary_role) as type,
-        MAX(e.red_flag_rating) as risk,
-        SUM(COALESCE(rc.degree, 0)) as "connectionCount",
-        SUM(e.mentions) as mentions,
-        MAX(e.entity_type) as entity_type,
-        MAX(e.community_id) as community_id
-      FROM entities e
-      LEFT JOIN rel_counts rc ON e.id = rc.entity_id
-      WHERE e.entity_type = 'Person' 
-        AND (e.red_flag_rating >= ?)
-      GROUP BY e.canonical_id
-      ORDER BY risk DESC, "connectionCount" DESC
-      LIMIT ?
-    `,
-      )
-      .all(
-        endDate || null,
-        endDate || null,
-        startDate || null,
-        startDate || null,
-        endDate || null,
-        endDate || null,
-        startDate || null,
-        startDate || null,
-        minRisk,
-        limit,
-      )) as any[];
+    const nodesArr = getGlobalGraphNodes({ minRisk, limit, startDate, endDate });
 
     const canonicalIds = nodesArr.map((n: any) => n.id);
 
@@ -280,34 +153,7 @@ router.get('/global', graphRateLimiter, async (req, res, next) => {
     }
 
     // 2. Fetch Relationships between these nodes — injection-safe ANY($N::bigint[]) binding
-    const edgesArr = await db
-      .prepare(
-        `
-        SELECT 
-            s.canonical_id as source,
-            t.canonical_id as target,
-            er.relationship_type as type,
-            MAX(er.strength) as weight,
-            MAX(er.confidence) as confidence,
-            CASE 
-                WHEN er.relationship_type LIKE '%infer%' OR er.relationship_type LIKE '%agentic%' OR er.confidence < 0.8 
-                THEN 'INFERRED' 
-                ELSE 'EVIDENCE_BACKED' 
-            END as classification
-        FROM entity_relationships er
-        JOIN entities s ON er.source_entity_id = s.id
-        JOIN entities t ON er.target_entity_id = t.id
-        WHERE s.canonical_id = ANY($1::bigint[])
-          AND t.canonical_id = ANY($1::bigint[])
-          AND s.canonical_id != t.canonical_id
-          AND ($2 IS NULL OR er.first_seen_at <= $2::timestamptz)
-          AND ($3 IS NULL OR er.last_seen_at  >= $3::timestamptz)
-        GROUP BY s.canonical_id, t.canonical_id, er.relationship_type
-        ORDER BY weight DESC
-        LIMIT 5000
-    `,
-      )
-      .all([canonicalIds, endDate || null, startDate || null]);
+    const edgesArr = getGlobalGraphEdges({ canonicalIds, startDate, endDate });
 
     console.timeEnd('graph-global-fetch');
 
@@ -347,55 +193,8 @@ router.get('/edge-evidence', async (req, res, next) => {
       return res.status(400).json({ error: 'sourceId and targetId are required' });
     }
 
-    const db = getDb();
-
-    // Trace Lineage: Joined with ingest_runs for provenance
-    const docs = (await db
-      .prepare(
-        `
-      SELECT 
-        d.id as "documentId", 
-        d.file_name as title, 
-        d.evidence_type as "sourceType", 
-        d.red_flag_rating as risk,
-        d.date_created as date,
-        ir.agentic_model_id as model,
-        ir.extractor_versions as pipeline,
-        (
-            SELECT mention_context
-            FROM entity_mentions em
-            JOIN entities e ON em.entity_id = e.id
-            WHERE em.document_id = d.id
-            AND e.canonical_id IN (?, ?)
-            LIMIT 1
-        ) as snippet
-      FROM documents d
-      JOIN entity_mentions em ON em.document_id = d.id
-      JOIN entities e ON em.entity_id = e.id
-      LEFT JOIN ingest_runs ir ON em.ingest_run_id = ir.id
-      WHERE e.canonical_id IN (?, ?)
-      GROUP BY d.id
-      HAVING COUNT(DISTINCT e.canonical_id) >= 2 -- Both must be in same doc
-      ORDER BY d.red_flag_rating DESC
-      LIMIT 20
-    `,
-      )
-      .all(sourceId, targetId, sourceId, targetId)) as any[];
-
-    // Metadata
-    const rel = (await db
-      .prepare(
-        `
-      SELECT er.relationship_type, er.proximity_score, er.confidence, er.was_agentic
-      FROM entity_relationships er
-      JOIN entities s ON er.source_entity_id = s.id
-      JOIN entities t ON er.target_entity_id = t.id
-      WHERE (s.canonical_id = ? AND t.canonical_id = ?)
-         OR (s.canonical_id = ? AND t.canonical_id = ?)
-      LIMIT 1
-    `,
-      )
-      .get(sourceId, targetId, targetId, sourceId)) as any;
+    const docs = getEdgeEvidenceDocuments(String(sourceId), String(targetId));
+    const rel = getEdgeRelationship(String(sourceId), String(targetId));
 
     const evidence = docs.map((d: any) => ({
       id: `doc-${d.documentId}`,

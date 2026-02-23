@@ -1,20 +1,15 @@
 import { Router } from 'express';
-import { getDb } from '../db/connection.js';
 import { authenticateRequest, requireRole } from '../auth/middleware.js';
 import { logAudit } from '../utils/auditLogger.js';
 import bcrypt from 'bcryptjs';
+import { createUser, getUserById, listUsers, updateUser } from '../db/routesDb.js';
 
 const router = Router();
 
 // User Management Endpoints
 router.get('/', authenticateRequest, requireRole('admin'), async (_req, res, next) => {
   try {
-    const db = getDb();
-    const users = db
-      .prepare(
-        'SELECT id, username, email, role, created_at, last_active FROM users ORDER BY username ASC',
-      )
-      .all();
+    const users = listUsers();
     res.json(users);
   } catch (e) {
     next(e);
@@ -23,13 +18,10 @@ router.get('/', authenticateRequest, requireRole('admin'), async (_req, res, nex
 
 router.get('/current', authenticateRequest, async (req: any, res, next) => {
   try {
-    const db = getDb();
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Not authenticated' });
 
-    const user = db
-      .prepare('SELECT id, username, email, role, created_at, last_active FROM users WHERE id = ?')
-      .get(userId);
+    const user = getUserById(userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json(user);
   } catch (e) {
@@ -47,17 +39,16 @@ router.post('/', authenticateRequest, requireRole('admin'), async (req: any, res
     }
 
     const id = `user-${Date.now()}`;
-    const db = getDb();
-
     // Hash password
     const passwordHash = bcrypt.hashSync(password, 10);
 
-    db.prepare(
-      `
-      INSERT INTO users (id, username, email, role, password_hash, created_at, last_active)
-      VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-    `,
-    ).run(id, username, email || null, role || 'viewer', passwordHash);
+    createUser({
+      id,
+      username,
+      email: email || null,
+      role: role || 'viewer',
+      passwordHash,
+    });
 
     logAudit('create_user', req.user?.id || null, 'user', id, { username, role });
     res.status(201).json({ id, username, email, role });
@@ -77,32 +68,30 @@ router.put('/:id', authenticateRequest, async (req: any, res, next) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    const db = getDb();
-    const updates: string[] = [];
-    const params: any[] = [];
-
+    const fields: {
+      username?: string;
+      email?: string;
+      role?: string;
+      passwordHash?: string;
+    } = {};
     if (username) {
-      updates.push('username = ?');
-      params.push(username);
+      fields.username = username;
     }
     if (email) {
-      updates.push('email = ?');
-      params.push(email);
+      fields.email = email;
     }
     if (role && currentUser.role === 'admin') {
-      updates.push('role = ?');
-      params.push(role);
+      fields.role = role;
     }
     if (password) {
-      const passwordHash = bcrypt.hashSync(password, 10);
-      updates.push('password_hash = ?');
-      params.push(passwordHash);
+      fields.passwordHash = bcrypt.hashSync(password, 10);
     }
 
-    if (updates.length === 0) return res.status(400).json({ error: 'No fields to update' });
+    if (!fields.username && !fields.email && !fields.role && !fields.passwordHash) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
 
-    params.push(id);
-    db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+    updateUser(id, fields);
 
     logAudit('update_user', currentUser.id, 'user', id, { username, role });
     res.json({ success: true });

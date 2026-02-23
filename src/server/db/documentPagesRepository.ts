@@ -4,7 +4,7 @@ import { documentsRepository } from './documentsRepository.js';
 
 export const documentPagesRepository = {
   getDocumentPages: async (id: string) => {
-    const doc = documentsRepository.getDocumentById(id);
+    const doc = await documentsRepository.getDocumentById(id);
     if (!doc || !doc.filePath) return { pages: [] };
 
     // Extract filename without extension

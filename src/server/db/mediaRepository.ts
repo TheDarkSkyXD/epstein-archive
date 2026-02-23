@@ -1,71 +1,35 @@
-import { getDb } from './connection.js';
+import { db, mediaQueries } from '@epstein/db';
 
 export const mediaRepository = {
   // Get all albums with counts for a specific media type
   getAlbumsByMediaType: async (fileType: 'audio' | 'video') => {
-    const db = getDb();
-
-    // Match how getMediaItemsPaginated filters by fileType so albums always
-    // reflect the actual media_items rows (audio uses plain "audio").
     let likePattern: string;
     if (fileType === 'audio') {
-      // Ingest scripts store audio as plain "audio" in file_type
       likePattern = '%audio%';
     } else {
-      // Videos (and images if added later) use the "type/*" convention
       likePattern = `${fileType}/%`;
     }
 
-    const query = `
-      SELECT
-        a.id,
-        a.name,
-        a.description,
-        a.created_at as "createdAt",
-        a.date_modified as "dateModified",
-        COUNT(m.id) as "itemCount",
-        SUM(CASE WHEN m.is_sensitive = 1 THEN 1 ELSE 0 END) as "sensitiveCount"
-      FROM media_albums a
-      LEFT JOIN media_items m ON a.id = m.album_id AND m.file_type LIKE ?
-      GROUP BY a.id
-      HAVING itemCount > 0
-      ORDER BY a.name
-    `;
-    const result = (await db.prepare(query).all(likePattern)) as any[];
-    console.log(`getAlbumsByMediaType(${fileType}) found ${result.length} albums`);
-    return result;
+    const result = await mediaQueries.getAlbumsByMediaType.run({ likePattern }, db);
+    return result.map((row) => ({
+      ...row,
+      itemCount: Number(row.itemCount || 0),
+      sensitiveCount: Number(row.sensitiveCount || 0),
+    }));
   },
 
   // Get media items for an entity
   getMediaItems: async (entityId: string) => {
-    const db = getDb();
-    const query = `
-      SELECT DISTINCT
-        m.id,
-        m.entity_id as entityId,
-        m.document_id as documentId,
-        m.file_path as filePath,
-        m.file_type as fileType,
-        m.title,
-        m.description,
-        m.is_sensitive as isSensitive,
-        m.verification_status as verificationStatus,
-        m.red_flag_rating as redFlagRating,
-        m.metadata_json as metadataJson,
-        m.created_at as createdAt
-      FROM media_items m
-      LEFT JOIN media_item_people mip ON m.id = mip.media_item_id
-      WHERE m.entity_id = ? OR mip.entity_id = ?
-      ORDER BY m.red_flag_rating DESC, m.created_at DESC
-    `;
-
-    const mediaItems = (await db.prepare(query).all(entityId, entityId)) as any[];
+    const mediaItems = await mediaQueries.getMediaItemsByEntity.run({ entityId }, db);
 
     return mediaItems.map((item) => {
       let metadata = {};
       try {
         if (item.metadataJson) {
-          metadata = JSON.parse(item.metadataJson);
+          metadata =
+            typeof item.metadataJson === 'string'
+              ? JSON.parse(item.metadataJson)
+              : item.metadataJson;
         }
       } catch (e) {
         console.error('Error parsing metadata for media item', item.id, e);
@@ -73,7 +37,9 @@ export const mediaRepository = {
 
       return {
         ...item,
-        redFlagRating: item.redFlagRating,
+        id: Number(item.id),
+        fileSize: Number((item as any).fileSize || 0),
+        redFlagRating: Number(item.redFlagRating || 0),
         metadata,
       };
     });
@@ -81,38 +47,16 @@ export const mediaRepository = {
 
   // Get all media items (for Evidence Media tab)
   getAllMediaItems: async () => {
-    const db = getDb();
-    const query = `
-      SELECT 
-        m.id,
-        m.entity_id as entityId,
-        m.document_id as documentId,
-        m.file_path as filePath,
-        m.file_type as fileType,
-        m.title,
-        m.description,
-        m.is_sensitive as isSensitive,
-        m.verification_status as verificationStatus,
-        m.red_flag_rating as redFlagRating,
-        m.metadata_json as metadataJson,
-        m.created_at as createdAt,
-        e.full_name as entityName,
-        GROUP_CONCAT(DISTINCT p.full_name) as relatedEntities
-      FROM media_items m
-      LEFT JOIN entities e ON m.entity_id = e.id
-      LEFT JOIN media_item_people mip ON m.id = mip.media_item_id
-      LEFT JOIN entities p ON mip.entity_id = p.id
-      GROUP BY m.id
-      ORDER BY m.red_flag_rating DESC, m.created_at DESC
-    `;
-
-    const mediaItems = (await db.prepare(query).all()) as any[];
+    const mediaItems = await mediaQueries.getAllMediaItems.run(undefined, db);
 
     return mediaItems.map((item) => {
       let metadata = {};
       try {
         if (item.metadataJson) {
-          metadata = JSON.parse(item.metadataJson);
+          metadata =
+            typeof item.metadataJson === 'string'
+              ? JSON.parse(item.metadataJson)
+              : item.metadataJson;
         }
       } catch (e) {
         console.error('Error parsing metadata for media item', item.id, e);
@@ -120,7 +64,9 @@ export const mediaRepository = {
 
       return {
         ...item,
-        redFlagRating: item.redFlagRating,
+        id: Number(item.id),
+        fileSize: Number((item as any).fileSize || 0),
+        redFlagRating: Number(item.redFlagRating || 0),
         metadata,
         relatedEntities: item.relatedEntities
           ? item.relatedEntities.split(',')
@@ -133,17 +79,15 @@ export const mediaRepository = {
 
   // Get single media item by ID
   getMediaItemById: async (id: number) => {
-    const db = getDb();
-    const query = `
-      SELECT * FROM media_items WHERE id = ?
-    `;
-    const item = (await db.prepare(query).get(id)) as any;
+    const rows = await mediaQueries.getMediaItemById.run({ id: String(id) }, db); // id is text in Postgres
+    const item = rows[0];
     if (!item) return undefined;
 
     let metadata = {};
     try {
-      if (item.metadata_json) {
-        metadata = JSON.parse(item.metadata_json);
+      if (item.metadataJson) {
+        metadata =
+          typeof item.metadataJson === 'string' ? JSON.parse(item.metadataJson) : item.metadataJson;
       }
     } catch (e) {
       console.error('Error parsing metadata for media item', item.id, e);
@@ -151,8 +95,10 @@ export const mediaRepository = {
 
     return {
       ...item,
-      isSensitive: Boolean(item.is_sensitive),
-      redFlagRating: item.red_flag_rating,
+      id: Number(item.id),
+      isSensitive: Boolean(item.isSensitive),
+      redFlagRating: Number(item.redFlagRating || 0),
+      fileSize: Number((item as any).fileSize || 0),
       metadata,
     };
   },
@@ -168,127 +114,58 @@ export const mediaRepository = {
       fileType?: string; // 'image' or 'audio' or mimetype
       albumId?: number;
       sortBy?: 'title' | 'date' | 'rating';
-      /**
-       * Optional free-text query to search within transcript text stored
-       * in metadata_json. This is a simple LIKE-based search but combined
-       * with albumId it gives us "search transcripts within this album".
-       */
       transcriptQuery?: string;
       hasPeople?: boolean;
     },
   ) => {
-    const db = getDb();
-    const whereConditions: string[] = [];
-    const params: any[] = [];
+    const offset = (page - 1) * limit;
 
-    if (filters?.entityId) {
-      whereConditions.push('m.entity_id = ?');
-      params.push(filters.entityId);
-    }
-
-    if (filters?.verificationStatus) {
-      whereConditions.push('m.verification_status = ?');
-      params.push(filters.verificationStatus);
-    }
-
-    if (filters?.minRedFlagRating) {
-      whereConditions.push('m.red_flag_rating >= ?');
-      params.push(filters.minRedFlagRating);
-    }
-
+    let fileTypePattern: string | null = null;
     if (filters?.fileType) {
       if (filters.fileType === 'image') {
-        whereConditions.push("m.file_type LIKE 'image/%'");
+        fileTypePattern = 'image/%';
       } else if (filters.fileType === 'audio') {
-        // Relaxed filter to catch any audio type
-        whereConditions.push("m.file_type LIKE '%audio%'");
+        fileTypePattern = '%audio%';
       } else {
-        whereConditions.push('m.file_type LIKE ?');
-        params.push(`${filters.fileType}%`);
+        fileTypePattern = `${filters.fileType}%`;
       }
     }
 
-    if (filters?.albumId !== undefined) {
-      whereConditions.push('m.album_id = ?');
-      params.push(filters.albumId);
-    }
+    const countRes = await mediaQueries.countMediaItems.run(
+      {
+        entityId: filters?.entityId ? BigInt(filters.entityId) : null,
+        fileType: fileTypePattern,
+        minRedFlag: filters?.minRedFlagRating || null,
+      },
+      db,
+    );
 
-    if (filters?.transcriptQuery) {
-      // Simple LIKE-based search over metadata_json which holds transcript
-      // text for audio/video items. This is not FTS but works well enough
-      // for targeted transcript queries.
-      whereConditions.push('m.metadata_json LIKE ?');
-      params.push(`%${filters.transcriptQuery}%`);
-    }
+    const total = Number(countRes[0]?.total || 0);
 
-    if (filters?.hasPeople) {
-      whereConditions.push('EXISTS (SELECT 1 FROM media_item_people WHERE media_item_id = m.id)');
-    }
-
-    console.log('getMediaItemsPaginated params:', { page, limit, filters });
-    console.log('getMediaItemsPaginated whereConditions:', whereConditions);
-
-    // Determine Sort Order
-    let orderByClause = 'm.red_flag_rating DESC, m.created_at DESC'; // Default
-    if (filters?.sortBy === 'title') {
-      orderByClause = 'm.title ASC';
-    } else if (filters?.sortBy === 'date') {
-      orderByClause = 'm.created_at DESC';
-    }
-
-    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
-    const offset = (page - 1) * limit;
-
-    const query = `
-      SELECT 
-        m.id,
-        m.entity_id as entityId,
-        m.document_id as documentId,
-        m.file_path as filePath,
-        m.file_type as fileType,
-        m.title,
-        m.description,
-        m.album_id as albumId,
-        m.is_sensitive as isSensitive,
-        m.verification_status as verificationStatus,
-        m.red_flag_rating as redFlagRating,
-        m.metadata_json as metadataJson,
-        m.created_at as createdAt,
-        GROUP_CONCAT(DISTINCT t.id || ':' || t.name) as tags,
-        GROUP_CONCAT(DISTINCT e.id || ':' || e.full_name) as people
-      FROM media_items m
-      LEFT JOIN media_item_tags mt ON m.id = mt.media_item_id
-      LEFT JOIN media_tags t ON mt.tag_id = t.id
-      LEFT JOIN media_item_people mp ON m.id = mp.media_item_id
-      LEFT JOIN entities e ON mp.entity_id = e.id
-      ${whereClause}
-      GROUP BY m.id
-      ORDER BY ${orderByClause}
-      LIMIT ? OFFSET ?
-    `;
-
-    const countQuery = `SELECT COUNT(*) as total FROM media_items m ${whereClause}`;
-
-    const totalResult = (await db.prepare(countQuery).get(...params)) as { total: number };
-    const mediaItems = (await db.prepare(query).all(...params, limit, offset)) as any[];
+    const mediaItems = await mediaQueries.searchPaginatedMedia.run(
+      {
+        entityId: filters?.entityId ? BigInt(filters.entityId) : null,
+        fileType: fileTypePattern,
+        minRedFlag: filters?.minRedFlagRating || null,
+        limit: BigInt(limit),
+        offset: BigInt(offset),
+      },
+      db,
+    );
 
     return {
       mediaItems: mediaItems.map((item) => {
         let metadata = {};
         try {
           if (item.metadataJson) {
-            metadata = JSON.parse(item.metadataJson);
+            metadata =
+              typeof item.metadataJson === 'string'
+                ? JSON.parse(item.metadataJson)
+                : item.metadataJson;
           }
         } catch (e) {
           console.error('Error parsing metadata for media item', item.id, e);
         }
-
-        const tags = item.tags
-          ? item.tags.split(',').map((t: string) => {
-              const [id, name] = t.split(':');
-              return { id: parseInt(id), name };
-            })
-          : [];
 
         const people = item.people
           ? item.people.split(',').map((p: string) => {
@@ -299,45 +176,23 @@ export const mediaRepository = {
 
         return {
           ...item,
-          redFlagRating: item.redFlagRating,
+          id: Number(item.id),
+          fileSize: Number(item.fileSize || 0),
+          isSensitive: Boolean(item.isSensitive),
+          redFlagRating: Number(item.redFlagRating || 0),
           metadata,
-          tags,
+          tags: [], // Tags missing in current Postgres schema
           people,
         };
       }),
-      total: totalResult.total,
+      total,
     };
   },
 
   // Batch get media items for multiple entities (limit 5 per entity)
   getPhotosForEntities: async (entityIds: string[]) => {
     if (!entityIds.length) return [];
-
-    const db = getDb();
-    const placeholders = entityIds.map(() => '?').join(',');
-
-    // Use window function to limit to 5 per entity
-    const query = `
-      SELECT * FROM (
-        SELECT DISTINCT
-          m.id,
-          COALESCE(mip.entity_id, m.entity_id) as entityId,
-          m.file_path as filePath,
-          m.title,
-          m.is_sensitive as isSensitive,
-          m.red_flag_rating,
-          ROW_NUMBER() OVER (
-            PARTITION BY COALESCE(mip.entity_id, m.entity_id) 
-            ORDER BY m.red_flag_rating DESC, m.created_at DESC
-          ) as rn
-        FROM media_items m
-        LEFT JOIN media_item_people mip ON m.id = mip.media_item_id
-        WHERE (mip.entity_id IN (${placeholders}) OR m.entity_id IN (${placeholders}))
-          AND m.file_type LIKE 'image/%'
-      ) WHERE rn <= 5
-    `;
-
-    // We need to double the args because we use them twice (OR condition)
-    return (await db.prepare(query).all(...entityIds, ...entityIds)) as any[];
+    const ids = entityIds.map((id) => BigInt(id));
+    return await mediaQueries.getPhotosForEntities.run({ entityIds: ids }, db);
   },
 };

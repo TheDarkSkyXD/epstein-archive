@@ -48,7 +48,12 @@ import { config } from './config/index.js';
 import { blackBookRepository } from './server/db/blackBookRepository.js';
 import { globalErrorHandler } from './server/utils/errorHandler.js';
 import { memoryRepository } from './server/db/memoryRepository.js';
-import { getApiPool, getDb, getMigrationMetrics } from './server/db/connection.js';
+import {
+  assertProductionPg,
+  getApiPool,
+  getDb,
+  getMigrationMetrics,
+} from './server/db/connection.js';
 import { FtsMaintenanceService } from './server/services/ftsMaintenance.js';
 import { validate, entitySchema, searchSchema } from './server/middleware/validate.js';
 
@@ -86,9 +91,16 @@ if (!CORPUS_BASE_PATH) {
   console.warn('WARNING: RAW_CORPUS_BASE_PATH not set. Document file serving will be limited.');
 }
 
+assertProductionPg();
+
 const app = express();
 // Enable trust proxy for Nginx/Load Balancer
 app.set('trust proxy', 1);
+
+app.use((_req, res, next) => {
+  res.setHeader('X-DB-Dialect', 'postgres');
+  next();
+});
 
 const parseHardLimit = (value: string | undefined, fallback: number): number => {
   const n = Number(value);
@@ -238,19 +250,28 @@ app.use((req, res, next) => {
   next();
 });
 
+// DISABLE_HEAVY_FEATURES kill switch
+const DISABLE_HEAVY_FEATURES = process.env.DISABLE_HEAVY_FEATURES === 'true';
+
 // Assign X-Request-Id to every request
 app.use(requestIdMiddleware);
-
-// X-DB-Dialect — broadcast which database is backing this instance
-app.use((_req, res, next) => {
-  res.setHeader('X-DB-Dialect', process.env.DB_DIALECT || 'sqlite');
-  next();
-});
 
 // Request logging - uses requestId for traceability
 app.use((req, res, next) => {
   const start = Date.now();
   (req as any)._startTime = start;
+
+  // Add bypass for heavy features if flag is set
+  if (DISABLE_HEAVY_FEATURES) {
+    const heavyPrefixes = ['/api/graph', '/api/map', '/api/analytics/enhanced'];
+    if (heavyPrefixes.some((prefix) => req.originalUrl.startsWith(prefix))) {
+      return res.status(503).json({
+        error: 'Feature temporarily disabled (DISABLE_HEAVY_FEATURES=true)',
+        requestId: req.requestId,
+      });
+    }
+  }
+
   res.on('finish', () => {
     const duration = Date.now() - start;
     console.log(
@@ -286,15 +307,17 @@ app.use((req, res, next) => {
   res.on('finish', () => {
     let poolWaiting = -1;
     try {
-      if (process.env.DB_DIALECT === 'postgres') {
-        poolWaiting = getApiPool().waitingCount;
-      }
+      poolWaiting = getApiPool().waitingCount;
     } catch {
       poolWaiting = -1;
     }
 
     console.info(
-      `[ROUTE_TIMING] [${req.requestId || 'no-req-id'}] route=${req.originalUrl} status=${res.statusCode} durationMs=${Date.now() - startedAt} rows=${rowsReturned ?? -1} limitRequested=${String(req.query.limit || '')} limitApplied=${res.getHeader('X-Limit-Applied') || ''} poolWaiting=${poolWaiting}`,
+      `[ROUTE_TIMING] [${req.requestId || 'no-req-id'}] route=${req.originalUrl} status=${
+        res.statusCode
+      } durationMs=${Date.now() - startedAt} rows=${rowsReturned ?? -1} limitRequested=${String(
+        req.query.limit || '',
+      )} limitApplied=${res.getHeader('X-Limit-Applied') || ''} poolWaiting=${poolWaiting}`,
     );
   });
 
@@ -377,15 +400,11 @@ app.use('/api/', retryStormDetector); // Detect and block retry storm patterns
 app.use('/api/', pgSaturationShed); // Shed requests when PG pool is saturated
 
 // Materialised view refresh — uses dedicated maintenancePool, defers under API pressure
-if (
-  process.env.DB_DIALECT === 'postgres' &&
-  process.env.DISABLE_MATVIEW_REFRESH !== '1' &&
-  process.env.DISABLE_MATVIEW_REFRESH !== 'true'
-) {
+if (process.env.DISABLE_MATVIEW_REFRESH !== '1' && process.env.DISABLE_MATVIEW_REFRESH !== 'true') {
   setInterval(() => {
     refreshIfDue().catch((e) => console.warn('[MatViewRefresh]', e.message));
   }, 60_000);
-} else if (process.env.DB_DIALECT === 'postgres') {
+} else {
   console.warn('[MatViewRefresh] disabled by DISABLE_MATVIEW_REFRESH');
 }
 app.use('/api/auth/login', authLimiter);
@@ -510,17 +529,6 @@ app.get('/api/health', (_req, res) => {
 
 app.get('/api/_meta/db', async (_req, res, next) => {
   try {
-    const dialect = process.env.DB_DIALECT || 'sqlite';
-    if (dialect !== 'postgres') {
-      return res.json({
-        dialect,
-        server_version: null,
-        statement_timeout: null,
-        lock_timeout: null,
-        pools: null,
-      });
-    }
-
     const pool = getApiPool();
     const { rows } = await pool.query<{
       server_version: string;
@@ -533,13 +541,37 @@ app.get('/api/_meta/db', async (_req, res, next) => {
         current_setting('lock_timeout') AS lock_timeout
     `);
     const metrics = await getMigrationMetrics();
+    let lastMatViewRefresh: string | null = null;
+    try {
+      const refreshResult = await pool.query<{
+        last_refreshed_at: string | null;
+      }>(`SELECT MAX(refreshed_at) AS last_refreshed_at FROM analytics_refresh_log`);
+      lastMatViewRefresh = refreshResult.rows[0]?.last_refreshed_at ?? null;
+    } catch {
+      lastMatViewRefresh = null;
+    }
+    const featureFlags = {
+      disableHeavyFeatures:
+        process.env.DISABLE_HEAVY_FEATURES === '1' || process.env.DISABLE_HEAVY_FEATURES === 'true',
+    };
+    const versionTag =
+      process.env.BUILD_TAG ||
+      process.env.VERCEL_GIT_COMMIT_SHA ||
+      process.env.HEROKU_RELEASE_VERSION ||
+      'local-dev';
     res.json({
-      dialect,
+      dialect: 'postgres',
       server_version: rows[0]?.server_version,
       statement_timeout: rows[0]?.statement_timeout,
       lock_timeout: rows[0]?.lock_timeout,
-      pools: metrics.pools,
-      translationCount: metrics.translationCount,
+      pools: {
+        api: metrics.pools.api,
+        ingest: metrics.pools.ingress,
+        maintenance: metrics.pools.maintenance,
+      },
+      featureFlags,
+      version: versionTag,
+      lastMatViewRefresh,
     });
   } catch (error) {
     next(error);
@@ -559,48 +591,26 @@ app.get('/api/health/ready', async (_req, res) => {
 
     // 2. Schema Presence (non-blocking)
     const requiredTables = ['entities', 'documents', 'entity_relationships'];
-    const isPostgres = process.env.DB_DIALECT === 'postgres';
 
-    let isSchemaReady = false;
-    let presentTables: string[] = [];
-
-    if (isPostgres) {
-      // Postgres-native schema check
-      const tableCheck = await (
-        db.prepare(
-          `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ANY($1)`,
-        ) as any
-      ).all([requiredTables]);
-      presentTables = tableCheck.map((r: any) => r.table_name);
-      isSchemaReady = requiredTables.every((t) => presentTables.includes(t));
-    } else {
-      // SQLite-native schema check
-      const tableRows = db
-        .prepare(
-          `SELECT name FROM sqlite_master WHERE type='table' AND name IN (${requiredTables.map(() => '?').join(',')})`,
-        )
-        .all(...requiredTables) as Array<{ name: string }>;
-      presentTables = tableRows.map((r) => r.name);
-      isSchemaReady = requiredTables.every((t) => presentTables.includes(t));
-    }
+    const tableCheck = await (
+      db.prepare(
+        `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = ANY($1)`,
+      ) as any
+    ).all([requiredTables]);
+    const presentTables = tableCheck.map((r: any) => r.table_name);
+    const isSchemaReady = requiredTables.every((t) => presentTables.includes(t));
 
     // 3. Fast Status Determination
     let isMigrationReady = true;
     let fallbackReason = '';
     let migrationMetrics = null;
 
-    if (isPostgres) {
-      // @ts-ignore - dynamic import may not resolve in strict TS mode
-      const { getMigrationMetrics } = await import('./server/db/connection.js');
-      migrationMetrics = await getMigrationMetrics();
-      // Check pool saturation
-      if (migrationMetrics.pools.api && migrationMetrics.pools.api.waiting > 10) {
-        isMigrationReady = false;
-        fallbackReason = 'api_pool_saturated';
-      }
-
-      // Migration is complete — no SQLite/PG dual-read lag check needed
-      // Pool saturation already surfaced above; additional checks via pgShed middleware
+    // @ts-ignore - dynamic import may not resolve in strict TS mode
+    const { getMigrationMetrics } = await import('./server/db/connection.js');
+    migrationMetrics = await getMigrationMetrics();
+    if (migrationMetrics.pools.api && migrationMetrics.pools.api.waiting > 10) {
+      isMigrationReady = false;
+      fallbackReason = 'api_pool_saturated';
     }
 
     const status = isSchemaReady && isMigrationReady ? 'ok' : 'degraded';
@@ -610,7 +620,7 @@ app.get('/api/health/ready', async (_req, res) => {
       status,
       timestamp: new Date().toISOString(),
       checks: {
-        db: { ok: true, latencyMs: dbLatencyMs, dialect: isPostgres ? 'postgres' : 'sqlite' },
+        db: { ok: true, latencyMs: dbLatencyMs, dialect: 'postgres' },
         schema: { ready: isSchemaReady, present: presentTables },
         migration: migrationMetrics
           ? { ready: isMigrationReady, reason: fallbackReason, metrics: migrationMetrics }
@@ -1121,7 +1131,6 @@ app.post('/api/entities', validate(entitySchema), async (req, res, next) => {
   try {
     const { full_name } = req.body;
 
-    // Validate entity name to prevent junk data
     if (full_name) {
       for (const pattern of JUNK_ENTITY_PATTERNS) {
         if (pattern.test(full_name)) {
@@ -1133,7 +1142,24 @@ app.post('/api/entities', validate(entitySchema), async (req, res, next) => {
       }
     }
 
-    const id = await entitiesRepository.createEntity(req.body);
+    const db = getDb();
+    const row = (await db
+      .prepare(
+        `
+        INSERT INTO entities (full_name, primary_role, entity_type, red_flag_rating, bio)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id
+      `,
+      )
+      .get([
+        full_name,
+        req.body.primary_role ?? null,
+        req.body.entity_type ?? null,
+        req.body.red_flag_rating ?? null,
+        req.body.bio ?? null,
+      ])) as { id: string | number };
+    const id = row.id;
+
     logAudit(
       'create_entity',
       (req as AuthenticatedRequest).user?.id || null,
@@ -1152,8 +1178,51 @@ app.post('/api/entities', validate(entitySchema), async (req, res, next) => {
 app.patch('/api/entities/:id', async (req, res, next) => {
   try {
     const id = req.params.id;
-    const changes = await entitiesRepository.updateEntity(id, req.body);
-    if (changes === 0) return res.status(404).json({ error: 'Not found or no changes' });
+    if (!/^\d+$/.test(id)) {
+      return res.status(400).json({ error: 'Invalid entity ID' });
+    }
+
+    const updates: string[] = [];
+    const values: any[] = [];
+    let idx = 1;
+
+    if (typeof req.body.full_name === 'string') {
+      updates.push(`full_name = $${idx++}`);
+      values.push(req.body.full_name);
+    }
+    if (typeof req.body.primary_role === 'string') {
+      updates.push(`primary_role = $${idx++}`);
+      values.push(req.body.primary_role);
+    }
+    if (typeof req.body.entity_type === 'string') {
+      updates.push(`entity_type = $${idx++}`);
+      values.push(req.body.entity_type);
+    }
+    if (typeof req.body.red_flag_rating === 'number') {
+      updates.push(`red_flag_rating = $${idx++}`);
+      values.push(req.body.red_flag_rating);
+    }
+    if (typeof req.body.bio === 'string') {
+      updates.push(`bio = $${idx++}`);
+      values.push(req.body.bio);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No updatable fields provided' });
+    }
+
+    updates.push('updated_at = NOW()');
+    values.push(Number(id));
+
+    const db = getDb();
+    const result = (await db
+      .prepare(`UPDATE entities SET ${updates.join(', ')} WHERE id = $${idx} RETURNING id`)
+      .get(values)) as { id?: string | number } | null;
+
+    if (!result || result.id === undefined || result.id === null) {
+      return res.status(404).json({ error: 'Not found or no changes' });
+    }
+
     logAudit(
       'update_entity',
       (req as AuthenticatedRequest).user?.id || null,
@@ -1286,29 +1355,15 @@ app.get('/api/entities/:id/documents', cacheMiddleware(30), async (req, res, nex
     const entityId = req.params.id;
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 50;
-    const offset =
-      req.query.offset !== undefined ? parseInt(req.query.offset as string) : undefined;
     const search = req.query.search as string;
-    // Treat 'all' as no source filter
     const source =
       req.query.source === 'all' || !req.query.source ? undefined : (req.query.source as string);
-    const sort = req.query.sort as string;
 
     if (!/^\d+$/.test(entityId)) {
       return res.status(400).json({ error: 'Invalid entity ID' });
     }
 
-    const filters = { search, source, sort };
-
-    // Parallel fetch for perf
-    // We skip count if searching (complex) or just do it separate
-    const documents = await entitiesRepository.getEntityDocumentsPaginated(
-      entityId,
-      page,
-      limit,
-      filters,
-      offset,
-    );
+    const documents = await entitiesRepository.getEntityDocumentsPaginated(entityId, page, limit);
 
     // Only get total count on first page or if explicitly requested
     // For search, we might need a separate count query or just let infinite scroll run until empty
@@ -1422,14 +1477,6 @@ app.get('/api/black-book', cacheMiddleware(300), async (req, res, next) => {
 // Get database statistics
 app.get('/api/stats', cacheMiddleware(300), async (_req, res, next) => {
   try {
-    if (
-      process.env.DISABLE_INVESTIGATIONS_STATS === '1' ||
-      process.env.DISABLE_INVESTIGATIONS_STATS === 'true'
-    ) {
-      res.set('Cache-Control', 'public, max-age=15');
-      return res.json(withSafeStatsContract({}));
-    }
-
     const stats = await statsRepository.getStatistics();
     res.set('Cache-Control', 'public, max-age=300'); // 5 min cache
     res.json(withSafeStatsContract(stats));
@@ -2413,13 +2460,6 @@ app.get('/api/search', async (req, res, next) => {
 // Analytics endpoint
 app.get('/api/analytics', async (_req, res, next) => {
   try {
-    if (
-      process.env.DISABLE_INVESTIGATIONS_STATS === '1' ||
-      process.env.DISABLE_INVESTIGATIONS_STATS === 'true'
-    ) {
-      return res.json(withSafeStatsContract({}));
-    }
-
     const stats = await statsRepository.getStatistics();
     res.json(withSafeStatsContract(stats));
   } catch (error) {
@@ -2743,17 +2783,19 @@ app.get('/api/media/images', async (req, res, next) => {
     res.set('X-Total-Count', totalCount.toString());
     res.set('Access-Control-Expose-Headers', 'X-Total-Count');
 
-    // If slim mode, return only essential fields for grid view (minimize payload)
+    // If slim mode, return return essential fields for grid view
     if (slim && Array.isArray(images)) {
       const slimImages = images.map((img: any) => ({
         id: img.id,
         title: img.title,
-        isSensitive: img.is_sensitive,
-        albumId: img.album_id,
-        dateTaken: img.date_taken,
-        dateAdded: img.date_added,
-        dateModified: img.date_modified,
-        fileSize: img.file_size,
+        isSensitive: img.isSensitive,
+        albumId: img.albumId,
+        dateAdded: img.dateAdded,
+        dateModified: img.dateModified,
+        dateTaken: img.dateTaken,
+        filePath: img.filePath,
+        fileSize: img.fileSize,
+        thumbnailPath: img.thumbnailPath,
       }));
       return res.json(slimImages);
     }
@@ -4898,11 +4940,7 @@ app.get('*', async (req, res, next) => {
 // Ensure migrations are run before starting
 try {
   validateStartup();
-  if (process.env.DB_DIALECT !== 'postgres') {
-    runMigrations();
-  } else {
-    console.log('[Startup] DB_DIALECT=postgres. Skipping legacy SQLite auto-migration.');
-  }
+  runMigrations();
   seedInvestigationMediaTags();
 
   // Phase 6 Resilience: Background Junk Flag Backfill

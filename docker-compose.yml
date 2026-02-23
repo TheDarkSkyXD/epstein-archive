@@ -15,7 +15,6 @@ services:
     environment:
       - NODE_ENV=production
       - API_PORT=3012
-      - DB_DIALECT=postgres
       - DATABASE_URL=postgresql://${POSTGRES_USER:-epstein}:${POSTGRES_PASSWORD:-epstein}@db:5432/${POSTGRES_DB:-epstein_archive}
       - LOG_LEVEL=info
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}

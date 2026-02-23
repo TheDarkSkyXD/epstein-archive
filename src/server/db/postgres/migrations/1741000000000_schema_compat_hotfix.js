@@ -3,6 +3,7 @@
 export const shorthands = undefined;
 
 export async function up(pgm) {
+  pgm.sql('SET statement_timeout = 0;');
   pgm.sql(`
     DO $$
     BEGIN

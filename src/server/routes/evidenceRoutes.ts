@@ -12,7 +12,7 @@ import fs from 'fs';
 import { documentsRepository } from '../db/documentsRepository.js';
 import { searchRepository } from '../db/searchRepository.js';
 import { forensicRepository } from '../db/forensicRepository.js';
-import { getDb } from '../db/connection.js';
+import { getEvidenceTypes, insertUploadedDocument } from '../db/routesDb.js';
 import { logAudit } from '../utils/auditLogger.js';
 
 const router = express.Router();
@@ -65,37 +65,18 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
 
     fs.renameSync(tempPath, targetPath);
 
-    // Create DB entry
-    const db = getDb();
-    const result = db
-      .prepare(
-        `
-      INSERT INTO documents (
-        file_name, 
-        file_path, 
-        file_type, 
-        file_size, 
-        date_created, 
-        title, 
-        metadata_json,
-        red_flag_rating
-      ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, 0)
-    `,
-      )
-      .run(
-        fileName,
-        `uploads/${fileName}`,
-        mimetype,
-        size,
-        title || originalname,
-        JSON.stringify({
-          originalName: originalname,
-          uploadedBy: (req as any).user?.id || 'anonymous',
-          description,
-        }),
-      );
-
-    const documentId = result.lastInsertRowid;
+    const documentId = insertUploadedDocument({
+      fileName,
+      filePath: `uploads/${fileName}`,
+      mimetype,
+      size,
+      title: title || originalname,
+      metadataJson: JSON.stringify({
+        originalName: originalname,
+        uploadedBy: (req as any).user?.id || 'anonymous',
+        description,
+      }),
+    });
 
     logAudit('upload_document', (req as any).user?.id, 'document', String(documentId), {
       fileName,
@@ -145,20 +126,7 @@ router.get('/search', async (req: Request, res: Response) => {
  */
 router.get('/types', async (req: Request, res: Response) => {
   try {
-    const db = getDb();
-    // Aggregate from both documents and evidence tables?
-    // Usually 'evidence' table is for investigation items, 'documents' is the corpus.
-    // Let's query 'documents' for now as it's the main source.
-    const types = db
-      .prepare(
-        `
-      SELECT evidence_type as type, COUNT(*) as count 
-      FROM documents 
-      WHERE evidence_type IS NOT NULL 
-      GROUP BY evidence_type
-    `,
-      )
-      .all();
+    const types = getEvidenceTypes();
     res.json(types);
   } catch (error) {
     console.error('Evidence types error:', error);
@@ -173,7 +141,7 @@ router.get('/types', async (req: Request, res: Response) => {
 router.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params as { id: string };
-    const evidence = documentsRepository.getDocumentById(id);
+    const evidence = await documentsRepository.getDocumentById(id);
 
     if (!evidence) {
       return res.status(404).json({ error: 'Evidence not found' });

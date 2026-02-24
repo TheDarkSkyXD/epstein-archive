@@ -142,6 +142,10 @@ export const statsRepository = {
     const pipelineProgress = await statsRepository.getPipelineProgress();
 
     const [globalStatsRows] = await statsQueries.getGlobalStats.run(undefined, getApiPool());
+    const totalRelationshipsRes = await getApiPool().query<{ count: string }>(
+      'SELECT COUNT(*)::text AS count FROM entity_relationships',
+    );
+    const totalRelationships = Number(totalRelationshipsRes.rows[0]?.count || 0);
     const topRoles = await statsQueries.getTopRoles.run({ limit: BigInt(10) }, getApiPool());
     const redFlagDistributionRows = await statsQueries.getRedFlagDistribution.run(
       undefined,
@@ -193,6 +197,7 @@ export const statsRepository = {
     return {
       totalEntities: Number(globalStatsRows?.totalEntities || 0),
       totalDocuments: Number(globalStatsRows?.totalDocuments || 0),
+      totalRelationships,
       totalMentions: Number(globalStatsRows?.totalMentions || 0),
       averageRedFlagRating:
         Math.round((Number(globalStatsRows?.averageRedFlagRating) || 0) * 100) / 100,

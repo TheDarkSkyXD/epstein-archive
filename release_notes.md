@@ -1,3 +1,23 @@
+## 14.5.1 - 2026-02-24 - Data Accounting Patch & CI PG Build Parity
+
+### Production Data Accounting
+
+- Fixed `/api/stats` contract accounting gap where `totalRelationships` returned `null` despite populated `entity_relationships`; now sourced directly from Postgres count.
+- Verified production row counts and migration metadata completeness after Postgres cutover:
+  - `entities = 131342`
+  - `documents = 1382479`
+  - `entity_mentions = 1047520`
+  - `entity_relationships = 1683084`
+  - `media_items = 950`
+  - `document_sentences = 3862346`
+  - `documents.file_type/evidence_type/date_created` missing = `0`
+  - `media_items.file_type` missing = `0`
+
+### CI / Migration Compatibility
+
+- Fixed CI `build` job parity by provisioning a local Postgres service + `DATABASE_URL` and running migrations before `pnpm build:prod` (required by PG nuclear gates).
+- Hardened migration `1741000000000_schema_compat_hotfix` to be schema-compatible across environments where `documents.content_refined` and/or `documents.date_created` may not exist yet.
+
 ## 14.5.0 - 2026-02-24 - Postgres Migration Forensics Hardening & CI Coverage
 
 ### Incident Forensics & Production Stabilization

@@ -618,20 +618,7 @@ threaded AS (
     MAX(COALESCE(metadata_json ->> 'ladder', metadata_json ->> 'evidence_ladder')) AS ladder,
     MAX(CASE WHEN (COALESCE(metadata_json ->> 'attachments_count', '0'))::int > 0 THEN 1 ELSE 0 END) AS hasAttachments,
     NULL AS linkedEntityIdsRaw,
-    (
-      SELECT COALESCE(d3.content_refined, '')
-      FROM documents d3
-      WHERE d3.evidence_type = 'email'
-        AND COALESCE(
-          metadata_json ->> 'thread_id',
-          metadata_json ->> 'threadId',
-          metadata_json ->> 'conversation_id',
-          metadata_json ->> 'message_id',
-          d3.id::text
-        ) = email_docs.threadId
-      ORDER BY COALESCE(d3.date_created, '1970-01-01T00:00:00.000Z'::timestamptz) DESC, d3.id DESC
-      LIMIT 1
-    ) AS snippet
+    MAX(COALESCE(snippet, '')) AS snippet
   FROM email_docs
   GROUP BY threadId
 )

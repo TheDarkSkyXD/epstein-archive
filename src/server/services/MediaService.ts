@@ -536,7 +536,6 @@ export class MediaService {
             red_flag_rating,
             metadata_json,
             exif_json,
-            orientation,
             date_taken,
             created_at
           FROM media_items

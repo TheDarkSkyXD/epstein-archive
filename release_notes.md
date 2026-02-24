@@ -1,3 +1,18 @@
+## 14.5.12 - 2026-02-24 - Media Asset Schema Compat, Email Threads Query Hotfix, Articles Dataset Restore
+
+### Media Recovery (Asset Delivery)
+
+- Fixed `/api/media/images/:id/file` and `/api/media/images/:id/thumbnail` Postgres failures caused by selecting a non-existent `media_items.orientation` column in the PG `getImageById` path.
+- Keeps media thumbnail/file delivery compatible with the current Postgres media schema while preserving thumbnail fallback/generation behavior.
+
+### Emails Recovery
+
+- Fixed `/api/emails/threads` statement timeouts by removing the per-thread correlated snippet subquery from the thread list aggregation path (the endpoint now uses a cheap aggregate snippet and a faster distinct-thread count query).
+
+### Media Articles Recovery
+
+- Restored the missing `articles` dataset in Postgres (32 rows) via an idempotent migration (`1741600000000_restore_articles_dataset`), re-populating the Media Articles tab and `/api/articles`.
+
 ## 14.5.11 - 2026-02-24 - Media Asset Path Recovery & Email Thread Timeout Fix
 
 ### Media Recovery

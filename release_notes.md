@@ -1,3 +1,10 @@
+## 14.5.18 - 2026-02-24 - Emails Workspace Viewport Layout Stabilization
+
+### Emails UI Layout / Overflow
+
+- Fixed the Emails page workspace collapsing to a tiny internal viewport by giving the page a viewport-based height (`100dvh`-relative) instead of relying on an unset parent `h-full`.
+- Tightened pane layout constraints (`min-height: 0`, `min-width: 0`, wrapped subheader) so thread/mailbox/content panes stay clipped within the workspace container and UI elements do not spill outside the box.
+
 ## 14.5.17 - 2026-02-24 - Document Viewer Single-File Route Fallback (Eliminate Static Path 404s)
 
 ### Documents Viewer Reliability

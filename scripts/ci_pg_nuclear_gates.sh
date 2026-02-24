@@ -100,6 +100,23 @@ log "pg_dump schema sha256=${SCHEMA_SHA}"
 log "Plan regression gate"
 node --import tsx/esm scripts/pg_explain.ts
 
+if command -v psql >/dev/null 2>&1; then
+  log "Media file_type completeness gate"
+  MISSING_MEDIA_FILETYPE="$(
+    psql "$DATABASE_URL" -Atc "SELECT COUNT(*) FROM media_items WHERE (file_type IS NULL OR btrim(file_type) = '') AND file_path IS NOT NULL AND btrim(file_path) <> ''" 2>/dev/null || echo '__PSQL_ERROR__'
+  )"
+  if [[ "$MISSING_MEDIA_FILETYPE" == "__PSQL_ERROR__" ]]; then
+    if is_ci; then
+      fail "❌ Unable to run media file_type completeness gate"
+    fi
+    log "Skipping media file_type completeness gate (psql query failed locally)"
+  elif [[ "${MISSING_MEDIA_FILETYPE:-0}" != "0" ]]; then
+    fail "❌ media_items.file_type missing for ${MISSING_MEDIA_FILETYPE} rows"
+  fi
+else
+  log "psql not installed locally; skipping media file_type completeness gate"
+fi
+
 log "Schema hash baseline gate"
 pnpm schema:hash:check
 

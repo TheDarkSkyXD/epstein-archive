@@ -121,22 +121,29 @@ export const searchRepository = {
     const entityIds = entityRows
       .map((row) => Number(row.id))
       .filter((id) => Number.isFinite(id) && id > 0);
-    const entityStatsById = new Map<number, { mentions: number; files: number }>();
+    const entityStatsById = new Map<
+      number,
+      { mentions: number; files: number; riskLevel: string | null; redFlagRating: number | null }
+    >();
     if (entityIds.length > 0) {
       const statsRes = await getApiPool().query<{
         entity_id: number;
         mentions: string | number;
         files: string | number;
+        risk_level: string | null;
+        red_flag_rating: string | number | null;
       }>(
         `
           SELECT
             e.id AS entity_id,
             COALESCE(e.mentions, 0) AS mentions,
-            COUNT(DISTINCT em.document_id) AS files
+            COUNT(DISTINCT em.document_id) AS files,
+            e.risk_level,
+            e.red_flag_rating
           FROM entities e
           LEFT JOIN entity_mentions em ON em.entity_id = e.id
           WHERE e.id = ANY($1::bigint[])
-          GROUP BY e.id, e.mentions
+          GROUP BY e.id, e.mentions, e.risk_level, e.red_flag_rating
         `,
         [entityIds],
       );
@@ -144,6 +151,11 @@ export const searchRepository = {
         entityStatsById.set(Number(row.entity_id), {
           mentions: Number(row.mentions || 0),
           files: Number(row.files || 0),
+          riskLevel: row.risk_level ? String(row.risk_level).toUpperCase() : null,
+          redFlagRating:
+            row.red_flag_rating === null || row.red_flag_rating === undefined
+              ? null
+              : Number(row.red_flag_rating),
         });
       }
     }
@@ -191,11 +203,14 @@ export const searchRepository = {
           matchedAlias: resolveMatchedAlias(searchTerm, row.fullName || '', aliases),
           entityType: 'Person',
           secondaryRoles: [],
-          likelihoodLevel: 0,
+          likelihoodLevel: stats?.riskLevel ?? null,
           mentions: stats?.mentions ?? 0,
           currentStatus: null,
           connectionsSummary: null,
-          redFlagRating: row.redFlagRating,
+          redFlagRating:
+            row.redFlagRating !== null && row.redFlagRating !== undefined
+              ? Number(row.redFlagRating)
+              : (stats?.redFlagRating ?? null),
           redFlagScore: null,
           redFlagIndicators: [],
           redFlagDescription: null,

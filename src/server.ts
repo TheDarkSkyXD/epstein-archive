@@ -1297,7 +1297,11 @@ app.get('/api/entities/:id', cacheMiddleware(60), async (req, res, next) => {
       primaryRole: entity.primaryRole,
       secondaryRoles: entity.secondaryRoles || [],
       mentions: entity.mentions,
-      files: entity.documentCount || (entity.fileReferences ? entity.fileReferences.length : 0),
+      files:
+        entity.files ??
+        entity.documentCount ??
+        (entity.fileReferences ? entity.fileReferences.length : 0) ??
+        0,
       contexts: entity.contexts || [],
       evidence_types: entity.evidence_types || entity.evidenceTypes || [],
       evidenceTypes: entity.evidence_types || entity.evidenceTypes || [],
@@ -2357,7 +2361,10 @@ app.get('/api/search', async (req, res, next) => {
       contexts: entity.contexts || [],
       evidence_types: entity.evidence_types || entity.evidenceTypes || [],
       significant_passages: entity.significantPassages || [],
-      likelihood_score: entity.likelihoodLevel,
+      likelihood_score:
+        typeof entity.likelihoodLevel === 'string'
+          ? entity.likelihoodLevel
+          : entity.riskLevel || 'LOW',
       red_flag_score: entity.redFlagScore !== undefined ? entity.redFlagScore : 0,
       red_flag_rating: entity.redFlagRating !== undefined ? entity.redFlagRating : 0,
       red_flag_peppers:

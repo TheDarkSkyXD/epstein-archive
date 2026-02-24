@@ -1,3 +1,37 @@
+## 14.5.0 - 2026-02-24 - Postgres Migration Forensics Hardening & CI Coverage
+
+### Incident Forensics & Production Stabilization
+
+- Fixed deploy-time Postgres migration failures caused by inconsistent remote environment loading (`DATABASE_URL` now loaded and validated across all DB preflight/migration/certification phases).
+- Hardened deployment sequencing so remote code is synced before migrations run, preventing stale migration directory execution.
+- Added explicit remote env sanity gates in deployment to fail fast on missing `DATABASE_URL` and legacy `DB_DIALECT` values.
+- Fixed multiple production 500s uncovered during cutover verification (`/api/documents`, `/api/media/images`, `/api/stats`) with PG-safe query execution and parameter typing.
+- Normalized startup migration parity checks to compare migration names correctly against `pgmigrations`, preventing false pending-migration boot failures.
+
+### Postgres Runtime Migration Hardening
+
+- Removed remaining repository-layer pgtyped executor misuse (`.run(..., db)` / `db.apiPool`) across server repositories; standardized on `getApiPool()` and proper PG clients.
+- Repaired `relationshipsRepository` transaction handling to use a real Postgres client transaction (`BEGIN/COMMIT/ROLLBACK`) instead of invalid namespace calls.
+- Migrated `revisionManager` database reads to Postgres queries and updated admin revision route to async access.
+- Further hardened `MediaService` for Postgres runtime use and removed remaining `prepare()`-based DB calls from `src/server`.
+- Quarantined unused legacy `prepare()`-based services out of runtime source into `legacy/server-services/`.
+
+### CI / Regression Gates
+
+- Added `scripts/ci_pg_nuclear_gates.sh` enforcement for:
+  - no runtime SQLite remnants in `src/`
+  - no `DB_DIALECT` reintroduction in runtime/deploy/CI configs
+  - no pgtyped repository executor misuse patterns
+  - documents SQL hotfix parity drift
+- Added `scripts/check_documents_sql_parity.ts` to keep `documentsRepository` hotfix SQL aligned with `packages/db/src/queries/documents.sql`.
+- Added `scripts/ci_pg_endpoint_smoke.sh` for critical incident-route PG smoke checks.
+- Added `scripts/ci_pg_public_get_matrix.sh` for broader public GET endpoint matrix coverage in CI against a real local Postgres service.
+- Updated CI to provision Postgres 16, run migrations, start the API server, run PG smoke suites, and enforce schema hash checks in the PG nuclear gate job.
+
+### Repo Hygiene
+
+- Quarantined historical incident artifacts/logs with legacy SQLite traces into `legacy/artifacts/` and documented their status to avoid confusing runtime source audits.
+
 ## v14.4.0 - 2026-02-23 - PostgreSQL-Only Cutover & SQLite Purge
 
 ### Database & Deployment

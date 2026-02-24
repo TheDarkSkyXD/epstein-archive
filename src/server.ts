@@ -2298,7 +2298,10 @@ app.get('/api/evidence/search', async (req, res, next) => {
         primaryRole: entity.primaryRole,
         secondaryRoles: entity.secondaryRoles || [],
         mentions: entity.mentions,
-        files: entity.documentCount || (entity.fileReferences ? entity.fileReferences.length : 0),
+        files:
+          entity.files ??
+          entity.documentCount ??
+          (entity.fileReferences ? entity.fileReferences.length : 0),
         contexts: entity.contexts || [],
         evidence_types: entity.evidence_types || entity.evidenceTypes || [],
         significant_passages: entity.significantPassages || [],
@@ -2357,7 +2360,10 @@ app.get('/api/search', async (req, res, next) => {
       primaryRole: entity.primaryRole,
       secondaryRoles: entity.secondaryRoles || [],
       mentions: entity.mentions,
-      files: entity.documentCount || (entity.fileReferences ? entity.fileReferences.length : 0),
+      files:
+        entity.files ??
+        entity.documentCount ??
+        (entity.fileReferences ? entity.fileReferences.length : 0),
       contexts: entity.contexts || [],
       evidence_types: entity.evidence_types || entity.evidenceTypes || [],
       significant_passages: entity.significantPassages || [],

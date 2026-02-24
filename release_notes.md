@@ -1,3 +1,10 @@
+## 14.5.14 - 2026-02-24 - Black Book Dataset Restoration (Postgres)
+
+### Black Book Recovery
+
+- Restored the missing Postgres `black_book_entries` dataset (1,078 real contacts) via an idempotent migration generated from the verified preserved SQLite source database on the production host.
+- Fixes the Black Book page and `/api/black-book` returning `0 of 0 contacts` after the Postgres migration left the table present but unpopulated.
+
 ## 14.5.13 - 2026-02-24 - Email Thread Field Mapping (Postgres Column Name Compatibility)
 
 ### Emails UI Data Integrity

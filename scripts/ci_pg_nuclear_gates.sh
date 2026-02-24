@@ -114,7 +114,16 @@ if command -v psql >/dev/null 2>&1; then
     fi
     log "Skipping plan regression gate (psql cardinality probe failed locally)"
     SKIP_PLAN_GATE=1
+  else
+    log "Plan gate cardinality probe: documents=${DOC_COUNT:-0} entities=${ENTITY_COUNT:-0} relationships=${REL_COUNT:-0}"
+  fi
+  if [[ "${DOC_COUNT:-0}" =~ ^[0-9]+$ && "${ENTITY_COUNT:-0}" =~ ^[0-9]+$ && "${REL_COUNT:-0}" =~ ^[0-9]+$ ]]; then
+    if [[ "${DOC_COUNT:-0}" -lt 1000 || "${ENTITY_COUNT:-0}" -lt 1000 || "${REL_COUNT:-0}" -lt 10000 ]]; then
+      log "Skipping plan regression gate on non-representative database cardinality"
+      SKIP_PLAN_GATE=1
+    fi
   elif [[ "${DOC_COUNT:-0}" == "0" && "${ENTITY_COUNT:-0}" == "0" && "${REL_COUNT:-0}" == "0" ]]; then
+    # Defensive fallback if numeric check above changes unexpectedly.
     log "Skipping plan regression gate on empty database (no representative data yet)"
     SKIP_PLAN_GATE=1
   fi

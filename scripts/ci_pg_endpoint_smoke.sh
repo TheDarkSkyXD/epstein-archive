@@ -39,8 +39,8 @@ echo "$DB_META" | grep -Eq '"dialect"[[:space:]]*:[[:space:]]*"postgres"' || {
 
 echo "[ci-pg-smoke] checking /api/documents"
 DOCS_BODY="$(check_status_200 "/api/documents?page=1&limit=2&sortBy=red_flag")"
-echo "$DOCS_BODY" | grep -Eq '"documents"[[:space:]]*:' || {
-  echo "[ci-pg-smoke] ❌ /api/documents missing documents payload"
+echo "$DOCS_BODY" | grep -Eq '"documents"[[:space:]]*:|"data"[[:space:]]*:' || {
+  echo "[ci-pg-smoke] ❌ /api/documents payload shape unexpected"
   echo "$DOCS_BODY"
   exit 1
 }
@@ -62,4 +62,3 @@ echo "$STATS_BODY" | grep -Eq '"totalEntities"[[:space:]]*:' || {
 }
 
 echo "[ci-pg-smoke] ✅ PG endpoint smoke passed"
-

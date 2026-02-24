@@ -77,7 +77,9 @@ export class MediaService {
   async getAllTags(): Promise<MediaTag[]> {
     if (this.isPgClient()) {
       return await this.pgRows<MediaTag>(
-        'SELECT id, name, category, created_at as "dateCreated" FROM media_tags ORDER BY name',
+        `SELECT id, name, category, ''::text as "dateCreated"
+         FROM media_tags
+         ORDER BY name`,
       );
     }
     return (await this.db.all('SELECT * FROM media_tags ORDER BY name')) as MediaTag[];

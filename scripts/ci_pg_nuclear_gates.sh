@@ -100,7 +100,7 @@ log "pg_dump schema sha256=${SCHEMA_SHA}"
 log "Plan regression gate"
 SKIP_PLAN_GATE=0
 if command -v psql >/dev/null 2>&1; then
-  read -r DOC_COUNT ENTITY_COUNT REL_COUNT < <(
+  IFS='|' read -r DOC_COUNT ENTITY_COUNT REL_COUNT < <(
     psql "$DATABASE_URL" -Atc "
       SELECT
         (SELECT COUNT(*) FROM documents),
@@ -148,7 +148,7 @@ if command -v psql >/dev/null 2>&1; then
   fi
 
   log "Documents metadata completeness gate"
-  read -r MISSING_DOC_FILETYPE MISSING_DOC_EVIDENCETYPE < <(
+  IFS='|' read -r MISSING_DOC_FILETYPE MISSING_DOC_EVIDENCETYPE < <(
     psql "$DATABASE_URL" -Atc "
       SELECT
         COUNT(*) FILTER (WHERE (file_type IS NULL OR btrim(file_type) = '') AND file_path IS NOT NULL AND btrim(file_path) <> ''),

@@ -297,6 +297,32 @@ wait_for_ci_green() {
       -H "Accept: application/vnd.github+json" \
       -H "X-GitHub-Api-Version: 2022-11-28" \
       "$api_url") || {
+        if command -v gh >/dev/null 2>&1; then
+          row=$(gh run list --workflow CI --limit 20 --json headSha,status,conclusion,url,createdAt \
+            | jq -r --arg sha "$sha" '
+                [.[] | select(.headSha == $sha)
+                 | {status, conclusion, html_url: .url, created_at: .createdAt}]
+                | sort_by(.created_at) | reverse | .[0]
+                | if . == null then "MISSING" else "\(.status)\t\(.conclusion // "")\t\(.html_url)" end
+              ') || row="MISSING"
+          if [ "$row" != "MISSING" ] && [ -n "$row" ]; then
+            status=$(printf '%s' "$row" | cut -f1)
+            conclusion=$(printf '%s' "$row" | cut -f2)
+            url=$(printf '%s' "$row" | cut -f3)
+            if [ "$status" = "completed" ] && [ "$conclusion" = "success" ]; then
+              log_success "CI passed for ${sha:0:8} (via gh fallback)"
+              return 0
+            fi
+            if [ "$status" = "completed" ] && [ "$conclusion" != "success" ]; then
+              log_error "CI failed for ${sha:0:8}: conclusion=${conclusion}"
+              [ -n "$url" ] && log_error "Inspect: ${url}"
+              exit 1
+            fi
+            log_step "CI status=${status} conclusion=${conclusion:-pending} (gh fallback, attempt ${attempt}/${max_attempts})"
+            sleep "$sleep_seconds"
+            continue
+          fi
+        fi
         log_warning "GitHub API query failed (attempt ${attempt}/${max_attempts})"
         sleep "$sleep_seconds"
         continue

@@ -16,7 +16,7 @@ const router = Router();
  */
 router.get('/revision', async (req: Request, res: Response) => {
   try {
-    const revisionInfo = getRevisionInfo();
+    const revisionInfo = await getRevisionInfo();
     res.json(revisionInfo);
   } catch (error: any) {
     res.status(500).json({ error: error.message });

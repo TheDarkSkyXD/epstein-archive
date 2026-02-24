@@ -1,4 +1,5 @@
-import { db, reviewQueries } from '@epstein/db';
+import { reviewQueries } from '@epstein/db';
+import { getApiPool } from './connection.js';
 import {
   IGetMentionsQueueResult,
   IGetClaimsQueueResult,
@@ -40,7 +41,7 @@ export const reviewQueueRepository = {
     ];
   },
   async getMentionsQueue(limit: number = 50) {
-    const rows = await reviewQueries.getMentionsQueue.run({ limit }, db);
+    const rows = await reviewQueries.getMentionsQueue.run({ limit }, getApiPool());
     return rows.map((r: IGetMentionsQueueResult) => ({
       id: r.id,
       entity_id: r.entityId,
@@ -54,17 +55,17 @@ export const reviewQueueRepository = {
   },
 
   async verifyMention(id: number, verifiedBy: string = 'system') {
-    await reviewQueries.verifyMention.run({ id, verifiedBy }, db);
+    await reviewQueries.verifyMention.run({ id, verifiedBy }, getApiPool());
     return { success: true };
   },
 
   async rejectMention(id: number, reason: string, verifiedBy: string = 'system') {
-    await reviewQueries.rejectMention.run({ id, reason, verifiedBy }, db);
+    await reviewQueries.rejectMention.run({ id, reason, verifiedBy }, getApiPool());
     return { success: true };
   },
 
   async getClaimsQueue(limit: number = 50) {
-    const rows = await reviewQueries.getClaimsQueue.run({ limit }, db);
+    const rows = await reviewQueries.getClaimsQueue.run({ limit }, getApiPool());
     return rows.map((r: IGetClaimsQueueResult) => ({
       id: r.id,
       subject_entity_id: r.subjectEntityId,
@@ -77,12 +78,12 @@ export const reviewQueueRepository = {
   },
 
   async verifyClaim(id: number, verifiedBy: string = 'system') {
-    await reviewQueries.verifyClaim.run({ id, verifiedBy }, db);
+    await reviewQueries.verifyClaim.run({ id, verifiedBy }, getApiPool());
     return { success: true };
   },
 
   async rejectClaim(id: number, reason: string, verifiedBy: string = 'system') {
-    await reviewQueries.rejectClaim.run({ id, reason, verifiedBy }, db);
+    await reviewQueries.rejectClaim.run({ id, reason, verifiedBy }, getApiPool());
     return { success: true };
   },
 

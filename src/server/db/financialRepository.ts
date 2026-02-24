@@ -1,4 +1,5 @@
-import { db, financialQueries } from '@epstein/db';
+import { financialQueries } from '@epstein/db';
+import { getApiPool } from './connection.js';
 
 export interface FinancialTransaction {
   id?: number;
@@ -19,7 +20,7 @@ export interface FinancialTransaction {
 
 export const financialRepository = {
   getTransactions: async (limit: number = 100): Promise<FinancialTransaction[]> => {
-    const rows = await financialQueries.getTransactions.run({ limit: BigInt(limit) }, db);
+    const rows = await financialQueries.getTransactions.run({ limit: BigInt(limit) }, getApiPool());
     return rows.map((r) => ({
       ...r,
       id: Number(r.id),
@@ -41,7 +42,7 @@ export const financialRepository = {
   ): Promise<FinancialTransaction[]> => {
     const rows = await financialQueries.getTransactionsByInvestigation.run(
       { investigationId: BigInt(investigationId) },
-      db,
+      getApiPool(),
     );
     return rows.map((r) => ({
       ...r,
@@ -60,7 +61,7 @@ export const financialRepository = {
   },
 
   getTransactionsByEntity: async (entityName: string): Promise<FinancialTransaction[]> => {
-    const rows = await financialQueries.getTransactionsByEntity.run({ entityName }, db);
+    const rows = await financialQueries.getTransactionsByEntity.run({ entityName }, getApiPool());
     return rows.map((r) => ({
       ...r,
       id: Number(r.id),
@@ -93,17 +94,17 @@ export const financialRepository = {
         sourceDocumentId: tx.source_document_id || null,
         metadataJson: tx.metadata_json || null,
       },
-      db,
+      getApiPool(),
     );
 
     return result[0]?.id ? Number(result[0].id) : null;
   },
 
   getFinancialSummary: async () => {
-    const [summary] = await financialQueries.getFinancialSummary.run(undefined, db);
+    const [summary] = await financialQueries.getFinancialSummary.run(undefined, getApiPool());
     const topEntities = await financialQueries.getTopFinancialEntities.run(
       { limit: BigInt(5) },
-      db,
+      getApiPool(),
     );
 
     return {

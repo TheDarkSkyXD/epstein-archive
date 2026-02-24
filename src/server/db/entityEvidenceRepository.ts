@@ -1,4 +1,5 @@
-import { db, entityEvidenceQueries } from '@epstein/db';
+import { entityEvidenceQueries } from '@epstein/db';
+import { getApiPool } from './connection.js';
 
 export const entityEvidenceRepository = {
   async getEntityMentionEvidence(entityId: string) {
@@ -7,7 +8,7 @@ export const entityEvidenceRepository = {
     // Basic entity lookup
     const entityRows = await entityEvidenceQueries.getEntityMentionDetails.run(
       { entityId: eid },
-      db,
+      getApiPool(),
     );
     const entity = entityRows[0];
 
@@ -18,7 +19,7 @@ export const entityEvidenceRepository = {
     // Core mention-derived evidence items
     const evidenceRows = await entityEvidenceQueries.getMentionDerivedEvidence.run(
       { entityId: eid, limit: BigInt(200) },
-      db,
+      getApiPool(),
     );
 
     // Normalize evidence shape to match EntityEvidencePanel expectations
@@ -72,7 +73,7 @@ export const entityEvidenceRepository = {
     // Related entities via relations graph
     const relatedEntitiesRaw = await entityEvidenceQueries.getRelatedEntitiesByRelations.run(
       { entityId: eid, limit: BigInt(20) },
-      db,
+      getApiPool(),
     );
     const relatedEntities = relatedEntitiesRaw.map((r) => ({
       ...r,
@@ -105,7 +106,7 @@ export const entityEvidenceRepository = {
     const eid = BigInt(entityId);
     const rows = await entityEvidenceQueries.getRelationEvidenceForEntity.run(
       { entityId: eid },
-      db,
+      getApiPool(),
     );
 
     const byRelation = new Map<string, any>();

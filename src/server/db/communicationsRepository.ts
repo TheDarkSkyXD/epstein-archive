@@ -1,4 +1,5 @@
-import { db, communicationsQueries } from '@epstein/db';
+import { communicationsQueries } from '@epstein/db';
+import { getApiPool } from './connection.js';
 import {
   IGetThreadsResult,
   ISearchThreadsResult,
@@ -74,7 +75,7 @@ export const communicationsRepository = {
   async getThreads(page: number = 1, limit: number = 50): Promise<ThreadDTO[]> {
     const offset = (page - 1) * limit;
 
-    const rows = await communicationsQueries.getThreads.run({ limit, offset }, db);
+    const rows = await communicationsQueries.getThreads.run({ limit, offset }, getApiPool());
 
     return rows.map((row: IGetThreadsResult) => {
       let participants: string[] = [];
@@ -99,7 +100,7 @@ export const communicationsRepository = {
   },
 
   async getThreadById(threadId: string): Promise<ThreadDTO | null> {
-    const rows = await communicationsQueries.getThreadMessages.run({ threadId }, db);
+    const rows = await communicationsQueries.getThreadMessages.run({ threadId }, getApiPool());
     if (rows.length === 0) return null;
 
     const messages = rows.map(mapRowToEmailDTO);
@@ -126,7 +127,10 @@ export const communicationsRepository = {
   },
 
   async getThreadForDocument(documentId: string): Promise<ThreadDTO | null> {
-    const rows = await communicationsQueries.getThreadIdForDocument.run({ documentId }, db);
+    const rows = await communicationsQueries.getThreadIdForDocument.run(
+      { documentId },
+      getApiPool(),
+    );
     if (rows.length === 0) return null;
 
     const threadId = rows[0].threadId || documentId;
@@ -134,7 +138,7 @@ export const communicationsRepository = {
   },
 
   async getMessageById(messageId: string): Promise<EmailDTO | null> {
-    const rows = await communicationsQueries.getMessageById.run({ messageId }, db);
+    const rows = await communicationsQueries.getMessageById.run({ messageId }, getApiPool());
     if (rows.length === 0) return null;
     return mapRowToEmailDTO(rows[0]);
   },
@@ -142,7 +146,7 @@ export const communicationsRepository = {
   async searchEmails(filters: EmailSearchFilters): Promise<ThreadDTO[]> {
     const threadRows = await communicationsQueries.searchThreads.run(
       { query: filters.query || '' },
-      db,
+      getApiPool(),
     );
 
     // For brevity and parity with legacy, return partial thread results
@@ -158,7 +162,10 @@ export const communicationsRepository = {
   },
 
   async getCommunicationsForEntity(entityId: string, _filters: any): Promise<EmailDTO[]> {
-    const rows = await communicationsQueries.getCommunicationsForEntity.run({ entityId }, db);
+    const rows = await communicationsQueries.getCommunicationsForEntity.run(
+      { entityId },
+      getApiPool(),
+    );
     return rows.map((row: IGetCommunicationsForEntityResult) =>
       mapRowToEmailDTO({
         ...row,

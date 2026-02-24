@@ -1,4 +1,5 @@
-import { db, blackBookQueries } from '@epstein/db';
+import { blackBookQueries } from '@epstein/db';
+import { getApiPool } from './connection.js';
 
 // Common OCR errors in the Black Book and their corrections
 // Format: [error, correction]
@@ -64,7 +65,7 @@ export const blackBookRepository = {
         hasPhone: filters?.hasPhone || null,
         limit: filters?.limit ? BigInt(filters.limit) : BigInt(100),
       },
-      db,
+      getApiPool(),
     );
 
     return correctEntries(
@@ -84,7 +85,7 @@ export const blackBookRepository = {
 
   getBlackBookReviewStats: async () => {
     try {
-      const stats = await blackBookQueries.getBlackBookReviewStats.run(undefined, db);
+      const stats = await blackBookQueries.getBlackBookReviewStats.run(undefined, getApiPool());
       const res = stats[0];
       return {
         total: Number(res?.total || 0),
@@ -103,8 +104,7 @@ export const blackBookRepository = {
     action: 'approve' | 'skip' | 'delete',
   ) => {
     try {
-      const rows = await db.query(
-        db.apiPool,
+      const rows = await getApiPool().query(
         'SELECT person_id FROM black_book_entries WHERE id = $1',
         [entryId],
       );
@@ -117,11 +117,10 @@ export const blackBookRepository = {
       if (action === 'approve') {
         await blackBookQueries.updateBlackBookReview.run(
           { id: BigInt(personId), fullName: correctedName },
-          db,
+          getApiPool(),
         );
 
-        await db.query(
-          db.apiPool,
+        await getApiPool().query(
           'INSERT INTO audit_log (operation, entity_type, entity_id, details_json) VALUES ($1, $2, $3, $4)',
           [
             'black_book_review',
@@ -131,18 +130,16 @@ export const blackBookRepository = {
           ],
         );
       } else if (action === 'skip') {
-        await db.query(db.apiPool, 'UPDATE entities SET manually_reviewed = 1 WHERE id = $1', [
+        await getApiPool().query('UPDATE entities SET manually_reviewed = 1 WHERE id = $1', [
           personId,
         ]);
       } else if (action === 'delete') {
-        await db.query(
-          db.apiPool,
+        await getApiPool().query(
           "UPDATE entities SET needs_review = 0, manually_reviewed = 1, full_name = '[DELETED]' WHERE id = $1",
           [personId],
         );
 
-        await db.query(
-          db.apiPool,
+        await getApiPool().query(
           'INSERT INTO audit_log (operation, entity_type, entity_id, details_json) VALUES ($1, $2, $3, $4)',
           [
             'black_book_review',

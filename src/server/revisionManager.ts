@@ -6,6 +6,7 @@
  */
 
 import crypto from 'crypto';
+import { getApiPool } from './db/connection.js';
 
 interface RevisionComponents {
   latestIngestRunId: string;
@@ -21,27 +22,24 @@ interface RevisionToken {
 }
 
 export class DatasetRevisionManager {
-  private db: any;
   private cachedToken: RevisionToken | null = null;
   private cacheExpiry: number = 0;
   private readonly CACHE_TTL = 5000; // 5s cache to avoid DB hits
 
-  constructor(db: any) {
-    this.db = db;
-  }
+  constructor(_db?: any) {}
 
   /**
    * Get canonical revision token
    * Cached for 5s to avoid excessive DB queries
    */
-  getRevisionToken(): RevisionToken {
+  async getRevisionToken(): Promise<RevisionToken> {
     const now = Date.now();
 
     if (this.cachedToken && now < this.cacheExpiry) {
       return this.cachedToken;
     }
 
-    const components = this.getRevisionComponents();
+    const components = await this.getRevisionComponents();
     const token = this.computeToken(components);
 
     this.cachedToken = {
@@ -57,27 +55,26 @@ export class DatasetRevisionManager {
   /**
    * Get revision components from database and environment
    */
-  private getRevisionComponents(): RevisionComponents {
+  private async getRevisionComponents(): Promise<RevisionComponents> {
+    const pool = getApiPool();
     // Get latest ingest run ID
-    const latestIngest = this.db
-      .prepare(
-        `
+    const { rows: latestIngestRows } = await pool.query<{ ingest_run_id: string }>(
+      `
       SELECT ingest_run_id 
       FROM entity_mentions 
       WHERE ingest_run_id IS NOT NULL 
       ORDER BY created_at DESC 
       LIMIT 1
     `,
-      )
-      .get() as { ingest_run_id: string } | undefined;
+    );
+    const latestIngest = latestIngestRows[0];
 
     const latestIngestRunId =
       latestIngest?.ingest_run_id || process.env.LATEST_INGEST_RUN_ID || 'default';
 
     // Get last mutation timestamp (max updated_at across critical tables)
-    const lastMutation = this.db
-      .prepare(
-        `
+    const { rows: lastMutationRows } = await pool.query<{ max_ts: string }>(
+      `
       SELECT MAX(timestamp) as max_ts FROM (
         SELECT MAX(created_at) as timestamp FROM entities
         UNION ALL
@@ -86,8 +83,8 @@ export class DatasetRevisionManager {
         SELECT MAX(created_at) as timestamp FROM documents
       )
     `,
-      )
-      .get() as { max_ts: string } | undefined;
+    );
+    const lastMutation = lastMutationRows[0];
 
     const lastMutationTimestamp = lastMutation?.max_ts || new Date().toISOString();
 
@@ -128,8 +125,8 @@ export class DatasetRevisionManager {
   /**
    * Get human-readable revision info
    */
-  getRevisionInfo(): RevisionComponents & { token: string } {
-    const rev = this.getRevisionToken();
+  async getRevisionInfo(): Promise<RevisionComponents & { token: string }> {
+    const rev = await this.getRevisionToken();
     return {
       token: rev.token,
       ...rev.components,
@@ -152,9 +149,13 @@ export function getRevisionManager(): DatasetRevisionManager {
 }
 
 export function getRevisionToken(): string {
-  return getRevisionManager().getRevisionToken().token;
+  throw new Error('Use async getRevisionTokenAsync() instead of sync getRevisionToken().');
 }
 
-export function getRevisionInfo(): RevisionComponents & { token: string } {
-  return getRevisionManager().getRevisionInfo();
+export async function getRevisionTokenAsync(): Promise<string> {
+  return (await getRevisionManager().getRevisionToken()).token;
+}
+
+export async function getRevisionInfo(): Promise<RevisionComponents & { token: string }> {
+  return await getRevisionManager().getRevisionInfo();
 }

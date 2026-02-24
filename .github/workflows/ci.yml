@@ -198,8 +198,49 @@ jobs:
       - name: Run Postgres migrations for CI gate DB
         run: pnpm db:migrate:pg
 
+      - name: Build server for PG endpoint smoke
+        run: pnpm --filter @epstein/db build && tsc -p tsconfig.server.json
+
+      - name: Start API server (PG smoke)
+        run: |
+          mkdir -p "$RUNNER_TEMP/raw-corpus" logs
+          nohup env \
+            NODE_ENV=production \
+            PORT=3012 \
+            DATABASE_URL="$DATABASE_URL" \
+            JWT_SECRET=ci-jwt-secret \
+            SESSION_SECRET=ci-session-secret \
+            RAW_CORPUS_BASE_PATH="$RUNNER_TEMP/raw-corpus" \
+            LOG_LEVEL=warn \
+            CORS_ORIGIN=http://localhost:3002 \
+            node dist/server.js > "$RUNNER_TEMP/ci-pg-api.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/ci-pg-api.pid"
+          for i in $(seq 1 120); do
+            if curl -fsS "http://127.0.0.1:3012/api/health/ready" >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "❌ CI PG smoke server failed to become ready"
+          cat "$RUNNER_TEMP/ci-pg-api.log" || true
+          exit 1
+
+      - name: PG endpoint smoke (incident routes)
+        run: bash scripts/ci_pg_endpoint_smoke.sh
+
+      - name: PG public GET matrix smoke
+        run: bash scripts/ci_pg_public_get_matrix.sh
+
       - name: Run PG Nuclear Gates
         run: bash scripts/ci_pg_nuclear_gates.sh
 
       - name: Check Postgres Schema Hash
         run: pnpm schema:hash:check
+
+      - name: Stop API server (PG smoke)
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/ci-pg-api.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/ci-pg-api.pid")" || true
+          fi
+          tail -n 120 "$RUNNER_TEMP/ci-pg-api.log" || true

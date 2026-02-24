@@ -1,4 +1,5 @@
-import { db, searchQueries } from '@epstein/db';
+import { searchQueries } from '@epstein/db';
+import { getApiPool } from './connection.js';
 
 const normalizeAliasValue = (value: string): string =>
   value
@@ -69,9 +70,12 @@ export const searchRepository = {
     const entityRows = isPrefix
       ? await searchQueries.searchEntitiesPrefix.run(
           { searchTerm: tsArg, limit: BigInt(safeLimit) },
-          db,
+          getApiPool(),
         )
-      : await searchQueries.searchEntities.run({ searchTerm: tsArg, limit: BigInt(safeLimit) }, db);
+      : await searchQueries.searchEntities.run(
+          { searchTerm: tsArg, limit: BigInt(safeLimit) },
+          getApiPool(),
+        );
 
     // ── Documents ─────────────────────────────────────────────────────────────
     let minRedFlag: number | null = null;
@@ -98,7 +102,7 @@ export const searchRepository = {
             minRedFlag,
             maxRedFlag,
           },
-          db,
+          getApiPool(),
         )
       : await searchQueries.searchDocuments.run(
           {
@@ -111,7 +115,7 @@ export const searchRepository = {
             minRedFlag,
             maxRedFlag,
           },
-          db,
+          getApiPool(),
         );
 
     return {
@@ -166,7 +170,7 @@ export const searchRepository = {
     try {
       const rows = await searchQueries.searchSentences.run(
         { searchTerm, limit: BigInt(safeLimit) },
-        db,
+        getApiPool(),
       );
       return rows;
     } catch (error) {

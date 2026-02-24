@@ -1,4 +1,5 @@
-import { db, relationshipsQueries } from '@epstein/db';
+import { relationshipsQueries } from '@epstein/db';
+import { getApiPool } from './connection.js';
 import {
   IGetRelationshipsResult,
   IGetNeighborsCachedResult,
@@ -22,7 +23,7 @@ export const relationshipsRepository = {
         minWeight: filters.minWeight ?? null,
         minConfidence: filters.minConfidence ?? null,
       },
-      db,
+      getApiPool(),
     );
 
     return rows.map((r: IGetRelationshipsResult) => ({
@@ -49,18 +50,21 @@ export const relationshipsRepository = {
   rebuildAdjacencyCache: async () => {
     console.log('⏳ [GRAPH] Rebuilding adjacency cache...');
 
-    // Use a transaction for consistent rebuild
-    await db.query('BEGIN');
+    // Use a real pg client transaction; the @epstein/db helper requires explicit pool/client.
+    const client = await getApiPool().connect();
     try {
-      await db.query('DELETE FROM entity_adjacency');
-      await relationshipsQueries.rebuildAdjacencyCache.run(undefined, db);
-      await db.query(
+      await client.query('BEGIN');
+      await client.query('DELETE FROM entity_adjacency');
+      await relationshipsQueries.rebuildAdjacencyCache.run(undefined, client as any);
+      await client.query(
         'UPDATE graph_cache_state SET last_rebuild = CURRENT_TIMESTAMP, is_dirty = 0 WHERE id = 1',
       );
-      await db.query('COMMIT');
+      await client.query('COMMIT');
     } catch (e) {
-      await db.query('ROLLBACK');
+      await client.query('ROLLBACK');
       throw e;
+    } finally {
+      client.release();
     }
 
     console.log('✅ [GRAPH] Adjacency cache rebuilt successfully.');
@@ -78,7 +82,7 @@ export const relationshipsRepository = {
     // 0. Resolve to Canonical ID
     const startNodeRows = await relationshipsQueries.getEntityCanonical.run(
       { id: Number(entityId) },
-      db,
+      getApiPool(),
     );
     if (startNodeRows.length === 0) return { nodes: [], edges: [] };
 
@@ -104,14 +108,14 @@ export const relationshipsRepository = {
 
       const entityRows = await relationshipsQueries.getEntityDetailsAggregated.run(
         { canonicalId: BigInt(id) },
-        db,
+        getApiPool(),
       );
       const entity = entityRows[0];
 
       if (entity) {
         const photoRows = await relationshipsQueries.getTopPhotoForEntity.run(
           { entityId: BigInt(id) },
-          db,
+          getApiPool(),
         );
 
         nodes.push({
@@ -127,7 +131,7 @@ export const relationshipsRepository = {
 
       const rels = await relationshipsQueries.getNeighborsCached.run(
         { entityId: BigInt(id), limit: 100 },
-        db,
+        getApiPool(),
       );
 
       for (const r of rels as IGetNeighborsCachedResult[]) {
@@ -154,12 +158,12 @@ export const relationshipsRepository = {
   },
 
   getStats: async () => {
-    const statsRows = await relationshipsQueries.getRelationshipStats.run(undefined, db);
+    const statsRows = await relationshipsQueries.getRelationshipStats.run(undefined, getApiPool());
     const totals = statsRows[0];
 
     const topRows = await relationshipsQueries.getTopEntitiesByRelationshipCount.run(
       { limit: 10 },
-      db,
+      getApiPool(),
     );
 
     return {
@@ -180,14 +184,14 @@ export const relationshipsRepository = {
     // Resolve Canonical ID
     const startNodeRows = await relationshipsQueries.getEntityCanonical.run(
       { id: Number(entityId) },
-      db,
+      getApiPool(),
     );
     if (startNodeRows.length === 0) return null;
     const canonicalId = startNodeRows[0].cid;
 
     const entityRows = await relationshipsQueries.getEntityDetailsAggregated.run(
       { canonicalId: BigInt(canonicalId!) },
-      db,
+      getApiPool(),
     );
     const entity = entityRows[0];
 
@@ -196,7 +200,7 @@ export const relationshipsRepository = {
     // Use consolidated SQL queries for relationships
     const relationships = await relationshipsQueries.getRelationships.run(
       { entityId: Number(canonicalId), minWeight: 0, minConfidence: 0 },
-      db,
+      getApiPool(),
     );
 
     // Docs search is still tricky, but we can use searchQueries if available

@@ -1,4 +1,5 @@
-import { db, mediaQueries } from '@epstein/db';
+import { mediaQueries } from '@epstein/db';
+import { getApiPool } from './connection.js';
 
 export const mediaRepository = {
   // Get all albums with counts for a specific media type
@@ -10,7 +11,7 @@ export const mediaRepository = {
       likePattern = `${fileType}/%`;
     }
 
-    const result = await mediaQueries.getAlbumsByMediaType.run({ likePattern }, db);
+    const result = await mediaQueries.getAlbumsByMediaType.run({ likePattern }, getApiPool());
     return result.map((row) => ({
       ...row,
       itemCount: Number(row.itemCount || 0),
@@ -20,7 +21,7 @@ export const mediaRepository = {
 
   // Get media items for an entity
   getMediaItems: async (entityId: string) => {
-    const mediaItems = await mediaQueries.getMediaItemsByEntity.run({ entityId }, db);
+    const mediaItems = await mediaQueries.getMediaItemsByEntity.run({ entityId }, getApiPool());
 
     return mediaItems.map((item) => {
       let metadata = {};
@@ -47,7 +48,7 @@ export const mediaRepository = {
 
   // Get all media items (for Evidence Media tab)
   getAllMediaItems: async () => {
-    const mediaItems = await mediaQueries.getAllMediaItems.run(undefined, db);
+    const mediaItems = await mediaQueries.getAllMediaItems.run(undefined, getApiPool());
 
     return mediaItems.map((item) => {
       let metadata = {};
@@ -79,7 +80,7 @@ export const mediaRepository = {
 
   // Get single media item by ID
   getMediaItemById: async (id: number) => {
-    const rows = await mediaQueries.getMediaItemById.run({ id: String(id) }, db); // id is text in Postgres
+    const rows = await mediaQueries.getMediaItemById.run({ id: String(id) }, getApiPool()); // id is text in Postgres
     const item = rows[0];
     if (!item) return undefined;
 
@@ -137,7 +138,7 @@ export const mediaRepository = {
         fileType: fileTypePattern,
         minRedFlag: filters?.minRedFlagRating || null,
       },
-      db,
+      getApiPool(),
     );
 
     const total = Number(countRes[0]?.total || 0);
@@ -150,7 +151,7 @@ export const mediaRepository = {
         limit: BigInt(limit),
         offset: BigInt(offset),
       },
-      db,
+      getApiPool(),
     );
 
     return {
@@ -193,6 +194,6 @@ export const mediaRepository = {
   getPhotosForEntities: async (entityIds: string[]) => {
     if (!entityIds.length) return [];
     const ids = entityIds.map((id) => BigInt(id));
-    return await mediaQueries.getPhotosForEntities.run({ entityIds: ids }, db);
+    return await mediaQueries.getPhotosForEntities.run({ entityIds: ids }, getApiPool());
   },
 };

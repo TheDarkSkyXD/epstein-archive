@@ -1,4 +1,5 @@
-import { db, flightsQueries } from '@epstein/db';
+import { flightsQueries } from '@epstein/db';
+import { getApiPool } from './connection.js';
 
 export interface Flight {
   id: number;
@@ -78,13 +79,13 @@ export const flightsRepository = {
         limit: BigInt(limit),
         offset: BigInt(offset),
       },
-      db,
+      getApiPool(),
     );
 
     if (flights.length === 0) return { flights: [], total: 0 };
 
     const flightIds = flights.map((f) => f.id);
-    const passengers = await flightsQueries.getFlightPassengers.run({ flightIds }, db);
+    const passengers = await flightsQueries.getFlightPassengers.run({ flightIds }, getApiPool());
 
     const flightsWithPassengers = flights.map((f) => ({
       ...f,
@@ -115,11 +116,14 @@ export const flightsRepository = {
   },
 
   getFlightById: async (id: number): Promise<Flight | null> => {
-    const flightRows = await flightsQueries.getFlightById.run({ id: BigInt(id) }, db);
+    const flightRows = await flightsQueries.getFlightById.run({ id: BigInt(id) }, getApiPool());
     const f = flightRows[0];
     if (!f) return null;
 
-    const passengers = await flightsQueries.getFlightPassengers.run({ flightIds: [f.id] }, db);
+    const passengers = await flightsQueries.getFlightPassengers.run(
+      { flightIds: [f.id] },
+      getApiPool(),
+    );
 
     return {
       ...f,
@@ -143,11 +147,14 @@ export const flightsRepository = {
   },
 
   getFlightStats: async (): Promise<FlightStats> => {
-    const [basicStats] = await flightsQueries.getFlightStats.run(undefined, db);
-    const topPassengers = await flightsQueries.getTopPassengers.run({ limit: BigInt(10) }, db);
-    const topRoutes = await flightsQueries.getTopRoutes.run({ limit: BigInt(10) }, db);
-    const flightsByYear = await flightsQueries.getFlightsByYear.run(undefined, db);
-    const airportStats = await flightsQueries.getAirportStats.run(undefined, db);
+    const [basicStats] = await flightsQueries.getFlightStats.run(undefined, getApiPool());
+    const topPassengers = await flightsQueries.getTopPassengers.run(
+      { limit: BigInt(10) },
+      getApiPool(),
+    );
+    const topRoutes = await flightsQueries.getTopRoutes.run({ limit: BigInt(10) }, getApiPool());
+    const flightsByYear = await flightsQueries.getFlightsByYear.run(undefined, getApiPool());
+    const airportStats = await flightsQueries.getAirportStats.run(undefined, getApiPool());
 
     return {
       totalFlights: Number(basicStats?.totalFlights || 0),
@@ -170,8 +177,7 @@ export const flightsRepository = {
   },
 
   getPassengerFlights: async (passengerName: string) => {
-    const rows = await db.query(
-      db.apiPool,
+    const rows = await getApiPool().query(
       `
       SELECT f.*
       FROM flights f
@@ -189,8 +195,7 @@ export const flightsRepository = {
   },
 
   getUniquePassengers: async () => {
-    const rows = await db.query(
-      db.apiPool,
+    const rows = await getApiPool().query(
       'SELECT DISTINCT passenger_name FROM flight_passengers ORDER BY passenger_name ASC',
     );
     return rows.rows.map((r) => r.passenger_name);
@@ -201,8 +206,7 @@ export const flightsRepository = {
   },
 
   getPassengerCoOccurrences: async (minFlights = 2) => {
-    const rows = await db.query(
-      db.apiPool,
+    const rows = await getApiPool().query(
       `
       SELECT 
         p1.passenger_name as passenger1,
@@ -223,8 +227,7 @@ export const flightsRepository = {
   },
 
   getCoPassengers: async (passengerName: string) => {
-    const rows = await db.query(
-      db.apiPool,
+    const rows = await getApiPool().query(
       `
       SELECT 
         p2.passenger_name as name,
@@ -243,8 +246,7 @@ export const flightsRepository = {
   },
 
   getFrequentRoutes: async (limit = 20) => {
-    const rows = await db.query(
-      db.apiPool,
+    const rows = await getApiPool().query(
       `
       SELECT 
         departure_airport as departure,
@@ -264,8 +266,7 @@ export const flightsRepository = {
   },
 
   getPassengerDateRanges: async () => {
-    const rows = await db.query(
-      db.apiPool,
+    const rows = await getApiPool().query(
       `
       SELECT 
         passenger_name as name,
@@ -282,8 +283,7 @@ export const flightsRepository = {
   },
 
   getFlightsByAircraft: async () => {
-    const rows = await db.query(
-      db.apiPool,
+    const rows = await getApiPool().query(
       `
       SELECT 
         aircraft_tail as aircraft,
@@ -300,8 +300,7 @@ export const flightsRepository = {
   },
 
   getPassengerDestinations: async (passengerName: string) => {
-    const rows = await db.query(
-      db.apiPool,
+    const rows = await getApiPool().query(
       `
       SELECT 
         airport,

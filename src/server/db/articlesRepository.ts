@@ -1,4 +1,5 @@
-import { db, articlesQueries } from '@epstein/db';
+import { articlesQueries } from '@epstein/db';
+import { getApiPool } from './connection.js';
 
 export interface Article {
   id: string;
@@ -36,14 +37,14 @@ export class ArticlesRepository {
           publication: publication || null,
           sortBy: sort,
         },
-        db,
+        getApiPool(),
       ),
       articlesQueries.countArticles.run(
         {
           search: search ? `%${search}%` : null,
           publication: publication || null,
         },
-        db,
+        getApiPool(),
       ),
     ]);
 
@@ -57,7 +58,7 @@ export class ArticlesRepository {
   }
 
   async getArticleById(id: number | string): Promise<any | undefined> {
-    const rows = await articlesQueries.getArticleById.run({ id: BigInt(id) }, db);
+    const rows = await articlesQueries.getArticleById.run({ id: BigInt(id) }, getApiPool());
     if (!rows[0]) return undefined;
     return {
       ...rows[0],
@@ -83,7 +84,7 @@ export class ArticlesRepository {
           guid: article.guid || article.link,
           redFlagRating: article.redFlagRating || 0,
         },
-        db,
+        getApiPool(),
       );
     } catch (error) {
       console.error('[ArticlesRepository] Error inserting article:', error);

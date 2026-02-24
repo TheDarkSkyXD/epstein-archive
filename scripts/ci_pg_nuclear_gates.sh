@@ -16,7 +16,7 @@ fi
 log "Guard: no legacy DB_DIALECT anywhere in runtime/deploy/CI configs"
 if grep -rn "DB_DIALECT" src scripts deploy.sh ecosystem.config.cjs package.json .github/workflows \
   | grep -v "scripts/ci_pg_nuclear_gates.sh" \
-  | grep -v "^deploy.sh:"; then
+  | grep -v "Legacy DB_DIALECT is set in remote .env"; then
   fail "❌ DB_DIALECT is forbidden"
 fi
 
@@ -30,6 +30,23 @@ if grep -rn "\.query(" src/server/routes >"$TMP_ROUTE_SQL"; then
   fi
 fi
 rm -f "$TMP_ROUTE_SQL"
+
+log "Guard: no pgtyped/db namespace executor misuse in repositories"
+TMP_PGTYPED_DB="$(mktemp)"
+if rg -n "db\\.apiPool" src/server/db >"$TMP_PGTYPED_DB"; then
+  cat "$TMP_PGTYPED_DB"
+  rm -f "$TMP_PGTYPED_DB"
+  fail "❌ Repository DB calls must use getApiPool() (no db.apiPool)"
+fi
+if rg -nUP "\.run\([\s\S]{0,600},\s*db\s*\)" src/server/db >>"$TMP_PGTYPED_DB"; then
+  cat "$TMP_PGTYPED_DB"
+  rm -f "$TMP_PGTYPED_DB"
+  fail "❌ Repository DB calls must use getApiPool() (no pgtyped .run(..., db))"
+fi
+rm -f "$TMP_PGTYPED_DB"
+
+log "Guard: documents SQL hotfix parity"
+node --import tsx/esm scripts/check_documents_sql_parity.ts
 
 log "Lint + typecheck"
 pnpm lint

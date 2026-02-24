@@ -89,6 +89,29 @@ if (!CORPUS_BASE_PATH) {
   console.warn('WARNING: RAW_CORPUS_BASE_PATH not set. Document file serving will be limited.');
 }
 
+function toServedDocumentUrl(input?: string | null): string | null {
+  if (!input) return null;
+  const url = String(input).replace(/\\/g, '/');
+
+  if (CORPUS_BASE_PATH && url.startsWith(CORPUS_BASE_PATH)) {
+    return url.replace(CORPUS_BASE_PATH, '/files').replace(/\/{2,}/g, '/');
+  }
+
+  if (url.includes('/data/')) {
+    return url.replace(/^.*\/data\//, '/data/').replace(/\/{2,}/g, '/');
+  }
+
+  if (url.startsWith('data/')) {
+    return `/${url}`.replace(/\/{2,}/g, '/');
+  }
+
+  if (url.startsWith('/')) {
+    return url.replace(/\/{2,}/g, '/');
+  }
+
+  return `/files/${url}`.replace(/\/{2,}/g, '/');
+}
+
 initPools();
 assertProductionPg();
 
@@ -1831,9 +1854,8 @@ app.get('/api/documents', async (req, res, next) => {
 
     // Map file paths to URLs
     const mappedDocuments = result.documents.map((doc: any) => {
-      if (doc.filePath && doc.filePath.startsWith(CORPUS_BASE_PATH)) {
-        doc.filePath = doc.filePath.replace(CORPUS_BASE_PATH, '/files');
-      }
+      const servedPath = toServedDocumentUrl(doc.filePath);
+      if (servedPath) doc.filePath = servedPath;
       return doc;
     });
 
@@ -1972,35 +1994,10 @@ app.get('/api/documents/:id', async (req, res, next) => {
     // Transform file paths to accessible URLs
     // First check if it's in the local data directory (using loose check for migrated paths)
     const filePathToCheck = doc.filePath || doc.file_path;
-    if (
-      filePathToCheck &&
-      (filePathToCheck.includes('/data/') || filePathToCheck.includes('\\data\\'))
-    ) {
-      // Replace everything up to and including /data/ with /data/
-      // Use filePathToCheck as source of truth if possible, or fall back to doc.file_path (safe as we checked one exists)
-      const p = doc.file_path || doc.filePath || '';
-      doc.fileUrl = p.replace(/^.*[/\\]data[/\\]/, '/data/').replace(/\\/g, '/');
-    } else if (doc.file_path && doc.file_path.startsWith(CORPUS_BASE_PATH)) {
-      doc.fileUrl = doc.file_path.replace(CORPUS_BASE_PATH, '/files');
-    }
+    doc.fileUrl = toServedDocumentUrl(filePathToCheck) || undefined;
 
     if (doc.original_file_path) {
-      if (
-        doc.original_file_path.includes('/data/') ||
-        doc.original_file_path.includes('\\data\\')
-      ) {
-        doc.originalFileUrl = doc.original_file_path
-          .replace(/^.*[/\\]data[/\\]/, '/data/')
-          .replace(/\\/g, '/');
-      } else if (doc.original_file_path.startsWith(CORPUS_BASE_PATH)) {
-        doc.originalFileUrl = doc.original_file_path.replace(CORPUS_BASE_PATH, '/files');
-      } else if (doc.original_file_path.startsWith('data/')) {
-        // Handle relative paths like 'data/originals/filename.pdf'
-        doc.originalFileUrl = '/' + doc.original_file_path;
-      } else {
-        // Fallback: serve from /files
-        doc.originalFileUrl = '/files/' + doc.original_file_path;
-      }
+      doc.originalFileUrl = toServedDocumentUrl(doc.original_file_path) || undefined;
     }
 
     // Also check if this is an image with OCR content - provide link to view original
@@ -2114,10 +2111,12 @@ app.get('/api/documents/:id/pages', async (req, res, next) => {
     if (dbPages.length > 0) {
       // Return pages from the document_pages table
       const pages = dbPages.map((p: any) => {
-        if (p.page_path && p.page_path.startsWith(CORPUS_BASE_PATH)) {
-          return p.page_path.replace(CORPUS_BASE_PATH, '/files');
-        }
-        return p.page_path || p.page_url;
+        return (
+          toServedDocumentUrl(p.page_path) ||
+          toServedDocumentUrl(p.page_url) ||
+          p.page_path ||
+          p.page_url
+        );
       });
       return res.json({ pages, total: pages.length });
     }
@@ -2211,21 +2210,13 @@ app.get('/api/documents/:id/pages', async (req, res, next) => {
 
     // Check for linked original file
     if (doc.original_file_path) {
-      let url = doc.original_file_path;
-      if (CORPUS_BASE_PATH && url.startsWith(CORPUS_BASE_PATH)) {
-        url = url.replace(CORPUS_BASE_PATH, '/files');
-      }
-      // Handle potential double slashes
-      url = url.replace('//', '/');
+      const url = toServedDocumentUrl(doc.original_file_path) || `/api/documents/${id}/file`;
       return res.json({ pages: [url], total: 1 });
     }
 
     // If this document IS an image/PDF, return its own path
     if (doc.file_type === 'image' || doc.file_type === 'pdf') {
-      let url = doc.file_path;
-      if (url && url.startsWith(CORPUS_BASE_PATH)) {
-        url = url.replace(CORPUS_BASE_PATH, '/files');
-      }
+      const url = toServedDocumentUrl(doc.file_path) || `/api/documents/${id}/file`;
       if (url) {
         return res.json({ pages: [url], total: 1 });
       }

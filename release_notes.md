@@ -1,3 +1,10 @@
+## 14.5.16 - 2026-02-24 - Document Viewer Path Normalization (No Relative `data/...` 404s)
+
+### Documents Viewer Reliability
+
+- Fixed document viewer page/original URL generation returning relative `data/...` paths (missing leading slash), which caused browser-side 404s in the SPA despite files existing on disk and being served under `/data/...`.
+- Added centralized document URL normalization for corpus paths, local `data/` paths, and fallback file-serving URLs across `/api/documents`, `/api/documents/:id`, and `/api/documents/:id/pages`.
+
 ## 14.5.15 - 2026-02-24 - Stats Page Entity Photo Batch Query Postgres Fix
 
 ### Analytics / Stats Recovery

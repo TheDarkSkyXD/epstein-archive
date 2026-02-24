@@ -1,3 +1,10 @@
+## 14.5.10 - 2026-02-24 - Timeline Dataset Restoration & No-Silent-Empty Guard
+
+### Timeline Recovery
+
+- Restored missing Postgres `global_timeline_events` table plus curated timeline dataset (72 rows) from the verified enriched SQLite source database via an idempotent migration.
+- Fixed `/api/timeline` returning silent empty arrays when the backend query fails (e.g. missing table): `timelineRepository` now surfaces the error instead of masking it as `[]`, preventing false “no events” states.
+
 ## 14.5.9 - 2026-02-24 - Properties Stats Postgres Compatibility Fix
 
 ### Properties API Compatibility

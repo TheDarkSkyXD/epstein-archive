@@ -89,7 +89,7 @@ export const timelineRepository = {
       return mappedEvents;
     } catch (error) {
       console.error('Error getting timeline events:', error);
-      return [];
+      throw error;
     }
   },
 };

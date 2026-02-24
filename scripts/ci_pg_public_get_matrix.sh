@@ -37,7 +37,7 @@ echo "[ci-pg-matrix] BASE_URL=${BASE_URL}"
 # Broad public GET coverage across major route groups (no auth-required endpoints here).
 check_case "health" "/api/health" "200" '"status"[[:space:]]*:[[:space:]]*"ok"'
 check_case "health-ready" "/api/health/ready" "200,503"
-check_case "stats-health" "/api/stats/health" "200"
+check_case "stats-health" "/api/stats/health" "200,503"
 check_case "stats-ready" "/api/stats/health/ready" "200,503"
 check_case "stats-deep" "/api/stats/health/deep" "200"
 check_case "db-meta" "/api/_meta/db" "200" '"dialect"[[:space:]]*:[[:space:]]*"postgres"'

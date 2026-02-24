@@ -1,4 +1,4 @@
-import { db, statsQueries } from '@epstein/db';
+import { statsQueries } from '@epstein/db';
 import { getApiPool } from './connection.js';
 
 // Known metadata for DOJ datasets (manually curated for accuracy)
@@ -94,7 +94,7 @@ const KNOWN_COLLECTION_METADATA: Record<
 // Helper function to avoid circular reference
 const getCollectionStatsHelper = async () => {
   try {
-    const rows = await statsQueries.getCollectionCounts.run(undefined, db);
+    const rows = await statsQueries.getCollectionCounts.run(undefined, getApiPool());
 
     return rows
       .map((row) => {
@@ -141,15 +141,24 @@ export const statsRepository = {
   getStatistics: async () => {
     const pipelineProgress = await statsRepository.getPipelineProgress();
 
-    const [globalStatsRows] = await statsQueries.getGlobalStats.run(undefined, db);
-    const topRoles = await statsQueries.getTopRoles.run({ limit: BigInt(10) }, db);
-    const redFlagDistributionRows = await statsQueries.getRedFlagDistribution.run(undefined, db);
-    const topEntitiesRows = await statsQueries.getTopEntities.run({ limit: BigInt(30) }, db);
-    const collectionCountsRows = await statsQueries.getCollectionCounts.run(undefined, db);
+    const [globalStatsRows] = await statsQueries.getGlobalStats.run(undefined, getApiPool());
+    const topRoles = await statsQueries.getTopRoles.run({ limit: BigInt(10) }, getApiPool());
+    const redFlagDistributionRows = await statsQueries.getRedFlagDistribution.run(
+      undefined,
+      getApiPool(),
+    );
+    const topEntitiesRows = await statsQueries.getTopEntities.run(
+      { limit: BigInt(30) },
+      getApiPool(),
+    );
+    const collectionCountsRows = await statsQueries.getCollectionCounts.run(
+      undefined,
+      getApiPool(),
+    );
 
     const activeInvestigationsRows = await statsQueries.getActiveInvestigationsCount.run(
       undefined,
-      db,
+      getApiPool(),
     );
     const activeInvestigations = Number(activeInvestigationsRows[0]?.count || 0);
 
@@ -243,7 +252,7 @@ export const statsRepository = {
     try {
       const recentProcessedRows = await statsQueries.getRecentProcessedCount.run(
         { seconds: BigInt(300) },
-        db,
+        getApiPool(),
       );
       const recentProcessedCount = Number(recentProcessedRows[0]?.count || 0);
 
@@ -254,7 +263,7 @@ export const statsRepository = {
       console.warn('Failed to calculate dynamic throughput:', e);
     }
 
-    const activeWorkersRows = await statsQueries.getActiveWorkersCount.run(undefined, db);
+    const activeWorkersRows = await statsQueries.getActiveWorkersCount.run(undefined, getApiPool());
     const activeWorkers = Number(activeWorkersRows[0]?.count || 0);
 
     if (throughput_docs_sec === 0 && activeWorkers > 0) {
@@ -277,7 +286,7 @@ export const statsRepository = {
 
   getEnrichmentStats: async () => {
     try {
-      const [totals] = await statsQueries.getGlobalStats.run(undefined, db);
+      const [totals] = await statsQueries.getGlobalStats.run(undefined, getApiPool());
 
       return {
         total_documents: Number(totals?.totalDocuments || 0),
@@ -308,7 +317,7 @@ export const statsRepository = {
 
   getTimelineEvents: async () => {
     try {
-      const rows = await statsQueries.getTimelineEvents.run({ limit: BigInt(100) }, db);
+      const rows = await statsQueries.getTimelineEvents.run({ limit: BigInt(100) }, getApiPool());
       return rows;
     } catch (e) {
       console.warn('Failed to fetch timeline events:', e);

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { Investigation, Investigator } from '../../../../types/investigation';
 import { investigationsApi } from '../investigations.api';
 import { mapApiInvestigation } from '../investigations.model';
@@ -9,7 +9,8 @@ interface UseInvestigationListOptions {
 }
 
 export const useInvestigationList = (options: UseInvestigationListOptions = {}) => {
-  const onError = options.onError;
+  const onErrorRef = useRef(options.onError);
+  onErrorRef.current = options.onError;
   const currentUserId = options.currentUser?.id;
   const [investigations, setInvestigations] = useState<Investigation[]>([]);
   const [selectedInvestigation, setSelectedInvestigation] = useState<Investigation | null>(null);
@@ -24,31 +25,28 @@ export const useInvestigationList = (options: UseInvestigationListOptions = {}) 
       return mapped;
     } catch (error) {
       console.error('Error loading investigations:', error);
-      onError?.('Failed to load investigations');
+      onErrorRef.current?.('Failed to load investigations');
       return [];
     } finally {
       setIsLoading(false);
     }
-  }, [onError]);
+  }, []);
 
-  const loadInvestigation = useCallback(
-    async (id: string) => {
-      setIsLoading(true);
-      try {
-        const inv = await investigationsApi.getById(id);
-        const mapped = mapApiInvestigation(inv);
-        setSelectedInvestigation(mapped);
-        return { investigation: mapped, raw: inv };
-      } catch (error) {
-        console.error('Error loading investigation:', error);
-        onError?.('Failed to load investigation');
-        return null;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [onError],
-  );
+  const loadInvestigation = useCallback(async (id: string) => {
+    setIsLoading(true);
+    try {
+      const inv = await investigationsApi.getById(id);
+      const mapped = mapApiInvestigation(inv);
+      setSelectedInvestigation(mapped);
+      return { investigation: mapped, raw: inv };
+    } catch (error) {
+      console.error('Error loading investigation:', error);
+      onErrorRef.current?.('Failed to load investigation');
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   const createInvestigation = useCallback(
     async (payload: { title: string; description?: string; hypothesis?: string }) => {

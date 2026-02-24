@@ -1,3 +1,10 @@
+## 14.5.5 - 2026-02-24 - Investigations UI Flash Loop Follow-up Fix
+
+### Investigations UX Stability
+
+- Fixed remaining intermittent Investigations workspace flashing by removing `onError` callback identity churn from `useInvestigationList` hook callback dependencies (uses ref-backed error handler now).
+- Prevents repeated `loadInvestigations`/`loadInvestigation` effect retriggers caused by inline toast callbacks in `InvestigationWorkspace`.
+
 ## 14.5.4 - 2026-02-24 - Investigations Loading Loop Fix
 
 ### Investigations Runtime Stability

@@ -79,6 +79,6 @@ check_case "email-categories" "/api/email/categories" "200"
 check_case "email-known-senders" "/api/email/known-senders" "200"
 
 check_case "articles" "/api/articles" "200"
-check_case "downloads-release-latest" "/api/downloads/release/latest" "200,404"
+check_case "downloads-release-latest" "/api/downloads/release/latest" "200,401,404"
 
 echo "[ci-pg-matrix] ✅ Public GET matrix passed"

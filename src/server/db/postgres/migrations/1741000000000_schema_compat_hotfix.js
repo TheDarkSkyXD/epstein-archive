@@ -56,16 +56,47 @@ export async function up(pgm) {
   `);
 
   pgm.sql(`
-    UPDATE documents
-    SET content_preview = LEFT(COALESCE(content_refined, ''), 1800)
-    WHERE content_preview IS NULL;
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'documents'
+          AND column_name = 'content_refined'
+      ) THEN
+        UPDATE documents
+        SET content_preview = LEFT(COALESCE(content_refined, ''), 1800)
+        WHERE content_preview IS NULL;
+      ELSIF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'documents'
+          AND column_name = 'content'
+      ) THEN
+        UPDATE documents
+        SET content_preview = LEFT(COALESCE(content, ''), 1800)
+        WHERE content_preview IS NULL;
+      END IF;
+    END;
+    $$;
   `);
 
   pgm.sql(`
-    UPDATE documents
-    SET created_at = date_created::timestamptz
-    WHERE created_at IS NULL
-      AND date_created IS NOT NULL;
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'documents'
+          AND column_name = 'date_created'
+      ) THEN
+        UPDATE documents
+        SET created_at = date_created::timestamptz
+        WHERE created_at IS NULL
+          AND date_created IS NOT NULL;
+      END IF;
+    END;
+    $$;
   `);
 
   pgm.sql(`

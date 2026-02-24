@@ -124,6 +124,22 @@ jobs:
     name: 🏗️ Build
     needs: quality
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: epstein_archive_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d epstein_archive_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/epstein_archive_ci
     steps:
       - uses: actions/checkout@v4
 
@@ -140,6 +156,12 @@ jobs:
 
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Install Postgres client tools
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Run Postgres migrations for build gate DB
+        run: pnpm db:migrate:pg
 
       - name: Guard Against SQLite In Production Source
         run: bash scripts/guard_no_sqlite.sh

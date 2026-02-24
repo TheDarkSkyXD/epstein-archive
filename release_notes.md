@@ -1,3 +1,10 @@
+## 14.5.9 - 2026-02-24 - Properties Stats Postgres Compatibility Fix
+
+### Properties API Compatibility
+
+- Fixed `/api/properties/stats` Postgres failure caused by SQLite-compatible but Postgres-invalid `ROUND(AVG(double precision), 0)` usage in `propertiesRepository`; now casts aggregate to `numeric` before rounding.
+- Completes the Properties recovery after the `palm_beach_properties` dataset restoration in `14.5.8`, restoring both listing and stats endpoints.
+
 ## 14.5.8 - 2026-02-24 - Properties Dataset Restoration & Deploy Chunk Compatibility
 
 ### Properties Recovery

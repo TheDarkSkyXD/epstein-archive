@@ -186,7 +186,7 @@ export const propertiesRepository = {
         COUNT(*) as total_properties,
         SUM(is_epstein_property) as epstein_properties,
         SUM(CASE WHEN is_known_associate = 1 OR linked_entity_id IS NOT NULL THEN 1 ELSE 0 END) as known_associate_properties,
-        ROUND(AVG(total_tax_value), 0) as avg_tax_value,
+        ROUND(AVG(total_tax_value)::numeric, 0) as avg_tax_value,
         MAX(total_tax_value) as max_tax_value
       FROM palm_beach_properties
     `);

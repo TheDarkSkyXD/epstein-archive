@@ -101,12 +101,42 @@ export async function up(pgm) {
   `);
 
   pgm.sql(`
-    UPDATE entity_mentions em
-    SET doc_red_flag_rating = d.red_flag_rating,
-        doc_date_created = COALESCE(d.date_created::timestamptz, em.doc_date_created)
-    FROM documents d
-    WHERE d.id = em.document_id
-      AND (em.doc_red_flag_rating IS NULL OR em.doc_date_created IS NULL);
+    DO $$
+    DECLARE
+      has_doc_red_flag_rating BOOLEAN;
+      has_doc_date_created BOOLEAN;
+    BEGIN
+      SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name='documents' AND column_name='red_flag_rating'
+      ) INTO has_doc_red_flag_rating;
+
+      SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name='documents' AND column_name='date_created'
+      ) INTO has_doc_date_created;
+
+      IF has_doc_red_flag_rating AND has_doc_date_created THEN
+        UPDATE entity_mentions em
+        SET doc_red_flag_rating = d.red_flag_rating,
+            doc_date_created = COALESCE(d.date_created::timestamptz, em.doc_date_created)
+        FROM documents d
+        WHERE d.id = em.document_id
+          AND (em.doc_red_flag_rating IS NULL OR em.doc_date_created IS NULL);
+      ELSIF has_doc_red_flag_rating THEN
+        UPDATE entity_mentions em
+        SET doc_red_flag_rating = d.red_flag_rating
+        FROM documents d
+        WHERE d.id = em.document_id
+          AND em.doc_red_flag_rating IS NULL;
+      ELSIF has_doc_date_created THEN
+        UPDATE entity_mentions em
+        SET doc_date_created = COALESCE(d.date_created::timestamptz, em.doc_date_created)
+        FROM documents d
+        WHERE d.id = em.document_id
+          AND em.doc_date_created IS NULL;
+      END IF;
+    END $$;
   `);
 
   pgm.sql(`

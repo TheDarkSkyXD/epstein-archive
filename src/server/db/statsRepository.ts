@@ -1,4 +1,5 @@
 import { db, statsQueries } from '@epstein/db';
+import { getApiPool } from './connection.js';
 
 // Known metadata for DOJ datasets (manually curated for accuracy)
 const KNOWN_COLLECTION_METADATA: Record<
@@ -214,8 +215,7 @@ export const statsRepository = {
 
     const results = await Promise.all(
       datasets.map(async (ds) => {
-        const rows = await db.query(
-          db.apiPool,
+        const rows = await getApiPool().query(
           'SELECT COUNT(*) as count FROM documents WHERE source_collection = $1',
           [ds.name],
         );

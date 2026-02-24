@@ -1,7 +1,7 @@
 #!/bin/bash
 # deploy.sh
 # Canonical deployment script for production
-# Usage: ./deploy.sh [--code-only] [--db-only] [--with-db] [--dry-run] [--skip-integrity]
+# Usage: ./deploy.sh [--code-only] [--db-only] [--with-db] [--dry-run] [--skip-integrity] [--skip-ci-check]
 
 set -euo pipefail
 
@@ -22,6 +22,7 @@ log_step() { echo -e "${BLUE}▶ $1${NC}"; }
 log_success() { echo -e "${GREEN}✅ $1${NC}"; }
 log_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 log_error() { echo -e "${RED}❌ $1${NC}"; }
+require_cmd() { command -v "$1" >/dev/null 2>&1 || { log_error "Required command not found: $1"; exit 1; }; }
 
 verify_release_notes_version() {
   local current_version
@@ -186,6 +187,7 @@ DB_ONLY=false
 DEPLOY_DB=true
 DRY_RUN=false
 SKIP_INTEGRITY=false
+SKIP_CI_CHECK=false
 
 for arg in "$@"; do
   case $arg in
@@ -194,6 +196,7 @@ for arg in "$@"; do
     --db-only) DB_ONLY=true; DEPLOY_DB=true ;;
     --with-db) DEPLOY_DB=true ;;
     --skip-integrity) SKIP_INTEGRITY=true ;;
+    --skip-ci-check) SKIP_CI_CHECK=true ;;
     *) log_error "Unknown argument: $arg"; exit 1 ;;
   esac
 done
@@ -259,6 +262,83 @@ on_error() {
 
 trap 'on_error $LINENO' ERR
 
+github_repo_slug() {
+  local remote_url
+  remote_url=$(git remote get-url origin 2>/dev/null || true)
+  case "$remote_url" in
+    git@github.com:*.git) echo "${remote_url#git@github.com:}" | sed 's/\.git$//' ;;
+    git@github.com:*) echo "${remote_url#git@github.com:}" ;;
+    https://github.com/*.git) echo "${remote_url#https://github.com/}" | sed 's/\.git$//' ;;
+    https://github.com/*) echo "${remote_url#https://github.com/}" ;;
+    *) echo "ErikVeland/epstein-archive" ;;
+  esac
+}
+
+wait_for_ci_green() {
+  if [ "$SKIP_CI_CHECK" = true ]; then
+    log_warning "Skipping CI gate (--skip-ci-check). Use only for emergencies."
+    return 0
+  fi
+
+  require_cmd curl
+  require_cmd jq
+
+  local sha repo api_url max_attempts sleep_seconds attempt payload row status conclusion url
+  sha=$(git rev-parse HEAD)
+  repo=$(github_repo_slug)
+  api_url="https://api.github.com/repos/${repo}/actions/runs?head_sha=${sha}&event=push&branch=main&per_page=20"
+  max_attempts=80
+  sleep_seconds=15
+
+  log_step "Waiting for GitHub Actions CI to pass for ${sha:0:8}..."
+
+  for attempt in $(seq 1 "$max_attempts"); do
+    payload=$(curl -fsSL \
+      -H "Accept: application/vnd.github+json" \
+      -H "X-GitHub-Api-Version: 2022-11-28" \
+      "$api_url") || {
+        log_warning "GitHub API query failed (attempt ${attempt}/${max_attempts})"
+        sleep "$sleep_seconds"
+        continue
+      }
+
+    row=$(printf '%s' "$payload" | jq -r '
+      [.workflow_runs[]
+        | select(.name == "CI")
+        | {status, conclusion, html_url, created_at}]
+      | sort_by(.created_at) | reverse | .[0]
+      | if . == null then "MISSING" else "\(.status)\t\(.conclusion // "")\t\(.html_url)" end
+    ')
+
+    if [ "$row" = "MISSING" ] || [ -z "$row" ]; then
+      log_step "CI run not visible yet for ${sha:0:8} (attempt ${attempt}/${max_attempts})"
+      sleep "$sleep_seconds"
+      continue
+    fi
+
+    status=$(printf '%s' "$row" | cut -f1)
+    conclusion=$(printf '%s' "$row" | cut -f2)
+    url=$(printf '%s' "$row" | cut -f3)
+
+    if [ "$status" = "completed" ] && [ "$conclusion" = "success" ]; then
+      log_success "CI passed for ${sha:0:8}"
+      return 0
+    fi
+
+    if [ "$status" = "completed" ] && [ "$conclusion" != "success" ]; then
+      log_error "CI failed for ${sha:0:8}: conclusion=${conclusion}"
+      [ -n "$url" ] && log_error "Inspect: ${url}"
+      exit 1
+    fi
+
+    log_step "CI status=${status} conclusion=${conclusion:-pending} (attempt ${attempt}/${max_attempts})"
+    sleep "$sleep_seconds"
+  done
+
+  log_error "Timed out waiting for CI to pass for ${sha:0:8}"
+  exit 1
+}
+
 # ============================================
 # PRE-FLIGHT (all non-mutating checks first)
 # ============================================
@@ -294,6 +374,8 @@ if [ "$DRY_RUN" = false ] && [ "$DB_ONLY" = false ]; then
 
   log_step "Pushing code to origin..."
   git push origin main --no-verify
+
+  wait_for_ci_green
 fi
 
 if [ "$DRY_RUN" = false ]; then

@@ -774,6 +774,19 @@ export async function getEmailThreads(params: {
   parsedCursor: { lastMessageAt: string; threadId: string } | null;
   showSuppressedJunk: boolean;
 }) {
+  const buildConversationThreadFilter = (qualifier: string) => `
+    COALESCE(${qualifier}.participantsraw, '') <> ''
+    AND (
+      CASE
+        WHEN COALESCE(${qualifier}.participantsraw, '') = '' THEN 0
+        ELSE (
+          LENGTH(${qualifier}.participantsraw) -
+          LENGTH(REPLACE(${qualifier}.participantsraw, ',', '')) + 1
+        )
+      END
+    ) BETWEEN 2 AND 12
+  `;
+
   const {
     mailboxId,
     query,
@@ -799,11 +812,7 @@ export async function getEmailThreads(params: {
   }
   if (tab === 'primary') {
     // "Primary" should behave like person-to-person conversations, not bulk one-way marketing mail.
-    threadedWhere = `
-      WHERE participantCount >= 2
-        AND participantCount <= 12
-        AND participantsRaw <> ''
-    `;
+    threadedWhere = `WHERE ${buildConversationThreadFilter('threaded')}`;
   }
 
   if (mailboxId.startsWith('entity:')) {
@@ -861,7 +870,7 @@ export async function getEmailThreads(params: {
   const baseSql = buildThreadBaseSql(where);
   const countSql =
     threadedWhere.length > 0
-      ? `SELECT COUNT(*)::bigint AS total FROM (${baseSql}) counted ${threadedWhere}`
+      ? `SELECT COUNT(*)::bigint AS total FROM (${baseSql}) counted WHERE ${buildConversationThreadFilter('counted')}`
       : buildThreadCountSql(where);
   const { rows: countRows } = await getApiPool().query(countSql, queryParams);
   const total = Number(countRows[0]?.total || 0);

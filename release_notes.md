@@ -1,3 +1,10 @@
+## 14.5.21 - 2026-02-24 - Emails Primary Tab SQL Fix (Postgres)
+
+### Emails Tab Reliability
+
+- Fixed a Postgres query failure in the `Primary` email tab introduced by the conversation-thread filter (`participantCount` alias used in `WHERE`).
+- Primary tab filtering now uses a SQL-safe thread-level participant-count expression and no longer returns `PG_QUERY_FAILED`.
+
 ## 14.5.20 - 2026-02-24 - Emails Primary Tab Conversation-Only Thread Filter
 
 ### Emails Tab Quality

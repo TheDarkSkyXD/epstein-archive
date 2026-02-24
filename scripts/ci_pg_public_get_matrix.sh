@@ -73,7 +73,7 @@ check_case "flights-passengers" "/api/flights/passengers" "200"
 check_case "flights-routes" "/api/flights/routes" "200"
 check_case "flights-aircraft" "/api/flights/aircraft" "200"
 
-check_case "emails" "/api/emails?limit=10" "200"
+check_case "emails" "/api/emails/threads?mailboxId=all&q=&tab=all&limit=10" "200"
 check_case "email-mailboxes" "/api/email/mailboxes" "200"
 check_case "email-categories" "/api/email/categories" "200"
 check_case "email-known-senders" "/api/email/known-senders" "200"

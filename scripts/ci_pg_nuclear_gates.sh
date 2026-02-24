@@ -7,6 +7,7 @@ cd "$ROOT_DIR"
 log() { echo "[pg-nuclear] $*"; }
 fail() { echo "[pg-nuclear] $*" >&2; exit 1; }
 is_ci() { [[ "${CI:-}" == "true" || "${CI:-}" == "1" ]]; }
+have_rg() { command -v rg >/dev/null 2>&1; }
 
 log "Guard: no SQLite remnants in src/"
 if grep -rE "better-sqlite3|sqlite|PRAGMA|FTS5|DatabaseBridge|SqliteWrapper" src/; then
@@ -33,12 +34,24 @@ rm -f "$TMP_ROUTE_SQL"
 
 log "Guard: no pgtyped/db namespace executor misuse in repositories"
 TMP_PGTYPED_DB="$(mktemp)"
-if rg -n "db\\.apiPool" src/server/db >"$TMP_PGTYPED_DB"; then
+if have_rg; then
+  rg -n "db\\.apiPool" src/server/db >"$TMP_PGTYPED_DB" || true
+else
+  grep -rEn "db\\.apiPool" src/server/db >"$TMP_PGTYPED_DB" || true
+fi
+if [[ -s "$TMP_PGTYPED_DB" ]]; then
   cat "$TMP_PGTYPED_DB"
   rm -f "$TMP_PGTYPED_DB"
   fail "❌ Repository DB calls must use getApiPool() (no db.apiPool)"
 fi
-if rg -nUP "\.run\([\s\S]{0,600},\s*db\s*\)" src/server/db >>"$TMP_PGTYPED_DB"; then
+if have_rg; then
+  rg -nUP "\.run\([\s\S]{0,600},\s*db\s*\)" src/server/db >>"$TMP_PGTYPED_DB" || true
+else
+  find src/server/db -type f \( -name '*.ts' -o -name '*.tsx' \) -print0 \
+    | xargs -0 perl -0777 -ne 'print "$ARGV\n" if /\.run\([\s\S]{0,600},\s*db\s*\)/' \
+    >>"$TMP_PGTYPED_DB" || true
+fi
+if [[ -s "$TMP_PGTYPED_DB" ]]; then
   cat "$TMP_PGTYPED_DB"
   rm -f "$TMP_PGTYPED_DB"
   fail "❌ Repository DB calls must use getApiPool() (no pgtyped .run(..., db))"

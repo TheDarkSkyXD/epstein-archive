@@ -49,7 +49,7 @@ check_case "documents" "/api/documents?page=1&limit=2" "200" '"documents"[[:spac
 check_case "search" "/api/search?q=epstein" "200"
 check_case "evidence-search" "/api/evidence/search?q=epstein" "200"
 check_case "evidence-types" "/api/evidence/types" "200"
-check_case "relationships" "/api/relationships?limit=10" "200"
+check_case "relationships" "/api/relationships?entityId=1&limit=10" "200"
 check_case "timeline" "/api/timeline" "200"
 check_case "analytics" "/api/analytics" "200"
 check_case "analytics-enhanced" "/api/analytics/enhanced" "200"

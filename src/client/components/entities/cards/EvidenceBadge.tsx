@@ -27,23 +27,26 @@ export const EvidenceBadge: React.FC<EvidenceBadgeProps> = ({
   ratingObjective,
   ratingSubjective,
 }) => {
-  if ((ratingObjective && ratingObjective > 0) || (ratingSubjective && ratingSubjective > 0)) {
+  const objective = Number(ratingObjective || 0);
+  const subjective = Number(ratingSubjective || 0);
+  const hasObjective = objective > 0;
+  const hasSubjective = subjective > 0;
+  const collapseDuplicateStacks = hasObjective && hasSubjective && objective === subjective;
+
+  if (hasObjective || hasSubjective) {
     return (
       <div className="flex items-center gap-2 px-2 py-0.5 rounded border border-slate-700 bg-slate-800/40">
-        {ratingObjective ? (
-          <div className="flex items-center gap-1" title="Objective Risk Rating">
-            <FlagStack
-              count={ratingObjective}
-              colorVar={riskToneFromRating(ratingObjective).cssVar}
-            />
+        {hasObjective ? (
+          <div
+            className="flex items-center gap-1"
+            title={collapseDuplicateStacks ? 'Risk Rating' : 'Objective Risk Rating'}
+          >
+            <FlagStack count={objective} colorVar={riskToneFromRating(objective).cssVar} />
           </div>
         ) : null}
-        {ratingSubjective ? (
+        {!collapseDuplicateStacks && hasSubjective ? (
           <div className="flex items-center gap-1" title="Subjective Risk Rating">
-            <FlagStack
-              count={ratingSubjective}
-              colorVar={riskToneFromRating(ratingSubjective).cssVar}
-            />
+            <FlagStack count={subjective} colorVar={riskToneFromRating(subjective).cssVar} />
           </div>
         ) : null}
       </div>

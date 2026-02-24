@@ -1,3 +1,9 @@
+## 14.5.3 - 2026-02-24 - Subject Card Flag Badge Duplication Fix
+
+### UI Correctness
+
+- Fixed subject-card `EvidenceBadge` to collapse duplicate objective/subjective flag stacks when both ratings are identical (the current dataset mirrors the same red flag rating into both fields, which previously rendered a doubled badge).
+
 ## 14.5.2 - 2026-02-24 - Stats Route Contract Accounting Fix
 
 ### Production Data Accounting Follow-Up

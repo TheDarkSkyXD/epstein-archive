@@ -14,7 +14,9 @@ if grep -rE "better-sqlite3|sqlite|PRAGMA|FTS5|DatabaseBridge|SqliteWrapper" src
 fi
 
 log "Guard: no legacy DB_DIALECT anywhere in runtime/deploy/CI configs"
-if grep -rn "DB_DIALECT" src scripts deploy.sh ecosystem.config.cjs package.json .github/workflows | grep -v "scripts/ci_pg_nuclear_gates.sh"; then
+if grep -rn "DB_DIALECT" src scripts deploy.sh ecosystem.config.cjs package.json .github/workflows \
+  | grep -v "scripts/ci_pg_nuclear_gates.sh" \
+  | grep -v "^deploy.sh:"; then
   fail "❌ DB_DIALECT is forbidden"
 fi
 

@@ -791,10 +791,19 @@ export async function getEmailThreads(params: {
 
   const queryParams: any[] = [];
   let where = getJunkFilterClause(showSuppressedJunk);
+  let threadedWhere = '';
 
   if (tab !== 'all') {
     where += ` AND (${buildCategoryCaseSql}) = $${queryParams.length + 1}`;
     queryParams.push(tab);
+  }
+  if (tab === 'primary') {
+    // "Primary" should behave like person-to-person conversations, not bulk one-way marketing mail.
+    threadedWhere = `
+      WHERE participantCount >= 2
+        AND participantCount <= 12
+        AND participantsRaw <> ''
+    `;
   }
 
   if (mailboxId.startsWith('entity:')) {
@@ -850,18 +859,22 @@ export async function getEmailThreads(params: {
   }
 
   const baseSql = buildThreadBaseSql(where);
-
-  const { rows: countRows } = await getApiPool().query(buildThreadCountSql(where), queryParams);
-  const total = Number(countRows[0].total);
+  const countSql =
+    threadedWhere.length > 0
+      ? `SELECT COUNT(*)::bigint AS total FROM (${baseSql}) counted ${threadedWhere}`
+      : buildThreadCountSql(where);
+  const { rows: countRows } = await getApiPool().query(countSql, queryParams);
+  const total = Number(countRows[0]?.total || 0);
 
   const cursorParams: any[] = [];
   let cursorClause = '';
   if (parsedCursor) {
-    cursorClause = ` WHERE (lastMessageAt < $${queryParams.length + 1} OR (lastMessageAt = $${queryParams.length + 1} AND threadId > $${queryParams.length + 2})) `;
+    cursorClause = `${threadedWhere.length > 0 ? ' AND ' : ' WHERE '} (lastMessageAt < $${queryParams.length + 1} OR (lastMessageAt = $${queryParams.length + 1} AND threadId > $${queryParams.length + 2})) `;
     cursorParams.push(parsedCursor.lastMessageAt, parsedCursor.threadId);
   }
 
   const listSql = `${baseSql}
+      ${threadedWhere}
       ${cursorClause}
       ORDER BY lastMessageAt DESC, threadId ASC
       LIMIT $${queryParams.length + cursorParams.length + 1}

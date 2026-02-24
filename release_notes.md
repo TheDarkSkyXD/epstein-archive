@@ -1,3 +1,10 @@
+## 14.5.20 - 2026-02-24 - Emails Primary Tab Conversation-Only Thread Filter
+
+### Emails Tab Quality
+
+- Tightened `Primary` email tab results to require conversation-like threads (multiple participants) instead of acting as a catch-all bucket for uncategorized bulk mail.
+- Reduces no-reply/newsletter/marketing spillover in `Primary` while keeping `Updates` and `Promotions` available for bulk/transactional traffic.
+
 ## 14.5.19 - 2026-02-24 - Emails Tab Classification and Filter UX Cleanup
 
 ### Emails Classification / Filters

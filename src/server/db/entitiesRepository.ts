@@ -202,7 +202,27 @@ export const entitiesRepository = {
           SELECT
             em.entity_id,
             COUNT(DISTINCT em.document_id) AS documents,
-            COUNT(DISTINCT NULLIF(d.evidence_type, '')) AS distinct_sources,
+            COUNT(
+              DISTINCT CASE
+                WHEN NULLIF(BTRIM(COALESCE(d.evidence_type, '')), '') IS NOT NULL THEN LOWER(BTRIM(d.evidence_type))
+                WHEN d.file_type ILIKE 'image/%'
+                  OR d.file_type ILIKE 'video/%'
+                  OR d.file_type ILIKE 'audio/%' THEN 'media'
+                WHEN LOWER(COALESCE(d.file_name, '')) LIKE '%.eml'
+                  OR LOWER(COALESCE(d.file_name, '')) LIKE '%.msg'
+                  OR LOWER(COALESCE(d.file_path, '')) LIKE '%/email%'
+                  OR LOWER(COALESCE(d.file_path, '')) LIKE '%/emails%' THEN 'email'
+                WHEN LOWER(COALESCE(d.file_path, '')) LIKE '%black%book%' THEN 'black_book'
+                WHEN LOWER(COALESCE(d.file_path, '')) LIKE '%flight%' THEN 'flight'
+                WHEN LOWER(COALESCE(d.file_name, '')) LIKE '%.pdf'
+                  OR LOWER(COALESCE(d.file_name, '')) LIKE '%.txt'
+                  OR LOWER(COALESCE(d.file_name, '')) LIKE '%.doc'
+                  OR LOWER(COALESCE(d.file_name, '')) LIKE '%.docx'
+                  OR LOWER(COALESCE(d.file_name, '')) LIKE '%.xls'
+                  OR LOWER(COALESCE(d.file_name, '')) LIKE '%.xlsx' THEN 'document'
+                ELSE NULL
+              END
+            ) AS distinct_sources,
             COUNT(DISTINCT em.document_id) FILTER (
               WHERE d.evidence_type = 'media'
                 AND (

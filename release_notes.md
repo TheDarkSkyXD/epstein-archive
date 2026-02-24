@@ -1,3 +1,10 @@
+## 14.5.17 - 2026-02-24 - Document Viewer Single-File Route Fallback (Eliminate Static Path 404s)
+
+### Documents Viewer Reliability
+
+- Updated `/api/documents/:id/pages` to return the robust API file route (`/api/documents/:id/file`) for single-file documents (images/PDFs and linked originals) instead of raw static file paths.
+- Prevents document viewer 404s caused by static `/data/...` path serving mismatches while preserving multi-page OCR page-path behavior from `document_pages`.
+
 ## 14.5.16 - 2026-02-24 - Document Viewer Path Normalization (No Relative `data/...` 404s)
 
 ### Documents Viewer Reliability

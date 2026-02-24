@@ -2210,16 +2210,12 @@ app.get('/api/documents/:id/pages', async (req, res, next) => {
 
     // Check for linked original file
     if (doc.original_file_path) {
-      const url = toServedDocumentUrl(doc.original_file_path) || `/api/documents/${id}/file`;
-      return res.json({ pages: [url], total: 1 });
+      return res.json({ pages: [`/api/documents/${id}/file`], total: 1 });
     }
 
     // If this document IS an image/PDF, return its own path
     if (doc.file_type === 'image' || doc.file_type === 'pdf') {
-      const url = toServedDocumentUrl(doc.file_path) || `/api/documents/${id}/file`;
-      if (url) {
-        return res.json({ pages: [url], total: 1 });
-      }
+      return res.json({ pages: [`/api/documents/${id}/file`], total: 1 });
     }
 
     // No pages found

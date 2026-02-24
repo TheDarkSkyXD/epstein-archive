@@ -1,6 +1,8 @@
-exports.noTransaction = true;
+/* eslint-disable no-undef */
 
-exports.up = (pgm) => {
+export const noTransaction = true;
+
+export async function up(pgm) {
   pgm.sql(`
     SET client_min_messages = warning;
 
@@ -59,8 +61,8 @@ exports.up = (pgm) => {
     WHERE (file_type IS NULL OR BTRIM(file_type) = '')
        OR (evidence_type IS NULL OR BTRIM(evidence_type) = '');
   `);
-};
+}
 
-exports.down = () => {
+export async function down() {
   // Irreversible data backfill
-};
+}

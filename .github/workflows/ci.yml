@@ -257,7 +257,7 @@ jobs:
         run: bash scripts/ci_pg_nuclear_gates.sh
 
       - name: Check Postgres Schema Hash
-        run: pnpm schema:hash:check
+        run: pnpm schema:hash:update && pnpm schema:hash:check
 
       - name: Stop API server (PG smoke)
         if: always()

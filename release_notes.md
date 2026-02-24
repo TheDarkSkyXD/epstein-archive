@@ -1,3 +1,16 @@
+## 14.5.7 - 2026-02-24 - Flights Dataset Restoration & Tracker Filter Fixes
+
+### Flights Tracker Recovery
+
+- Restored missing Postgres `flights` and `flight_passengers` tables plus real production flight data (110 flights / 305 passenger rows) via a dedicated idempotent migration generated from the verified enriched SQLite source dataset.
+- Fixed flights API passenger loading on Postgres by replacing brittle pgtyped array parameter usage with PG-safe `ANY($1::bigint[])` / explicit parameter queries.
+- Re-enabled passenger filtering in `/api/flights` list endpoint (the UI filter parameter was previously ignored by the repository query path).
+- Fixed `/api/flights/passengers` response shape to return `{ name, flight_count }` objects expected by the Flight Tracker dropdown.
+
+### Flights Tracker UI Cleanup
+
+- Removed the nested border styling conflict on the Flights date filter controls ("boxes inside boxes") by scoping legacy `.filters input/select` CSS so it no longer overrides the Tailwind date-range wrapper inputs.
+
 ## 14.5.6 - 2026-02-24 - Core UI Boot Rate-Limit Exemption Fix
 
 ### Production UX Reliability

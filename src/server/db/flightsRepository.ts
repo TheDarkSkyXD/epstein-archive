@@ -71,21 +71,76 @@ export const flightsRepository = {
     const limit = filters.limit || 50;
     const offset = (page - 1) * limit;
 
-    const flights = await flightsQueries.getFlights.run(
-      {
-        startDate: filters.startDate || null,
-        endDate: filters.endDate || null,
-        airport: filters.airport || null,
-        limit: BigInt(limit),
-        offset: BigInt(offset),
-      },
-      getApiPool(),
-    );
+    const pool = getApiPool();
+    const flights =
+      filters.passenger && filters.passenger.trim()
+        ? (
+            await pool.query(
+              `
+              SELECT
+                f.id,
+                f.date,
+                f.departure_airport as "departureAirport",
+                f.departure_city as "departureCity",
+                f.departure_country as "departureCountry",
+                f.arrival_airport as "arrivalAirport",
+                f.arrival_city as "arrivalCity",
+                f.arrival_country as "arrivalCountry",
+                f.aircraft_tail as "aircraftTail",
+                f.aircraft_type as "aircraftType",
+                f.pilot,
+                f.notes
+              FROM flights f
+              WHERE ($1::text IS NULL OR f.date >= $1)
+                AND ($2::text IS NULL OR f.date <= $2)
+                AND ($3::text IS NULL OR f.departure_airport = $3 OR f.arrival_airport = $3)
+                AND EXISTS (
+                  SELECT 1
+                  FROM flight_passengers fp
+                  WHERE fp.flight_id = f.id
+                    AND fp.passenger_name ILIKE $4
+                )
+              ORDER BY f.date DESC
+              LIMIT $5 OFFSET $6
+              `,
+              [
+                filters.startDate || null,
+                filters.endDate || null,
+                filters.airport || null,
+                `%${filters.passenger.trim()}%`,
+                limit,
+                offset,
+              ],
+            )
+          ).rows
+        : await flightsQueries.getFlights.run(
+            {
+              startDate: filters.startDate || null,
+              endDate: filters.endDate || null,
+              airport: filters.airport || null,
+              limit: BigInt(limit),
+              offset: BigInt(offset),
+            },
+            pool,
+          );
 
     if (flights.length === 0) return { flights: [], total: 0 };
 
-    const flightIds = flights.map((f) => f.id);
-    const passengers = await flightsQueries.getFlightPassengers.run({ flightIds }, getApiPool());
+    const flightIds = flights.map((f) => Number(f.id));
+    const passengersResult = await pool.query(
+      `
+      SELECT
+        fp.id,
+        fp.flight_id as "flightId",
+        fp.entity_id as "entityId",
+        fp.passenger_name as "passengerName",
+        fp.role
+      FROM flight_passengers fp
+      WHERE fp.flight_id = ANY($1::bigint[])
+      `,
+      [flightIds],
+    );
+    const passengers = passengersResult.rows;
 
     const flightsWithPassengers = flights.map((f) => ({
       ...f,
@@ -99,7 +154,7 @@ export const flightsRepository = {
       aircraft_tail: f.aircraftTail || '',
       aircraft_type: f.aircraftType || '',
       passengers: passengers
-        .filter((p) => p.flightId === f.id)
+        .filter((p) => Number(p.flightId) === Number(f.id))
         .map((p) => ({
           ...p,
           id: Number(p.id),
@@ -120,10 +175,20 @@ export const flightsRepository = {
     const f = flightRows[0];
     if (!f) return null;
 
-    const passengers = await flightsQueries.getFlightPassengers.run(
-      { flightIds: [f.id] },
-      getApiPool(),
+    const passengersResult = await getApiPool().query(
+      `
+      SELECT
+        fp.id,
+        fp.flight_id as "flightId",
+        fp.entity_id as "entityId",
+        fp.passenger_name as "passengerName",
+        fp.role
+      FROM flight_passengers fp
+      WHERE fp.flight_id = $1
+      `,
+      [Number(f.id)],
     );
+    const passengers = passengersResult.rows;
 
     return {
       ...f,
@@ -196,9 +261,19 @@ export const flightsRepository = {
 
   getUniquePassengers: async () => {
     const rows = await getApiPool().query(
-      'SELECT DISTINCT passenger_name FROM flight_passengers ORDER BY passenger_name ASC',
+      `
+      SELECT
+        passenger_name AS name,
+        COUNT(*)::int AS flight_count
+      FROM flight_passengers
+      GROUP BY passenger_name
+      ORDER BY passenger_name ASC
+      `,
     );
-    return rows.rows.map((r) => r.passenger_name);
+    return rows.rows.map((r) => ({
+      name: String(r.name || ''),
+      flight_count: Number(r.flight_count || 0),
+    }));
   },
 
   getAirportCoords: async () => {

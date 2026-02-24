@@ -1,3 +1,9 @@
+## 14.5.13 - 2026-02-24 - Email Thread Field Mapping (Postgres Column Name Compatibility)
+
+### Emails UI Data Integrity
+
+- Fixed `/api/emails/threads` returning blank/zero-filled thread rows after the timeout hotfix. The route mapper now accepts the actual Postgres row field names (lowercase aliases like `threadid`, `lastmessageat`, `messagecount`) as well as camelCase, restoring real thread IDs, timestamps, participant counts, and message counts in the Emails UI.
+
 ## 14.5.12 - 2026-02-24 - Media Asset Schema Compat, Email Threads Query Hotfix, Articles Dataset Restore
 
 ### Media Recovery (Asset Delivery)

@@ -103,6 +103,18 @@ const parseCursor = (value: string | undefined): ParsedCursor | null => {
 const encodeCursor = (lastMessageAt: string, threadId: string): string =>
   Buffer.from(`${lastMessageAt}|${threadId}`, 'utf8').toString('base64');
 
+const threadRowField = <T = unknown>(
+  row: Record<string, any>,
+  camel: string,
+  snakeish?: string,
+): T => {
+  if (row[camel] != null) return row[camel] as T;
+  const lower = camel.toLowerCase();
+  if (row[lower] != null) return row[lower] as T;
+  if (snakeish && row[snakeish] != null) return row[snakeish] as T;
+  return undefined as T;
+};
+
 const normalizeTab = (tab: string | undefined): 'all' | 'primary' | 'updates' | 'promotions' => {
   if (tab === 'primary' || tab === 'updates' || tab === 'promotions') return tab;
   return 'all';
@@ -209,27 +221,33 @@ router.get('/threads', async (req, res, next) => {
 
     const hasMore = rows.length > limit;
     const pageRows = hasMore ? rows.slice(0, limit) : rows;
+    const lastRow = pageRows[pageRows.length - 1] as Record<string, any> | undefined;
     const nextCursor = hasMore
       ? encodeCursor(
-          pageRows[pageRows.length - 1].lastMessageAt,
-          pageRows[pageRows.length - 1].threadId,
+          String(threadRowField(lastRow || {}, 'lastMessageAt') || ''),
+          String(threadRowField(lastRow || {}, 'threadId') || ''),
         )
       : null;
 
     const payload = {
       data: pageRows.map((row) => ({
-        threadId: row.threadId,
+        threadId: threadRowField(row as Record<string, any>, 'threadId') || '',
         subject: row.subject || 'No Subject',
-        participants: normalizeList(row.participantsRaw),
-        participantCount: row.participantCount,
-        lastMessageAt: row.lastMessageAt,
+        participants: normalizeList(
+          threadRowField(row as Record<string, any>, 'participantsRaw') || '',
+        ),
+        participantCount: threadRowField(row as Record<string, any>, 'participantCount') || 0,
+        lastMessageAt: threadRowField(row as Record<string, any>, 'lastMessageAt') || '',
         snippet: row.snippet || '',
-        messageCount: row.messageCount,
-        hasAttachments: row.hasAttachments === 1,
-        linkedEntityIds: parseEntityIds(row.linkedEntityIdsRaw),
-        risk: row.risk,
+        messageCount: threadRowField(row as Record<string, any>, 'messageCount') || 0,
+        hasAttachments:
+          Number(threadRowField(row as Record<string, any>, 'hasAttachments') || 0) === 1,
+        linkedEntityIds: parseEntityIds(
+          threadRowField(row as Record<string, any>, 'linkedEntityIdsRaw') || '',
+        ),
+        risk: row.risk ?? row.risk?.toString?.() ?? null,
         ladder: row.ladder || null,
-        confidence: row.confidence,
+        confidence: row.confidence ?? null,
       })),
       meta: {
         total: countRow.total || 0,

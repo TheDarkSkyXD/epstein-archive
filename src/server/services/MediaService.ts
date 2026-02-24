@@ -21,6 +21,10 @@ export class MediaService {
     this.db = db || pgDb;
   }
 
+  private isPgClient(): boolean {
+    return typeof this.db?.query === 'function' && typeof this.db?.prepare !== 'function';
+  }
+
   private async hasTable(tableName: string): Promise<boolean> {
     try {
       const row = (await this.db
@@ -159,6 +163,91 @@ export class MediaService {
   // ============ IMAGE OPERATIONS ============
 
   async getAllImages(filter?: ImageFilter, sort?: ImageSort): Promise<MediaImage[]> {
+    if (this.isPgClient()) {
+      let query = `
+        SELECT
+          i.*,
+          i.file_path as path,
+          i.file_path as "filePath",
+          a.name as "albumName"
+        FROM media_items i
+        LEFT JOIN media_albums a ON i.album_id = a.id
+        WHERE i.file_type LIKE 'image/%'
+      `;
+
+      const conditions: string[] = [];
+      const params: any[] = [];
+      const bind = (value: any) => {
+        params.push(value);
+        return `$${params.length}`;
+      };
+
+      if (filter) {
+        if (filter.albumId) conditions.push(`i.album_id = ${bind(filter.albumId)}`);
+        if (filter.personId) {
+          conditions.push(
+            `i.id IN (SELECT media_item_id FROM media_item_people WHERE entity_id = ${bind(filter.personId)})`,
+          );
+        }
+        if (filter.tagId) {
+          conditions.push(
+            `i.id IN (SELECT media_item_id FROM media_item_tags WHERE tag_id = ${bind(filter.tagId)})`,
+          );
+        }
+        if (filter.hasPeople) {
+          conditions.push(
+            'EXISTS (SELECT 1 FROM media_item_people mp WHERE mp.media_item_id = i.id)',
+          );
+        }
+        if (filter.format) conditions.push(`i.file_type = ${bind(`image/${filter.format}`)}`);
+        if (filter.dateFrom) conditions.push(`i.date_taken >= ${bind(filter.dateFrom)}`);
+        if (filter.dateTo) conditions.push(`i.date_taken <= ${bind(filter.dateTo)}`);
+        if (filter.searchQuery) {
+          const p1 = bind(`%${filter.searchQuery}%`);
+          const p2 = bind(`%${filter.searchQuery}%`);
+          conditions.push(`(i.title ILIKE ${p1} OR i.description ILIKE ${p2})`);
+        }
+      }
+
+      if (conditions.length > 0) {
+        query += ' AND ' + conditions.join(' AND ');
+      }
+
+      const sortFieldMap: Record<string, string> = {
+        id: 'i.id',
+        created_at: 'i.created_at',
+        date_added: 'i.created_at',
+        date_taken: 'i.date_taken',
+        title: 'i.title',
+        file_size: 'i.file_size',
+      };
+      const fieldRaw = Array.isArray(sort?.field) ? sort?.field[0] : sort?.field;
+      const orderRaw = Array.isArray(sort?.order) ? sort?.order[0] : sort?.order;
+      const orderDir = String(orderRaw || 'desc').toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+      const orderField = sortFieldMap[String(fieldRaw || 'created_at')] || 'i.created_at';
+      query += ` ORDER BY ${orderField} ${orderDir}, i.id DESC`;
+
+      if (filter?.limit) {
+        query += ` LIMIT ${bind(Number(filter.limit))}`;
+        if (filter?.offset) query += ` OFFSET ${bind(Number(filter.offset))}`;
+      }
+
+      const { rows } = await this.db.query(query, params);
+      return (rows as any[]).map((row) => ({
+        ...row,
+        id: Number(row.id),
+        path: row.file_path ?? row.path,
+        filePath: row.file_path ?? row.filePath,
+        thumbnailPath: row.thumbnail_path ?? row.thumbnailPath,
+        isSensitive: Boolean(row.is_sensitive ?? row.isSensitive),
+        fileSize: Number((row.file_size ?? row.fileSize) || 0),
+        dateAdded: row.created_at ? new Date(row.created_at).toISOString() : '',
+        dateModified: row.date_modified ? new Date(row.date_modified).toISOString() : '',
+        dateTaken: row.date_taken ? new Date(row.date_taken).toISOString() : undefined,
+        tags: [],
+      })) as MediaImage[];
+    }
+
     let query = `
       SELECT 
         i.*,
@@ -255,6 +344,48 @@ export class MediaService {
   }
 
   async getImageCount(filter?: ImageFilter): Promise<number> {
+    if (this.isPgClient()) {
+      let query =
+        "SELECT COUNT(DISTINCT i.id) as count FROM media_items i WHERE i.file_type LIKE 'image/%'";
+      const conditions: string[] = [];
+      const params: any[] = [];
+      const bind = (value: any) => {
+        params.push(value);
+        return `$${params.length}`;
+      };
+
+      if (filter) {
+        if (filter.albumId) conditions.push(`i.album_id = ${bind(filter.albumId)}`);
+        if (filter.personId) {
+          conditions.push(
+            `i.id IN (SELECT media_item_id FROM media_item_people WHERE entity_id = ${bind(filter.personId)})`,
+          );
+        }
+        if (filter.tagId) {
+          conditions.push(
+            `i.id IN (SELECT media_item_id FROM media_item_tags WHERE tag_id = ${bind(filter.tagId)})`,
+          );
+        }
+        if (filter.hasPeople) {
+          conditions.push(
+            'EXISTS (SELECT 1 FROM media_item_people mp WHERE mp.media_item_id = i.id)',
+          );
+        }
+        if (filter.format) conditions.push(`i.file_type = ${bind(`image/${filter.format}`)}`);
+        if (filter.dateFrom) conditions.push(`i.date_taken >= ${bind(filter.dateFrom)}`);
+        if (filter.dateTo) conditions.push(`i.date_taken <= ${bind(filter.dateTo)}`);
+        if (filter.searchQuery) {
+          const p1 = bind(`%${filter.searchQuery}%`);
+          const p2 = bind(`%${filter.searchQuery}%`);
+          conditions.push(`(i.title ILIKE ${p1} OR i.description ILIKE ${p2})`);
+        }
+      }
+
+      if (conditions.length > 0) query += ' AND ' + conditions.join(' AND ');
+      const { rows } = await this.db.query(query, params);
+      return Number(rows?.[0]?.count || 0);
+    }
+
     let query =
       "SELECT COUNT(DISTINCT i.id) as count FROM media_items i WHERE i.file_type LIKE 'image/%'";
 

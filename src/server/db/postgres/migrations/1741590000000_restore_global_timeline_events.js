@@ -93,7 +93,9 @@ INSERT INTO global_timeline_events (id, title, date, description, type, signific
 INSERT INTO global_timeline_events (id, title, date, description, type, significance, entities, related_document_id, created_at, source) VALUES(96,'New Presidential Administration Review','2026-01-20','New administration announces review of all federal handling of Epstein-related matters.','legal','high','["Jeffrey Epstein","DOJ"]',NULL,'2026-01-20 11:12:26','Executive Action') ON CONFLICT (id) DO NOTHING;
 `);
 
-  pgm.sql(`SELECT setval(pg_get_serial_sequence('global_timeline_events', 'id'), COALESCE((SELECT MAX(id) FROM global_timeline_events), 1), true);`);
+  pgm.sql(
+    `SELECT setval(pg_get_serial_sequence('global_timeline_events', 'id'), COALESCE((SELECT MAX(id) FROM global_timeline_events), 1), true);`,
+  );
 }
 
 export async function down(_pgm) {

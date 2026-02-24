@@ -37,6 +37,7 @@ function withSafeStatsContract(input: any) {
   return {
     totalEntities: Number(source.totalEntities || 0),
     totalDocuments: Number(source.totalDocuments || 0),
+    totalRelationships: Number(source.totalRelationships || 0),
     totalMentions: Number(source.totalMentions || 0),
     averageRedFlagRating: Number(source.averageRedFlagRating || 0),
     totalUniqueRoles: Number(source.totalUniqueRoles || 0),

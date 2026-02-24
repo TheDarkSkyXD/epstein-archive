@@ -1,3 +1,10 @@
+## 14.5.2 - 2026-02-24 - Stats Route Contract Accounting Fix
+
+### Production Data Accounting Follow-Up
+
+- Fixed the active `/api/stats` route contract in `src/server/routes/stats.ts` to emit `totalRelationships` instead of silently returning `null` due duplicate `withSafeStatsContract` drift.
+- Verified `/api/stats` and `/api/analytics` now agree on relationship totals and match Postgres `entity_relationships` row count.
+
 ## 14.5.1 - 2026-02-24 - Data Accounting Patch & CI PG Build Parity
 
 ### Production Data Accounting

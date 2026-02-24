@@ -183,10 +183,58 @@ export const entitiesRepository = {
     const maxConnectivityCount = Number(maxConnResult[0]?.maxConn || 1);
 
     const vipDisplayLookup = await buildVipDisplayLookup();
+    const subjectIds = rawEntities
+      .map((row) => Number(row.id))
+      .filter((id) => Number.isFinite(id) && id > 0);
+
+    const aggregateStatsByEntity = new Map<
+      number,
+      { documents: number; distinctSources: number; verifiedMedia: number }
+    >();
+    if (subjectIds.length > 0) {
+      const aggregateResult = await getApiPool().query<{
+        entity_id: number;
+        documents: string | number;
+        distinct_sources: string | number;
+        verified_media: string | number;
+      }>(
+        `
+          SELECT
+            em.entity_id,
+            COUNT(DISTINCT em.document_id) AS documents,
+            COUNT(DISTINCT NULLIF(d.evidence_type, '')) AS distinct_sources,
+            COUNT(DISTINCT em.document_id) FILTER (
+              WHERE d.evidence_type = 'media'
+                AND (
+                  d.file_type ILIKE 'image/%'
+                  OR d.file_type ILIKE 'video/%'
+                  OR d.file_type ILIKE 'audio/%'
+                )
+            ) AS verified_media
+          FROM entity_mentions em
+          JOIN documents d ON d.id = em.document_id
+          WHERE em.entity_id = ANY($1::bigint[])
+          GROUP BY em.entity_id
+        `,
+        [subjectIds],
+      );
+
+      for (const row of aggregateResult.rows) {
+        aggregateStatsByEntity.set(Number(row.entity_id), {
+          documents: Number(row.documents || 0),
+          distinctSources: Number(row.distinct_sources || 0),
+          verifiedMedia: Number(row.verified_media || 0),
+        });
+      }
+    }
 
     const subjects: SubjectCardListItemDto[] = rawEntities.map((e) => {
+      const entityId = Number(e.id || 0);
+      const aggregateStats = aggregateStatsByEntity.get(entityId);
       const mentions = Number(e.mentions || 0);
-      const mediaCount = Number((e as any).mediaCount || 0);
+      const mediaCount = Number(
+        aggregateStats?.verifiedMedia ?? Number((e as any).mediaCount || 0),
+      );
       const blackBookCount = Number((e as any).blackBookCount || 0);
 
       let ladder: 'L1' | 'L2' | 'L3' | 'NONE' = 'L3';
@@ -208,21 +256,29 @@ export const entitiesRepository = {
 
       return {
         id: String(e.id),
-        name: e.fullName || 'Unknown',
-        displayName: resolveDisplayName(e.fullName || 'Unknown', vipDisplayLookup),
+        name: resolveDisplayName(e.fullName || 'Unknown', vipDisplayLookup),
         role: e.primaryRole || 'Unknown',
-        bio: e.bio || '',
-        mentions,
-        riskLevel: (e.riskLevel as any) || 'LOW',
-        redFlagRating: Number(e.redFlagRating || 0),
-        ladder,
-        signals: {
-          exposure,
-          connectivity,
-          corroboration: Math.min(100, mediaCount * 20),
+        short_bio: e.bio || undefined,
+        stats: {
+          mentions,
+          documents: aggregateStats?.documents ?? 0,
+          distinct_sources: aggregateStats?.distinctSources ?? 0,
+          verified_media: mediaCount,
         },
-        drivers: drivers.slice(0, 4),
-        topPhotoId: (e as any).topPhotoId ? String((e as any).topPhotoId) : undefined,
+        forensics: {
+          risk_level: String((e.riskLevel as any) || 'LOW').toUpperCase(),
+          evidence_ladder: ladder,
+          red_flag_objective: Number(e.redFlagRating || 0),
+          red_flag_subjective: Number(e.redFlagRating || 0),
+          signal_strength: {
+            exposure,
+            connectivity,
+            corroboration: Math.min(100, mediaCount * 20),
+          },
+          driver_labels: drivers.slice(0, 4),
+        },
+        top_preview: undefined,
+        ...((e as any).topPhotoId ? ({ topPhotoId: String((e as any).topPhotoId) } as any) : {}),
       };
     });
 

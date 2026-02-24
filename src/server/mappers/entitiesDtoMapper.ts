@@ -7,34 +7,61 @@ import type {
 
 export const mapSubjectCardDto = (subject: any): SubjectCardListItemDto => ({
   id: String(subject.id),
-  name: String(subject.name || ''),
+  name: String(subject.name || subject.displayName || ''),
   role: String(subject.role || 'Unknown'),
-  short_bio: subject.short_bio ? String(subject.short_bio) : undefined,
+  short_bio: subject.short_bio
+    ? String(subject.short_bio)
+    : subject.bio
+      ? String(subject.bio)
+      : undefined,
   stats: {
-    mentions: Number(subject?.stats?.mentions || 0),
-    documents: Number(subject?.stats?.documents || 0),
-    distinct_sources: Number(subject?.stats?.distinct_sources || 0),
-    verified_media: Number(subject?.stats?.verified_media || 0),
+    mentions: Number(subject?.stats?.mentions ?? subject?.mentions ?? 0),
+    documents: Number(subject?.stats?.documents ?? subject?.documents ?? 0),
+    distinct_sources: Number(
+      subject?.stats?.distinct_sources ??
+        subject?.distinct_sources ??
+        subject?.distinctSources ??
+        0,
+    ),
+    verified_media: Number(
+      subject?.stats?.verified_media ?? subject?.verified_media ?? subject?.mediaCount ?? 0,
+    ),
   },
   forensics: {
-    risk_level: String(subject?.forensics?.risk_level || 'LOW'),
-    evidence_ladder: (subject?.forensics?.evidence_ladder || 'NONE') as 'L1' | 'L2' | 'L3' | 'NONE',
+    risk_level: String(subject?.forensics?.risk_level || subject?.riskLevel || 'LOW').toUpperCase(),
+    evidence_ladder: (subject?.forensics?.evidence_ladder || subject?.ladder || 'NONE') as
+      | 'L1'
+      | 'L2'
+      | 'L3'
+      | 'NONE',
     red_flag_objective:
       typeof subject?.forensics?.red_flag_objective === 'number'
         ? subject.forensics.red_flag_objective
-        : undefined,
+        : typeof subject?.redFlagRating === 'number'
+          ? subject.redFlagRating
+          : undefined,
     red_flag_subjective:
       typeof subject?.forensics?.red_flag_subjective === 'number'
         ? subject.forensics.red_flag_subjective
-        : undefined,
+        : typeof subject?.redFlagRating === 'number'
+          ? subject.redFlagRating
+          : undefined,
     signal_strength: {
-      exposure: Number(subject?.forensics?.signal_strength?.exposure || 0),
-      connectivity: Number(subject?.forensics?.signal_strength?.connectivity || 0),
-      corroboration: Number(subject?.forensics?.signal_strength?.corroboration || 0),
+      exposure: Number(
+        subject?.forensics?.signal_strength?.exposure ?? subject?.signals?.exposure ?? 0,
+      ),
+      connectivity: Number(
+        subject?.forensics?.signal_strength?.connectivity ?? subject?.signals?.connectivity ?? 0,
+      ),
+      corroboration: Number(
+        subject?.forensics?.signal_strength?.corroboration ?? subject?.signals?.corroboration ?? 0,
+      ),
     },
     driver_labels: Array.isArray(subject?.forensics?.driver_labels)
       ? subject.forensics.driver_labels.map((value: unknown) => String(value))
-      : [],
+      : Array.isArray(subject?.drivers)
+        ? subject.drivers.map((value: unknown) => String(value))
+        : [],
   },
   top_preview: subject?.top_preview,
 });

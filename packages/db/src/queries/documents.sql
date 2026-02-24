@@ -19,7 +19,7 @@ WHERE (:search::text IS NULL OR file_name ILIKE :search OR content_refined ILIKE
   AND (source_collection = ANY(:sources) OR :sources IS NULL)
   AND (date_created >= :startDate OR :startDate IS NULL)
   AND (date_created <= :endDate OR :endDate IS NULL)
-  AND (has_failed_redactions = 1 OR :hasFailedRedactions IS NULL)
+  AND (:hasFailedRedactions::boolean IS NULL OR has_failed_redactions = :hasFailedRedactions::boolean)
   AND (red_flag_rating >= :minRedFlag OR :minRedFlag IS NULL)
   AND (red_flag_rating <= :maxRedFlag OR :maxRedFlag IS NULL)
 ORDER BY 

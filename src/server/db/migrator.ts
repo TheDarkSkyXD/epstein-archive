@@ -24,6 +24,10 @@ function getExpectedMigrationNames(): string[] {
     .sort();
 }
 
+function canonicalMigrationName(name: string): string {
+  return name.replace(/\.(cjs|mjs|js|ts)$/i, '');
+}
+
 async function getAppliedMigrationNames(): Promise<Set<string>> {
   try {
     const { rows } = await getApiPool().query<{ name: string }>(
@@ -39,8 +43,9 @@ async function getAppliedMigrationNames(): Promise<Set<string>> {
 
 // Historical call-site name retained. We fail closed on parity instead of silently no-oping.
 export async function runMigrations() {
-  const expected = getExpectedMigrationNames();
-  const applied = await getAppliedMigrationNames();
+  const expectedFiles = getExpectedMigrationNames();
+  const expected = expectedFiles.map(canonicalMigrationName);
+  const applied = new Set(Array.from(await getAppliedMigrationNames()).map(canonicalMigrationName));
   const pending = expected.filter((name) => !applied.has(name));
 
   if (pending.length > 0) {

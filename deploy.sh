@@ -161,6 +161,7 @@ if [ -f .env ]; then
   set +a
 fi
 [ -n "${DATABASE_URL:-}" ] || (echo "❌ DATABASE_URL missing in remote .env" && exit 1)
+[ -z "${DB_DIALECT:-}" ] || (echo "❌ Legacy DB_DIALECT is set in remote .env; remove it for Postgres-only runtime." && exit 1)
 
 echo "Remote env sanity (masked DATABASE_URL):"
   # Safely check for credentials without leaking full URL

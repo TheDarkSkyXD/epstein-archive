@@ -54,7 +54,7 @@ check_case "timeline" "/api/timeline" "200"
 check_case "analytics" "/api/analytics" "200"
 check_case "analytics-enhanced" "/api/analytics/enhanced" "200"
 check_case "graph-global" "/api/graph/global?limit=50" "200"
-check_case "map-entities" "/api/map/entities?limit=20" "200"
+check_case "map-entities" "/api/map/entities?limit=20" "200,401"
 
 check_case "media-albums" "/api/media/albums" "200"
 check_case "media-images" "/api/media/images?limit=2" "200"

@@ -3975,7 +3975,7 @@ app.get('/api/flights/passengers', async (req, res, next) => {
 });
 
 // Get single flight by ID
-app.get('/api/flights/:id', async (req, res, next) => {
+app.get('/api/flights/:id(\\d+)', async (req, res, next) => {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).json({ error: 'Invalid flight ID' });

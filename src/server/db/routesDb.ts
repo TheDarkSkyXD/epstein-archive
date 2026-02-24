@@ -656,6 +656,28 @@ SELECT
 FROM threaded
 `;
 
+const buildThreadCountSql = (where: string) => `
+WITH email_docs AS (
+  SELECT
+    COALESCE(
+      metadata_json ->> 'thread_id',
+      metadata_json ->> 'threadId',
+      metadata_json ->> 'conversation_id',
+      metadata_json ->> 'message_id',
+      d.id::text
+    ) AS threadId
+  FROM documents d
+  WHERE d.evidence_type = 'email'
+    ${where}
+)
+SELECT COUNT(*)::bigint AS total
+FROM (
+  SELECT threadId
+  FROM email_docs
+  GROUP BY threadId
+) threaded
+`;
+
 const getJunkFilterClause = (showSuppressedJunk: boolean) => {
   if (showSuppressedJunk) return '';
   return `
@@ -812,10 +834,7 @@ export async function getEmailThreads(params: {
 
   const baseSql = buildThreadBaseSql(where);
 
-  const { rows: countRows } = await getApiPool().query(
-    `SELECT COUNT(*) as total FROM (${baseSql}) threads`,
-    queryParams,
-  );
+  const { rows: countRows } = await getApiPool().query(buildThreadCountSql(where), queryParams);
   const total = Number(countRows[0].total);
 
   const cursorParams: any[] = [];

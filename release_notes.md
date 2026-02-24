@@ -1,3 +1,14 @@
+## 14.5.11 - 2026-02-24 - Media Asset Path Recovery & Email Thread Timeout Fix
+
+### Media Recovery
+
+- Fixed media image file/thumbnail endpoints on Postgres by restoring reliable `getImageById` field mapping (`file_path`, `thumbnail_path`, dimensions/file size) and accepting both camelCase/snake_case path fields in media file/thumbnail routes.
+- Fixed thumbnail regeneration persistence on Postgres by removing legacy `date_modified` writes against `media_items` (the PG table does not include that column), preventing fallback thumbnail generation from failing during requests.
+
+### Emails Recovery
+
+- Fixed `/api/emails/threads` timing out on production by replacing the expensive thread count query (which wrapped the full snippet/correlated-thread CTE) with a cheaper distinct-thread count query over filtered email docs.
+
 ## 14.5.10 - 2026-02-24 - Timeline Dataset Restoration & No-Silent-Empty Guard
 
 ### Timeline Recovery

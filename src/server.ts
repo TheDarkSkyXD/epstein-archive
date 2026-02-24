@@ -42,7 +42,6 @@ import crypto from 'crypto';
 import multer from 'multer';
 import fs from 'fs';
 import { Person, SearchFilters, SortOption, Evidence, User } from './types'; // SubjectCardDTO removed (unused)
-import { MediaImage } from './types/media.types';
 import { config } from './config/index.js';
 import { blackBookRepository } from './server/db/blackBookRepository.js';
 import { globalErrorHandler } from './server/utils/errorHandler.js';
@@ -2835,7 +2834,12 @@ app.get('/api/media/images/:id/file', async (req, res, next) => {
     if (!image) {
       return res.status(404).json({ error: 'Image not found' });
     }
-    const p = (image.path || image.file_path || '').toString();
+    const p = (
+      (image as any).path ||
+      (image as any).filePath ||
+      (image as any).file_path ||
+      ''
+    ).toString();
     if (!p) {
       return res.status(404).json({ error: 'Image path missing' });
     }
@@ -2877,7 +2881,12 @@ app.get('/api/media/images/:id/raw', async (req, res, next) => {
     if (!image) {
       return res.status(404).json({ error: 'Image not found' });
     }
-    const p = (image.path || image.file_path || '').toString();
+    const p = (
+      (image as any).path ||
+      (image as any).filePath ||
+      (image as any).file_path ||
+      ''
+    ).toString();
     if (!p) {
       return res.status(404).json({ error: 'Image path missing' });
     }
@@ -2922,7 +2931,11 @@ app.get('/api/media/images/:id/thumbnail', async (req, res, next) => {
     }
 
     // Check for thumbnail path first
-    const thumbnailPath = ((image as unknown as MediaImage).thumbnail_path || '').toString();
+    const thumbnailPath = (
+      (image as any).thumbnail_path ||
+      (image as any).thumbnailPath ||
+      ''
+    ).toString();
     let absPath = '';
 
     if (thumbnailPath && thumbnailPath.includes('thumbnails')) {
@@ -2948,8 +2961,9 @@ app.get('/api/media/images/:id/thumbnail', async (req, res, next) => {
 
     // Resolve original image path for potential fallback/generation
     const p = (
-      (image as unknown as MediaImage).path ||
-      (image as unknown as MediaImage).file_path ||
+      (image as any).path ||
+      (image as any).filePath ||
+      (image as any).file_path ||
       ''
     ).toString();
     const originalCandidates: string[] = [];

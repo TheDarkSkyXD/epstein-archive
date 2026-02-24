@@ -516,6 +516,55 @@ export class MediaService {
   }
 
   async getImageById(id: number): Promise<MediaImage | undefined> {
+    if (this.isPgClient()) {
+      const { rows } = await this.db.query(
+        `
+          SELECT
+            id,
+            entity_id,
+            document_id,
+            file_path,
+            thumbnail_path,
+            file_type,
+            file_size,
+            width,
+            height,
+            title,
+            description,
+            is_sensitive,
+            verification_status,
+            red_flag_rating,
+            metadata_json,
+            exif_json,
+            orientation,
+            date_taken,
+            created_at
+          FROM media_items
+          WHERE id = $1
+          LIMIT 1
+        `,
+        [id],
+      );
+      const item = rows[0];
+      if (!item) return undefined;
+
+      return {
+        ...item,
+        id: Number(item.id),
+        path: item.file_path,
+        filePath: item.file_path,
+        thumbnailPath: item.thumbnail_path,
+        isSensitive: Boolean(item.is_sensitive),
+        redFlagRating: Number(item.red_flag_rating || 0),
+        width: Number(item.width || 0),
+        height: Number(item.height || 0),
+        fileSize: Number(item.file_size || 0),
+        dateAdded: item.created_at ? new Date(item.created_at).toISOString() : '',
+        dateModified: '',
+        dateTaken: item.date_taken ? new Date(item.date_taken).toISOString() : undefined,
+      } as any;
+    }
+
     const rows = await mediaQueries.getMediaItemById.run(
       { id: String(id) },
       this.isPgClient() ? this.db : pgDb,
@@ -619,7 +668,7 @@ export class MediaService {
         await this.pgExec(
           `
           UPDATE media_items
-          SET ${setClauses.join(', ')}, date_modified = CURRENT_TIMESTAMP
+          SET ${setClauses.join(', ')}
           WHERE id = $${params.length}
         `,
           params,

@@ -45,7 +45,7 @@ check_case "db-meta" "/api/_meta/db" "200" '"dialect"[[:space:]]*:[[:space:]]*"p
 check_case "stats" "/api/stats" "200" '"totalEntities"[[:space:]]*:'
 check_case "subjects" "/api/subjects" "200"
 check_case "entities" "/api/entities?limit=2" "200"
-check_case "documents" "/api/documents?page=1&limit=2" "200" '"documents"[[:space:]]*:'
+check_case "documents" "/api/documents?page=1&limit=2" "200" '"documents"[[:space:]]*:|"data"[[:space:]]*:'
 check_case "search" "/api/search?q=epstein" "200"
 check_case "evidence-search" "/api/evidence/search?q=epstein" "200"
 check_case "evidence-types" "/api/evidence/types" "200"

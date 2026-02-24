@@ -1,6 +1,7 @@
 import { Router } from 'express';
-import { analyticsQueries, db } from '@epstein/db';
+import { analyticsQueries } from '@epstein/db';
 import { entitiesRepository } from '../db/entitiesRepository.js';
+import { getApiPool } from '../db/runtime.js';
 import { resetJunkFlags } from '../db/routesDb.js';
 import { analyticsRateLimiter } from '../middleware/rateLimit.js';
 import { cacheResponse } from '../utils/perfCache.js';
@@ -13,6 +14,7 @@ const router = Router();
  */
 router.get('/enhanced', analyticsRateLimiter, cacheResponse(60), async (_req, res, next) => {
   try {
+    const pool = getApiPool();
     console.log('📊 [Analytics] Fetching from materialised views...');
     console.time('analytics-total');
 
@@ -26,14 +28,14 @@ router.get('/enhanced', analyticsRateLimiter, cacheResponse(60), async (_req, re
       totalCountsRows,
       reconciliationRows,
     ] = await Promise.all([
-      analyticsQueries.getDocsByType.run(undefined, db),
-      analyticsQueries.getTimelineData.run(undefined, db),
-      analyticsQueries.getTopConnected.run(undefined, db),
-      analyticsQueries.getEntityTypeDistribution.run(undefined, db),
-      analyticsQueries.getRedactionStats.run(undefined, db),
-      analyticsQueries.getTopRelationships.run(undefined, db),
-      analyticsQueries.getTotalCounts.run(undefined, db),
-      analyticsQueries.getReconciliationCounts.run(undefined, db),
+      analyticsQueries.getDocsByType.run(undefined, pool),
+      analyticsQueries.getTimelineData.run(undefined, pool),
+      analyticsQueries.getTopConnected.run(undefined, pool),
+      analyticsQueries.getEntityTypeDistribution.run(undefined, pool),
+      analyticsQueries.getRedactionStats.run(undefined, pool),
+      analyticsQueries.getTopRelationships.run(undefined, pool),
+      analyticsQueries.getTotalCounts.run(undefined, pool),
+      analyticsQueries.getReconciliationCounts.run(undefined, pool),
     ]);
 
     const tc = totalCountsRows[0];

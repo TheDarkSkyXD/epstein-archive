@@ -394,6 +394,16 @@ if [ "$DB_ONLY" = false ]; then
       # Scorched Earth: Remove any untracked files (e.g. legacy scripts)
       git clean -fd
 
+      # Preserve previous hashed assets so open clients with cached HTML don't 404
+      # on lazy-loaded chunks immediately after deploy. New build outputs overwrite
+      # same-name files; old hashed files remain available for one version bridge.
+      echo 'Preserving previous hashed assets for chunk-cache compatibility...'
+      rm -rf .prev_dist_assets
+      if [ -d dist/assets ]; then
+        mkdir -p .prev_dist_assets
+        cp -a dist/assets/. .prev_dist_assets/ 2>/dev/null || true
+      fi
+
       # CRITICAL: Purge stale build artifacts to prevent deployment desync
       echo 'Purging stale build artifacts...'
       rm -rf dist
@@ -405,6 +415,13 @@ if [ "$DB_ONLY" = false ]; then
 
       pnpm install --frozen-lockfile
       pnpm build:prod
+
+      if [ -d .prev_dist_assets ]; then
+        echo 'Restoring previous hashed assets (non-overwriting)...'
+        mkdir -p dist/assets
+        cp -an .prev_dist_assets/. dist/assets/ 2>/dev/null || true
+        rm -rf .prev_dist_assets
+      fi
     "
 
     # CERT_STEP: app_restart_after_db_healthy

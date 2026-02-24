@@ -1,3 +1,14 @@
+## 14.5.8 - 2026-02-24 - Properties Dataset Restoration & Deploy Chunk Compatibility
+
+### Properties Recovery
+
+- Restored missing Postgres `palm_beach_properties` table plus real property dataset (9,535 rows) via an idempotent migration generated from the verified enriched SQLite source database.
+- Re-enabled the Properties API endpoints (`/api/properties`, `/api/properties/stats`, related property views) by fixing the migration parity gap that left the repository querying a non-existent Postgres table.
+
+### Deploy Reliability (Chunk Loading)
+
+- Hardened `deploy.sh` to preserve the previous hashed `dist/assets` bundle across deploys and restore it alongside the new build (non-overwriting), preventing open client sessions from failing lazy-loaded routes with `TypeError: Importing a module script failed` when they still reference prior hashed chunks.
+
 ## 14.5.7 - 2026-02-24 - Flights Dataset Restoration & Tracker Filter Fixes
 
 ### Flights Tracker Recovery

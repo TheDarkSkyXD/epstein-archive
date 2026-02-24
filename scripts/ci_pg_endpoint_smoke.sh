@@ -47,8 +47,9 @@ echo "$DOCS_BODY" | grep -Eq '"documents"[[:space:]]*:|"data"[[:space:]]*:' || {
 
 echo "[ci-pg-smoke] checking /api/media/images"
 MEDIA_BODY="$(check_status_200 "/api/media/images?limit=2")"
+MEDIA_TRIMMED="$(printf '%s' "$MEDIA_BODY" | sed -E 's/^[[:space:]]+//')"
 if ! echo "$MEDIA_BODY" | grep -Eq '"images"[[:space:]]*:|"data"[[:space:]]*:' \
-  && ! echo "$MEDIA_BODY" | grep -Eq '^[[:space:]]*\\['; then
+  && [[ "${MEDIA_TRIMMED:0:1}" != "[" ]]; then
   echo "[ci-pg-smoke] ❌ /api/media/images payload shape unexpected"
   echo "$MEDIA_BODY"
   exit 1

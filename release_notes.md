@@ -1,3 +1,10 @@
+## 14.5.15 - 2026-02-24 - Stats Page Entity Photo Batch Query Postgres Fix
+
+### Analytics / Stats Recovery
+
+- Fixed Stats/Analytics page crashes caused by the `/api/entities` photo batch enrichment query using a pgtyped `IN (:entityIds!)` expansion that serialized bigint arrays incorrectly for Postgres (`22P02 invalid input syntax for type bigint`).
+- `mediaRepository.getPhotosForEntities` now uses a PG-native `ANY($1::bigint[])` batch query, restoring entity photo enrichment without breaking the Stats UI.
+
 ## 14.5.14 - 2026-02-24 - Black Book Dataset Restoration (Postgres)
 
 ### Black Book Recovery

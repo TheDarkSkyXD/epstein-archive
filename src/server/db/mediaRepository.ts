@@ -194,6 +194,33 @@ export const mediaRepository = {
   getPhotosForEntities: async (entityIds: string[]) => {
     if (!entityIds.length) return [];
     const ids = entityIds.map((id) => BigInt(id));
-    return await mediaQueries.getPhotosForEntities.run({ entityIds: ids }, getApiPool());
+    const pool = getApiPool();
+    const result = await pool.query(
+      `
+        SELECT * FROM (
+          SELECT DISTINCT
+            m.id,
+            COALESCE(mip.entity_id, m.entity_id) as "entityId",
+            m.file_path as "filePath",
+            m.title,
+            m.is_sensitive as "isSensitive",
+            m.red_flag_rating as "redFlagRating",
+            ROW_NUMBER() OVER (
+              PARTITION BY COALESCE(mip.entity_id, m.entity_id)
+              ORDER BY m.red_flag_rating DESC, m.created_at DESC
+            ) as rn
+          FROM media_items m
+          LEFT JOIN media_item_people mip ON m.id = mip.media_item_id::text
+          WHERE (
+            mip.entity_id = ANY($1::bigint[])
+            OR m.entity_id = ANY($1::bigint[])
+          )
+            AND m.file_type LIKE 'image/%'
+        ) t
+        WHERE rn <= 5
+      `,
+      [ids],
+    );
+    return result.rows;
   },
 };

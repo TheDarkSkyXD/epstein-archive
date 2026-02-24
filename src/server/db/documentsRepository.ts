@@ -180,7 +180,15 @@ export const documentsRepository = {
         AND (source_collection = ANY($4::text[]) OR $4::text[] IS NULL)
         AND (date_created >= $5::timestamp OR $5::timestamp IS NULL)
         AND (date_created <= $6::timestamp OR $6::timestamp IS NULL)
-        AND ($7::boolean IS NULL OR has_failed_redactions = $7::boolean)
+        AND (
+          $7::boolean IS NULL
+          OR LOWER(COALESCE(has_failed_redactions::text, '')) = ANY(
+            CASE
+              WHEN $7::boolean THEN ARRAY['1', 'true', 't']
+              ELSE ARRAY['0', 'false', 'f']
+            END
+          )
+        )
         AND (red_flag_rating >= $8::int OR $8::int IS NULL)
         AND (red_flag_rating <= $9::int OR $9::int IS NULL)
       ORDER BY

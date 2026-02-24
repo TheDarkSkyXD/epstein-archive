@@ -25,21 +25,80 @@ export const timelineRepository = {
       // Transform Global Events
       const mappedEvents = await Promise.all(
         globalEvents.map(async (e: any) => {
-          let entityData: { id: number; name: string }[] = [];
+          let entityData: Array<{ id: number | null; name: string }> = [];
 
           // Parse entity IDs and look up names
           if (e.entities) {
             try {
-              const entityIds =
-                typeof e.entities === 'string' ? JSON.parse(e.entities) : e.entities;
-              if (Array.isArray(entityIds) && entityIds.length > 0) {
-                // Postgres $1, $2, ... indexing for IN clause
-                const placeholders = entityIds.map((_, idx) => `$${idx + 1}`).join(',');
-                const entRes = await pool.query(
-                  `SELECT id, full_name FROM entities WHERE id IN (${placeholders})`,
-                  entityIds,
+              const parsed = typeof e.entities === 'string' ? JSON.parse(e.entities) : e.entities;
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                const numericIds = parsed
+                  .map((value) =>
+                    typeof value === 'number'
+                      ? value
+                      : typeof value === 'string' && /^\d+$/.test(value)
+                        ? Number(value)
+                        : null,
+                  )
+                  .filter((value): value is number => Number.isInteger(value));
+
+                const names = parsed
+                  .filter(
+                    (value): value is string =>
+                      typeof value === 'string' && value.trim().length > 0 && !/^\d+$/.test(value),
+                  )
+                  .map((value) => value.trim());
+
+                const entityRows: Array<{ id: number; full_name: string }> = [];
+
+                if (numericIds.length > 0) {
+                  const entRes = await pool.query(
+                    'SELECT id, full_name FROM entities WHERE id = ANY($1::bigint[])',
+                    [numericIds],
+                  );
+                  entityRows.push(...(entRes.rows as Array<{ id: number; full_name: string }>));
+                }
+
+                if (names.length > 0) {
+                  const entByNameRes = await pool.query(
+                    'SELECT id, full_name FROM entities WHERE full_name = ANY($1::text[])',
+                    [names],
+                  );
+                  entityRows.push(
+                    ...(entByNameRes.rows as Array<{ id: number; full_name: string }>),
+                  );
+                }
+
+                const byName = new Map(
+                  entityRows.map((ent) => [
+                    String(ent.full_name).toLowerCase(),
+                    { id: ent.id, name: ent.full_name },
+                  ]),
                 );
-                entityData = entRes.rows.map((ent: any) => ({ id: ent.id, name: ent.full_name }));
+                const byId = new Map(
+                  entityRows.map((ent) => [
+                    Number(ent.id),
+                    { id: Number(ent.id), name: ent.full_name },
+                  ]),
+                );
+
+                entityData = parsed
+                  .map((value) => {
+                    if (
+                      typeof value === 'number' ||
+                      (typeof value === 'string' && /^\d+$/.test(value))
+                    ) {
+                      const id = Number(value);
+                      return byId.get(id) ?? null;
+                    }
+                    if (typeof value === 'string' && value.trim()) {
+                      return (
+                        byName.get(value.trim().toLowerCase()) ?? { id: null, name: value.trim() }
+                      );
+                    }
+                    return null;
+                  })
+                  .filter((value): value is { id: number | null; name: string } => Boolean(value));
               }
             } catch (err) {
               console.warn('[Timeline] Failed to parse entities for event', e.id, err);

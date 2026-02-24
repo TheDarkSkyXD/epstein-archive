@@ -1,3 +1,11 @@
+## 14.5.4 - 2026-02-24 - Investigations Loading Loop Fix
+
+### Investigations Runtime Stability
+
+- Fixed an infinite/repeated Investigations loading loop caused by unstable callback identities in `useInvestigationList` (`options` object dependency recreated callbacks every render, retriggering `InvestigationWorkspace` effects and re-fetching investigations/case data).
+- Stabilized hook dependencies to use primitive fields (`onError`, `currentUser.id`) so Investigations list and case loads execute once per intended trigger.
+- Fixed investigation DTO mapping compatibility for Postgres-backed camelCase API payloads (`createdAt` / `updatedAt` / `ownerId`) to eliminate `Invalid Date` card metadata and preserve real timestamps/owner metadata in the Investigations UI.
+
 ## 14.5.3 - 2026-02-24 - Subject Card Flag Badge Duplication Fix
 
 ### UI Correctness

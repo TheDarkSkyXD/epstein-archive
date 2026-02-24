@@ -9,6 +9,8 @@ interface UseInvestigationListOptions {
 }
 
 export const useInvestigationList = (options: UseInvestigationListOptions = {}) => {
+  const onError = options.onError;
+  const currentUserId = options.currentUser?.id;
   const [investigations, setInvestigations] = useState<Investigation[]>([]);
   const [selectedInvestigation, setSelectedInvestigation] = useState<Investigation | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -22,12 +24,12 @@ export const useInvestigationList = (options: UseInvestigationListOptions = {}) 
       return mapped;
     } catch (error) {
       console.error('Error loading investigations:', error);
-      options.onError?.('Failed to load investigations');
+      onError?.('Failed to load investigations');
       return [];
     } finally {
       setIsLoading(false);
     }
-  }, [options]);
+  }, [onError]);
 
   const loadInvestigation = useCallback(
     async (id: string) => {
@@ -39,22 +41,22 @@ export const useInvestigationList = (options: UseInvestigationListOptions = {}) 
         return { investigation: mapped, raw: inv };
       } catch (error) {
         console.error('Error loading investigation:', error);
-        options.onError?.('Failed to load investigation');
+        onError?.('Failed to load investigation');
         return null;
       } finally {
         setIsLoading(false);
       }
     },
-    [options],
+    [onError],
   );
 
   const createInvestigation = useCallback(
     async (payload: { title: string; description?: string; hypothesis?: string }) => {
-      if (!options.currentUser?.id) throw new Error('Current user is required to create a case');
+      if (!currentUserId) throw new Error('Current user is required to create a case');
       const created = await investigationsApi.create({
         title: payload.title,
         description: payload.description,
-        ownerId: options.currentUser.id,
+        ownerId: currentUserId,
         scope: payload.hypothesis,
       });
       const mapped = mapApiInvestigation(created);
@@ -62,7 +64,7 @@ export const useInvestigationList = (options: UseInvestigationListOptions = {}) 
       setInvestigations((prev) => [mapped, ...prev.filter((item) => item.id !== mapped.id)]);
       return { investigation: mapped, raw: created };
     },
-    [options.currentUser?.id],
+    [currentUserId],
   );
 
   return {

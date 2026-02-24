@@ -41,10 +41,10 @@ export const mapApiInvestigation = (inv: any): Investigation & { uuid?: string }
         : inv.status === 'closed'
           ? 'published'
           : 'archived',
-  createdAt: new Date(inv.created_at),
-  updatedAt: new Date(inv.updated_at),
+  createdAt: new Date(inv.createdAt || inv.created_at),
+  updatedAt: new Date(inv.updatedAt || inv.updated_at),
   team: [],
-  leadInvestigator: String(inv.owner_id || ''),
+  leadInvestigator: String(inv.ownerId || inv.owner_id || ''),
   permissions: [],
   tags: [],
   priority: 'medium',

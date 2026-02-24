@@ -1,3 +1,10 @@
+## 14.5.6 - 2026-02-24 - Core UI Boot Rate-Limit Exemption Fix
+
+### Production UX Reliability
+
+- Fixed intermittent UI-wide 429 failures on page boot by exempting core read endpoints from the broad `/api` rate limiter (`/api/auth/me`, `/api/stats`, `/api/entities`, `/api/timeline`, `/api/investigations`, plus existing health/documents/subjects).
+- Preserved route-specific abuse controls on heavy endpoints (`search`, `analytics`, `map`, `graph`) while preventing legitimate users from being locked out of the app shell when a shared rate-limit bucket is hot.
+
 ## 14.5.5 - 2026-02-24 - Investigations UI Flash Loop Follow-up Fix
 
 ### Investigations UX Stability

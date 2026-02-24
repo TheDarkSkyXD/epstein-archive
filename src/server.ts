@@ -389,13 +389,33 @@ const apiLimiter = rateLimit({
   message: { error: 'Too many requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) =>
-    req.path === '/health' ||
-    req.path.startsWith('/health/') ||
-    req.path === '/stats/health' ||
-    req.path.startsWith('/stats/health/') ||
-    req.path === '/documents' ||
-    req.path.startsWith('/documents/'),
+  skip: (req) => {
+    const isGet = req.method === 'GET' || req.method === 'HEAD';
+    if (!isGet) return false;
+    const path = req.path;
+    return (
+      path === '/health' ||
+      path.startsWith('/health/') ||
+      path === '/stats/health' ||
+      path.startsWith('/stats/health/') ||
+      path === '/_meta/db' ||
+      path.startsWith('/_meta/') ||
+      path === '/auth/me' ||
+      path.startsWith('/auth/me') ||
+      path === '/stats' ||
+      path.startsWith('/stats/') ||
+      path === '/subjects' ||
+      path.startsWith('/subjects/') ||
+      path === '/documents' ||
+      path.startsWith('/documents/') ||
+      path === '/entities' ||
+      path.startsWith('/entities/') ||
+      path === '/timeline' ||
+      path.startsWith('/timeline/') ||
+      path === '/investigations' ||
+      path.startsWith('/investigations/')
+    );
+  },
 });
 
 app.use('/api/', apiLimiter);

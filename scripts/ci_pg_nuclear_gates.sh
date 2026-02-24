@@ -98,7 +98,31 @@ rm -f "$TMP_SCHEMA"
 log "pg_dump schema sha256=${SCHEMA_SHA}"
 
 log "Plan regression gate"
-node --import tsx/esm scripts/pg_explain.ts
+SKIP_PLAN_GATE=0
+if command -v psql >/dev/null 2>&1; then
+  read -r DOC_COUNT ENTITY_COUNT REL_COUNT < <(
+    psql "$DATABASE_URL" -Atc "
+      SELECT
+        (SELECT COUNT(*) FROM documents),
+        (SELECT COUNT(*) FROM entities),
+        (SELECT COUNT(*) FROM entity_relationships)
+    " 2>/dev/null || echo '__PSQL_ERROR__ __PSQL_ERROR__ __PSQL_ERROR__'
+  )
+  if [[ "$DOC_COUNT" == "__PSQL_ERROR__" || "$ENTITY_COUNT" == "__PSQL_ERROR__" || "$REL_COUNT" == "__PSQL_ERROR__" ]]; then
+    if is_ci; then
+      fail "❌ Unable to inspect table cardinality before plan regression gate"
+    fi
+    log "Skipping plan regression gate (psql cardinality probe failed locally)"
+    SKIP_PLAN_GATE=1
+  elif [[ "${DOC_COUNT:-0}" == "0" && "${ENTITY_COUNT:-0}" == "0" && "${REL_COUNT:-0}" == "0" ]]; then
+    log "Skipping plan regression gate on empty database (no representative data yet)"
+    SKIP_PLAN_GATE=1
+  fi
+fi
+
+if [[ "$SKIP_PLAN_GATE" != "1" ]]; then
+  node --import tsx/esm scripts/pg_explain.ts
+fi
 
 if command -v psql >/dev/null 2>&1; then
   log "Media file_type completeness gate"

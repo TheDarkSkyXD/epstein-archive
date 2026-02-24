@@ -520,7 +520,7 @@ router.get('/search', async (req, res, next) => {
 // GET /api/emails/categories (legacy support)
 router.get('/categories', async (_req, res, next) => {
   try {
-    const counts = getEmailCategoriesCounts();
+    const counts = await getEmailCategoriesCounts();
     res.json(counts);
   } catch (error) {
     next(error);

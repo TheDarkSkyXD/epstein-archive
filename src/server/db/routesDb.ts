@@ -539,11 +539,11 @@ export async function getEmailBodyById(id: string): Promise<{ body: string } | u
 
 export async function getEmailCategoriesCounts(): Promise<EmailCategoriesCounts> {
   const query = `
-      SELECT 
-        metadata_json ->> 'category' as category,
+      SELECT
+        (${buildCategoryCaseSql}) as category,
         COUNT(*) as count
-      FROM documents
-      WHERE evidence_type = 'email'
+      FROM documents d
+      WHERE d.evidence_type = 'email'
       GROUP BY category
     `;
   const { rows } = await getApiPool().query(query);
@@ -568,16 +568,46 @@ export async function getEmailCategoriesCounts(): Promise<EmailCategoriesCounts>
 
 const buildCategoryCaseSql = `
 CASE
-  WHEN lower(coalesce(metadata_json ->> 'from', '')) LIKE '%amazon.com%'
-    OR lower(coalesce(metadata_json ->> 'from', '')) LIKE '%noreply@%'
+  WHEN
+    lower(coalesce(metadata_json ->> 'from', '')) LIKE '%noreply@%'
     OR lower(coalesce(metadata_json ->> 'from', '')) LIKE '%no-reply@%'
-    OR lower(coalesce(content_refined, '')) LIKE '%order %'
-    OR lower(coalesce(content_refined, '')) LIKE '%shipping%'
+    OR lower(coalesce(metadata_json ->> 'from', '')) LIKE '%do-not-reply@%'
+    OR lower(coalesce(metadata_json ->> 'from', '')) LIKE '%donotreply@%'
+    OR lower(coalesce(metadata_json ->> 'from', '')) LIKE '%notifications@%'
+    OR lower(coalesce(metadata_json ->> 'from', '')) LIKE '%notification@%'
+    OR lower(coalesce(metadata_json ->> 'from', '')) LIKE '%support@%'
+    OR lower(coalesce(metadata_json ->> 'from', '')) LIKE '%auto%reply%'
+    OR lower(coalesce(metadata_json ->> 'from', '')) LIKE '%mailer-daemon%'
+    OR lower(coalesce(metadata_json ->> 'from', '')) LIKE '%bounce%'
+    OR lower(coalesce(metadata_json ->> 'from', '')) LIKE '%amazon.com%'
+    OR lower(coalesce(metadata_json ->> 'subject', d.file_name, d.title, '')) LIKE '%order %'
+    OR lower(coalesce(metadata_json ->> 'subject', d.file_name, d.title, '')) LIKE '%shipping%'
+    OR lower(coalesce(metadata_json ->> 'subject', d.file_name, d.title, '')) LIKE '%delivered%'
+    OR lower(coalesce(metadata_json ->> 'subject', d.file_name, d.title, '')) LIKE '%receipt%'
+    OR lower(coalesce(metadata_json ->> 'subject', d.file_name, d.title, '')) LIKE '%invoice%'
+    OR lower(coalesce(metadata_json ->> 'subject', d.file_name, d.title, '')) LIKE '%statement%'
+    OR lower(coalesce(metadata_json ->> 'subject', d.file_name, d.title, '')) LIKE '%verification code%'
+    OR lower(coalesce(metadata_json ->> 'subject', d.file_name, d.title, '')) LIKE '%password reset%'
+    OR lower(coalesce(content_refined, '')) LIKE '%tracking number%'
+    OR lower(coalesce(content_refined, '')) LIKE '%shipment%'
   THEN 'updates'
-  WHEN lower(coalesce(metadata_json ->> 'from', '')) LIKE '%@houzz.com%'
+  WHEN
+    lower(coalesce(metadata_json ->> 'from', '')) LIKE '%newsletter%'
+    OR lower(coalesce(metadata_json ->> 'from', '')) LIKE '%marketing%'
+    OR lower(coalesce(metadata_json ->> 'from', '')) LIKE '%mailchimp%'
+    OR lower(coalesce(metadata_json ->> 'from', '')) LIKE '%constantcontact%'
     OR lower(coalesce(metadata_json ->> 'from', '')) LIKE '%@response.cnbc.com%'
+    OR lower(coalesce(metadata_json ->> 'from', '')) LIKE '%@houzz.com%'
+    OR lower(coalesce(metadata_json ->> 'subject', d.file_name, d.title, '')) LIKE '%newsletter%'
+    OR lower(coalesce(metadata_json ->> 'subject', d.file_name, d.title, '')) LIKE '%sale%'
+    OR lower(coalesce(metadata_json ->> 'subject', d.file_name, d.title, '')) LIKE '%offer%'
+    OR lower(coalesce(metadata_json ->> 'subject', d.file_name, d.title, '')) LIKE '%promotion%'
+    OR lower(coalesce(metadata_json ->> 'subject', d.file_name, d.title, '')) LIKE '%special%'
+    OR lower(coalesce(metadata_json ->> 'subject', d.file_name, d.title, '')) LIKE '%discount%'
     OR lower(coalesce(content_refined, '')) LIKE '%unsubscribe%'
     OR lower(coalesce(content_refined, '')) LIKE '%newsletter%'
+    OR lower(coalesce(content_refined, '')) LIKE '%manage preferences%'
+    OR lower(coalesce(content_refined, '')) LIKE '%opt out%'
   THEN 'promotions'
   ELSE 'primary'
 END

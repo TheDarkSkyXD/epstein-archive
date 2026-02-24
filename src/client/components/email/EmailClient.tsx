@@ -626,6 +626,17 @@ export const EmailClient: React.FC = () => {
     setMinRisk(0);
   }, []);
 
+  const activeQuickFilterCount = [
+    debouncedSearch.length > 0,
+    fromFilter.trim().length > 0,
+    toFilter.trim().length > 0,
+    dateFrom.length > 0,
+    dateTo.length > 0,
+    hasAttachmentsOnly,
+    minRisk > 0,
+    activeTab !== 'all',
+  ].filter(Boolean).length;
+
   return (
     <div className="email-workspace flex flex-col">
       <div className="md:hidden px-4 py-3 border-b border-white/5 bg-slate-950/40 flex items-center justify-between">
@@ -660,18 +671,21 @@ export const EmailClient: React.FC = () => {
         >
           <div className="p-4 border-b border-white/5 space-y-4">
             <div className="flex items-center justify-between text-xs text-slate-400 uppercase tracking-wide">
-              <span>Mailboxes</span>
+              <span>Entity mailboxes</span>
               <button
                 onClick={() => setShowSuppressedJunk((prev) => !prev)}
                 className="text-[11px] text-cyan-300 hover:text-cyan-200"
                 title={
                   showSuppressedJunk
-                    ? 'Hide junk-suppressed entities'
-                    : 'Show junk-suppressed entities'
+                    ? 'Hide junk-tagged entities from the mailbox list'
+                    : 'Include junk-tagged entities in the mailbox list'
                 }
               >
-                {showSuppressedJunk ? 'Hide suppressed' : 'Show suppressed'}
+                {showSuppressedJunk ? 'Hide junk' : 'Show junk'}
               </button>
+            </div>
+            <div className="-mt-2 text-[11px] text-slate-500">
+              All Inboxes + top-mentioned entities from email evidence
             </div>
             <div className="relative">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -720,10 +734,21 @@ export const EmailClient: React.FC = () => {
                   Compact
                 </button>
               </div>
-              <div className="text-[11px] text-slate-400 flex items-center gap-1">
+              <button
+                onClick={clearQuickFilters}
+                className="text-[11px] text-slate-400 flex items-center gap-1 disabled:opacity-50"
+                disabled={activeQuickFilterCount === 0}
+                title={
+                  activeQuickFilterCount > 0
+                    ? `Clear ${activeQuickFilterCount} active email filters`
+                    : 'No active filters'
+                }
+              >
                 <SlidersHorizontal className="w-3.5 h-3.5" />
-                Pinned filters
-              </div>
+                {activeQuickFilterCount > 0
+                  ? `Clear filters (${activeQuickFilterCount})`
+                  : 'No active filters'}
+              </button>
             </div>
           </div>
 

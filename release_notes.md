@@ -1,3 +1,11 @@
+## 14.5.19 - 2026-02-24 - Emails Tab Classification and Filter UX Cleanup
+
+### Emails Classification / Filters
+
+- Tightened server-side email tab classification so `Primary` excludes more automated/no-reply/newsletter traffic and `Updates` / `Promotions` are populated using broader sender/subject/body heuristics.
+- Fixed `/api/emails/categories` legacy endpoint to `await` the category-count query instead of returning a Promise payload.
+- Clarified Emails mailbox UI labels: `Entity mailboxes`, explicit `Show/Hide junk`, and replaced the dead `Pinned filters` placeholder with a real `Clear filters (N)` action.
+
 ## 14.5.18 - 2026-02-24 - Emails Workspace Viewport Layout Stabilization
 
 ### Emails UI Layout / Overflow

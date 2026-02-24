@@ -113,8 +113,30 @@ if command -v psql >/dev/null 2>&1; then
   elif [[ "${MISSING_MEDIA_FILETYPE:-0}" != "0" ]]; then
     fail "❌ media_items.file_type missing for ${MISSING_MEDIA_FILETYPE} rows"
   fi
+
+  log "Documents metadata completeness gate"
+  read -r MISSING_DOC_FILETYPE MISSING_DOC_EVIDENCETYPE < <(
+    psql "$DATABASE_URL" -Atc "
+      SELECT
+        COUNT(*) FILTER (WHERE (file_type IS NULL OR btrim(file_type) = '') AND file_path IS NOT NULL AND btrim(file_path) <> ''),
+        COUNT(*) FILTER (WHERE (evidence_type IS NULL OR btrim(evidence_type) = '') AND file_path IS NOT NULL AND btrim(file_path) <> '')
+      FROM documents
+    " 2>/dev/null || echo '__PSQL_ERROR__ __PSQL_ERROR__'
+  )
+  if [[ "$MISSING_DOC_FILETYPE" == "__PSQL_ERROR__" || "$MISSING_DOC_EVIDENCETYPE" == "__PSQL_ERROR__" ]]; then
+    if is_ci; then
+      fail "❌ Unable to run documents metadata completeness gate"
+    fi
+    log "Skipping documents metadata completeness gate (psql query failed locally)"
+  else
+    [[ -z "${MISSING_DOC_FILETYPE:-}" ]] && MISSING_DOC_FILETYPE=0
+    [[ -z "${MISSING_DOC_EVIDENCETYPE:-}" ]] && MISSING_DOC_EVIDENCETYPE=0
+    if [[ "$MISSING_DOC_FILETYPE" != "0" || "$MISSING_DOC_EVIDENCETYPE" != "0" ]]; then
+      fail "❌ documents metadata incomplete (file_type=${MISSING_DOC_FILETYPE}, evidence_type=${MISSING_DOC_EVIDENCETYPE})"
+    fi
+  fi
 else
-  log "psql not installed locally; skipping media file_type completeness gate"
+  log "psql not installed locally; skipping media/documents metadata completeness gates"
 fi
 
 log "Schema hash baseline gate"

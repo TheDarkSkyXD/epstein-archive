@@ -118,9 +118,68 @@ export const searchRepository = {
           getApiPool(),
         );
 
+    const entityIds = entityRows
+      .map((row) => Number(row.id))
+      .filter((id) => Number.isFinite(id) && id > 0);
+    const entityStatsById = new Map<number, { mentions: number; files: number }>();
+    if (entityIds.length > 0) {
+      const statsRes = await getApiPool().query<{
+        entity_id: number;
+        mentions: string | number;
+        files: string | number;
+      }>(
+        `
+          SELECT
+            e.id AS entity_id,
+            COALESCE(e.mentions, 0) AS mentions,
+            COUNT(DISTINCT em.document_id) AS files
+          FROM entities e
+          LEFT JOIN entity_mentions em ON em.entity_id = e.id
+          WHERE e.id = ANY($1::bigint[])
+          GROUP BY e.id, e.mentions
+        `,
+        [entityIds],
+      );
+      for (const row of statsRes.rows) {
+        entityStatsById.set(Number(row.entity_id), {
+          mentions: Number(row.mentions || 0),
+          files: Number(row.files || 0),
+        });
+      }
+    }
+
+    const documentIds = docRows
+      .map((row) => Number(row.id))
+      .filter((id) => Number.isFinite(id) && id > 0);
+    const documentMetaById = new Map<
+      number,
+      { fileType: string | null; dateCreated: string | null }
+    >();
+    if (documentIds.length > 0) {
+      const metaRes = await getApiPool().query<{
+        id: number;
+        file_type: string | null;
+        date_created: string | null;
+      }>(
+        `
+          SELECT id, file_type, date_created
+          FROM documents
+          WHERE id = ANY($1::bigint[])
+        `,
+        [documentIds],
+      );
+      for (const row of metaRes.rows) {
+        documentMetaById.set(Number(row.id), {
+          fileType: row.file_type || null,
+          dateCreated: row.date_created || null,
+        });
+      }
+    }
+
     return {
       entities: entityRows.map((row) => {
         const aliases = parseEntityAliases(row.aliases);
+        const stats = entityStatsById.get(Number(row.id));
         return {
           id: String(row.id),
           fullName: row.fullName,
@@ -133,7 +192,7 @@ export const searchRepository = {
           entityType: 'Person',
           secondaryRoles: [],
           likelihoodLevel: 0,
-          mentions: 0,
+          mentions: stats?.mentions ?? 0,
           currentStatus: null,
           connectionsSummary: null,
           redFlagRating: row.redFlagRating,
@@ -142,22 +201,26 @@ export const searchRepository = {
           redFlagDescription: null,
           titleVariants: [],
           evidenceTypes: [],
+          files: stats?.files ?? 0,
         };
       }),
-      documents: docRows.map((row) => ({
-        id: String(row.id),
-        fileName: row.fileName,
-        title: row.fileName,
-        filePath: row.filePath,
-        fileType: null,
-        evidenceType: row.evidenceType,
-        fileSize: null,
-        dateCreated: null,
-        wordCount: null,
-        redFlagRating: row.redFlagRating,
-        createdAt: null,
-        snippet: row.snippet,
-      })),
+      documents: docRows.map((row) => {
+        const meta = documentMetaById.get(Number(row.id));
+        return {
+          id: String(row.id),
+          fileName: row.fileName,
+          title: row.fileName,
+          filePath: row.filePath,
+          fileType: meta?.fileType ?? null,
+          evidenceType: row.evidenceType,
+          fileSize: null,
+          dateCreated: meta?.dateCreated ?? null,
+          wordCount: null,
+          redFlagRating: row.redFlagRating,
+          createdAt: meta?.dateCreated ?? null,
+          snippet: row.snippet,
+        };
+      }),
     };
   },
 

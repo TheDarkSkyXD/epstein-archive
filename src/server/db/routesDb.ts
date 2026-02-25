@@ -763,7 +763,7 @@ export async function getEmailMailboxes(showSuppressedJunk: boolean) {
         AND length(trim(e.full_name)) >= 5
         AND e.full_name !~ '[0-9]'
         AND trim(e.full_name) ~ '^[A-Za-z][A-Za-z''.-]+( [A-Za-z][A-Za-z''.-]+){1,3}$'
-        AND lower(e.full_name) NOT LIKE ANY (ARRAY[
+        AND NOT (lower(e.full_name) LIKE ANY (ARRAY[
           '%contact us%',
           '%return policy%',
           '%shipping%',
@@ -803,9 +803,9 @@ export async function getEmailMailboxes(showSuppressedJunk: boolean) {
           '%methods%',
           '%direct%',
           '%amazon%'
-        ])
+        ]))
         AND ${senderExpr} <> ''
-        AND ${senderExpr} NOT LIKE ANY (ARRAY[
+        AND NOT (${senderExpr} LIKE ANY (ARRAY[
           '%noreply@%',
           '%no-reply@%',
           '%do-not-reply@%',
@@ -818,7 +818,7 @@ export async function getEmailMailboxes(showSuppressedJunk: boolean) {
           '%marketing%',
           '%mailchimp%',
           '%constantcontact%'
-        ])
+        ]))
         AND (
           ${senderExpr} LIKE ('%' || lower(e.full_name) || '%')
           OR ${senderExpr} LIKE ('%' || lower(replace(e.full_name, ' ', '.')) || '%')

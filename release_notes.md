@@ -1,3 +1,10 @@
+## 14.5.28 - 2026-02-25 - Fix Email Mailbox Denylist SQL Semantics
+
+### Emails Mailboxes
+
+- Fixed Postgres SQL denylist logic in mailbox filtering (`NOT LIKE ANY` -> `NOT (... LIKE ANY ...)`) so organization/product/junk names are actually excluded.
+- This restores the intended aggressive real-person-only mailbox behavior after the sender metadata backfill.
+
 ## 14.5.27 - 2026-02-25 - Aggressive Human-Only Email Mailbox Heuristic
 
 ### Emails Mailboxes

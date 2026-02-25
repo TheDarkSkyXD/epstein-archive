@@ -1,3 +1,18 @@
+## 14.6.0 - 2026-02-25 - Media, Email, Black Book, and OG Preview Hardening
+
+### Highlights
+
+- Email mailbox list now derives from real outgoing senders and maps to canonical people, reducing junk mailbox labels.
+- Email UI placeholders/loading states are left-aligned and no longer center text.
+- Video cards use real/generated thumbnails (no external collage fallback) and natural title sorting (`Part 1`, `Part 2`, `Part 3`).
+- Media album filtering now applies `albumId` in Postgres queries (count + list), so albums no longer show all media.
+- Black Book viewer now tolerates camelCase/snake_case row shapes and avoids `undefined.split(...)` crashes.
+- Social previews upgraded:
+  - Entities use linked subject photos
+  - Documents use real document/media previews when available
+  - Media albums use first image in album
+  - Route pages use cached screenshot OG images with safe fallback behavior
+
 ## 14.5.30 - 2026-02-25 - Restore JMail-Style People Mailboxes (Entity-Based)
 
 ### Emails Mailboxes

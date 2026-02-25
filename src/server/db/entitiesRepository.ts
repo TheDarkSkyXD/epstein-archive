@@ -139,6 +139,22 @@ function resolveDisplayName(name: string, lookup: Map<string, string>): string {
   return trimmed;
 }
 
+function normalizeSubjectDedupeKey(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\b(the|of|and|or|inc|llc|corp|ltd|group|trust)\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+const EVIDENCE_LADDER_RANK: Record<'NONE' | 'L3' | 'L2' | 'L1', number> = {
+  NONE: 0,
+  L3: 1,
+  L2: 2,
+  L1: 3,
+};
+
 export const entitiesRepository = {
   getSubjectCards: async (
     page: number = 1,
@@ -151,35 +167,128 @@ export const entitiesRepository = {
     const riskLevels = filters?.likelihoodScore
       ? filters.likelihoodScore.map((s) => String(s).toUpperCase())
       : null;
+    const sortOrder = filters?.sortOrder === 'asc' ? 'ASC' : 'DESC';
 
-    const rawEntities = await (entitiesQueries.getSubjectCards as any).run(
-      {
-        searchTerm,
-        riskLevels,
-        minRedFlag: filters?.minRedFlagIndex !== undefined ? filters.minRedFlagIndex : null,
-        maxRedFlag: filters?.maxRedFlagIndex !== undefined ? filters.maxRedFlagIndex : null,
-        role: filters?.role && filters.role !== 'all' ? filters.role : null,
-        sortBy: sortBy || 'risk',
-        limit: limit,
-        offset: offset,
-      },
-      getApiPool(),
+    const pool = getApiPool();
+    const whereParts: string[] = [];
+    const params: Array<string | number | string[] | null> = [];
+    const addParam = (value: string | number | string[] | null) => {
+      params.push(value);
+      return `$${params.length}`;
+    };
+
+    if (searchTerm) {
+      const p = addParam(searchTerm);
+      whereParts.push(
+        `(e.full_name ILIKE ${p} OR e.primary_role ILIKE ${p} OR COALESCE(e.aliases, '') ILIKE ${p})`,
+      );
+    }
+    if (riskLevels && riskLevels.length > 0) {
+      const p = addParam(riskLevels);
+      whereParts.push(`e.risk_level = ANY(${p}::text[])`);
+    }
+    if (filters?.minRedFlagIndex !== undefined) {
+      const p = addParam(filters.minRedFlagIndex);
+      whereParts.push(`COALESCE(e.red_flag_rating, 0) >= ${p}`);
+    }
+    if (filters?.maxRedFlagIndex !== undefined) {
+      const p = addParam(filters.maxRedFlagIndex);
+      whereParts.push(`COALESCE(e.red_flag_rating, 0) <= ${p}`);
+    }
+    if (filters?.role && filters.role !== 'all') {
+      const p = addParam(filters.role);
+      whereParts.push(`e.primary_role = ${p}`);
+    }
+    if (filters?.entityType && filters.entityType !== 'all') {
+      const p = addParam(filters.entityType);
+      whereParts.push(`COALESCE(e.entity_type, 'Person') = ${p}`);
+    }
+
+    const whereSql = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
+
+    const riskRankExpr = `CASE UPPER(COALESCE(e.risk_level, 'LOW')) WHEN 'HIGH' THEN 3 WHEN 'MEDIUM' THEN 2 WHEN 'LOW' THEN 1 ELSE 0 END`;
+    const sortKey = sortBy || 'risk';
+    const primarySort =
+      sortKey === 'name'
+        ? `LOWER(COALESCE(e.full_name, '')) ${sortOrder}`
+        : sortKey === 'mentions'
+          ? `COALESCE(mc.mentions, 0) ${sortOrder}`
+          : sortKey === 'recent'
+            ? `e.id ${sortOrder}`
+            : sortKey === 'document-count'
+              ? `COALESCE(mc.documents, 0) ${sortOrder}`
+              : sortKey === 'risk'
+                ? `${riskRankExpr} ${sortOrder}`
+                : `COALESCE(e.red_flag_rating, 0) ${sortOrder}`;
+
+    const orderBySql = [
+      `COALESCE(e.is_vip, 0) DESC`,
+      primarySort,
+      `COALESCE(e.red_flag_rating, 0) DESC`,
+      `COALESCE(mc.mentions, 0) DESC`,
+      `LOWER(COALESCE(e.full_name, '')) ASC`,
+    ].join(', ');
+
+    const listParams = [...params, limit, offset];
+    const rawEntitiesResult = await pool.query(
+      `
+        WITH mention_counts AS (
+          SELECT
+            em.entity_id,
+            COUNT(*)::bigint AS mentions,
+            COUNT(DISTINCT em.document_id)::bigint AS documents
+          FROM entity_mentions em
+          GROUP BY em.entity_id
+        )
+        SELECT
+          e.id,
+          e.full_name as "fullName",
+          e.primary_role as "primaryRole",
+          e.bio,
+          COALESCE(mc.mentions, COALESCE(e.mentions, 0)) as mentions,
+          e.risk_level as "riskLevel",
+          e.red_flag_rating as "redFlagRating",
+          e.connections_summary as "connections",
+          e.was_agentic as "wasAgentic",
+          (
+            SELECT COUNT(*)
+            FROM entity_mentions em2
+            JOIN documents d ON d.id = em2.document_id
+            WHERE em2.entity_id = e.id
+              AND d.evidence_type = 'media'
+          ) as "mediaCount",
+          (SELECT COUNT(*) FROM black_book_entries WHERE person_id = e.id) as "blackBookCount",
+          (
+            SELECT d.id
+            FROM entity_mentions em3
+            JOIN documents d ON d.id = em3.document_id
+            WHERE em3.entity_id = e.id
+              AND d.evidence_type = 'media'
+              AND (d.file_type ILIKE 'image/%' OR d.file_type IS NULL)
+            ORDER BY d.red_flag_rating DESC, d.id DESC
+            LIMIT 1
+          ) as "topPhotoId"
+        FROM entities e
+        LEFT JOIN mention_counts mc ON mc.entity_id = e.id
+        ${whereSql}
+        ORDER BY ${orderBySql}
+        LIMIT $${listParams.length - 1} OFFSET $${listParams.length}
+      `,
+      listParams,
     );
+    const rawEntities = rawEntitiesResult.rows as any[];
 
-    const countResult = await (entitiesQueries.countSubjectCards as any).run(
-      {
-        searchTerm,
-        riskLevels,
-      },
-      getApiPool(),
+    const countResult = await pool.query<{ total: string }>(
+      `
+        SELECT COUNT(*)::bigint AS total
+        FROM entities e
+        ${whereSql}
+      `,
+      params,
     );
+    const total = Number(countResult.rows[0]?.total || 0);
 
-    const total = Number(countResult[0]?.total || 0);
-
-    const maxConnResult = await (entitiesQueries.getMaxConnectivity as any).run(
-      undefined,
-      getApiPool(),
-    );
+    const maxConnResult = await (entitiesQueries.getMaxConnectivity as any).run(undefined, pool);
     const maxConnectivityCount = Number(maxConnResult[0]?.maxConn || 1);
 
     const vipDisplayLookup = await buildVipDisplayLookup();
@@ -192,7 +301,7 @@ export const entitiesRepository = {
       { documents: number; distinctSources: number; verifiedMedia: number }
     >();
     if (subjectIds.length > 0) {
-      const aggregateResult = await getApiPool().query<{
+      const aggregateResult = await pool.query<{
         entity_id: number;
         documents: string | number;
         distinct_sources: string | number;
@@ -302,17 +411,98 @@ export const entitiesRepository = {
       };
     });
 
-    const seen = new Set<string>();
-    const normalizedSubjects = subjects.filter((s) => {
-      const norm = s.name
-        .toLowerCase()
-        .replace(/[^a-z0-9\s]/g, '')
-        .replace(/\b(the|of|and|or|inc|llc|corp|ltd|group|trust)\b/g, '')
-        .trim();
-      if (seen.has(norm)) return false;
-      seen.add(norm);
-      return true;
-    });
+    const mergedByNormalizedName = new Map<
+      string,
+      SubjectCardListItemDto & { topPhotoId?: string }
+    >();
+    for (const subject of subjects) {
+      const norm = normalizeSubjectDedupeKey(subject.name);
+      if (!norm) continue;
+
+      const existing = mergedByNormalizedName.get(norm);
+      if (!existing) {
+        mergedByNormalizedName.set(norm, { ...subject });
+        continue;
+      }
+
+      const preferIncoming =
+        subject.stats.mentions > existing.stats.mentions ||
+        (subject.stats.mentions === existing.stats.mentions &&
+          (subject.stats.documents > existing.stats.documents ||
+            subject.stats.verified_media > existing.stats.verified_media));
+
+      const mergedDrivers = Array.from(
+        new Set([
+          ...(existing.forensics.driver_labels || []),
+          ...(subject.forensics.driver_labels || []),
+        ]),
+      ).slice(0, 4);
+
+      const mergedMentions =
+        Number(existing.stats.mentions || 0) + Number(subject.stats.mentions || 0);
+      const mergedDocuments =
+        Number(existing.stats.documents || 0) + Number(subject.stats.documents || 0);
+      const mergedVerifiedMedia =
+        Number(existing.stats.verified_media || 0) + Number(subject.stats.verified_media || 0);
+
+      const base = preferIncoming ? subject : existing;
+      const other = preferIncoming ? existing : subject;
+
+      const merged: SubjectCardListItemDto & { topPhotoId?: string } = {
+        ...base,
+        role:
+          base.role && base.role !== 'Unknown'
+            ? base.role
+            : other.role && other.role !== 'Unknown'
+              ? other.role
+              : base.role,
+        short_bio: base.short_bio || other.short_bio,
+        stats: {
+          mentions: mergedMentions,
+          documents: mergedDocuments,
+          distinct_sources: Math.max(
+            Number(existing.stats.distinct_sources || 0),
+            Number(subject.stats.distinct_sources || 0),
+          ),
+          verified_media: mergedVerifiedMedia,
+        },
+        forensics: {
+          ...base.forensics,
+          risk_level:
+            Number(subject.forensics.red_flag_objective || 0) >
+            Number(existing.forensics.red_flag_objective || 0)
+              ? subject.forensics.risk_level
+              : existing.forensics.risk_level,
+          evidence_ladder:
+            EVIDENCE_LADDER_RANK[subject.forensics.evidence_ladder as 'NONE' | 'L3' | 'L2' | 'L1'] >
+            EVIDENCE_LADDER_RANK[existing.forensics.evidence_ladder as 'NONE' | 'L3' | 'L2' | 'L1']
+              ? subject.forensics.evidence_ladder
+              : existing.forensics.evidence_ladder,
+          red_flag_objective: Math.max(
+            Number(existing.forensics.red_flag_objective || 0),
+            Number(subject.forensics.red_flag_objective || 0),
+          ),
+          red_flag_subjective: Math.max(
+            Number(existing.forensics.red_flag_subjective || 0),
+            Number(subject.forensics.red_flag_subjective || 0),
+          ),
+          signal_strength: {
+            exposure: Math.min(100, (Math.log10(mergedMentions + 1) / 3) * 100),
+            connectivity: Math.max(
+              Number(existing.forensics.signal_strength?.connectivity || 0),
+              Number(subject.forensics.signal_strength?.connectivity || 0),
+            ),
+            corroboration: Math.min(100, mergedVerifiedMedia * 20),
+          },
+          driver_labels: mergedDrivers,
+        },
+        topPhotoId: (base as any).topPhotoId || (other as any).topPhotoId,
+      };
+
+      mergedByNormalizedName.set(norm, merged);
+    }
+
+    const normalizedSubjects = Array.from(mergedByNormalizedName.values());
 
     return {
       subjects: normalizedSubjects,

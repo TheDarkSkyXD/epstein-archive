@@ -702,6 +702,11 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Legacy readiness alias retained for older tests/clients.
+app.get('/api/ready', (_req, res) => {
+  res.redirect(307, '/api/health/ready');
+});
+
 app.get('/api/_meta/db', async (_req, res, next) => {
   try {
     const pool = getApiPool();
@@ -1455,6 +1460,10 @@ app.get('/api/subjects', cacheMiddleware(300), async (req, res) => {
     };
 
     const sortBy = (req.query.sortBy as SortOption) || 'red_flag';
+    const sortOrder = ((req.query.sortOrder as string) || 'desc').toLowerCase();
+    if (sortOrder === 'asc' || sortOrder === 'desc') {
+      filters.sortOrder = sortOrder;
+    }
 
     const result = await entitiesRepository.getSubjectCards(page, limit, filters, sortBy);
     res.json(mapSubjectsListResponseDto(result));
@@ -2503,7 +2512,7 @@ app.get('/api/evidence/search', async (req, res, next) => {
 // Legacy search endpoint for backward compatibility
 app.get('/api/search', async (req, res, next) => {
   try {
-    const query = req.query.q as string;
+    const query = ((req.query.q as string) || (req.query.query as string) || '').trim();
     const limit = parseInt(req.query.limit as string) || 50;
     const type = (req.query.type as string) || 'all';
     const evidenceType = req.query.evidenceType as string | undefined;

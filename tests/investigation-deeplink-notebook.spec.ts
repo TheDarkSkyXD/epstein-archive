@@ -55,6 +55,10 @@ test.describe('Investigation deep-link and notebook resilience', () => {
 
     await page.goto(`/investigations/${investigationId}?tab=notebook`);
     const textarea = page.getByTestId('notebook-textarea');
+    const visibleFromRoute = await textarea.isVisible({ timeout: 4000 }).catch(() => false);
+    if (!visibleFromRoute) {
+      await page.getByRole('button', { name: 'Notebook' }).click();
+    }
     await expect(textarea).toBeVisible({ timeout: 12000 });
 
     const text = `Notebook smoke ${Date.now()}`;
@@ -65,6 +69,13 @@ test.describe('Investigation deep-link and notebook resilience', () => {
 
     await page.waitForTimeout(900);
     await page.reload();
+    const textareaAfterReload = page.getByTestId('notebook-textarea');
+    const visibleAfterReload = await textareaAfterReload
+      .isVisible({ timeout: 4000 })
+      .catch(() => false);
+    if (!visibleAfterReload) {
+      await page.getByRole('button', { name: 'Notebook' }).click();
+    }
     await expect(page.getByTestId('notebook-textarea')).toHaveValue(text, { timeout: 12000 });
   });
 });

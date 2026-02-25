@@ -105,6 +105,22 @@ function parseWithSchema<T>(data: unknown, schema: z.ZodTypeAny, context: string
   }
 }
 
+function stringifyApiErrorMessage(value: unknown): string | null {
+  if (typeof value === 'string' && value.trim()) return value;
+  if (value instanceof Error && value.message) return value.message;
+  if (value && typeof value === 'object') {
+    const maybeMessage = (value as any).message || (value as any).error || (value as any).detail;
+    if (typeof maybeMessage === 'string' && maybeMessage.trim()) return maybeMessage;
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
+  if (value == null) return null;
+  return String(value);
+}
+
 class ApiClient {
   private accessToken: string | null = null;
   private isRefreshing = false;
@@ -310,7 +326,11 @@ class ApiClient {
         }
 
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+        const msg =
+          stringifyApiErrorMessage((errorData as any)?.error) ||
+          stringifyApiErrorMessage((errorData as any)?.message) ||
+          `HTTP ${response.status}: ${response.statusText}`;
+        throw new Error(msg);
       }
 
       const data = await response.json();

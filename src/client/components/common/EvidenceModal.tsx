@@ -243,6 +243,11 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
   }, [isOpen, entityId, fetchEntityDetails]);
 
   useEffect(() => {
+    if (!isOpen) return;
+    setTabsLoaded((prev) => (prev.has(activeTab) ? prev : new Set(prev).add(activeTab)));
+  }, [activeTab, isOpen]);
+
+  useEffect(() => {
     const urlTab = getTabFromUrl();
     if (urlTab !== activeTab) {
       if (import.meta.env.DEV) {
@@ -327,14 +332,9 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
         const newDocs = response.data || [];
         const total = response.total || 0;
 
-        setDocuments((prev) => {
-          // Ensure we don't add duplicates if react-window calls this multiple times
-          const currentIds = new Set(prev.map((d) => d.id));
-          const filteredNewDocs = newDocs.filter((d: any) => !currentIds.has(d.id));
-          return [...prev, ...filteredNewDocs];
-        });
+        setDocuments((prev) => [...prev, ...newDocs]);
         setTotalDocs(total);
-        setHasNextPage(documents.length + newDocs.length < total);
+        setHasNextPage(newDocs.length > 0 && page * 50 < total);
       } catch (error) {
         console.error('Error loading next page of evidence', error);
       } finally {
@@ -342,7 +342,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
         setDocsInitialized(true);
       }
     },
-    [isNextPageLoading, docFilters, entityId, documents.length],
+    [isNextPageLoading, docFilters, entityId],
   );
 
   useEffect(() => {
@@ -592,6 +592,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
             initial={{ scale: 0.95, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 20 }}
+            data-testid="evidence-modal"
             className="relative w-full max-w-6xl h-[85vh] surface-glass overflow-hidden flex flex-col"
           >
             <div className="flex bg-slate-950/70 p-4 md:p-6 border-b border-slate-800 items-start gap-4 md:gap-6 shrink-0">

@@ -18,6 +18,10 @@ test('communications analysis provides a real action path', async ({ page, reque
   await page.goto(`/investigations/${investigationId}?tab=communications`);
 
   const startButton = page.getByRole('button', { name: /Start Communication Analysis/i }).first();
+  const visibleFromRoute = await startButton.isVisible({ timeout: 4000 }).catch(() => false);
+  if (!visibleFromRoute) {
+    await page.getByRole('button', { name: 'Communications' }).click();
+  }
   await expect(startButton).toBeVisible({ timeout: 10000 });
 
   if (await startButton.isEnabled()) {

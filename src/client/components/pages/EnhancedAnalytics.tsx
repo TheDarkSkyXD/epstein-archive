@@ -70,6 +70,38 @@ interface AnalyticsData {
   };
 }
 
+function normalizeAnalyticsPayload(raw: any): AnalyticsData {
+  const totalCounts = raw?.totalCounts ?? {};
+  const reconciliation = raw?.reconciliation ?? {};
+  const redactionStats = raw?.redactionStats ?? {};
+
+  return {
+    documentsByType: Array.isArray(raw?.documentsByType) ? raw.documentsByType : [],
+    timelineData: Array.isArray(raw?.timelineData) ? raw.timelineData : [],
+    topConnectedEntities: Array.isArray(raw?.topConnectedEntities) ? raw.topConnectedEntities : [],
+    entityTypeDistribution: Array.isArray(raw?.entityTypeDistribution)
+      ? raw.entityTypeDistribution
+      : [],
+    redactionStats: {
+      totalDocuments: Number(redactionStats.totalDocuments || 0),
+      redactedDocuments: Number(redactionStats.redactedDocuments || 0),
+      redactionPercentage: Number(redactionStats.redactionPercentage || 0),
+      totalRedactions: Number(redactionStats.totalRedactions || 0),
+    },
+    topRelationships: Array.isArray(raw?.topRelationships) ? raw.topRelationships : [],
+    totalCounts: {
+      entities: Number(totalCounts.entities || 0),
+      documents: Number(totalCounts.documents || 0),
+      evidenceFiles: Number(totalCounts.evidenceFiles || 0),
+      relationships: Number(totalCounts.relationships || 0),
+    },
+    reconciliation: {
+      unclassifiedCount: Number(reconciliation.unclassifiedCount || 0),
+      unknownDateCount: Number(reconciliation.unknownDateCount || 0),
+    },
+  };
+}
+
 // Helper component for stat cards
 const StatCard: React.FC<{
   icon: React.ReactNode;
@@ -144,9 +176,10 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
       const [startDate, endDate] = filters.timeRange;
       const endpoint = `/graph/global?mode=path&sourceId=${sourceId}&targetId=${targetId}&startDate=${startDate || ''}&endDate=${endDate || ''}`;
 
-      const res = await apiClient.get<any>(endpoint, { useCache: false });
-      if (!res.ok) throw new Error('Path fetch failed');
-      const pathData = await res.json();
+      const pathData = await apiClient.get<any>(endpoint, { useCache: false });
+      if (!pathData || !Array.isArray(pathData.nodes) || !Array.isArray(pathData.edges)) {
+        throw new Error('Path fetch failed');
+      }
 
       if (pathData.nodes.length === 0) {
         alert('No path found between these entities (within 6 hops).');
@@ -234,6 +267,9 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
               : `/graph/global?limit=${targetLimit}&startDate=${startDate || ''}&endDate=${endDate || ''}`;
 
           const newData = await apiClient.get<any>(endpoint, { useCache: false });
+          if (!newData || !Array.isArray(newData.nodes) || !Array.isArray(newData.edges)) {
+            throw new Error('Invalid graph payload');
+          }
 
           // Map to Legacy Interface expectations
           const mappedNodes = newData.nodes.map((n: any) => ({
@@ -283,9 +319,8 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
 
     try {
       const endpoint = `/graph/edge-evidence?sourceId=${edge.sourceId}&targetId=${edge.targetId}`;
-      const res = await apiClient.get<any>(endpoint, { useCache: true });
-      if (!res.ok) throw new Error('Failed to fetch evidence');
-      const data = await res.json();
+      const data = await apiClient.get<any>(endpoint, { useCache: true });
+      if (!data || !Array.isArray(data.documents)) throw new Error('Failed to fetch evidence');
 
       // Cache the documents result
       evidenceCache.current.set(cacheKey, data.documents);
@@ -313,22 +348,25 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
-      const result = await apiClient.get<AnalyticsData>('/analytics/enhanced', { useCache: false });
+      const result = await apiClient.get<any>('/analytics/enhanced', { useCache: false });
+      const normalized = normalizeAnalyticsPayload(result);
 
       // Filter out junk entities from Network Graph
-      if (result.topConnectedEntities) {
-        result.topConnectedEntities = filterPeopleOnly(result.topConnectedEntities as any) as any;
+      if (normalized.topConnectedEntities) {
+        normalized.topConnectedEntities = filterPeopleOnly(
+          normalized.topConnectedEntities as any,
+        ) as any;
       }
 
       // Filter relationships to only include valid entities
-      if (result.topRelationships && result.topConnectedEntities) {
-        const validIds = new Set(result.topConnectedEntities.map((e: any) => e.id));
-        result.topRelationships = result.topRelationships.filter(
+      if (normalized.topRelationships && normalized.topConnectedEntities) {
+        const validIds = new Set(normalized.topConnectedEntities.map((e: any) => e.id));
+        normalized.topRelationships = normalized.topRelationships.filter(
           (r: any) => validIds.has(r.sourceId) && validIds.has(r.targetId),
         );
       }
 
-      setData(result);
+      setData(normalized);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -386,6 +424,11 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
   }
 
   const { redactionStats, topConnectedEntities, topRelationships } = data;
+  const totalDocumentsCount = Number(data.totalCounts?.documents || 0);
+  const evidenceFilesCount = Number(data.totalCounts?.evidenceFiles || 0);
+  const unclassifiedCount = Number(data.reconciliation?.unclassifiedCount || 0);
+  const archiveIntegrityPct =
+    totalDocumentsCount > 0 ? Math.round((evidenceFilesCount / totalDocumentsCount) * 100) : 0;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -396,18 +439,14 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
           <div className="absolute top-0 right-1/2 translate-x-1/2 z-20">
             <div
               className={`px-4 py-1.5 rounded-b-xl text-[10px] font-bold tracking-widest uppercase border-x border-b flex items-center gap-2 backdrop-blur-md transition-all ${
-                data.reconciliation.unclassifiedCount > 0
+                unclassifiedCount > 0
                   ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
                   : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
               }`}
             >
               <Database className="h-3 w-3 shadow-[0_0_8px_rgba(251,191,36,0.3)]" />
-              <span>
-                Archive Integrity:{' '}
-                {Math.round((data.totalCounts.evidenceFiles / data.totalCounts.documents) * 100)}%
-                Classified
-              </span>
-              {data.reconciliation.unclassifiedCount > 0 && (
+              <span>Archive Integrity: {archiveIntegrityPct}% Classified</span>
+              {unclassifiedCount > 0 && (
                 <div className="group relative">
                   <Info className="h-3 w-3 cursor-help text-amber-500/60 hover:text-amber-500 transition-colors" />
                   <div className="absolute left-1/2 -translate-x-1/2 top-4 w-64 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 normal-case tracking-normal font-normal text-slate-300">
@@ -416,20 +455,18 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
                       <li className="flex justify-between">
                         <span>Total Records:</span>
                         <span className="text-white font-mono">
-                          {data.totalCounts.documents.toLocaleString()}
+                          {totalDocumentsCount.toLocaleString()}
                         </span>
                       </li>
                       <li className="flex justify-between">
                         <span>Investigative Files:</span>
                         <span className="text-emerald-400 font-mono">
-                          {data.totalCounts.evidenceFiles.toLocaleString()}
+                          {evidenceFilesCount.toLocaleString()}
                         </span>
                       </li>
                       <li className="flex justify-between border-t border-slate-800 pt-1 mt-1 text-amber-400">
                         <span>Unclassified:</span>
-                        <span className="font-mono">
-                          {data.reconciliation.unclassifiedCount.toLocaleString()}
-                        </span>
+                        <span className="font-mono">{unclassifiedCount.toLocaleString()}</span>
                       </li>
                     </ul>
                     <p className="mt-2 text-[9px] leading-tight text-slate-500">

@@ -1,6 +1,7 @@
 import { execSync } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { reconcileHistoricalMigrationLedger } from '../src/server/db/migrator.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS_DIR = path.join(__dirname, '..', 'src', 'server', 'db', 'postgres', 'migrations');
@@ -15,6 +16,7 @@ async function runMigrations() {
   console.log('🚀 Running Postgres migrations...');
 
   try {
+    await reconcileHistoricalMigrationLedger();
     const command = `npx node-pg-migrate --migrations-dir "${MIGRATIONS_DIR}" --database-url "${connectionString}" up`;
     execSync(command, { stdio: 'inherit' });
     console.log('✅ Postgres migrations completed successfully.');

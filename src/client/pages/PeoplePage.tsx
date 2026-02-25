@@ -124,7 +124,7 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
 
   return (
     <Profiler id="PeoplePage" onRender={onRenderCallback}>
-      <div className="space-y-5 h-full flex flex-col">
+      <div data-testid="people-page" className="space-y-5 h-full flex flex-col">
         {loading && !dataStats.totalPeople ? (
           <StatsSkeleton />
         ) : (

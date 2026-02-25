@@ -47,6 +47,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
   return (
     <motion.article
       ref={cardRef}
+      data-testid="document-card"
       className={`document-card ${dense ? 'dense' : ''} ${active ? 'active' : ''}`}
       onClick={() => onClick(document)}
       onMouseEnter={handleMouseEnter}

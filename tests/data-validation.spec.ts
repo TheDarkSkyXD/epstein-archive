@@ -128,15 +128,15 @@ test.describe('Data Validation Tests (API-Based)', () => {
     expect(response.ok()).toBeTruthy();
 
     const body = await response.json();
-    expect(body.entities).toBeDefined();
-    expect(body.documents).toBeDefined();
+    expect(body.totalEntities).toBeDefined();
+    expect(body.totalDocuments).toBeDefined();
 
     // Counts should be reasonable for a populated database
-    if (typeof body.entities === 'number') {
-      expect(body.entities).toBeGreaterThan(0);
+    if (typeof body.totalEntities === 'number') {
+      expect(body.totalEntities).toBeGreaterThan(0);
     }
-    if (typeof body.documents === 'number') {
-      expect(body.documents).toBeGreaterThan(0);
+    if (typeof body.totalDocuments === 'number') {
+      expect(body.totalDocuments).toBeGreaterThan(0);
     }
   });
 

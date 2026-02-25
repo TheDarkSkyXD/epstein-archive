@@ -20,7 +20,10 @@ interface SubjectCardV2Props {
 const SubjectCardV2: React.FC<SubjectCardV2Props> = React.memo(
   ({ subject, style, onClick }) => {
     const navigate = useNavigate();
-    const [avatarUrl, setAvatarUrl] = React.useState<string | null>(null);
+    const topPhotoId = (subject as any).topPhotoId as string | undefined;
+    const [avatarUrl, setAvatarUrl] = React.useState<string | null>(
+      topPhotoId ? `/api/media/images/${topPhotoId}/thumbnail` : null,
+    );
 
     // Safety fallbacks
     const stats = subject.stats || {
@@ -55,6 +58,12 @@ const SubjectCardV2: React.FC<SubjectCardV2Props> = React.memo(
 
     React.useEffect(() => {
       let active = true;
+      if (topPhotoId) {
+        setAvatarUrl(`/api/media/images/${topPhotoId}/thumbnail`);
+        return () => {
+          active = false;
+        };
+      }
       const hasMedia = (subject.stats?.verified_media || 0) > 0;
       if (!hasMedia) {
         setAvatarUrl(null);
@@ -80,10 +89,11 @@ const SubjectCardV2: React.FC<SubjectCardV2Props> = React.memo(
       return () => {
         active = false;
       };
-    }, [subject.id, subject.stats?.verified_media]);
+    }, [subject.id, subject.stats?.verified_media, topPhotoId]);
     return (
       <div style={style}>
         <div
+          data-testid="subject-card"
           onClick={handleCardClick}
           className="group relative surface-glass-card p-4 cursor-pointer transition-all duration-300 hover:border-slate-300/35 flex flex-col h-full w-full"
           style={{

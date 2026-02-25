@@ -39,6 +39,7 @@ export const subjectCardListItemSchema = z.object({
   stats: subjectCardStatsSchema,
   forensics: subjectCardForensicsSchema,
   top_preview: subjectCardTopPreviewSchema,
+  topPhotoId: z.string().optional(),
 });
 
 export const subjectsListResponseSchema = z.object({

@@ -1,3 +1,22 @@
+## 14.7.0 - 2026-02-25 - Postgres Migration Stabilization + E2E Contract Sync
+
+### Highlights
+
+- Fixed Postgres migration recovery for historical placeholder ledger gaps (`pgmigrations`) and added preflight reconciliation so upgraded environments can migrate cleanly.
+- Hardened long-running/backfill restore migrations for local/prod parity:
+  - disabled statement timeout for document metadata backfill migration
+  - corrected identity inserts in dataset restore migrations with `OVERRIDING SYSTEM VALUE`
+- Restored compatibility aliases and test contracts after API/route drift:
+  - `/api/ready` alias to `/api/health/ready`
+  - `/api/graph` alias to `/api/graph/global`
+  - `/api/search` accepts `query` alias in addition to `q`
+- Fixed automation/E2E stability issues:
+  - webdriver sessions auto-dismiss first-run onboarding overlays
+  - refreshed test selectors for People/Documents/Email modals
+  - Playwright config ignores legacy non-Playwright/obsolete suites during regression runs
+- Fixed `EvidenceModal` lazy tab loading for deep-linked tabs and stopped evidence infinite-loader query storms caused by mention/document dedupe mismatch.
+- End-to-end targeted regression sweep passed on Chromium after updates (API DTOs, API integration, data validation, email deep-link, golden paths, investigation flows, route/UI sync).
+
 ## 14.6.0 - 2026-02-25 - Media, Email, Black Book, and OG Preview Hardening
 
 ### Highlights

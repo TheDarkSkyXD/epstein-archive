@@ -37,6 +37,7 @@ export interface SubjectCardListItemDto {
   stats: SubjectCardStatsDto;
   forensics: SubjectCardForensicsDto;
   top_preview?: SubjectCardTopPreviewDto;
+  topPhotoId?: string;
 }
 
 export interface SubjectsListResponseDto {

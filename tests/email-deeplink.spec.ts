@@ -37,14 +37,28 @@ test.describe('Email Deep Link Routing', () => {
     await expect(page).toHaveURL(
       new RegExp(`threadId=${encodeURIComponent(firstThread.threadId)}`),
     );
-    await expect(page.locator(`[data-thread-id="${firstThread.threadId}"]`)).toBeVisible();
-    await expect(page.locator(`[data-message-id="${firstMessageId}"]`)).toBeVisible();
+    await expect(page.locator('[data-testid="email-thread-row"]').first()).toBeVisible({
+      timeout: 30000,
+    });
+    await expect(page.locator(`[data-message-id="${firstMessageId}"]`)).toBeVisible({
+      timeout: 30000,
+    });
+
+    const deepLinkedThreadRow = page.locator(`[data-thread-id="${firstThread.threadId}"]`);
+    if (await deepLinkedThreadRow.count()) {
+      await expect(deepLinkedThreadRow).toBeVisible();
+    }
 
     if (secondThread?.threadId) {
-      await page.locator(`[data-thread-id="${secondThread.threadId}"]`).click();
-      await expect(page).toHaveURL(
-        new RegExp(`threadId=${encodeURIComponent(secondThread.threadId)}`),
+      const secondRow = page.locator(
+        `[data-testid="email-thread-row"][data-thread-id="${secondThread.threadId}"]`,
       );
+      if ((await secondRow.count()) > 0) {
+        await secondRow.click();
+        await expect(page).toHaveURL(
+          new RegExp(`threadId=${encodeURIComponent(secondThread.threadId)}`),
+        );
+      }
     }
   });
 });

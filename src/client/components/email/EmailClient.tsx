@@ -85,6 +85,21 @@ const copyText = async (value: string): Promise<void> => {
   }
 };
 
+const formatUiError = (error: unknown, fallback: string): string => {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === 'string' && error.trim()) return error;
+  if (error && typeof error === 'object') {
+    const maybe = (error as any).message || (error as any).error || (error as any).detail;
+    if (typeof maybe === 'string' && maybe.trim()) return maybe;
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return fallback;
+    }
+  }
+  return fallback;
+};
+
 const ThreadRow = React.memo(
   ({
     index,
@@ -105,6 +120,7 @@ const ThreadRow = React.memo(
         style={style}
         onClick={() => data.onOpen(thread.threadId)}
         data-thread-id={thread.threadId}
+        data-testid="email-thread-row"
         className={`w-full text-left email-row ${compact ? 'py-2' : 'py-3'} px-5 focus:outline-none ${
           selected ? 'active' : ''
         }`}
@@ -225,6 +241,7 @@ export const EmailClient: React.FC = () => {
 
   const [expandedMessages, setExpandedMessages] = useState<Record<string, boolean>>({});
   const [bodyState, setBodyState] = useState<Record<string, BodyState>>({});
+  const autoOpenedThreadRef = useRef<string | null>(null);
   const limiterRef = useRef({ active: 0, queue: [] as Array<() => void> });
 
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
@@ -289,7 +306,7 @@ export const EmailClient: React.FC = () => {
       );
     } catch (error) {
       console.error(error);
-      setMailboxesError(error instanceof Error ? error.message : 'Failed to load mailboxes');
+      setMailboxesError(formatUiError(error, 'Failed to load mailboxes'));
     } finally {
       setMailboxesLoading(false);
     }
@@ -343,7 +360,7 @@ export const EmailClient: React.FC = () => {
         );
       } catch (error) {
         console.error(error);
-        setThreadsError(error instanceof Error ? error.message : 'Failed to load threads');
+        setThreadsError(formatUiError(error, 'Failed to load threads'));
         if (!append) {
           setThreads([]);
           setThreadsHasMore(false);
@@ -388,7 +405,7 @@ export const EmailClient: React.FC = () => {
         );
       } catch (error) {
         console.error(error);
-        setThreadError(error instanceof Error ? error.message : 'Failed to load thread');
+        setThreadError(formatUiError(error, 'Failed to load thread'));
       } finally {
         setThreadLoading(false);
       }
@@ -456,6 +473,7 @@ export const EmailClient: React.FC = () => {
 
   const handleOpenThread = useCallback(
     (threadId: string) => {
+      autoOpenedThreadRef.current = null;
       setSelectedThreadId(threadId);
       setExpandedMessages({});
       updateUrlState({ threadId, messageId: null });
@@ -522,6 +540,23 @@ export const EmailClient: React.FC = () => {
     },
     [bodyState, loadMessageBody],
   );
+
+  useEffect(() => {
+    if (!selectedThreadId || !selectedThread) return;
+    if (searchParams.get('messageId')) return;
+    if (autoOpenedThreadRef.current === selectedThreadId) return;
+
+    const lastMessage = selectedThread.messages[selectedThread.messages.length - 1];
+    if (!lastMessage?.messageId) return;
+
+    autoOpenedThreadRef.current = selectedThreadId;
+    setExpandedMessages((prev) => ({ ...prev, [lastMessage.messageId]: true }));
+    updateUrlState({ messageId: lastMessage.messageId });
+    void loadMessageBody(
+      lastMessage.messageId,
+      bodyState[lastMessage.messageId]?.showQuoted || false,
+    );
+  }, [bodyState, loadMessageBody, searchParams, selectedThread, selectedThreadId, updateUrlState]);
 
   // j/k Navigation
   useEffect(() => {
@@ -690,6 +725,7 @@ export const EmailClient: React.FC = () => {
             <div className="relative">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
+                data-testid="email-search-input"
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
                 placeholder="Search threads"
@@ -817,63 +853,125 @@ export const EmailClient: React.FC = () => {
               Metadata-only list
             </span>
           </div>
-          <div className="px-3 py-2 border-b border-slate-800/80 bg-slate-950/60">
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                value={fromFilter}
-                onChange={(event) => setFromFilter(event.target.value)}
-                placeholder="From"
-                className="h-8 rounded-full bg-slate-900 border border-slate-700 px-3 text-xs text-white"
-              />
-              <input
-                value={toFilter}
-                onChange={(event) => setToFilter(event.target.value)}
-                placeholder="To"
-                className="h-8 rounded-full bg-slate-900 border border-slate-700 px-3 text-xs text-white"
-              />
-              <input
-                value={dateFrom}
-                onChange={(event) => setDateFrom(event.target.value)}
-                type="date"
-                className="h-8 rounded-full bg-slate-900 border border-slate-700 px-3 text-xs text-white"
-              />
-              <input
-                value={dateTo}
-                onChange={(event) => setDateTo(event.target.value)}
-                type="date"
-                className="h-8 rounded-full bg-slate-900 border border-slate-700 px-3 text-xs text-white"
-              />
-            </div>
-            <div className="mt-2 flex items-center gap-2">
-              <button
-                onClick={() => setHasAttachmentsOnly((prev) => !prev)}
-                className={`h-7 px-2.5 rounded-full border text-[11px] ${
-                  hasAttachmentsOnly
-                    ? 'border-amber-400 text-amber-200 bg-amber-500/10'
-                    : 'border-slate-700 text-slate-300 bg-slate-900/70'
-                }`}
-              >
-                Has attachments
-              </button>
-              <select
-                value={minRisk}
-                onChange={(event) => setMinRisk(Number(event.target.value))}
-                className="h-7 rounded-full border border-slate-700 bg-slate-900/70 px-2 text-[11px] text-slate-200"
-                aria-label="Minimum risk"
-              >
-                <option value={0}>Risk: any</option>
-                <option value={1}>Risk ≥ 1</option>
-                <option value={2}>Risk ≥ 2</option>
-                <option value={3}>Risk ≥ 3</option>
-                <option value={4}>Risk ≥ 4</option>
-              </select>
-              <button
-                onClick={clearQuickFilters}
-                className="h-7 px-2 rounded-full border border-slate-700 text-[11px] text-slate-300 bg-slate-900/70 inline-flex items-center gap-1"
-              >
-                <X className="w-3 h-3" />
-                Clear
-              </button>
+          <div className="px-3 py-3 border-b border-slate-800/80 bg-gradient-to-b from-slate-950/80 to-slate-950/50">
+            <div className="rounded-2xl border border-slate-800/80 bg-slate-900/45 backdrop-blur-sm p-3 md:p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-xl border border-cyan-500/20 bg-cyan-500/10 flex items-center justify-center">
+                    <SlidersHorizontal className="w-4 h-4 text-cyan-300" />
+                  </div>
+                  <div>
+                    <div className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">
+                      Filters
+                    </div>
+                    <div className="text-[12px] text-slate-500">
+                      Refine conversations by sender, recipient, date, attachments, and risk
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-8 px-3 rounded-full border border-slate-700/80 bg-slate-950/70 text-[11px] text-slate-300 inline-flex items-center gap-2">
+                    <span className="text-slate-500">Active</span>
+                    <span className="font-bold text-cyan-200">{activeQuickFilterCount}</span>
+                  </div>
+                  <button
+                    onClick={clearQuickFilters}
+                    className="h-8 px-3 rounded-full border border-slate-700 text-[11px] text-slate-300 bg-slate-900/70 inline-flex items-center gap-1 disabled:opacity-50"
+                    disabled={activeQuickFilterCount === 0}
+                  >
+                    <X className="w-3 h-3" />
+                    Clear all
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-[1.15fr_1.15fr_0.95fr_0.95fr] gap-2 md:gap-3">
+                <label className="space-y-1">
+                  <span className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 px-1">
+                    From
+                  </span>
+                  <input
+                    value={fromFilter}
+                    onChange={(event) => setFromFilter(event.target.value)}
+                    placeholder="sender@domain.com or name"
+                    className="h-9 w-full rounded-xl bg-slate-950/80 border border-slate-700 px-3 text-xs text-white placeholder:text-slate-500"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 px-1">
+                    To
+                  </span>
+                  <input
+                    value={toFilter}
+                    onChange={(event) => setToFilter(event.target.value)}
+                    placeholder="recipient@domain.com or name"
+                    className="h-9 w-full rounded-xl bg-slate-950/80 border border-slate-700 px-3 text-xs text-white placeholder:text-slate-500"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 px-1">
+                    Date From
+                  </span>
+                  <input
+                    value={dateFrom}
+                    onChange={(event) => setDateFrom(event.target.value)}
+                    type="date"
+                    className="h-9 w-full rounded-xl bg-slate-950/80 border border-slate-700 px-3 text-xs text-white"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 px-1">
+                    Date To
+                  </span>
+                  <input
+                    value={dateTo}
+                    onChange={(event) => setDateTo(event.target.value)}
+                    type="date"
+                    className="h-9 w-full rounded-xl bg-slate-950/80 border border-slate-700 px-3 text-xs text-white"
+                  />
+                </label>
+              </div>
+
+              <div className="mt-3 pt-3 border-t border-slate-800/80 flex flex-wrap items-center gap-2 md:gap-3">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 px-1">
+                  Quick Toggles
+                </span>
+                <button
+                  onClick={() => setHasAttachmentsOnly((prev) => !prev)}
+                  className={`h-8 px-3 rounded-full border text-[11px] font-medium ${
+                    hasAttachmentsOnly
+                      ? 'border-amber-400 text-amber-200 bg-amber-500/10'
+                      : 'border-slate-700 text-slate-300 bg-slate-900/70'
+                  }`}
+                >
+                  Has attachments
+                </button>
+                <div className="inline-flex items-center gap-2 h-8 px-2 rounded-full border border-slate-700 bg-slate-900/70">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 pl-1">
+                    Min Risk
+                  </span>
+                  <select
+                    value={minRisk}
+                    onChange={(event) => setMinRisk(Number(event.target.value))}
+                    className="h-6 rounded-lg border border-slate-700 bg-slate-950 px-2 text-[11px] text-slate-200 min-w-[110px]"
+                    aria-label="Minimum risk"
+                  >
+                    <option value={0}>Any</option>
+                    <option value={1}>≥ 1</option>
+                    <option value={2}>≥ 2</option>
+                    <option value={3}>≥ 3</option>
+                    <option value={4}>≥ 4</option>
+                  </select>
+                </div>
+
+                {activeQuickFilterCount > 0 && (
+                  <div className="ml-auto hidden xl:flex items-center gap-2 text-[10px] text-slate-500">
+                    <span className="uppercase tracking-widest">State</span>
+                    <span className="h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.6)]" />
+                    <span className="text-cyan-200 font-medium">Filtered results</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -969,7 +1067,7 @@ export const EmailClient: React.FC = () => {
                   </div>
                 }
                 actions={
-                  <>
+                  <div data-testid="email-thread-actions" className="flex items-center gap-2">
                     <button
                       onClick={() => {
                         if (window.innerWidth < 768) {
@@ -999,7 +1097,7 @@ export const EmailClient: React.FC = () => {
                       variant="quick"
                       className="h-9"
                     />
-                  </>
+                  </div>
                 }
                 headerClassName="px-4 py-3"
                 bodyClassName="bg-slate-900/10"
@@ -1107,7 +1205,10 @@ export const EmailClient: React.FC = () => {
                               />
                             </div>
 
-                            <div className="mime-content glass-surface p-6 rounded-2xl border-white/5">
+                            <div
+                              data-testid="email-message-body"
+                              className="mime-content glass-surface p-6 rounded-2xl border-white/5"
+                            >
                               {body?.loading ? (
                                 <div className="py-12 flex flex-col items-start justify-start text-slate-500 gap-3 text-left">
                                   <Loader2 className="w-6 h-6 animate-spin text-cyan-500/50" />

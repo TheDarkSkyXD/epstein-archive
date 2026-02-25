@@ -13,6 +13,21 @@ import {
 
 const router = Router();
 
+// Legacy root alias for older clients/tests expecting /api/graph to return the global graph payload.
+router.get('/', (req, res) => {
+  const params = new URLSearchParams();
+  for (const [key, raw] of Object.entries(req.query)) {
+    if (raw == null) continue;
+    if (Array.isArray(raw)) {
+      for (const value of raw) params.append(key, String(value));
+      continue;
+    }
+    params.set(key, String(raw));
+  }
+  const qs = params.toString();
+  res.redirect(307, `/api/graph/global${qs ? `?${qs}` : ''}`);
+});
+
 /**
  * Global Graph Data Endpoint
  * Supports Zoom-based LOD fetching.

@@ -64,6 +64,7 @@ export const mapSubjectCardDto = (subject: any): SubjectCardListItemDto => ({
         : [],
   },
   top_preview: subject?.top_preview,
+  ...(subject?.topPhotoId ? { topPhotoId: String(subject.topPhotoId) } : {}),
 });
 
 export const mapSubjectsListResponseDto = (result: any): SubjectsListResponseDto => ({

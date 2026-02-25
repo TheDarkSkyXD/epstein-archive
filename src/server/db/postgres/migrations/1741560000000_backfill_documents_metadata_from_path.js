@@ -4,6 +4,7 @@ export const noTransaction = true;
 
 export async function up(pgm) {
   pgm.sql(`
+    SET statement_timeout = 0;
     SET client_min_messages = warning;
 
     UPDATE documents

@@ -732,83 +732,178 @@ export async function getEmailMailboxes(showSuppressedJunk: boolean) {
 
   const { rows } = await getApiPool().query(
     `
+      WITH email_docs AS (
+        SELECT
+          d.id,
+          COALESCE(d.date_created, '1970-01-01T00:00:00.000Z'::timestamptz) AS "dateCreated",
+          COALESCE(
+            d.metadata_json ->> 'thread_id',
+            d.metadata_json ->> 'threadId',
+            d.metadata_json ->> 'conversation_id',
+            d.metadata_json ->> 'message_id',
+            d.id::text
+          ) AS "threadId",
+          COALESCE(d.metadata_json ->> 'from', '') AS "fromRaw",
+          COALESCE(d.metadata_json ->> 'subject', d.file_name, d.title, '') AS subject,
+          COALESCE(d.content_refined, '') AS content_refined,
+          COALESCE(d.red_flag_rating, 0) AS "redFlagRating",
+          ${buildCategoryCaseSql} AS "mailboxTab"
+        FROM documents d
+        WHERE d.evidence_type = 'email'
+        ${junkFilter}
+      ),
+      sender_docs AS (
+        SELECT
+          ed.id,
+          ed."threadId",
+          ed."dateCreated",
+          ed."redFlagRating",
+          ed."mailboxTab",
+          ed."fromRaw",
+          lower(ed."fromRaw") AS "fromRawLower",
+          NULLIF(
+            trim(
+              regexp_replace(
+                regexp_replace(
+                  regexp_replace(
+                    split_part(ed."fromRaw", '<', 1),
+                    '["'']',
+                    '',
+                    'g'
+                  ),
+                  '\\s*\\([^)]*\\)\\s*$',
+                  '',
+                  'g'
+                ),
+                '\\s+',
+                ' ',
+                'g'
+              )
+            ),
+            ''
+          ) AS "senderNameRaw"
+        FROM email_docs ed
+      ),
+      sender_candidates AS (
+        SELECT
+          sd.*,
+          lower(
+            trim(
+              regexp_replace(
+                regexp_replace(COALESCE(sd."senderNameRaw", ''), '[^a-zA-Z''.-]+', ' ', 'g'),
+                '\\s+',
+                ' ',
+                'g'
+              )
+            )
+          ) AS "senderNameNorm"
+        FROM sender_docs sd
+        WHERE COALESCE(sd."senderNameRaw", '') <> ''
+          AND sd."mailboxTab" = 'primary'
+          AND sd."senderNameRaw" !~ '[0-9]'
+          AND length(trim(sd."senderNameRaw")) >= 5
+          AND trim(sd."senderNameRaw") ~ '^[A-Za-z][A-Za-z''.-]+( [A-Za-z][A-Za-z''.-]+){1,3}$'
+          AND NOT (lower(sd."senderNameRaw") LIKE ANY (ARRAY[
+            '%contact us%',
+            '%return policy%',
+            '%shipping%',
+            '%free shipping%',
+            '%support%',
+            '%customer service%',
+            '%deals%',
+            '%sale%',
+            '%promo%',
+            '%promotion%',
+            '%newsletter%',
+            '%facebook%',
+            '%instagram%',
+            '%twitter%',
+            '%linkedin%',
+            '%morton street%',
+            '%park ave%',
+            '%san francisco%',
+            '%product image%',
+            '%statement%',
+            '%floor new york%',
+            '%order%',
+            '%updates%',
+            '%mutual%',
+            '%insurance%',
+            '%auction%',
+            '%auctions%',
+            '%group%',
+            '%market%',
+            '%prime%',
+            '%security%',
+            '%reward card%',
+            '%account security%',
+            '%biology%',
+            '%systems%',
+            '%modeling%',
+            '%methods%',
+            '%direct%',
+            '%amazon%',
+            '%the new%',
+            '%blue star jets%',
+            '%ad free mail%',
+            '%career honor%',
+            '%best regards%',
+            '%learn more%',
+            '%home delivery%',
+            '%south park%',
+            '%update profile%'
+          ]))
+          AND NOT (
+            sd."fromRawLower" LIKE '%noreply@%'
+            OR sd."fromRawLower" LIKE '%no-reply@%'
+            OR sd."fromRawLower" LIKE '%do-not-reply@%'
+            OR sd."fromRawLower" LIKE '%donotreply@%'
+            OR sd."fromRawLower" LIKE '%mailer-daemon%'
+            OR sd."fromRawLower" LIKE '%bounce%'
+            OR sd."fromRawLower" LIKE '%support@%'
+            OR sd."fromRawLower" LIKE '%newsletter%'
+            OR sd."fromRawLower" LIKE '%marketing%'
+          )
+      ),
+      matched_sender_docs AS (
+        SELECT
+          sc.id,
+          sc."threadId",
+          sc."dateCreated",
+          sc."redFlagRating",
+          sc."senderNameRaw",
+          matched.id AS "entityId",
+          matched.full_name AS "entityName"
+        FROM sender_candidates sc
+        JOIN LATERAL (
+          SELECT e.id, e.full_name
+          FROM entities e
+          WHERE COALESCE(e.type, '') = 'Person'
+            ${showSuppressedJunk ? '' : "AND COALESCE(e.junk_tier, 'clean') = 'clean'"}
+            AND COALESCE(e.full_name, '') <> ''
+            AND (
+              lower(trim(regexp_replace(regexp_replace(e.full_name, '[^a-zA-Z''.-]+', ' ', 'g'), '\\s+', ' ', 'g'))) = sc."senderNameNorm"
+              OR lower(COALESCE(e.aliases, '')) LIKE '%' || lower(sc."senderNameRaw") || '%'
+            )
+          ORDER BY
+            CASE
+              WHEN lower(trim(regexp_replace(regexp_replace(e.full_name, '[^a-zA-Z''.-]+', ' ', 'g'), '\\s+', ' ', 'g'))) = sc."senderNameNorm" THEN 0
+              ELSE 1
+            END,
+            e.id ASC
+          LIMIT 1
+        ) matched ON TRUE
+      )
       SELECT
-        em.entity_id AS "entityId",
-        e.full_name AS "displayName",
-        COUNT(DISTINCT COALESCE(
-          metadata_json ->> 'thread_id',
-          metadata_json ->> 'threadId',
-          metadata_json ->> 'conversation_id',
-          metadata_json ->> 'message_id',
-          d.id::text
-        )) AS "totalThreads",
+        msd."entityId" AS "entityId",
+        msd."entityName" AS "displayName",
+        COUNT(DISTINCT msd."threadId") AS "totalThreads",
         COUNT(*) AS "totalMessages",
-        MAX(COALESCE(d.date_created, '1970-01-01T00:00:00.000Z'::timestamptz)) AS "lastActivityAt",
-        MAX(COALESCE(d.red_flag_rating, 0)) AS "topRisk"
-      FROM entity_mentions em
-      JOIN documents d ON d.id = em.document_id
-      JOIN entities e ON e.id = em.entity_id
-      WHERE d.evidence_type = 'email'
-        ${showSuppressedJunk ? '' : "AND COALESCE(e.junk_tier, 'clean') = 'clean'"}
-        AND COALESCE(e.type, '') = 'Person'
-        AND coalesce(e.full_name, '') <> ''
-        AND length(trim(e.full_name)) >= 5
-        AND e.full_name !~ '[0-9]'
-        AND trim(e.full_name) ~ '^[A-Za-z][A-Za-z''.-]+( [A-Za-z][A-Za-z''.-]+){1,3}$'
-        AND NOT (lower(e.full_name) LIKE ANY (ARRAY[
-          '%contact us%',
-          '%return policy%',
-          '%shipping%',
-          '%free shipping%',
-          '%support%',
-          '%customer service%',
-          '%deals%',
-          '%sale%',
-          '%promo%',
-          '%promotion%',
-          '%newsletter%',
-          '%facebook%',
-          '%instagram%',
-          '%twitter%',
-          '%linkedin%',
-          '%morton street%',
-          '%park ave%',
-          '%san francisco%',
-          '%product image%',
-          '%statement%',
-          '%floor new york%',
-          '%order%',
-          '%updates%',
-          '%mutual%',
-          '%insurance%',
-          '%auction%',
-          '%auctions%',
-          '%group%',
-          '%market%',
-          '%prime%',
-          '%security%',
-          '%reward card%',
-          '%account security%',
-          '%biology%',
-          '%systems%',
-          '%modeling%',
-          '%methods%',
-          '%direct%',
-          '%amazon%',
-          '%the new%',
-          '%blue star jets%',
-          '%ad free mail%',
-          '%career honor%'
-        ]))
-        AND EXISTS (
-          SELECT 1
-          FROM entity_mentions em2
-          JOIN documents d2 ON d2.id = em2.document_id
-          WHERE em2.entity_id = e.id
-            AND d2.evidence_type <> 'email'
-        )
-      GROUP BY em.entity_id, e.full_name
-      HAVING COUNT(*) >= 1
+        MAX(msd."dateCreated") AS "lastActivityAt",
+        MAX(msd."redFlagRating") AS "topRisk"
+      FROM matched_sender_docs msd
+      GROUP BY msd."entityId", msd."entityName"
+      HAVING COUNT(DISTINCT msd."threadId") >= 1
       ORDER BY "totalThreads" DESC, "totalMessages" DESC, "displayName" ASC
       LIMIT 60
     `,

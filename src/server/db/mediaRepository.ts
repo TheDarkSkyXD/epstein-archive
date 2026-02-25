@@ -120,6 +120,7 @@ export const mediaRepository = {
     },
   ) => {
     const offset = (page - 1) * limit;
+    const pool = getApiPool();
 
     let fileTypePattern: string | null = null;
     if (filters?.fileType) {
@@ -132,27 +133,92 @@ export const mediaRepository = {
       }
     }
 
-    const countRes = await mediaQueries.countMediaItems.run(
-      {
-        entityId: filters?.entityId ? BigInt(filters.entityId) : null,
-        fileType: fileTypePattern,
-        minRedFlag: filters?.minRedFlagRating || null,
-      },
-      getApiPool(),
-    );
+    const whereParts: string[] = [];
+    const queryParams: Array<string | number | bigint | null> = [];
+    const addParam = (value: string | number | bigint | null) => {
+      queryParams.push(value);
+      return `$${queryParams.length}`;
+    };
 
-    const total = Number(countRes[0]?.total || 0);
+    if (filters?.entityId) {
+      whereParts.push(`m.entity_id = ${addParam(BigInt(filters.entityId))}::bigint`);
+    }
+    if (fileTypePattern) {
+      whereParts.push(`m.file_type LIKE ${addParam(fileTypePattern)}::text`);
+    }
+    if (filters?.minRedFlagRating != null) {
+      whereParts.push(`m.red_flag_rating >= ${addParam(filters.minRedFlagRating)}::int`);
+    }
+    if (filters?.albumId != null) {
+      whereParts.push(`m.album_id = ${addParam(filters.albumId)}::int`);
+    }
+    if (filters?.transcriptQuery?.trim()) {
+      const q = `%${filters.transcriptQuery.trim()}%`;
+      whereParts.push(
+        `(COALESCE(m.metadata_json::text, '') ILIKE ${addParam(q)}::text OR COALESCE(m.description, '') ILIKE ${addParam(q)}::text OR COALESCE(m.title, '') ILIKE ${addParam(q)}::text)`,
+      );
+    }
 
-    const mediaItems = await mediaQueries.searchPaginatedMedia.run(
-      {
-        entityId: filters?.entityId ? BigInt(filters.entityId) : null,
-        fileType: fileTypePattern,
-        minRedFlag: filters?.minRedFlagRating || null,
-        limit: BigInt(limit),
-        offset: BigInt(offset),
-      },
-      getApiPool(),
+    const whereSql = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
+
+    const countRes = await pool.query(
+      `
+        SELECT COUNT(*) AS total
+        FROM media_items m
+        ${whereSql}
+      `,
+      queryParams,
     );
+    const total = Number((countRes.rows[0] as any)?.total || 0);
+
+    let orderBySql = 'm.red_flag_rating DESC, m.created_at DESC';
+    if (filters?.sortBy === 'title') {
+      orderBySql = `LOWER(COALESCE(m.title, '')) ASC, m.created_at DESC`;
+    } else if (filters?.sortBy === 'date') {
+      orderBySql = 'm.created_at DESC';
+    } else if (filters?.sortBy === 'rating') {
+      orderBySql = 'm.red_flag_rating DESC, m.created_at DESC';
+    }
+
+    const listParams = [...queryParams];
+    listParams.push(limit);
+    const limitParam = `$${listParams.length}`;
+    listParams.push(offset);
+    const offsetParam = `$${listParams.length}`;
+
+    const listRes = await pool.query(
+      `
+        SELECT
+          m.id,
+          m.entity_id as "entityId",
+          m.document_id as "documentId",
+          m.file_path as "filePath",
+          m.thumbnail_path as "thumbnailPath",
+          m.file_type as "fileType",
+          m.file_size as "fileSize",
+          m.width,
+          m.height,
+          m.title,
+          m.description,
+          m.album_id as "albumId",
+          m.is_sensitive as "isSensitive",
+          m.verification_status as "verificationStatus",
+          m.red_flag_rating as "redFlagRating",
+          m.metadata_json as "metadataJson",
+          m.date_taken as "dateTaken",
+          m.created_at as "createdAt",
+          string_agg(DISTINCT e.id || ':' || e.full_name, ',') as people
+        FROM media_items m
+        LEFT JOIN media_item_people mp ON m.id = mp.media_item_id::text
+        LEFT JOIN entities e ON mp.entity_id = e.id
+        ${whereSql}
+        GROUP BY m.id
+        ORDER BY ${orderBySql}
+        LIMIT ${limitParam} OFFSET ${offsetParam}
+      `,
+      listParams,
+    );
+    const mediaItems = listRes.rows as any[];
 
     return {
       mediaItems: mediaItems.map((item) => {

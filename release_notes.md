@@ -2135,6 +2135,33 @@ Database schema integrity update and stability improvements.
 
 # 🚀 Epstein Archive: Production Release Notes (v5.3.1)
 
+# 🚀 Epstein Archive: Production Release Notes (v14.6.0)
+
+**February 25, 2026**
+
+This release hardens media, email, Black Book, and social sharing behavior after the Postgres migration. It fixes album filtering, removes unsafe thumbnail fallbacks, restores natural ordering for multipart video evidence, and upgrades route-level social previews to real cached screenshots or asset-backed thumbnails.
+
+## ✅ Key Fixes
+
+- **Email Mailboxes (People-Only Source)**: Mailboxes now derive from real outgoing sender headers and map to canonical person entities, instead of noisy `entity_mentions` labels.
+- **Email UI Stability & Alignment**: Removed remaining centered text in loading/empty states and kept email pane content contained within the viewport layout.
+- **Media Albums Filtering**: `albumId` is now enforced in Postgres for paginated media queries (count + list), so each album shows only its own items.
+- **Video Ordering (Natural Sort)**: Multipart titles like `Part 1 / Part 2 / Part 3` render in the correct order.
+- **Video Thumbnails**: Removed the inappropriate external collage fallback; the server now generates real video frame thumbnails on demand and caches them.
+- **Black Book Crash Fix**: Viewer now handles both camelCase and snake_case API row shapes and avoids `undefined.split(...)` crashes.
+- **Social Sharing Previews**:
+  - Entity pages now use real linked subject photos.
+  - Document pages now use real document/media previews where available.
+  - Media album links use the first image in the album (chronological first).
+  - Route pages now use cached screenshot-based OG images (timeline, flights, emails, blackbook, analytics, etc.) with safe fallback behavior.
+
+## 🧪 Reliability Notes
+
+- All patched files passed local `type-check` and targeted lint checks.
+- OG screenshot generation is cached on disk and degrades gracefully to the default site image if Playwright browser binaries are unavailable in the deployment environment.
+
+---
+
 **December 10, 2025**
 
 Hotfix for data visualisation and client-side caching issues.

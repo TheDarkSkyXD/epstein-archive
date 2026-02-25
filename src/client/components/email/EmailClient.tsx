@@ -754,7 +754,7 @@ export const EmailClient: React.FC = () => {
 
           <div className="flex-1 min-h-0">
             {mailboxesLoading ? (
-              <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+              <div className="h-full flex items-start justify-start p-4 text-slate-400 text-sm text-left">
                 <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading mailboxes
               </div>
             ) : mailboxesError ? (
@@ -879,7 +879,7 @@ export const EmailClient: React.FC = () => {
 
           <div className="flex-1 min-h-0">
             {threadsLoading ? (
-              <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+              <div className="h-full flex items-start justify-start p-4 text-slate-400 text-sm text-left">
                 <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading conversations
               </div>
             ) : threadsError ? (
@@ -934,7 +934,7 @@ export const EmailClient: React.FC = () => {
                   if (!threadsNextCursor || loadingMoreThreads) return;
                   void loadThreads(threadsNextCursor, true);
                 }}
-                className="w-full h-9 rounded-full border border-slate-700 text-sm text-slate-200 bg-slate-900/80 hover:bg-slate-800 disabled:opacity-60"
+                className="w-full h-9 rounded-full border border-slate-700 text-sm text-slate-200 bg-slate-900/80 hover:bg-slate-800 disabled:opacity-60 inline-flex items-center justify-start px-4 text-left"
                 disabled={loadingMoreThreads}
               >
                 {loadingMoreThreads ? 'Loading...' : 'Load more'}
@@ -950,7 +950,7 @@ export const EmailClient: React.FC = () => {
         >
           {selectedThreadId ? (
             threadLoading && !selectedThread ? (
-              <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+              <div className="h-full flex items-start justify-start p-4 text-slate-400 text-sm text-left">
                 <Loader2 className="w-4 h-4 animate-spin mr-2" /> Opening thread
               </div>
             ) : threadError ? (
@@ -1109,7 +1109,7 @@ export const EmailClient: React.FC = () => {
 
                             <div className="mime-content glass-surface p-6 rounded-2xl border-white/5">
                               {body?.loading ? (
-                                <div className="py-12 flex flex-col items-center justify-center text-slate-500 gap-3">
+                                <div className="py-12 flex flex-col items-start justify-start text-slate-500 gap-3 text-left">
                                   <Loader2 className="w-6 h-6 animate-spin text-cyan-500/50" />
                                   <span className="text-[10px] font-black uppercase tracking-widest">
                                     Decompressing MIME Stream
@@ -1203,14 +1203,14 @@ export const EmailClient: React.FC = () => {
                 </div>
               </ViewerShell>
             ) : (
-              <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+              <div className="h-full flex items-start justify-start p-4 text-slate-400 text-sm text-left">
                 Thread not found.
               </div>
             )
           ) : (
-            <div className="h-full flex items-center justify-center px-6">
+            <div className="h-full flex items-start justify-start px-6 py-6">
               <div className="text-left text-slate-400 max-w-md">
-                <Mail className="w-14 h-14 mx-auto mb-4 opacity-30" />
+                <Mail className="w-14 h-14 mb-4 opacity-30" />
                 <div className="text-lg text-white mb-2">Investigation-grade Email Workspace</div>
                 <p className="text-sm text-slate-400">
                   Select a thread to load message headers first, then lazy-load bodies. Use linked

@@ -40,6 +40,42 @@ interface Album {
   sensitiveCount?: number;
 }
 
+const naturalTitleCollator = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: 'base',
+});
+
+const sortVideosInDisplayOrder = (items: VideoItem[]) =>
+  [...items].sort((a, b) => {
+    const titleCmp = naturalTitleCollator.compare(a.title || '', b.title || '');
+    if (titleCmp !== 0) return titleCmp;
+
+    const dateA = Number(new Date(a.createdAt || 0));
+    const dateB = Number(new Date(b.createdAt || 0));
+    if (dateA !== dateB) return dateB - dateA;
+
+    return a.id - b.id;
+  });
+
+const VIDEO_THUMB_PLACEHOLDER =
+  'data:image/svg+xml;utf8,' +
+  encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+      <defs>
+        <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+          <stop offset="0%" stop-color="#020617"/>
+          <stop offset="100%" stop-color="#0f172a"/>
+        </linearGradient>
+      </defs>
+      <rect width="1280" height="720" fill="url(#bg)"/>
+      <rect x="420" y="210" width="440" height="300" rx="20" fill="#0b1220" stroke="#1e293b" stroke-width="4"/>
+      <polygon points="595,285 595,435 720,360" fill="#38bdf8" opacity="0.9"/>
+      <text x="640" y="565" text-anchor="middle" fill="#94a3b8" font-family="Arial, sans-serif" font-size="28">
+        Video thumbnail unavailable
+      </text>
+    </svg>
+  `);
+
 const VideoCell = React.memo(({ columnIndex, rowIndex, style, data }: GridChildComponentProps) => {
   const {
     items,
@@ -77,8 +113,11 @@ const VideoCell = React.memo(({ columnIndex, rowIndex, style, data }: GridChildC
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
               loading="lazy"
               onError={(e) => {
-                (e.target as HTMLImageElement).src =
-                  'https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?w=800&q=80';
+                const img = e.target as HTMLImageElement;
+                if (img.dataset.fallbackApplied === '1') return;
+                img.dataset.fallbackApplied = '1';
+                img.src = VIDEO_THUMB_PLACEHOLDER;
+                img.classList.remove('group-hover:scale-110');
               }}
             />
             <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -260,12 +299,12 @@ export const VideoBrowser: React.FC = () => {
         if (!res.ok) throw new Error('Failed to load video files');
 
         const data = await res.json();
-        const newItems = data.mediaItems || [];
+        const newItems = (data.mediaItems || []) as VideoItem[];
 
         if (pageNum === 1) {
-          setItems(newItems);
+          setItems(sortVideosInDisplayOrder(newItems));
         } else {
-          setItems((prev) => [...prev, ...newItems]);
+          setItems((prev) => sortVideosInDisplayOrder([...prev, ...newItems]));
         }
 
         setHasMore(newItems.length === 24);

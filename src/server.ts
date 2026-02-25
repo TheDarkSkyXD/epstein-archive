@@ -41,6 +41,8 @@ import { communicationsRepository } from './server/db/communicationsRepository.j
 import crypto from 'crypto';
 import multer from 'multer';
 import fs from 'fs';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import { Person, SearchFilters, SortOption, Evidence, User } from './types'; // SubjectCardDTO removed (unused)
 import { config } from './config/index.js';
 import { blackBookRepository } from './server/db/blackBookRepository.js';
@@ -118,6 +120,133 @@ assertProductionPg();
 const app = express();
 // Enable trust proxy for Nginx/Load Balancer
 app.set('trust proxy', 1);
+
+const execFileAsync = promisify(execFile);
+const OG_SCREENSHOT_CACHE_DIR = path.join(process.cwd(), 'data', 'og-route-cache');
+
+function resolveMediaPathCandidates(rawPathValue: string | null | undefined): string[] {
+  const rawPath = String(rawPathValue || '').trim();
+  if (!rawPath) return [];
+
+  const candidates: string[] = [];
+  if (rawPath.startsWith('/data/')) {
+    candidates.push(path.join(process.cwd(), rawPath.substring(1)));
+    candidates.push(path.join('/data', rawPath.substring('/data/'.length)));
+  } else if (rawPath.startsWith('data/')) {
+    candidates.push(path.join(process.cwd(), rawPath));
+    candidates.push(path.join('/data', rawPath.substring('data/'.length)));
+  } else if (path.isAbsolute(rawPath)) {
+    candidates.push(rawPath);
+    candidates.push(path.join(process.cwd(), rawPath.substring(1)));
+  } else {
+    candidates.push(path.join(process.cwd(), rawPath));
+    candidates.push(path.join(process.cwd(), 'data', rawPath));
+    candidates.push(path.join('/data', rawPath));
+  }
+
+  return Array.from(new Set(candidates));
+}
+
+async function generateVideoThumbnailFromSource(
+  videoPath: string,
+  videoId: number,
+): Promise<string | null> {
+  try {
+    const cacheDir = path.join(process.cwd(), 'data', 'thumbnails', 'video');
+    fs.mkdirSync(cacheDir, { recursive: true });
+    const outPath = path.join(cacheDir, `video_${videoId}.jpg`);
+
+    if (fs.existsSync(outPath)) return outPath;
+
+    await execFileAsync('ffmpeg', [
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-y',
+      '-ss',
+      '00:00:00.500',
+      '-i',
+      videoPath,
+      '-frames:v',
+      '1',
+      '-vf',
+      'scale=640:-1:force_original_aspect_ratio=decrease',
+      outPath,
+    ]);
+
+    return fs.existsSync(outPath) ? outPath : null;
+  } catch (error) {
+    console.warn(`[Thumbnail] Failed to generate video thumbnail for ${videoId}:`, error);
+    return null;
+  }
+}
+
+function ogRouteCacheKey(routePath: string, searchParams: URLSearchParams): string {
+  const params = new URLSearchParams(searchParams);
+  params.delete('__og_shot');
+  const canonical = `${routePath}?${params.toString()}`;
+  return crypto.createHash('sha1').update(canonical).digest('hex');
+}
+
+async function ensureRouteOgScreenshot(
+  baseUrl: string,
+  routePath: string,
+  searchParams: URLSearchParams,
+): Promise<string | null> {
+  try {
+    fs.mkdirSync(OG_SCREENSHOT_CACHE_DIR, { recursive: true });
+    const key = ogRouteCacheKey(routePath, searchParams);
+    const filename = `${key}.png`;
+    const absPath = path.join(OG_SCREENSHOT_CACHE_DIR, filename);
+
+    if (fs.existsSync(absPath)) return absPath;
+
+    let chromium: any;
+    try {
+      const pw = await import('@playwright/test');
+      chromium = (pw as any).chromium;
+    } catch {
+      return null;
+    }
+    if (!chromium) return null;
+
+    const targetUrl = new URL(routePath, baseUrl);
+    const params = new URLSearchParams(searchParams);
+    params.set('__og_shot', '1');
+    targetUrl.search = params.toString();
+
+    const browser = await chromium.launch({ headless: true });
+    try {
+      const page = await browser.newPage({ viewport: { width: 1200, height: 630 } });
+      await page.goto(targetUrl.toString(), {
+        waitUntil: 'networkidle',
+        timeout: 15000,
+      });
+      await page.screenshot({
+        path: absPath,
+        type: 'png',
+      });
+    } finally {
+      await browser.close();
+    }
+
+    return fs.existsSync(absPath) ? absPath : null;
+  } catch (error) {
+    console.warn('[OG screenshot] generation failed', error);
+    return null;
+  }
+}
+
+function ogRouteScreenshotUrl(
+  baseUrl: string,
+  routePath: string,
+  searchParams: URLSearchParams,
+): string {
+  const params = new URLSearchParams(searchParams);
+  params.delete('__og_shot');
+  params.set('route', routePath);
+  return `${baseUrl}/api/og/route-image?${params.toString()}`;
+}
 
 app.use((_req, res, next) => {
   res.setHeader('X-DB-Dialect', 'postgres');
@@ -620,6 +749,37 @@ app.get('/api/_meta/db', async (_req, res, next) => {
       lastMatViewRefresh,
       slowQueryLogThresholdMs: getSlowQueryLogThresholdMs(),
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/og/route-image', async (req, res, next) => {
+  try {
+    const route = String(req.query.route || '').trim();
+    if (!route || !route.startsWith('/')) {
+      return res.status(400).json({ error: 'route is required and must start with /' });
+    }
+
+    const baseUrl = getPublicBaseUrl(req);
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(req.query)) {
+      if (key === 'route') continue;
+      if (value == null) continue;
+      if (Array.isArray(value)) {
+        for (const v of value) params.append(key, String(v));
+      } else {
+        params.set(key, String(value));
+      }
+    }
+
+    const absPath = await ensureRouteOgScreenshot(baseUrl, route, params);
+    if (!absPath || !fs.existsSync(absPath)) {
+      return res.redirect(302, `${baseUrl}/epstein-files.jpg`);
+    }
+
+    res.set('Cache-Control', 'public, max-age=3600');
+    return res.sendFile(absPath);
   } catch (error) {
     next(error);
   }
@@ -2668,49 +2828,32 @@ app.get('/api/media/video/:id/thumbnail', async (req, res, next) => {
     const item = await mediaRepository.getMediaItemById(id);
     if (!item) return res.status(404).json({ error: 'Video not found' });
 
-    // Check metadata for thumbnail path
     const thumbnailPath = (item.metadata as any)?.thumbnailPath;
+    const thumbnailCandidates = resolveMediaPathCandidates(thumbnailPath);
+    const resolvedThumbnail = thumbnailCandidates.find((c) => fs.existsSync(c)) || null;
 
-    if (!thumbnailPath) {
-      // Fallback or 404?
-      return res.status(404).json({ error: 'Thumbnail not found' });
+    if (resolvedThumbnail) {
+      return res.sendFile(resolvedThumbnail);
     }
 
-    // Resolve path robustly
-    const filePath = thumbnailPath;
+    const sourceVideoPath = (item as any).file_path || item.filePath;
+    const sourceCandidates = resolveMediaPathCandidates(sourceVideoPath);
+    const resolvedSource = sourceCandidates.find((c) => fs.existsSync(c)) || null;
 
-    // Check various possible locations
-    const candidates: string[] = [];
-
-    // If it starts with /data/ or data/, try resolving relative to CWD
-    if (filePath.startsWith('/data/')) {
-      candidates.push(path.join(process.cwd(), filePath.substring(1)));
-      candidates.push(path.join('/data', filePath.substring('/data/'.length)));
-    } else if (filePath.startsWith('data/')) {
-      candidates.push(path.join(process.cwd(), filePath));
-      candidates.push(path.join('/data', filePath.substring('data/'.length)));
-    } else if (path.isAbsolute(filePath)) {
-      candidates.push(filePath);
-      // Also try stripping root if it looks like a container path
-      if (filePath.startsWith('/')) {
-        candidates.push(path.join(process.cwd(), filePath.substring(1)));
+    if (resolvedSource) {
+      const generatedThumb = await generateVideoThumbnailFromSource(resolvedSource, id);
+      if (generatedThumb && fs.existsSync(generatedThumb)) {
+        return res.sendFile(generatedThumb);
       }
-    } else {
-      candidates.push(path.join(process.cwd(), 'data', filePath));
-      candidates.push(path.join('/data', filePath));
     }
 
-    const absPath = candidates.find((c) => fs.existsSync(c)) || candidates[0];
-
-    if (!fs.existsSync(absPath)) {
-      console.error(
-        `[Thumbnail] Failed to resolve video thumbnail for ID ${id}. Tried:`,
-        candidates,
-      );
-      return res.status(404).json({ error: 'Thumbnail file not found on server' });
-    }
-
-    res.sendFile(absPath);
+    console.error(`[Thumbnail] Failed video thumbnail for ID ${id}`, {
+      thumbnailPath,
+      thumbnailCandidates,
+      sourceVideoPath,
+      sourceCandidates,
+    });
+    return res.status(404).json({ error: 'Thumbnail file not found on server' });
   } catch (error) {
     next(error);
   }
@@ -4359,7 +4502,7 @@ async function getFirstImageIdForAlbum(albumId: number): Promise<number | null> 
         SELECT id
         FROM media_items
         WHERE album_id = $1 AND file_type LIKE 'image/%'
-        ORDER BY COALESCE(red_flag_rating, 0) DESC, id ASC
+        ORDER BY COALESCE(created_at, NOW()) ASC, id ASC
         LIMIT 1
       `,
       [albumId],
@@ -4370,14 +4513,159 @@ async function getFirstImageIdForAlbum(albumId: number): Promise<number | null> 
   }
 }
 
+async function getFirstMediaItemForAlbum(albumId: number): Promise<any | null> {
+  try {
+    const pool = getApiPool();
+    const res = await pool.query(
+      `
+        SELECT id, file_type AS "fileType", file_path AS "filePath", thumbnail_path AS "thumbnailPath",
+               created_at AS "createdAt", metadata_json AS "metadataJson"
+        FROM media_items
+        WHERE album_id = $1
+        ORDER BY COALESCE(created_at, NOW()) ASC, id ASC
+        LIMIT 1
+      `,
+      [albumId],
+    );
+    const row = res.rows[0];
+    if (!row) return null;
+    let metadata = {};
+    try {
+      metadata =
+        typeof row.metadataJson === 'string'
+          ? JSON.parse(row.metadataJson)
+          : row.metadataJson || {};
+    } catch {
+      metadata = {};
+    }
+    return { ...row, metadata };
+  } catch {
+    return null;
+  }
+}
+
+async function getEntityHeroImageUrl(
+  entityId: number,
+  baseUrl: string,
+  fallbackUrl: string,
+): Promise<string> {
+  try {
+    const pool = getApiPool();
+    const res = await pool.query(
+      `
+        SELECT
+          m.id,
+          m.file_type AS "fileType",
+          m.created_at AS "createdAt",
+          m.thumbnail_path AS "thumbnailPath",
+          m.file_path AS "filePath",
+          m.metadata_json AS "metadataJson"
+        FROM media_items m
+        LEFT JOIN media_item_people mip ON m.id = mip.media_item_id::text
+        WHERE (
+          m.entity_id = $1
+          OR mip.entity_id = $1
+        )
+          AND m.file_type LIKE 'image/%'
+        ORDER BY COALESCE(m.red_flag_rating, 0) DESC, COALESCE(m.created_at, NOW()) DESC, m.id DESC
+        LIMIT 1
+      `,
+      [entityId],
+    );
+
+    const row = res.rows[0];
+    if (!row) return fallbackUrl;
+    return `${baseUrl}/api/media/images/${row.id}/thumbnail?v=${mediaItemTimestamp(row)}`;
+  } catch {
+    return fallbackUrl;
+  }
+}
+
+async function getDocumentLinkedMediaPreviewByDocumentId(
+  documentId: number,
+  baseUrl: string,
+  fallbackUrl: string,
+): Promise<string> {
+  try {
+    const pool = getApiPool();
+    const res = await pool.query(
+      `
+        SELECT
+          m.id,
+          m.file_type AS "fileType",
+          m.file_path AS "filePath",
+          m.thumbnail_path AS "thumbnailPath",
+          m.created_at AS "createdAt",
+          m.metadata_json AS "metadataJson"
+        FROM media_items m
+        WHERE m.document_id = $1
+        ORDER BY
+          CASE
+            WHEN m.file_type LIKE 'image/%' THEN 0
+            WHEN m.file_type LIKE 'video/%' THEN 1
+            WHEN m.file_type LIKE 'audio/%' OR m.file_type LIKE '%audio%' THEN 2
+            ELSE 3
+          END,
+          COALESCE(m.red_flag_rating, 0) DESC,
+          COALESCE(m.created_at, NOW()) DESC,
+          m.id DESC
+        LIMIT 1
+      `,
+      [documentId],
+    );
+
+    const row = res.rows[0];
+    if (!row) return fallbackUrl;
+    let metadata = {};
+    try {
+      metadata =
+        typeof row.metadataJson === 'string'
+          ? JSON.parse(row.metadataJson)
+          : row.metadataJson || {};
+    } catch {
+      metadata = {};
+    }
+    return await getMediaItemPreviewImageUrl({ ...row, metadata }, baseUrl, fallbackUrl);
+  } catch {
+    return fallbackUrl;
+  }
+}
+
+async function getDocumentPreviewImageUrl(
+  doc: any,
+  baseUrl: string,
+  fallbackUrl: string,
+): Promise<string> {
+  const documentId = Number(doc?.id);
+  if (!Number.isFinite(documentId) || documentId <= 0) return fallbackUrl;
+
+  const fileType = String(doc?.fileType || doc?.file_type || '').toLowerCase();
+  if (fileType.startsWith('image/')) {
+    return `${baseUrl}/api/documents/${documentId}/file`;
+  }
+
+  const linkedMedia = await getDocumentLinkedMediaPreviewByDocumentId(documentId, baseUrl, '');
+  if (linkedMedia) return linkedMedia;
+
+  return fallbackUrl;
+}
+
 async function getAlbumHeroImageUrl(
   albumId: number,
   baseUrl: string,
   fallbackUrl: string,
 ): Promise<string> {
   const firstImageId = await getFirstImageIdForAlbum(albumId);
-  if (!firstImageId) return fallbackUrl;
-  return `${baseUrl}/api/media/images/${firstImageId}/raw`;
+  if (firstImageId) {
+    return `${baseUrl}/api/media/images/${firstImageId}/thumbnail`;
+  }
+
+  const firstItem = await getFirstMediaItemForAlbum(albumId);
+  if (firstItem) {
+    return await getMediaItemPreviewImageUrl(firstItem, baseUrl, fallbackUrl);
+  }
+
+  return fallbackUrl;
 }
 
 async function getMediaItemPreviewImageUrl(
@@ -4447,6 +4735,10 @@ app.get('*', async (req, res, next) => {
   if (fs.existsSync(indexFile)) {
     const baseUrl = getPublicBaseUrl(req);
     const defaultOgImage = `${baseUrl}/epstein-files.jpg`;
+    const ogShotMode = String(req.query.__og_shot || '') === '1';
+    const routeScreenshotImage = ogShotMode
+      ? defaultOgImage
+      : ogRouteScreenshotUrl(baseUrl, req.path, new URLSearchParams(req.query as any));
     let html = fs.readFileSync(indexFile, 'utf8');
     const routePath = req.path;
 
@@ -4585,7 +4877,7 @@ app.get('*', async (req, res, next) => {
             html = injectOgTags(html, {
               title: `Investigation: ${inv.title}`,
               description: inv.description || `Investigation into ${inv.title}`,
-              imageUrl: defaultOgImage, // Investigations don't have covers yet
+              imageUrl: routeScreenshotImage,
               url: `${baseUrl}${req.originalUrl}`,
             });
             return res.send(html);
@@ -4605,7 +4897,7 @@ app.get('*', async (req, res, next) => {
             description: role
               ? `${entityName} (${role}) - View connections, documents and evidence in the Epstein Files Archive`
               : `${entityName} - View connections, documents and evidence in the Epstein Files Archive`,
-            imageUrl: defaultOgImage,
+            imageUrl: await getEntityHeroImageUrl(Number(entityId), baseUrl, defaultOgImage),
             url: `${baseUrl}${req.originalUrl}`,
           });
           return res.send(html);
@@ -4645,7 +4937,7 @@ app.get('*', async (req, res, next) => {
               doc.summary ||
               doc.content?.slice(0, 200) ||
               `View document: ${docTitle} in the Epstein Files Archive`,
-            imageUrl: defaultOgImage,
+            imageUrl: await getDocumentPreviewImageUrl(doc, baseUrl, defaultOgImage),
             url: `${baseUrl}${req.originalUrl}`,
           });
           return res.send(html);
@@ -4667,7 +4959,11 @@ app.get('*', async (req, res, next) => {
             description: role
               ? `${entityName} (${role}) ${ratingText} - Explore connections, documents, and evidence in the Epstein Files Archive.`
               : `${entityName} ${ratingText} - Explore connections, documents, and evidence in the Epstein Files Archive.`,
-            imageUrl: defaultOgImage,
+            imageUrl: await getEntityHeroImageUrl(
+              Number(entityPathMatch[1]),
+              baseUrl,
+              defaultOgImage,
+            ),
             url: `${baseUrl}${req.originalUrl}`,
           });
           return res.send(html);
@@ -4687,7 +4983,7 @@ app.get('*', async (req, res, next) => {
               doc.summary ||
               doc.content?.slice(0, 200) ||
               `View document: ${docTitle} in the Epstein Files Archive`,
-            imageUrl: defaultOgImage,
+            imageUrl: await getDocumentPreviewImageUrl(doc, baseUrl, defaultOgImage),
             url: `${baseUrl}${req.originalUrl}`,
           });
           return res.send(html);
@@ -4703,7 +4999,7 @@ app.get('*', async (req, res, next) => {
           title: 'Properties - Epstein Files Archive',
           description:
             'Investigate property records, locations, linked entities, and ownership patterns in the Epstein Files Archive.',
-          imageUrl: defaultOgImage,
+          imageUrl: routeScreenshotImage,
           url: `${baseUrl}${req.originalUrl}`,
         });
         return res.send(html);
@@ -4715,7 +5011,7 @@ app.get('*', async (req, res, next) => {
           title: 'Timeline - Epstein Files Archive',
           description:
             "Interactive chronological timeline spanning decades of events: from Epstein's rise in the 1980s through trials, investigations, and ongoing revelations.",
-          imageUrl: defaultOgImage,
+          imageUrl: routeScreenshotImage,
           url: `${baseUrl}${req.originalUrl}`,
         });
         return res.send(html);
@@ -4727,7 +5023,7 @@ app.get('*', async (req, res, next) => {
           title: 'Flight Logs - Epstein Files Archive',
           description:
             'Track the "Lolita Express" and other aircraft. Interactive map visualization of flight routes, passenger manifests, and destinations including Little St. James Island.',
-          imageUrl: defaultOgImage,
+          imageUrl: routeScreenshotImage,
           url: `${baseUrl}${req.originalUrl}`,
         });
         return res.send(html);
@@ -4739,7 +5035,7 @@ app.get('*', async (req, res, next) => {
           title: 'Articles - Epstein Files Archive',
           description:
             'Curated investigative journalism from Miami Herald, Vanity Fair, The Guardian, and original research. Deep dives into the Epstein network and cover-ups.',
-          imageUrl: defaultOgImage,
+          imageUrl: routeScreenshotImage,
           url: `${baseUrl}${req.originalUrl}`,
         });
         return res.send(html);
@@ -4750,7 +5046,7 @@ app.get('*', async (req, res, next) => {
           title: 'Photos - Epstein Files Archive',
           description:
             'Evidence photos, historical images, and documentation from the Epstein investigation. Browse by album, date, or location.',
-          imageUrl: defaultOgImage,
+          imageUrl: routeScreenshotImage,
           url: `${baseUrl}${req.originalUrl}`,
         });
         return res.send(html);
@@ -4760,7 +5056,7 @@ app.get('*', async (req, res, next) => {
         html = injectOgTags(html, {
           title: 'Audio - Epstein Files Archive',
           description: 'Audio recordings, depositions, and testimony related to the Epstein case.',
-          imageUrl: defaultOgImage,
+          imageUrl: routeScreenshotImage,
           url: `${baseUrl}${req.originalUrl}`,
         });
         return res.send(html);
@@ -4771,7 +5067,7 @@ app.get('*', async (req, res, next) => {
           title: 'Video - Epstein Files Archive',
           description:
             'Video evidence, interviews, and documentary footage related to the Epstein investigation.',
-          imageUrl: defaultOgImage,
+          imageUrl: routeScreenshotImage,
           url: `${baseUrl}${req.originalUrl}`,
         });
         return res.send(html);
@@ -4783,7 +5079,7 @@ app.get('*', async (req, res, next) => {
           title: 'Media - Epstein Files Archive',
           description:
             'Browse photos, videos, audio recordings, and curated articles about the Epstein investigation.',
-          imageUrl: defaultOgImage,
+          imageUrl: routeScreenshotImage,
           url: `${baseUrl}${req.originalUrl}`,
         });
         return res.send(html);
@@ -4795,7 +5091,7 @@ app.get('*', async (req, res, next) => {
           title: 'Subjects - Epstein Files Archive',
           description:
             'Explore individuals connected to Jeffrey Epstein. Evidence-based risk ratings, document connections, and relationship mapping for 1,000+ subjects.',
-          imageUrl: defaultOgImage,
+          imageUrl: routeScreenshotImage,
           url: `${baseUrl}${req.originalUrl}`,
         });
         return res.send(html);
@@ -4807,7 +5103,7 @@ app.get('*', async (req, res, next) => {
           title: 'Documents - Epstein Files Archive',
           description:
             'Search thousands of court filings, emails, financial records, and depositions. Full-text search with OCR-processed scanned documents.',
-          imageUrl: defaultOgImage,
+          imageUrl: routeScreenshotImage,
           url: `${baseUrl}${req.originalUrl}`,
         });
         return res.send(html);
@@ -4824,7 +5120,7 @@ app.get('*', async (req, res, next) => {
           title: 'Black Book - Epstein Files Archive',
           description:
             "Explore Jeffrey Epstein's infamous address book containing 1,700+ contacts. Search names, view connections, and cross-reference with flight logs.",
-          imageUrl: defaultOgImage,
+          imageUrl: routeScreenshotImage,
           url: `${baseUrl}${req.originalUrl}`,
         });
         return res.send(html);
@@ -4840,7 +5136,7 @@ app.get('*', async (req, res, next) => {
           description: searchQuery
             ? `Search results for "${searchQuery}" in the Epstein Files Archive. Find entities, documents, and evidence.`
             : 'Search across entities, documents, flight logs, and evidence in the comprehensive Epstein Files Archive.',
-          imageUrl: defaultOgImage,
+          imageUrl: routeScreenshotImage,
           url: `${baseUrl}${req.originalUrl}`,
         });
         return res.send(html);
@@ -4852,7 +5148,7 @@ app.get('*', async (req, res, next) => {
           title: 'Investigations - Epstein Files Archive',
           description:
             'Research workspace for building investigation threads. Create hypotheses, link evidence, and export findings.',
-          imageUrl: defaultOgImage,
+          imageUrl: routeScreenshotImage,
           url: `${baseUrl}${req.originalUrl}`,
         });
         return res.send(html);
@@ -4864,7 +5160,7 @@ app.get('*', async (req, res, next) => {
           title: 'Analytics - Epstein Files Archive',
           description:
             'Data visualizations and network analysis. Explore connection graphs, document timelines, and statistical breakdowns of the evidence.',
-          imageUrl: defaultOgImage,
+          imageUrl: routeScreenshotImage,
           url: `${baseUrl}${req.originalUrl}`,
         });
         return res.send(html);
@@ -4876,7 +5172,7 @@ app.get('*', async (req, res, next) => {
           title: 'Email Browser - Epstein Files Archive',
           description:
             'Browse email communications with threaded conversations, sender analysis, and attachment tracking.',
-          imageUrl: defaultOgImage,
+          imageUrl: routeScreenshotImage,
           url: `${baseUrl}${req.originalUrl}`,
         });
         return res.send(html);
@@ -4888,7 +5184,7 @@ app.get('*', async (req, res, next) => {
           title: 'Live Ingestion Dashboard & Methodology',
           description:
             'Monitor the real-time ingestion of 1.3M new DOJ files. Explore our database methodology, data sources, and forensic analysis tools.',
-          imageUrl: defaultOgImage,
+          imageUrl: routeScreenshotImage,
           url: `${baseUrl}${req.originalUrl}`,
         });
         return res.send(html);
@@ -4899,7 +5195,7 @@ app.get('*', async (req, res, next) => {
         html = injectOgTags(html, {
           title: 'Admin - Epstein Files Archive',
           description: 'Administration dashboard for the Epstein Files Archive.',
-          imageUrl: defaultOgImage,
+          imageUrl: routeScreenshotImage,
           url: `${baseUrl}${req.originalUrl}`,
         });
         return res.send(html);
@@ -4911,7 +5207,7 @@ app.get('*', async (req, res, next) => {
           title: 'Login - Epstein Files Archive',
           description:
             'Sign in to access investigation features and contribute to the Epstein Files Archive.',
-          imageUrl: defaultOgImage,
+          imageUrl: routeScreenshotImage,
           url: `${baseUrl}${req.originalUrl}`,
         });
         return res.send(html);
@@ -4921,7 +5217,7 @@ app.get('*', async (req, res, next) => {
       html = injectOgTags(html, {
         title: routeTitleFromPath(routePath),
         description: routeDescription(routePath),
-        imageUrl: defaultOgImage,
+        imageUrl: routeScreenshotImage,
         url: `${baseUrl}${req.originalUrl}`,
       });
       return res.send(html);

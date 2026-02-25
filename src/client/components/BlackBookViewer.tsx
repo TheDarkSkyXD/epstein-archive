@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 
 interface BlackBookEntry {
   id: number;
-  person_id: number;
+  person_id: number | null;
   entry_text: string;
   phone_numbers: string[];
   addresses: string[];
@@ -52,38 +52,72 @@ export const BlackBookViewer: React.FC = () => {
       const data = result.data || [];
 
       // Parse JSON fields safely
-      const parsedEntries = data.map((entry: any) => {
+      const parsedEntries = data.map((entry: any): BlackBookEntry => {
         let phone_numbers = [];
         let addresses = [];
         let email_addresses = [];
+        const rawPhones = entry.phone_numbers ?? entry.phoneNumbers;
+        const rawAddresses = entry.addresses;
+        const rawEmails = entry.email_addresses ?? entry.emailAddresses;
 
         try {
-          phone_numbers = entry.phone_numbers ? JSON.parse(entry.phone_numbers) : [];
+          phone_numbers = Array.isArray(rawPhones)
+            ? rawPhones
+            : rawPhones
+              ? JSON.parse(rawPhones)
+              : [];
         } catch (_e) {
-          console.warn('Failed to parse phone_numbers for entry', entry.id, entry.phone_numbers);
+          console.warn('Failed to parse phone_numbers for entry', entry.id, rawPhones);
           // Fallback: if it looks like a string, wrap it
-          if (typeof entry.phone_numbers === 'string' && !entry.phone_numbers.startsWith('[')) {
-            phone_numbers = [entry.phone_numbers];
+          if (typeof rawPhones === 'string' && !rawPhones.startsWith('[')) {
+            phone_numbers = [rawPhones];
           }
         }
 
         try {
-          addresses = entry.addresses ? JSON.parse(entry.addresses) : [];
+          addresses = Array.isArray(rawAddresses)
+            ? rawAddresses
+            : rawAddresses
+              ? JSON.parse(rawAddresses)
+              : [];
         } catch (_e) {
           console.warn('Failed to parse addresses for entry', entry.id);
         }
 
         try {
-          email_addresses = entry.email_addresses ? JSON.parse(entry.email_addresses) : [];
+          email_addresses = Array.isArray(rawEmails)
+            ? rawEmails
+            : rawEmails
+              ? JSON.parse(rawEmails)
+              : [];
         } catch (_e) {
           console.warn('Failed to parse email_addresses for entry', entry.id);
         }
 
         return {
-          ...entry,
+          id: Number(entry.id),
+          person_id:
+            entry.person_id != null
+              ? Number(entry.person_id)
+              : entry.personId != null
+                ? Number(entry.personId)
+                : null,
+          entry_text: String(entry.entry_text ?? entry.entryText ?? ''),
           phone_numbers,
           addresses,
           email_addresses,
+          notes: String(entry.notes ?? ''),
+          entry_category: String(entry.entry_category ?? entry.entryCategory ?? 'original') as
+            | 'original'
+            | 'contact'
+            | 'credential',
+          document_id:
+            entry.document_id != null
+              ? Number(entry.document_id)
+              : entry.documentId != null
+                ? Number(entry.documentId)
+                : undefined,
+          person_name: (entry.person_name ?? entry.displayName ?? undefined) || undefined,
         };
       });
 
@@ -105,8 +139,8 @@ export const BlackBookViewer: React.FC = () => {
     setFilteredEntries(entries);
   }, [entries]);
 
-  const extractName = useCallback((entryText: string): string => {
-    const lines = entryText.split('\n');
+  const extractName = useCallback((entryText?: string | null): string => {
+    const lines = String(entryText || '').split('\n');
     return lines[0]?.trim() || 'Unknown';
   }, []);
 

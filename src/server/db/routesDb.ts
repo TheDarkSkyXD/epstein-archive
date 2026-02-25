@@ -710,6 +710,15 @@ const getJunkFilterClause = (showSuppressedJunk: boolean) => {
 
 export async function getEmailMailboxes(showSuppressedJunk: boolean) {
   const junkFilter = getJunkFilterClause(showSuppressedJunk);
+  const senderExpr = `
+    lower(coalesce(
+      d.metadata_json ->> 'from',
+      d.metadata_json ->> 'fromAddress',
+      d.metadata_json ->> 'from_address',
+      d.metadata_json ->> 'sender',
+      ''
+    ))
+  `;
 
   const { rows: totalsRows } = await getApiPool().query(
     `
@@ -750,6 +759,54 @@ export async function getEmailMailboxes(showSuppressedJunk: boolean) {
       JOIN entities e ON e.id = em.entity_id
       WHERE d.evidence_type = 'email'
         ${showSuppressedJunk ? '' : "AND COALESCE(e.junk_tier, 'clean') = 'clean'"}
+        AND coalesce(e.full_name, '') <> ''
+        AND length(trim(e.full_name)) >= 5
+        AND e.full_name !~ '[0-9]'
+        AND lower(e.full_name) NOT LIKE ANY (ARRAY[
+          '%contact us%',
+          '%return policy%',
+          '%shipping%',
+          '%free shipping%',
+          '%support%',
+          '%customer service%',
+          '%deals%',
+          '%sale%',
+          '%promo%',
+          '%promotion%',
+          '%newsletter%',
+          '%facebook%',
+          '%instagram%',
+          '%twitter%',
+          '%linkedin%',
+          '%morton street%',
+          '%park ave%',
+          '%san francisco%',
+          '%product image%',
+          '%statement%',
+          '%floor new york%',
+          '%order%',
+          '%updates%'
+        ])
+        AND ${senderExpr} <> ''
+        AND ${senderExpr} NOT LIKE ANY (ARRAY[
+          '%noreply@%',
+          '%no-reply@%',
+          '%do-not-reply@%',
+          '%donotreply@%',
+          '%notification@%',
+          '%notifications@%',
+          '%mailer-daemon%',
+          '%bounce%',
+          '%newsletter%',
+          '%marketing%',
+          '%mailchimp%',
+          '%constantcontact%'
+        ])
+        AND (
+          ${senderExpr} LIKE ('%' || lower(e.full_name) || '%')
+          OR ${senderExpr} LIKE ('%' || lower(replace(e.full_name, ' ', '.')) || '%')
+          OR ${senderExpr} LIKE ('%' || lower(replace(e.full_name, ' ', '')) || '%')
+        )
       GROUP BY em.entity_id, e.full_name
       HAVING COUNT(*) >= 2
       ORDER BY "totalThreads" DESC, "totalMessages" DESC, "displayName" ASC

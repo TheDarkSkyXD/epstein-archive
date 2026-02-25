@@ -940,7 +940,7 @@ export const EmailClient: React.FC = () => {
                 {loadingMoreThreads ? 'Loading...' : 'Load more'}
               </button>
             ) : (
-              <div className="text-[11px] text-slate-500 text-center">End of results</div>
+              <div className="text-[11px] text-slate-500 text-left w-full pl-1">End of results</div>
             )}
           </div>
         </section>
@@ -1209,7 +1209,7 @@ export const EmailClient: React.FC = () => {
             )
           ) : (
             <div className="h-full flex items-center justify-center px-6">
-              <div className="text-center text-slate-400 max-w-md">
+              <div className="text-left text-slate-400 max-w-md">
                 <Mail className="w-14 h-14 mx-auto mb-4 opacity-30" />
                 <div className="text-lg text-white mb-2">Investigation-grade Email Workspace</div>
                 <p className="text-sm text-slate-400">

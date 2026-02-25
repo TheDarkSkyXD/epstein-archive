@@ -1,3 +1,11 @@
+## 14.5.23 - 2026-02-25 - Aggressive Email Mailbox Entity Filtering + No Centered Text
+
+### Emails Mailboxes / UI
+
+- Aggressively filtered email entity mailboxes to show only sender-matched, non-junk, non-automation entities (reduces generic categories/places/marketing artifacts in the mailbox list).
+- Applied the filter at query time so it affects both current and future data without a separate cleanup job.
+- Removed remaining centered text in the Emails interface placeholders/list footer.
+
 ## 14.5.22 - 2026-02-24 - Emails Pane Overflow Clamp and Left-Aligned Thread Rows
 
 ### Emails Layout Polish

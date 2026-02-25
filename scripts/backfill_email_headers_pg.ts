@@ -10,6 +10,19 @@ type Row = {
   metadata_json: Record<string, unknown> | null;
 };
 
+type HeaderHints = {
+  from: string;
+  to: string[];
+  cc: string[];
+  bcc: string[];
+  subject: string;
+  date: Date | null;
+  message_id: string;
+  attachments_count: number;
+  mime_parse_status: 'success' | 'failed' | 'partial';
+  mime_parse_reason?: string;
+};
+
 const BATCH_SIZE = Number(process.env.EMAIL_HEADER_BACKFILL_BATCH || 200);
 const MAX_ROWS = Number(process.env.EMAIL_HEADER_BACKFILL_MAX || 20000);
 
@@ -45,10 +58,6 @@ async function main() {
             AND (
               metadata_json IS NULL
               OR COALESCE(metadata_json ->> 'from', '') = ''
-              OR (
-                COALESCE(metadata_json ->> 'to', '') = ''
-                AND COALESCE(metadata_json ->> 'to_json', '') = ''
-              )
             )
           ORDER BY id ASC
           LIMIT $1
@@ -67,7 +76,7 @@ async function main() {
           ) as Record<string, unknown>;
 
           const next = { ...existing } as Record<string, unknown>;
-          if (!isBlank(next.from) && !isBlank(next.to)) continue;
+          if (!isBlank(next.from)) continue;
 
           const parsed = await parseBestAvailableEmailSource(row);
 
@@ -138,7 +147,10 @@ async function main() {
   }
 }
 
-async function parseBestAvailableEmailSource(row: Row) {
+async function parseBestAvailableEmailSource(row: Row): Promise<HeaderHints> {
+  const metaHints = await readEmailMetaSidecar(row.file_path);
+  if (metaHints) return metaHints;
+
   const rawFromFile = await readRawEmailFromFilePath(row.file_path);
   if (rawFromFile) {
     return cleanMime(rawFromFile);
@@ -178,6 +190,37 @@ async function readRawEmailFromFilePath(filePathValue: string | null): Promise<s
   }
 
   return null;
+}
+
+async function readEmailMetaSidecar(filePathValue: string | null): Promise<HeaderHints | null> {
+  const filePath = String(filePathValue || '').trim();
+  if (!filePath || !filePath.endsWith('.meta')) return null;
+
+  const raw = await readRawEmailFromFilePath(filePath);
+  if (!raw) return null;
+
+  try {
+    const meta = JSON.parse(raw) as Record<string, unknown>;
+    const sender = String(meta.sender || '').trim();
+    const subject = String(meta.subject || '').trim();
+    const epoch = Number(meta.date || meta.change_date || 0);
+    const date = Number.isFinite(epoch) && epoch > 0 ? new Date(epoch * 1000) : null;
+
+    return {
+      from: sender,
+      to: [],
+      cc: [],
+      bcc: [],
+      subject,
+      date,
+      message_id: '',
+      attachments_count: 0,
+      mime_parse_status: sender ? 'partial' : 'failed',
+      mime_parse_reason: sender ? 'meta-sidecar-sender-only' : 'meta-sidecar-no-sender',
+    };
+  } catch {
+    return null;
+  }
 }
 
 main().catch((error) => {

@@ -1,3 +1,11 @@
+## 14.5.26 - 2026-02-25 - Email Meta-Sidecar Sender Backfill for Mailbox Filtering
+
+### Emails Data Quality
+
+- Extended the PG email header backfill to parse `.eml.meta` sidecar JSON files (common in the migrated dataset) and recover sender/subject/date metadata.
+- Backfill now targets rows missing `from` so it completes instead of looping on rows that legitimately lack recipient fields in sidecar-only records.
+- Restores sender metadata required for aggressive real-person mailbox filtering in the Emails UI.
+
 ## 14.5.25 - 2026-02-25 - Email Header Backfill Reads Raw EML Files
 
 ### Emails Data Quality

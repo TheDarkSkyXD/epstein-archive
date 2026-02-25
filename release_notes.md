@@ -2135,9 +2135,9 @@ Database schema integrity update and stability improvements.
 
 # 🚀 Epstein Archive: Production Release Notes (v5.3.1)
 
-# 🚀 Epstein Archive: Production Release Notes (v14.6.0)
+## 14.6.0 - 2026-02-25
 
-**February 25, 2026**
+# 🚀 Epstein Archive: Production Release Notes (v14.6.0)
 
 This release hardens media, email, Black Book, and social sharing behavior after the Postgres migration. It fixes album filtering, removes unsafe thumbnail fallbacks, restores natural ordering for multipart video evidence, and upgrades route-level social previews to real cached screenshots or asset-backed thumbnails.
 

@@ -1,3 +1,10 @@
+## 14.5.22 - 2026-02-24 - Emails Pane Overflow Clamp and Left-Aligned Thread Rows
+
+### Emails Layout Polish
+
+- Fixed desktop Emails layout overflow caused by mobile `w-full` pane classes leaking into desktop thread/content panes and pushing content past the right edge of the workspace.
+- Enforced left-aligned thread row text (buttons default to centered text) and added extra overflow clamping in the thread pane/list rows.
+
 ## 14.5.21 - 2026-02-24 - Emails Primary Tab SQL Fix (Postgres)
 
 ### Emails Tab Reliability

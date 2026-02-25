@@ -105,7 +105,7 @@ const ThreadRow = React.memo(
         style={style}
         onClick={() => data.onOpen(thread.threadId)}
         data-thread-id={thread.threadId}
-        className={`w-full email-row ${compact ? 'py-2' : 'py-3'} px-5 focus:outline-none ${
+        className={`w-full text-left email-row ${compact ? 'py-2' : 'py-3'} px-5 focus:outline-none ${
           selected ? 'active' : ''
         }`}
       >
@@ -787,7 +787,7 @@ export const EmailClient: React.FC = () => {
         </aside>
 
         <section
-          className={`thread-pane ${mobilePane === 'threads' ? 'flex w-full' : 'hidden md:flex'}`}
+          className={`thread-pane ${mobilePane === 'threads' ? 'flex w-full md:w-auto' : 'hidden md:flex'}`}
         >
           <div className="pane-header">
             <div className="flex items-center gap-2">
@@ -946,7 +946,7 @@ export const EmailClient: React.FC = () => {
         </section>
 
         <section
-          className={`content-pane overflow-hidden flex flex-col ${mobilePane === 'messages' ? 'flex w-full' : 'hidden md:flex'}`}
+          className={`content-pane overflow-hidden flex flex-col ${mobilePane === 'messages' ? 'flex w-full md:w-auto' : 'hidden md:flex'}`}
         >
           {selectedThreadId ? (
             threadLoading && !selectedThread ? (

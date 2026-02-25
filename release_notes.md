@@ -1,3 +1,11 @@
+## 14.5.24 - 2026-02-25 - Email Header Metadata Backfill (PG) for Real Mailboxes
+
+### Emails Data Quality
+
+- Added a Postgres backfill script to repair missing email `from` / `to` metadata by parsing raw MIME content in existing email documents.
+- Supports the aggressive mailbox filter so current migrated data can surface real sender mailboxes again.
+- Future `.eml` ingests already write sender/recipient metadata via `processEmail`; this release closes the migrated-data gap.
+
 ## 14.5.23 - 2026-02-25 - Aggressive Email Mailbox Entity Filtering + No Centered Text
 
 ### Emails Mailboxes / UI

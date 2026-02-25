@@ -1,3 +1,10 @@
+## 14.5.29 - 2026-02-25 - Email Mailbox False-Positive Denylist Tightening
+
+### Emails Mailboxes
+
+- Added explicit denylist patterns for remaining non-person email-only mailbox artifacts observed in production (`The New`, `Blue Star Jets`, `Ad Free Mail`, `Career Honor`).
+- Keeps mailbox list aligned with the requirement: real outgoing people only (plus `All Inboxes`).
+
 ## 14.5.28 - 2026-02-25 - Fix Email Mailbox Denylist SQL Semantics
 
 ### Emails Mailboxes

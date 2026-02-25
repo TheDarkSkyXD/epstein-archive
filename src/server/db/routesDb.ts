@@ -802,7 +802,11 @@ export async function getEmailMailboxes(showSuppressedJunk: boolean) {
           '%modeling%',
           '%methods%',
           '%direct%',
-          '%amazon%'
+          '%amazon%',
+          '%the new%',
+          '%blue star jets%',
+          '%ad free mail%',
+          '%career honor%'
         ]))
         AND ${senderExpr} <> ''
         AND NOT (${senderExpr} LIKE ANY (ARRAY[

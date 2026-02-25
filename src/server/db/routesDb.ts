@@ -762,6 +762,7 @@ export async function getEmailMailboxes(showSuppressedJunk: boolean) {
         AND coalesce(e.full_name, '') <> ''
         AND length(trim(e.full_name)) >= 5
         AND e.full_name !~ '[0-9]'
+        AND trim(e.full_name) ~ '^[A-Za-z][A-Za-z''.-]+( [A-Za-z][A-Za-z''.-]+){1,3}$'
         AND lower(e.full_name) NOT LIKE ANY (ARRAY[
           '%contact us%',
           '%return policy%',
@@ -785,7 +786,23 @@ export async function getEmailMailboxes(showSuppressedJunk: boolean) {
           '%statement%',
           '%floor new york%',
           '%order%',
-          '%updates%'
+          '%updates%',
+          '%mutual%',
+          '%insurance%',
+          '%auction%',
+          '%auctions%',
+          '%group%',
+          '%market%',
+          '%prime%',
+          '%security%',
+          '%reward card%',
+          '%account security%',
+          '%biology%',
+          '%systems%',
+          '%modeling%',
+          '%methods%',
+          '%direct%',
+          '%amazon%'
         ])
         AND ${senderExpr} <> ''
         AND ${senderExpr} NOT LIKE ANY (ARRAY[

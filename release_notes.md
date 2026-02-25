@@ -1,3 +1,10 @@
+## 14.5.27 - 2026-02-25 - Aggressive Human-Only Email Mailbox Heuristic
+
+### Emails Mailboxes
+
+- Tightened mailbox entity filtering with a human-name regex and aggressive business-token denylist to prevent organization/product mailboxes mislabeled as `Person` from appearing.
+- Keeps sender mailbox list focused on real people (outgoing sender identities) plus `All Inboxes`.
+
 ## 14.5.26 - 2026-02-25 - Email Meta-Sidecar Sender Backfill for Mailbox Filtering
 
 ### Emails Data Quality

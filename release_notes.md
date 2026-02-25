@@ -1,3 +1,11 @@
+## 14.5.30 - 2026-02-25 - Restore JMail-Style People Mailboxes (Entity-Based)
+
+### Emails Mailboxes
+
+- Replaced the over-restrictive sender-only mailbox list with person-entity mailboxes derived from email evidence mentions, while keeping aggressive junk suppression.
+- Requires `Person` type, clean junk tier, human-name heuristics, and at least one non-email mention to avoid marketing/category artifacts.
+- Restores real people like Jeffrey Epstein / Ghislaine Maxwell / Ehud Barak / Donald Trump in mailbox navigation when present in the dataset.
+
 ## 14.5.29 - 2026-02-25 - Email Mailbox False-Positive Denylist Tightening
 
 ### Emails Mailboxes

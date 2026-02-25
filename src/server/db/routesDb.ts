@@ -710,15 +710,6 @@ const getJunkFilterClause = (showSuppressedJunk: boolean) => {
 
 export async function getEmailMailboxes(showSuppressedJunk: boolean) {
   const junkFilter = getJunkFilterClause(showSuppressedJunk);
-  const senderExpr = `
-    lower(coalesce(
-      d.metadata_json ->> 'from',
-      d.metadata_json ->> 'fromAddress',
-      d.metadata_json ->> 'from_address',
-      d.metadata_json ->> 'sender',
-      ''
-    ))
-  `;
 
   const { rows: totalsRows } = await getApiPool().query(
     `
@@ -759,6 +750,7 @@ export async function getEmailMailboxes(showSuppressedJunk: boolean) {
       JOIN entities e ON e.id = em.entity_id
       WHERE d.evidence_type = 'email'
         ${showSuppressedJunk ? '' : "AND COALESCE(e.junk_tier, 'clean') = 'clean'"}
+        AND COALESCE(e.type, '') = 'Person'
         AND coalesce(e.full_name, '') <> ''
         AND length(trim(e.full_name)) >= 5
         AND e.full_name !~ '[0-9]'
@@ -808,28 +800,15 @@ export async function getEmailMailboxes(showSuppressedJunk: boolean) {
           '%ad free mail%',
           '%career honor%'
         ]))
-        AND ${senderExpr} <> ''
-        AND NOT (${senderExpr} LIKE ANY (ARRAY[
-          '%noreply@%',
-          '%no-reply@%',
-          '%do-not-reply@%',
-          '%donotreply@%',
-          '%notification@%',
-          '%notifications@%',
-          '%mailer-daemon%',
-          '%bounce%',
-          '%newsletter%',
-          '%marketing%',
-          '%mailchimp%',
-          '%constantcontact%'
-        ]))
-        AND (
-          ${senderExpr} LIKE ('%' || lower(e.full_name) || '%')
-          OR ${senderExpr} LIKE ('%' || lower(replace(e.full_name, ' ', '.')) || '%')
-          OR ${senderExpr} LIKE ('%' || lower(replace(e.full_name, ' ', '')) || '%')
+        AND EXISTS (
+          SELECT 1
+          FROM entity_mentions em2
+          JOIN documents d2 ON d2.id = em2.document_id
+          WHERE em2.entity_id = e.id
+            AND d2.evidence_type <> 'email'
         )
       GROUP BY em.entity_id, e.full_name
-      HAVING COUNT(*) >= 2
+      HAVING COUNT(*) >= 1
       ORDER BY "totalThreads" DESC, "totalMessages" DESC, "displayName" ASC
       LIMIT 60
     `,

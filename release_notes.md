@@ -1,3 +1,10 @@
+## 14.5.25 - 2026-02-25 - Email Header Backfill Reads Raw EML Files
+
+### Emails Data Quality
+
+- Fixed the PG email header backfill to parse raw `.eml` files from `documents.file_path` (`/data/...`) instead of the stripped `documents.content` body text.
+- Restores real `from` / `to` metadata on migrated emails so aggressive mailbox filtering can surface only real outgoing-person mailboxes.
+
 ## 14.5.24 - 2026-02-25 - Email Header Metadata Backfill (PG) for Real Mailboxes
 
 ### Emails Data Quality

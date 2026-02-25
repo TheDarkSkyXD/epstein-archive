@@ -1,9 +1,12 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { Client } from 'pg';
 import { cleanMime } from '../src/server/services/mimeCleaner.js';
 
 type Row = {
   id: number;
   content: string | null;
+  file_path: string | null;
   metadata_json: Record<string, unknown> | null;
 };
 
@@ -35,7 +38,7 @@ async function main() {
       const limit = Math.min(BATCH_SIZE, MAX_ROWS - processed);
       const { rows } = await client.query<Row>(
         `
-          SELECT id, content, metadata_json
+          SELECT id, content, file_path, metadata_json
           FROM documents
           WHERE evidence_type = 'email'
             AND content IS NOT NULL
@@ -57,17 +60,16 @@ async function main() {
 
       for (const row of rows) {
         processed += 1;
-        const source = String(row.content || '').trim();
-        if (!source) continue;
 
         try {
-          const parsed = await cleanMime(source);
           const existing = (
             row.metadata_json && typeof row.metadata_json === 'object' ? row.metadata_json : {}
           ) as Record<string, unknown>;
 
           const next = { ...existing } as Record<string, unknown>;
           if (!isBlank(next.from) && !isBlank(next.to)) continue;
+
+          const parsed = await parseBestAvailableEmailSource(row);
 
           if (parsed.from && parsed.from.trim()) next.from = parsed.from.trim();
           if (parsed.to.length > 0) {
@@ -134,6 +136,48 @@ async function main() {
   } finally {
     await client.end();
   }
+}
+
+async function parseBestAvailableEmailSource(row: Row) {
+  const rawFromFile = await readRawEmailFromFilePath(row.file_path);
+  if (rawFromFile) {
+    return cleanMime(rawFromFile);
+  }
+
+  const source = String(row.content || '').trim();
+  if (!source) {
+    throw new Error(`No parseable source for email document ${row.id}`);
+  }
+  return cleanMime(source);
+}
+
+async function readRawEmailFromFilePath(filePathValue: string | null): Promise<string | null> {
+  const filePath = String(filePathValue || '').trim();
+  if (!filePath) return null;
+
+  const candidates = new Set<string>();
+  candidates.add(filePath);
+
+  if (filePath.startsWith('/data/')) {
+    candidates.add(path.join(process.cwd(), filePath.replace(/^\/data\/+/, 'data/')));
+    candidates.add(
+      path.join('/home/deploy/epstein-archive', filePath.replace(/^\/data\/+/, 'data/')),
+    );
+  } else if (!path.isAbsolute(filePath)) {
+    candidates.add(path.join(process.cwd(), filePath));
+  }
+
+  for (const candidate of candidates) {
+    try {
+      const stat = await fs.stat(candidate);
+      if (!stat.isFile()) continue;
+      return await fs.readFile(candidate, 'utf8');
+    } catch {
+      // try next candidate
+    }
+  }
+
+  return null;
 }
 
 main().catch((error) => {

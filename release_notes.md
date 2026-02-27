@@ -1,3 +1,15 @@
+## 14.8.0 - 2026-02-27 - Evidence Tab Render Reliability + QA Matrix
+
+### Highlights
+
+- Fixed entity Evidence tab blank-pane regression where evidence counts loaded but rows were not reliably rendered.
+- Reworked Evidence tab rendering for normal result sets (`<= 500`) to a deterministic plain paginated list with explicit `Load more` flow.
+- Kept virtualized rendering path for larger datasets and added stronger viewport safety checks.
+- Added stable Evidence tab test IDs (`entity-evidence-count`, evidence row/list selectors) to support deterministic E2E assertions.
+- Updated golden-path E2E coverage to assert actual evidence row rendering in the entity modal.
+- Added feature-by-feature QA matrix report:
+  - `docs/qa/qa-matrix-v14.7.x-postgres-stabilization.md`
+
 ## 14.7.0 - 2026-02-25 - Postgres Migration Stabilization + E2E Contract Sync
 
 ### Highlights

@@ -14,6 +14,12 @@ if grep -rE "better-sqlite3|sqlite|PRAGMA|FTS5|DatabaseBridge|SqliteWrapper" src
   fail "❌ SQLite keywords found in src/"
 fi
 
+# Check scripts/ for broken legacy imports
+if grep -rE "getDb\(\)|getIngestDb\(\)" scripts/ 2>/dev/null; then
+  echo "FATAL: scripts/ still references deleted getDb()/getIngestDb()"
+  exit 1
+fi
+
 log "Guard: no legacy DB_DIALECT anywhere in runtime/deploy/CI configs"
 if grep -rn "DB_DIALECT" src scripts deploy.sh ecosystem.config.cjs package.json .github/workflows \
   | grep -v "scripts/ci_pg_nuclear_gates.sh" \

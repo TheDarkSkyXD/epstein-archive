@@ -1,6 +1,5 @@
-import { getDb } from '../src/server/db/connection.js';
-
-const db = getDb();
+import { getMaintenancePool } from '../src/server/db/connection.js';
+import 'dotenv/config';
 
 const LOCATIONS = [
   { name: 'Little St James', lat: 18.3003, lng: -64.8255, label: 'Little St James, USVI' },
@@ -11,43 +10,43 @@ const LOCATIONS = [
   { name: 'Zorro Ranch', lat: 35.343, lng: -106.027, label: 'Zorro Ranch, NM' },
 ];
 
-console.log('Seeding location data...');
-
-// Update specific location entities if they exist by name match
-for (const loc of LOCATIONS) {
-  const info = db
-    .prepare(
-      'UPDATE entities SET location_lat = ?, location_lng = ?, location_label = ? WHERE full_name LIKE ? OR title LIKE ?',
-    )
-    .run(loc.lat, loc.lng, loc.label, `%${loc.name}%`, `%${loc.name}%`);
-  console.log(`Updated ${loc.name}: ${info.changes} changes`);
-}
-
-// Also seed some random entities with locations near these hubs for testing clustering
 const hubs = [
-  { baseLat: 18.3003, baseLng: -64.8255 }, // LSJ
-  { baseLat: 40.7128, baseLng: -74.006 }, // NYC
-  { baseLat: 48.8566, baseLng: 2.3522 }, // Paris
+  { baseLat: 18.3003, baseLng: -64.8255 },
+  { baseLat: 40.7128, baseLng: -74.006 },
+  { baseLat: 48.8566, baseLng: 2.3522 },
 ];
 
-// Find some top entities to assign random locations to if they don't have one
-const topEntities = db
-  .prepare(
+async function main() {
+  const pool = getMaintenancePool();
+  console.log('Seeding location data...');
+
+  for (const loc of LOCATIONS) {
+    const result = await pool.query(
+      'UPDATE entities SET location_lat = $1, location_lng = $2, location_label = $3 WHERE full_name LIKE $4 OR title LIKE $5',
+      [loc.lat, loc.lng, loc.label, `%${loc.name}%`, `%${loc.name}%`],
+    );
+    console.log(`Updated ${loc.name}: ${result.rowCount} changes`);
+  }
+
+  const topEntitiesResult = await pool.query(
     'SELECT id, full_name as name FROM entities WHERE location_lat IS NULL ORDER BY mentions DESC LIMIT 20',
-  )
-  .all();
+  );
 
-for (const entity of topEntities as any[]) {
-  // Pick a random hub
-  const hub = hubs[Math.floor(Math.random() * hubs.length)];
-  // Add small jitter
-  const lat = hub.baseLat + (Math.random() - 0.5) * 0.1;
-  const lng = hub.baseLng + (Math.random() - 0.5) * 0.1;
+  for (const entity of topEntitiesResult.rows as any[]) {
+    const hub = hubs[Math.floor(Math.random() * hubs.length)];
+    const lat = hub.baseLat + (Math.random() - 0.5) * 0.1;
+    const lng = hub.baseLng + (Math.random() - 0.5) * 0.1;
+    await pool.query(
+      'UPDATE entities SET location_lat = $1, location_lng = $2, location_label = $3 WHERE id = $4',
+      [lat, lng, 'Estimated Location', entity.id],
+    );
+    console.log(`Assigned random location to ${entity.name}`);
+  }
 
-  db.prepare(
-    'UPDATE entities SET location_lat = ?, location_lng = ?, location_label = ? WHERE id = ?',
-  ).run(lat, lng, 'Estimated Location', entity.id);
-  console.log(`Assigned random location to ${entity.name}`);
+  console.log('Seeding complete.');
 }
 
-console.log('Seeding complete.');
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

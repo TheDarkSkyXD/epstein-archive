@@ -37,7 +37,7 @@ import { convert } from 'html-to-text';
 import AdmZip from 'adm-zip';
 import { RedactionResolver } from '../src/server/services/RedactionResolver.js';
 import { TextCleaner } from './utils/text_cleaner.js';
-import { getDb, getIngestDb } from '../src/server/db/connection.js';
+import { getIngestPool } from '../src/server/db/connection.js';
 import { AIEnrichmentService } from '../src/server/services/AIEnrichmentService.js';
 import { markViewsDirty } from '../src/server/services/matViewRefresh.js';
 
@@ -207,8 +207,8 @@ const COLLECTIONS: CollectionConfig[] = [
 let db: any;
 
 async function initDb() {
-  db = getIngestDb();
-  console.log('✅ Database gateway initialized (Postgres ingest pool)');
+  db = getIngestPool();
+  console.log('Database gateway initialized (Postgres ingest pool)');
 }
 
 import { PipelineService, PipelineRun } from '../src/server/services/pipelineService.js';
@@ -236,7 +236,9 @@ async function startPipelineRun() {
 async function verifyDatabase() {
   console.log('✅ Verifying database connection...');
   try {
-    const count = (await db.get('SELECT COUNT(*) as count FROM documents')) as { count: number };
+    const count = ((await db.query('SELECT COUNT(*) as count FROM documents')).rows[0] ?? null) as {
+      count: number;
+    };
     console.log(`   Database connected. ${count.count} documents currently in database.`);
     return true;
   } catch (e) {
@@ -660,13 +662,12 @@ async function storeGranularData(
 
 async function storeRedactions(documentId: number, content: string, unredactedSpans: any[] | null) {
   try {
-    const db = getDb();
-    const insertSpan = db.prepare(`
+    const insertSpanSql = `
       INSERT INTO redaction_spans (
         document_id, span_start, span_end, bbox_json, redaction_kind,
         inferred_class, inferred_role, confidence, evidence_json, page_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    `;
 
     // 1. Process "Faulty" Redactions (Hidden Layer Text Recovered)
     if (unredactedSpans) {
@@ -709,18 +710,18 @@ async function storeRedactions(documentId: number, content: string, unredactedSp
             // fall back to deterministic inference
           }
 
-          insertSpan.run(
+          await db.query(insertSpanSql, [
             documentId,
             idx,
             idx + cleanSpanText.length,
             JSON.stringify(span.bbox || []),
-            'pdf_overlay', // Faulty
+            'pdf_overlay',
             inference.inferredClass,
             inference.inferredRole,
             inference.confidence,
             JSON.stringify(inference.evidence),
             null,
-          );
+          ]);
         }
       }
     }
@@ -737,7 +738,7 @@ async function storeRedactions(documentId: number, content: string, unredactedSp
 
       const inference = RedactionClassifier.classify(pre, post);
 
-      insertSpan.run(
+      await db.query(insertSpanSql, [
         documentId,
         start,
         end,
@@ -748,19 +749,19 @@ async function storeRedactions(documentId: number, content: string, unredactedSp
         inference.confidence,
         JSON.stringify(inference.evidence),
         null,
-      );
+      ]);
       count++;
     }
 
     if (count > 0) {
-      db.prepare('UPDATE documents SET has_redactions = 1, redaction_count = ? WHERE id = ?').run(
-        count,
-        documentId,
+      await db.query(
+        'UPDATE documents SET has_redactions = true, redaction_count = $1 WHERE id = $2',
+        [count, documentId],
       );
-      console.log(`\n      📝 Stored ${count} redactions for doc ${documentId}`);
+      console.log(`\n      Stored ${count} redactions for doc ${documentId}`);
     }
   } catch (e) {
-    console.warn('   ⚠️ Failed to store redactions:', e);
+    console.warn('   Failed to store redactions:', e);
   }
 }
 
@@ -929,13 +930,14 @@ async function processDocument(
       .join('/');
     const spaceEncodedPath = filePath.replace(/ /g, '%20');
 
-    const pathCheck = await db.get(
-      `SELECT id, content_sha256, processing_status FROM documents 
-       WHERE (file_path = ? OR file_path = ? OR file_path = ?)`,
-      filePath,
-      encodedPath,
-      spaceEncodedPath,
-    );
+    const pathCheck =
+      (
+        await db.query(
+          `SELECT id, content_sha256, processing_status FROM documents
+       WHERE (file_path = $1 OR file_path = $2 OR file_path = $3)`,
+          [filePath, encodedPath, spaceEncodedPath],
+        )
+      ).rows[0] ?? null;
 
     let sha256: string = '';
 
@@ -959,42 +961,49 @@ async function processDocument(
       sha256 = crypto.createHash('sha256').update(buffer).digest('hex');
 
       // Check by SHA-256 for deduplication
-      existingDoc = await db.get(
-        'SELECT id, processing_status FROM documents WHERE content_sha256 = ?',
-        sha256,
-      );
+      existingDoc =
+        (
+          await db.query('SELECT id, processing_status FROM documents WHERE content_sha256 = $1', [
+            sha256,
+          ])
+        ).rows[0] ?? null;
     }
 
     if (!existingDoc) {
       // Create skeleton document atomically
       try {
-        const result = await db
-          .prepare(
-            `
+        const result =
+          (
+            await db.query(
+              `
           INSERT INTO documents (
-            file_name, file_path, source_collection, content_sha256, 
+            file_name, file_path, source_collection, content_sha256,
             processing_status, pipeline_version, ingestion_run_id, hash_algo,
             parent_document_id
-          ) VALUES (?, ?, ?, ?, 'queued', ?, ?, 'sha256', ?)
+          ) VALUES ($1, $2, $3, $4, 'queued', $5, $6, 'sha256', $7)
           RETURNING id, processing_status
         `,
-          )
-          .get(
-            basename(filePath),
-            filePath,
-            collection.name,
-            sha256,
-            PIPELINE_VERSION,
-            currentRun.id,
-            metaOverride?.parent_document_id || null,
-          );
+              [
+                basename(filePath),
+                filePath,
+                collection.name,
+                sha256,
+                PIPELINE_VERSION,
+                currentRun.id,
+                metaOverride?.parent_document_id || null,
+              ],
+            )
+          ).rows[0] ?? null;
         existingDoc = result;
       } catch (e) {
         // ... (rest as before but async)
-        existingDoc = await db.get(
-          'SELECT id, processing_status FROM documents WHERE content_sha256 = ? OR file_path = ?',
-          [sha256, filePath],
-        );
+        existingDoc =
+          (
+            await db.query(
+              'SELECT id, processing_status FROM documents WHERE content_sha256 = $1 OR file_path = $2',
+              [sha256, filePath],
+            )
+          ).rows[0] ?? null;
 
         if (!existingDoc) {
           throw new Error(
@@ -1013,55 +1022,56 @@ async function processDocument(
     }
 
     // Ensure job exists and try to lease it
-    const job = await db.get(
-      'SELECT id FROM processing_jobs WHERE target_type = "document" AND target_id = ? AND step_name = "ingestion"',
-      (existingDoc as any).id,
-    );
+    const job =
+      (
+        await db.query(
+          "SELECT id FROM processing_jobs WHERE target_type = 'document' AND target_id = $1 AND step_name = 'ingestion'",
+          [(existingDoc as any).id],
+        )
+      ).rows[0] ?? null;
     if (!job) {
-      await db.run(
-        'INSERT INTO processing_jobs (run_id, step_name, target_type, target_id, max_attempts) VALUES (?, ?, ?, ?, ?)',
-        currentRun.id,
-        'ingestion',
-        'document',
-        (existingDoc as any).id,
-        5,
+      await db.query(
+        'INSERT INTO processing_jobs (run_id, step_name, target_type, target_id, max_attempts) VALUES ($1, $2, $3, $4, $5)',
+        [currentRun.id, 'ingestion', 'document', (existingDoc as any).id, 5],
       );
     }
 
     // Attempt to lease specifically for this document
-    const leaseResult = await db.run(
-      `UPDATE processing_jobs 
-       SET status = 'running', locked_by = ?, locked_at = CURRENT_TIMESTAMP, attempts = attempts + 1, updated_at = CURRENT_TIMESTAMP 
-       WHERE target_type = 'document' AND target_id = ? AND step_name = 'ingestion' 
-         AND (status = 'queued' OR (status = 'running' AND locked_at < datetime('now', '-10 minutes')))`,
-      currentRun.run_uuid,
-      (existingDoc as any).id,
+    const leaseResult = await db.query(
+      `UPDATE processing_jobs
+       SET status = 'running', locked_by = $1, locked_at = CURRENT_TIMESTAMP, attempts = attempts + 1, updated_at = CURRENT_TIMESTAMP
+       WHERE target_type = 'document' AND target_id = $2 AND step_name = 'ingestion'
+         AND (status = 'queued' OR (status = 'running' AND locked_at < NOW() - INTERVAL '10 minutes'))`,
+      [currentRun.run_uuid, (existingDoc as any).id],
     );
 
-    if (leaseResult.changes === 0) {
+    if (leaseResult.rowCount === 0) {
       console.log(`   ⏳ Could not lease job for ${basename(filePath)} (locked by another worker)`);
       return { success: true };
     }
 
     // We need the job object for later code that expects 'leasedJob.id'
-    const leasedJob = await db.get(
-      'SELECT id FROM processing_jobs WHERE target_type = "document" AND target_id = ? AND step_name = "ingestion"',
-      (existingDoc as any).id,
-    );
+    const leasedJob =
+      (
+        await db.query(
+          "SELECT id FROM processing_jobs WHERE target_type = 'document' AND target_id = $1 AND step_name = 'ingestion'",
+          [(existingDoc as any).id],
+        )
+      ).rows[0] ?? null;
 
     // If we are here, we own the lease for (existingDoc as any).id
     documentId = (existingDoc as any).id;
     console.log(`   ⚙️  Processing document ${documentId}: ${basename(filePath)}`);
 
     // fallback check by path (legacy)
-    const existingPath = await db.get('SELECT id FROM documents WHERE file_path = ?', filePath);
+    const existingPath =
+      (await db.query('SELECT id FROM documents WHERE file_path = $1', [filePath])).rows[0] ?? null;
     if (existingPath) {
-      console.log(`   🔄 Updating legacy path entry with SHA-256: ${basename(filePath)}`);
-      await db.run(
-        'UPDATE documents SET content_sha256 = ? WHERE id = ?',
+      console.log(`   Updating legacy path entry with SHA-256: ${basename(filePath)}`);
+      await db.query('UPDATE documents SET content_sha256 = $1 WHERE id = $2', [
         sha256,
         (existingPath as any).id,
-      );
+      ]);
       return { success: true, documentId: (existingPath as any).id };
     }
 
@@ -1254,30 +1264,30 @@ async function processDocument(
     // fileType already calculated above
 
     // Update the skeleton document with extracted content
-    await db.run(
+    await db.query(
       `
-            UPDATE documents SET 
-                content = ?,
-                content_hash = ?,
-                page_count = ?,
-                metadata_json = ?,
-                red_flag_rating = ?,
-                content_preview = ?,
-                file_type = ?,
-                file_size = ?,
-                word_count = ?,
+            UPDATE documents SET
+                content = $1,
+                content_hash = $2,
+                page_count = $3,
+                metadata_json = $4,
+                red_flag_rating = $5,
+                content_preview = $6,
+                file_type = $7,
+                file_size = $8,
+                word_count = $9,
                 processing_status = 'succeeded',
-                unredaction_attempted = ?,
-                unredaction_succeeded = ?,
-                redaction_coverage_before = ?,
-                redaction_coverage_after = ?,
-                unredacted_text_gain = ?,
-                unredaction_baseline_vocab = ?,
-                evidence_type = ?,
-                unredacted_span_json = ?,
-                analyzed_at = now(),
-                created_at = now()
-            WHERE id = ?
+                unredaction_attempted = $10,
+                unredaction_succeeded = $11,
+                redaction_coverage_before = $12,
+                redaction_coverage_after = $13,
+                unredacted_text_gain = $14,
+                unredaction_baseline_vocab = $15,
+                evidence_type = $16,
+                unredacted_span_json = $17,
+                analyzed_at = NOW(),
+                created_at = NOW()
+            WHERE id = $18
         `,
       [
         content,
@@ -1303,10 +1313,9 @@ async function processDocument(
 
     // Phase 9: Sync Job Completion
     if (leasedJob) {
-      await db.run(
-        'UPDATE processing_jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        'succeeded',
-        leasedJob.id,
+      await db.query(
+        'UPDATE processing_jobs SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+        ['succeeded', leasedJob.id],
       );
     }
 
@@ -1395,16 +1404,19 @@ async function processDocument(
     return { success: true, documentId: documentId };
   } catch (error) {
     if (typeof documentId !== 'undefined') {
-      const job = await db.get(
-        'SELECT id FROM processing_jobs WHERE target_type = $1 AND target_id = $2 AND step_name = $3 AND status = $4',
-        ['document', documentId, 'ingestion', 'running'],
-      );
+      const job =
+        (
+          await db.query(
+            'SELECT id FROM processing_jobs WHERE target_type = $1 AND target_id = $2 AND step_name = $3 AND status = $4',
+            ['document', documentId, 'ingestion', 'running'],
+          )
+        ).rows[0] ?? null;
       if (job) {
         const isRetryable =
           !(error as Error).message.includes('corrupt') &&
           !(error as Error).message.includes('encrypted');
-        await db.run(
-          'UPDATE processing_jobs SET status = ?, last_error = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        await db.query(
+          'UPDATE processing_jobs SET status = $1, last_error = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
           [isRetryable ? 'failed_retryable' : 'failed_permanent', (error as Error).message, job.id],
         );
       }
@@ -1591,7 +1603,6 @@ async function main() {
   if (mode === 'queue-only') {
     console.log('⏭️  Skipping file ingestion. Running queue processor only.\n');
     await processQueue();
-    await db.close();
     return;
   }
 
@@ -1625,7 +1636,8 @@ async function main() {
   console.log(`Total errors:               ${stats.totalErrors}`);
 
   // Current database stats
-  const finalCount = (await db.get('SELECT COUNT(*) as count FROM documents')) as {
+  const finalCount = ((await db.query('SELECT COUNT(*) as count FROM documents')).rows[0] ??
+    null) as {
     count: number;
   };
   console.log(`\nFinal database count:       ${finalCount.count} documents`);
@@ -1634,16 +1646,18 @@ async function main() {
   await PipelineService.updateRunStatus(currentRun.id, 'succeeded');
 
   if (stats.totalProcessed > 0) {
-    await db.run('ANALYZE documents');
-    await db.run('ANALYZE entities');
+    await db.query('ANALYZE documents');
+    await db.query('ANALYZE entities');
     markViewsDirty();
   }
 
   // Collection breakdown
   console.log('\nBy Collection:');
-  const collections = (await db.all(
-    'SELECT source_collection, COUNT(*) as count FROM documents GROUP BY source_collection ORDER BY count DESC',
-  )) as any[];
+  const collections = (
+    await db.query(
+      'SELECT source_collection, COUNT(*) as count FROM documents GROUP BY source_collection ORDER BY count DESC',
+    )
+  ).rows as any[];
   for (const coll of collections) {
     console.log(`  • ${coll.source_collection}: ${coll.count}`);
   }
@@ -1657,8 +1671,7 @@ async function main() {
 
 async function processQueue() {
   const jobManager = new JobManager();
-  const dbSync = getIngestDb();
-  console.log('\n📬 Processing Queue with Robust Leasing (Phase 9)...');
+  console.log('\nProcessing Queue with Robust Leasing (Phase 9)...');
 
   // Enforce Exo cluster usage
   process.env.AI_PROVIDER = 'exo_cluster';
@@ -1686,18 +1699,20 @@ async function processQueue() {
         try {
           await jobManager.renewLease(docId, 600);
 
-          const fullDoc = await dbSync.get(
-            'SELECT content, content_preview FROM documents WHERE id = ?',
-            [docId],
-          );
+          const fullDoc =
+            (
+              await db.query('SELECT content, content_preview FROM documents WHERE id = $1', [
+                docId,
+              ])
+            ).rows[0] ?? null;
 
           if (fullDoc && fullDoc.content) {
             const context = fullDoc.content.slice(0, 2000);
             const refined = await AIEnrichmentService.repairMimeWildcards(fullDoc.content, context);
 
             if (refined !== fullDoc.content) {
-              await dbSync.run(
-                'UPDATE documents SET content = ?, content_refined = ?, last_processed_at = now() WHERE id = ?',
+              await db.query(
+                'UPDATE documents SET content = $1, content_refined = $2, last_processed_at = NOW() WHERE id = $3',
                 [refined, refined, docId],
               );
             }
@@ -1731,7 +1746,7 @@ async function processQueue() {
   if (processedCount === 0) {
     console.log('\n   (No queued jobs found)');
   } else {
-    await dbSync.run('ANALYZE documents');
+    await db.query('ANALYZE documents');
     markViewsDirty();
     console.log(`\n\n   ✅ Processed ${processedCount} queued jobs reliably.`);
   }

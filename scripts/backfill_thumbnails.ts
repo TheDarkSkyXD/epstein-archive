@@ -1,11 +1,9 @@
 import path from 'path';
 import fs from 'fs';
-import { MediaService } from '../src/services/MediaService';
-import { getDb } from '../src/server/db/connection';
+import { MediaService } from '../src/server/services/MediaService';
 
 async function main() {
-  const db = getDb();
-  const media = new MediaService(db);
+  const media = new MediaService(null);
 
   const BATCH_SIZE = 500;
   let offset = 0;

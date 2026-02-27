@@ -1,6 +1,7 @@
 #!/usr/bin/env tsx
+import 'dotenv/config';
 import { JobManager } from '../src/server/services/JobManager.js';
-import { getDb } from '../src/server/db/connection.js';
+import { getIngestPool } from '../src/server/db/connection.js';
 import { AIEnrichmentService } from '../src/server/services/AIEnrichmentService.js';
 
 process.env.AI_PROVIDER = 'exo_cluster';
@@ -22,7 +23,7 @@ async function waitForHealthyApi(): Promise<void> {
 }
 
 async function runQueue() {
-  const db = getDb();
+  const pool = getIngestPool();
   const jobManager = new JobManager();
 
   let shuttingDown = false;
@@ -33,24 +34,20 @@ async function runQueue() {
   const startedAt = Date.now();
 
   const initialQueued = (
-    db.prepare("SELECT COUNT(*) AS c FROM documents WHERE processing_status = 'queued'").get() as {
-      c: number;
-    }
-  ).c;
+    await pool.query("SELECT COUNT(*) AS c FROM documents WHERE processing_status = 'queued'")
+  ).rows[0].c as number;
 
   const initialProcessing = (
-    db
-      .prepare("SELECT COUNT(*) AS c FROM documents WHERE processing_status = 'processing'")
-      .get() as { c: number }
-  ).c;
+    await pool.query("SELECT COUNT(*) AS c FROM documents WHERE processing_status = 'processing'")
+  ).rows[0].c as number;
 
   console.log('='.repeat(80));
   console.log('🚀 SINGLE-NODE QUEUE RUNNER');
   console.log('='.repeat(80));
   console.log(`🤖 EXO_MODEL=${process.env.EXO_MODEL || '(auto-discover)'}`);
   console.log(`⚡ Concurrency=${CONCURRENCY}`);
-  console.log(`📬 Initial queued=${initialQueued.toLocaleString()}`);
-  console.log(`⏳ Initial processing=${initialProcessing.toLocaleString()}`);
+  console.log(`📬 Initial queued=${Number(initialQueued).toLocaleString()}`);
+  console.log(`⏳ Initial processing=${Number(initialProcessing).toLocaleString()}`);
   console.log();
 
   const signalHandler = () => {
@@ -65,7 +62,7 @@ async function runQueue() {
     await waitForHealthyApi();
 
     while (!shuttingDown && hasMore && active.size < CONCURRENCY) {
-      const job = jobManager.acquireJob(LEASE_SECONDS);
+      const job = await jobManager.acquireJob(LEASE_SECONDS);
       if (!job) {
         hasMore = false;
         break;
@@ -74,42 +71,42 @@ async function runQueue() {
       const p = (async () => {
         const docId = Number(job.id);
         try {
-          jobManager.renewLease(docId, LEASE_SECONDS);
+          await jobManager.renewLease(docId, LEASE_SECONDS);
 
-          const row = db.prepare('SELECT content FROM documents WHERE id = ?').get(docId) as
-            | { content?: string }
-            | undefined;
+          const row = (await pool.query('SELECT content FROM documents WHERE id = $1', [docId]))
+            .rows[0] as { content?: string } | undefined;
           const content = row?.content ?? '';
 
           if (content.length > 0) {
             const context = content.slice(0, 2000);
             const refined = await AIEnrichmentService.repairMimeWildcards(content, context);
             if (refined && refined !== content) {
-              db.prepare(
-                'UPDATE documents SET content = ?, content_refined = ?, last_processed_at = datetime("now") WHERE id = ?',
-              ).run(refined, refined, docId);
+              await pool.query(
+                'UPDATE documents SET content = $1, content_refined = $2, last_processed_at = NOW() WHERE id = $3',
+                [refined, refined, docId],
+              );
             }
           }
 
-          jobManager.completeJob(docId);
+          await jobManager.completeJob(docId);
           processed++;
 
           if (processed % 25 === 0) {
             const elapsedSec = (Date.now() - startedAt) / 1000;
             const rate = processed / Math.max(elapsedSec, 1);
             const remaining = (
-              db
-                .prepare("SELECT COUNT(*) AS c FROM documents WHERE processing_status = 'queued'")
-                .get() as { c: number }
-            ).c;
-            const etaMin = remaining / Math.max(rate, 0.0001) / 60;
+              await pool.query(
+                "SELECT COUNT(*) AS c FROM documents WHERE processing_status = 'queued'",
+              )
+            ).rows[0].c as number;
+            const etaMin = Number(remaining) / Math.max(rate, 0.0001) / 60;
             process.stdout.write(
-              `\r✅ Processed=${processed.toLocaleString()} Failed=${failed.toLocaleString()} Active=${active.size} Rate=${rate.toFixed(2)} docs/s Remaining=${remaining.toLocaleString()} ETA=${etaMin.toFixed(1)}m`,
+              `\r✅ Processed=${processed.toLocaleString()} Failed=${failed.toLocaleString()} Active=${active.size} Rate=${rate.toFixed(2)} docs/s Remaining=${Number(remaining).toLocaleString()} ETA=${etaMin.toFixed(1)}m`,
             );
           }
         } catch (e: any) {
           failed++;
-          jobManager.failJob(docId, e?.message || 'unknown error');
+          await jobManager.failJob(docId, e?.message || 'unknown error');
           process.stdout.write(`\n❌ Doc ${docId} failed: ${e?.message || 'unknown error'}\n`);
         }
       })();
@@ -130,10 +127,8 @@ async function runQueue() {
   }
 
   const queuedLeft = (
-    db.prepare("SELECT COUNT(*) AS c FROM documents WHERE processing_status = 'queued'").get() as {
-      c: number;
-    }
-  ).c;
+    await pool.query("SELECT COUNT(*) AS c FROM documents WHERE processing_status = 'queued'")
+  ).rows[0].c as number;
 
   console.log('\n');
   console.log('='.repeat(80));
@@ -141,7 +136,7 @@ async function runQueue() {
   console.log('='.repeat(80));
   console.log(`Processed: ${processed.toLocaleString()}`);
   console.log(`Failed: ${failed.toLocaleString()}`);
-  console.log(`Queued remaining: ${queuedLeft.toLocaleString()}`);
+  console.log(`Queued remaining: ${Number(queuedLeft).toLocaleString()}`);
 }
 
 runQueue().catch((err) => {

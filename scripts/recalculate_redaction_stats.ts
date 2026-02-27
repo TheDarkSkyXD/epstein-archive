@@ -1,65 +1,64 @@
 #!/usr/bin/env tsx
-import { getDb } from '../src/server/db/connection.js';
+import { getMaintenancePool } from '../src/server/db/connection.js';
+import 'dotenv/config';
 
 async function recalculate() {
-  const db = getDb();
-  console.log('🚀 Recalculating Redaction Statistics...');
+  const pool = getMaintenancePool();
+  console.log('Recalculating Redaction Statistics...');
 
-  // 1. Reset columns to 0 for all documents that have source_collection
-  console.log('🧹 Clearing old redaction stats...');
-  db.prepare(
-    `
-    UPDATE documents 
-    SET has_redactions = 0, redaction_count = 0
+  console.log('Clearing old redaction stats...');
+  await pool.query(`
+    UPDATE documents
+    SET has_redactions = false, redaction_count = 0
     WHERE source_collection IS NOT NULL
-  `,
-  ).run();
+  `);
 
-  // 2. Count redactions per document from redaction_spans
-  console.log('📊 Aggregating redaction spans...');
-  const stats = db
-    .prepare(
-      `
+  console.log('Aggregating redaction spans...');
+  const statsResult = await pool.query(`
     SELECT document_id, COUNT(*) as count
     FROM redaction_spans
     GROUP BY document_id
-  `,
-    )
-    .all() as { document_id: number; count: number }[];
-
-  console.log(`📝 Updating ${stats.length} documents with redaction data...`);
-
-  const updateStmt = db.prepare(`
-    UPDATE documents 
-    SET has_redactions = 1, redaction_count = ?
-    WHERE id = ?
   `);
+  const stats = statsResult.rows as { document_id: number; count: number }[];
 
-  db.transaction(() => {
+  console.log(`Updating ${stats.length} documents with redaction data...`);
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
     let i = 0;
     for (const stat of stats) {
-      updateStmt.run(stat.count, stat.document_id);
+      await client.query(
+        'UPDATE documents SET has_redactions = true, redaction_count = $1 WHERE id = $2',
+        [stat.count, stat.document_id],
+      );
       i++;
       if (i % 1000 === 0) {
         process.stdout.write(`   Progress: ${i} / ${stats.length}\r`);
       }
     }
-  })();
 
-  console.log('\n✅ Redaction statistics successfully recalculated!');
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 
-  // 3. Verify counts
-  const row = db
-    .prepare(
-      `
-    SELECT COUNT(*) as count 
-    FROM documents 
-    WHERE has_redactions = 1
-  `,
-    )
-    .get() as { count: number };
+  console.log('\nRedaction statistics successfully recalculated!');
 
-  console.log(`🏁 Total documents now marked as redacted: ${row.count}`);
+  const row = (
+    await pool.query(`
+    SELECT COUNT(*) as count FROM documents WHERE has_redactions = true
+  `)
+  ).rows[0] as { count: number };
+
+  console.log(`Total documents now marked as redacted: ${row.count}`);
 }
 
-recalculate().catch(console.error);
+recalculate().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

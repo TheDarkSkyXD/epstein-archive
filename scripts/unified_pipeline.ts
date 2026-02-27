@@ -6,8 +6,9 @@
 import { spawn, execSync } from 'child_process';
 import { existsSync, readdirSync, statSync, writeFileSync } from 'fs';
 import { join } from 'path';
+import 'dotenv/config';
 import { AIEnrichmentService } from '../src/server/services/AIEnrichmentService.js';
-import { getDb } from '../src/server/db/connection.js';
+import { getIngestPool } from '../src/server/db/connection.js';
 
 // Configuration
 const BATCH_SIZE = parseInt(process.env.BATCH_SIZE || '50', 10);
@@ -104,17 +105,20 @@ async function runIntelPhase(): Promise<{ entitiesExtracted: number; relationsFo
   console.log('🔍 PHASE 2: INTELLIGENCE (Entity Extraction, Relations)');
   console.log('='.repeat(70));
 
-  const db = getDb();
+  const pool = getIngestPool();
 
-  const entitiesBefore = ((await db.get('SELECT COUNT(*) as c FROM entities')) as any).c;
-  const relationsBefore = ((await db.get('SELECT COUNT(*) as c FROM entity_relationships')) as any)
+  const entitiesBefore = ((await pool.query('SELECT COUNT(*) as c FROM entities')).rows[0] as any)
     .c;
+  const relationsBefore = (
+    (await pool.query('SELECT COUNT(*) as c FROM entity_relationships')).rows[0] as any
+  ).c;
 
   const exitCode = await runScript('scripts/ingest_intelligence.ts');
 
-  const entitiesAfter = ((await db.get('SELECT COUNT(*) as c FROM entities')) as any).c;
-  const relationsAfter = ((await db.get('SELECT COUNT(*) as c FROM entity_relationships')) as any)
-    .c;
+  const entitiesAfter = ((await pool.query('SELECT COUNT(*) as c FROM entities')).rows[0] as any).c;
+  const relationsAfter = (
+    (await pool.query('SELECT COUNT(*) as c FROM entity_relationships')).rows[0] as any
+  ).c;
 
   return {
     entitiesExtracted: entitiesAfter - entitiesBefore,
@@ -134,7 +138,7 @@ async function runEnrichPhase(
   console.log(`   Provider: ${process.env.AI_PROVIDER}`);
   console.log(`   Mode: ${mode}`);
 
-  const db = getDb();
+  const pool = getIngestPool();
 
   let whereClause = 'content IS NOT NULL AND length(content) > 50';
   if (mode === 'backfill') {
@@ -143,9 +147,8 @@ async function runEnrichPhase(
     whereClause += " AND created_at > now() - interval '1 day'";
   }
 
-  const totalRow = (await db.get(
-    `SELECT COUNT(*) as c FROM documents WHERE ${whereClause}`,
-  )) as any;
+  const totalRow = (await pool.query(`SELECT COUNT(*) as c FROM documents WHERE ${whereClause}`))
+    .rows[0] as any;
   const totalDocs = totalRow?.c || 0;
 
   console.log(`   Documents to enrich: ${totalDocs}`);
@@ -161,17 +164,19 @@ async function runEnrichPhase(
   const startTime = Date.now();
 
   while (offset < totalDocs) {
-    const docs = (await db.all(
-      `
+    const docs = (
+      await pool.query(
+        `
       SELECT id, content, metadata_json, file_name
       FROM documents
       WHERE ${whereClause}
       ORDER BY id ASC
-      LIMIT ?
-      OFFSET ?
+      LIMIT $1
+      OFFSET $2
     `,
-      [BATCH_SIZE, offset],
-    )) as any[];
+        [BATCH_SIZE, offset],
+      )
+    ).rows as any[];
 
     if (docs.length === 0) break;
 
@@ -214,8 +219,8 @@ async function runEnrichPhase(
             meta.ai_enriched_at = new Date().toISOString();
             meta.ai_provider = process.env.AI_PROVIDER;
 
-            await db.run(
-              'UPDATE documents SET metadata_json = ?, content_refined = ? WHERE id = ?',
+            await pool.query(
+              'UPDATE documents SET metadata_json = $1, content_refined = $2 WHERE id = $3',
               [JSON.stringify(meta), refinedText, doc.id],
             );
             summariesGenerated++;

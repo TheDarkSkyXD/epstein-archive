@@ -1,6 +1,8 @@
 export {
   getApiPool,
   getMaintenancePool,
+  getIngressPool,
+  getIngestPool,
   initPools,
   assertProductionPg,
   getMigrationMetrics,

@@ -1,13 +1,14 @@
-import { getDb } from '../src/server/db/connection.js';
+import { getMaintenancePool } from '../src/server/db/connection.js';
+import 'dotenv/config';
 
 async function main() {
-  const db = getDb();
+  const pool = getMaintenancePool();
+  console.log('Repairing invalid document_spans offsets...\n');
 
-  console.log('🔧 Repairing invalid document_spans offsets...\n');
-
-  const spans = db
-    .prepare(`SELECT id, start_offset, end_offset, document_id FROM document_spans`)
-    .all() as any[];
+  const spansResult = await pool.query(
+    'SELECT id, start_offset, end_offset, document_id FROM document_spans',
+  );
+  const spans = spansResult.rows;
 
   let legacySpans = 0;
   let repaired = 0;
@@ -18,9 +19,11 @@ async function main() {
       continue;
     }
 
-    const doc = db
-      .prepare(`SELECT content, content_refined FROM documents WHERE id = ?`)
-      .get(span.document_id) as
+    const docResult = await pool.query(
+      'SELECT content, content_refined FROM documents WHERE id = $1',
+      [span.document_id],
+    );
+    const doc = docResult.rows[0] as
       | { content: string | null; content_refined: string | null }
       | undefined;
 
@@ -46,15 +49,15 @@ async function main() {
       console.log(
         `  - fixing ${span.id} (doc=${span.document_id}, start=${span.start_offset}, end=${span.end_offset}, reason=${reason})`,
       );
-      db.prepare(`UPDATE document_spans SET start_offset = 0, end_offset = 0 WHERE id = ?`).run(
+      await pool.query('UPDATE document_spans SET start_offset = 0, end_offset = 0 WHERE id = $1', [
         span.id,
-      );
+      ]);
       repaired++;
     }
   }
 
   console.log(
-    `\n✅ Completed span offset repair. Legacy spans: ${legacySpans}, repaired spans: ${repaired}`,
+    `\nCompleted span offset repair. Legacy spans: ${legacySpans}, repaired spans: ${repaired}`,
   );
 }
 

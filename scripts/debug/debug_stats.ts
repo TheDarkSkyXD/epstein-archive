@@ -1,8 +1,7 @@
-import { statsRepository } from './src/server/db/statsRepository';
-import { getDb } from './src/server/db/connection';
+import { statsRepository } from '../../src/server/db/statsRepository.js';
+import 'dotenv/config';
 
-const db = getDb();
-console.log('DB Path:', process.env.DB_PATH);
+console.log('Checking stats repository...');
 
 try {
   const stats = statsRepository.getStatistics();

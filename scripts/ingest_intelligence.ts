@@ -4,15 +4,10 @@ import { extractEvidence, scoreCategoryMatch } from './utils/evidence_extractor.
 import { recalculateRisk } from './recalculate_entity_risk.js';
 import { JobManager } from '../src/server/services/JobManager.js';
 import os from 'os';
-import { getDb } from '../src/server/db/connection.js';
+import { getIngestPool } from '../src/server/db/connection.js';
 
 let db: any;
 let currentResolverRunId: string;
-
-// Prepared statements placeholders
-let insertSpan: any;
-let insertMentionRow: any;
-let insertRelation: any;
 
 // CONFIGURATION
 const BATCH_SIZE = 100;
@@ -85,9 +80,9 @@ async function extractCredentials(doc: any, content: string) {
     const matches = [...content.matchAll(regex)];
     for (const match of matches) {
       if (match[1]) {
-        await db.run(
+        await db.query(
           `INSERT INTO black_book_entries (entry_text, notes, document_id, entry_category, created_at)
-           VALUES (?, ?, ?, 'credential', CURRENT_TIMESTAMP)`,
+           VALUES ($1, $2, $3, 'credential', CURRENT_TIMESTAMP)`,
           [
             `⭐ ${pattern.type}: ${match[1]}`,
             `[CREDENTIAL] Extracted from document ${doc.id} (${doc.file_name})`,
@@ -112,14 +107,16 @@ async function harvestContacts(doc: any, content: string, entitiesFound: any[]) 
 
       for (const emailMatch of emails) {
         const email = emailMatch[0];
-        const existing = await db.get(
-          'SELECT id FROM black_book_entries WHERE document_id = ? AND entry_text LIKE ?',
-          [doc.id, `%${email}%`],
-        );
+        const existing = (
+          await db.query(
+            'SELECT id FROM black_book_entries WHERE document_id = $1 AND entry_text LIKE $2',
+            [doc.id, `%${email}%`],
+          )
+        ).rows[0];
         if (!existing) {
-          await db.run(
+          await db.query(
             `INSERT INTO black_book_entries (person_id, entry_text, notes, document_id, entry_category, created_at)
-             VALUES (?, ?, ?, ?, 'contact', CURRENT_TIMESTAMP)`,
+             VALUES ($1, $2, $3, $4, 'contact', CURRENT_TIMESTAMP)`,
             [
               entity.entityId || null,
               `⭐ ${entity.name} (Contact): ${email}`,
@@ -131,14 +128,16 @@ async function harvestContacts(doc: any, content: string, entitiesFound: any[]) 
       }
       for (const phoneMatch of phones) {
         const phone = phoneMatch[0];
-        const existing = await db.get(
-          'SELECT id FROM black_book_entries WHERE document_id = ? AND entry_text LIKE ?',
-          [doc.id, `%${phone}%`],
-        );
+        const existing = (
+          await db.query(
+            'SELECT id FROM black_book_entries WHERE document_id = $1 AND entry_text LIKE $2',
+            [doc.id, `%${phone}%`],
+          )
+        ).rows[0];
         if (!existing) {
-          await db.run(
+          await db.query(
             `INSERT INTO black_book_entries (person_id, entry_text, notes, document_id, entry_category, created_at)
-             VALUES (?, ?, ?, ?, 'contact', CURRENT_TIMESTAMP)`,
+             VALUES ($1, $2, $3, $4, 'contact', CURRENT_TIMESTAMP)`,
             [
               entity.entityId || null,
               `⭐ ${entity.name} (Contact): ${phone}`,
@@ -158,7 +157,7 @@ function makeId(): string {
 
 export async function runIntelligencePipeline() {
   console.log('🚀 Starting ULTIMATE Evidentiary Ingestion Pipeline (PG NATIVE)...');
-  db = getDb();
+  db = getIngestPool();
 
   let totalEntities = 0;
   let totalMentions = 0;
@@ -167,45 +166,48 @@ export async function runIntelligencePipeline() {
 
   try {
     const gitCommit = execSync('git rev-parse HEAD').toString().trim();
-    await db.run(
+    await db.query(
       `INSERT INTO ingest_runs (id, status, git_commit, pipeline_version, agentic_enabled)
-       VALUES (?, 'running', ?, '2.0.0-pg', 0)`,
+       VALUES ($1, 'running', $2, '2.0.0-pg', 0)`,
       [ingestRunId, gitCommit],
     );
 
     // Resolver run registration
-    const res = await db
-      .prepare(
-        'INSERT INTO resolver_runs (resolver_name, resolver_version) VALUES (?, ?) RETURNING id',
+    const res = (
+      await db.query(
+        'INSERT INTO resolver_runs (resolver_name, resolver_version) VALUES ($1, $2) RETURNING id',
+        ['UltimateIngestionPipeline', '2.0.0-pg'],
       )
-      .get(['UltimateIngestionPipeline', '2.0.0-pg']);
+    ).rows[0];
     const currentResolverRunTableId = res.id;
 
-    // Prepared statements for high-throughput loops
-    const insertEntity = await db.prepare(`
+    // SQL strings for high-throughput loops
+    const insertEntitySql = `
       INSERT INTO entities (name, type, risk_level, evidence_count, first_seen_at)
-      VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP)
+      VALUES ($1, $2, $3, 1, CURRENT_TIMESTAMP)
       ON CONFLICT (name, type) DO NOTHING
       RETURNING id
-    `);
+    `;
 
-    const insertMention = await db.prepare(`
+    const insertMentionSql = `
       INSERT INTO entity_mentions (entity_id, document_id, mention_text, context_window, confidence, pipeline_run_id)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
+      VALUES ($1, $2, $3, $4, $5, $6)
+    `;
 
-    const updateEvidenceCount = await db.prepare(`
-        UPDATE entities SET evidence_count = evidence_count + 1 WHERE id = ?
-    `);
+    const updateEvidenceCountSql = `
+        UPDATE entities SET evidence_count = evidence_count + 1 WHERE id = $1
+    `;
 
     // documents that need intelligence processing
-    const docs = await db.all(`
-      SELECT id, content, file_name, metadata_json 
-      FROM documents 
-      WHERE content IS NOT NULL 
+    const docs = (
+      await db.query(`
+      SELECT id, content, file_name, metadata_json
+      FROM documents
+      WHERE content IS NOT NULL
         AND (processing_status = 'succeeded' OR processing_status = 'completed')
       ORDER BY id ASC
-    `);
+    `)
+    ).rows;
 
     console.log(`   Found ${docs.length} documents for intelligence extraction.`);
 
@@ -233,29 +235,34 @@ export async function runIntelligencePipeline() {
 
         // Insert/Find Entity
         let entityId: number;
-        const existing = await db.get('SELECT id FROM entities WHERE name = ? AND type = ?', [
-          finalEnt.name,
-          finalEnt.type,
-        ]);
+        const existing = (
+          await db.query('SELECT id FROM entities WHERE name = $1 AND type = $2', [
+            finalEnt.name,
+            finalEnt.type,
+          ])
+        ).rows[0];
         if (existing) {
           entityId = existing.id;
-          await updateEvidenceCount.run([entityId]);
+          await db.query(updateEvidenceCountSql, [entityId]);
         } else {
-          const result = await insertEntity.get([finalEnt.name, finalEnt.type, 'low']);
+          const result = (await db.query(insertEntitySql, [finalEnt.name, finalEnt.type, 'low']))
+            .rows[0];
           if (result) {
             entityId = result.id;
           } else {
             // Conflict handled, fetch id
-            const refetch = await db.get('SELECT id FROM entities WHERE name = ? AND type = ?', [
-              finalEnt.name,
-              finalEnt.type,
-            ]);
+            const refetch = (
+              await db.query('SELECT id FROM entities WHERE name = $1 AND type = $2', [
+                finalEnt.name,
+                finalEnt.type,
+              ])
+            ).rows[0];
             entityId = refetch.id;
           }
         }
 
         // Insert Mention
-        await insertMention.run([
+        await db.query(insertMentionSql, [
           entityId,
           doc.id,
           finalEnt.name,
@@ -272,14 +279,14 @@ export async function runIntelligencePipeline() {
       await harvestContacts(doc, content, entitiesFound);
     }
 
-    await db.run(
-      "UPDATE ingest_runs SET status = 'completed', finished_at = CURRENT_TIMESTAMP WHERE id = ?",
+    await db.query(
+      "UPDATE ingest_runs SET status = 'completed', finished_at = CURRENT_TIMESTAMP WHERE id = $1",
       [ingestRunId],
     );
     console.log('✅ Intelligence Pipeline complete.');
   } catch (error) {
     console.error('❌ Intelligence Pipeline failed:', error);
-    await db.run("UPDATE ingest_runs SET status = 'failed', error_message = ? WHERE id = ?", [
+    await db.query("UPDATE ingest_runs SET status = 'failed', error_message = $1 WHERE id = $2", [
       (error as Error).message,
       ingestRunId,
     ]);

@@ -4,7 +4,6 @@ import path from 'path';
 import { globSync } from 'glob';
 import crypto from 'crypto';
 import { AssetService } from '../src/services/assetService.js';
-import { getDb } from '../src/server/db/connection.js';
 
 const TARGET_DIR = 'data/media/images/Confirmed Fake';
 const BACKUP_DIR = path.join(TARGET_DIR, '_backup');

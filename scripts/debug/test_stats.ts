@@ -1,5 +1,5 @@
-import { statsRepository } from '../src/server/db/statsRepository';
-import { getDb } from '../src/server/db/connection';
+import { statsRepository } from '../../src/server/db/statsRepository.js';
+import 'dotenv/config';
 
 try {
   console.log('Testing statsRepository.getStatistics()...');

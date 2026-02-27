@@ -14,8 +14,11 @@ if grep -rE "better-sqlite3|sqlite|PRAGMA|FTS5|DatabaseBridge|SqliteWrapper" src
   fail "❌ SQLite keywords found in src/"
 fi
 
-# Check scripts/ for broken legacy imports
-if grep -rE "getDb\(\)|getIngestDb\(\)" scripts/ 2>/dev/null; then
+# Check scripts/ for broken legacy imports (exclude guard scripts and audit files that reference the pattern as a string)
+if grep -rE "getDb\(\)|getIngestDb\(\)" scripts/ 2>/dev/null \
+  | grep -v "\.sh:" \
+  | grep -v "ingest_audit\.ts" \
+  | grep -v "dist/"; then
   echo "FATAL: scripts/ still references deleted getDb()/getIngestDb()"
   exit 1
 fi

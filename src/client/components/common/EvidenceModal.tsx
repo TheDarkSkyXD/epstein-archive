@@ -514,6 +514,69 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
     };
   }, [entity, relationships]);
 
+  const renderEvidenceCard = useCallback(
+    (doc: any) => {
+      const excerpt = normalizeEvidenceSnippet(
+        doc.contentPreview || doc.content || doc.title || '',
+        doc.title || doc.fileName || `Document ${doc.id}`,
+      );
+      const significanceReason =
+        (doc.redFlagRating || 0) >= 4
+          ? 'High risk score in source record.'
+          : doc.evidenceType
+            ? `Matched in ${doc.evidenceType} evidence.`
+            : 'Directly linked through entity mention context.';
+
+      return (
+        <article
+          data-testid="entity-evidence-row"
+          className="bg-slate-950 border border-slate-800 rounded-[var(--radius-md)] p-4 hover:border-slate-600 transition-colors h-full flex flex-col justify-between"
+        >
+          <div>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
+                  <span className="semantic-chip text-[10px] px-2 h-6 border-slate-700/70 bg-slate-900/70 text-slate-300">
+                    {doc.evidenceType || 'Document'}
+                  </span>
+                  <span className="font-mono">#{doc.id}</span>
+                </div>
+                <h4 className="text-sm font-semibold text-slate-100 truncate">
+                  {doc.title || doc.fileName || `Document ${doc.id}`}
+                </h4>
+              </div>
+              <button
+                onClick={() => window.open(`/documents/${doc.id}`, '_blank')}
+                className="control h-8 px-3 text-xs text-slate-200 flex items-center gap-1"
+              >
+                Open <ExternalLink size={12} />
+              </button>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed mt-2 line-clamp-2">
+              {highlightTerms(excerpt, [entity?.fullName, doc.keyword])}
+            </p>
+          </div>
+          <div className="mt-2 pt-2 border-t border-slate-800/70 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500">
+            <span className="inline-flex items-center gap-1">
+              <Clock size={10} />
+              {doc.dateCreated ? new Date(doc.dateCreated).toLocaleDateString() : 'Date unknown'}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <Link2 size={10} />
+              {doc.source_collection || 'Archive'}
+            </span>
+            <span className="inline-flex items-center gap-1 text-amber-300/80">
+              <AlertTriangle size={10} />
+              {significanceReason}
+            </span>
+          </div>
+        </article>
+      );
+    },
+    [entity?.fullName],
+  );
+  const usePlainEvidenceList = totalDocs > 0 && totalDocs <= 500;
+
   const handleQuickAction = useCallback(
     (action: 'blackbook' | 'timeline' | 'search') => {
       if (!entity?.fullName) return;
@@ -979,9 +1042,11 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                       />
                     </div>
                     <div className="text-xs text-slate-400 md:ml-auto self-center">
-                      {isDocsLoading
-                        ? 'Loading evidence...'
-                        : `${totalDocs.toLocaleString()} evidence sources`}
+                      <span data-testid="entity-evidence-count">
+                        {isDocsLoading
+                          ? 'Loading evidence...'
+                          : `${totalDocs.toLocaleString()} evidence sources`}
+                      </span>
                     </div>
                   </div>
 
@@ -1013,105 +1078,101 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                         </p>
                       </div>
                     ) : (
-                      <div className="h-full w-full">
-                        {typeof TypedAutoSizer !== 'undefined' && (
-                          <TypedAutoSizer>
-                            {({ height, width }: { height: number; width: number }) => (
-                              <TypedInfiniteLoader
-                                isItemLoaded={isItemLoaded}
-                                itemCount={totalDocs}
-                                loadMoreItems={loadNextPage}
-                              >
-                                {({ onItemsRendered, ref }: { onItemsRendered: any; ref: any }) => (
-                                  <List
-                                    className="custom-scrollbar"
-                                    height={height}
-                                    itemCount={totalDocs}
-                                    itemSize={180}
-                                    width={width}
-                                    onItemsRendered={onItemsRendered}
-                                    ref={ref}
-                                  >
-                                    {({ index, style }: any) => {
-                                      const doc = documents[index];
-                                      if (!doc) {
-                                        return (
-                                          <div style={style} className="p-4">
-                                            <div className="h-full bg-slate-950/20 border border-slate-800/50 rounded-lg animate-pulse" />
-                                          </div>
-                                        );
-                                      }
-
-                                      const excerpt = normalizeEvidenceSnippet(
-                                        doc.contentPreview || doc.content || doc.title || '',
-                                        doc.title || doc.fileName || `Document ${doc.id}`,
-                                      );
-                                      const significanceReason =
-                                        (doc.redFlagRating || 0) >= 4
-                                          ? 'High risk score in source record.'
-                                          : doc.evidenceType
-                                            ? `Matched in ${doc.evidenceType} evidence.`
-                                            : 'Directly linked through entity mention context.';
-
-                                      return (
-                                        <div style={style} className="p-2 px-4">
-                                          <article className="bg-slate-950 border border-slate-800 rounded-[var(--radius-md)] p-4 hover:border-slate-600 transition-colors h-full flex flex-col justify-between">
-                                            <div>
-                                              <div className="flex items-start justify-between gap-3">
-                                                <div className="min-w-0">
-                                                  <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
-                                                    <span className="semantic-chip text-[10px] px-2 h-6 border-slate-700/70 bg-slate-900/70 text-slate-300">
-                                                      {doc.evidenceType || 'Document'}
-                                                    </span>
-                                                    <span className="font-mono">#{doc.id}</span>
-                                                  </div>
-                                                  <h4 className="text-sm font-semibold text-slate-100 truncate">
-                                                    {doc.title ||
-                                                      doc.fileName ||
-                                                      `Document ${doc.id}`}
-                                                  </h4>
-                                                </div>
-                                                <button
-                                                  onClick={() =>
-                                                    window.open(`/documents/${doc.id}`, '_blank')
-                                                  }
-                                                  className="control h-8 px-3 text-xs text-slate-200 flex items-center gap-1"
-                                                >
-                                                  Open <ExternalLink size={12} />
-                                                </button>
-                                              </div>
-                                              <p className="text-xs text-slate-300 leading-relaxed mt-2 line-clamp-2">
-                                                {highlightTerms(excerpt, [
-                                                  entity?.fullName,
-                                                  doc.keyword,
-                                                ])}
-                                              </p>
-                                            </div>
-                                            <div className="mt-2 pt-2 border-t border-slate-800/70 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500">
-                                              <span className="inline-flex items-center gap-1">
-                                                <Clock size={10} />
-                                                {doc.dateCreated
-                                                  ? new Date(doc.dateCreated).toLocaleDateString()
-                                                  : 'Date unknown'}
-                                              </span>
-                                              <span className="inline-flex items-center gap-1">
-                                                <Link2 size={10} />
-                                                {doc.source_collection || 'Archive'}
-                                              </span>
-                                              <span className="inline-flex items-center gap-1 text-amber-300/80">
-                                                <AlertTriangle size={10} />
-                                                {significanceReason}
-                                              </span>
-                                            </div>
-                                          </article>
-                                        </div>
-                                      );
-                                    }}
-                                  </List>
-                                )}
-                              </TypedInfiniteLoader>
+                      <div className="h-full w-full" data-testid="entity-evidence-list-container">
+                        {usePlainEvidenceList ? (
+                          <div
+                            className="h-full overflow-y-auto custom-scrollbar p-2 px-4 space-y-2"
+                            data-testid="entity-evidence-plain-list"
+                          >
+                            {documents.map((doc) => (
+                              <div key={String(doc.id)} className="min-h-[164px]">
+                                {renderEvidenceCard(doc)}
+                              </div>
+                            ))}
+                            {hasNextPage && (
+                              <div className="py-3 flex justify-center">
+                                <button
+                                  type="button"
+                                  className="control h-9 px-4 text-xs text-slate-200"
+                                  disabled={isNextPageLoading}
+                                  onClick={() => void loadNextPage(documents.length)}
+                                  data-testid="entity-evidence-load-more"
+                                >
+                                  {isNextPageLoading ? 'Loading more…' : 'Load more evidence'}
+                                </button>
+                              </div>
                             )}
-                          </TypedAutoSizer>
+                          </div>
+                        ) : (
+                          typeof TypedAutoSizer !== 'undefined' && (
+                            <TypedAutoSizer>
+                              {({ height, width }: { height: number; width: number }) =>
+                                !Number.isFinite(height) ||
+                                !Number.isFinite(width) ||
+                                height < 120 ||
+                                width < 200 ? (
+                                  <div
+                                    className="h-full overflow-y-auto custom-scrollbar p-2 px-4 space-y-2"
+                                    data-testid="entity-evidence-fallback-list"
+                                  >
+                                    {documents
+                                      .slice(0, Math.min(documents.length, 20))
+                                      .map((doc) => (
+                                        <div
+                                          key={String(doc.id)}
+                                          className="min-h-[164px]"
+                                          data-testid="entity-evidence-fallback-row"
+                                        >
+                                          {renderEvidenceCard(doc)}
+                                        </div>
+                                      ))}
+                                  </div>
+                                ) : (
+                                  <TypedInfiniteLoader
+                                    isItemLoaded={isItemLoaded}
+                                    itemCount={totalDocs}
+                                    loadMoreItems={loadNextPage}
+                                  >
+                                    {({
+                                      onItemsRendered,
+                                      ref,
+                                    }: {
+                                      onItemsRendered: any;
+                                      ref: any;
+                                    }) => (
+                                      <List
+                                        className="custom-scrollbar"
+                                        data-testid="entity-evidence-virtual-list"
+                                        height={height}
+                                        itemCount={totalDocs}
+                                        itemSize={180}
+                                        width={width}
+                                        onItemsRendered={onItemsRendered}
+                                        ref={ref}
+                                      >
+                                        {({ index, style }: any) => {
+                                          const doc = documents[index];
+                                          if (!doc) {
+                                            return (
+                                              <div style={style} className="p-4">
+                                                <div className="h-full bg-slate-950/20 border border-slate-800/50 rounded-lg animate-pulse" />
+                                              </div>
+                                            );
+                                          }
+
+                                          return (
+                                            <div style={style} className="p-2 px-4">
+                                              {renderEvidenceCard(doc)}
+                                            </div>
+                                          );
+                                        }}
+                                      </List>
+                                    )}
+                                  </TypedInfiniteLoader>
+                                )
+                              }
+                            </TypedAutoSizer>
+                          )
                         )}
                       </div>
                     )}

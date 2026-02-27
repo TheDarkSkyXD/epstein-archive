@@ -35,7 +35,58 @@ _To be filled after all phases complete._
 
 ## 3. Code Quality Findings
 
-_To be filled in Tasks 3–5._
+### 3a. Server Layer
+
+#### Routes
+
+**[Critical] `src/server/routes/graphRoutes.ts:82–157` — Dijkstra path algorithm implemented inside a route handler**
+A full weighted Dijkstra with a sorted priority queue (500-node cap, 5000-iteration guard) is embedded directly in the `/api/graph/global?mode=path` route. Business logic of this complexity belongs in a service or repository. The `pq.sort()` call on every iteration (line 96) is O(n²) — it re-sorts the entire queue each time instead of using a heap. For investigators querying long paths between actors, this will noticeably degrade under any real graph load.
+
+**[Critical] `src/server/routes/graphRoutes.ts:68–72` — Hardcoded fake data in cluster mode response**
+The cluster mode response sends `connectionCount: c.size * 10 // Fake degree for visual size` to the client. Investigators reading connection counts in the cluster view are seeing fabricated numbers. The code comment explicitly acknowledges this is fake.
+
+**[Critical] `src/server/routes/evidenceRoutes.ts:215–263` — Forensic "authenticity score" is a fake metric**
+The `/api/evidence/:id/analyze` route computes a `readability.fleschKincaid` score using a simplified formula (`100 - Math.min(100, wordCount / 10)`) and an `authenticityScore` that starts at a hardcoded 0.75 baseline and adds 0.15 for keyword matches. This is presented to investigators as forensic analysis. The Flesch-Kincaid formula is not correctly implemented. The authenticity score has no forensic validity — it will flag documents higher simply for mentioning "epstein", "maxwell", "payment" etc.
+
+**[Warn] `src/server/routes/relationships.ts:27–28` — `entity_id` and `related_entity_id` both map to `neighborId`**
+In the relationship mapping at line 21–33, both `entity_id` and `related_entity_id` are set to the same value (`neighborId`, the connection's ID). The queried entity's own ID is never returned. This makes it impossible for the client to distinguish which side of the relationship is which.
+
+**[Warn] `src/server/routes/relationships.ts:14–18` — Limit not pushed to repository**
+The `limit` parameter is parsed from the query string but only applied via `.slice(0, limit)` after the repository returns all relationships. The DB always fetches the full unbounded result set. For high-degree nodes (Epstein, Maxwell) this could return thousands of rows only to discard most of them.
+
+**[Warn] `src/server/routes/graphRoutes.ts:76–77` — No validation on `sourceId`/`targetId` in path mode**
+`sourceId = String(req.query.sourceId)` — if the parameter is absent, this evaluates to the string `"undefined"`, which will produce a confusing DB error rather than a 400 response.
+
+**[Warn] `src/server/routes/evidenceRoutes.ts:90–96,118–119,165–166,273–275` — Error messages exposed to client**
+Multiple routes return `message: String(error)` in 500 responses. Stack traces and internal error details are leaked to any client that hits an error path.
+
+**[Note] `src/server/routes/graphRoutes.ts:53,61,79,139` — `console.time`/`console.timeEnd` left in production route**
+Performance instrumentation left in production code adds log noise and should be replaced with the existing slow-query logging infrastructure.
+
+---
+
+#### Repositories
+
+**[Critical] `src/server/db/documentsRepository.ts:235–282` — N+1 query in `getDocuments`**
+`Promise.all(docs.map(async (doc) => { getDocumentEntities(doc.id) }))` fires one `getDocumentEntities` DB query per document in the result page concurrently. For a 50-document page, this dispatches 50 parallel queries. While `Promise.all` avoids sequential blocking, it saturates the connection pool and generates substantial DB load on every documents list request.
+
+**[Critical] `src/server/db/documentsRepository.ts:316–341` — N+1 within `getDocumentById`**
+Inside `getDocumentById`, after fetching the document's entities, a `for (const row of entityRows) { await getMentionContexts(docId, row.entityId) }` loop fires one query per entity in the document. For a document with 20 named entities, that's 20 sequential queries before the response is sent.
+
+**[Critical] `src/server/db/relationshipsRepository.ts:109–154` — N+1-like pattern in `getGraphSlice`**
+The BFS in `getGraphSlice` calls `getEntityDetailsAggregated` + `getTopPhotoForEntity` per visited node. For a depth-2 traversal with 500 queue iterations and the photo lookup, this can dispatch hundreds of queries per graph-slice request. The adjacency cache (`getNeighborsCached`) mitigates the edge-fetch cost but not the per-node detail fetches.
+
+**[Warn] `src/server/db/entitiesRepository.ts:694–699` — `getEntityDocumentCount` fetches 1000 rows to count**
+`getEntityDocumentCount` calls `getEntityMentions` with `limit: 1000` then returns `result.length` in JS. This loads up to 1000 rows from DB into memory to produce a single integer. A `COUNT(*)` query would be orders of magnitude cheaper.
+
+**[Warn] `src/server/db/entitiesRepository.ts:702–718` — `getEntityDocumentsPaginated` slices 1000 rows in JS**
+Same pattern: fetches all 1000 mentions from DB, then slices to the requested page in application memory. Pagination should use SQL `LIMIT/OFFSET` or a keyset cursor.
+
+**[Warn] `src/server/db/entitiesRepository.ts:94–117,294,613` — `buildVipDisplayLookup()` called on every entity request with no caching**
+`buildVipDisplayLookup` issues a DB query (`getVipEntities`) on every call. It is called inside `getSubjectCards` and `getEntityById` — i.e., on every page load and every entity detail view. This lookup is static data that should be warmed once at startup or cached with a long TTL.
+
+**[Note] `src/server/db/searchRepository.ts:254–258` — `searchSentences` swallows errors silently**
+The `catch` block returns `[]` without logging at a level that would surface to monitoring. A DB connection failure would look identical to "no results" from the caller's perspective.
 
 ---
 

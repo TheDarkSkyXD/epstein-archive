@@ -183,15 +183,15 @@ export async function runIntelligencePipeline() {
 
     // SQL strings for high-throughput loops
     const insertEntitySql = `
-      INSERT INTO entities (name, type, risk_level, evidence_count, first_seen_at)
+      INSERT INTO entities (full_name, type, risk_level, evidence_count, created_at)
       VALUES ($1, $2, $3, 1, CURRENT_TIMESTAMP)
-      ON CONFLICT (name, type) DO NOTHING
+      ON CONFLICT (full_name, type) DO NOTHING
       RETURNING id
     `;
 
     const insertMentionSql = `
-      INSERT INTO entity_mentions (entity_id, document_id, mention_text, context_window, confidence, pipeline_run_id)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO entity_mentions (id, entity_id, document_id, surface_text, mention_context, confidence, ingest_run_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
     `;
 
     const updateEvidenceCountSql = `
@@ -270,16 +270,17 @@ export async function runIntelligencePipeline() {
         if (isJunkEntity(ent.name)) continue;
 
         // Resolve VIPs
+        // resolveVip returns string | null (the canonical name)
         const vip = resolveVip(ent.name);
         if (vip) {
-          finalEnt.name = vip.canonicalName;
+          finalEnt.name = vip;
           finalEnt.type = 'Person';
         }
 
         // Insert/Find Entity
         let entityId: number;
         const existing = (
-          await db.query('SELECT id FROM entities WHERE name = $1 AND type = $2', [
+          await db.query('SELECT id FROM entities WHERE full_name = $1 AND type = $2', [
             finalEnt.name,
             finalEnt.type,
           ])
@@ -295,7 +296,7 @@ export async function runIntelligencePipeline() {
           } else {
             // Conflict handled, fetch id
             const refetch = (
-              await db.query('SELECT id FROM entities WHERE name = $1 AND type = $2', [
+              await db.query('SELECT id FROM entities WHERE full_name = $1 AND type = $2', [
                 finalEnt.name,
                 finalEnt.type,
               ])
@@ -306,6 +307,7 @@ export async function runIntelligencePipeline() {
 
         // Insert Mention
         await db.query(insertMentionSql, [
+          makeId(),
           entityId,
           doc.id,
           finalEnt.name,

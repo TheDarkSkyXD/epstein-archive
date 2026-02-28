@@ -87,7 +87,7 @@ export const validateEntityName = (req: Request, res: Response, next: NextFuncti
 };
 
 // Validation middleware for document uploads
-export const validateDocumentUpload = (req: Request, res: Response, next: NextFunction) => {
+export const validateDocumentUpload = (req: Request, _res: Response, next: NextFunction) => {
   if (req.path === '/api/upload-document' && req.method === 'POST') {
     // The multer validation is already in place in server.ts,
     // but we can add additional validation here if needed
@@ -97,7 +97,7 @@ export const validateDocumentUpload = (req: Request, res: Response, next: NextFu
 };
 
 // Generic input sanitization middleware
-export const sanitizeInput = (req: Request, res: Response, next: NextFunction) => {
+export const sanitizeInput = (req: Request, _res: Response, next: NextFunction) => {
   // Sanitize inputs to prevent injection attacks and junk data
   if (req.body && typeof req.body === 'object') {
     for (const key in req.body) {

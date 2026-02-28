@@ -43,7 +43,7 @@ export function searchPeople(
 
   if (filters.status !== 'all') {
     filtered = filtered.filter((person) =>
-      person.likelihood_score.toLowerCase().includes(filters.status?.toLowerCase() || ''),
+      person.likelihood_score?.toLowerCase().includes(filters.status?.toLowerCase() || ''),
     );
   }
 
@@ -78,7 +78,9 @@ export function getRoleCategories(people: Person[]): string[] {
 export function getStatusCategories(people: Person[]): string[] {
   const statuses = new Set<string>();
   people.forEach((person) => {
-    statuses.add(person.likelihood_score);
+    if (person.likelihood_score) {
+      statuses.add(person.likelihood_score);
+    }
   });
   return Array.from(statuses).sort();
 }

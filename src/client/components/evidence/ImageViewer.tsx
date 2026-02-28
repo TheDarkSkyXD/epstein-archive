@@ -4,7 +4,7 @@
  * Displays scanned documents and photos with zoom
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ZoomIn, ZoomOut, Maximize2, Download } from 'lucide-react';
 
 interface ImageViewerProps {

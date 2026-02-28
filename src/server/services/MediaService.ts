@@ -48,30 +48,6 @@ export class MediaService {
     await this.db.query(sql, params);
   }
 
-  private async hasTable(tableName: string): Promise<boolean> {
-    if (this.isPgClient()) {
-      const { rows } = await this.db.query(
-        "SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = 'public' AND tablename = $1 LIMIT 1",
-        [tableName],
-      );
-      return rows.length > 0;
-    }
-    if (!this.isLegacyPrepareClient()) {
-      throw new Error(
-        '[MediaService] Unsupported DB client: expected pg query() or legacy prepare()-capable client.',
-      );
-    }
-    try {
-      const row = (await this.db.get(
-        'SELECT tablename FROM pg_catalog.pg_tables WHERE tablename = ?',
-        tableName,
-      )) as { tablename?: string } | undefined;
-      return !!row?.tablename;
-    } catch (_error) {
-      return false;
-    }
-  }
-
   // ============ TAG OPERATIONS ============
 
   async getAllTags(): Promise<MediaTag[]> {
@@ -568,7 +544,7 @@ export class MediaService {
       { id: String(id) },
       this.isPgClient() ? this.db : pgDb,
     );
-    const item = rows[0];
+    const item = rows[0] as any;
     if (!item) return undefined;
 
     return {

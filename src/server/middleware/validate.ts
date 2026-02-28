@@ -1,42 +1,38 @@
 import { Request, Response, NextFunction } from 'express';
-import { AnyZodObject, ZodError } from 'zod';
-import { ValidationError } from '../utils/errorHandler.js';
+import { AnyZodObject, z } from 'zod';
 
-/**
- * Higher-order function that returns a middleware for validating request data against a Zod schema.
- * @param schema The Zod schema to validate against (body, query, or params)
- * @param source The source of the data to validate ('body' | 'query' | 'params')
- */
-export const validate = (schema: AnyZodObject, source: 'body' | 'query' | 'params' = 'body') => {
+export const validate = (schema: AnyZodObject, target?: 'body' | 'query' | 'params') => {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const data = source === 'params' ? req.params : source === 'query' ? req.query : req.body;
-      const validatedData = await schema.parseAsync(data);
-
-      // Replace original data with validated/typed data
-      if (source === 'params') req.params = validatedData as any;
-      else if (source === 'query') req.query = validatedData as any;
-      else req.body = validatedData;
-
-      next();
-    } catch (error) {
-      if (error instanceof ZodError) {
-        const details: Record<string, string> = {};
-        error.errors.forEach((err) => {
-          const path = err.path.join('.');
-          details[path] = err.message;
-        });
-
-        return next(new ValidationError('Input validation failed', details));
+      if (target) {
+        req[target] = await schema.parseAsync(req[target]);
+      } else {
+        const parsed = (await schema.parseAsync({
+          body: req.body,
+          query: req.query,
+          params: req.params,
+        })) as any;
+        if (parsed.body) req.body = parsed.body;
+        if (parsed.query) req.query = parsed.query;
+        if (parsed.params) req.params = parsed.params;
       }
-      next(error);
+      return next();
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: error.issues.map((issue) => ({
+            path: issue.path.join('.'),
+            message: issue.message,
+          })),
+        });
+      }
+      return next(error);
     }
   };
 };
 
 // Common Schemas
-import { z } from 'zod';
-
 export const entitySchema = z.object({
   full_name: z.string().min(3).max(100),
   primary_role: z.string().min(2).max(100).optional(),
@@ -48,4 +44,56 @@ export const entitySchema = z.object({
 export const searchSchema = z.object({
   q: z.string().min(1).max(200),
   limit: z.preprocess((val) => Number(val), z.number().int().min(1).max(100)).optional(),
+});
+
+export const entitiesQuerySchema = z.object({
+  query: z.object({
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(24),
+    search: z.string().max(100).optional(),
+    role: z.string().optional(),
+    likelihood: z.union([z.string(), z.array(z.string())]).optional(),
+    type: z.string().optional(),
+    sortBy: z.string().optional(),
+    sortOrder: z.enum(['asc', 'desc']).optional(),
+    includeJunk: z.preprocess((v) => v === 'true', z.boolean()).optional(),
+  }),
+});
+
+export const subjectsQuerySchema = z.object({
+  query: z.object({
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(200).default(24),
+    search: z.string().optional(),
+    role: z.string().optional(),
+    entityType: z.string().optional(),
+    likelihoodScore: z.union([z.string(), z.array(z.string())]).optional(),
+    sortBy: z.string().optional(),
+    sortOrder: z.enum(['asc', 'desc', 'ASC', 'DESC']).optional(),
+  }),
+});
+
+export const entityIdParamSchema = z.object({
+  params: z.object({
+    id: z.union([z.coerce.number().int().min(1), z.literal('all')]),
+  }),
+});
+
+export const numericIdParamSchema = z.object({
+  params: z.object({
+    id: z.coerce.number().int().min(1),
+  }),
+});
+
+export const updateEntitySchema = z.object({
+  params: z.object({
+    id: z.coerce.number().int().min(1),
+  }),
+  body: z.object({
+    full_name: z.string().min(3).max(100).optional(),
+    primary_role: z.string().min(2).max(100).optional(),
+    entity_type: z.string().optional(),
+    red_flag_rating: z.number().int().min(0).max(5).optional(),
+    bio: z.string().max(2000).optional(),
+  }),
 });

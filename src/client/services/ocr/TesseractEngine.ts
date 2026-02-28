@@ -34,8 +34,8 @@ export class TesseractEngine implements OCREngine {
         engine: this.name,
         durationMs: Date.now() - start,
         metadata: {
-          orientation_confidence: result.data.orientation_confidence,
-          orientation_degrees: result.data.orientation_degrees,
+          orientation_confidence: (result.data as any).orientation_confidence,
+          orientation_degrees: (result.data as any).orientation_degrees,
         },
       };
     } catch (error) {

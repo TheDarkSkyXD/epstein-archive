@@ -49,7 +49,7 @@ export class ArticlesRepository {
     ]);
 
     return {
-      articles: articles.map((a) => ({
+      articles: articles.map((a: any) => ({
         ...a,
         id: String(a.id),
       })),

@@ -14,8 +14,31 @@ import { searchRepository } from '../db/searchRepository.js';
 import { forensicRepository } from '../db/forensicRepository.js';
 import { getEvidenceTypes, insertUploadedDocument } from '../db/routesDb.js';
 import { logAudit } from '../utils/auditLogger.js';
+import { z } from 'zod';
+import { validate } from '../middleware/validate.js';
 
 const router = express.Router();
+
+// Schemas
+const searchEvidenceSchema = z.object({
+  query: z.object({
+    query: z.string().optional(),
+    limit: z.coerce.number().int().min(1).default(50),
+  }),
+});
+
+const evidenceIdSchema = z.object({
+  params: z.object({
+    id: z.string().min(1),
+  }),
+});
+
+const uploadEvidenceSchema = z.object({
+  body: z.object({
+    title: z.string().optional(),
+    description: z.string().optional(),
+  }),
+});
 
 // Configure upload security
 const upload = multer({
@@ -23,7 +46,7 @@ const upload = multer({
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB max
   },
-  fileFilter: (req, file, cb) => {
+  fileFilter: (_req, file, cb) => {
     const allowedTypes = [
       'application/pdf',
       'text/plain',
@@ -44,67 +67,71 @@ const upload = multer({
  * POST /api/evidence/upload
  * Secure document upload
  */
-router.post('/upload', upload.single('file'), async (req: Request, res: Response) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
+router.post(
+  '/upload',
+  upload.single('file'),
+  validate(uploadEvidenceSchema),
+  async (req: Request, res: Response) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      const { originalname, mimetype, size, path: tempPath } = req.file;
+      const { title, description } = req.body;
+
+      // Move to permanent storage (data/documents)
+      const targetDir = path.join(process.cwd(), 'data', 'documents', 'uploads');
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
+
+      const fileExt = path.extname(originalname);
+      const fileName = `${Date.now()}-${Math.round(Math.random() * 1000)}${fileExt}`;
+      const targetPath = path.join(targetDir, fileName);
+
+      fs.renameSync(tempPath, targetPath);
+
+      const documentId = insertUploadedDocument({
+        fileName,
+        filePath: `uploads/${fileName}`,
+        mimetype,
+        size,
+        title: title || originalname,
+        metadataJson: JSON.stringify({
+          originalName: originalname,
+          uploadedBy: (req as any).user?.id || 'anonymous',
+          description,
+        }),
+      });
+
+      logAudit('upload_document', (req as any).user?.id, 'document', String(documentId), {
+        fileName,
+      });
+
+      res.status(201).json({
+        success: true,
+        documentId,
+        message: 'File uploaded successfully',
+      });
+    } catch (error) {
+      console.error('Upload error:', error);
+      // Cleanup temp file if it exists
+      if (req.file?.path && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      res.status(500).json({ error: 'Upload failed' });
     }
-
-    const { originalname, mimetype, size, path: tempPath } = req.file;
-    const { title, description } = req.body;
-
-    // Move to permanent storage (data/documents)
-    const targetDir = path.join(process.cwd(), 'data', 'documents', 'uploads');
-    if (!fs.existsSync(targetDir)) {
-      fs.mkdirSync(targetDir, { recursive: true });
-    }
-
-    const fileExt = path.extname(originalname);
-    const fileName = `${Date.now()}-${Math.round(Math.random() * 1000)}${fileExt}`;
-    const targetPath = path.join(targetDir, fileName);
-
-    fs.renameSync(tempPath, targetPath);
-
-    const documentId = insertUploadedDocument({
-      fileName,
-      filePath: `uploads/${fileName}`,
-      mimetype,
-      size,
-      title: title || originalname,
-      metadataJson: JSON.stringify({
-        originalName: originalname,
-        uploadedBy: (req as any).user?.id || 'anonymous',
-        description,
-      }),
-    });
-
-    logAudit('upload_document', (req as any).user?.id, 'document', String(documentId), {
-      fileName,
-    });
-
-    res.status(201).json({
-      success: true,
-      documentId,
-      message: 'File uploaded successfully',
-    });
-  } catch (error) {
-    console.error('Upload error:', error);
-    // Cleanup temp file if it exists
-    if (req.file?.path && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
-    }
-    res.status(500).json({ error: 'Upload failed', message: String(error) });
-  }
-});
+  },
+);
 
 /**
  * GET /api/evidence/search
  * Search evidence with filtering and pagination
  */
-router.get('/search', async (req: Request, res: Response) => {
+router.get('/search', validate(searchEvidenceSchema), async (req: Request, res: Response) => {
   try {
-    const query = req.query.query as string;
-    const limit = parseInt(req.query.limit as string) || 50;
+    const { query, limit } = req.query as any;
 
     if (!query) {
       // Return recent documents if no query
@@ -116,21 +143,17 @@ router.get('/search', async (req: Request, res: Response) => {
     res.json(result);
   } catch (error) {
     console.error('Evidence search error:', error);
-    res.status(500).json({ error: 'Search failed', message: String(error) });
+    res.status(500).json({ error: 'Search failed' });
   }
 });
 
-/**
- * GET /api/evidence/types
- * List all evidence types with counts
- */
-router.get('/types', async (req: Request, res: Response) => {
+// Get available evidence types
+router.get('/types', async (_req: Request, res: Response) => {
   try {
-    const types = getEvidenceTypes();
+    const types = await getEvidenceTypes();
     res.json(types);
-  } catch (error) {
-    console.error('Evidence types error:', error);
-    res.status(500).json({ error: 'Failed to retrieve types', message: String(error) });
+  } catch (_error) {
+    res.status(500).json({ error: 'Failed to fetch evidence types' });
   }
 });
 
@@ -138,7 +161,7 @@ router.get('/types', async (req: Request, res: Response) => {
  * GET /api/evidence/:id
  * Get single evidence record with full details
  */
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', validate(evidenceIdSchema), async (req: Request, res: Response) => {
   try {
     const { id } = req.params as { id: string };
     const evidence = await documentsRepository.getDocumentById(id);
@@ -162,7 +185,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     res.json(evidence);
   } catch (error) {
     console.error('Evidence retrieval error:', error);
-    res.status(500).json({ error: 'Retrieval failed', message: String(error) });
+    res.status(500).json({ error: 'Retrieval failed' });
   }
 });
 
@@ -171,7 +194,7 @@ router.get('/:id', async (req: Request, res: Response) => {
  * Legacy route alias (backward compatibility) for /api/documents/:id/analytics/metrics
  * Get forensic metrics
  */
-router.get('/:id/metrics', async (req: Request, res: Response) => {
+router.get('/:id/metrics', validate(evidenceIdSchema), async (req: Request, res: Response) => {
   try {
     const { id } = req.params as { id: string };
     const metrics = forensicRepository.getMetrics(id);
@@ -187,7 +210,7 @@ router.get('/:id/metrics', async (req: Request, res: Response) => {
  * Legacy route alias (backward compatibility) for /api/documents/:id/analytics/custody
  * Get chain of custody
  */
-router.get('/:id/custody', async (req: Request, res: Response) => {
+router.get('/:id/custody', validate(evidenceIdSchema), async (req: Request, res: Response) => {
   try {
     const { id } = req.params as { id: string };
     const chain = forensicRepository.getChainOfCustody(id);
@@ -201,77 +224,94 @@ router.get('/:id/custody', async (req: Request, res: Response) => {
 /**
  * POST /api/evidence/:id/analyze
  * Legacy route alias (backward compatibility) for /api/documents/:id/analytics/analyze
- * Trigger forensic analysis
+ * Trigger document analysis based on OCR quality and source provenance.
+ *
+ * NOTE: The returned `documentSignalScore` is a heuristic derived from OCR quality,
+ * source provenance completeness, and red-flag rating. It is NOT a forensic authenticity
+ * score and carries no evidentiary validity. Do not use it to assert document legitimacy.
  */
-router.post('/:id/analyze', async (req: Request, res: Response) => {
+router.post('/:id/analyze', validate(evidenceIdSchema), async (req: Request, res: Response) => {
   try {
     const { id } = req.params as { id: string };
     const doc = (await documentsRepository.getDocumentById(id)) as any;
     if (!doc) return res.status(404).json({ error: 'Document not found' });
 
-    const content = (doc.content || '').toLowerCase();
-    const metadata = doc.metadata_json ? JSON.parse(doc.metadata_json) : {};
+    const metadata = typeof doc.metadata === 'object' && doc.metadata !== null ? doc.metadata : {};
+    const content = (doc.content || doc.contentRefined || '').toLowerCase();
 
-    // Basic content-aware forensic analysis
-    const suspiciousKeywords = [
+    // OCR quality proxy: word density vs. character noise
+    const wordCount = doc.wordCount || doc.word_count || 0;
+    const ocrQualityScore =
+      wordCount > 0 ? Math.min(1.0, Math.max(0.0, (wordCount - 10) / Math.max(wordCount, 200))) : 0;
+
+    // Source provenance completeness: has known source_collection, original path, and date
+    const hasSourceCollection = !!(doc.sourceCollection || doc.source_collection);
+    const hasDateCreated = !!(doc.dateCreated || doc.date_created);
+    const hasFilePath = !!(doc.filePath || doc.file_path);
+    const provenanceScore =
+      (hasSourceCollection ? 0.4 : 0) + (hasDateCreated ? 0.35 : 0) + (hasFilePath ? 0.25 : 0);
+
+    // Red flag rating contributes investigative relevance signal (not authenticity)
+    const redFlagRating = Number(doc.redFlagRating || doc.red_flag_rating || 0);
+    const relevanceSignal = Math.min(1.0, redFlagRating / 5);
+
+    // Combined heuristic signal — clearly labelled, not forensic
+    const documentSignalScore = Math.min(
+      1.0,
+      ocrQualityScore * 0.4 + provenanceScore * 0.4 + relevanceSignal * 0.2,
+    );
+
+    // Keyword occurrence counts for reference (informational only)
+    const investigationKeywords = [
       'epstein',
       'maxwell',
       'payment',
       'transfer',
       'wire',
       'confidential',
-      'secret',
       'bank',
       'trust',
       'llc',
       'offshore',
     ];
-    let suspiciousMatches = 0;
-    suspiciousKeywords.forEach((kw) => {
-      if (content.includes(kw)) suspiciousMatches++;
-    });
+    const keywordMatches = investigationKeywords.filter((kw) => content.includes(kw));
 
     const metrics = {
-      readability: {
-        fleschKincaid: 100 - Math.min(100, (doc.word_count || 100) / 10), // simplified
-        gradeLevel: Math.min(12, Math.floor((doc.word_count || 500) / 50)),
+      disclaimer:
+        'This analysis is heuristic and has no forensic validity. ' +
+        'documentSignalScore reflects OCR quality and source provenance completeness, ' +
+        'not document authenticity or evidentiary weight.',
+      ocrQuality: {
+        wordCount,
+        qualityScore: ocrQualityScore,
       },
-      sentiment: {
-        score: content.includes('urgent') || content.includes('payment') ? -0.2 : 0.1,
-        magnitude: Math.min(1.0, (doc.word_count || 0) / 1000),
-      },
-      metadataAnalysis: {
-        hasGPS: !!metadata.location,
-        creationDateMatches: true,
+      sourceProvenance: {
+        hasSourceCollection,
+        hasDateCreated,
+        hasFilePath,
+        provenanceScore,
+        source: doc.sourceCollection || doc.source_collection || 'Unknown',
         author: metadata.author || metadata.uploadedBy || 'Unknown',
-        fileIntegrity: 'verified',
       },
-      keywordAnalysis: {
-        totalSuspiciousWords: suspiciousMatches,
-        matches: suspiciousKeywords.filter((kw) => content.includes(kw)),
+      keywordPresence: {
+        note: 'Keyword presence is informational only — it does not indicate document suspicion.',
+        matches: keywordMatches,
+        totalMatched: keywordMatches.length,
       },
     };
 
-    // Calculate authenticity score based on matches and metadata
-    let baseScore = 0.75;
-    if (suspiciousMatches > 5) baseScore += 0.15;
-    if (metadata.originalName) baseScore += 0.05;
-    if (doc.red_flag_rating >= 4) baseScore += 0.05;
-
-    const authenticityScore = Math.min(1.0, baseScore);
-
-    forensicRepository.saveMetrics(id as string, metrics, authenticityScore);
+    forensicRepository.saveMetrics(id as string, metrics, documentSignalScore);
     forensicRepository.addCustodyEvent({
       evidenceId: id as string,
       actor: (req as any).user?.name || 'System',
-      action: 'Automated Forensic Analysis',
-      notes: `Content-aware analysis detected ${suspiciousMatches} suspicious keywords. Base authenticity: ${authenticityScore.toFixed(2)}`,
+      action: 'Document Signal Analysis',
+      notes: `OCR quality: ${ocrQualityScore.toFixed(2)}, provenance: ${provenanceScore.toFixed(2)}. Signal score (heuristic only): ${documentSignalScore.toFixed(2)}`,
     });
 
-    res.json({ success: true, metrics, authenticityScore });
+    res.json({ success: true, metrics, documentSignalScore });
   } catch (e) {
     console.error('Analysis error:', e);
-    res.status(500).json({ error: 'Analysis failed', message: String(e) });
+    res.status(500).json({ error: 'Analysis failed' });
   }
 });
 

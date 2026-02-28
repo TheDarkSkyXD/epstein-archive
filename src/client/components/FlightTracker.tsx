@@ -604,13 +604,6 @@ const FlightTracker: React.FC = () => {
     </div>
   );
 
-  // Convert lat/lng to SVG coordinates for flight path map
-  const _toSvgCoords = (lat: number, lng: number, width: number, height: number) => {
-    const x = ((lng + 180) / 360) * width;
-    const y = ((90 - lat) / 180) * height;
-    return { x, y };
-  };
-
   // Flight detail modal
   const FlightModal = () => {
     if (!selectedFlight) return null;

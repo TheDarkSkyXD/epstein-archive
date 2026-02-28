@@ -73,7 +73,7 @@ export const authenticateRequest = async (req: Request, res: Response, next: Nex
   next();
 };
 
-export const optionalAuthenticate = async (req: Request, res: Response, next: NextFunction) => {
+export const optionalAuthenticate = async (req: Request, _res: Response, next: NextFunction) => {
   const authReq = req as AuthRequest;
   // Always try to verify, but don't error if it fails
   const user = await verifyToken(req);

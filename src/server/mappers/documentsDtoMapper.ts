@@ -17,16 +17,6 @@ export const mapDocumentListItemDto = (doc: any): DocumentListItemDto => ({
   previewText: String(doc.previewText || ''),
   previewKind: String(doc.previewKind || 'fallback'),
   whyFlagged: String(doc.whyFlagged || ''),
-  entities_count: Number(doc.entities_count || doc.entitiesCount || 0),
-  key_entities: Array.isArray(doc.key_entities)
-    ? doc.key_entities.map((v: unknown) => String(v))
-    : Array.isArray(doc.keyEntities)
-      ? doc.keyEntities.map((v: unknown) => String(v))
-      : [],
-  source_type: String(doc.source_type || doc.sourceType || ''),
-  preview_text: String(doc.preview_text || doc.previewText || ''),
-  preview_kind: String(doc.preview_kind || doc.previewKind || 'fallback'),
-  why_flagged: String(doc.why_flagged || doc.whyFlagged || ''),
 });
 
 export const mapDocumentsListResponseDto = (result: any): DocumentsListResponseDto => {

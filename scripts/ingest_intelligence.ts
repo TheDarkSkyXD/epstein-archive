@@ -215,11 +215,54 @@ export async function runIntelligencePipeline() {
       const content = doc.content;
       if (!content || content.length < 10) continue;
 
-      // ... (Entity extraction logic logic ...
-      // (Simplified for brevity in this artifact but maintain same regex logic)
+      const entitiesFound: any[] = [];
 
-      const entitiesFound: any[] = []; // will store {name, type, offset}
-      // [Simulated entity loop for this artifact version]
+      // 1. Extract Potential Names (Capitalized Words Sequence)
+      // e.g. "Donald Trump", "Jeffrey Epstein", "Ghislaine Maxwell"
+      // Avoids single words to reduce noise, unless they are very specific known mononyms (which we'll skip for now)
+      const nameRegex = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b/g;
+      let match;
+      while ((match = nameRegex.exec(content)) !== null) {
+        const name = match[1];
+        if (name.length < 4) continue;
+        if (isJunkEntity(name)) continue;
+
+        // Basic classification heuristic
+        let type = 'Person'; // Default
+        if (ORG_PATTERN.test(name)) type = 'Organization';
+        else if (LOCATION_PATTERN.test(name)) type = 'Location';
+        else if (FINANCIAL_PATTERN.test(name)) type = 'Financial';
+        else if (MEDIA_PATTERN.test(name)) type = 'Media';
+
+        entitiesFound.push({
+          name: normalizeName(name),
+          type,
+          offset: match.index,
+          original: name,
+        });
+      }
+
+      // 2. Extract Specific Patterns
+      // Credentials, etc. are handled by extractCredentials below,
+      // but let's look for specific roles/titles + Name
+      // e.g. "Pilot Dave", "Judge Berman"
+      const titleRegex = new RegExp(
+        `(${PERSON_TITLE_PATTERN.source})\\s+([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)?)`,
+        'gi',
+      );
+      while ((match = titleRegex.exec(content)) !== null) {
+        const title = match[1];
+        const name = match[2];
+        if (!isJunkEntity(name)) {
+          entitiesFound.push({
+            name: normalizeName(name),
+            type: 'Person',
+            offset: match.index,
+            original: match[0],
+            notes: `Title: ${title}`,
+          });
+        }
+      }
 
       for (const ent of entitiesFound) {
         let finalEnt = ent;

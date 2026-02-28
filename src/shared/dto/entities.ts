@@ -1,4 +1,4 @@
-export type RiskLevel = 'HIGH' | 'MEDIUM' | 'LOW' | string;
+export type RiskLevel = 'HIGH' | 'MEDIUM' | 'LOW';
 
 export interface SubjectCardStatsDto {
   mentions: number;
@@ -55,11 +55,11 @@ export interface EntityListItemDto {
   secondaryRoles: string[];
   mentions: number;
   files: number;
-  contexts: unknown[];
+  contexts: Record<string, unknown>[];
   evidence_types: string[];
   evidenceTypes: string[];
-  photos: unknown[];
-  significant_passages: unknown[];
+  photos: Record<string, unknown>[];
+  significant_passages: Record<string, unknown>[];
   likelihood_score: RiskLevel;
   red_flag_score: number;
   red_flag_rating: number;

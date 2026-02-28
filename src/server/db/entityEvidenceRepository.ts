@@ -23,7 +23,7 @@ export const entityEvidenceRepository = {
     );
 
     // Normalize evidence shape to match EntityEvidencePanel expectations
-    const evidence = evidenceRows.map((row) => ({
+    const evidence = evidenceRows.map((row: any) => ({
       id: row.evidence_id,
       evidence_type: row.evidence_type || 'document_context',
       title: row.title || `Document ${row.document_id}`,
@@ -75,7 +75,7 @@ export const entityEvidenceRepository = {
       { entityId: eid, limit: BigInt(20) },
       getApiPool(),
     );
-    const relatedEntities = relatedEntitiesRaw.map((r) => ({
+    const relatedEntities = relatedEntitiesRaw.map((r: any) => ({
       ...r,
       shared_evidence_count: Number(r.shared_evidence_count),
     }));

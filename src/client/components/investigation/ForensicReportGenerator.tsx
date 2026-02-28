@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { FileText, Printer, Calendar, CheckCircle, FileJson } from 'lucide-react';
 
 interface ReportSection {

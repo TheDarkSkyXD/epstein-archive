@@ -26,8 +26,8 @@ const Footer: React.FC<FooterProps> = ({ onVersionClick }) => {
           let errorDetail = 'Service reporting unhealthy status';
           if (health.checks?.db?.ok === false) {
             errorDetail = `Database Error: ${health.checks.db.error || 'Connection failed'}`;
-          } else if (health.checks?.schema?.missingTables?.length > 0) {
-            errorDetail = `Schema Error: Missing tables (${health.checks.schema.missingTables.join(', ')})`;
+          } else if ((health.checks?.schema?.missingTables?.length || 0) > 0) {
+            errorDetail = `Schema Error: Missing tables (${health.checks?.schema?.missingTables?.join(', ')})`;
           } else if (health.checks?.data?.entities === 0) {
             errorDetail = 'Data Error: No entities found in database';
           }

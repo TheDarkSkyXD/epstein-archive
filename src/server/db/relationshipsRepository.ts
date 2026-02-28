@@ -15,16 +15,33 @@ export const relationshipsRepository = {
       from?: string;
       to?: string;
       includeBreakdown?: boolean;
+      limit?: number;
     } = {},
   ) => {
-    const rows = await relationshipsQueries.getRelationships.run(
-      {
-        entityId: Number(entityId),
-        minWeight: filters.minWeight ?? null,
-        minConfidence: filters.minConfidence ?? null,
-      },
-      getApiPool(),
+    const pool = getApiPool();
+    const rowsRes = await pool.query(
+      `SELECT 
+         source_entity_id as "sourceId",
+         target_entity_id as "targetId",
+         relationship_type as "relationshipType",
+         proximity_score as "proximityScore",
+         0 as "riskScore",
+         1 as "confidence",
+         NULL as "metadataJson"
+       FROM entity_relationships
+       WHERE (source_entity_id = $1::bigint OR target_entity_id = $1::bigint)
+         AND ($2::float IS NULL OR proximity_score >= $2)
+         AND ($3::float IS NULL OR 1 >= $3)
+       ORDER BY proximity_score DESC
+       LIMIT $4::int`,
+      [
+        Number(entityId),
+        filters.minWeight ?? null,
+        filters.minConfidence ?? null,
+        Math.max(1, Math.min(500, Number(filters.limit ?? 50))),
+      ],
     );
+    const rows = rowsRes.rows as IGetRelationshipsResult[];
 
     return rows.map((r: IGetRelationshipsResult) => ({
       source_id: Number(r.sourceId),
@@ -88,11 +105,11 @@ export const relationshipsRepository = {
 
     const startId = startNodeRows[0].cid;
 
+    const pool = getApiPool();
     const visited = new Set<number>();
     const queue: { id: number; d: number; bridge_score?: number }[] = [
       { id: Number(startId), d: 0, bridge_score: 0 },
     ];
-    const nodes: any[] = [];
     const edges: any[] = [];
 
     // Only process if queue is not empty
@@ -106,41 +123,26 @@ export const relationshipsRepository = {
       if (visited.has(id) || d > depth) continue;
       visited.add(id);
 
-      const entityRows = await relationshipsQueries.getEntityDetailsAggregated.run(
-        { canonicalId: BigInt(id) },
-        getApiPool(),
-      );
-      const entity = entityRows[0];
-
-      if (entity) {
-        const photoRows = await relationshipsQueries.getTopPhotoForEntity.run(
-          { entityId: BigInt(id) },
-          getApiPool(),
-        );
-
-        nodes.push({
-          id: Number(entity.id),
-          label: entity.fullName,
-          type: entity.primaryRole || 'person',
-          risk: entity.redFlagRating || 0,
-          top_photo_id: photoRows[0]?.id || null,
-        });
-      }
-
       if (d >= safeDepth) continue;
 
       const rels = await relationshipsQueries.getNeighborsCached.run(
         { entityId: BigInt(id), limit: 100 },
-        getApiPool(),
+        pool,
       );
 
       for (const r of rels as IGetNeighborsCachedResult[]) {
         const targetId = Number(r.targetId);
+        const relationshipTypes = String(r.relationshipTypes || '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
 
         edges.push({
           source_id: id,
           target_id: targetId,
-          relationship_type: r.relationshipTypes?.split(',')[0] || 'connected',
+          relationship_type:
+            relationshipTypes.length > 0 ? relationshipTypes.join(', ') : 'connected',
+          relationship_types: relationshipTypes,
           proximity_score: r.proximityScore,
           risk_score: 0,
           confidence: 1,
@@ -153,6 +155,53 @@ export const relationshipsRepository = {
         }
       }
     }
+
+    if (visited.size === 0) return { nodes: [], edges };
+
+    const canonicalIds = Array.from(visited);
+    const detailsRes = await pool.query(
+      `SELECT
+         canonical_id AS id,
+         MAX(full_name) AS "fullName",
+         MAX(primary_role) AS "primaryRole",
+         MAX(red_flag_rating) AS "redFlagRating"
+       FROM entities
+       WHERE canonical_id = ANY($1::bigint[])
+       GROUP BY canonical_id`,
+      [canonicalIds],
+    );
+
+    const photosRes = await pool.query(
+      `WITH ranked AS (
+         SELECT
+           e.canonical_id AS cid,
+           mi.id AS photo_id,
+           ROW_NUMBER() OVER (
+             PARTITION BY e.canonical_id
+             ORDER BY mi.red_flag_rating DESC NULLS LAST, mi.id DESC
+           ) AS rn
+         FROM entities e
+         JOIN media_item_people mip ON mip.entity_id = e.id
+         JOIN media_items mi ON mi.id = mip.media_item_id
+         WHERE e.canonical_id = ANY($1::bigint[])
+           AND (mi.file_type LIKE 'image/%' OR mi.file_type IS NULL)
+       )
+       SELECT cid, photo_id
+       FROM ranked
+       WHERE rn = 1`,
+      [canonicalIds],
+    );
+
+    const photoByCanonicalId = new Map<number, number>(
+      photosRes.rows.map((row) => [Number(row.cid), Number(row.photo_id)]),
+    );
+    const nodes = detailsRes.rows.map((entity) => ({
+      id: Number(entity.id),
+      label: entity.fullName,
+      type: entity.primaryRole || 'person',
+      risk: entity.redFlagRating || 0,
+      top_photo_id: photoByCanonicalId.get(Number(entity.id)) ?? null,
+    }));
 
     return { nodes, edges };
   },

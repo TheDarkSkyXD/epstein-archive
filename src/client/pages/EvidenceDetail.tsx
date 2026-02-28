@@ -4,7 +4,7 @@
  * Displays evidence with type-specific viewers and linked entities
  */
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   FileText,
@@ -29,6 +29,7 @@ import { ContactListViewer } from '../components/evidence/ContactListViewer';
 import { getEntityCategoryIcon } from '../../config/entityIcons';
 import { ClaimsList } from '../components/evidence/ClaimsList';
 import { SEO } from '../components/common/SEO';
+import { apiClient } from '../services/apiClient';
 
 interface Evidence {
   id: number;
@@ -67,6 +68,7 @@ export function EvidenceDetail() {
   const [evidence, setEvidence] = useState<Evidence | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
 
   useEffect(() => {
     fetchEvidence();
@@ -76,13 +78,10 @@ export function EvidenceDetail() {
   const fetchEvidence = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/evidence/${id}`);
-
-      if (!response.ok) {
+      if (!id) {
         throw new Error('Evidence not found');
       }
-
-      const data = await response.json();
+      const data = await apiClient.getEvidence(id);
       setEvidence(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load evidence');
@@ -134,12 +133,46 @@ export function EvidenceDetail() {
     return type.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
   };
 
+  const showNotice = (message: string) => {
+    setActionNotice(message);
+    window.setTimeout(() => setActionNotice(null), 2500);
+  };
+
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      showNotice('Link copied to clipboard');
+    } catch {
+      showNotice('Unable to copy link');
+    }
+  };
+
+  const handleBookmark = () => {
+    if (!id) return;
+    const key = 'evidence-bookmarks';
+    const raw = window.localStorage.getItem(key);
+    const existing = new Set<string>(raw ? JSON.parse(raw) : []);
+    if (existing.has(id)) {
+      existing.delete(id);
+      showNotice('Bookmark removed');
+    } else {
+      existing.add(id);
+      showNotice('Bookmarked evidence');
+    }
+    window.localStorage.setItem(key, JSON.stringify(Array.from(existing)));
+  };
+
+  const handleDownload = () => {
+    if (!evidence) return;
+    window.open(`/api/documents/${evidence.id}/file`, '_blank', 'noopener,noreferrer');
+  };
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen bg-slate-950">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading evidence...</p>
+          <p className="mt-4 text-slate-300">Loading evidence...</p>
         </div>
       </div>
     );
@@ -147,11 +180,11 @@ export function EvidenceDetail() {
 
   if (error || !evidence) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen bg-slate-950">
         <div className="text-center">
           <AlertTriangle className="h-12 w-12 text-red-600 mx-auto" />
-          <p className="mt-4 text-gray-600">{error || 'Evidence not found'}</p>
-          <Link to="/evidence" className="mt-4 inline-block text-blue-600 hover:underline">
+          <p className="mt-4 text-slate-300">{error || 'Evidence not found'}</p>
+          <Link to="/evidence" className="mt-4 inline-block text-cyan-400 hover:underline">
             ← Back to Evidence List
           </Link>
         </div>
@@ -160,7 +193,7 @@ export function EvidenceDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-950 text-slate-100">
       <SEO
         title={evidence.title}
         description={
@@ -169,39 +202,52 @@ export function EvidenceDetail() {
         type="article"
       />
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-slate-900 border-b border-slate-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <Link to="/evidence" className="text-gray-600 hover:text-gray-900 flex items-center">
+              <Link to="/evidence" className="text-slate-300 hover:text-white flex items-center">
                 <ChevronLeft className="h-5 w-5" />
                 <span className="ml-1">Back</span>
               </Link>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">{evidence.title}</h1>
-                <p className="text-xs font-light text-gray-500 mt-1 truncate">
+                <h1 className="text-2xl font-bold text-slate-100">{evidence.title}</h1>
+                <p className="text-xs font-light text-slate-400 mt-1 truncate">
                   {evidence.originalFilename}
                 </p>
               </div>
             </div>
 
             <div className="flex items-center space-x-2">
-              <button className="p-2 text-gray-600 hover:bg-gray-100 rounded">
+              <button
+                onClick={handleShare}
+                className="p-2 text-slate-300 hover:bg-slate-800 rounded"
+                aria-label="Share evidence"
+              >
                 <Share2 className="h-5 w-5" />
               </button>
-              <button className="p-2 text-gray-600 hover:bg-gray-100 rounded">
+              <button
+                onClick={handleBookmark}
+                className="p-2 text-slate-300 hover:bg-slate-800 rounded"
+                aria-label="Bookmark evidence"
+              >
                 <Bookmark className="h-5 w-5" />
               </button>
-              <button className="p-2 text-gray-600 hover:bg-gray-100 rounded">
+              <button
+                onClick={handleDownload}
+                className="p-2 text-slate-300 hover:bg-slate-800 rounded"
+                aria-label="Download evidence file"
+              >
                 <Download className="h-5 w-5" />
               </button>
             </div>
           </div>
+          {actionNotice && <p className="mt-2 text-xs text-slate-400">{actionNotice}</p>}
         </div>
       </div>
 
       {/* Metadata Bar */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-slate-900 border-b border-slate-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center space-x-4">
@@ -248,14 +294,14 @@ export function EvidenceDetail() {
               )}
 
               {evidence.createdAt && (
-                <span className="inline-flex items-center text-sm text-gray-600">
+                <span className="inline-flex items-center text-sm text-slate-300">
                   <Calendar className="h-4 w-4 mr-1" />
                   {formatDate(evidence.createdAt)}
                 </span>
               )}
             </div>
 
-            <div className="flex items-center space-x-4 text-sm text-gray-600">
+            <div className="flex items-center space-x-4 text-sm text-slate-300">
               <span>{evidence.wordCount?.toLocaleString()} words</span>
               <span>{formatFileSize(evidence.fileSize)}</span>
             </div>
@@ -263,10 +309,13 @@ export function EvidenceDetail() {
 
           {evidence.tags && evidence.tags.length > 0 && (
             <div className="mt-3 flex items-center space-x-2">
-              <Tag className="h-4 w-4 text-gray-400" />
+              <Tag className="h-4 w-4 text-slate-400" />
               <div className="flex flex-wrap gap-2">
                 {evidence.tags.map((tag, index) => (
-                  <span key={index} className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
+                  <span
+                    key={index}
+                    className="px-2 py-1 bg-slate-800 text-slate-200 text-xs rounded"
+                  >
                     {tag}
                   </span>
                 ))}
@@ -280,7 +329,9 @@ export function EvidenceDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-3">
-            <div className="bg-white rounded-lg shadow">{renderViewer()}</div>
+            <div className="bg-slate-900 rounded-lg shadow border border-slate-700">
+              {renderViewer()}
+            </div>
           </div>
 
           {/* Sidebar */}
@@ -292,8 +343,8 @@ export function EvidenceDetail() {
 
             {/* Linked Entities */}
             {evidence.entities && evidence.entities.length > 0 && (
-              <div className="bg-white rounded-lg shadow p-4">
-                <h3 className="font-semibold text-gray-900 mb-4 flex items-center">
+              <div className="bg-slate-900 rounded-lg shadow border border-slate-700 p-4">
+                <h3 className="font-semibold text-slate-100 mb-4 flex items-center">
                   <Users className="h-5 w-5 mr-2" />
                   Linked Entities ({evidence.entities.length})
                 </h3>
@@ -304,16 +355,16 @@ export function EvidenceDetail() {
                       <Link
                         key={entity.id}
                         to={`/entities/${entity.id}`}
-                        className="block p-3 border border-gray-200 rounded-lg hover:border-blue-500 hover:shadow-sm transition"
+                        className="block p-3 border border-slate-700 rounded-lg hover:border-cyan-500 hover:shadow-sm transition"
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">
+                            <p className="text-sm font-medium text-slate-100 truncate">
                               {entity.name}
                             </p>
-                            <p className="text-xs text-gray-600 mt-1">Role: {entity.role}</p>
+                            <p className="text-xs text-slate-400 mt-1">Role: {entity.role}</p>
                             {entity.confidence < 1 && (
-                              <p className="text-xs text-gray-500 mt-1">
+                              <p className="text-xs text-slate-500 mt-1">
                                 Confidence: {(entity.confidence * 100).toFixed(0)}%
                               </p>
                             )}

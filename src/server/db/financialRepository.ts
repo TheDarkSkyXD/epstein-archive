@@ -21,7 +21,7 @@ export interface FinancialTransaction {
 export const financialRepository = {
   getTransactions: async (limit: number = 100): Promise<FinancialTransaction[]> => {
     const rows = await financialQueries.getTransactions.run({ limit: BigInt(limit) }, getApiPool());
-    return rows.map((r) => ({
+    return rows.map((r: any) => ({
       ...r,
       id: Number(r.id),
       from_entity: r.fromEntity,
@@ -44,7 +44,7 @@ export const financialRepository = {
       { investigationId: BigInt(investigationId) },
       getApiPool(),
     );
-    return rows.map((r) => ({
+    return rows.map((r: any) => ({
       ...r,
       id: Number(r.id),
       from_entity: r.fromEntity,
@@ -62,7 +62,7 @@ export const financialRepository = {
 
   getTransactionsByEntity: async (entityName: string): Promise<FinancialTransaction[]> => {
     const rows = await financialQueries.getTransactionsByEntity.run({ entityName }, getApiPool());
-    return rows.map((r) => ({
+    return rows.map((r: any) => ({
       ...r,
       id: Number(r.id),
       from_entity: r.fromEntity,
@@ -111,9 +111,12 @@ export const financialRepository = {
       totalValue: Number(summary?.totalValue || 0),
       highRiskCount: Number(summary?.highRiskCount || 0),
       totalTransactions: Number(summary?.totalTransactions || 0),
-      topEntities: topEntities.map((e) => ({
-        entity: e.entity,
-        total_volume: Number(e.totalVolume || 0),
+      topEntities: topEntities.map((e: any) => ({
+        entityId: Number(e.entityId),
+        name: e.name,
+        role: e.role,
+        totalAmount: Number(e.totalAmount),
+        transactionCount: Number(e.transactionCount),
       })),
     };
   },

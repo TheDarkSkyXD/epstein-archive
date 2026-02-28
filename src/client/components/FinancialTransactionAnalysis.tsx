@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import {
   DollarSign,
-  TrendingUp,
-  TrendingDown,
   Calendar,
   ArrowRight,
   Filter,
@@ -223,12 +221,6 @@ export const FinancialTransactionAnalysis: React.FC<FinancialTransactionAnalysis
       anomaly: AlertTriangle,
     };
     return icons[type];
-  };
-
-  const _getFlowIcon = (direction: string) => {
-    if (direction === 'inflow') return TrendingUp;
-    if (direction === 'outflow') return TrendingDown;
-    return ArrowRight;
   };
 
   const getSeverityColor = (severity: TransactionPattern['severity']) => {

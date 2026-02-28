@@ -55,7 +55,15 @@ import {
   getMigrationMetrics,
   getSlowQueryLogThresholdMs,
 } from './server/db/connection.js';
-import { validate, entitySchema, searchSchema } from './server/middleware/validate.js';
+import {
+  validate,
+  entitySchema,
+  searchSchema,
+  entitiesQuerySchema,
+  subjectsQuerySchema,
+  entityIdParamSchema,
+  updateEntitySchema,
+} from './server/middleware/validate.js';
 
 // New Routers
 import statsRoutes from './server/routes/stats.js';
@@ -66,7 +74,7 @@ import mapRoutes from './server/routes/mapRoutes.js';
 import mediaRoutes from './server/routes/mediaRoutes.js';
 import usersRoutes from './server/routes/users.js';
 import { reviewQueueRepository } from './server/db/reviewQueueRepository.js';
-import { apiCache, cacheMiddleware } from './server/middleware/cache.js';
+import { apiCache, cacheMiddleware, purgeCacheByPattern } from './server/middleware/cache.js';
 import { requestIdMiddleware } from './server/middleware/requestId.js';
 import { retryStormDetector } from './server/middleware/retryStorm.js';
 import { pgSaturationShed } from './server/middleware/pgShed.js';
@@ -260,7 +268,7 @@ const parseHardLimit = (value: string | undefined, fallback: number): number => 
 };
 
 const HARD_CAP_DOC_LIMIT = parseHardLimit(process.env.HARD_CAP_DOC_LIMIT, 500);
-const HARD_CAP_SUBJECTS_LIMIT = parseHardLimit(process.env.HARD_CAP_SUBJECTS_LIMIT, 200);
+// const HARD_CAP_SUBJECTS_LIMIT = parseHardLimit(process.env.HARD_CAP_SUBJECTS_LIMIT, 200);
 
 function withSafeStatsContract(input: any) {
   const source = input || {};
@@ -382,7 +390,7 @@ app.use((req, res, next) => {
 const MEMORY_THRESHOLD_MB = 1200;
 let lastMemoryLog = 0;
 
-app.use((req, res, next) => {
+app.use((_req, _res, next) => {
   const now = Date.now();
   if (now - lastMemoryLog > 60000) {
     // Log once per minute
@@ -671,30 +679,8 @@ const PUBLIC_ROUTES = [
   '/api/auth/logout',
   '/api/auth/me',
   '/api/health',
-  '/api/stats',
-  '/api/entities',
-  '/api/tags',
-  '/api/documents',
-  '/api/media',
-  '/api/search',
-  '/api/timeline',
-  '/api/analytics',
-  '/api/graph',
-  '/api/relationships',
-  '/api/evidence',
-  '/api/articles',
-  '/api/financial',
-  '/api/forensic',
-  '/api/flights',
-  '/api/properties',
-  '/api/emails',
-  '/api/email',
-  '/api/resolve',
-  '/api/black-book',
-  '/api/subjects',
-  '/api/investigations',
-  '/api/admin/reclassify-junk',
-  '/api/admin/purge-cache',
+  '/api/stats', // Basic global counts are public
+  '/api/resolve', // Legacy link redirection
 ];
 
 // Health Check Endpoint
@@ -853,6 +839,15 @@ app.post('/api/admin/reclassify-junk', async (req, res) => {
 app.post('/api/admin/purge-cache', (req, res) => {
   if (!isLocalRequest(req)) {
     return res.status(403).json({ error: 'forbidden' });
+  }
+  const { pattern } = req.body;
+  if (pattern) {
+    try {
+      const count = purgeCacheByPattern(pattern);
+      return res.json({ ok: true, message: `Purged ${count} keys matching pattern: ${pattern}` });
+    } catch (error) {
+      return res.status(400).json({ error: 'Invalid pattern', details: (error as any).message });
+    }
   }
   apiCache.flushAll();
   res.json({ ok: true, message: 'Cache purged' });
@@ -1219,92 +1214,100 @@ app.post('/api/upload-document', upload.single('document'), async (req, res, nex
 });
 
 // API routes with comprehensive error handling
-app.get('/api/entities', cacheMiddleware(300), async (req, res, next) => {
-  try {
-    const page = Math.max(1, parseInt(req.query.page as string) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 24));
-    const search = req.query.search as string;
-    const role = req.query.role as string;
-    const likelihood = req.query.likelihood as string | string[];
-    const entityType = req.query.type as string;
-    const sortBy = req.query.sortBy as string;
-    const sortOrder = req.query.sortOrder as 'asc' | 'desc';
+app.get(
+  '/api/entities',
+  cacheMiddleware(300),
+  validate(entitiesQuerySchema),
+  async (req, res, next) => {
+    try {
+      const {
+        page,
+        limit,
+        search,
+        role,
+        likelihood,
+        type: entityType,
+        sortBy,
+        sortOrder,
+        includeJunk,
+      } = req.query as any;
 
-    const includeJunk = req.query.includeJunk === 'true';
+      // Validate and sanitize inputs - search length already handled by Zod
 
-    // Validate and sanitize inputs
-    if (search && search.length > 100) {
-      return res.status(400).json({ error: 'Search term too long' });
-    }
+      const filters: SearchFilters = {
+        likelihood: 'all',
+        role: 'all',
+        status: 'all',
+        minMentions: 0,
+        searchTerm: undefined,
+        evidenceTypes: undefined,
+        likelihoodScore: undefined,
+        entityType: undefined,
+        sortBy: undefined,
+        sortOrder: undefined,
+        includeJunk,
+      };
 
-    const filters: SearchFilters = {
-      likelihood: 'all',
-      role: 'all',
-      status: 'all',
-      minMentions: 0,
-      searchTerm: undefined,
-      evidenceTypes: undefined,
-      likelihoodScore: undefined,
-      entityType: undefined,
-      sortBy: undefined,
-      sortOrder: undefined,
-      includeJunk,
-    };
-
-    if (search) filters.searchTerm = search.trim();
-    if (role) filters.evidenceTypes = [role.trim()];
-    if (likelihood) {
-      if (Array.isArray(likelihood)) {
-        filters.likelihoodScore = likelihood.map((l) => l as 'HIGH' | 'MEDIUM' | 'LOW');
-      } else {
-        filters.likelihoodScore = [likelihood as 'HIGH' | 'MEDIUM' | 'LOW'];
+      if (search) filters.searchTerm = search.trim();
+      if (role) filters.evidenceTypes = [role.trim()];
+      if (likelihood) {
+        if (Array.isArray(likelihood)) {
+          filters.likelihoodScore = likelihood.map((l) => l as 'HIGH' | 'MEDIUM' | 'LOW');
+        } else {
+          filters.likelihoodScore = [likelihood as 'HIGH' | 'MEDIUM' | 'LOW'];
+        }
       }
-    }
-    if (entityType) filters.entityType = entityType.trim();
-    if (sortBy) (filters as any).sortBy = sortBy.trim();
-    if (sortOrder) filters.sortOrder = sortOrder;
+      if (entityType) filters.entityType = entityType.trim();
+      if (sortBy) (filters as any).sortBy = sortBy.trim();
+      if (sortOrder) filters.sortOrder = sortOrder;
 
-    const result = await entitiesRepository.getEntities(page, limit, filters, sortBy as SortOption);
+      const result = await entitiesRepository.getEntities(
+        page,
+        limit,
+        filters,
+        sortBy as SortOption,
+      );
 
-    // Batch fetch photos for these entities
-    const entityIds = result.entities.map((e: any) => e.id);
-    const photosByEntity: Record<string, any[]> = {};
+      // Batch fetch photos for these entities
+      const entityIds = result.entities.map((e: any) => e.id);
+      const photosByEntity: Record<string, any[]> = {};
 
-    if (entityIds.length > 0) {
-      try {
-        const photos = await mediaRepository.getPhotosForEntities(entityIds);
-        photos.forEach((p: any) => {
-          if (!photosByEntity[p.entityId]) photosByEntity[p.entityId] = [];
-          photosByEntity[p.entityId].push(p);
-        });
-      } catch (err) {
-        console.error('Error fetching entity photos:', err);
+      if (entityIds.length > 0) {
+        try {
+          const photos = await mediaRepository.getPhotosForEntities(entityIds);
+          photos.forEach((p: any) => {
+            if (!photosByEntity[p.entityId]) photosByEntity[p.entityId] = [];
+            photosByEntity[p.entityId].push(p);
+          });
+        } catch (err) {
+          console.error('Error fetching entity photos:', err);
+        }
       }
+
+      const dto = mapEntityListResponseDto({
+        entities: result.entities,
+        total: result.total,
+        page,
+        pageSize: limit,
+        photosByEntity,
+      });
+
+      // Add cache headers for performance
+      res.set({
+        'Cache-Control': 'private, max-age=60',
+        'X-Total-Count': result.total.toString(),
+        'X-Page': page.toString(),
+        'X-Page-Size': limit.toString(),
+        'X-Total-Pages': Math.ceil(result.total / limit).toString(),
+      });
+
+      res.json(dto);
+    } catch (error) {
+      console.error('Error fetching entities:', error);
+      next(error);
     }
-
-    const dto = mapEntityListResponseDto({
-      entities: result.entities,
-      total: result.total,
-      page,
-      pageSize: limit,
-      photosByEntity,
-    });
-
-    // Add cache headers for performance
-    res.set({
-      'Cache-Control': 'private, max-age=60',
-      'X-Total-Count': result.total.toString(),
-      'X-Page': page.toString(),
-      'X-Page-Size': limit.toString(),
-      'X-Total-Pages': Math.ceil(result.total / limit).toString(),
-    });
-
-    res.json(dto);
-  } catch (error) {
-    console.error('Error fetching entities:', error);
-    next(error);
-  }
-});
+  },
+);
 
 // Entity name validation patterns - reject common extraction artifacts
 const JUNK_ENTITY_PATTERNS = [
@@ -1365,12 +1368,9 @@ app.post('/api/entities', validate(entitySchema), async (req, res, next) => {
   }
 });
 
-app.patch('/api/entities/:id', async (req, res, next) => {
+app.patch('/api/entities/:id', validate(updateEntitySchema), async (req, res, next) => {
   try {
     const id = req.params.id;
-    if (!/^\d+$/.test(id)) {
-      return res.status(400).json({ error: 'Invalid entity ID' });
-    }
 
     const updates: string[] = [];
     const values: any[] = [];
@@ -1439,28 +1439,32 @@ app.get('/api/entities/all', cacheMiddleware(300), async (_req, res, next) => {
 });
 
 // ULTRATHINK: New Subject Card Endpoint
-app.get('/api/subjects', cacheMiddleware(300), async (req, res) => {
+app.get('/api/subjects', cacheMiddleware(300), validate(subjectsQuerySchema), async (req, res) => {
   try {
-    const page = parseInt(req.query.page as string) || 1;
-    const requestedLimit = parseInt(req.query.limit as string) || 24;
-    const limit = Math.min(HARD_CAP_SUBJECTS_LIMIT, Math.max(1, requestedLimit));
+    const {
+      page,
+      limit,
+      search: searchTerm,
+      role,
+      entityType,
+      likelihoodScore,
+      sortBy,
+    } = req.query as any;
+
     res.setHeader('X-Limit-Applied', String(limit));
 
-    const likelihoodScore = req.query.likelihoodScore
-      ? ((Array.isArray(req.query.likelihoodScore)
-          ? req.query.likelihoodScore
-          : [req.query.likelihoodScore]) as ('HIGH' | 'MEDIUM' | 'LOW')[])
-      : undefined;
-
     const filters: SearchFilters = {
-      searchTerm: (req.query.search as string) || undefined,
-      role: (req.query.role as string) || undefined,
-      entityType: (req.query.entityType as string) || undefined,
-      likelihoodScore,
+      searchTerm,
+      role,
+      entityType,
+      likelihoodScore: likelihoodScore
+        ? Array.isArray(likelihoodScore)
+          ? (likelihoodScore as any)
+          : [likelihoodScore]
+        : undefined,
     };
 
-    const sortBy = (req.query.sortBy as SortOption) || 'red_flag';
-    const sortOrder = ((req.query.sortOrder as string) || 'desc').toLowerCase();
+    const sortOrder = ((req.query as any).sortOrder || 'desc').toLowerCase();
     if (sortOrder === 'asc' || sortOrder === 'desc') {
       filters.sortOrder = sortOrder;
     }
@@ -1480,73 +1484,78 @@ app.get('/api/subjects', cacheMiddleware(300), async (req, res) => {
 });
 
 // Get single entity with error handling
-app.get('/api/entities/:id', cacheMiddleware(60), async (req, res, next) => {
-  try {
-    const entityId = req.params.id;
+app.get(
+  '/api/entities/:id',
+  cacheMiddleware(60),
+  validate(entityIdParamSchema),
+  async (req, res, next) => {
+    try {
+      const entityId = req.params.id;
 
-    // Validate ID format
-    if (!/^\d+$/.test(entityId)) {
-      // Special case: if id is 'all', return all entities
-      if (entityId === 'all') {
-        const entities = await entitiesRepository.getAllEntities();
-        return res.json(entities);
+      // Validate ID format - now handled by Zod, but we still handle the 'all' special case
+      if (typeof entityId === 'string' && !/^\d+$/.test(entityId)) {
+        // Special case: if id is 'all', return all entities
+        if (entityId === 'all') {
+          const entities = await entitiesRepository.getAllEntities();
+          return res.json(entities);
+        }
+        return res.status(400).json({ error: 'Invalid entity ID format' });
       }
-      return res.status(400).json({ error: 'Invalid entity ID format' });
+
+      const entity = (await entitiesRepository.getEntityById(entityId)) as Person | null;
+
+      if (!entity) {
+        return res.status(404).json({ error: 'Entity not found' });
+      }
+
+      // Transform entity to match expected API format
+      const transformedEntity = {
+        id: entity.id,
+        name: entity.fullName,
+        fullName: entity.fullName,
+        entity_type: entity.entityType || 'Person',
+        primaryRole: entity.primaryRole,
+        secondaryRoles: entity.secondaryRoles || [],
+        mentions: entity.mentions,
+        files:
+          entity.files ??
+          entity.documentCount ??
+          (entity.fileReferences ? entity.fileReferences.length : 0) ??
+          0,
+        contexts: entity.contexts || [],
+        evidence_types: entity.evidence_types || entity.evidenceTypes || [],
+        evidenceTypes: entity.evidence_types || entity.evidenceTypes || [],
+        likelihood_score: (entity.risk_level || entity.riskLevel || 'LOW').toUpperCase(),
+        red_flag_score: entity.red_flag_score !== undefined ? entity.red_flag_score : 0,
+        red_flag_rating: entity.red_flag_rating !== undefined ? entity.red_flag_rating : 0,
+        red_flag_peppers:
+          entity.redFlagRating !== undefined ? '🚩'.repeat(entity.redFlagRating) : '🏳️',
+        red_flag_description:
+          entity.redFlagDescription ||
+          `Red Flag Index ${entity.redFlagRating !== undefined ? entity.redFlagRating : 0}`,
+        connectionsToEpstein: entity.connectionsSummary || '',
+        fileReferences: entity.fileReferences || [],
+        timelineEvents: entity.timelineEvents || [],
+        networkConnections: entity.networkConnections || [],
+        // Include Black Book information if available
+        blackBookEntries: entity.blackBookEntries || [],
+        // NEW: Include bio, description and photos with fallbacks
+        bio: entity.bio || entity.description || '',
+        description: entity.description || entity.bio || '',
+        photos: entity.photos || [],
+        // Ensure significant_passages key is consistent
+        significant_passages: entity.significant_passages || entity.significantPassages || [],
+        birthDate: (entity as any).birthDate || null,
+        deathDate: (entity as any).deathDate || null,
+      };
+
+      res.json(transformedEntity);
+    } catch (error) {
+      console.error('Error fetching entity:', error);
+      next(error);
     }
-
-    const entity = (await entitiesRepository.getEntityById(entityId)) as Person | null;
-
-    if (!entity) {
-      return res.status(404).json({ error: 'Entity not found' });
-    }
-
-    // Transform entity to match expected API format
-    const transformedEntity = {
-      id: entity.id,
-      name: entity.fullName,
-      fullName: entity.fullName,
-      entity_type: entity.entityType || 'Person',
-      primaryRole: entity.primaryRole,
-      secondaryRoles: entity.secondaryRoles || [],
-      mentions: entity.mentions,
-      files:
-        entity.files ??
-        entity.documentCount ??
-        (entity.fileReferences ? entity.fileReferences.length : 0) ??
-        0,
-      contexts: entity.contexts || [],
-      evidence_types: entity.evidence_types || entity.evidenceTypes || [],
-      evidenceTypes: entity.evidence_types || entity.evidenceTypes || [],
-      likelihood_score: (entity.risk_level || entity.riskLevel || 'LOW').toUpperCase(),
-      red_flag_score: entity.red_flag_score !== undefined ? entity.red_flag_score : 0,
-      red_flag_rating: entity.red_flag_rating !== undefined ? entity.red_flag_rating : 0,
-      red_flag_peppers:
-        entity.redFlagRating !== undefined ? '🚩'.repeat(entity.redFlagRating) : '🏳️',
-      red_flag_description:
-        entity.redFlagDescription ||
-        `Red Flag Index ${entity.redFlagRating !== undefined ? entity.redFlagRating : 0}`,
-      connectionsToEpstein: entity.connectionsSummary || '',
-      fileReferences: entity.fileReferences || [],
-      timelineEvents: entity.timelineEvents || [],
-      networkConnections: entity.networkConnections || [],
-      // Include Black Book information if available
-      blackBookEntries: entity.blackBookEntries || [],
-      // NEW: Include bio, description and photos with fallbacks
-      bio: entity.bio || entity.description || '',
-      description: entity.description || entity.bio || '',
-      photos: entity.photos || [],
-      // Ensure significant_passages key is consistent
-      significant_passages: entity.significant_passages || entity.significantPassages || [],
-      birthDate: (entity as any).birthDate || null,
-      deathDate: (entity as any).deathDate || null,
-    };
-
-    res.json(transformedEntity);
-  } catch (error) {
-    console.error('Error fetching entity:', error);
-    next(error);
-  }
-});
+  },
+);
 
 // Get paginated documents for an entity (Performance Optimization)
 app.get('/api/entities/:id/documents', cacheMiddleware(30), async (req, res, next) => {
@@ -3191,7 +3200,7 @@ app.post(
   '/api/admin/media/ingest',
   authenticateRequest,
   requireRole('admin'),
-  async (req, res, next) => {
+  async (_req, res, next) => {
     try {
       const pool = getApiPool();
       const roots = [
@@ -4002,7 +4011,7 @@ app.get('/api/properties', async (req, res, next) => {
 });
 
 // Get property statistics
-app.get('/api/properties/stats', async (req, res, next) => {
+app.get('/api/properties/stats', async (_req, res, next) => {
   try {
     const stats = await propertiesRepository.getPropertyStats();
     res.json(stats);
@@ -4013,7 +4022,7 @@ app.get('/api/properties/stats', async (req, res, next) => {
 });
 
 // Get known associate properties
-app.get('/api/properties/known-associates', async (req, res, next) => {
+app.get('/api/properties/known-associates', async (_req, res, next) => {
   try {
     const properties = await propertiesRepository.getKnownAssociateProperties();
     res.json(properties);
@@ -4024,7 +4033,7 @@ app.get('/api/properties/known-associates', async (req, res, next) => {
 });
 
 // Get Epstein properties
-app.get('/api/properties/epstein', async (req, res, next) => {
+app.get('/api/properties/epstein', async (_req, res, next) => {
   try {
     const properties = await propertiesRepository.getEpsteinProperties();
     res.json(properties);
@@ -4035,7 +4044,7 @@ app.get('/api/properties/epstein', async (req, res, next) => {
 });
 
 // Get property value distribution
-app.get('/api/properties/value-distribution', async (req, res, next) => {
+app.get('/api/properties/value-distribution', async (_req, res, next) => {
   try {
     const distribution = await propertiesRepository.getValueDistribution();
     res.json(distribution);
@@ -4097,7 +4106,7 @@ app.get('/api/flights', async (req, res, next) => {
 });
 
 // Get flight statistics
-app.get('/api/flights/stats', async (req, res, next) => {
+app.get('/api/flights/stats', async (_req, res, next) => {
   try {
     const stats = await flightsRepository.getFlightStats();
     res.json(stats);
@@ -4108,7 +4117,7 @@ app.get('/api/flights/stats', async (req, res, next) => {
 });
 
 // Get airport coordinates for map
-app.get('/api/flights/airports', async (req, res, next) => {
+app.get('/api/flights/airports', async (_req, res, next) => {
   try {
     const coords = await flightsRepository.getAirportCoords();
     res.json(coords);
@@ -4118,7 +4127,7 @@ app.get('/api/flights/airports', async (req, res, next) => {
 });
 
 // Get unique passengers list
-app.get('/api/flights/passengers', async (req, res, next) => {
+app.get('/api/flights/passengers', async (_req, res, next) => {
   try {
     const passengers = await flightsRepository.getUniquePassengers();
     res.json(passengers);
@@ -4190,7 +4199,7 @@ app.get('/api/flights/routes', async (req, res, next) => {
 });
 
 // Get passenger date ranges (first/last flight)
-app.get('/api/flights/passenger-ranges', async (req, res, next) => {
+app.get('/api/flights/passenger-ranges', async (_req, res, next) => {
   try {
     const ranges = await flightsRepository.getPassengerDateRanges();
     res.json(ranges);
@@ -4201,7 +4210,7 @@ app.get('/api/flights/passenger-ranges', async (req, res, next) => {
 });
 
 // Get flights by aircraft
-app.get('/api/flights/aircraft', async (req, res, next) => {
+app.get('/api/flights/aircraft', async (_req, res, next) => {
   try {
     const aircraft = await flightsRepository.getFlightsByAircraft();
     res.json(aircraft);

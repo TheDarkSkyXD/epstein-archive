@@ -4,7 +4,7 @@
  * Displays court depositions with legal formatting
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Scale, Search } from 'lucide-react';
 
 interface DepositionViewerProps {

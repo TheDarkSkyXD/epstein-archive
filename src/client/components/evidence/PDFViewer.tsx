@@ -4,7 +4,7 @@
  * Displays PDF files with navigation controls and basic features
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { Download, ZoomIn, ZoomOut, RotateCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import 'react-pdf/dist/Page/AnnotationLayer.css';

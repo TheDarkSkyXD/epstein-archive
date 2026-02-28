@@ -170,24 +170,6 @@ export class CompetitiveOCRService {
   }
 
   /**
-   * Detect common redaction patterns (Legacy)
-   */
-  private detectRedactions(text: string): boolean {
-    const redactionPatterns = [
-      /\[REDACTED\]/i,
-      /\[REDACTION\]/i,
-      /Redacted/i,
-      /Exemption \d/i, // FOIA exemptions
-      /b\(\d\)/i, // FOIA b(x) codes
-      /█/g, // Block character
-      /■/g, // Block character
-      /_{3,}/, // Underscore lines often used for manual redaction
-    ];
-
-    return redactionPatterns.some((p) => p.test(text));
-  }
-
-  /**
    * Decide which result is best
    */
   private judge(results: OCRResult[]): OCRResult {

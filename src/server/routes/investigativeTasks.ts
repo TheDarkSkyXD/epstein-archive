@@ -1,24 +1,62 @@
 import { Router } from 'express';
 import { authenticateRequest, requireRole } from '../auth/middleware.js';
 import { InvestigativeTaskService } from '../services/InvestigativeTaskService.js';
+import { z } from 'zod';
+import { validate } from '../middleware/validate.js';
 
 const router = Router();
 const taskService = new InvestigativeTaskService();
 
+// Schemas
+const getTasksSchema = z.object({
+  query: z.object({
+    investigationId: z.coerce.number().int().min(1).optional(),
+    status: z.string().optional(),
+    priority: z.string().optional(),
+    assignedTo: z.string().optional(),
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+  }),
+});
+
+const taskIdParamSchema = z.object({
+  params: z.object({
+    id: z.coerce.number().int().min(1),
+  }),
+});
+
+const createTaskSchema = z.object({
+  body: z.object({
+    investigationId: z.number().int().min(1),
+    title: z.string().min(1),
+    description: z.string().optional(),
+    priority: z.string().optional(),
+    assignedTo: z.string().optional(),
+    dueDate: z.string().optional(),
+    evidenceIds: z.array(z.number()).optional(),
+    relatedEntities: z.array(z.number()).optional(),
+  }),
+});
+
+const investigationIdParamSchema = z.object({
+  params: z.object({
+    investigationId: z.coerce.number().int().min(1),
+  }),
+});
+
+const updateProgressSchema = z.object({
+  params: z.object({
+    id: z.coerce.number().int().min(1),
+  }),
+  body: z.object({
+    progress: z.number().min(0).max(100),
+  }),
+});
+
 // Get all tasks with optional filters
-// Get all tasks with optional filters
-router.get('/', async (req, res, next) => {
+router.get('/', validate(getTasksSchema), async (req, res, next) => {
   try {
-    const filters = {
-      investigationId: req.query.investigationId
-        ? parseInt(req.query.investigationId as string)
-        : undefined,
-      status: req.query.status as string,
-      priority: req.query.priority as string,
-      assignedTo: req.query.assignedTo as string,
-      page: parseInt(req.query.page as string) || 1,
-      limit: parseInt(req.query.limit as string) || 20,
-    };
+    const filters = req.query as any;
 
     const result = await taskService.getTasks(filters);
     res.json(result);
@@ -28,15 +66,9 @@ router.get('/', async (req, res, next) => {
 });
 
 // Get a specific task by ID
-// Get a specific task by ID
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', validate(taskIdParamSchema), async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const taskId = parseInt(id);
-
-    if (isNaN(taskId)) {
-      return res.status(400).json({ error: 'Invalid task ID' });
-    }
+    const taskId = (req.params as any).id;
 
     const task = await taskService.getTaskById(taskId);
 
@@ -51,33 +83,19 @@ router.get('/:id', async (req, res, next) => {
 });
 
 // Create a new task
-router.post('/', authenticateRequest, async (req, res, next) => {
+router.post('/', authenticateRequest, validate(createTaskSchema), async (req, res, next) => {
   try {
-    const {
-      investigationId,
-      title,
-      description,
-      priority,
-      assignedTo,
-      dueDate,
-      evidenceIds,
-      relatedEntities,
-    } = req.body;
-
-    if (!investigationId || !title) {
-      return res.status(400).json({ error: 'Investigation ID and title are required' });
-    }
-
+    const data = req.body;
     const newTask = await taskService.createTask({
-      investigationId,
-      title,
-      description,
-      priority,
-      assignedTo,
-      dueDate,
+      investigationId: data.investigationId,
+      title: data.title,
+      description: data.description,
+      priority: data.priority,
+      assignedTo: data.assignedTo,
+      dueDate: data.dueDate,
       createdById: (req as any).user?.id || 'system',
-      evidenceIds,
-      relatedEntities,
+      evidenceIds: data.evidenceIds,
+      relatedEntities: data.relatedEntities,
     });
 
     res.status(201).json(newTask);
@@ -87,15 +105,10 @@ router.post('/', authenticateRequest, async (req, res, next) => {
 });
 
 // Update a task
-router.put('/:id', authenticateRequest, async (req, res, next) => {
+router.put('/:id', authenticateRequest, validate(taskIdParamSchema), async (req, res, next) => {
   try {
-    const { id } = req.params as { id: string };
-    const taskId = parseInt(id);
+    const taskId = (req.params as any).id;
     const updates = req.body;
-
-    if (isNaN(taskId)) {
-      return res.status(400).json({ error: 'Invalid task ID' });
-    }
 
     const updatedTask = await taskService.updateTask(taskId, updates);
 
@@ -110,89 +123,82 @@ router.put('/:id', authenticateRequest, async (req, res, next) => {
 });
 
 // Delete a task
-router.delete('/:id', authenticateRequest, requireRole('admin'), async (req, res, next) => {
-  try {
-    const { id } = req.params as { id: string };
-    const taskId = parseInt(id);
+router.delete(
+  '/:id',
+  authenticateRequest,
+  requireRole('admin'),
+  validate(taskIdParamSchema),
+  async (req, res, next) => {
+    try {
+      const taskId = (req.params as any).id;
 
-    if (isNaN(taskId)) {
-      return res.status(400).json({ error: 'Invalid task ID' });
+      const success = await taskService.deleteTask(taskId);
+
+      if (!success) {
+        return res.status(404).json({ error: 'Task not found' });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      next(error);
     }
-
-    const success = await taskService.deleteTask(taskId);
-
-    if (!success) {
-      return res.status(404).json({ error: 'Task not found' });
-    }
-
-    res.json({ success: true });
-  } catch (error) {
-    next(error);
-  }
-});
+  },
+);
 
 // Get tasks by investigation
-// Get tasks by investigation
-router.get('/investigation/:investigationId', async (req, res, next) => {
-  try {
-    const { investigationId } = req.params;
-    const id = parseInt(investigationId);
+router.get(
+  '/investigation/:investigationId',
+  validate(investigationIdParamSchema),
+  async (req, res, next) => {
+    try {
+      const id = (req.params as any).investigationId;
 
-    if (isNaN(id)) {
-      return res.status(400).json({ error: 'Invalid investigation ID' });
+      const tasks = await taskService.getTasksByInvestigation(id);
+      res.json(tasks);
+    } catch (error) {
+      next(error);
     }
-
-    const tasks = await taskService.getTasksByInvestigation(id);
-    res.json(tasks);
-  } catch (error) {
-    next(error);
-  }
-});
+  },
+);
 
 // Get task summary for an investigation
-// Get task summary for an investigation
-router.get('/summary/:investigationId', async (req, res, next) => {
-  try {
-    const { investigationId } = req.params;
-    const id = parseInt(investigationId);
+router.get(
+  '/summary/:investigationId',
+  validate(investigationIdParamSchema),
+  async (req, res, next) => {
+    try {
+      const id = (req.params as any).investigationId;
 
-    if (isNaN(id)) {
-      return res.status(400).json({ error: 'Invalid investigation ID' });
+      const summary = await taskService.getTaskSummary(id);
+      res.json(summary);
+    } catch (error) {
+      next(error);
     }
-
-    const summary = await taskService.getTaskSummary(id);
-    res.json(summary);
-  } catch (error) {
-    next(error);
-  }
-});
+  },
+);
 
 // Update task progress
-router.patch('/:id/progress', authenticateRequest, async (req, res, next) => {
-  try {
-    const { id } = req.params as { id: string };
-    const taskId = parseInt(id);
-    const { progress } = req.body;
+router.patch(
+  '/:id/progress',
+  authenticateRequest,
+  validate(updateProgressSchema),
+  async (req, res, next) => {
+    try {
+      const taskId = (req.params as any).id;
+      const { progress } = req.body;
 
-    if (isNaN(taskId)) {
-      return res.status(400).json({ error: 'Invalid task ID' });
+      const updatedTask = await taskService.updateTaskProgress(taskId, progress);
+
+      if (!updatedTask) {
+        return res.status(404).json({ error: 'Task not found' });
+      }
+
+      res.json(updatedTask);
+    } catch (error) {
+      next(error);
     }
-
-    if (progress === undefined || progress < 0 || progress > 100) {
-      return res.status(400).json({ error: 'Progress must be a number between 0 and 100' });
-    }
-
-    const updatedTask = await taskService.updateTaskProgress(taskId, progress);
-
-    if (!updatedTask) {
-      return res.status(404).json({ error: 'Task not found' });
-    }
-
-    res.json(updatedTask);
-  } catch (error) {
-    next(error);
-  }
-});
+  },
+);
 
 // Get urgent tasks for the current user
 // Get urgent tasks for the current user

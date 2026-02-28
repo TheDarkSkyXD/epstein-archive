@@ -1,18 +1,32 @@
 import express from 'express';
 import { articlesRepository } from '../db/articlesRepository.js';
+import { z } from 'zod';
+import { validate } from '../middleware/validate.js';
 
 const router = express.Router();
 
-// GET /api/articles
-router.get('/', async (req, res) => {
-  try {
-    const page = Math.max(1, parseInt(req.query.page as string) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 50));
-    const offset = (page - 1) * limit;
+// Schemas
+const getArticlesSchema = z.object({
+  query: z.object({
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(50),
+    search: z.string().optional(),
+    publication: z.string().optional(),
+    sort: z.enum(['date', 'redFlag']).default('redFlag'),
+  }),
+});
 
-    const search = (req.query.search as string) || undefined;
-    const publication = (req.query.publication as string) || undefined;
-    const sort = (req.query.sort as 'date' | 'redFlag') || 'redFlag';
+const articleIdSchema = z.object({
+  params: z.object({
+    id: z.string().min(1),
+  }),
+});
+
+// GET /api/articles
+router.get('/', validate(getArticlesSchema), async (req, res) => {
+  try {
+    const { page, limit, search, publication, sort } = req.query as any;
+    const offset = (page - 1) * limit;
 
     const result = await articlesRepository.getArticles(limit, offset, search, publication, sort);
 
@@ -32,7 +46,7 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/articles/:id
-router.get('/:id', async (req, res) => {
+router.get('/:id', validate(articleIdSchema), async (req, res) => {
   try {
     const article = await articlesRepository.getArticleById(req.params.id);
     if (!article) {

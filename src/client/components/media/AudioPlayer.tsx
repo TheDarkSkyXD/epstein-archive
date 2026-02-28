@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Play,
   Pause,
@@ -55,7 +54,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const audioRef = useRef<HTMLAudioElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
-  const _navigate = useNavigate();
+  // const _navigate = useNavigate();
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);

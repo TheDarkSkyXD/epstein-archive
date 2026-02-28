@@ -103,6 +103,20 @@ export const investigationsRepository = {
     return mapInvestigation(inv);
   },
 
+  getInvestigationByTitle: async (title: string) => {
+    const rows = await getApiPool().query(
+      `SELECT id, uuid, title, description, owner_id, collaborator_ids, status, scope, created_at, updated_at
+       FROM investigations
+       WHERE title = $1
+       ORDER BY id DESC
+       LIMIT 1`,
+      [title],
+    );
+    const inv = rows.rows[0];
+    if (!inv) return null;
+    return mapInvestigation(inv);
+  },
+
   deleteInvestigation: async (id: number) => {
     await (investigationsQueries.deleteInvestigation as any).run({ id }, getApiPool());
     return true;

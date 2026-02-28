@@ -355,7 +355,7 @@ export const evidenceRepository = {
         );
         return {
           ...result,
-          entities: entities.map((e) => ({
+          entities: entities.map((e: any) => ({
             id: e.id,
             name: e.full_name,
             category: e.primary_role,

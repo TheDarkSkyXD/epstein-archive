@@ -84,17 +84,6 @@ export class AIEnrichmentService {
   }
 
   /**
-   * Get the appropriate API endpoint based on provider
-   */
-  private static getApiEndpoint(): string {
-    const provider = process.env.AI_PROVIDER || 'local_ollama';
-    if (provider === 'exo_cluster') {
-      return `${this.EXO_HOST}/v1/chat/completions`;
-    }
-    return `${this.OLLAMA_HOST}/api/generate`;
-  }
-
-  /**
    * Get the model name for the current provider
    */
   private static async getModelId(

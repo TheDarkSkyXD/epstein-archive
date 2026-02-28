@@ -1,29 +1,37 @@
 import { Router } from 'express';
+import { z } from 'zod';
+import { validate } from '../middleware/validate.js';
 
 const router = Router();
 
+// Schemas
+const getRelationshipsSchema = z.object({
+  query: z.object({
+    entityId: z.string().min(1, 'entityId is required'),
+    limit: z.coerce.number().int().min(1).max(200).default(50),
+    minWeight: z.coerce.number().optional(),
+  }),
+});
+
 // Relationships API
-router.get('/', async (req, res, next) => {
+router.get('/', validate(getRelationshipsSchema), async (req, res, next) => {
   try {
-    const entityId = req.query.entityId as string;
-    if (!entityId) {
-      return res.status(400).json({ error: 'entityId is required' });
-    }
+    const { entityId, limit, minWeight } = req.query as any;
 
     const { relationshipsRepository } = await import('../db/relationshipsRepository.js');
-    const limit = parseInt(req.query.limit as string) || 50;
 
     const relations = await relationshipsRepository.getRelationships(entityId, {
-      minWeight: req.query.minWeight ? parseFloat(req.query.minWeight as string) : undefined,
+      minWeight,
+      limit,
     });
 
     const currentId = String(entityId);
-    const mapped = relations.slice(0, limit).map((r) => {
+    const mapped = relations.map((r) => {
       const sourceId = String(r.source_id);
       const targetId = String(r.target_id);
       const neighborId = sourceId === currentId ? targetId : sourceId;
       return {
-        entity_id: neighborId,
+        entity_id: currentId,
         related_entity_id: neighborId,
         relationship_type: r.relationship_type,
         strength: r.proximity_score,

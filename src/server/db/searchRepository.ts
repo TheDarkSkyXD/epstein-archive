@@ -119,8 +119,8 @@ export const searchRepository = {
         );
 
     const entityIds = entityRows
-      .map((row) => Number(row.id))
-      .filter((id) => Number.isFinite(id) && id > 0);
+      .map((row: any) => Number(row.id))
+      .filter((id: any) => Number.isFinite(id) && id > 0);
     const entityStatsById = new Map<
       number,
       { mentions: number; files: number; riskLevel: string | null; redFlagRating: number | null }
@@ -161,8 +161,8 @@ export const searchRepository = {
     }
 
     const documentIds = docRows
-      .map((row) => Number(row.id))
-      .filter((id) => Number.isFinite(id) && id > 0);
+      .map((row: any) => Number(row.id))
+      .filter((id: any) => Number.isFinite(id) && id > 0);
     const documentMetaById = new Map<
       number,
       { fileType: string | null; dateCreated: string | null }
@@ -189,7 +189,7 @@ export const searchRepository = {
     }
 
     return {
-      entities: entityRows.map((row) => {
+      entities: entityRows.map((row: any) => {
         const aliases = parseEntityAliases(row.aliases);
         const stats = entityStatsById.get(Number(row.id));
         return {
@@ -219,7 +219,7 @@ export const searchRepository = {
           files: stats?.files ?? 0,
         };
       }),
-      documents: docRows.map((row) => {
+      documents: docRows.map((row: any) => {
         const meta = documentMetaById.get(Number(row.id));
         return {
           id: String(row.id),

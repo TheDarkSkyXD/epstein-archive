@@ -293,7 +293,7 @@ export const BlackBookViewer: React.FC = () => {
                 <User className="w-5 h-5 text-cyan-400" />
                 {entry.person_name ? (
                   <button
-                    onClick={() => handleEntityClick(entry.person_id)}
+                    onClick={() => handleEntityClick(entry.person_id || 0)}
                     className="text-lg font-semibold text-cyan-400 hover:text-cyan-300 hover:underline flex items-center gap-1 transition-colors text-left"
                     title="Click to view entity profile"
                   >

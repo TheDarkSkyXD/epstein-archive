@@ -157,6 +157,29 @@ class PerformanceCacheV2 {
   }
 
   /**
+   * Purge cache by pattern
+   */
+  purgeByPattern(pattern: string | RegExp): number {
+    const keys = this.cache.keys();
+    const regex = typeof pattern === 'string' ? new RegExp(pattern) : pattern;
+    let count = 0;
+    const keysToDelete: string[] = [];
+
+    for (const key of keys) {
+      if (regex.test(key)) {
+        keysToDelete.push(key);
+        count++;
+      }
+    }
+
+    if (keysToDelete.length > 0) {
+      this.cache.del(keysToDelete);
+      this.metrics.size = this.cache.keys().length;
+    }
+    return count;
+  }
+
+  /**
    * Get cache metrics
    */
   getMetrics(): CacheMetrics & {

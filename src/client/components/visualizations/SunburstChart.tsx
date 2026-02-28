@@ -145,7 +145,7 @@ export const SunburstChart: React.FC<SunburstChartProps> = ({ data, onSegmentCli
               animationDuration={800}
               animationEasing="ease-out"
             >
-              {chartData.map((entry, index) => (
+              {chartData.map((_entry, index) => (
                 <Cell
                   key={`cell-${index}`}
                   fill={`url(#sunburstGrad-${index % COLORS.length})`}

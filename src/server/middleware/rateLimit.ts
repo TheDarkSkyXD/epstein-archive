@@ -6,7 +6,7 @@ export const analyticsRateLimiter = rateLimit({
   message: { error: 'Too many analytics requests, please try again later.' },
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-  handler: (req, res, next, options) => {
+  handler: (_req, res, _next, options) => {
     res.set('Retry-After', Math.ceil(options.windowMs / 1000).toString());
     res.status(options.statusCode).send(options.message);
   },
@@ -18,7 +18,7 @@ export const mapRateLimiter = rateLimit({
   message: { error: 'Too many map requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
-  handler: (req, res, next, options) => {
+  handler: (_req, res, _next, options) => {
     res.set('Retry-After', Math.ceil(options.windowMs / 1000).toString());
     res.status(options.statusCode).send(options.message);
   },
@@ -30,7 +30,7 @@ export const graphRateLimiter = rateLimit({
   message: { error: 'Too many graph requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
-  handler: (req, res, next, options) => {
+  handler: (_req, res, _next, options) => {
     res.set('Retry-After', Math.ceil(options.windowMs / 1000).toString());
     res.status(options.statusCode).send(options.message);
   },

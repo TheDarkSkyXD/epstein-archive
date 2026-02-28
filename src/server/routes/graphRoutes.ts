@@ -13,6 +13,110 @@ import {
 
 const router = Router();
 
+class MinPriorityQueue<T> {
+  private heap: Array<{ value: T; priority: number }> = [];
+
+  push(value: T, priority: number): void {
+    this.heap.push({ value, priority });
+    this.bubbleUp(this.heap.length - 1);
+  }
+
+  pop(): { value: T; priority: number } | undefined {
+    if (this.heap.length === 0) return undefined;
+    const top = this.heap[0];
+    const last = this.heap.pop()!;
+    if (this.heap.length > 0) {
+      this.heap[0] = last;
+      this.bubbleDown(0);
+    }
+    return top;
+  }
+
+  get size(): number {
+    return this.heap.length;
+  }
+
+  private bubbleUp(index: number): void {
+    let i = index;
+    while (i > 0) {
+      const parent = Math.floor((i - 1) / 2);
+      if (this.heap[parent].priority <= this.heap[i].priority) break;
+      [this.heap[parent], this.heap[i]] = [this.heap[i], this.heap[parent]];
+      i = parent;
+    }
+  }
+
+  private bubbleDown(index: number): void {
+    let i = index;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const left = 2 * i + 1;
+      const right = 2 * i + 2;
+      let smallest = i;
+      if (left < this.heap.length && this.heap[left].priority < this.heap[smallest].priority) {
+        smallest = left;
+      }
+      if (right < this.heap.length && this.heap[right].priority < this.heap[smallest].priority) {
+        smallest = right;
+      }
+      if (smallest === i) break;
+      [this.heap[i], this.heap[smallest]] = [this.heap[smallest], this.heap[i]];
+      i = smallest;
+    }
+  }
+}
+
+async function computeShortestPathNodeIds(
+  sourceId: string,
+  targetId: string,
+  startDate?: string,
+  endDate?: string,
+): Promise<string[] | null> {
+  const distances = new Map<string, number>([[sourceId, 0]]);
+  const previous = new Map<string, string | null>();
+  const visited = new Set<string>();
+  const queue = new MinPriorityQueue<string>();
+  queue.push(sourceId, 0);
+
+  const maxNodes = 5000;
+  let explored = 0;
+
+  while (queue.size > 0 && explored < maxNodes) {
+    const item = queue.pop();
+    if (!item) break;
+    const { value: current, priority: distance } = item;
+    if (visited.has(current)) continue;
+
+    visited.add(current);
+    explored++;
+
+    if (current === targetId) {
+      const path: string[] = [];
+      let cursor: string | null = targetId;
+      while (cursor) {
+        path.unshift(cursor);
+        cursor = previous.get(cursor) || null;
+      }
+      return path;
+    }
+
+    const neighbors = await getGraphNeighbors(current, startDate, endDate);
+    for (const neighbor of neighbors) {
+      const nextId = String(neighbor.canonical_id);
+      const weight = Math.max(0.0001, Number(neighbor.weight || 0.1));
+      const nextDistance = distance + 1 / weight;
+
+      if (nextDistance < (distances.get(nextId) ?? Number.POSITIVE_INFINITY)) {
+        distances.set(nextId, nextDistance);
+        previous.set(nextId, current);
+        queue.push(nextId, nextDistance);
+      }
+    }
+  }
+
+  return null;
+}
+
 // Legacy root alias for older clients/tests expecting /api/graph to return the global graph payload.
 router.get('/', (req, res) => {
   const params = new URLSearchParams();
@@ -50,22 +154,19 @@ router.get('/global', graphRateLimiter, async (req, res, next) => {
     const startDate = req.query.startDate as string;
     const endDate = req.query.endDate as string;
 
-    console.time('graph-global-fetch');
-
     if (mode === 'cluster') {
       // Super Cluster Mode: Aggregated by Structural Community (LPA)
       const clusters = await getGraphCommunities();
 
       // Enhance labels (optional)
 
-      console.timeEnd('graph-global-fetch');
       return res.json({
         nodes: clusters.map((c: any) => ({
           id: c.id,
           label: `${c.label} (${c.size})`,
           type: 'cluster',
           risk: c.risk,
-          connectionCount: c.size * 10, // Fake degree for visual size
+          memberCount: c.size,
           community: parseInt(c.id.split('-')[1]),
         })),
         edges: [], // No edges in cluster view for clarity
@@ -73,70 +174,23 @@ router.get('/global', graphRateLimiter, async (req, res, next) => {
     }
 
     if (mode === 'path') {
+      if (!req.query.sourceId || !req.query.targetId) {
+        return res.status(400).json({ error: 'sourceId and targetId are required for path mode' });
+      }
       const sourceId = String(req.query.sourceId);
       const targetId = String(req.query.targetId);
-
-      console.time('path-search');
-
-      // Weighted Dijkstra with Temporal Filtering
-      const distances = new Map<string, number>();
-      const previous = new Map<string, string | null>();
-      const visited = new Set<string>();
-
-      const pq: { id: string; dist: number }[] = [];
-
-      distances.set(sourceId, 0);
-      pq.push({ id: sourceId, dist: 0 });
-
-      let found = false;
-      const maxNodes = 5000;
-      let nodesExplored = 0;
-
-      while (pq.length > 0 && nodesExplored < maxNodes) {
-        pq.sort((a, b) => a.dist - b.dist);
-        const { id: curr, dist } = pq.shift()!;
-
-        if (visited.has(curr)) continue;
-        visited.add(curr);
-        nodesExplored++;
-
-        if (curr === targetId) {
-          found = true;
-          break;
-        }
-
-        const neighbors = await getGraphNeighbors(curr, startDate, endDate);
-        for (const n of neighbors) {
-          const nid = String(n.canonical_id);
-          const weight = n.weight || 0.1;
-          const cost = 1.0 / weight;
-
-          const newDist = dist + cost;
-          if (!distances.has(nid) || newDist < distances.get(nid)!) {
-            distances.set(nid, newDist);
-            previous.set(nid, curr);
-            pq.push({ id: nid, dist: newDist });
-          }
-        }
-      }
-
-      if (!found) {
-        console.timeEnd('path-search');
+      const pathNodeArray = await computeShortestPathNodeIds(
+        sourceId,
+        targetId,
+        startDate,
+        endDate,
+      );
+      if (!pathNodeArray || pathNodeArray.length === 0) {
         return res.json({ nodes: [], edges: [] });
       }
-
-      const pathNodes = new Set<string>();
-      let curr: string | null = targetId;
-      while (curr) {
-        pathNodes.add(curr);
-        curr = previous.get(curr) || null;
-      }
-
-      const pathNodeArray = Array.from(pathNodes);
       const nodes = await getGraphPathNodes(pathNodeArray);
       const edges = await getGraphPathEdges(pathNodeArray, startDate, endDate);
 
-      console.timeEnd('path-search');
       return res.json({
         nodes: nodes.map((n: any) => ({
           id: String(n.id),
@@ -170,8 +224,6 @@ router.get('/global', graphRateLimiter, async (req, res, next) => {
 
     // 2. Fetch Relationships between these nodes — injection-safe ANY($N::bigint[]) binding
     const edgesArr = await getGlobalGraphEdges({ canonicalIds, startDate, endDate });
-
-    console.timeEnd('graph-global-fetch');
 
     // Return formatting aligned with GraphService
     res.json({

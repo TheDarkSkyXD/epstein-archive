@@ -1,8 +1,9 @@
-import type {
+import {
   EntityListItemDto,
   EntityListResponseDto,
   SubjectCardListItemDto,
   SubjectsListResponseDto,
+  RiskLevel,
 } from '@shared/dto/entities';
 
 export const mapSubjectCardDto = (subject: any): SubjectCardListItemDto => ({
@@ -28,7 +29,9 @@ export const mapSubjectCardDto = (subject: any): SubjectCardListItemDto => ({
     ),
   },
   forensics: {
-    risk_level: String(subject?.forensics?.risk_level || subject?.riskLevel || 'LOW').toUpperCase(),
+    risk_level: String(
+      subject?.forensics?.risk_level || subject?.riskLevel || 'LOW',
+    ).toUpperCase() as RiskLevel,
     evidence_ladder: (subject?.forensics?.evidence_ladder || subject?.ladder || 'NONE') as
       | 'L1'
       | 'L2'
@@ -95,12 +98,14 @@ export const mapEntityListItemDto = (
     ? entity.evidence_types || entity.evidenceTypes
     : [],
   photos: photosByEntity[String(entity.id)] || [],
-  significant_passages: Array.isArray(entity.red_flag_passages || entity.significantPassages)
-    ? entity.red_flag_passages || entity.significantPassages
+  significant_passages: Array.isArray(entity.significant_passages)
+    ? entity.significant_passages
     : [],
-  likelihood_score: String((entity.risk_level || entity.riskLevel || 'LOW').toUpperCase()),
-  red_flag_score: Number(entity.red_flag_score ?? 0),
-  red_flag_rating: Number(entity.red_flag_rating ?? 0),
+  likelihood_score: String(
+    entity.likelihood_score || entity.risk_level || entity.riskLevel || 'LOW',
+  ).toUpperCase() as RiskLevel,
+  red_flag_score: Number(entity.red_flag_score || entity.redFlagScore || 0),
+  red_flag_rating: Number(entity.red_flag_rating || entity.redFlagRating || 0),
   red_flag_peppers:
     typeof entity.red_flag_rating === 'number' && entity.red_flag_rating > 0
       ? '🚩'.repeat(entity.red_flag_rating)

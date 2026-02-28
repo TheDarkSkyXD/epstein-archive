@@ -4,7 +4,7 @@
  * Displays contact directories like Black Book
  */
 
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Search, Phone, Mail, MapPin, User } from 'lucide-react';
 
 interface ContactListViewerProps {

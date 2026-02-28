@@ -3,8 +3,32 @@ import { authenticateRequest, requireRole } from '../auth/middleware.js';
 import { logAudit } from '../utils/auditLogger.js';
 import bcrypt from 'bcryptjs';
 import { createUser, getUserById, listUsers, updateUser } from '../db/routesDb.js';
+import { z } from 'zod';
+import { validate } from '../middleware/validate.js';
 
 const router = Router();
+
+// Schemas
+const createUserSchema = z.object({
+  body: z.object({
+    username: z.string().min(3),
+    password: z.string().min(6),
+    email: z.string().email().optional().nullable(),
+    role: z.enum(['admin', 'viewer', 'researcher']).optional().default('viewer'),
+  }),
+});
+
+const updateUserSchema = z.object({
+  params: z.object({
+    id: z.string().min(1),
+  }),
+  body: z.object({
+    username: z.string().min(3).optional(),
+    email: z.string().email().optional().nullable(),
+    role: z.enum(['admin', 'viewer', 'researcher']).optional(),
+    password: z.string().min(6).optional(),
+  }),
+});
 
 // User Management Endpoints
 router.get('/', authenticateRequest, requireRole('admin'), async (_req, res, next) => {
@@ -30,35 +54,37 @@ router.get('/current', authenticateRequest, async (req: any, res, next) => {
 });
 
 // Create new user (Admin only)
-router.post('/', authenticateRequest, requireRole('admin'), async (req: any, res, next) => {
-  try {
-    const { username, password, email, role } = req.body;
+router.post(
+  '/',
+  authenticateRequest,
+  requireRole('admin'),
+  validate(createUserSchema),
+  async (req: any, res, next) => {
+    try {
+      const { username, password, email, role } = req.body;
 
-    if (!username || !password) {
-      return res.status(400).json({ error: 'Username and password required' });
+      const id = `user-${Date.now()}`;
+      // Hash password
+      const passwordHash = bcrypt.hashSync(password, 10);
+
+      createUser({
+        id,
+        username,
+        email: email || null,
+        role: role || 'viewer',
+        passwordHash,
+      });
+
+      logAudit('create_user', req.user?.id || null, 'user', id, { username, role });
+      res.status(201).json({ id, username, email, role });
+    } catch (e) {
+      next(e);
     }
-
-    const id = `user-${Date.now()}`;
-    // Hash password
-    const passwordHash = bcrypt.hashSync(password, 10);
-
-    createUser({
-      id,
-      username,
-      email: email || null,
-      role: role || 'viewer',
-      passwordHash,
-    });
-
-    logAudit('create_user', req.user?.id || null, 'user', id, { username, role });
-    res.status(201).json({ id, username, email, role });
-  } catch (e) {
-    next(e);
-  }
-});
+  },
+);
 
 // Update user (Admin or Self)
-router.put('/:id', authenticateRequest, async (req: any, res, next) => {
+router.put('/:id', authenticateRequest, validate(updateUserSchema), async (req: any, res, next) => {
   try {
     const { id } = req.params;
     const { username, email, role, password } = req.body;

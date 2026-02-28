@@ -1,22 +1,36 @@
 import { Router } from 'express';
 import { authenticateRequest } from '../auth/middleware.js';
 import { financialRepository } from '../db/financialRepository.js';
+import { z } from 'zod';
+import { validate } from '../middleware/validate.js';
 
 const router = Router();
 
-// Get all transactions (with limit)
-router.get('/transactions', authenticateRequest, async (req, res, next) => {
-  try {
-    const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
-    const transactions = await financialRepository.getTransactions(limit);
-    res.json(transactions);
-  } catch (error) {
-    next(error);
-  }
+// Schemas
+const transactionsSchema = z.object({
+  query: z.object({
+    limit: z.coerce.number().int().min(1).max(500).default(100),
+  }),
 });
 
-// Get financial statistics/summary
-router.get('/stats', authenticateRequest, async (req, res, next) => {
+// Get all transactions (with limit)
+router.get(
+  '/transactions',
+  authenticateRequest,
+  validate(transactionsSchema),
+  async (req, res, next) => {
+    try {
+      const { limit } = req.query as any;
+      const transactions = await financialRepository.getTransactions(limit);
+      res.json(transactions);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// Get financial stats
+router.get('/stats', authenticateRequest, async (_req, res, next) => {
   try {
     const summary = await financialRepository.getFinancialSummary();
     res.json(summary);
@@ -25,56 +39,8 @@ router.get('/stats', authenticateRequest, async (req, res, next) => {
   }
 });
 
-// Seed some mock data if empty (for demonstration in the workspace)
-router.post('/seed', authenticateRequest, async (req, res, next) => {
-  try {
-    const existing = await financialRepository.getTransactions(1);
-    if (existing.length > 0) {
-      return res.json({ message: 'Database already has transaction data' });
-    }
-
-    // Mock transactions for Epstein investigation context
-    const mockTxs = [
-      {
-        from_entity: 'Jeffrey Epstein',
-        to_entity: 'Southern Trust Company',
-        amount: 12500000,
-        transaction_date: '2018-05-12T10:00:00Z',
-        transaction_type: 'offshore_transfer',
-        method: 'wire',
-        risk_level: 'high',
-        description: 'Repatriation of trust funds from US Virgin Islands entities',
-      },
-      {
-        from_entity: 'Southern Trust Company',
-        to_entity: 'Butterfly Trust',
-        amount: 8000000,
-        transaction_date: '2019-02-15T14:30:00Z',
-        transaction_type: 'layering',
-        method: 'wire',
-        risk_level: 'critical',
-        description: 'Subscription for administrative services in shell network',
-      },
-      {
-        from_entity: 'Jeffrey Epstein',
-        to_entity: 'Ghislaine Maxwell',
-        amount: 500000,
-        transaction_date: '2017-11-20T09:15:00Z',
-        transaction_type: 'payment',
-        method: 'wire',
-        risk_level: 'medium',
-        description: 'Operational expenses for international travel',
-      },
-    ];
-
-    for (const tx of mockTxs) {
-      await financialRepository.saveTransaction(tx as any);
-    }
-
-    res.json({ success: true, count: mockTxs.length });
-  } catch (error) {
-    next(error);
-  }
-});
+// NOTE: The /seed endpoint has been removed. It populated the financial module with
+// hardcoded mock transactions that could be mistaken for real evidentiary data.
+// Wire the financial module to corpus-extracted transaction data before re-enabling.
 
 export default router;

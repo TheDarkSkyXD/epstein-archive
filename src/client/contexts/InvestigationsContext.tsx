@@ -5,6 +5,7 @@ import React, {
   useEffect,
   ReactNode,
   useCallback,
+  useMemo,
 } from 'react';
 import { Investigation } from '../types/investigation';
 
@@ -167,7 +168,6 @@ export const InvestigationsProvider: React.FC<InvestigationsProviderProps> = ({ 
 
   const addToInvestigation = useCallback(
     async (investigationId: string, item: any, relevance: 'high' | 'medium' | 'low') => {
-      setIsLoading(true);
       setError(null);
       try {
         // Map the item to evidence format based on type
@@ -229,7 +229,6 @@ export const InvestigationsProvider: React.FC<InvestigationsProviderProps> = ({ 
         }
 
         const result = await response.json();
-        console.log('Evidence added successfully:', result);
 
         // Dispatch a custom event for other components to listen to
         const event = new CustomEvent('investigation-item-added', {
@@ -242,8 +241,6 @@ export const InvestigationsProvider: React.FC<InvestigationsProviderProps> = ({ 
         setError(errorMessage);
         console.error('Error adding to investigation:', err);
         throw err; // Re-throw so UI can handle
-      } finally {
-        setIsLoading(false);
       }
     },
     [],
@@ -253,21 +250,31 @@ export const InvestigationsProvider: React.FC<InvestigationsProviderProps> = ({ 
     loadInvestigations();
   }, [loadInvestigations]);
 
+  const contextValue = useMemo(
+    () => ({
+      investigations,
+      selectedInvestigation,
+      isLoading,
+      error,
+      loadInvestigations,
+      selectInvestigation,
+      createInvestigation,
+      addToInvestigation,
+    }),
+    [
+      investigations,
+      selectedInvestigation,
+      isLoading,
+      error,
+      loadInvestigations,
+      selectInvestigation,
+      createInvestigation,
+      addToInvestigation,
+    ],
+  );
+
   return (
-    <InvestigationsContext.Provider
-      value={{
-        investigations,
-        selectedInvestigation,
-        isLoading,
-        error,
-        loadInvestigations,
-        selectInvestigation,
-        createInvestigation,
-        addToInvestigation,
-      }}
-    >
-      {children}
-    </InvestigationsContext.Provider>
+    <InvestigationsContext.Provider value={contextValue}>{children}</InvestigationsContext.Provider>
   );
 };
 

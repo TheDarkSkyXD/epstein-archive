@@ -1,4 +1,4 @@
-import React, { useState, ReactNode, useCallback, useEffect, useRef } from 'react';
+import { useState, ReactNode, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   FilterState,

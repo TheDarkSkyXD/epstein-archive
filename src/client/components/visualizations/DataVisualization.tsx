@@ -316,24 +316,8 @@ export const DataVisualization: React.FC<DataVisualizationProps> = ({
                     content={<CustomTooltip />}
                     cursor={{ fill: '#ffffff', opacity: 0.05 }}
                   />
-                  <Bar
-                    dataKey="mentions"
-                    radius={[0, 4, 4, 0]}
-                    barSize={20}
-                    animationDuration={1500}
-                    onClick={(data) => {
-                      if (data.person && onPersonSelect) onPersonSelect(data.person);
-                    }}
-                    className="cursor-pointer"
-                  >
-                    {topEntities.slice(0, 30).map((entry: any, index: number) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={`url(#barGradient-${index})`}
-                        className="hover:opacity-80 transition-opacity"
-                      />
-                    ))}
-                  </Bar>
+                  <Bar dataKey="mentions" fill="#3b82f6" name="Mentions" />
+                  <Bar dataKey="riskScore" fill="#ef4444" name="Risk Score" />
                 </BarChart>
               </ResponsiveContainer>
             </div>

@@ -2,14 +2,18 @@ import { test, expect } from '@playwright/test';
 import { ZodSchema } from 'zod';
 import {
   documentsListResponseSchema,
+  documentDetailSchema,
   emailMailboxesResponseSchema,
   emailThreadsResponseSchema,
+  entityDetailSchema,
+  graphGlobalResponseSchema,
   investigationEvidenceByTypeResponseSchema,
   investigationEvidenceListResponseSchema,
   subjectsListResponseSchema,
 } from '../src/shared/schemas';
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3012';
+let serverAvailable = false;
 
 const assertSchema = <T>(schema: ZodSchema<T>, payload: unknown, label: string): T => {
   const parsed = schema.safeParse(payload);
@@ -24,7 +28,19 @@ const assertSchema = <T>(schema: ZodSchema<T>, payload: unknown, label: string):
 test.describe('API DTO Contracts', () => {
   test.describe.configure({ mode: 'serial' });
 
+  test.beforeAll(async ({ request }) => {
+    try {
+      const response = await request.get(`${API_BASE_URL}/api/subjects?page=1&limit=1`, {
+        timeout: 5000,
+      });
+      serverAvailable = response.ok();
+    } catch {
+      serverAvailable = false;
+    }
+  });
+
   test('subjects list endpoint matches shared DTO schema', async ({ request }) => {
+    test.skip(!serverAvailable, 'Contract tests require a live API server');
     const response = await request.get(
       `${API_BASE_URL}/api/subjects?page=1&limit=24&sortBy=red_flag&entityType=person`,
     );
@@ -38,6 +54,7 @@ test.describe('API DTO Contracts', () => {
   });
 
   test('documents list endpoint matches shared DTO schema', async ({ request }) => {
+    test.skip(!serverAvailable, 'Contract tests require a live API server');
     const response = await request.get(
       `${API_BASE_URL}/api/documents?page=1&limit=50&sortBy=red_flag&sortOrder=desc`,
     );
@@ -53,6 +70,7 @@ test.describe('API DTO Contracts', () => {
   test('investigation case-folder evidence endpoints match shared DTO schemas', async ({
     request,
   }) => {
+    test.skip(!serverAvailable, 'Contract tests require a live API server');
     test.setTimeout(45_000);
     const invResponse = await request.get(`${API_BASE_URL}/api/investigations?page=1&limit=1`);
     expect(invResponse.ok()).toBeTruthy();
@@ -104,6 +122,7 @@ test.describe('API DTO Contracts', () => {
   });
 
   test('email list/thread metadata endpoints match shared DTO schemas', async ({ request }) => {
+    test.skip(!serverAvailable, 'Contract tests require a live API server');
     test.setTimeout(60_000);
     const mailboxesResponse = await request.get(`${API_BASE_URL}/api/emails/mailboxes`);
     expect(mailboxesResponse.ok()).toBeTruthy();
@@ -128,5 +147,57 @@ test.describe('API DTO Contracts', () => {
     );
 
     expect(Array.isArray(parsedThreads.data)).toBe(true);
+  });
+
+  test('entity detail endpoint matches shared DTO schema', async ({ request }) => {
+    test.skip(!serverAvailable, 'Contract tests require a live API server');
+    // Fetch first entity ID from the list endpoint
+    const listResponse = await request.get(`${API_BASE_URL}/api/entities?page=1&limit=1`);
+    expect(listResponse.ok()).toBeTruthy();
+    const listBody = await listResponse.json();
+    const entities = Array.isArray(listBody?.data)
+      ? listBody.data
+      : Array.isArray(listBody)
+        ? listBody
+        : [];
+    if (entities.length === 0) {
+      test.skip(true, 'No entities available in test dataset');
+      return;
+    }
+    const entityId = String(entities[0].id);
+
+    const response = await request.get(`${API_BASE_URL}/api/entities/${entityId}`);
+    expect(response.ok()).toBeTruthy();
+    const body = await response.json();
+    assertSchema(entityDetailSchema, body, `GET /api/entities/${entityId}`);
+  });
+
+  test('evidence detail endpoint matches shared DTO schema', async ({ request }) => {
+    test.skip(!serverAvailable, 'Contract tests require a live API server');
+    // Fetch first document ID from the list endpoint
+    const listResponse = await request.get(`${API_BASE_URL}/api/documents?page=1&limit=1`);
+    expect(listResponse.ok()).toBeTruthy();
+    const listBody = await listResponse.json();
+    const docs = Array.isArray(listBody?.data) ? listBody.data : [];
+    if (docs.length === 0) {
+      test.skip(true, 'No documents available in test dataset');
+      return;
+    }
+    const docId = String(docs[0].id);
+
+    const response = await request.get(`${API_BASE_URL}/api/evidence/${docId}`);
+    expect(response.ok()).toBeTruthy();
+    const body = await response.json();
+    assertSchema(documentDetailSchema, body, `GET /api/evidence/${docId}`);
+  });
+
+  test('graph global endpoint matches shared DTO schema', async ({ request }) => {
+    test.skip(!serverAvailable, 'Contract tests require a live API server');
+    const response = await request.get(`${API_BASE_URL}/api/graph/global?limit=10`);
+    expect(response.ok()).toBeTruthy();
+    const body = await response.json();
+    const parsed = assertSchema(graphGlobalResponseSchema, body, 'GET /api/graph/global');
+    expect(Array.isArray(parsed.nodes)).toBe(true);
+    expect(Array.isArray(parsed.edges)).toBe(true);
   });
 });

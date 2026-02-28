@@ -232,54 +232,73 @@ export const documentsRepository = {
 
     const total = Number(countResult[0]?.total || 0);
 
-    const transformedDocs = await Promise.all(
-      docs.map(async (doc) => {
-        const metadata =
-          typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : doc.metadata || {};
-        const preview = buildPreview({
-          title: doc.title,
-          fileName: doc.fileName,
-          contentRefined: doc.contentRefined,
-          contentPreview: (doc as any).contentPreview || '',
-          metadata,
-        });
+    // Batch-fetch top entities for all documents in a single query (eliminates N+1)
+    const docIds = docs.map((d) => Number(d.id));
+    const entityRowsByDocId = new Map<number, Array<{ name: string; mentions: number }>>();
+    if (docIds.length > 0) {
+      const entitiesBatchSql = `
+        SELECT
+          em.document_id as "documentId",
+          e.full_name as "name",
+          COUNT(*) as "mentions"
+        FROM entity_mentions em
+        JOIN entities e ON e.id = em.entity_id
+        WHERE em.document_id = ANY($1::int[])
+        GROUP BY em.document_id, e.id, e.full_name
+        ORDER BY "mentions" DESC
+      `;
+      const entityBatchRes = await getApiPool().query(entitiesBatchSql, [docIds]);
+      for (const row of entityBatchRes.rows) {
+        const docId = Number(row.documentId);
+        if (!entityRowsByDocId.has(docId)) entityRowsByDocId.set(docId, []);
+        entityRowsByDocId
+          .get(docId)!
+          .push({ name: row.name || 'Unknown', mentions: Number(row.mentions) });
+      }
+    }
 
-        // Get top entities
-        const entities = await (documentsQueries.getDocumentEntities as any).run(
-          { documentId: Number(doc.id) },
-          getApiPool(),
-        );
-        const entityCount = entities.reduce((acc, e) => acc + Number(e.mentions), 0);
-        const keyEntities = entities.slice(0, 3).map((e) => e.name || 'Unknown');
+    const transformedDocs = docs.map((doc) => {
+      const metadata =
+        typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : doc.metadata || {};
+      const preview = buildPreview({
+        title: doc.title,
+        fileName: doc.fileName,
+        contentRefined: doc.contentRefined,
+        contentPreview: (doc as any).contentPreview || '',
+        metadata,
+      });
 
-        const sourceType = normalizeSourceType(doc.evidenceType, doc.fileType);
-        const whyFlagged =
-          entityCount >= 8
-            ? `High significance from dense entity mentions (${entityCount}).`
-            : Number(doc.redFlagRating || 0) >= 4
-              ? 'High significance due to elevated risk scoring.'
-              : 'High significance due to risk scoring and entity density.';
+      const entities = entityRowsByDocId.get(Number(doc.id)) || [];
+      const entityCount = entities.reduce((acc, e) => acc + e.mentions, 0);
+      const keyEntities = entities.slice(0, 3).map((e) => e.name);
 
-        return {
-          id: String(doc.id),
-          fileName: doc.fileName,
-          title: preview.title,
-          fileType: doc.fileType,
-          fileSize: Number(doc.fileSize || 0),
-          dateCreated: doc.dateCreated,
-          evidenceType: doc.evidenceType || 'document',
-          metadata,
-          redFlagRating: Number(doc.redFlagRating || 0),
-          wordCount: Number(doc.wordCount || 0),
-          entitiesCount: entityCount,
-          keyEntities,
-          sourceType,
-          previewText: preview.previewText,
-          previewKind: preview.previewKind,
-          whyFlagged,
-        };
-      }),
-    );
+      const sourceType = normalizeSourceType(doc.evidenceType, doc.fileType);
+      const whyFlagged =
+        entityCount >= 8
+          ? `High significance from dense entity mentions (${entityCount}).`
+          : Number(doc.redFlagRating || 0) >= 4
+            ? 'High significance due to elevated risk scoring.'
+            : 'High significance due to risk scoring and entity density.';
+
+      return {
+        id: String(doc.id),
+        fileName: doc.fileName,
+        title: preview.title,
+        fileType: doc.fileType,
+        fileSize: Number(doc.fileSize || 0),
+        dateCreated: doc.dateCreated,
+        evidenceType: doc.evidenceType || 'document',
+        metadata,
+        redFlagRating: Number(doc.redFlagRating || 0),
+        wordCount: Number(doc.wordCount || 0),
+        entitiesCount: entityCount,
+        keyEntities,
+        sourceType,
+        previewText: preview.previewText,
+        previewKind: preview.previewKind,
+        whyFlagged,
+      };
+    });
 
     return {
       documents: transformedDocs,
@@ -313,32 +332,49 @@ export const documentsRepository = {
       getApiPool(),
     );
 
-    const entities = [];
-    for (const row of entityRows) {
-      const contextRows = await (documentsQueries.getMentionContexts as any).run(
-        { documentId: docId, entityId: Number(row.entityId) },
-        getApiPool(),
-      );
+    // Batch all mention-context fetches into a single query to avoid N+1
+    const entityIds = entityRows.map((r: any) => Number(r.entityId));
+    const contextsByEntityId = new Map<number, string[]>();
+    if (entityIds.length > 0) {
+      const batchContextSql = `
+        SELECT entity_id, mention_context
+        FROM entity_mentions
+        WHERE document_id = $1
+          AND entity_id = ANY($2::int[])
+          AND mention_context IS NOT NULL
+          AND mention_context != ''
+        LIMIT 200
+      `;
+      const batchCtxRes = await getApiPool().query(batchContextSql, [docId, entityIds]);
+      for (const row of batchCtxRes.rows) {
+        const eid = Number(row.entity_id);
+        if (!contextsByEntityId.has(eid)) contextsByEntityId.set(eid, []);
+        const existing = contextsByEntityId.get(eid)!;
+        if (existing.length < 3) existing.push(row.mention_context);
+      }
+    }
 
+    const entities = entityRows.map((row: any) => {
+      const eid = Number(row.entityId);
       const significance =
         Number(row.mentions) >= 20
           ? 'high'
           : Number(row.mentions) >= 5
             ? 'medium'
             : ('low' as const);
-
-      entities.push({
-        id: Number(row.entityId),
+      const contextStrings = contextsByEntityId.get(eid) || [];
+      return {
+        id: eid,
         name: row.name,
         type: row.entityType,
         mentions: Number(row.mentions),
         significance,
-        contexts: contextRows.map((c) => ({
-          context: c.mention_context,
+        contexts: contextStrings.map((ctx) => ({
+          context: ctx,
           source: (document as any).source_collection || 'Document',
         })),
-      });
-    }
+      };
+    });
 
     const redactionSpans = await (documentsQueries.getRedactionSpans as any).run(
       { documentId: docId },
@@ -375,13 +411,17 @@ export const documentsRepository = {
       entities,
       mentionedEntities: entities,
       original_file_path: (document as any).original_file_path || (document as any).filePath,
-      redaction_spans: redactionSpans.map((s) => ({
+      redaction_spans: redactionSpans.map((s: any) => ({
         ...s,
         id: Number(s.id),
         document_id: Number(s.document_id),
       })),
-      claims: claims.map((c) => ({ ...c, id: Number(c.id), document_id: Number(c.document_id) })),
-      sentences: sentences.map((s) => ({
+      claims: claims.map((c: any) => ({
+        ...c,
+        id: Number(c.id),
+        document_id: Number(c.document_id),
+      })),
+      sentences: sentences.map((s: any) => ({
         ...s,
         id: Number(s.id),
         document_id: Number(s.document_id),
@@ -404,7 +444,7 @@ export const documentsRepository = {
       getApiPool(),
     );
 
-    return related.map((doc) => ({
+    return related.map((doc: any) => ({
       id: String(doc.id),
       title: doc.title,
       fileName: doc.fileName,
@@ -419,7 +459,7 @@ export const documentsRepository = {
         .map((name: string) => `Shared entity: ${name.trim()}`),
       sharedEntities: (doc.sharedEntitiesList || '')
         .split(',')
-        .map((s) => s.trim())
+        .map((s: string) => s.trim())
         .slice(0, 5),
     }));
   },

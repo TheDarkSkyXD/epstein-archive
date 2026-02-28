@@ -6,6 +6,11 @@ import {
   mapInvestigationEvidenceByTypeResponseDto,
   mapInvestigationEvidenceListResponseDto,
 } from '../mappers/investigationsDtoMapper.js';
+import { z } from 'zod';
+import { validate } from '../middleware/validate.js';
+import archiver from 'archiver';
+import fs from 'fs';
+import path from 'path';
 
 const router = Router();
 const HARD_CAP_INVESTIGATIONS_LIMIT = Math.max(
@@ -13,18 +18,177 @@ const HARD_CAP_INVESTIGATIONS_LIMIT = Math.max(
   Number(process.env.HARD_CAP_INVESTIGATIONS_LIMIT || 100),
 );
 
+// Schemas
+const getInvestigationsSchema = z.object({
+  query: z.object({
+    status: z.string().optional(),
+    ownerId: z.string().optional(),
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).default(20),
+  }),
+});
+
+const getByTitleSchema = z.object({
+  query: z.object({
+    title: z.string().min(1, 'title required'),
+  }),
+});
+
+const createInvestigationSchema = z.object({
+  body: z.object({
+    title: z.string().min(1, 'Title is required'),
+    description: z.string().optional(),
+    ownerId: z.string().optional(),
+  }),
+});
+
+const idParamSchema = z.object({
+  params: z.object({
+    id: z.string(),
+  }),
+});
+
+const numericIdParamSchema = z.object({
+  params: z.object({
+    id: z.coerce.number().int(),
+  }),
+});
+
+const updateInvestigationSchema = z.object({
+  params: z.object({
+    id: z.coerce.number().int(),
+  }),
+  body: z
+    .object({
+      title: z.string().optional(),
+      description: z.string().optional(),
+      status: z.string().optional(),
+      ownerId: z.string().optional(),
+    })
+    .passthrough(),
+});
+
+const timelineEventSchema = z.object({
+  params: z.object({
+    id: z.coerce.number().int(),
+  }),
+  body: z
+    .object({
+      title: z.string().min(1),
+      description: z.string().optional(),
+      event_date: z.string().optional(),
+      event_type: z.string().optional(),
+    })
+    .passthrough(),
+});
+
+const updateTimelineEventSchema = z.object({
+  params: z.object({
+    id: z.coerce.number().int(),
+    eventId: z.coerce.number().int(),
+  }),
+  body: z.object({}).passthrough(),
+});
+
+const evidenceParamsSchema = z.object({
+  params: z.object({
+    id: z.coerce.number().int(),
+  }),
+  query: z.object({
+    limit: z.coerce.number().int().min(1).optional(),
+    offset: z.coerce.number().int().min(0).optional(),
+  }),
+});
+
+const addEvidenceSchema = z.object({
+  params: z.object({
+    id: z.coerce.number().int(),
+  }),
+  body: z
+    .object({
+      title: z.string().min(1),
+      evidence_type: z.string().optional(),
+      description: z.string().optional(),
+      url: z.string().url().optional().or(z.literal('')),
+    })
+    .passthrough(),
+});
+
+const createHypothesisSchema = z.object({
+  params: z.object({
+    id: z.coerce.number().int(),
+  }),
+  body: z.object({
+    title: z.string().min(1),
+    description: z.string().optional(),
+  }),
+});
+
+const updateHypothesisSchema = z.object({
+  params: z.object({
+    id: z.coerce.number().int(),
+    hypId: z.coerce.number().int(),
+  }),
+  body: z.object({}).passthrough(),
+});
+
+const hypothesisEvidenceSchema = z.object({
+  params: z.object({
+    id: z.coerce.number().int(),
+    hypId: z.coerce.number().int(),
+  }),
+  body: z.object({
+    evidenceId: z.coerce.number().int(),
+    relevance: z.string().optional(),
+  }),
+});
+
+const removeHypothesisEvidenceSchema = z.object({
+  params: z.object({
+    id: z.coerce.number().int(),
+    hypId: z.coerce.number().int(),
+    evidenceId: z.coerce.number().int(),
+  }),
+});
+
+const activityQuerySchema = z.object({
+  params: z.object({
+    id: z.coerce.number().int(),
+  }),
+  query: z.object({
+    limit: z.coerce.number().int().min(1).default(50),
+  }),
+});
+
+const boardQuerySchema = z.object({
+  params: z.object({
+    id: z.coerce.number().int(),
+  }),
+  query: z.object({
+    evidenceLimit: z.coerce.number().int().min(1).default(80),
+    hypothesisLimit: z.coerce.number().int().min(1).default(20),
+  }),
+});
+
+const notebookSchema = z.object({
+  params: z.object({
+    id: z.coerce.number().int(),
+  }),
+  body: z.object({
+    order: z.array(z.string()).optional(),
+    annotations: z.array(z.any()).optional(),
+  }),
+});
+
 // Get all investigations
-// Get all investigations
-router.get('/', async (req, res, next) => {
+router.get('/', validate(getInvestigationsSchema), async (req, res, next) => {
   try {
+    const { status, ownerId, page, limit } = req.query as any;
     const filters = {
-      status: (req.query.status as string) || undefined,
-      ownerId: (req.query.ownerId as string) || undefined,
-      page: parseInt(req.query.page as string) || 1,
-      limit: Math.min(
-        HARD_CAP_INVESTIGATIONS_LIMIT,
-        Math.max(1, parseInt(req.query.limit as string) || 20),
-      ),
+      status: status || undefined,
+      ownerId: ownerId || undefined,
+      page: page,
+      limit: Math.min(HARD_CAP_INVESTIGATIONS_LIMIT, limit),
     };
     res.setHeader('X-Limit-Applied', String(filters.limit));
 
@@ -36,14 +200,10 @@ router.get('/', async (req, res, next) => {
 });
 
 // Find investigation by exact title
-router.get('/by-title', async (req, res, next) => {
+router.get('/by-title', validate(getByTitleSchema), async (req, res, next) => {
   try {
     const { title } = req.query as any;
-    if (!title) return res.status(400).json({ error: 'title required' });
-    const dbResult = await investigationsRepository.getInvestigations({ page: 1, limit: 5 } as any);
-    const match = Array.isArray(dbResult?.data)
-      ? dbResult.data.find((inv: any) => inv.title === String(title))
-      : null;
+    const match = await investigationsRepository.getInvestigationByTitle(String(title));
     if (!match) return res.status(404).json({ error: 'Investigation not found' });
     res.json(match);
   } catch (error) {
@@ -52,32 +212,32 @@ router.get('/by-title', async (req, res, next) => {
 });
 
 // Create investigation
-router.post('/', authenticateRequest, async (req, res, next) => {
-  try {
-    const { title, description, ownerId } = req.body;
+router.post(
+  '/',
+  authenticateRequest,
+  validate(createInvestigationSchema),
+  async (req, res, next) => {
+    try {
+      const { title, description, ownerId } = req.body;
 
-    if (!title) {
-      return res.status(400).json({ error: 'Title is required' });
+      // Default owner to current user if not specified
+      const finalOwnerId = ownerId || (req as any).user?.id;
+
+      const investigation = await investigationsRepository.createInvestigation({
+        title,
+        description,
+        ownerId: finalOwnerId,
+      });
+
+      res.status(201).json(investigation);
+    } catch (error) {
+      next(error);
     }
-
-    // Default owner to current user if not specified
-    const finalOwnerId = ownerId || (req as any).user?.id;
-
-    const investigation = await investigationsRepository.createInvestigation({
-      title,
-      description,
-      ownerId: finalOwnerId,
-    });
-
-    res.status(201).json(investigation);
-  } catch (error) {
-    next(error);
-  }
-});
+  },
+);
 
 // Get single investigation
-// Get single investigation
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', validate(idParamSchema), async (req, res, next) => {
   try {
     const { id } = req.params;
     const numericId = Number(id);
@@ -100,107 +260,129 @@ router.get('/:id', async (req, res, next) => {
 });
 
 // Update investigation
-router.put('/:id', authenticateRequest, async (req, res, next) => {
-  try {
-    const { id } = req.params as { id: string };
-    const updates = req.body;
+router.put(
+  '/:id',
+  authenticateRequest,
+  validate(updateInvestigationSchema),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
 
-    const updated = await investigationsRepository.updateInvestigation(parseInt(id), updates);
+      const updated = await investigationsRepository.updateInvestigation(Number(id), updates);
 
-    if (!updated) {
-      return res.status(404).json({ error: 'Investigation not found' });
+      if (!updated) {
+        return res.status(404).json({ error: 'Investigation not found' });
+      }
+
+      res.json(updated);
+    } catch (error) {
+      next(error);
     }
-
-    res.json(updated);
-  } catch (error) {
-    next(error);
-  }
-});
+  },
+);
 
 // Delete investigation
-router.delete('/:id', authenticateRequest, async (req, res, next) => {
-  try {
-    const { id } = req.params as { id: string };
-    const user = (req as any).user;
-    const numericId = parseInt(id, 10);
+router.delete(
+  '/:id',
+  authenticateRequest,
+  validate(numericIdParamSchema),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const user = (req as any).user;
+      const numericId = Number(id);
 
-    // Check if investigation exists and get owner
-    const investigation = await investigationsRepository.getInvestigationById(numericId);
-    if (!investigation) {
-      return res.status(404).json({ error: 'Investigation not found' });
+      // Check if investigation exists and get owner
+      const investigation = await investigationsRepository.getInvestigationById(numericId);
+      if (!investigation) {
+        return res.status(404).json({ error: 'Investigation not found' });
+      }
+
+      // Authorization: Admin OR Owner
+      if (user.role !== 'admin' && investigation.ownerId !== user.id) {
+        return res.status(403).json({ error: 'Unauthorized: Only admins or owners can delete' });
+      }
+
+      const success = await investigationsRepository.deleteInvestigation(numericId);
+
+      if (!success) {
+        return res.status(404).json({ error: 'Investigation not found' });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      next(error);
     }
-
-    // Authorization: Admin OR Owner
-    if (user.role !== 'admin' && investigation.ownerId !== user.id) {
-      return res.status(403).json({ error: 'Unauthorized: Only admins or owners can delete' });
-    }
-
-    const success = await investigationsRepository.deleteInvestigation(numericId);
-
-    if (!success) {
-      return res.status(404).json({ error: 'Investigation not found' });
-    }
-
-    res.json({ success: true });
-  } catch (error) {
-    next(error);
-  }
-});
+  },
+);
 
 // --- Timeline Events ---
 
-router.get('/:id/timeline-events', async (req, res, next) => {
+router.get('/:id/timeline-events', validate(numericIdParamSchema), async (req, res, next) => {
   try {
-    const { id } = req.params as { id: string };
-    const events = await investigationsRepository.getTimelineEvents(parseInt(id));
+    const { id } = req.params;
+    const events = await investigationsRepository.getTimelineEvents(Number(id));
     res.json(events);
   } catch (error) {
     next(error);
   }
 });
 
-router.post('/:id/timeline-events', authenticateRequest, async (req, res, next) => {
-  try {
-    const { id } = req.params as { id: string };
-    const eventId = await investigationsRepository.addTimelineEvent(parseInt(id), req.body);
-    res.status(201).json({ id: eventId, ...req.body });
-  } catch (error) {
-    next(error);
-  }
-});
+router.post(
+  '/:id/timeline-events',
+  authenticateRequest,
+  validate(timelineEventSchema),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const eventId = await investigationsRepository.addTimelineEvent(Number(id), req.body);
+      res.status(201).json({ id: eventId, ...req.body });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
-router.patch('/:id/timeline-events/:eventId', authenticateRequest, async (req, res, next) => {
-  try {
-    const { eventId } = req.params as { eventId: string };
-    const success = await investigationsRepository.updateTimelineEvent(parseInt(eventId), req.body);
-    if (!success) return res.status(404).json({ error: 'Event not found' });
-    res.json({ success: true });
-  } catch (error) {
-    next(error);
-  }
-});
+router.patch(
+  '/:id/timeline-events/:eventId',
+  authenticateRequest,
+  validate(updateTimelineEventSchema),
+  async (req, res, next) => {
+    try {
+      const { eventId } = req.params;
+      const success = await investigationsRepository.updateTimelineEvent(Number(eventId), req.body);
+      if (!success) return res.status(404).json({ error: 'Event not found' });
+      res.json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
-router.delete('/:id/timeline-events/:eventId', authenticateRequest, async (req, res, next) => {
-  try {
-    const { eventId } = req.params as { eventId: string };
-    const success = await investigationsRepository.deleteTimelineEvent(parseInt(eventId));
-    if (!success) return res.status(404).json({ error: 'Event not found' });
-    res.json({ success: true });
-  } catch (error) {
-    next(error);
-  }
-});
+router.delete(
+  '/:id/timeline-events/:eventId',
+  authenticateRequest,
+  validate(updateTimelineEventSchema),
+  async (req, res, next) => {
+    try {
+      const { eventId } = req.params;
+      const success = await investigationsRepository.deleteTimelineEvent(Number(eventId));
+      if (!success) return res.status(404).json({ error: 'Event not found' });
+      res.json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 // --- Evidence ---
 
-router.get('/:id/evidence', async (req, res, next) => {
+router.get('/:id/evidence', validate(evidenceParamsSchema), async (req, res, next) => {
   try {
-    const { id } = req.params as { id: string };
-    const limitRaw = req.query.limit as string | undefined;
-    const offsetRaw = req.query.offset as string | undefined;
-    const limit = limitRaw ? parseInt(limitRaw, 10) : undefined;
-    const offset = offsetRaw ? parseInt(offsetRaw, 10) : undefined;
-    const evidence = await investigationsRepository.getEvidence(parseInt(id), {
+    const { id } = req.params;
+    const { limit, offset } = req.query as any;
+    const evidence = await investigationsRepository.getEvidence(Number(id), {
       limit,
       offset,
     });
@@ -213,15 +395,20 @@ router.get('/:id/evidence', async (req, res, next) => {
   }
 });
 
-router.post('/:id/evidence', authenticateRequest, async (req, res, next) => {
-  try {
-    const { id } = req.params as { id: string };
-    const evidenceId = await investigationsRepository.addEvidence(parseInt(id), req.body);
-    res.status(201).json({ id: evidenceId, ...req.body });
-  } catch (error) {
-    next(error);
-  }
-});
+router.post(
+  '/:id/evidence',
+  authenticateRequest,
+  validate(addEvidenceSchema),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const evidenceId = await investigationsRepository.addEvidence(Number(id), req.body);
+      res.status(201).json({ id: evidenceId, ...req.body });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 const getInvestigationEvidenceSummary = async (
   req: Request<{ id: string }>,
@@ -239,84 +426,109 @@ const getInvestigationEvidenceSummary = async (
 };
 
 // Canonical case analytics route
-router.get('/:id/analytics/evidence-summary', getInvestigationEvidenceSummary);
+router.get(
+  '/:id/analytics/evidence-summary',
+  validate(idParamSchema),
+  getInvestigationEvidenceSummary,
+);
 
 // Legacy route alias (backward compatibility)
-router.get('/:id/evidence-summary', getInvestigationEvidenceSummary);
+router.get('/:id/evidence-summary', validate(idParamSchema), getInvestigationEvidenceSummary);
 
 // --- Hypotheses ---
 
-router.get('/:id/hypotheses', async (req, res, next) => {
+router.get('/:id/hypotheses', validate(numericIdParamSchema), async (req, res, next) => {
   try {
-    const { id } = req.params as { id: string };
-    const hypotheses = await investigationsRepository.getHypotheses(parseInt(id));
+    const { id } = req.params;
+    const hypotheses = await investigationsRepository.getHypotheses(Number(id));
     res.json(hypotheses);
   } catch (error) {
     next(error);
   }
 });
 
-router.post('/:id/hypotheses', authenticateRequest, async (req, res, next) => {
-  try {
-    const { id } = req.params as { id: string };
-    const { title, description } = req.body;
-    const newId = await investigationsRepository.addHypothesis(parseInt(id), {
-      title,
-      description,
-    });
-    res.status(201).json({ id: newId, title, description, investigationId: id, status: 'draft' });
-  } catch (error) {
-    next(error);
-  }
-});
+router.post(
+  '/:id/hypotheses',
+  authenticateRequest,
+  validate(createHypothesisSchema),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const { title, description } = req.body;
+      const newId = await investigationsRepository.addHypothesis(Number(id), {
+        title,
+        description,
+      });
+      res.status(201).json({ id: newId, title, description, investigationId: id, status: 'draft' });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
-router.put('/:id/hypotheses/:hypId', authenticateRequest, async (req, res, next) => {
-  try {
-    const { hypId } = req.params as { hypId: string };
-    const updates = req.body;
-    const success = await investigationsRepository.updateHypothesis(parseInt(hypId), updates);
-    if (!success) return res.status(404).json({ error: 'Hypothesis not found' });
-    res.json({ success: true });
-  } catch (error) {
-    next(error);
-  }
-});
+router.put(
+  '/:id/hypotheses/:hypId',
+  authenticateRequest,
+  validate(updateHypothesisSchema),
+  async (req, res, next) => {
+    try {
+      const { hypId } = req.params;
+      const updates = req.body;
+      const success = await investigationsRepository.updateHypothesis(Number(hypId), updates);
+      if (!success) return res.status(404).json({ error: 'Hypothesis not found' });
+      res.json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
-router.delete('/:id/hypotheses/:hypId', authenticateRequest, async (req, res, next) => {
-  try {
-    const { hypId } = req.params as { hypId: string };
-    const success = await investigationsRepository.deleteHypothesis(parseInt(hypId));
-    if (!success) return res.status(404).json({ error: 'Hypothesis not found' });
-    res.json({ success: true });
-  } catch (error) {
-    next(error);
-  }
-});
+router.delete(
+  '/:id/hypotheses/:hypId',
+  authenticateRequest,
+  validate(updateHypothesisSchema),
+  async (req, res, next) => {
+    try {
+      const { hypId } = req.params;
+      const success = await investigationsRepository.deleteHypothesis(Number(hypId));
+      if (!success) return res.status(404).json({ error: 'Hypothesis not found' });
+      res.json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
-router.post('/:id/hypotheses/:hypId/evidence', authenticateRequest, async (req, res, next) => {
-  try {
-    const { hypId } = req.params as { hypId: string };
-    const { evidenceId, relevance } = req.body;
-    await investigationsRepository.addEvidenceToHypothesis(
-      parseInt(hypId),
-      parseInt(evidenceId),
-      relevance,
-    );
-    res.json({ success: true });
-  } catch (error) {
-    next(error);
-  }
-});
+router.post(
+  '/:id/hypotheses/:hypId/evidence',
+  authenticateRequest,
+  validate(hypothesisEvidenceSchema),
+  async (req, res, next) => {
+    try {
+      const { hypId } = req.params;
+      const { evidenceId, relevance } = req.body;
+      await investigationsRepository.addEvidenceToHypothesis(
+        Number(hypId),
+        Number(evidenceId),
+        relevance,
+      );
+      res.json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 router.delete(
   '/:id/hypotheses/:hypId/evidence/:evidenceId',
   authenticateRequest,
+  validate(removeHypothesisEvidenceSchema),
   async (req, res, next) => {
     try {
-      const { hypId, evidenceId } = req.params as { hypId: string; evidenceId: string };
+      const { hypId, evidenceId } = req.params;
       await investigationsRepository.removeEvidenceFromHypothesis(
-        parseInt(hypId),
-        parseInt(evidenceId),
+        Number(hypId),
+        Number(evidenceId),
       );
       res.json({ success: true });
     } catch (error) {
@@ -326,11 +538,11 @@ router.delete(
 );
 
 // Activity Feed
-router.get('/:id/activity', async (req, res, next) => {
+router.get('/:id/activity', validate(activityQuerySchema), async (req, res, next) => {
   try {
     const { id } = req.params;
-    const limit = parseInt(req.query.limit as string) || 50;
-    const activity = await investigationsRepository.getActivity(parseInt(id), limit);
+    const { limit } = req.query as any;
+    const activity = await investigationsRepository.getActivity(Number(id), limit);
 
     // Parse metadata JSON for each activity
     const parsed = activity.map((a: any) => ({
@@ -345,22 +557,21 @@ router.get('/:id/activity', async (req, res, next) => {
 });
 
 // Evidence grouped by type (for Case Folder)
-router.get('/:id/evidence-by-type', async (req, res, next) => {
+router.get('/:id/evidence-by-type', validate(numericIdParamSchema), async (req, res, next) => {
   try {
     const { id } = req.params;
-    const evidence = await investigationsRepository.getEvidenceByType(parseInt(id));
+    const evidence = await investigationsRepository.getEvidenceByType(Number(id));
     res.json(mapInvestigationEvidenceByTypeResponseDto(evidence));
   } catch (error) {
     next(error);
   }
 });
 
-router.get('/:id/board', async (req, res, next) => {
+router.get('/:id/board', validate(boardQuerySchema), async (req, res, next) => {
   try {
     const { id } = req.params;
-    const evidenceLimit = parseInt((req.query.evidenceLimit as string) || '80', 10);
-    const hypothesisLimit = parseInt((req.query.hypothesisLimit as string) || '20', 10);
-    const snapshot = await investigationsRepository.getBoardSnapshot(parseInt(id, 10), {
+    const { evidenceLimit, hypothesisLimit } = req.query as any;
+    const snapshot = await investigationsRepository.getBoardSnapshot(Number(id), {
       evidenceLimit,
       hypothesisLimit,
     });
@@ -371,34 +582,39 @@ router.get('/:id/board', async (req, res, next) => {
 });
 
 // Notebook persistence
-router.get('/:id/notebook', async (req, res, next) => {
+router.get('/:id/notebook', validate(numericIdParamSchema), async (req, res, next) => {
   try {
     const { id } = req.params;
-    const notebook = await investigationsRepository.getNotebook(parseInt(id));
+    const notebook = await investigationsRepository.getNotebook(Number(id));
     res.json(notebook);
   } catch (error) {
     next(error);
   }
 });
 
-router.put('/:id/notebook', authenticateRequest, async (req, res, next) => {
-  try {
-    const { id } = req.params as { id: string };
-    const { order, annotations } = req.body || {};
-    await investigationsRepository.saveNotebook(parseInt(id), { order, annotations });
-    res.json({ success: true });
-  } catch (error) {
-    next(error);
-  }
-});
+router.put(
+  '/:id/notebook',
+  authenticateRequest,
+  validate(notebookSchema),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const { order, annotations } = req.body || {};
+      await investigationsRepository.saveNotebook(Number(id), { order, annotations });
+      res.json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 // Publish Briefing (Markdown)
-router.get('/:id/briefing', async (req, res, next) => {
+router.get('/:id/briefing', validate(numericIdParamSchema), async (req, res, next) => {
   try {
     const { id } = req.params;
     const repoModule = await import('../db/evidenceRepository.js');
-    const summary = await repoModule.evidenceRepository.getInvestigationEvidenceSummary(id);
-    const notebook = await investigationsRepository.getNotebook(parseInt(id, 10));
+    const summary = await repoModule.evidenceRepository.getInvestigationEvidenceSummary(String(id));
+    const notebook = await investigationsRepository.getNotebook(Number(id));
     let md = `# Investigation Briefing\\n\\nTotal Evidence: ${summary.totalEvidence}\\n\\n`;
     const byType: Record<string, any[]> = {};
     for (const e of summary.evidence) {
@@ -466,5 +682,47 @@ router.get('/:id/briefing', async (req, res, next) => {
     next(error);
   }
 });
+
+// Export Case Bundle as ZIP
+router.get(
+  '/:id/export/zip',
+  authenticateRequest,
+  validate(numericIdParamSchema),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const numericId = Number(id);
+      const investigation = await investigationsRepository.getInvestigationById(numericId);
+
+      if (!investigation) {
+        return res.status(404).json({ error: 'Investigation not found' });
+      }
+
+      const evidence = await investigationsRepository.getEvidence(numericId, { limit: 1000 });
+      const archive = archiver('zip', { zlib: { level: 9 } });
+
+      res.attachment(`investigation-bundle-${numericId}.zip`);
+      archive.pipe(res);
+
+      // Add investigation metadata
+      archive.append(JSON.stringify(investigation, null, 2), { name: 'investigation.json' });
+
+      // Add evidence metadata and files
+      const evidenceList = Array.isArray(evidence) ? evidence : (evidence as any).data || [];
+      archive.append(JSON.stringify(evidenceList, null, 2), { name: 'evidence.json' });
+
+      for (const item of evidenceList) {
+        if (item.file_path && fs.existsSync(item.file_path)) {
+          const fileName = path.basename(item.file_path);
+          archive.file(item.file_path, { name: `files/${fileName}` });
+        }
+      }
+
+      await archive.finalize();
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 export default router;

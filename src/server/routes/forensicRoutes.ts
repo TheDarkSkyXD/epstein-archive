@@ -4,11 +4,11 @@ import { forensicRepository } from '../db/forensicRepository.js';
 
 const router = Router();
 
-// Aggregated forensic metrics summary
-router.get('/metrics-summary', authenticateRequest, async (req, res, next) => {
+// Get forensic metrics summary
+router.get('/metrics-summary', authenticateRequest, async (_req, res, next) => {
   try {
-    const summary = await forensicRepository.getMetricsSummary();
-    res.json(summary);
+    const metrics = await forensicRepository.getMetricsSummary();
+    res.json(metrics);
   } catch (error) {
     next(error);
   }

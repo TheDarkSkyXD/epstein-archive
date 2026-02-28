@@ -94,25 +94,28 @@ export const PeoplePage: React.FC<PeoplePageProps> = ({
       const personLike: Person = {
         id: subject.id,
         name: subject.name,
+        fullName: subject.name,
         primaryRole: subject.role,
         role: subject.role,
         mentions: subject.stats.mentions,
         files: subject.stats.documents,
         evidence_types: [],
         contexts: [],
+        significant_passages: [],
+        fileReferences: [],
         red_flag_rating: 0,
-      } as any;
+      };
       onPersonClick(personLike, searchTerm);
     },
     [onPersonClick, searchTerm],
   );
 
   const onRenderCallback = useCallback(
-    (id: string, phase: 'mount' | 'update', actualDuration: number) => {
+    (id: string, phase: 'mount' | 'update' | 'nested-update', actualDuration: number) => {
       if (typeof window !== 'undefined' && actualDuration > 16) {
         import('../utils/performanceMonitor.js')
           .then(({ PerformanceMonitor }) => {
-            PerformanceMonitor.logRender(`PeoplePage-${id}`, actualDuration, phase);
+            PerformanceMonitor.logRender(`PeoplePage-${id}`, actualDuration, phase as any);
           })
           .catch(() => {});
       }

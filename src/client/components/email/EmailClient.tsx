@@ -29,6 +29,7 @@ import { AddToInvestigationButton } from '../common/AddToInvestigationButton';
 import { EvidenceModal } from '../common/EvidenceModal';
 import { ViewerShell } from '../viewer/ViewerShell';
 import { riskToneFromRating } from '../../utils/riskSemantics';
+import { useFilters } from '../../contexts/useFilters';
 
 const THREAD_PAGE_SIZE = 50;
 type EmailDensity = 'comfortable' | 'compact';
@@ -198,6 +199,7 @@ export const EmailClient: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const deepLinkedMessageId = searchParams.get('messageId') || searchParams.get('id');
+  const { filters: globalFilters } = useFilters();
 
   const [mailboxes, setMailboxes] = useState<EmailMailboxDTO[]>([]);
   const [mailboxesLoading, setMailboxesLoading] = useState(true);
@@ -214,8 +216,12 @@ export const EmailClient: React.FC = () => {
   const [debouncedSearch, setDebouncedSearch] = useState(searchParams.get('q') || '');
   const [fromFilter, setFromFilter] = useState(searchParams.get('from') || '');
   const [toFilter, setToFilter] = useState(searchParams.get('to') || '');
-  const [dateFrom, setDateFrom] = useState(searchParams.get('dateFrom') || '');
-  const [dateTo, setDateTo] = useState(searchParams.get('dateTo') || '');
+  const [dateFrom, setDateFrom] = useState(
+    searchParams.get('dateFrom') || globalFilters.timeRange[0] || '',
+  );
+  const [dateTo, setDateTo] = useState(
+    searchParams.get('dateTo') || globalFilters.timeRange[1] || '',
+  );
   const [hasAttachmentsOnly, setHasAttachmentsOnly] = useState(
     searchParams.get('hasAttachments') === '1',
   );
@@ -267,6 +273,14 @@ export const EmailClient: React.FC = () => {
     const timer = window.setTimeout(() => setDebouncedSearch(searchInput.trim()), 250);
     return () => window.clearTimeout(timer);
   }, [searchInput]);
+
+  // Sync global date range into local state when URL params are absent
+  const globalTimeStart = globalFilters.timeRange[0];
+  const globalTimeEnd = globalFilters.timeRange[1];
+  useEffect(() => {
+    if (!searchParams.get('dateFrom') && globalTimeStart) setDateFrom(globalTimeStart);
+    if (!searchParams.get('dateTo') && globalTimeEnd) setDateTo(globalTimeEnd);
+  }, [globalTimeStart, globalTimeEnd, searchParams]);
 
   const withBodyLimiter = useCallback(async (task: () => Promise<void>) => {
     await new Promise<void>((resolve, reject) => {

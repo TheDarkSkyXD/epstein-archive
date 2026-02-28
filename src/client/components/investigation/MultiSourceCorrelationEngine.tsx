@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Link,
   Search,
@@ -146,7 +146,6 @@ export default function MultiSourceCorrelationEngine() {
             );
 
             if (highRisk.length > 0) {
-              const _totalAmount = highRisk.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
               // _totalAmount currently unused but kept for future detailed reporting
               const counterparties = Array.from(
                 new Set(

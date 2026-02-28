@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Shield, Check, X, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 

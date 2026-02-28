@@ -637,7 +637,7 @@ export class DocumentProcessor {
   }
 
   private buildEntityIndex(document: Document) {
-    document.entities.forEach((entity) => {
+    document.entities?.forEach((entity) => {
       const entityKey = `${entity.type}:${entity.name.toLowerCase()}`;
       if (!this.entityIndex.has(entityKey)) {
         this.entityIndex.set(entityKey, new Set());
@@ -649,7 +649,7 @@ export class DocumentProcessor {
   private buildDateIndex(document: Document) {
     const datePattern =
       /\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}\b/g;
-    const dates = document.content.match(datePattern) || [];
+    const dates = document.content?.match(datePattern) || [];
 
     dates.forEach((date) => {
       const dateKey = new Date(date).toISOString().split('T')[0];
@@ -661,7 +661,7 @@ export class DocumentProcessor {
   }
 
   private buildCategoryIndex(document: Document) {
-    document.metadata.categories.forEach((category) => {
+    document.metadata?.categories?.forEach((category) => {
       if (!this.categoryIndex.has(category)) {
         this.categoryIndex.set(category, new Set());
       }
@@ -731,7 +731,7 @@ export class DocumentProcessor {
       // Fallback to title and entity search if no full-text matches
       Array.from(this.documents.values()).forEach((doc) => {
         const titleMatch = searchTerms.some((term) => doc.title.toLowerCase().includes(term));
-        const entityMatch = doc.entities.some((entity) =>
+        const entityMatch = doc.entities?.some((entity) =>
           searchTerms.some((term) => entity.name.toLowerCase().includes(term)),
         );
 
@@ -775,7 +775,7 @@ export class DocumentProcessor {
     });
 
     // Entity matches (medium weight)
-    document.entities.forEach((entity) => {
+    document.entities?.forEach((entity) => {
       searchTerms.forEach((term) => {
         if (entity.name.toLowerCase().includes(term)) {
           score += 3;
@@ -798,7 +798,7 @@ export class DocumentProcessor {
     });
 
     // Red-flag rating bonus (Core investigative feature)
-    score += document.redFlagRating * 0.5;
+    score += (document.redFlagRating || 0) * 0.5;
 
     return score;
   }
@@ -844,7 +844,7 @@ export class DocumentProcessor {
 
       // Entities filter
       if (filters.entities && filters.entities.length > 0) {
-        const docEntityNames = doc.entities.map((e) => e.name);
+        const docEntityNames = doc.entities?.map((e) => e.name) || [];
         const hasMatchingEntity = filters.entities.some((entity) =>
           docEntityNames.includes(entity),
         );
@@ -854,7 +854,7 @@ export class DocumentProcessor {
       // Categories filter
       if (filters.categories && filters.categories.length > 0) {
         const hasMatchingCategory = filters.categories.some((category) =>
-          doc.metadata.categories.includes(category),
+          doc.metadata?.categories?.includes(category),
         );
         if (!hasMatchingCategory) return false;
       }
@@ -862,8 +862,8 @@ export class DocumentProcessor {
       // Red-flag rating filter
       if (filters.redFlagLevel) {
         if (
-          doc.redFlagRating < filters.redFlagLevel.min ||
-          doc.redFlagRating > filters.redFlagLevel.max
+          (doc.redFlagRating || 0) < filters.redFlagLevel.min ||
+          (doc.redFlagRating || 0) > filters.redFlagLevel.max
         ) {
           return false;
         }
@@ -871,12 +871,12 @@ export class DocumentProcessor {
 
       // Confidentiality filter
       if (filters.confidentiality && filters.confidentiality.length > 0) {
-        if (!filters.confidentiality.includes(doc.metadata.confidentiality)) return false;
+        if (!filters.confidentiality.includes(doc.metadata?.confidentiality || '')) return false;
       }
 
       // Source filter
       if (filters.source && filters.source.length > 0) {
-        if (!filters.source.includes(doc.metadata.source)) return false;
+        if (!filters.source.includes(doc.metadata?.source || '')) return false;
       }
 
       return true;
@@ -899,7 +899,7 @@ export class DocumentProcessor {
           break;
         }
         case 'red_flag':
-          comparison = a.redFlagScore - b.redFlagScore;
+          comparison = (a.redFlagScore || 0) - (b.redFlagScore || 0);
           break;
         case 'fileType':
           comparison = a.fileType.localeCompare(b.fileType);
@@ -908,9 +908,9 @@ export class DocumentProcessor {
           comparison = a.fileSize - b.fileSize;
           break;
         default: // relevance - sort by entity count and mentions
-          comparison = b.entities.length - a.entities.length;
+          comparison = (b.entities?.length || 0) - (a.entities?.length || 0);
           if (comparison === 0) {
-            comparison = b.redFlagScore - a.redFlagScore;
+            comparison = (b.redFlagScore || 0) - (a.redFlagScore || 0);
           }
       }
 
@@ -936,7 +936,7 @@ export class DocumentProcessor {
 
     documents.forEach((doc) => {
       fileTypes.set(doc.fileType, (fileTypes.get(doc.fileType) || 0) + 1);
-      doc.metadata.categories.forEach((cat) => {
+      doc.metadata?.categories?.forEach((cat) => {
         categories.set(cat, (categories.get(cat) || 0) + 1);
       });
     });
@@ -1158,7 +1158,7 @@ export class DocumentProcessor {
     const relatedDocs = new Map<string, number>();
 
     // Find documents with shared entities
-    document.entities.forEach((entity) => {
+    document.entities?.forEach((entity) => {
       const entityKey = `${entity.type}:${entity.name.toLowerCase()}`;
       if (this.entityIndex.has(entityKey)) {
         this.entityIndex.get(entityKey)!.forEach((docId) => {
@@ -1170,7 +1170,7 @@ export class DocumentProcessor {
     });
 
     // Find documents with shared categories
-    document.metadata.categories.forEach((category) => {
+    document.metadata?.categories?.forEach((category) => {
       if (this.categoryIndex.has(category)) {
         this.categoryIndex.get(category)!.forEach((docId) => {
           if (docId !== documentId) {
@@ -1241,7 +1241,7 @@ export class DocumentProcessor {
     const entityDocs = this.findDocumentsByEntity(entityName, entity.type);
 
     entityDocs.forEach((doc) => {
-      doc.entities.forEach((otherEntity) => {
+      doc.entities?.forEach((otherEntity) => {
         if (otherEntity.name !== entityName) {
           const key = otherEntity.name;
           if (!connections.has(key)) {
@@ -1271,7 +1271,8 @@ export class DocumentProcessor {
     const collection = this.getDocumentCollection();
     const totalEntities = Array.from(this.entities.values()).length;
     const avgRedFlagScore =
-      collection.documents.reduce((sum, doc) => sum + doc.redFlagScore, 0) / collection.totalFiles;
+      collection.documents.reduce((sum, doc) => sum + (doc.redFlagScore || 0), 0) /
+      collection.totalFiles;
 
     return {
       totalDocuments: collection.totalFiles,

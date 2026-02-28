@@ -47,6 +47,9 @@ const VIP_TITLE_PREFIXES = [
   'secretary',
 ];
 
+const VIP_LOOKUP_TTL_MS = 5 * 60 * 1000;
+let vipLookupCache: { value: Map<string, string>; expiresAt: number } | null = null;
+
 function normalizeVipDisplayName(value: string): string {
   return value
     .toLowerCase()
@@ -82,16 +85,21 @@ function upsertVipAlias(
   if (!key) return;
   const current = map.get(key);
   const preferCandidateOnTie =
-    Boolean(current) &&
+    current !== undefined &&
     score === current.score &&
     !canonicalName.includes(',') &&
-    current!.canonicalName.includes(',');
+    current.canonicalName.includes(',');
   if (!current || score > current.score || preferCandidateOnTie) {
     map.set(key, { canonicalName, score });
   }
 }
 
 async function buildVipDisplayLookup(): Promise<Map<string, string>> {
+  const now = Date.now();
+  if (vipLookupCache && vipLookupCache.expiresAt > now) {
+    return vipLookupCache.value;
+  }
+
   const raw = await (entitiesQueries.getVipEntities as any).run(undefined, getApiPool());
   const bestByAlias = new Map<string, { canonicalName: string; score: number }>();
 
@@ -113,7 +121,12 @@ async function buildVipDisplayLookup(): Promise<Map<string, string>> {
     }
   }
 
-  return new Map(Array.from(bestByAlias.entries()).map(([k, v]) => [k, v.canonicalName]));
+  const lookup = new Map(Array.from(bestByAlias.entries()).map(([k, v]) => [k, v.canonicalName]));
+  vipLookupCache = {
+    value: lookup,
+    expiresAt: now + VIP_LOOKUP_TTL_MS,
+  };
+  return lookup;
 }
 
 function resolveDisplayName(name: string, lookup: Map<string, string>): string {
@@ -554,7 +567,7 @@ export const entitiesRepository = {
 
     const total = Number(countResult[0]?.total || 0);
 
-    const mappedEntities = rawEntities.map((e) => ({
+    const mappedEntities = rawEntities.map((e: any) => ({
       ...e,
       id: String(e.id),
       fullName: e.fullName || 'Unknown',
@@ -564,7 +577,7 @@ export const entitiesRepository = {
     }));
 
     const seen = new Set<string>();
-    const normalizedEntities = mappedEntities.filter((e) => {
+    const normalizedEntities = mappedEntities.filter((e: any) => {
       const norm = e.fullName.toLowerCase().trim();
       if (seen.has(norm)) return false;
       seen.add(norm);
@@ -622,18 +635,18 @@ export const entitiesRepository = {
       redFlagRating: Number(entity.red_flag_rating || 0),
       isVip: Boolean(entity.is_vip),
       wasAgentic: Boolean(entity.was_agentic),
-      fileReferences: mentions.map((m) => ({
+      fileReferences: mentions.map((m: any) => ({
         id: String(m.document_id),
         fileName: m.documentTitle,
         dateCreated: m.documentDate,
       })),
-      significant_passages: mentions.slice(0, 5).map((m) => ({
+      significant_passages: mentions.slice(0, 5).map((m: any) => ({
         passage: m.mention_context || '',
         keyword: m.surface_text || '',
         filename: m.documentTitle || 'Document',
         documentId: String(m.document_id),
       })),
-      relationships: relationships.map((r) => ({
+      relationships: relationships.map((r: any) => ({
         targetId: String(r.target_entity_id),
         targetName: r.targetName,
         targetRole: r.targetRole,
@@ -664,12 +677,13 @@ export const entitiesRepository = {
         ...entity,
         id: String(entity.id),
       },
-      relationships: relationships.slice(0, topN).map((r) => ({
+      relationships: relationships.slice(0, topN).map((r: any) => ({
         targetId: String(r.target_entity_id),
+        targetName: r.targetName,
         type: r.relationship_type,
         confidence: Number(r.confidence || 0),
       })),
-      documents: mentions.map((m) => ({
+      documents: mentions.map((m: any) => ({
         id: String(m.document_id),
         title: m.documentTitle,
         date: m.documentDate,
@@ -692,11 +706,12 @@ export const entitiesRepository = {
 
   getEntityDocumentCount: async (entityId: string): Promise<number> => {
     const id = Number(entityId);
-    const result = await (entitiesQueries.getEntityMentions as any).run(
-      { entityId: id, limit: 1000 },
-      getApiPool(),
+    const pool = getApiPool();
+    const result = await pool.query(
+      'SELECT COUNT(*)::int AS total FROM entity_mentions WHERE entity_id = $1::bigint',
+      [id],
     );
-    return result.length;
+    return Number(result.rows[0]?.total || 0);
   },
 
   getEntityDocumentsPaginated: async (
@@ -705,12 +720,23 @@ export const entitiesRepository = {
     limit: number = 50,
   ): Promise<any[]> => {
     const id = Number(entityId);
-    const mentions = await (entitiesQueries.getEntityMentions as any).run(
-      { entityId: id, limit: 1000 },
-      getApiPool(),
+    const safeLimit = Math.max(1, Math.min(200, limit));
+    const safePage = Math.max(1, page);
+    const offset = (safePage - 1) * safeLimit;
+    const pool = getApiPool();
+    const result = await pool.query(
+      `SELECT 
+         em.document_id,
+         d.file_name as "documentTitle",
+         d.date_created as "documentDate"
+       FROM entity_mentions em
+       JOIN documents d ON em.document_id = d.id
+       WHERE em.entity_id = $1::bigint
+       ORDER BY d.date_created DESC
+       LIMIT $2::int OFFSET $3::int`,
+      [id, safeLimit, offset],
     );
-    const slice = mentions.slice((page - 1) * limit, page * limit);
-    return slice.map((m: any) => ({
+    return result.rows.map((m: any) => ({
       id: String(m.document_id),
       title: m.documentTitle,
       dateCreated: m.documentDate,

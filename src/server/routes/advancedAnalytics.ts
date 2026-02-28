@@ -33,7 +33,7 @@ router.get('/timeline', authenticateRequest, async (req, res, next) => {
 });
 
 // Anomaly Detection Routes
-router.get('/anomalies', authenticateRequest, async (req, res, next) => {
+router.get('/anomalies', authenticateRequest, async (_req, res, next) => {
   try {
     const anomalies = await advancedAnalyticsService.detectAnomalies();
     res.json(anomalies);
@@ -66,7 +66,7 @@ router.get('/relationships', authenticateRequest, async (req, res, next) => {
 });
 
 // Predictive Insights Routes
-router.get('/predictive-insights', authenticateRequest, async (req, res, next) => {
+router.get('/predictive-insights', authenticateRequest, async (_req, res, next) => {
   try {
     const insights = await advancedAnalyticsService.getPredictiveInsights();
     res.json(insights);
@@ -90,7 +90,7 @@ router.get('/cross-reference', authenticateRequest, async (req, res, next) => {
 });
 
 // Investigative Task Summary Routes
-router.get('/investigation-summary', authenticateRequest, async (req, res, next) => {
+router.get('/investigation-summary', authenticateRequest, async (_req, res, next) => {
   try {
     const summary = await advancedAnalyticsService.getInvestigativeTaskSummary();
     res.json(summary);
@@ -114,7 +114,7 @@ router.get('/visualization/relationship-graph', authenticateRequest, async (req,
 });
 
 // Geospatial Data
-router.get('/visualization/geospatial', authenticateRequest, async (req, res, next) => {
+router.get('/visualization/geospatial', authenticateRequest, async (_req, res, next) => {
   try {
     const data = await visualizationService.getGeospatialData();
     res.json(data);
@@ -135,7 +135,7 @@ router.get('/visualization/timeline', authenticateRequest, async (req, res, next
 });
 
 // Network Analysis
-router.get('/visualization/network-analysis', authenticateRequest, async (req, res, next) => {
+router.get('/visualization/network-analysis', authenticateRequest, async (_req, res, next) => {
   try {
     const analysis = await visualizationService.getNetworkAnalysis();
     res.json(analysis);
@@ -145,7 +145,7 @@ router.get('/visualization/network-analysis', authenticateRequest, async (req, r
 });
 
 // Interactive Map Data
-router.get('/visualization/interactive-map', authenticateRequest, async (req, res, next) => {
+router.get('/visualization/interactive-map', authenticateRequest, async (_req, res, next) => {
   try {
     const mapData = await visualizationService.getInteractiveMapData();
     res.json(mapData);
@@ -171,7 +171,7 @@ router.get('/visualization/connection-inference', authenticateRequest, async (re
 // Predictive Analytics Routes
 
 // Pattern Predictions
-router.get('/predictive/patterns', authenticateRequest, async (req, res, next) => {
+router.get('/predictive/patterns', authenticateRequest, async (_req, res, next) => {
   try {
     const predictions = await predictiveAnalyticsService.getPatternPredictions();
     res.json(predictions);
@@ -181,7 +181,7 @@ router.get('/predictive/patterns', authenticateRequest, async (req, res, next) =
 });
 
 // Risk Assessment Predictions
-router.get('/predictive/risk-assessment', authenticateRequest, async (req, res, next) => {
+router.get('/predictive/risk-assessment', authenticateRequest, async (_req, res, next) => {
   try {
     const predictions = await predictiveAnalyticsService.getRiskAssessmentPredictions();
     res.json(predictions);
@@ -202,9 +202,9 @@ router.get('/predictive/connection-inferences', authenticateRequest, async (req,
 });
 
 // Risk Assessment Dashboard
-router.get('/predictive/risk-dashboard', authenticateRequest, async (req, res, next) => {
+router.get('/predictive/risk-dashboard', authenticateRequest, async (_req, res, next) => {
   try {
-    const dashboard = await predictiveAnalyticsService.getRiskAssessmentDashboard();
+    const dashboard = await predictiveAnalyticsService.getRiskAssessmentPredictions();
     res.json(dashboard);
   } catch (error) {
     next(error);

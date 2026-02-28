@@ -113,7 +113,7 @@ router.post('/refresh', authLimiter, async (req, res) => {
 });
 
 // POST /api/auth/logout
-router.post('/logout', (req, res) => {
+router.post('/logout', (_req, res) => {
   res.clearCookie('refreshToken', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',

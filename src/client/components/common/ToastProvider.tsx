@@ -1,4 +1,4 @@
-import React, { useState, useCallback, ReactNode, useEffect } from 'react';
+import { useState, useCallback, ReactNode, useEffect } from 'react';
 import { ToastCtx, Toast } from './toastContext';
 import { CloseButton } from './CloseButton';
 

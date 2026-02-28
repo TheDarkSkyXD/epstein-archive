@@ -195,8 +195,12 @@ export const InvestigationBoard: React.FC<InvestigationBoardProps> = ({ investig
     setDraggedEvidence(null);
   };
 
-  const onBoardRender = (_id: string, phase: 'mount' | 'update', actualDuration: number): void => {
-    PerformanceMonitor.logRender('InvestigationBoard', actualDuration, phase);
+  const onBoardRender = (
+    _id: string,
+    phase: 'mount' | 'update' | 'nested-update',
+    actualDuration: number,
+  ): void => {
+    PerformanceMonitor.logRender('InvestigationBoard', actualDuration, phase as any);
   };
 
   return (

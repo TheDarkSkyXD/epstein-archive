@@ -25,6 +25,8 @@ import {
   getEmailThreads,
   searchEmailMessagesLegacy,
 } from '../db/routesDb.js';
+import { z } from 'zod';
+import { validate } from '../middleware/validate.js';
 
 const router = express.Router();
 
@@ -115,10 +117,70 @@ const threadRowField = <T = unknown>(
   return undefined as T;
 };
 
-const normalizeTab = (tab: string | undefined): 'all' | 'primary' | 'updates' | 'promotions' => {
-  if (tab === 'primary' || tab === 'updates' || tab === 'promotions') return tab;
-  return 'all';
-};
+// const normalizeTab = (tab: string | undefined): 'all' | 'primary' | 'updates' | 'promotions' => {
+//   if (tab === 'primary' || tab === 'updates' || tab === 'promotions') return tab;
+//   return 'all';
+// };
+
+// Schemas
+const mailboxesSchema = z.object({
+  query: z.object({
+    showSuppressedJunk: z.preprocess((v) => v === '1', z.boolean()).optional(),
+  }),
+});
+
+const threadsSchema = z.object({
+  query: z.object({
+    mailboxId: z.string().default('all'),
+    q: z.string().optional(),
+    from: z.string().optional(),
+    to: z.string().optional(),
+    dateFrom: z.string().optional(),
+    dateTo: z.string().optional(),
+    hasAttachments: z.preprocess((v) => v === '1', z.boolean()).optional(),
+    minRisk: z.coerce.number().optional().default(0),
+    tab: z.enum(['all', 'primary', 'updates', 'promotions']).optional().default('all'),
+    limit: z.coerce.number().int().min(1).max(MAX_LIMIT).default(DEFAULT_LIMIT),
+    cursor: z.string().optional(),
+    showSuppressedJunk: z.preprocess((v) => v === '1', z.boolean()).optional(),
+  }),
+});
+
+const threadIdParamSchema = z.object({
+  params: z.object({
+    threadId: z.string().min(1),
+  }),
+});
+
+const messageIdParamSchema = z.object({
+  params: z.object({
+    messageId: z.string().min(1),
+  }),
+});
+
+const messageBodySchema = z.object({
+  params: z.object({
+    messageId: z.string().min(1),
+  }),
+  query: z.object({
+    showQuoted: z.preprocess((v) => v === '1', z.boolean()).optional(),
+  }),
+});
+
+const emailSearchSchema = z.object({
+  query: z.object({
+    q: z.string().min(1, 'Query is required'),
+    scope: z.enum(['mailbox', 'global']).optional().default('global'),
+    mailboxId: z.string().optional().default('all'),
+    limit: z.coerce.number().int().min(1).max(MAX_LIMIT).default(DEFAULT_LIMIT),
+  }),
+});
+
+const emailIdParamSchema = z.object({
+  params: z.object({
+    id: z.string().min(1),
+  }),
+});
 
 const parseEntityIds = (raw: string | null): number[] => {
   if (!raw) return [];
@@ -133,9 +195,9 @@ const parseEntityIds = (raw: string | null): number[] => {
 };
 
 // GET /api/emails/mailboxes
-router.get('/mailboxes', async (req, res, next) => {
+router.get('/mailboxes', validate(mailboxesSchema), async (req, res, next) => {
   try {
-    const showSuppressedJunk = req.query.showSuppressedJunk === '1';
+    const showSuppressedJunk = (req.query as any).showSuppressedJunk === true;
     const cacheKey = `emails:mailboxes:${showSuppressedJunk ? 'all' : 'filtered'}`;
     const cached = performanceCache.get<any>(cacheKey);
     if (cached) {
@@ -186,23 +248,25 @@ router.get('/mailboxes', async (req, res, next) => {
 });
 
 // GET /api/emails/threads
-router.get('/threads', async (req, res, next) => {
+router.get('/threads', validate(threadsSchema), async (req, res, next) => {
   try {
-    const mailboxId = String(req.query.mailboxId || 'all');
-    const query = String(req.query.q || '').trim();
-    const fromFilter = String(req.query.from || '').trim();
-    const toFilter = String(req.query.to || '').trim();
-    const dateFrom = String(req.query.dateFrom || '').trim();
-    const dateTo = String(req.query.dateTo || '').trim();
-    const hasAttachments = req.query.hasAttachments === '1';
-    const minRisk = Number(req.query.minRisk || 0);
-    const tab = normalizeTab(typeof req.query.tab === 'string' ? req.query.tab : undefined);
-    const limit = Math.min(MAX_LIMIT, Math.max(1, Number(req.query.limit) || DEFAULT_LIMIT));
+    const {
+      mailboxId,
+      q: query,
+      from: fromFilter,
+      to: toFilter,
+      dateFrom,
+      dateTo,
+      hasAttachments,
+      minRisk,
+      tab,
+      limit,
+      cursor,
+      showSuppressedJunk,
+    } = req.query as any;
+
     res.setHeader('X-Limit-Applied', String(limit));
-    const parsedCursor = parseCursor(
-      typeof req.query.cursor === 'string' ? req.query.cursor : undefined,
-    );
-    const showSuppressedJunk = req.query.showSuppressedJunk === '1';
+    const parsedCursor = parseCursor(cursor);
 
     const { rows, countRow } = await getEmailThreads({
       mailboxId,
@@ -264,7 +328,7 @@ router.get('/threads', async (req, res, next) => {
 });
 
 // GET /api/emails/threads/:threadId
-router.get('/threads/:threadId', async (req, res, next) => {
+router.get('/threads/:threadId', validate(threadIdParamSchema), async (req, res, next) => {
   try {
     const threadId = req.params.threadId;
     const rows = (await getEmailThreadMessageHeaders(threadId)) as EmailMessageHeaderRow[];
@@ -334,10 +398,10 @@ router.get('/threads/:threadId', async (req, res, next) => {
 });
 
 // GET /api/emails/messages/:messageId/body
-router.get('/messages/:messageId/body', async (req, res, next) => {
+router.get('/messages/:messageId/body', validate(messageBodySchema), async (req, res, next) => {
   try {
-    const messageId = req.params.messageId;
-    const showQuoted = req.query.showQuoted === '1';
+    const { messageId } = req.params;
+    const showQuoted = (req.query as any).showQuoted === true;
     const cacheKey = `emails:message:${messageId}:body:${showQuoted ? 'quoted' : 'collapsed'}`;
     const cached = performanceCache.get<any>(cacheKey);
     if (cached) {
@@ -414,25 +478,29 @@ router.get('/messages/:messageId/body', async (req, res, next) => {
 });
 
 // GET /api/emails/messages/:messageId/thread
-router.get('/messages/:messageId/thread', async (req, res, next) => {
-  try {
-    const row = (await getEmailMessageThreadPointer(req.params.messageId)) as
-      | { id: number; metadata_json: string | null }
-      | undefined;
+router.get(
+  '/messages/:messageId/thread',
+  validate(messageIdParamSchema),
+  async (req, res, next) => {
+    try {
+      const row = (await getEmailMessageThreadPointer(req.params.messageId)) as
+        | { id: number; metadata_json: string | null }
+        | undefined;
 
-    if (!row) {
-      return res.status(404).json({ error: 'Message not found' });
+      if (!row) {
+        return res.status(404).json({ error: 'Message not found' });
+      }
+
+      const threadId = normalizeThreadId(row.metadata_json, row.id);
+      res.json({ messageId: req.params.messageId, threadId });
+    } catch (error) {
+      next(error);
     }
-
-    const threadId = normalizeThreadId(row.metadata_json, row.id);
-    res.json({ messageId: req.params.messageId, threadId });
-  } catch (error) {
-    next(error);
-  }
-});
+  },
+);
 
 // GET /api/emails/messages/:messageId/raw
-router.get('/messages/:messageId/raw', async (req, res, next) => {
+router.get('/messages/:messageId/raw', validate(messageIdParamSchema), async (req, res, next) => {
   try {
     const row = (await getEmailRawMessageRecord(req.params.messageId)) as
       | { id: number; content: string | null; metadata_json: string | null }
@@ -460,16 +528,9 @@ router.get('/messages/:messageId/raw', async (req, res, next) => {
 });
 
 // GET /api/emails/search
-router.get('/search', async (req, res, next) => {
+router.get('/search', validate(emailSearchSchema), async (req, res, next) => {
   try {
-    const q = String(req.query.q || '').trim();
-    if (!q) {
-      return res.status(400).json({ error: 'Query is required' });
-    }
-
-    const scope = req.query.scope === 'mailbox' ? 'mailbox' : 'global';
-    const mailboxId = String(req.query.mailboxId || 'all');
-    const limit = Math.min(MAX_LIMIT, Math.max(1, Number(req.query.limit) || DEFAULT_LIMIT));
+    const { q, scope, mailboxId, limit } = req.query as any;
 
     let mailboxEntityId: number | null = null;
     if (scope === 'mailbox' && mailboxId.startsWith('entity:')) {
@@ -528,7 +589,7 @@ router.get('/categories', async (_req, res, next) => {
 });
 
 // GET /api/emails/:id/entities (legacy + current UI support)
-router.get('/:id/entities', async (req, res, next) => {
+router.get('/:id/entities', validate(emailIdParamSchema), async (req, res, next) => {
   try {
     const email = (await getEmailDocumentContentById(req.params.id)) as
       | { content: string }

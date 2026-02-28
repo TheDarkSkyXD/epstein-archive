@@ -91,7 +91,7 @@ router.get('/:id/body', async (req: Request, res: Response) => {
  *
  * Get email counts by category
  */
-router.get('/categories', async (req: Request, res: Response) => {
+router.get('/categories', async (_req: Request, res: Response) => {
   try {
     // Check cache
     const cached = performanceCache.get<Record<string, number>>('email:categories');

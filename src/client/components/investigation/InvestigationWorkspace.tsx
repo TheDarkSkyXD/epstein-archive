@@ -525,8 +525,13 @@ export const InvestigationWorkspace: React.FC<InvestigationWorkspaceProps> = ({
     activeTab,
     navigateToTab,
     loadCaseFolder: reloadCaseFolder,
-    openEvidence: (item, triggerEl) =>
-      handleCaseFolderEvidenceClick(item as InvestigationCaseEvidenceItemDto, triggerEl),
+    openEvidence: async (item, triggerEl) => {
+      const result = await handleCaseFolderEvidenceClick(
+        item as InvestigationCaseEvidenceItemDto,
+        triggerEl,
+      );
+      return result || false;
+    },
     addToast: ({ text, type }) => addToast({ text, type }),
   });
 

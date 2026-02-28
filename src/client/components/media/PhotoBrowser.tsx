@@ -568,11 +568,6 @@ export const PhotoBrowser: React.FC<PhotoBrowserProps> = React.memo(({ onImageCl
     setLastSelectedIndex(null);
   };
 
-  const _selectAllImages = () => {
-    const allImageIds = new Set(images.map((img) => img.id));
-    setSelectedImages(allImageIds);
-  };
-
   const clearSelection = () => {
     setSelectedImages(new Set());
     setLastSelectedIndex(null);

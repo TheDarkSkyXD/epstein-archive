@@ -1,14 +1,15 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import EntityRelationshipMapper, { Entity, Relationship } from './EntityRelationshipMapper';
-import { GraphService } from '../../services/GraphService';
+import { GraphService, type GraphNode, type GraphEdge } from '../../services/GraphService';
+import { apiClient } from '../../services/apiClient';
 
 interface EntityGraphPanelProps {
   entityId: string | number;
 }
 
 export const EntityGraphPanel: React.FC<EntityGraphPanelProps> = ({ entityId }) => {
-  const [nodes, setNodes] = useState<any[]>([]);
-  const [edges, setEdges] = useState<any[]>([]);
+  const [nodes, setNodes] = useState<GraphNode[]>([]);
+  const [edges, setEdges] = useState<GraphEdge[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -17,13 +18,27 @@ export const EntityGraphPanel: React.FC<EntityGraphPanelProps> = ({ entityId }) 
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/api/entities/${entityId}/graph`);
-        if (!res.ok) {
-          throw new Error(`Graph request failed with status ${res.status}`);
-        }
-        const data = await res.json();
-        setNodes(Array.isArray(data.nodes) ? data.nodes : []);
-        setEdges(Array.isArray(data.edges) ? data.edges : []);
+        const data = await apiClient.getEntityGraph(String(entityId), 2);
+        setNodes(
+          Array.isArray(data.nodes)
+            ? data.nodes.map((n: any) => GraphService.normalizeNode(n))
+            : [],
+        );
+        setEdges(
+          Array.isArray(data.edges)
+            ? data.edges.map((e: any) => ({
+                id: String(
+                  e.id || `${String(e.source || e.source_id)}-${String(e.target || e.target_id)}`,
+                ),
+                source: String(e.source || e.source_id),
+                target: String(e.target || e.target_id),
+                type: String(e.type || e.relationship_type || 'related_to'),
+                weight: Number(e.weight || e.proximity_score || 1),
+                confidence: Number(e.confidence || 1),
+                docCount: Number(e.docCount || 0),
+              }))
+            : [],
+        );
       } catch (e) {
         console.error('Failed to load entity graph:', e);
         setError(e instanceof Error ? e.message : 'Failed to load graph');
@@ -36,11 +51,8 @@ export const EntityGraphPanel: React.FC<EntityGraphPanelProps> = ({ entityId }) 
   }, [entityId]);
 
   const mapperEntities: Entity[] = useMemo(() => {
-    // 1. Normalize
-    const rawNodes = nodes.map((n) => GraphService.normalizeNode(n));
-
-    // 2. Dedup (Merge by Label)
-    const uniqueNodes = GraphService.deduplicateNodes(rawNodes, String(entityId));
+    // 1. Dedup (Merge by Label)
+    const uniqueNodes = GraphService.deduplicateNodes(nodes, String(entityId));
 
     // 3. Map to Mapper Entity Interface
     return uniqueNodes.map((n) => ({
@@ -63,15 +75,12 @@ export const EntityGraphPanel: React.FC<EntityGraphPanelProps> = ({ entityId }) 
     // Actually, GraphService.remapEdges takes `GraphNode[]`.
     // mapperEntities is `Entity[]` which is compatiable-ish but let's be safe.
 
-    const contextNodes = mapperEntities.map(
-      (e) =>
-        ({
-          id: e.id,
-          label: e.label,
-          type: e.type,
-          risk: e.properties.riskScore,
-        }) as any,
-    );
+    const contextNodes: GraphNode[] = mapperEntities.map((e) => ({
+      id: e.id,
+      label: e.label,
+      type: e.type,
+      risk: e.properties.riskScore,
+    }));
 
     const remapped = GraphService.remapEdges(edges, contextNodes);
 

@@ -386,10 +386,10 @@ class ApiClient {
     options?: RequestInit & { useCache?: boolean; cacheTtl?: number },
   ): Promise<T> {
     try {
-      return await this.fetchWithErrorHandling<T>(canonicalUrl, options);
+      return await this.fetchWithErrorHandling<T>(canonicalUrl, options as any);
     } catch (error) {
       if (this.isNotFoundError(error)) {
-        return this.fetchWithErrorHandling<T>(legacyUrl, options);
+        return this.fetchWithErrorHandling<T>(legacyUrl, options as any);
       }
       throw error;
     }
@@ -754,6 +754,13 @@ class ApiClient {
     return this.fetchWithLegacyFallback<any>(canonicalUrl, legacyUrl, { method: 'POST' });
   }
 
+  async getEvidence(evidenceId: string): Promise<any> {
+    return this.fetchWithErrorHandling<any>(`${API_BASE_URL}/evidence/${evidenceId}`, {
+      useCache: true,
+      cacheTtl: 30000,
+    });
+  }
+
   async getEvidenceMetrics(documentId: string): Promise<any> {
     const canonicalUrl = `${API_BASE_URL}/documents/${documentId}/analytics/metrics`;
     const legacyUrl = `${API_BASE_URL}/evidence/${documentId}/metrics`;
@@ -1012,19 +1019,35 @@ class ApiClient {
   }
 
   async getDocuments(
-    filters: any = {},
+    filters: {
+      fileType?: string[];
+      redFlagLevel?: { min: number; max: number };
+      sortBy?: string;
+      sortOrder?: string;
+      evidenceType?: string;
+      source?: string[];
+      search?: string;
+      startDate?: string;
+      endDate?: string;
+    } = {},
     page: number = 1,
     limit: number = 50,
   ): Promise<DocumentsListResponseDto> {
     const params = new URLSearchParams();
-    if (page > 1) params.append('page', page.toString());
-    if (limit !== 50) params.append('limit', limit.toString());
+    params.append('page', page.toString());
+    params.append('limit', limit.toString());
+    if (filters.search) params.append('search', filters.search);
+    if (filters.sortBy) params.append('sortBy', filters.sortBy);
+    if (filters.sortOrder) params.append('sortOrder', filters.sortOrder);
+    if (filters.evidenceType) params.append('evidenceType', filters.evidenceType);
+    if (filters.source && filters.source.length > 0)
+      params.append('source', filters.source.join(','));
+    if (filters.startDate) params.append('startDate', filters.startDate);
+    if (filters.endDate) params.append('endDate', filters.endDate);
     if (filters.fileType && filters.fileType.length > 0)
       params.append('fileType', filters.fileType.join(','));
     if (filters.redFlagLevel?.min) params.append('minRedFlag', filters.redFlagLevel.min.toString());
     if (filters.redFlagLevel?.max) params.append('maxRedFlag', filters.redFlagLevel.max.toString());
-    if (filters.sortBy) params.append('sortBy', filters.sortBy);
-    if (filters.evidenceType) params.append('evidenceType', filters.evidenceType);
 
     const url = `${API_BASE_URL}/documents?${params.toString()}`;
     const raw = await this.fetchWithErrorHandling<unknown>(url);

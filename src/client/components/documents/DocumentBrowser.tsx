@@ -30,11 +30,9 @@ import {
   HelpCircle,
   LayoutGrid,
   List as ListIcon,
-  ShieldCheck,
 } from 'lucide-react';
 import { useNavigation } from '../../services/NavigationContext';
 import { apiClient } from '../../services/apiClient';
-import type { DocumentsListResponseDto } from '@shared/dto/documents';
 import { DocumentAnnotationSystem } from './DocumentAnnotationSystem';
 import { Breadcrumb } from '../layout/Breadcrumb';
 import { SourceBadge } from '../common/SourceBadge';
@@ -52,75 +50,51 @@ import {
   getSourceLabel,
   formatDate,
 } from '../../utils/documentUtils';
+import { useFilters } from '../../contexts/useFilters';
+import { DOJ_TRANCHE_OPTIONS } from './documentTrancheOptions';
+import { FixedSizeList } from 'react-window';
+import { AutoSizer } from 'react-virtualized-auto-sizer';
 
 // Helper to highlight search terms
 // centralizing tranches
 
-const DOJ_TRANCHE_OPTIONS: Array<{ value: string; label: string; sources: string[] }> = [
-  { value: 'all', label: 'All tranches', sources: [] },
-  { value: 'black-book', label: 'Unredacted Black Book', sources: ['Unredacted Black Book'] },
-  { value: 'flight-logs', label: 'Flight Logs', sources: ['Flight Logs'] },
-  { value: 'birthday-book', label: 'Birthday Book', sources: ['Birthday Book'] },
-  {
-    value: 'estate-emails',
-    label: 'Estate Emails (2009-2019)',
-    sources: ['Epstein Estate Documents - Seventh Production'],
+const mapApiDocumentToDocument = (doc: any): Document => ({
+  id: String(doc.id?.toString() || doc.fileName || ''),
+  title: doc.title || doc.fileName,
+  filename: doc.fileName,
+  fileType: doc.fileType || 'unknown',
+  fileSize: doc.fileSize || 0,
+  dateCreated: doc.dateCreated,
+  dateModified: doc.dateModified,
+  content: doc.content || doc.previewText || doc.preview_text || doc.contentPreview || '',
+  previewText: doc.previewText || doc.preview_text || '',
+  previewKind: doc.previewKind || doc.preview_kind || 'fallback',
+  keyEntities: Array.isArray(doc.keyEntities)
+    ? doc.keyEntities
+    : Array.isArray(doc.key_entities)
+      ? doc.key_entities
+      : [],
+  entitiesCount: Number(doc.entitiesCount || doc.entities_count || 0),
+  sourceType: doc.sourceType || doc.source_type || '',
+  whyFlagged: doc.whyFlagged || doc.why_flagged || '',
+  metadata: {
+    source: doc.sourceCollection || doc.sourceType || 'Epstein Files',
+    confidentiality: 'Public',
+    categories: [],
+    ...doc.metadata,
+    emailHeaders: doc.metadata?.emailHeaders,
   },
-  {
-    value: 'court-case-evidence',
-    label: 'Court Case Evidence',
-    sources: ['Court Case Evidence'],
-  },
-  { value: 'maxwell-proffer', label: 'Maxwell Proffer', sources: ['Maxwell Proffer'] },
-  {
-    value: 'doj-discovery-vol1',
-    label: 'DOJ Discovery (VOL00001)',
-    sources: ['DOJ Discovery VOL00001'],
-  },
-  {
-    value: 'doj-discovery-vol2-8',
-    label: 'DOJ Discovery (VOL00002-8)',
-    sources: [
-      'DOJ Discovery VOL00002',
-      'DOJ Discovery VOL00003',
-      'DOJ Discovery VOL00004',
-      'DOJ Discovery VOL00005',
-      'DOJ Discovery VOL00006',
-      'DOJ Discovery VOL00007',
-      'DOJ Discovery VOL00008',
-    ],
-  },
-  {
-    value: 'doj-dataset-9-11',
-    label: 'DOJ Data Set 9-11',
-    sources: ['DOJ Data Set 9', 'DOJ Data Set 10', 'DOJ Data Set 11'],
-  },
-  {
-    value: 'doj-dataset-9-12',
-    label: 'DOJ Data Sets 9-12',
-    sources: ['DOJ Data Set 9', 'DOJ Data Set 10', 'DOJ Data Set 11', 'DOJ Data Set 12'],
-  },
-  { value: 'doj-dataset-9', label: 'DOJ Data Set 9', sources: ['DOJ Data Set 9'] },
-  { value: 'doj-dataset-10', label: 'DOJ Data Set 10', sources: ['DOJ Data Set 10'] },
-  { value: 'doj-dataset-11', label: 'DOJ Data Set 11', sources: ['DOJ Data Set 11'] },
-  { value: 'doj-dataset-12', label: 'DOJ Data Set 12', sources: ['DOJ Data Set 12'] },
-  {
-    value: 'doj-discovery',
-    label: 'DOJ Discovery Volumes',
-    sources: [
-      'DOJ Discovery VOL00001',
-      'DOJ Discovery VOL00002',
-      'DOJ Discovery VOL00003',
-      'DOJ Discovery VOL00004',
-      'DOJ Discovery VOL00005',
-      'DOJ Discovery VOL00006',
-      'DOJ Discovery VOL00007',
-      'DOJ Discovery VOL00008',
-    ],
-  },
-  { value: 'evidence-images', label: 'Evidence Images', sources: ['Evidence Images'] },
-  { value: 'doj-phase-1', label: 'DOJ Phase 1', sources: ['DOJ Phase 1'] },
-];
+  entities: Array.isArray(doc.entities) ? doc.entities : [],
+  passages: Array.isArray(doc.passages) ? doc.passages : [],
+  redFlagScore: doc.redFlagRating || 0,
+  redFlagRating: doc.redFlagRating || 1,
+  redFlagPeppers: '',
+  redFlagDescription: `Red Flag Index ${doc.redFlagRating || 1}`,
+  evidenceType: doc.evidenceType || doc.evidence_type || 'document',
+  parentDocumentId: doc.parentDocumentId || doc.parent_document_id,
+  threadId: doc.threadId || doc.thread_id,
+  threadPosition: doc.threadPosition || doc.thread_position,
+});
 
 const HoverPreview = ({ doc, rect }: { doc: Document; rect: DOMRect }) => {
   const displayTitle = doc.title || doc.filename || 'Untitled document';
@@ -142,9 +116,9 @@ const HoverPreview = ({ doc, rect }: { doc: Document; rect: DOMRect }) => {
       <div className="preview-glow" />
       <div className="preview-content">
         <div className="flex items-center gap-2 mb-4">
-          <ShieldCheck className="w-5 h-5 text-cyan-400" />
+          <FileText className="w-5 h-5 text-cyan-400" />
           <span className="text-[10px] font-black uppercase tracking-widest text-cyan-500/80">
-            Forensic Triage Preview
+            Document Preview
           </span>
         </div>
 
@@ -201,6 +175,9 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
   selectedDocumentId,
   onDocumentClose,
 }) => {
+  // Consume global date range from FilterContext
+  const { filters: globalFilters } = useFilters();
+
   // Use navigation context for shared state
   const navigation = useNavigation();
   const { searchTerm: contextSearchTerm, setSearchTerm: setContextSearchTerm } = navigation;
@@ -234,8 +211,6 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
   // TODO: Implement document collections - see UNUSED_VARIABLES_RECOMMENDATIONS.md
   const [collection, _setCollection] = useState<DocumentCollection | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  // const [useVirtualScrolling, setUseVirtualScrolling] = useState(false);
-  // const [displayLimit, setDisplayLimit] = useState(100); // Start with 100 documents
   const [currentPage, setCurrentPage] = useState(1);
   const [showMetadata, setShowMetadata] = useState(false);
   const [hideLowCredibility, setHideLowCredibility] = useState(false);
@@ -286,11 +261,6 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
     setHoveredDoc(null);
     setHoverRect(null);
   }, []);
-
-  // Enable virtual scrolling for large datasets
-  useEffect(() => {
-    // setUseVirtualScrolling(filteredDocuments.length > 100);
-  }, [filteredDocuments.length]);
 
   const [hasMore, setHasMore] = useState(true);
   const [isFetching, setIsFetching] = useState(false);
@@ -356,105 +326,37 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
       try {
         isFetchingRef.current = true;
         setIsFetching(true);
-        console.log(`DocumentBrowser: Fetching page ${currentPage}...`);
 
-        // Build API query params
-        const params = new URLSearchParams();
-        params.append('page', currentPage.toString());
-        params.append('limit', itemsPerPage.toString());
+        // Global timeRange takes precedence over local dateRange when set
+        const effectiveStart = globalFilters.timeRange[0] ?? filters.dateRange?.start;
+        const effectiveEnd = globalFilters.timeRange[1] ?? filters.dateRange?.end;
 
-        if (effectiveSearchTerm && effectiveSearchTerm.trim()) {
-          params.append('search', effectiveSearchTerm);
-        }
-
-        if (sortBy) {
-          params.append('sortBy', sortBy);
-        }
-        params.append('sortOrder', sortOrder);
-
-        // Add evidence type filter from categories
-        if (filters.categories && filters.categories.length > 0) {
-          params.append('evidenceType', filters.categories[0]);
-        }
-        if (filters.source && filters.source.length > 0) {
-          params.append('source', filters.source.join(','));
-        }
-        if (filters.dateRange?.start) {
-          params.append('startDate', filters.dateRange.start);
-        }
-        if (filters.dateRange?.end) {
-          params.append('endDate', filters.dateRange.end);
-        }
-        if (filters.redFlagLevel) {
-          params.append('minRedFlag', String(filters.redFlagLevel.min));
-          params.append('maxRedFlag', String(filters.redFlagLevel.max));
-        }
-
-        const response = await fetch(`/api/documents?${params.toString()}`);
-
-        if (!response.ok) {
-          const retryAfterHeader = response.headers.get('Retry-After');
-          const retryAfterMs = retryAfterHeader
-            ? Math.max(5000, parseInt(retryAfterHeader, 10) * 1000)
-            : response.status === 429
-              ? 30000
-              : 15000;
-          setFetchBlockedUntil(Date.now() + retryAfterMs);
-          hasMoreRef.current = false;
-          setHasMore(false);
-
-          const errorBody = await response.text().catch(() => '');
-          throw new Error(
-            `HTTP ${response.status}: ${errorBody.slice(0, 180) || 'Failed to fetch documents'}`,
-          );
-        }
-
-        const result = (await response.json()) as DocumentsListResponseDto;
+        const result = await apiClient.getDocuments(
+          {
+            search:
+              effectiveSearchTerm && effectiveSearchTerm.trim() ? effectiveSearchTerm : undefined,
+            sortBy: sortBy || undefined,
+            sortOrder,
+            evidenceType:
+              filters.categories && filters.categories.length > 0
+                ? filters.categories[0]
+                : undefined,
+            source: filters.source && filters.source.length > 0 ? filters.source : undefined,
+            startDate: effectiveStart ?? undefined,
+            endDate: effectiveEnd ?? undefined,
+            redFlagLevel: filters.redFlagLevel,
+          },
+          currentPage,
+          itemsPerPage,
+        );
 
         // Map API response to Document type
-        const newDocs: Document[] = (result.data || []).map((doc: any) => ({
-          id: doc.id?.toString() || doc.fileName,
-          title: doc.title || doc.fileName,
-          filename: doc.fileName,
-          fileType: doc.fileType || 'unknown',
-          fileSize: doc.fileSize || 0,
-          dateCreated: doc.dateCreated,
-          dateModified: doc.dateModified,
-          content: doc.previewText || doc.preview_text || doc.contentPreview || '',
-          previewText: doc.previewText || doc.preview_text || '',
-          previewKind: doc.previewKind || doc.preview_kind || 'fallback',
-          keyEntities: Array.isArray(doc.keyEntities)
-            ? doc.keyEntities
-            : Array.isArray(doc.key_entities)
-              ? doc.key_entities
-              : [],
-          entitiesCount: Number(doc.entitiesCount || doc.entities_count || 0),
-          sourceType: doc.sourceType || doc.source_type || '',
-          whyFlagged: doc.whyFlagged || doc.why_flagged || '',
-          metadata: {
-            source: doc.sourceCollection || doc.sourceType || 'Epstein Files',
-            confidentiality: 'Public',
-            categories: [],
-            ...doc.metadata,
-            emailHeaders: doc.metadata?.emailHeaders,
-          },
-          entities: [],
-          passages: [],
-          redFlagScore: doc.redFlagRating || 0,
-          redFlagRating: doc.redFlagRating || 1,
-          redFlagPeppers: '',
-          redFlagDescription: `Red Flag Index ${doc.redFlagRating || 1}`,
-          evidenceType: doc.evidenceType || doc.evidence_type || 'document',
-          parentDocumentId: doc.parentDocumentId || doc.parent_document_id,
-          threadId: doc.threadId || doc.thread_id,
-          threadPosition: doc.threadPosition || doc.thread_position,
-        }));
+        const newDocs: Document[] = (result.data || []).map((doc: any) =>
+          mapApiDocumentToDocument(doc),
+        );
 
-        if (currentPage === 1) {
-          setDocuments(newDocs);
-        } else {
-          setDocuments((prev) => [...prev, ...newDocs]);
-        }
+        // Always replace: each page is a fresh view; accumulation leads to unbounded DOM growth
+        setDocuments(newDocs);
 
         // Update total count and hasMore
         if (result.total !== undefined) {
@@ -491,6 +393,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
     filters.fileType,
     filters.redFlagLevel,
     fetchBlockedUntil,
+    globalFilters.timeRange,
   ]);
 
   // Reset pagination when filters change
@@ -550,49 +453,20 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
       // If already selected, don't do anything
       if (selectedDocument?.id === selectedDocumentId) return;
 
-      console.log('DocumentBrowser: selectedDocumentId changed to', selectedDocumentId);
-
       if (documents.length > 0) {
         const doc = documents.find((d) => d.id === selectedDocumentId);
         if (doc) {
-          console.log('DocumentBrowser: Found document in current list, selecting');
           handleDocumentSelect(doc);
           return;
         }
       }
 
-      // If we get here, document was not found in the list or list is empty
-      console.log('DocumentBrowser: Document NOT found in current list, fetching...');
-
+      // If we get here, document was not found in the list or list is empty.
       apiClient
         .getDocument(selectedDocumentId)
         .then((docData) => {
           if (docData) {
-            console.log('DocumentBrowser: Fetched document successfully');
-            // Map to Document type
-            const newDoc: Document = {
-              id: docData.id,
-              title: docData.fileName,
-              filename: docData.fileName,
-              fileType: docData.fileType || 'unknown',
-              fileSize: docData.fileSize || 0,
-              dateCreated: docData.dateCreated,
-              dateModified: docData.dateModified,
-              content: docData.content || '',
-              metadata: {
-                source: 'Epstein Files',
-                confidentiality: 'Public',
-                categories: [],
-                ...docData.metadata,
-              },
-              entities: [],
-              passages: [],
-              redFlagScore: docData.redFlagRating || 0,
-              redFlagRating: docData.redFlagRating || 1,
-              redFlagPeppers: '',
-              redFlagDescription: `Red Flag Index ${docData.redFlagRating || 1}`,
-            };
-
+            const newDoc: Document = mapApiDocumentToDocument(docData);
             handleDocumentSelect(newDoc);
           }
         })
@@ -667,18 +541,6 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
-
-  // Virtualized document card for better performance with large lists
-  // const VirtualizedDocumentCard = ({ index, style }: { index: number; style: React.CSSProperties }) => {
-  //   const document = filteredDocuments[index];
-  //   if (!document) return null;
-  //
-  //   return (
-  //     <div style={style} className="p-1">
-  //       <DocumentCard document={document} />
-  //     </div>
-  //   );
-  // };
 
   const DocumentViewer: React.FC<{ document: Document; searchTerm?: string }> = ({
     document,
@@ -936,7 +798,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                 <AddToInvestigationButton
                   item={{
                     id: document.id,
-                    title: document.title || document.filename,
+                    title: document.title || document.filename || 'Untitled Document',
                     description: document.content?.substring(0, 100) || 'Document evidence',
                     type: 'document',
                     sourceId: document.id,
@@ -1494,8 +1356,8 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                       <span className="text-gray-400">Filename:</span>
                       <span className="text-gray-300">
                         {searchTerm
-                          ? renderHighlightedText(document.filename, searchTerm)
-                          : document.filename}
+                          ? renderHighlightedText(document.filename || '', searchTerm)
+                          : document.filename || 'Untitled'}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -1507,8 +1369,8 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                       <span className="text-gray-300">
                         <SourceBadge
                           source={
-                            document.metadata.source_collection ||
-                            document.metadata.source ||
+                            document.metadata?.source_collection ||
+                            document.metadata?.source ||
                             'Unknown'
                           }
                         />
@@ -1529,7 +1391,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                     )}
                     <div className="flex justify-between">
                       <span className="text-gray-400">Confidentiality:</span>
-                      <span className="text-gray-300">{document.metadata.confidentiality}</span>
+                      <span className="text-gray-300">{document.metadata?.confidentiality}</span>
                     </div>
                   </div>
                   <div className="mt-3">
@@ -1560,14 +1422,14 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                     )}
                 </div>
 
-                {document.metadata?.categories?.length > 0 && (
+                {(document.metadata?.categories?.length || 0) > 0 && (
                   <div>
                     <h3 className="text-sm font-semibold text-white mb-2 flex items-center">
                       <Tag className="w-4 h-4 mr-2" />
                       Categories
                     </h3>
                     <div className="flex flex-wrap gap-1">
-                      {document.metadata.categories.map((cat, index) => (
+                      {document.metadata?.categories?.map((cat, index) => (
                         <span
                           key={index}
                           className="px-2 py-1 bg-blue-900 text-blue-200 text-xs rounded"
@@ -1579,7 +1441,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                   </div>
                 )}
 
-                {document.entities?.length > 0 && (
+                {(document.entities?.length || 0) > 0 && (
                   <div>
                     <h3 className="text-sm font-semibold text-white mb-2 flex items-center">
                       <Users className="w-4 h-4 mr-2" />
@@ -1616,7 +1478,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                       {Array.from({ length: 5 }).map((_, i) => (
                         <Flag
                           key={i}
-                          className={`w-3 h-3 ${i < document.redFlagRating ? 'text-red-500' : 'text-slate-600'}`}
+                          className={`w-3 h-3 ${i < (document.redFlagRating || 0) ? 'text-red-500' : 'text-slate-600'}`}
                         />
                       ))}
                     </div>
@@ -2277,18 +2139,33 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
             ))}
           </div>
         ) : filteredDocuments.length > 0 ? (
-          <div ref={documentContainerRef} className="space-y-3">
-            {filteredDocuments.map((doc) => (
-              <DocumentCard
-                key={doc.id}
-                document={doc}
-                searchTerm={effectiveSearchTerm}
-                dense={densityMode === 'compact'}
-                onClick={handleDocumentSelect}
-                onHoverStart={handleHoverStart}
-                onHoverEnd={handleHoverEnd}
-              />
-            ))}
+          <div ref={documentContainerRef} style={{ height: '70vh' }}>
+            <AutoSizer
+              renderProp={({ height, width }) =>
+                height && width ? (
+                  <FixedSizeList
+                    height={height}
+                    width={width}
+                    itemCount={filteredDocuments.length}
+                    itemSize={densityMode === 'compact' ? 130 : 170}
+                    overscanCount={5}
+                  >
+                    {({ index, style }) => (
+                      <div style={{ ...style, paddingBottom: 12 }}>
+                        <DocumentCard
+                          document={filteredDocuments[index]}
+                          searchTerm={effectiveSearchTerm}
+                          dense={densityMode === 'compact'}
+                          onClick={handleDocumentSelect}
+                          onHoverStart={handleHoverStart}
+                          onHoverEnd={handleHoverEnd}
+                        />
+                      </div>
+                    )}
+                  </FixedSizeList>
+                ) : null
+              }
+            />
           </div>
         ) : null}
 

@@ -38,3 +38,22 @@ export const cacheMiddleware = (ttl?: number) => {
 export const purgeCache = () => {
   apiCache.flushAll();
 };
+
+export const purgeCacheByPattern = (pattern: string | RegExp) => {
+  const keys = apiCache.keys();
+  const regex = typeof pattern === 'string' ? new RegExp(pattern) : pattern;
+  let count = 0;
+  const batch: string[] = [];
+
+  for (const key of keys) {
+    if (regex.test(key)) {
+      batch.push(key);
+      count++;
+    }
+  }
+
+  if (batch.length > 0) {
+    apiCache.del(batch);
+  }
+  return count;
+};

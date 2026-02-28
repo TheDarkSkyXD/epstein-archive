@@ -12,7 +12,7 @@ export const mediaRepository = {
     }
 
     const result = await mediaQueries.getAlbumsByMediaType.run({ likePattern }, getApiPool());
-    return result.map((row) => ({
+    return result.map((row: any) => ({
       ...row,
       itemCount: Number(row.itemCount || 0),
       sensitiveCount: Number(row.sensitiveCount || 0),
@@ -23,7 +23,7 @@ export const mediaRepository = {
   getMediaItems: async (entityId: string) => {
     const mediaItems = await mediaQueries.getMediaItemsByEntity.run({ entityId }, getApiPool());
 
-    return mediaItems.map((item) => {
+    return mediaItems.map((item: any) => {
       let metadata = {};
       try {
         if (item.metadataJson) {
@@ -50,7 +50,7 @@ export const mediaRepository = {
   getAllMediaItems: async () => {
     const mediaItems = await mediaQueries.getAllMediaItems.run(undefined, getApiPool());
 
-    return mediaItems.map((item) => {
+    return mediaItems.map((item: any) => {
       let metadata = {};
       try {
         if (item.metadataJson) {
@@ -288,5 +288,19 @@ export const mediaRepository = {
       [ids],
     );
     return result.rows;
+  },
+
+  getMediaByDocument: async (documentId: number) => {
+    const mediaItems = await (mediaQueries.getMediaByDocument as any).run(
+      { documentId: BigInt(documentId) },
+      getApiPool(),
+    );
+    return mediaItems.map((item: any) => {
+      return {
+        ...item,
+        id: Number(item.id),
+        is_verified: item.isVerified,
+      };
+    });
   },
 };

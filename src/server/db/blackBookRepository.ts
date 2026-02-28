@@ -69,7 +69,7 @@ export const blackBookRepository = {
     );
 
     return correctEntries(
-      entries.map((e) => ({
+      entries.map((e: any) => ({
         ...e,
         id: Number(e.id),
         personId: e.personId ? Number(e.personId) : null,

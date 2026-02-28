@@ -5,7 +5,6 @@
  */
 
 import Icon from '../client/components/common/Icon';
-import React from 'react';
 
 // Define the entity types
 export type EntityType =

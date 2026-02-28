@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -794,7 +794,14 @@ export default function FinancialTransactionMapper({
                               key={index}
                               className="block w-full text-left px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs text-blue-400 hover:text-blue-300 transition-colors truncate"
                               onClick={() => {
-                                /* TODO: Open document */
+                                const normalized = String(doc).trim();
+                                if (!normalized) return;
+                                const docId = normalized.replace(/^doc[-_:]/i, '');
+                                const isLikelyId = /^[a-zA-Z0-9_-]+$/.test(docId);
+                                const target = isLikelyId
+                                  ? `/documents/${encodeURIComponent(docId)}`
+                                  : `/documents?search=${encodeURIComponent(normalized)}`;
+                                window.location.assign(target);
                               }}
                               title={doc}
                             >

@@ -505,11 +505,11 @@ export const AudioBrowser: React.FC<AudioBrowserProps> = ({
                         </div>
                       )}
 
-                      {item.metadata.duration > 0 && (
+                      {(item.metadata?.duration || 0) > 0 && (
                         <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/80 text-white text-xs rounded-full font-mono flex items-center gap-1">
                           <Clock size={10} />
-                          {Math.floor(item.metadata.duration / 60)}:
-                          {(item.metadata.duration % 60).toString().padStart(2, '0')}
+                          {Math.floor((item.metadata?.duration || 0) / 60)}:
+                          {((item.metadata?.duration || 0) % 60).toString().padStart(2, '0')}
                         </div>
                       )}
                     </div>

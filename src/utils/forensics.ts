@@ -100,7 +100,8 @@ export const calculateSignalMetrics = (person: Person | PersonAdapter): SignalMe
   // We can approximate this by file count vs mentions ratio or distinct evidence types.
   // A person with 100 mentions in 1 doc = Low corroboration.
   // A person with 100 mentions in 50 docs = High corroboration.
-  const docRatio = person.files > 0 ? Math.min(1, person.files / (person.mentions || 1)) : 0;
+  const docRatio =
+    (person.files || 0) > 0 ? Math.min(1, (person.files || 0) / (person.mentions || 1)) : 0;
   const typeCount = (person.evidence_types || []).length;
 
   // Mix of doc diversity and evidence variety

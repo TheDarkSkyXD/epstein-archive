@@ -184,7 +184,7 @@ import { CreateEntityModal } from './components/entities/CreateEntityModal';
 import Footer from './components/layout/Footer';
 
 function App() {
-  const { filters } = useFilters();
+  const { filters, setFilters } = useFilters();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -276,6 +276,7 @@ function App() {
 
   const [showReleaseNotes, setShowReleaseNotes] = useState(false);
   const [showCreateEntityModal, setShowCreateEntityModal] = useState(false);
+  const [showDateRangePicker, setShowDateRangePicker] = useState(false);
   const parsedReleaseNotes = useMemo(() => parseReleaseNotes(releaseNotesRaw), []);
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
   const navTrackRef = useRef<HTMLDivElement | null>(null);
@@ -1314,6 +1315,72 @@ function App() {
                       )}
                     </div>
 
+                    {/* Global Date Range Filter */}
+                    <div className="hidden md:flex items-center relative">
+                      <button
+                        onClick={() => setShowDateRangePicker((v) => !v)}
+                        className={`group control flex items-center rounded-full h-11 px-3 gap-2 transition-all duration-300${filters.timeRange[0] || filters.timeRange[1] ? ' text-amber-300' : ''}`}
+                        title="Global date range filter"
+                      >
+                        <Icon
+                          name="Calendar"
+                          size="sm"
+                          color={filters.timeRange[0] || filters.timeRange[1] ? 'warning' : 'gray'}
+                        />
+                        {(filters.timeRange[0] || filters.timeRange[1]) && (
+                          <span className="text-xs text-amber-300 whitespace-nowrap max-w-[120px] truncate">
+                            {filters.timeRange[0] ?? '…'} – {filters.timeRange[1] ?? '…'}
+                          </span>
+                        )}
+                      </button>
+                      {showDateRangePicker && (
+                        <div className="absolute top-full right-0 mt-2 z-50 dropdown-surface p-4 w-72">
+                          <div className="text-xs font-semibold text-slate-400 mb-3 uppercase tracking-wider">
+                            Global Date Filter
+                          </div>
+                          <div className="space-y-3">
+                            <div>
+                              <label className="block text-xs text-slate-500 mb-1">From</label>
+                              <input
+                                type="date"
+                                className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-600"
+                                value={filters.timeRange[0] ?? ''}
+                                onChange={(e) =>
+                                  setFilters({
+                                    timeRange: [e.target.value || null, filters.timeRange[1]],
+                                  })
+                                }
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-slate-500 mb-1">To</label>
+                              <input
+                                type="date"
+                                className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-600"
+                                value={filters.timeRange[1] ?? ''}
+                                onChange={(e) =>
+                                  setFilters({
+                                    timeRange: [filters.timeRange[0], e.target.value || null],
+                                  })
+                                }
+                              />
+                            </div>
+                            {(filters.timeRange[0] || filters.timeRange[1]) && (
+                              <button
+                                onClick={() => {
+                                  setFilters({ timeRange: [null, null] });
+                                  setShowDateRangePicker(false);
+                                }}
+                                className="w-full text-xs text-slate-400 hover:text-white border border-slate-700 rounded-md py-2 transition-colors"
+                              >
+                                Clear date filter
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     {/* Mobile Menu Toggle */}
                     <button
                       onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -1703,7 +1770,7 @@ function App() {
                         processor={documentProcessor}
                         searchTerm={selectedDocumentSearchTerm}
                         onSearchTermChange={setSelectedDocumentSearchTerm}
-                        selectedDocumentId={selectedDocumentId}
+                        selectedDocumentId={selectedDocumentId || ''}
                         onDocumentClose={() => {
                           setSelectedDocumentId('');
                           setSelectedDocumentSearchTerm('');

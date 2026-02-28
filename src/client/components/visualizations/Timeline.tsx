@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { FileText, Calendar, Users, ArrowUp, ArrowDown } from 'lucide-react';
 import { CloseButton } from '../common/CloseButton';
+import { useFilters } from '../../contexts/useFilters';
 
 interface EntityLink {
   id: number;
@@ -35,6 +36,7 @@ interface TimelineProps {
 }
 
 export const Timeline: React.FC<TimelineProps> = React.memo(({ className = '' }) => {
+  const { filters } = useFilters();
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null);
@@ -70,16 +72,22 @@ export const Timeline: React.FC<TimelineProps> = React.memo(({ className = '' })
     });
   };
 
-  useEffect(() => {
-    loadTimelineData();
-  }, []);
+  const [startDate, endDate] = filters.timeRange;
 
-  const loadTimelineData = async () => {
+  useEffect(() => {
+    loadTimelineData(startDate, endDate);
+  }, [startDate, endDate]);
+
+  const loadTimelineData = async (start: string | null, end: string | null) => {
     try {
       setLoading(true);
 
-      // Fetch events from API
-      const response = await fetch('/api/timeline');
+      // Fetch events from API — apply global date range if set
+      const params = new URLSearchParams();
+      if (start) params.set('startDate', start);
+      if (end) params.set('endDate', end);
+      const qs = params.toString();
+      const response = await fetch(`/api/timeline${qs ? `?${qs}` : ''}`);
       const data = await response.json();
 
       console.log('Timeline API response:', data);

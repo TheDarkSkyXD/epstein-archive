@@ -625,11 +625,11 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
 
   // Performance monitoring
   const onRenderCallback = useCallback(
-    (id: string, phase: 'mount' | 'update', actualDuration: number) => {
+    (id: string, phase: 'mount' | 'update' | 'nested-update', actualDuration: number) => {
       if (typeof window !== 'undefined' && actualDuration > 16) {
         import('../../utils/performanceMonitor.js')
           .then(({ PerformanceMonitor }) => {
-            PerformanceMonitor.logRender(`EvidenceModal-${id}`, actualDuration, phase);
+            PerformanceMonitor.logRender(`EvidenceModal-${id}`, actualDuration, phase as any);
           })
           .catch(() => {});
       }

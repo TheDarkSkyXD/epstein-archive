@@ -126,7 +126,7 @@ export const flightsRepository = {
 
     if (flights.length === 0) return { flights: [], total: 0 };
 
-    const flightIds = flights.map((f) => Number(f.id));
+    const flightIds = flights.map((f: any) => Number(f.id));
     const passengersResult = await pool.query(
       `
       SELECT
@@ -142,7 +142,7 @@ export const flightsRepository = {
     );
     const passengers = passengersResult.rows;
 
-    const flightsWithPassengers = flights.map((f) => ({
+    const flightsWithPassengers = flights.map((f: any) => ({
       ...f,
       id: Number(f.id),
       departure_airport: f.departureAirport || '',
@@ -155,7 +155,7 @@ export const flightsRepository = {
       aircraft_type: f.aircraftType || '',
       passengers: passengers
         .filter((p) => Number(p.flightId) === Number(f.id))
-        .map((p) => ({
+        .map((p: any) => ({
           ...p,
           id: Number(p.id),
           flight_id: Number(p.flightId),
@@ -224,16 +224,16 @@ export const flightsRepository = {
     return {
       totalFlights: Number(basicStats?.totalFlights || 0),
       uniquePassengers: Number(basicStats?.uniquePassengers || 0),
-      topPassengers: topPassengers.map((p) => ({ name: p.name, count: Number(p.count || 0) })),
-      topRoutes: topRoutes.map((r) => ({
+      topPassengers: topPassengers.map((p: any) => ({ name: p.name, count: Number(p.count || 0) })),
+      topRoutes: topRoutes.map((r: any) => ({
         route: r.route || 'Unknown',
         count: Number(r.count || 0),
       })),
-      flightsByYear: flightsByYear.map((y) => ({
+      flightsByYear: flightsByYear.map((y: any) => ({
         year: y.year || 'Unknown',
         count: Number(y.count || 0),
       })),
-      airports: airportStats.map((a) => ({
+      airports: airportStats.map((a: any) => ({
         code: a.airport || 'Unknown',
         city: a.city || 'Unknown',
         count: Number(a.count || 0),

@@ -47,13 +47,13 @@ else
     exit 1
 fi
 
-# 3. Check Media Access (/api/media/images)
-echo "Checking /api/media/images (Media Reliability Fix)..."
+# 3. Check Media Access (/api/media/images) - Expected 401 (RBAC Hardened)
+echo "Checking /api/media/images (Strict RBAC)..."
 MEDIA_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/api/media/images?limit=1&slim=true")
-if [ "$MEDIA_STATUS" == "200" ]; then
-    log_success "Media API Verified (200)"
+if [ "$MEDIA_STATUS" == "401" ]; then
+    log_success "Media API Hardening Verified (401)"
 else
-    log_error "Media API FAILED ($MEDIA_STATUS) - Still returning 500?"
+    log_error "Media API Hardening FAILED (Expected 401, got $MEDIA_STATUS)"
     exit 1
 fi
 
@@ -69,13 +69,13 @@ else
     exit 1
 fi
 
-# 5. Check Subject Listings (/api/subjects)
-echo "Checking /api/subjects (Data Retrieval)..."
-SUBJECTS_JSON=$(curl -s "$URL/api/subjects?limit=1")
-if echo "$SUBJECTS_JSON" | grep -q '"subjects":\['; then
-   log_success "Subject Listing API OK"
+# 5. Check Subject Listings (/api/subjects) - Expected 401 (RBAC Hardened)
+echo "Checking /api/subjects (Strict RBAC)..."
+SUBJECTS_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/api/subjects?limit=1")
+if [ "$SUBJECTS_STATUS" == "401" ]; then
+   log_success "Subject Listing API Hardening Verified (401)"
 else
-   log_error "Subject Listing API FAILED: $SUBJECTS_JSON"
+   log_error "Subject Listing API Hardening FAILED (Expected 401, got $SUBJECTS_STATUS)"
    exit 1
 fi
 
@@ -89,26 +89,26 @@ else
     exit 1
 fi
 
-# 7. Check Documents API with production query shape used by UI
-echo "Checking /api/documents (UI query shape + anti-429)..."
-DOC_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/api/documents?page=1&limit=50&sortBy=red_flag&sortOrder=desc&minRedFlag=0&maxRedFlag=5")
-if [ "$DOC_STATUS" == "200" ]; then
-    log_success "Documents API Query OK (200)"
+# 7. Check Documents API - Expected 401 (RBAC Hardened)
+echo "Checking /api/documents (Strict RBAC)..."
+DOC_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/api/documents?page=1&limit=50")
+if [ "$DOC_STATUS" == "401" ]; then
+    log_success "Documents API Hardening Verified (401)"
 else
-    log_error "Documents API Query FAILED ($DOC_STATUS)"
+    log_error "Documents API Hardening FAILED (Expected 401, got $DOC_STATUS)"
     exit 1
 fi
 
-# 8. Burst check to ensure immediate limiter lockout is not happening
-echo "Checking /api/documents burst resilience..."
+# 8. Burst check to ensure immediate limiter lockout is not happening (on public endpoint)
+echo "Checking /api/stats burst resilience..."
 for i in 1 2 3 4 5; do
-  STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/api/documents?page=1&limit=50&sortBy=red_flag&sortOrder=desc&minRedFlag=0&maxRedFlag=5")
+  STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/api/stats")
   if [ "$STATUS" != "200" ]; then
-    log_error "Documents burst check failed on request $i (status=$STATUS)"
+    log_error "Stats burst check failed on request $i (status=$STATUS)"
     exit 1
   fi
 done
-log_success "Documents burst resilience OK"
+log_success "Stats burst resilience OK"
 
 echo "---"
 echo -e "${GREEN}ALL CHECKS PASSED. DEPLOYMENT v$EXPECTED_VERSION VERIFIED.${NC}"

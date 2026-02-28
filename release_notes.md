@@ -1,3 +1,12 @@
+## 14.9.0 - 2026-02-28 - Strict RBAC Enforcement + Case Bundle Export
+
+### Highlights
+
+- **Strict RBAC Enforcement**: Tightened `PUBLIC_ROUTES` in the server to protect sensitive investigative data; only health and auth endpoints remain public.
+- **Case Bundle (ZIP) Export**: Implemented a new authenticated route `GET /api/investigations/:id/export/zip` to bundle case evidence metadata and physical files into a single archive.
+- **Production Build Restoration**: Fixed and verified the server-side build process, ensuring `dist/server.js` is correctly generated and deployable.
+- **Migration & Code Integrity**: Finalized the Postgres-only architecture stabilization with over 100 files committed, covering API standardization and schema hardening.
+
 ## 14.8.0 - 2026-02-27 - Evidence Tab Render Reliability + QA Matrix
 
 ### Highlights

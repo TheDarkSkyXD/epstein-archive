@@ -866,6 +866,13 @@ const RESEARCHER_READ_ONLY_PREFIXES = [
   '/api/financial',
   '/api/forensic',
   '/api/investigation',
+  '/api/investigations',
+  '/api/subjects',
+  '/api/black-book',
+  '/api/email',
+  '/api/emails',
+  '/api/graph',
+  '/api/map',
 ];
 
 app.use('/api', (req, res, next) => {

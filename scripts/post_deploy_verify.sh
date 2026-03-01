@@ -7,10 +7,12 @@ EXPECTED_VERSION=$(node -e "console.log(JSON.parse(require('fs').readFileSync('.
 
 # Colors
 GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
 log_success() { echo -e "${GREEN}✅ $1${NC}"; }
+log_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 log_error() { echo -e "${RED}❌ $1${NC}"; }
 
 echo "Verifying deployment at $URL..."

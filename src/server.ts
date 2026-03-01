@@ -112,7 +112,8 @@ function toServedDocumentUrl(input?: string | null): string | null {
   }
 
   if (url.startsWith('data/')) {
-    return `/${url}`.replace(/\/{2,}/g, '/');
+    // In production, data/ prefixes must map to /files/ for authenticated serving
+    return `/files/${url.substring(5)}`.replace(/\/{2,}/g, '/');
   }
 
   if (url.startsWith('/')) {
@@ -864,6 +865,7 @@ const RESEARCHER_READ_ONLY_PREFIXES = [
   '/api/articles',
   '/api/financial',
   '/api/forensic',
+  '/api/investigation',
 ];
 
 app.use('/api', (req, res, next) => {

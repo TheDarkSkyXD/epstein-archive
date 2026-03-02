@@ -253,7 +253,7 @@ export class App {
     router.use('/analytics', analyticsRoutes);
     router.use('/graph', graphRoutes);
     router.use('/map', mapRoutes);
-    router.use('/media', mediaRoutes);
+    router.use('/media', authenticateRequest, mediaRoutes);
     router.use('/users', usersRoutes);
     router.use('/investigations', investigationsRouter);
     router.use('/evidence', evidenceRoutes);

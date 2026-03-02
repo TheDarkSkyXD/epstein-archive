@@ -1088,9 +1088,15 @@ class ApiClient {
     checks: {
       db: { ok: boolean; latencyMs?: number; error?: string; dialect?: string };
       schema?: { missingTables?: string[]; missingOptionalTables?: string[] };
-      data?: { entities?: number; documents?: number };
+      data?: {
+        ok?: boolean;
+        entities?: number;
+        documents?: number;
+        latencyMs?: number;
+        error?: string;
+      };
       pool?: { total?: number; idle?: number; waiting?: number; max?: number } | null;
-      readiness?: { mode?: string };
+      readiness?: { mode?: string; timeoutMs?: number };
     };
     durationMs: number;
   }> {

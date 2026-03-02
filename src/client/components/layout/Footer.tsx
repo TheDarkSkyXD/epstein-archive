@@ -20,20 +20,40 @@ const Footer: React.FC<FooterProps> = ({ onVersionClick }) => {
     const checkHealth = async () => {
       try {
         const health = await apiClient.readinessCheck();
-        if (health.status === 'ok') {
+
+        let protectedDataPathOk = true;
+        let protectedDataPathError: string | undefined;
+        try {
+          await apiClient.get('/documents?page=1&limit=1&sortBy=red_flag', { useCache: false });
+        } catch (probeError) {
+          protectedDataPathOk = false;
+          protectedDataPathError =
+            probeError instanceof Error ? probeError.message : 'Protected data route probe failed';
+        }
+
+        const dbOk = health.checks?.db?.ok === true;
+        const entities = Number(health.checks?.data?.entities || 0);
+        const documents = Number(health.checks?.data?.documents || 0);
+        const hasMinimumData = entities > 0 && documents > 0;
+
+        if (health.status === 'ok' && dbOk && hasMinimumData && protectedDataPathOk) {
           setSystemStatus({ status: 'operational' });
         } else {
           let errorDetail = 'Service reporting unhealthy status';
           if (health.checks?.db?.ok === false) {
             errorDetail = `Database Error: ${health.checks.db.error || 'Connection failed'}`;
-          } else if ((health.checks?.schema?.missingTables?.length || 0) > 0) {
-            errorDetail = `Schema Error: Missing tables (${health.checks?.schema?.missingTables?.join(', ')})`;
-          } else if (health.checks?.data?.entities === 0) {
-            errorDetail = 'Data Error: No entities found in database';
+          } else if (!hasMinimumData) {
+            errorDetail = `Data Error: entities=${entities}, documents=${documents}`;
+          } else if (!protectedDataPathOk) {
+            if (/unauthorized/i.test(protectedDataPathError || '')) {
+              errorDetail = 'Auth Error: Session expired or missing credentials for protected data';
+            } else {
+              errorDetail = `Data Route Error: ${protectedDataPathError || 'Protected data route probe failed'}`;
+            }
           }
 
           setSystemStatus({
-            status: 'healing', // Indicate self-healing is likely underway
+            status: 'healing',
             message: health.status.toUpperCase(),
             details: errorDetail,
           });

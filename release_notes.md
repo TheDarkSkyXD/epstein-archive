@@ -1,3 +1,14 @@
+## 15.1.0 - 2026-03-02 - Readiness Truthfulness Hardening + Semver Discipline
+
+### Highlights
+
+- Hardened `/api/health/ready` to validate real core data-path readiness (DB ping + entities/documents counts + pool pressure), not just a shallow ping.
+- Added canonical compatibility endpoints in the active runtime path:
+  - `GET /api/ready` -> `307 /api/health/ready`
+  - `GET /api/_meta/db` for deploy/monitoring metadata checks.
+- Removed false-positive operational UI state: footer now requires both readiness success and protected data-route probe success before showing **System Operational**.
+- Standardized release progression to strict `MAJOR.MINOR.PATCH` for active releases and bumped minor from `15.0.1` to `15.1.0`.
+
 ## 15.0.1 - 2026-03-02 - Bug Fixes + Production Build Hardening
 
 ### Highlights
@@ -25,7 +36,7 @@
 - Added stable Evidence tab test IDs (`entity-evidence-count`, evidence row/list selectors) to support deterministic E2E assertions.
 - Updated golden-path E2E coverage to assert actual evidence row rendering in the entity modal.
 - Added feature-by-feature QA matrix report:
-  - `docs/qa/qa-matrix-v14.7.x-postgres-stabilization.md`
+  - `docs/qa/qa-matrix-v14.7.0-postgres-stabilization.md`
 
 ## 14.7.0 - 2026-02-25 - Postgres Migration Stabilization + E2E Contract Sync
 

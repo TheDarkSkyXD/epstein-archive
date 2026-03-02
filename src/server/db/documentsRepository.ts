@@ -172,7 +172,8 @@ export const documentsRepository = {
         word_count as "wordCount",
         red_flag_rating as "redFlagRating",
         COALESCE(NULLIF(title, ''), file_name) as "title",
-        source_collection as "sourceCollection"
+        source_collection as "sourceCollection",
+        cleaned_path as "cleanedPath"
       FROM documents
       WHERE ($1::text IS NULL OR file_name ILIKE $1 OR content_refined ILIKE $1 OR source_collection ILIKE $1 OR file_path ILIKE $1)
         AND (file_type = ANY($2::text[]) OR $2::text[] IS NULL)
@@ -206,8 +207,8 @@ export const documentsRepository = {
       filters.startDate || null,
       filters.endDate || null,
       typeof filters.hasFailedRedactions === 'boolean' ? filters.hasFailedRedactions : null,
-      filters.minRedFlag || null,
-      filters.maxRedFlag || null,
+      filters.minRedFlag ?? null,
+      filters.maxRedFlag ?? null,
       sortBy,
       limit,
       offset,
@@ -221,12 +222,30 @@ export const documentsRepository = {
         AND (file_type = ANY($2::text[]) OR $2::text[] IS NULL)
         AND (evidence_type = $3::text OR $3::text IS NULL)
         AND (source_collection = ANY($4::text[]) OR $4::text[] IS NULL)
+        AND (date_created >= $5::timestamp OR $5::timestamp IS NULL)
+        AND (date_created <= $6::timestamp OR $6::timestamp IS NULL)
+        AND (
+          $7::boolean IS NULL
+          OR LOWER(COALESCE(has_failed_redactions::text, '')) = ANY(
+            CASE
+              WHEN $7::boolean THEN ARRAY['1', 'true', 't']
+              ELSE ARRAY['0', 'false', 'f']
+            END
+          )
+        )
+        AND (red_flag_rating >= $8::int OR $8::int IS NULL)
+        AND (red_flag_rating <= $9::int OR $9::int IS NULL)
     `;
     const countResultRes = await getApiPool().query(countSql, [
       search ? `%${search}%` : null,
       fileTypes,
       evidenceType,
       sources,
+      filters.startDate || null,
+      filters.endDate || null,
+      typeof filters.hasFailedRedactions === 'boolean' ? filters.hasFailedRedactions : null,
+      filters.minRedFlag ?? null,
+      filters.maxRedFlag ?? null,
     ]);
     const countResult = countResultRes.rows as Array<{ total?: string | number | null }>;
 

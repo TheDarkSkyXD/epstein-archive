@@ -11,9 +11,15 @@ import { logger } from './server/services/Logger.js';
 import { requestIdMiddleware } from './server/middleware/requestId.js';
 import { globalErrorHandler } from './server/utils/errorHandler.js';
 import { authenticateRequest } from './server/auth/middleware.js';
-import { initPools, assertProductionPg } from './server/db/connection.js';
+import {
+  initPools,
+  assertProductionPg,
+  getApiPool,
+  getMigrationMetrics,
+} from './server/db/connection.js';
 import { validateStartup } from './server/utils/startupValidation.js';
 import { runMigrations } from './server/db/migrator.js';
+import { getEntityAndDocumentCounts } from './server/db/routesDb.js';
 
 // Route imports
 import authRoutes from './server/auth/routes.js';
@@ -150,6 +156,94 @@ export class App {
     // Health check
     router.get('/health', (_req, res) => {
       res.json({ status: 'ok', timestamp: new Date().toISOString() });
+    });
+
+    // Legacy readiness alias retained for older clients and scripts.
+    router.get('/ready', (_req, res) => {
+      res.redirect(307, '/api/health/ready');
+    });
+
+    // Readiness endpoint: validates DB connectivity + core data path availability.
+    router.get('/health/ready', async (_req, res) => {
+      const startedAt = Date.now();
+      const timeoutMs = Math.max(100, Number(process.env.READINESS_TIMEOUT_MS || 1200) || 1200);
+
+      const withTimeout = async <T>(promise: Promise<T>, label: string): Promise<T> => {
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`${label} timeout after ${timeoutMs}ms`)), timeoutMs),
+        );
+        return Promise.race([promise, timeoutPromise]);
+      };
+
+      try {
+        const pool = getApiPool();
+
+        const dbPingStart = Date.now();
+        await withTimeout(pool.query('SELECT 1 AS ok'), 'db ping');
+        const dbLatencyMs = Date.now() - dbPingStart;
+
+        const countsStart = Date.now();
+        const counts = await withTimeout(getEntityAndDocumentCounts(), 'core counts');
+        const countsLatencyMs = Date.now() - countsStart;
+        const hasMinimumData = counts.entities > 0 && counts.documents > 0;
+
+        const migrationMetrics = await getMigrationMetrics();
+        const apiPoolMetrics = migrationMetrics.pools.api;
+        const saturated = Boolean(apiPoolMetrics && apiPoolMetrics.waiting >= 3);
+        const status: 'ok' | 'degraded' = !hasMinimumData || saturated ? 'degraded' : 'ok';
+
+        return res.status(status === 'ok' ? 200 : 503).json({
+          status,
+          timestamp: new Date().toISOString(),
+          checks: {
+            db: { ok: true, latencyMs: dbLatencyMs, dialect: 'postgres' },
+            data: {
+              ok: hasMinimumData,
+              entities: counts.entities,
+              documents: counts.documents,
+              latencyMs: countsLatencyMs,
+              error: hasMinimumData ? undefined : 'Core data unavailable',
+            },
+            pool: apiPoolMetrics,
+            readiness: { mode: 'o1-plus-core-counts', timeoutMs },
+          },
+          durationMs: Date.now() - startedAt,
+        });
+      } catch (error: any) {
+        return res.status(503).json({
+          status: 'down',
+          timestamp: new Date().toISOString(),
+          checks: { db: { ok: false, error: error?.message || 'unknown' } },
+          durationMs: Date.now() - startedAt,
+        });
+      }
+    });
+
+    // Canonical DB metadata endpoint used by monitors and deploy verification.
+    router.get('/_meta/db', async (_req, res, next) => {
+      try {
+        const pool = getApiPool();
+        const { rows } = await pool.query<{
+          server_version: string;
+          statement_timeout: string;
+          lock_timeout: string;
+        }>(`
+          SELECT
+            version() AS server_version,
+            current_setting('statement_timeout') AS statement_timeout,
+            current_setting('lock_timeout') AS lock_timeout
+        `);
+        const metrics = await getMigrationMetrics();
+        res.json({
+          dialect: 'postgres',
+          server_version: rows[0]?.server_version,
+          statement_timeout: rows[0]?.statement_timeout,
+          lock_timeout: rows[0]?.lock_timeout,
+          pools: metrics.pools,
+        });
+      } catch (error) {
+        next(error);
+      }
     });
 
     // Mount routes

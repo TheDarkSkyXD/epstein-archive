@@ -11,7 +11,7 @@ import path from 'path';
 import sharp from 'sharp';
 import exifParser from 'exif-parser';
 import archiver from 'archiver';
-import { db as pgDb, mediaQueries } from '@epstein/db';
+import { db as pgDb } from '@epstein/db';
 
 export class MediaService {
   private db: any;
@@ -24,10 +24,6 @@ export class MediaService {
         '[MediaService] Legacy prepare()-based DB client is not allowed in production. Use Postgres pool-backed runtime.',
       );
     }
-  }
-
-  private isPgClient(): boolean {
-    return typeof this.db?.query === 'function' && typeof this.db?.prepare !== 'function';
   }
 
   private isLegacyPrepareClient(): boolean {

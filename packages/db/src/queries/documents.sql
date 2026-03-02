@@ -11,7 +11,8 @@ SELECT
   word_count as "wordCount",
   red_flag_rating as "redFlagRating",
   COALESCE(NULLIF(title, ''), file_name) as "title",
-  source_collection as "sourceCollection"
+  source_collection as "sourceCollection",
+  cleaned_path as "cleanedPath"
 FROM documents
 WHERE (:search::text IS NULL OR file_name ILIKE :search OR content_refined ILIKE :search OR source_collection ILIKE :search OR file_path ILIKE :search)
   AND (file_type = ANY(:fileTypes) OR :fileTypes IS NULL)
@@ -65,7 +66,9 @@ SELECT
   redaction_coverage_before as "redactionCoverageBefore",
   redaction_coverage_after as "redactionCoverageAfter",
   unredacted_text_gain as "unredactedTextGain",
-  unredaction_baseline_vocab as "unredactionBaselineVocab"
+  unredaction_baseline_vocab as "unredactionBaselineVocab",
+  original_file_path as "originalFilePath",
+  cleaned_path as "cleanedPath"
 FROM documents
 WHERE id = :id!;
 
@@ -114,6 +117,7 @@ SELECT
   d.evidence_type as "evidenceType",
   d.red_flag_rating as "redFlagRating",
   d.date_created as "dateCreated",
+  d.cleaned_path as "cleanedPath",
   COUNT(DISTINCT em.entity_id) as "sharedEntityCount",
   STRING_AGG(DISTINCT e.full_name, ', ') as "sharedEntitiesList"
 FROM documents d

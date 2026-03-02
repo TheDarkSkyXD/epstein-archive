@@ -237,6 +237,7 @@ export interface IGetEntityByIdResult {
   entity_category: string | null;
   entity_metadata_json: Json | null;
   entity_type: string | null;
+  evidence_count: number | null;
   fts_vector: string | null;
   full_name: string;
   id: string;

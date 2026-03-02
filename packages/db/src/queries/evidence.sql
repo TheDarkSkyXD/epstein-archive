@@ -121,6 +121,9 @@ SELECT
   e.description,
   e.red_flag_rating as "redFlagRating",
   e.created_at as "createdAt",
+  e.source_path as "source",
+  e.cleaned_path as "cleanedPath",
+  e.original_file_path as "originalFilePath",
   ie.notes,
   ie.relevance,
   ie.added_at as "addedAt"
@@ -182,6 +185,8 @@ SELECT
   e.description,
   e.original_filename as "originalFilename",
   e.source_path as "sourcePath",
+  e.cleaned_path as "cleanedPath",
+  e.original_file_path as "originalFilePath",
   e.extracted_text as "extractedText",
   e.created_at as "createdAt",
   e.modified_at as "modifiedAt",

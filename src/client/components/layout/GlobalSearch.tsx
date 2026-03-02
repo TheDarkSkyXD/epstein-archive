@@ -16,14 +16,30 @@ import { Person } from '../../types';
 import { CloseButton } from '../common/CloseButton';
 
 interface SearchResult {
-  file: string;
+  id: string;
+  file?: string;
   filename: string;
   category: string;
-  entities: string[];
-  dates: string[];
-  word_count: number;
   score: number;
   highlights: string[];
+  snippet?: string;
+  entities: string[];
+  dates: string[];
+  // Document specific
+  filePath?: string;
+  evidenceType?: string;
+  wordCount?: number;
+  // Investigation specific
+  uuid?: string;
+  title?: string;
+  description?: string;
+  status?: string;
+  // Article specific
+  source?: string;
+  author?: string;
+  pubDate?: string;
+  // Media specific
+  fileType?: string;
 }
 
 interface SearchFilters {
@@ -37,6 +53,9 @@ const GlobalSearch: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [entityResults, setEntityResults] = useState<Person[]>([]);
+  const [investigationResults, setInvestigationResults] = useState<any[]>([]);
+  const [articleResults, setArticleResults] = useState<any[]>([]);
+  const [mediaResults, setMediaResults] = useState<any[]>([]);
   const [filteredResults, setFilteredResults] = useState<SearchResult[]>([]);
   const [selectedResult, setSelectedResult] = useState<SearchResult | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -93,16 +112,32 @@ const GlobalSearch: React.FC = () => {
         setEntityResults(data.entities);
       }
 
+      if (data.investigations) {
+        setInvestigationResults(data.investigations);
+      }
+
+      if (data.articles) {
+        setArticleResults(data.articles);
+      }
+
+      if (data.media) {
+        setMediaResults(data.media);
+      }
+
       if (data.documents) {
         const searchResults: SearchResult[] = data.documents.map((doc: any) => ({
+          id: doc.id,
           file: doc.filePath,
           filename: doc.fileName,
           category: doc.evidenceType || 'general_documents',
           entities: [],
           dates: [],
-          word_count: doc.wordCount || 0,
+          wordCount: doc.wordCount || 0,
           score: doc.score || 0,
-          highlights: doc.contentPreview ? [doc.contentPreview] : [],
+          highlights: doc.snippet ? [doc.snippet] : [],
+          snippet: doc.snippet,
+          filePath: doc.filePath,
+          evidenceType: doc.evidenceType,
         }));
         setResults(searchResults);
         setFilteredResults(searchResults);
@@ -133,7 +168,7 @@ const GlobalSearch: React.FC = () => {
 
     // Filter by word count
     if (filters.min_word_count > 0) {
-      filtered = filtered.filter((result) => result.word_count >= filters.min_word_count);
+      filtered = filtered.filter((result) => (result.wordCount || 0) >= filters.min_word_count);
     }
 
     setFilteredResults(filtered);
@@ -317,17 +352,121 @@ const GlobalSearch: React.FC = () => {
         <div className="p-6 border-b border-gray-700">
           <div className="flex items-center justify-between">
             <h3 className="text-xl font-semibold text-white">
-              Document Results {searchTerm && `for "${searchTerm}"`}
+              Evidence Results {searchTerm && `for "${searchTerm}"`}
             </h3>
-            <span className="text-gray-400">{filteredResults.length.toLocaleString()} results</span>
+            <span className="text-gray-400">
+              {filteredResults.length +
+                investigationResults.length +
+                articleResults.length +
+                mediaResults.length}{' '}
+              total results
+            </span>
           </div>
         </div>
 
         <div className="divide-y divide-gray-700">
+          {/* Investigations Section */}
+          {investigationResults.length > 0 &&
+            investigationResults.map((inv, index) => (
+              <div
+                key={`inv-${index}`}
+                className="p-6 hover:bg-cyan-900/10 cursor-pointer transition-colors border-l-4 border-purple-500"
+                onClick={() => (window.location.href = `/investigations/${inv.uuid}`)}
+              >
+                <div className="flex items-center space-x-3 mb-2">
+                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-600 text-white">
+                    Investigation
+                  </span>
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-medium bg-gray-700 text-gray-300 uppercase`}
+                  >
+                    {inv.status}
+                  </span>
+                </div>
+                <h4 className="text-white font-medium text-lg mb-2">{inv.title}</h4>
+                {inv.snippet && (
+                  <div
+                    className="text-gray-400 text-sm italic"
+                    dangerouslySetInnerHTML={{ __html: inv.snippet }}
+                  />
+                )}
+              </div>
+            ))}
+
+          {/* Articles Section */}
+          {articleResults.length > 0 &&
+            articleResults.map((art, index) => (
+              <div
+                key={`art-${index}`}
+                className="p-6 hover:bg-orange-900/10 cursor-pointer transition-colors border-l-4 border-orange-500"
+                onClick={() =>
+                  setSelectedResult({
+                    ...art,
+                    filename: art.title,
+                    category: 'article',
+                    highlights: [art.snippet],
+                  })
+                }
+              >
+                <div className="flex items-center space-x-3 mb-2">
+                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-600 text-white">
+                    Article
+                  </span>
+                  <span className="text-gray-400 text-sm">
+                    {art.source} by {art.author}
+                  </span>
+                  {art.pubDate && (
+                    <span className="text-gray-500 text-xs">
+                      {new Date(art.pubDate).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+                <h4 className="text-white font-medium text-lg mb-2">{art.title}</h4>
+                {art.snippet && (
+                  <div
+                    className="text-gray-400 text-sm"
+                    dangerouslySetInnerHTML={{ __html: art.snippet }}
+                  />
+                )}
+              </div>
+            ))}
+
+          {/* Media Section */}
+          {mediaResults.length > 0 &&
+            mediaResults.map((med, index) => (
+              <div
+                key={`med-${index}`}
+                className="p-6 hover:bg-blue-900/10 cursor-pointer transition-colors border-l-4 border-blue-500"
+                onClick={() =>
+                  setSelectedResult({
+                    ...med,
+                    filename: med.title || med.filename,
+                    category: 'media',
+                    highlights: [med.snippet],
+                  })
+                }
+              >
+                <div className="flex items-center space-x-3 mb-2">
+                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-600 text-white">
+                    Media
+                  </span>
+                  <span className="text-gray-400 text-sm font-mono">{med.fileType}</span>
+                </div>
+                <h4 className="text-white font-medium text-lg mb-2">{med.title || med.filename}</h4>
+                {med.snippet && (
+                  <div
+                    className="text-gray-400 text-sm"
+                    dangerouslySetInnerHTML={{ __html: med.snippet }}
+                  />
+                )}
+              </div>
+            ))}
+
+          {/* Existing Document Results */}
           {filteredResults.map((result, index) => (
             <div
-              key={index}
-              className="p-6 hover:bg-gray-800/30 cursor-pointer transition-colors"
+              key={`doc-${index}`}
+              className="p-6 hover:bg-gray-800/30 cursor-pointer transition-colors border-l-4 border-emerald-500"
               onClick={() => setSelectedResult(result)}
             >
               <div className="flex items-start justify-between">
@@ -339,7 +478,7 @@ const GlobalSearch: React.FC = () => {
                       {categories.find((c) => c.id === result.category)?.name || result.category}
                     </span>
                     <span className="text-gray-400 text-sm">
-                      {formatWordCount(result.word_count)} words
+                      {result.wordCount ? formatWordCount(result.wordCount) : '0'} words
                     </span>
                     <span className="text-cyan-400 text-sm font-medium">Score: {result.score}</span>
                   </div>
@@ -363,35 +502,6 @@ const GlobalSearch: React.FC = () => {
                           />
                         </div>
                       ))}
-                    </div>
-                  )}
-
-                  {result.entities.length > 0 && (
-                    <div className="mt-3">
-                      <p className="text-gray-400 text-xs mb-1">Entities mentioned:</p>
-                      <div className="flex flex-wrap gap-2">
-                        {result.entities.slice(0, 5).map((entity, idx) => (
-                          <span
-                            key={idx}
-                            className="px-2 py-1 bg-gray-700 text-gray-300 rounded text-xs"
-                          >
-                            {entity}
-                          </span>
-                        ))}
-                        {result.entities.length > 5 && (
-                          <span className="px-2 py-1 bg-gray-700 text-gray-400 rounded text-xs">
-                            +{result.entities.length - 5} more
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {result.dates.length > 0 && (
-                    <div className="mt-2 flex items-center space-x-2 text-gray-400 text-xs">
-                      <Calendar className="h-3 w-3" />
-                      <span>{result.dates.slice(0, 3).join(', ')}</span>
-                      {result.dates.length > 3 && <span>+{result.dates.length - 3} more</span>}
                     </div>
                   )}
                 </div>
@@ -421,16 +531,21 @@ const GlobalSearch: React.FC = () => {
           ))}
         </div>
 
-        {filteredResults.length === 0 && entityResults.length === 0 && searchTerm && (
-          <div className="p-12 text-center">
-            <Search className="h-12 w-12 text-gray-500 mx-auto mb-4" />
-            <h4 className="text-gray-300 font-medium mb-2">No results found</h4>
-            <p className="text-gray-500 mb-4">Try adjusting your search terms or filters</p>
-            <p className="text-gray-600 text-sm">
-              Search tips: Try different spellings, use fewer keywords, or check entity names
-            </p>
-          </div>
-        )}
+        {filteredResults.length === 0 &&
+          entityResults.length === 0 &&
+          investigationResults.length === 0 &&
+          articleResults.length === 0 &&
+          mediaResults.length === 0 &&
+          searchTerm && (
+            <div className="p-12 text-center">
+              <Search className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+              <h4 className="text-gray-300 font-medium mb-2">No results found</h4>
+              <p className="text-gray-500 mb-4">Try adjusting your search terms or filters</p>
+              <p className="text-gray-600 text-sm">
+                Search tips: Try different spellings, use fewer keywords, or check entity names
+              </p>
+            </div>
+          )}
 
         {!searchTerm && (
           <div className="p-12 text-center">
@@ -475,7 +590,7 @@ const GlobalSearch: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-gray-400 text-sm mb-1">Word Count</label>
-                    <p className="text-white">{selectedResult.word_count.toLocaleString()}</p>
+                    <p className="text-white">{(selectedResult.wordCount || 0).toLocaleString()}</p>
                   </div>
                   <div>
                     <label className="block text-gray-400 text-sm mb-1">Search Score</label>

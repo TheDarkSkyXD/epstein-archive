@@ -711,10 +711,7 @@ export const ForensicAnalysisWorkspace: React.FC<ForensicAnalysisWorkspaceProps>
         <div className="flex-1 bg-gray-900">
           <div className="h-full">
             {activeTool === 'documents' && (
-              <ForensicDocumentAnalyzer
-                documentUrl={evidence[0]?.source || ''}
-                documentId={docIdParam || evidence[0]?.id || ''}
-              />
+              <ForensicDocumentAnalyzer documentId={docIdParam || evidence[0]?.id || ''} />
             )}
             {activeTool === 'entities' && (
               <EntityRelationshipMapper

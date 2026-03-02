@@ -87,3 +87,49 @@ LEFT JOIN document_pages p ON p.id = s.page_id
 WHERE to_tsvector('english', s.sentence_text) @@ websearch_to_tsquery('english', :searchTerm!)
 ORDER BY ts_rank_cd(to_tsvector('english', s.sentence_text), websearch_to_tsquery('english', :searchTerm!), 32) DESC
 LIMIT :limit!;
+
+/* @name searchInvestigations */
+SELECT
+  id,
+  uuid,
+  title,
+  description,
+  status,
+  ts_headline('english', title || ' ' || coalesce(description, ''), websearch_to_tsquery('english', :searchTerm!),
+    'MaxWords=25,MinWords=8') AS snippet,
+  ts_rank_cd(to_tsvector('english', title || ' ' || coalesce(description, '')), websearch_to_tsquery('english', :searchTerm!), 32) AS rank
+FROM investigations
+WHERE to_tsvector('english', title || ' ' || coalesce(description, '')) @@ websearch_to_tsquery('english', :searchTerm!)
+ORDER BY rank DESC
+LIMIT :limit!;
+
+/* @name searchArticles */
+SELECT
+  id,
+  title,
+  source,
+  author,
+  pub_date AS "pubDate",
+  ts_headline('english', title || ' ' || coalesce(description, '') || ' ' || coalesce(content, ''), websearch_to_tsquery('english', :searchTerm!),
+    'MaxWords=25,MinWords=8') AS snippet,
+  ts_rank_cd(to_tsvector('english', title || ' ' || coalesce(description, '') || ' ' || coalesce(content, '')), websearch_to_tsquery('english', :searchTerm!), 32) AS rank
+FROM articles
+WHERE to_tsvector('english', title || ' ' || coalesce(description, '') || ' ' || coalesce(content, '')) @@ websearch_to_tsquery('english', :searchTerm!)
+ORDER BY rank DESC
+LIMIT :limit!;
+
+/* @name searchMedia */
+SELECT
+  id,
+  file_path AS "filename",
+  title,
+  description,
+  file_path AS "filePath",
+  file_type AS "fileType",
+  ts_headline('english', file_path || ' ' || coalesce(title, '') || ' ' || coalesce(description, ''), websearch_to_tsquery('english', :searchTerm!),
+    'MaxWords=25,MinWords=8') AS snippet,
+  ts_rank_cd(to_tsvector('english', file_path || ' ' || coalesce(title, '') || ' ' || coalesce(description, '')), websearch_to_tsquery('english', :searchTerm!), 32) AS rank
+FROM media_items
+WHERE to_tsvector('english', file_path || ' ' || coalesce(title, '') || ' ' || coalesce(description, '')) @@ websearch_to_tsquery('english', :searchTerm!)
+ORDER BY rank DESC
+LIMIT :limit!;

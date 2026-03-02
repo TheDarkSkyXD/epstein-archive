@@ -408,3 +408,196 @@ const searchSentencesIR: any = {
 export const searchSentences = new PreparedQuery<ISearchSentencesParams, ISearchSentencesResult>(
   searchSentencesIR,
 );
+
+/** 'SearchInvestigations' parameters type */
+export interface ISearchInvestigationsParams {
+  limit: NumberOrString;
+  searchTerm: string;
+}
+
+/** 'SearchInvestigations' return type */
+export interface ISearchInvestigationsResult {
+  description: string | null;
+  id: string;
+  rank: number | null;
+  snippet: string | null;
+  status: string | null;
+  title: string;
+  uuid: string | null;
+}
+
+/** 'SearchInvestigations' query type */
+export interface ISearchInvestigationsQuery {
+  params: ISearchInvestigationsParams;
+  result: ISearchInvestigationsResult;
+}
+
+const searchInvestigationsIR: any = {
+  usedParamSet: { searchTerm: true, limit: true },
+  params: [
+    {
+      name: 'searchTerm',
+      required: true,
+      transform: { type: 'scalar' },
+      locs: [
+        { a: 155, b: 166 },
+        { a: 324, b: 335 },
+        { a: 478, b: 489 },
+      ],
+    },
+    { name: 'limit', required: true, transform: { type: 'scalar' }, locs: [{ a: 517, b: 523 }] },
+  ],
+  statement:
+    "SELECT\n  id,\n  uuid,\n  title,\n  description,\n  status,\n  ts_headline('english', title || ' ' || coalesce(description, ''), websearch_to_tsquery('english', :searchTerm!),\n    'MaxWords=25,MinWords=8') AS snippet,\n  ts_rank_cd(to_tsvector('english', title || ' ' || coalesce(description, '')), websearch_to_tsquery('english', :searchTerm!), 32) AS rank\nFROM investigations\nWHERE to_tsvector('english', title || ' ' || coalesce(description, '')) @@ websearch_to_tsquery('english', :searchTerm!)\nORDER BY rank DESC\nLIMIT :limit!",
+};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * SELECT
+ *   id,
+ *   uuid,
+ *   title,
+ *   description,
+ *   status,
+ *   ts_headline('english', title || ' ' || coalesce(description, ''), websearch_to_tsquery('english', :searchTerm!),
+ *     'MaxWords=25,MinWords=8') AS snippet,
+ *   ts_rank_cd(to_tsvector('english', title || ' ' || coalesce(description, '')), websearch_to_tsquery('english', :searchTerm!), 32) AS rank
+ * FROM investigations
+ * WHERE to_tsvector('english', title || ' ' || coalesce(description, '')) @@ websearch_to_tsquery('english', :searchTerm!)
+ * ORDER BY rank DESC
+ * LIMIT :limit!
+ * ```
+ */
+export const searchInvestigations = new PreparedQuery<
+  ISearchInvestigationsParams,
+  ISearchInvestigationsResult
+>(searchInvestigationsIR);
+
+/** 'SearchArticles' parameters type */
+export interface ISearchArticlesParams {
+  limit: NumberOrString;
+  searchTerm: string;
+}
+
+/** 'SearchArticles' return type */
+export interface ISearchArticlesResult {
+  author: string | null;
+  id: string;
+  pubDate: Date | null;
+  rank: number | null;
+  snippet: string | null;
+  source: string | null;
+  title: string;
+}
+
+/** 'SearchArticles' query type */
+export interface ISearchArticlesQuery {
+  params: ISearchArticlesParams;
+  result: ISearchArticlesResult;
+}
+
+const searchArticlesIR: any = {
+  usedParamSet: { searchTerm: true, limit: true },
+  params: [
+    {
+      name: 'searchTerm',
+      required: true,
+      transform: { type: 'scalar' },
+      locs: [
+        { a: 199, b: 210 },
+        { a: 400, b: 411 },
+        { a: 580, b: 591 },
+      ],
+    },
+    { name: 'limit', required: true, transform: { type: 'scalar' }, locs: [{ a: 619, b: 625 }] },
+  ],
+  statement:
+    "SELECT\n  id,\n  title,\n  source,\n  author,\n  pub_date AS \"pubDate\",\n  ts_headline('english', title || ' ' || coalesce(description, '') || ' ' || coalesce(content, ''), websearch_to_tsquery('english', :searchTerm!),\n    'MaxWords=25,MinWords=8') AS snippet,\n  ts_rank_cd(to_tsvector('english', title || ' ' || coalesce(description, '') || ' ' || coalesce(content, '')), websearch_to_tsquery('english', :searchTerm!), 32) AS rank\nFROM articles\nWHERE to_tsvector('english', title || ' ' || coalesce(description, '') || ' ' || coalesce(content, '')) @@ websearch_to_tsquery('english', :searchTerm!)\nORDER BY rank DESC\nLIMIT :limit!",
+};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * SELECT
+ *   id,
+ *   title,
+ *   source,
+ *   author,
+ *   pub_date AS "pubDate",
+ *   ts_headline('english', title || ' ' || coalesce(description, '') || ' ' || coalesce(content, ''), websearch_to_tsquery('english', :searchTerm!),
+ *     'MaxWords=25,MinWords=8') AS snippet,
+ *   ts_rank_cd(to_tsvector('english', title || ' ' || coalesce(description, '') || ' ' || coalesce(content, '')), websearch_to_tsquery('english', :searchTerm!), 32) AS rank
+ * FROM articles
+ * WHERE to_tsvector('english', title || ' ' || coalesce(description, '') || ' ' || coalesce(content, '')) @@ websearch_to_tsquery('english', :searchTerm!)
+ * ORDER BY rank DESC
+ * LIMIT :limit!
+ * ```
+ */
+export const searchArticles = new PreparedQuery<ISearchArticlesParams, ISearchArticlesResult>(
+  searchArticlesIR,
+);
+
+/** 'SearchMedia' parameters type */
+export interface ISearchMediaParams {
+  limit: NumberOrString;
+  searchTerm: string;
+}
+
+/** 'SearchMedia' return type */
+export interface ISearchMediaResult {
+  description: string | null;
+  filename: string;
+  filePath: string;
+  fileType: string | null;
+  id: string;
+  rank: number | null;
+  snippet: string | null;
+  title: string | null;
+}
+
+/** 'SearchMedia' query type */
+export interface ISearchMediaQuery {
+  params: ISearchMediaParams;
+  result: ISearchMediaResult;
+}
+
+const searchMediaIR: any = {
+  usedParamSet: { searchTerm: true, limit: true },
+  params: [
+    {
+      name: 'searchTerm',
+      required: true,
+      transform: { type: 'scalar' },
+      locs: [
+        { a: 252, b: 263 },
+        { a: 455, b: 466 },
+        { a: 640, b: 651 },
+      ],
+    },
+    { name: 'limit', required: true, transform: { type: 'scalar' }, locs: [{ a: 679, b: 685 }] },
+  ],
+  statement:
+    "SELECT\n  id,\n  file_path AS \"filename\",\n  title,\n  description,\n  file_path AS \"filePath\",\n  file_type AS \"fileType\",\n  ts_headline('english', file_path || ' ' || coalesce(title, '') || ' ' || coalesce(description, ''), websearch_to_tsquery('english', :searchTerm!),\n    'MaxWords=25,MinWords=8') AS snippet,\n  ts_rank_cd(to_tsvector('english', file_path || ' ' || coalesce(title, '') || ' ' || coalesce(description, '')), websearch_to_tsquery('english', :searchTerm!), 32) AS rank\nFROM media_items\nWHERE to_tsvector('english', file_path || ' ' || coalesce(title, '') || ' ' || coalesce(description, '')) @@ websearch_to_tsquery('english', :searchTerm!)\nORDER BY rank DESC\nLIMIT :limit!",
+};
+
+/**
+ * Query generated from SQL:
+ * ```
+ * SELECT
+ *   id,
+ *   file_path AS "filename",
+ *   title,
+ *   description,
+ *   file_path AS "filePath",
+ *   file_type AS "fileType",
+ *   ts_headline('english', file_path || ' ' || coalesce(title, '') || ' ' || coalesce(description, ''), websearch_to_tsquery('english', :searchTerm!),
+ *     'MaxWords=25,MinWords=8') AS snippet,
+ *   ts_rank_cd(to_tsvector('english', file_path || ' ' || coalesce(title, '') || ' ' || coalesce(description, '')), websearch_to_tsquery('english', :searchTerm!), 32) AS rank
+ * FROM media_items
+ * WHERE to_tsvector('english', file_path || ' ' || coalesce(title, '') || ' ' || coalesce(description, '')) @@ websearch_to_tsquery('english', :searchTerm!)
+ * ORDER BY rank DESC
+ * LIMIT :limit!
+ * ```
+ */
+export const searchMedia = new PreparedQuery<ISearchMediaParams, ISearchMediaResult>(searchMediaIR);

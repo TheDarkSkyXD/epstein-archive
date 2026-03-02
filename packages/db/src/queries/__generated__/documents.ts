@@ -1,19 +1,51 @@
 /** Types generated for queries found in "src/queries/documents.sql" */
 import { PreparedQuery } from '@pgtyped/runtime';
 
+export type DateOrString = Date | string;
+
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 
 export type NumberOrString = number | string;
 
 export type stringArray = string[];
 
-/** Query 'GetDocuments' is invalid, so its result is assigned type 'never'.
- *  */
-export type IGetDocumentsResult = never;
+/** 'GetDocuments' parameters type */
+export interface IGetDocumentsParams {
+  endDate?: DateOrString | null | void;
+  evidenceType?: string | null | void;
+  fileTypes?: stringArray | null | void;
+  hasFailedRedactions?: boolean | null | void;
+  limit: NumberOrString;
+  maxRedFlag?: number | null | void;
+  minRedFlag?: number | null | void;
+  offset: NumberOrString;
+  search?: string | null | void;
+  sortBy?: string | null | void;
+  sources?: stringArray | null | void;
+  startDate?: DateOrString | null | void;
+}
 
-/** Query 'GetDocuments' is invalid, so its parameters are assigned type 'never'.
- *  */
-export type IGetDocumentsParams = never;
+/** 'GetDocuments' return type */
+export interface IGetDocumentsResult {
+  contentRefined: string | null;
+  dateCreated: Date | null;
+  evidenceType: string | null;
+  fileName: string | null;
+  fileSize: string | null;
+  fileType: string | null;
+  id: string;
+  metadata: Json | null;
+  redFlagRating: number | null;
+  sourceCollection: string | null;
+  title: string | null;
+  wordCount: number | null;
+}
+
+/** 'GetDocuments' query type */
+export interface IGetDocumentsQuery {
+  params: IGetDocumentsParams;
+  result: IGetDocumentsResult;
+}
 
 const getDocumentsIR: any = {
   usedParamSet: {
@@ -92,15 +124,18 @@ const getDocumentsIR: any = {
       name: 'hasFailedRedactions',
       required: false,
       transform: { type: 'scalar' },
-      locs: [{ a: 891, b: 910 }],
+      locs: [
+        { a: 867, b: 886 },
+        { a: 992, b: 1011 },
+      ],
     },
     {
       name: 'minRedFlag',
       required: false,
       transform: { type: 'scalar' },
       locs: [
-        { a: 947, b: 957 },
-        { a: 962, b: 972 },
+        { a: 1135, b: 1145 },
+        { a: 1150, b: 1160 },
       ],
     },
     {
@@ -108,8 +143,8 @@ const getDocumentsIR: any = {
       required: false,
       transform: { type: 'scalar' },
       locs: [
-        { a: 1009, b: 1019 },
-        { a: 1024, b: 1034 },
+        { a: 1197, b: 1207 },
+        { a: 1212, b: 1222 },
       ],
     },
     {
@@ -117,17 +152,17 @@ const getDocumentsIR: any = {
       required: false,
       transform: { type: 'scalar' },
       locs: [
-        { a: 1067, b: 1073 },
-        { a: 1124, b: 1130 },
-        { a: 1178, b: 1184 },
-        { a: 1202, b: 1208 },
+        { a: 1255, b: 1261 },
+        { a: 1312, b: 1318 },
+        { a: 1366, b: 1372 },
+        { a: 1390, b: 1396 },
       ],
     },
-    { name: 'limit', required: true, transform: { type: 'scalar' }, locs: [{ a: 1275, b: 1281 }] },
-    { name: 'offset', required: true, transform: { type: 'scalar' }, locs: [{ a: 1290, b: 1297 }] },
+    { name: 'limit', required: true, transform: { type: 'scalar' }, locs: [{ a: 1463, b: 1469 }] },
+    { name: 'offset', required: true, transform: { type: 'scalar' }, locs: [{ a: 1478, b: 1485 }] },
   ],
   statement:
-    'SELECT \n  id,\n  file_name as "fileName",\n  file_type as "fileType",\n  file_size as "fileSize",\n  date_created as "dateCreated",\n  content_refined as "contentRefined",\n  evidence_type as "evidenceType",\n  metadata_json as "metadata",\n  word_count as "wordCount",\n  red_flag_rating as "redFlagRating",\n  COALESCE(NULLIF(title, \'\'), file_name) as "title",\n  source_collection as "sourceCollection"\nFROM documents\nWHERE (:search::text IS NULL OR file_name ILIKE :search OR content_refined ILIKE :search OR source_collection ILIKE :search OR file_path ILIKE :search)\n  AND (file_type = ANY(:fileTypes) OR :fileTypes IS NULL)\n  AND (evidence_type = :evidenceType OR :evidenceType IS NULL)\n  AND (source_collection = ANY(:sources) OR :sources IS NULL)\n  AND (date_created >= :startDate OR :startDate IS NULL)\n  AND (date_created <= :endDate OR :endDate IS NULL)\n  AND (has_failed_redactions = 1 OR :hasFailedRedactions IS NULL)\n  AND (red_flag_rating >= :minRedFlag OR :minRedFlag IS NULL)\n  AND (red_flag_rating <= :maxRedFlag OR :maxRedFlag IS NULL)\nORDER BY \n  CASE WHEN :sortBy = \'date\' THEN date_created END DESC,\n  CASE WHEN :sortBy = \'title\' THEN file_name END ASC,\n  CASE WHEN :sortBy = \'red_flag\' OR :sortBy IS NULL THEN red_flag_rating END DESC,\n  date_created DESC\nLIMIT :limit! OFFSET :offset!',
+    'SELECT \n  id,\n  file_name as "fileName",\n  file_type as "fileType",\n  file_size as "fileSize",\n  date_created as "dateCreated",\n  content_refined as "contentRefined",\n  evidence_type as "evidenceType",\n  metadata_json as "metadata",\n  word_count as "wordCount",\n  red_flag_rating as "redFlagRating",\n  COALESCE(NULLIF(title, \'\'), file_name) as "title",\n  source_collection as "sourceCollection"\nFROM documents\nWHERE (:search::text IS NULL OR file_name ILIKE :search OR content_refined ILIKE :search OR source_collection ILIKE :search OR file_path ILIKE :search)\n  AND (file_type = ANY(:fileTypes) OR :fileTypes IS NULL)\n  AND (evidence_type = :evidenceType OR :evidenceType IS NULL)\n  AND (source_collection = ANY(:sources) OR :sources IS NULL)\n  AND (date_created >= :startDate OR :startDate IS NULL)\n  AND (date_created <= :endDate OR :endDate IS NULL)\n  AND (\n    :hasFailedRedactions::boolean IS NULL\n    OR LOWER(COALESCE(has_failed_redactions::text, \'\')) = ANY(\n      CASE\n        WHEN :hasFailedRedactions::boolean THEN ARRAY[\'1\', \'true\', \'t\']\n        ELSE ARRAY[\'0\', \'false\', \'f\']\n      END\n    )\n  )\n  AND (red_flag_rating >= :minRedFlag OR :minRedFlag IS NULL)\n  AND (red_flag_rating <= :maxRedFlag OR :maxRedFlag IS NULL)\nORDER BY \n  CASE WHEN :sortBy = \'date\' THEN date_created END DESC,\n  CASE WHEN :sortBy = \'title\' THEN file_name END ASC,\n  CASE WHEN :sortBy = \'red_flag\' OR :sortBy IS NULL THEN red_flag_rating END DESC,\n  date_created DESC\nLIMIT :limit! OFFSET :offset!',
 };
 
 /**
@@ -153,7 +188,15 @@ const getDocumentsIR: any = {
  *   AND (source_collection = ANY(:sources) OR :sources IS NULL)
  *   AND (date_created >= :startDate OR :startDate IS NULL)
  *   AND (date_created <= :endDate OR :endDate IS NULL)
- *   AND (has_failed_redactions = 1 OR :hasFailedRedactions IS NULL)
+ *   AND (
+ *     :hasFailedRedactions::boolean IS NULL
+ *     OR LOWER(COALESCE(has_failed_redactions::text, '')) = ANY(
+ *       CASE
+ *         WHEN :hasFailedRedactions::boolean THEN ARRAY['1', 'true', 't']
+ *         ELSE ARRAY['0', 'false', 'f']
+ *       END
+ *     )
+ *   )
  *   AND (red_flag_rating >= :minRedFlag OR :minRedFlag IS NULL)
  *   AND (red_flag_rating <= :maxRedFlag OR :maxRedFlag IS NULL)
  * ORDER BY

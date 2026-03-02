@@ -41,6 +41,7 @@ import { AddToInvestigationButton } from '../common/AddToInvestigationButton';
 // TODO: Apply OCR prettification - see UNUSED_VARIABLES_RECOMMENDATIONS.md
 // import { prettifyOCRText } from '../../utils/prettifyOCR';
 import { DocumentContentRenderer } from './DocumentContentRenderer';
+import { PDFVariantViewer } from './PDFVariantViewer';
 import { useHighlightNavigation } from '../../hooks/useHighlightNavigation';
 import { HighlightNavigationControls } from './HighlightNavigationControls';
 import { DocumentCard } from './DocumentCard';
@@ -556,6 +557,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
 
     // Determine active tab from URL
     type DocumentTab =
+      | 'pdf'
       | 'content'
       | 'original'
       | 'entities'
@@ -568,7 +570,9 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
       const tab = params.get('docTab') as DocumentTab | null;
       if (
         tab &&
-        ['content', 'original', 'entities', 'related', 'annotations', 'redactions'].includes(tab)
+        ['pdf', 'content', 'original', 'entities', 'related', 'annotations', 'redactions'].includes(
+          tab,
+        )
       ) {
         return tab;
       }
@@ -831,6 +835,16 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
           {/* Tab Navigation */}
           <div className="flex border-b border-gray-700 bg-gray-800 overflow-x-auto scrollbar-hide">
             <button
+              onClick={() => navigateToTab('pdf')}
+              className={`px-4 py-3 text-sm font-medium transition-colors ${
+                activeTab === 'pdf'
+                  ? 'text-blue-400 border-b-2 border-blue-400 bg-gray-700'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-700'
+              }`}
+            >
+              PDF View
+            </button>
+            <button
               onClick={() => navigateToTab('content')}
               className={`px-4 py-3 text-sm font-medium transition-colors ${
                 activeTab === 'content'
@@ -904,6 +918,9 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
 
           <div className="flex-1 overflow-hidden flex">
             <div className="flex-1 overflow-y-auto p-6 bg-gray-900" ref={contentRef}>
+              {activeTab === 'pdf' && selectedDocumentId && (
+                <PDFVariantViewer documentId={selectedDocumentId} className="h-full" />
+              )}
               {activeTab === 'content' && (
                 <DocumentContentRenderer
                   document={document}

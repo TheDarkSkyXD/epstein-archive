@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Document, Page, pdfjs } from 'react-pdf';
+import { pdfjs } from 'react-pdf';
 import {
   FileText,
-  Search,
   Fingerprint,
   Clock,
   User,
@@ -11,17 +10,13 @@ import {
   Phone,
   Mail,
   DollarSign,
-  ZoomIn,
-  ZoomOut,
-  RotateCw,
-  ChevronLeft,
-  ChevronRight,
   AlertTriangle,
   CheckCircle,
   XCircle,
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
+import { PDFVariantViewer } from '../documents/PDFVariantViewer';
 import {
   BarChart,
   Bar,
@@ -137,7 +132,6 @@ interface DetectedAnomaly {
 }
 
 interface ForensicDocumentAnalyzerProps {
-  documentUrl: string;
   documentId: string;
   onAnalysisComplete?: (analysis: ForensicAnalysis) => void;
   caseContext?: {
@@ -150,17 +144,12 @@ interface ForensicDocumentAnalyzerProps {
 
 // TODO: Use case context for document analysis - see UNUSED_VARIABLES_RECOMMENDATIONS.md
 export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> = ({
-  documentUrl,
   documentId,
   onAnalysisComplete,
   caseContext: _caseContext,
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [numPages, setNumPages] = useState<number>(0);
-  const [pageNumber, setPageNumber] = useState<number>(1);
-  const [scale, setScale] = useState<number>(1.0);
-  const [rotation, setRotation] = useState<number>(0);
   const [analysis, setAnalysis] = useState<ForensicAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [selectedEntity, setSelectedEntity] = useState<DetectedEntity | null>(null);
@@ -193,49 +182,44 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
       console.error('Error parsing URL parameters:', err);
     }
   }, []);
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [viewerWidth, setViewerWidth] = useState<number>(0);
   const [expandedSections, setExpandedSections] = useState<{ [key: string]: boolean }>({
     factors: false,
     fileInfo: false,
     docProps: false,
     textAnalysis: false,
   });
-  const viewerRef = useRef<HTMLDivElement>(null);
   const [docMeta, setDocMeta] = useState<{
     source_collection?: string;
     source_original_url?: string;
     credibility_score?: number;
     sensitivity_flags?: string[];
+    filePath?: string;
+    originalFilePath?: string;
+    cleanedPath?: string;
   } | null>(null);
-  const [localUrl, setLocalUrl] = useState<string>('');
 
   useEffect(() => {
-    const el = viewerRef.current;
-    if (!el) return;
-    const obs = new ResizeObserver(() => {
-      setViewerWidth(el.clientWidth);
-    });
-    obs.observe(el);
-    setViewerWidth(el.clientWidth);
-    return () => obs.disconnect();
+    // Resize observation no longer needed for PDF width here as it's handled in child or CSS
   }, []);
 
   useEffect(() => {
     const fetchDoc = async () => {
       try {
         if (activeId) {
-          const res = await fetch(`/api/documents/${activeId}`);
+          const res = await fetch(`/api/evidence/${activeId}`);
           if (res.ok) {
             const data = await res.json();
             const meta = data.metadata || {};
             setDocMeta({
-              source_collection: meta.source_collection,
+              source_collection: meta.source_collection || data.source_collection,
               source_original_url: meta.source_original_url,
               credibility_score: meta.credibility_score,
               sensitivity_flags: Array.isArray(meta.sensitivity_flags)
                 ? meta.sensitivity_flags
                 : [],
+              filePath: data.filePath,
+              originalFilePath: data.original_file_path || data.originalFilePath,
+              cleanedPath: data.cleanedPath,
             });
           }
         }
@@ -298,29 +282,8 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
     }
   }, [activeTab, activeId]);
 
-  const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
-    setNumPages(numPages);
-    setPageNumber(1);
-  };
-
-  const goToPrevPage = () => {
-    if (pageNumber > 1) {
-      setPageNumber(pageNumber - 1);
-    }
-  };
-
-  const goToNextPage = () => {
-    if (pageNumber < numPages) {
-      setPageNumber(pageNumber + 1);
-    }
-  };
-
-  const zoomIn = () => setScale(Math.min(2.0, scale + 0.2));
-  const zoomOut = () => setScale(Math.max(0.5, scale - 0.2));
-  const rotateClockwise = () => setRotation((rotation + 90) % 360);
-
   const startForensicAnalysis = async () => {
-    if (!(documentId || localUrl)) return;
+    if (!documentId) return;
     setIsAnalyzing(true);
     try {
       if (documentId) {
@@ -328,39 +291,7 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
         const data = await resp.json();
         setAnalysis(data);
         if (onAnalysisComplete) onAnalysisComplete(data);
-      } else {
-        // Local file analysis (basic client-side only)
-        const fileName = 'uploaded.pdf';
-        const now = new Date().toISOString();
-        const localAnalysis: any = {
-          id: `analysis-${Date.now()}`,
-          documentId: 'local-upload',
-          authenticity: { score: 50, verdict: 'inconclusive', factors: [] },
-          metadata: {
-            fileInfo: {
-              name: fileName,
-              size: 0,
-              type: 'application/pdf',
-              created: now,
-              modified: now,
-              hash: '',
-            },
-            textAnalysis: {
-              wordCount: 0,
-              characterCount: 0,
-              averageWordLength: 0,
-              readingLevel: 'Unknown',
-              sentiment: 'neutral',
-              writingStyle: 'formal',
-            },
-          },
-          entities: [],
-          patterns: [],
-          anomalies: [],
-          timestamp: now,
-        };
-        setAnalysis(localAnalysis);
-        if (onAnalysisComplete) onAnalysisComplete(localAnalysis);
+        if (onAnalysisComplete) onAnalysisComplete(data);
       }
     } catch (e) {
       console.error('Forensic analysis failed', e);
@@ -403,131 +334,12 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
 
   return (
     <div className="h-full bg-gray-900 text-gray-100 flex flex-col">
-      {/* Compact Toolbar */}
-      <div className="bg-gray-800 border-b border-gray-700 px-6 py-3">
-        <div className="flex items-center justify-between gap-4">
-          {/* Search */}
-          <div className="flex-1 max-w-md">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search document..."
-                className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
-              />
-            </div>
-          </div>
-
-          {/* Controls */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={zoomOut}
-              className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
-              title="Zoom Out"
-            >
-              <ZoomOut className="w-4 h-4" />
-            </button>
-            <span className="text-sm text-gray-400 min-w-16 text-center">
-              {Math.round(scale * 100)}%
-            </span>
-            <button
-              onClick={zoomIn}
-              className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
-              title="Zoom In"
-            >
-              <ZoomIn className="w-4 h-4" />
-            </button>
-            <button
-              onClick={rotateClockwise}
-              className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
-              title="Rotate"
-            >
-              <RotateCw className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* Main Content */}
       <div className="flex-1 overflow-hidden">
         <div className="h-full flex flex-col gap-6 p-6">
           {/* Document Viewer */}
-          <div className="flex flex-col bg-gray-800 rounded-lg overflow-hidden">
-            <div ref={viewerRef} className="flex-1 overflow-auto bg-gray-900">
-              {documentUrl || localUrl ? (
-                <Document
-                  file={documentUrl || localUrl}
-                  onLoadSuccess={onDocumentLoadSuccess}
-                  loading={<div className="p-8 text-center text-gray-400">Loading document...</div>}
-                  error={<div className="p-8 text-center text-red-400">Error loading document</div>}
-                >
-                  <div className="flex justify-center p-4">
-                    <Page
-                      pageNumber={pageNumber}
-                      width={viewerWidth ? Math.floor((viewerWidth - 32) * scale) : undefined}
-                      rotate={rotation}
-                      loading={<div className="p-8 text-center text-gray-400">Loading page...</div>}
-                    />
-                  </div>
-                </Document>
-              ) : (
-                <div className="h-full flex items-center justify-center p-8">
-                  <div className="max-w-md w-full text-center">
-                    <Fingerprint className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-300 mb-2">
-                      No document selected
-                    </h3>
-                    <p className="text-gray-400 mb-4">
-                      Upload a PDF or choose a document from the case to begin analysis.
-                    </p>
-                    <div className="flex items-center justify-center gap-3">
-                      <label className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg cursor-pointer">
-                        <input
-                          type="file"
-                          accept="application/pdf"
-                          className="hidden"
-                          onChange={(e) => {
-                            const f = e.target.files?.[0];
-                            if (!f) return;
-                            const url = URL.createObjectURL(f);
-                            setLocalUrl(url);
-                            setDocMeta({});
-                          }}
-                        />
-                        Upload PDF
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Page Navigation */}
-            {numPages > 0 && (
-              <div className="flex items-center justify-between bg-gray-800 border-t border-gray-700 px-4 py-3">
-                <button
-                  onClick={goToPrevPage}
-                  disabled={pageNumber <= 1}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-500 rounded-lg transition-colors text-sm"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  Previous
-                </button>
-                <span className="text-sm text-gray-400">
-                  Page {pageNumber} of {numPages}
-                </span>
-                <button
-                  onClick={goToNextPage}
-                  disabled={pageNumber >= numPages}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-500 rounded-lg transition-colors text-sm"
-                >
-                  Next
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            )}
+          <div className="flex flex-col bg-gray-800 rounded-lg overflow-hidden min-h-[500px]">
+            <PDFVariantViewer documentId={documentId} className="flex-1" />
           </div>
 
           {/* Analysis Panel */}
@@ -542,8 +354,8 @@ export const ForensicDocumentAnalyzer: React.FC<ForensicDocumentAnalyzerProps> =
                 </p>
                 <button
                   onClick={startForensicAnalysis}
-                  disabled={!(documentUrl || localUrl)}
-                  className={`flex items-center gap-2 px-6 py-3 rounded-lg transition-colors font-medium ${documentUrl || localUrl ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-gray-700 text-gray-400 cursor-not-allowed'}`}
+                  disabled={!documentId}
+                  className={`flex items-center gap-2 px-6 py-3 rounded-lg transition-colors font-medium ${documentId ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-gray-700 text-gray-400 cursor-not-allowed'}`}
                 >
                   <Fingerprint className="w-5 h-5" />
                   Analyze Document

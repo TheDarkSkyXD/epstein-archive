@@ -168,6 +168,8 @@ export interface EvidenceItem {
     notes?: string;
   };
   sensitivity?: 'public' | 'confidential' | 'restricted' | 'secret';
+  cleanedPath?: string;
+  originalFilePath?: string;
 }
 
 export interface ChainOfCustodyEvent {

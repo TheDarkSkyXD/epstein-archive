@@ -25,6 +25,7 @@ import { InvestigationTextRenderer } from './InvestigationTextRenderer';
 import { DocumentDiffView } from './DocumentDiffView';
 import { ProvenancePanel } from './ProvenancePanel';
 import { ViewerShell } from '../viewer/ViewerShell';
+import { PDFVariantViewer } from './PDFVariantViewer';
 
 interface Props {
   id: string;
@@ -35,6 +36,7 @@ interface Props {
 
 type ViewerTab =
   | 'summary'
+  | 'pdf'
   | 'clean'
   | 'ocr'
   | 'diff'
@@ -50,6 +52,7 @@ const VIEWER_TABS: Array<{
   count?: number;
 }> = [
   { key: 'summary', label: 'Summary' },
+  { key: 'pdf', label: 'PDF View' },
   { key: 'clean', label: 'Clean Text' },
   { key: 'ocr', label: 'Raw OCR' },
   { key: 'diff', label: 'Diff View' },
@@ -352,6 +355,8 @@ export const DocumentModal: React.FC<Props> = ({
 
   const mainPanel = () => {
     switch (activeTab) {
+      case 'pdf':
+        return <PDFVariantViewer documentId={id} className="h-[calc(100vh-320px)] min-h-[600px]" />;
       case 'summary':
         return (
           <div className="space-y-4">

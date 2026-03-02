@@ -25,6 +25,8 @@ export interface Document {
   parentDocumentId?: string;
   threadId?: string;
   threadPosition?: number;
+  cleanedPath?: string;
+  originalFilePath?: string;
 }
 
 export interface TechnicalMetadata {

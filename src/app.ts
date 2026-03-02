@@ -34,6 +34,7 @@ import articlesRoutes from './server/routes/articlesRoutes.js';
 import emailRoutes from './server/routes/emailRoutes.js';
 import financialRoutes from './server/routes/financialRoutes.js';
 import forensicRoutes from './server/routes/forensicRoutes.js';
+import documentsRoutes from './server/routes/documentsRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -169,6 +170,7 @@ export class App {
     router.use('/email', emailRoutes);
     router.use('/financial', financialRoutes);
     router.use('/forensic', forensicRoutes);
+    router.use('/documents', documentsRoutes);
 
     // Legacy/Direct routes that might need adjustment
     router.use('/investigation-evidence', investigationEvidenceRoutes);

@@ -669,7 +669,13 @@ class ApiClient {
   async search(
     query: string,
     limit: number = 20,
-  ): Promise<{ entities: Person[]; documents: any[] }> {
+  ): Promise<{
+    entities: Person[];
+    documents: any[];
+    investigations?: any[];
+    articles?: any[];
+    media?: any[];
+  }> {
     const params = new URLSearchParams();
     params.append('q', query);
     if (limit !== 20) params.append('limit', limit.toString());
@@ -685,7 +691,13 @@ class ApiClient {
           blackBookEntry: e.blackBookEntry || null,
         }))
       : [];
-    return { entities: ents as Person[], documents: r.documents || [] };
+    return {
+      entities: ents as Person[],
+      documents: r.documents || [],
+      investigations: r.investigations || [],
+      articles: r.articles || [],
+      media: r.media || [],
+    };
   }
 
   async searchEntities(query: string, limit: number = 20): Promise<Person[]> {

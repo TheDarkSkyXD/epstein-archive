@@ -51,38 +51,19 @@ export class MediaService {
   // ============ TAG OPERATIONS ============
 
   async getAllTags(): Promise<MediaTag[]> {
-    if (this.isPgClient()) {
-      return await this.pgRows<MediaTag>(
-        `SELECT id, name, category, ''::text as "dateCreated"
-         FROM media_tags
-         ORDER BY name`,
-      );
-    }
-    return (await this.db.all('SELECT * FROM media_tags ORDER BY name')) as MediaTag[];
+    return await this.pgRows<MediaTag>(
+      `SELECT id, name, category, created_at as "dateCreated"
+       FROM media_tags
+       ORDER BY name`,
+    );
   }
 
   // ============ ALBUM OPERATIONS ============
 
   async getAllAlbums(): Promise<Album[]> {
-    if (this.isPgClient()) {
-      const results = await this.pgRows<any>(`
-        SELECT
-          a.id, a.name, a.description, a.cover_image_id as "coverImageId",
-          a.created_at as "dateCreated", a.date_modified as "dateModified",
-          COUNT(i.id) as "imageCount",
-          ci.file_path as "coverImagePath"
-        FROM media_albums a
-        LEFT JOIN media_items i ON a.id = i.album_id AND i.file_type LIKE 'image/%'
-        LEFT JOIN media_items ci ON a.cover_image_id = ci.id
-        GROUP BY a.id, ci.file_path
-        HAVING COUNT(i.id) > 0
-        ORDER BY a.name
-      `);
-      return results.map((row) => ({ ...row, imageCount: Number(row.imageCount) }));
-    }
-    const results = (await this.db.all(`
-      SELECT 
-        a.id, a.name, a.description, a.cover_image_id as "coverImageId", 
+    const results = await this.pgRows<any>(`
+      SELECT
+        a.id, a.name, a.description, a.cover_image_id as "coverImageId",
         a.created_at as "dateCreated", a.date_modified as "dateModified",
         COUNT(i.id) as "imageCount",
         ci.file_path as "coverImagePath"
@@ -92,61 +73,37 @@ export class MediaService {
       GROUP BY a.id, ci.file_path
       HAVING COUNT(i.id) > 0
       ORDER BY a.name
-    `)) as any[];
-    return results.map((row) => ({
-      ...row,
-      imageCount: Number(row.imageCount),
-    }));
+    `);
+    return results.map((row) => ({ ...row, imageCount: Number(row.imageCount) }));
   }
 
   async getAlbumById(id: number): Promise<Album | undefined> {
-    if (this.isPgClient()) {
-      const row = await this.pgRow<any>(
-        `
-        SELECT
-          a.id, a.name, a.description, a.cover_image_id as "coverImageId",
-          a.created_at as "dateCreated", a.date_modified as "dateModified",
-          COUNT(i.id) as "imageCount",
-          ci.file_path as "coverImagePath"
-        FROM media_albums a
-        LEFT JOIN media_items i ON a.id = i.album_id AND i.file_type LIKE 'image/%'
-        LEFT JOIN media_items ci ON a.cover_image_id = ci.id
-        WHERE a.id = $1
-        GROUP BY a.id, ci.file_path
-      `,
-        [id],
-      );
-      if (!row) return undefined;
-      return { ...row, imageCount: Number(row.imageCount) };
-    }
-    const row = (await this.db.get(
+    const row = await this.pgRow<any>(
       `
-      SELECT 
-        a.id, a.name, a.description, a.cover_image_id as "coverImageId", 
+      SELECT
+        a.id, a.name, a.description, a.cover_image_id as "coverImageId",
         a.created_at as "dateCreated", a.date_modified as "dateModified",
         COUNT(i.id) as "imageCount",
         ci.file_path as "coverImagePath"
       FROM media_albums a
       LEFT JOIN media_items i ON a.id = i.album_id AND i.file_type LIKE 'image/%'
       LEFT JOIN media_items ci ON a.cover_image_id = ci.id
-      WHERE a.id = ?
+      WHERE a.id = $1
       GROUP BY a.id, ci.file_path
     `,
-      id,
-    )) as any;
+      [id],
+    );
     if (!row) return undefined;
-    return {
-      ...row,
-      imageCount: Number(row.imageCount),
-    };
+    return { ...row, imageCount: Number(row.imageCount) };
   }
 
   async createAlbum(name: string, description?: string): Promise<Album> {
     const query = `
       INSERT INTO media_albums (name, description)
-      VALUES (?, ?) RETURNING id
+      VALUES ($1, $2) RETURNING id
     `;
-    const result = (await this.db.get(query, name, description || null)) as any;
+    const result = await this.pgRow<{ id: number }>(query, [name, description || null]);
+    if (!result) throw new Error('Failed to create album');
     return (await this.getAlbumById(Number(result.id)))!;
   }
 
@@ -155,42 +112,44 @@ export class MediaService {
     const values: any[] = [];
 
     if (updates.name !== undefined) {
-      fields.push('name = ?');
+      fields.push('name');
       values.push(updates.name);
     }
     if (updates.description !== undefined) {
-      fields.push('description = ?');
-      values.push(updates.description);
+      fields.push('description');
+      values.push(updates.description || null);
     }
     if (updates.coverImageId !== undefined) {
-      fields.push('cover_image_id = ?');
+      fields.push('cover_image_id');
       values.push(updates.coverImageId);
     }
 
     if (fields.length > 0) {
+      const setClauses = fields.map((f, i) => `${f} = $${i + 1}`);
       values.push(id);
-      await this.db.run(
+      await this.pgExec(
         `
         UPDATE media_albums
-        SET ${fields.join(', ')}, date_modified = CURRENT_TIMESTAMP
-        WHERE id = ?
+        SET ${setClauses.join(', ')}, date_modified = CURRENT_TIMESTAMP
+        WHERE id = $${values.length}
       `,
-        ...values,
+        values,
       );
     }
   }
 
   async deleteAlbum(id: number): Promise<void> {
-    await this.db.run('DELETE FROM media_albums WHERE id = ?', id);
+    await this.pgExec('DELETE FROM media_albums WHERE id = $1', [id]);
   }
 
   /**
    * Get existing album by name or create a new one (idempotent)
    */
   async getOrCreateAlbum(name: string, description?: string): Promise<Album> {
-    const existing = (await this.db.get('SELECT id FROM media_albums WHERE name = ?', name)) as
-      | { id: number }
-      | undefined;
+    const existing = await this.pgRow<{ id: number }>(
+      'SELECT id FROM media_albums WHERE name = $1',
+      [name],
+    );
 
     if (existing) {
       return (await this.getAlbumById(existing.id))!;
@@ -204,12 +163,12 @@ export class MediaService {
    */
   async imageExists(originalFilename: string, albumId?: number): Promise<boolean> {
     const query = albumId
-      ? "SELECT id FROM media_items WHERE original_filename = ? AND album_id = ? AND file_type LIKE 'image/%'"
-      : "SELECT id FROM media_items WHERE original_filename = ? AND file_type LIKE 'image/%'";
+      ? "SELECT id FROM media_items WHERE original_filename = $1 AND album_id = $2 AND file_type LIKE 'image/%'"
+      : "SELECT id FROM media_items WHERE original_filename = $1 AND file_type LIKE 'image/%'";
 
     const row = albumId
-      ? await this.db.get(query, originalFilename, albumId)
-      : await this.db.get(query, originalFilename);
+      ? await this.pgRow(query, [originalFilename, albumId])
+      : await this.pgRow(query, [originalFilename]);
 
     return !!row;
   }
@@ -217,93 +176,8 @@ export class MediaService {
   // ============ IMAGE OPERATIONS ============
 
   async getAllImages(filter?: ImageFilter, sort?: ImageSort): Promise<MediaImage[]> {
-    if (this.isPgClient()) {
-      let query = `
-        SELECT
-          i.*,
-          i.file_path as path,
-          i.file_path as "filePath",
-          a.name as "albumName"
-        FROM media_items i
-        LEFT JOIN media_albums a ON i.album_id = a.id
-        WHERE i.file_type LIKE 'image/%'
-      `;
-
-      const conditions: string[] = [];
-      const params: any[] = [];
-      const bind = (value: any) => {
-        params.push(value);
-        return `$${params.length}`;
-      };
-
-      if (filter) {
-        if (filter.albumId) conditions.push(`i.album_id = ${bind(filter.albumId)}`);
-        if (filter.personId) {
-          conditions.push(
-            `i.id IN (SELECT media_item_id FROM media_item_people WHERE entity_id = ${bind(filter.personId)})`,
-          );
-        }
-        if (filter.tagId) {
-          conditions.push(
-            `i.id IN (SELECT media_item_id FROM media_item_tags WHERE tag_id = ${bind(filter.tagId)})`,
-          );
-        }
-        if (filter.hasPeople) {
-          conditions.push(
-            'EXISTS (SELECT 1 FROM media_item_people mp WHERE mp.media_item_id = i.id)',
-          );
-        }
-        if (filter.format) conditions.push(`i.file_type = ${bind(`image/${filter.format}`)}`);
-        if (filter.dateFrom) conditions.push(`i.date_taken >= ${bind(filter.dateFrom)}`);
-        if (filter.dateTo) conditions.push(`i.date_taken <= ${bind(filter.dateTo)}`);
-        if (filter.searchQuery) {
-          const p1 = bind(`%${filter.searchQuery}%`);
-          const p2 = bind(`%${filter.searchQuery}%`);
-          conditions.push(`(i.title ILIKE ${p1} OR i.description ILIKE ${p2})`);
-        }
-      }
-
-      if (conditions.length > 0) {
-        query += ' AND ' + conditions.join(' AND ');
-      }
-
-      const sortFieldMap: Record<string, string> = {
-        id: 'i.id',
-        created_at: 'i.created_at',
-        date_added: 'i.created_at',
-        date_taken: 'i.date_taken',
-        title: 'i.title',
-        file_size: 'i.file_size',
-      };
-      const fieldRaw = Array.isArray(sort?.field) ? sort?.field[0] : sort?.field;
-      const orderRaw = Array.isArray(sort?.order) ? sort?.order[0] : sort?.order;
-      const orderDir = String(orderRaw || 'desc').toLowerCase() === 'asc' ? 'ASC' : 'DESC';
-      const orderField = sortFieldMap[String(fieldRaw || 'created_at')] || 'i.created_at';
-      query += ` ORDER BY ${orderField} ${orderDir}, i.id DESC`;
-
-      if (filter?.limit) {
-        query += ` LIMIT ${bind(Number(filter.limit))}`;
-        if (filter?.offset) query += ` OFFSET ${bind(Number(filter.offset))}`;
-      }
-
-      const { rows } = await this.db.query(query, params);
-      return (rows as any[]).map((row) => ({
-        ...row,
-        id: Number(row.id),
-        path: row.file_path ?? row.path,
-        filePath: row.file_path ?? row.filePath,
-        thumbnailPath: row.thumbnail_path ?? row.thumbnailPath,
-        isSensitive: Boolean(row.is_sensitive ?? row.isSensitive),
-        fileSize: Number((row.file_size ?? row.fileSize) || 0),
-        dateAdded: row.created_at ? new Date(row.created_at).toISOString() : '',
-        dateModified: row.date_modified ? new Date(row.date_modified).toISOString() : '',
-        dateTaken: row.date_taken ? new Date(row.date_taken).toISOString() : undefined,
-        tags: [],
-      })) as MediaImage[];
-    }
-
     let query = `
-      SELECT 
+      SELECT
         i.*,
         i.file_path as path,
         i.file_path as "filePath",
@@ -315,42 +189,35 @@ export class MediaService {
 
     const conditions: string[] = [];
     const params: any[] = [];
+    const bind = (value: any) => {
+      params.push(value);
+      return `$${params.length}`;
+    };
 
     if (filter) {
-      if (filter.albumId) {
-        conditions.push('i.album_id = ?');
-        params.push(filter.albumId);
-      }
+      if (filter.albumId) conditions.push(`i.album_id = ${bind(filter.albumId)}`);
       if (filter.personId) {
         conditions.push(
-          'i.id IN (SELECT media_item_id FROM media_item_people WHERE entity_id = ?)',
+          `i.id IN (SELECT media_item_id FROM media_item_people WHERE entity_id = ${bind(filter.personId)})`,
         );
-        params.push(filter.personId);
       }
       if (filter.tagId) {
-        conditions.push('i.id IN (SELECT media_item_id FROM media_item_tags WHERE tag_id = ?)');
-        params.push(filter.tagId);
+        conditions.push(
+          `i.id IN (SELECT media_item_id FROM media_item_tags WHERE tag_id = ${bind(filter.tagId)})`,
+        );
       }
       if (filter.hasPeople) {
         conditions.push(
           'EXISTS (SELECT 1 FROM media_item_people mp WHERE mp.media_item_id = i.id)',
         );
       }
-      if (filter.format) {
-        conditions.push('i.file_type = ?');
-        params.push(`image/${filter.format}`);
-      }
-      if (filter.dateFrom) {
-        conditions.push('i.date_taken >= ?');
-        params.push(filter.dateFrom);
-      }
-      if (filter.dateTo) {
-        conditions.push('i.date_taken <= ?');
-        params.push(filter.dateTo);
-      }
+      if (filter.format) conditions.push(`i.file_type = ${bind(`image/${filter.format}`)}`);
+      if (filter.dateFrom) conditions.push(`i.date_taken >= ${bind(filter.dateFrom)}`);
+      if (filter.dateTo) conditions.push(`i.date_taken <= ${bind(filter.dateTo)}`);
       if (filter.searchQuery) {
-        conditions.push('(i.title ILIKE ? OR i.description ILIKE ?)');
-        params.push(`%${filter.searchQuery}%`, `%${filter.searchQuery}%`);
+        const p1 = bind(`%${filter.searchQuery}%`);
+        const p2 = bind(`%${filter.searchQuery}%`);
+        conditions.push(`(i.title ILIKE ${p1} OR i.description ILIKE ${p2})`);
       }
     }
 
@@ -358,209 +225,125 @@ export class MediaService {
       query += ' AND ' + conditions.join(' AND ');
     }
 
-    // Default sort
-    let orderBy = 'i.id DESC';
-    if (sort && sort.field && sort.order) {
-      const fieldRaw = Array.isArray(sort.field) ? sort.field[0] : sort.field;
-      const orderRaw = Array.isArray(sort.order) ? sort.order[0] : sort.order;
+    const sortFieldMap: Record<string, string> = {
+      id: 'i.id',
+      created_at: 'i.created_at',
+      date_added: 'i.created_at',
+      date_taken: 'i.date_taken',
+      title: 'i.title',
+      file_size: 'i.file_size',
+    };
+    const fieldRaw = Array.isArray(sort?.field) ? sort?.field[0] : sort?.field;
+    const orderRaw = Array.isArray(sort?.order) ? sort?.order[0] : sort?.order;
+    const orderDir = String(orderRaw || 'desc').toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+    const orderField = sortFieldMap[String(fieldRaw || 'created_at')] || 'i.created_at';
+    query += ` ORDER BY ${orderField} ${orderDir}, i.id DESC`;
 
-      const field = fieldRaw === 'date_added' ? 'created_at' : fieldRaw;
-      orderBy = `i.${field} ${String(orderRaw).toUpperCase()}`;
-    } else {
-      orderBy = 'i.created_at DESC';
-    }
-    query += ` ORDER BY ${orderBy}`;
-
-    // Add pagination if specified
     if (filter?.limit) {
-      query += ` LIMIT ${filter.limit}`;
-      if (filter?.offset) {
-        query += ` OFFSET ${filter.offset}`;
-      }
+      query += ` LIMIT ${bind(Number(filter.limit))}`;
+      if (filter?.offset) query += ` OFFSET ${bind(Number(filter.offset))}`;
     }
 
-    const results = (await this.db.all(query, ...params)) as any[];
-
-    return results.map((row) => ({
+    const rows = await this.pgRows<any>(query, params);
+    return rows.map((row) => ({
       ...row,
       id: Number(row.id),
-      path: row.file_path,
-      filePath: row.file_path,
-      thumbnailPath: row.thumbnail_path,
-      isSensitive: Boolean(row.is_sensitive),
-      fileSize: Number(row.file_size || 0),
+      path: row.file_path ?? row.path,
+      filePath: row.file_path ?? row.filePath,
+      thumbnailPath: row.thumbnail_path ?? row.thumbnailPath,
+      isSensitive: Boolean(row.is_sensitive ?? row.isSensitive),
+      fileSize: Number((row.file_size ?? row.fileSize) || 0),
       dateAdded: row.created_at ? new Date(row.created_at).toISOString() : '',
       dateModified: row.date_modified ? new Date(row.date_modified).toISOString() : '',
       dateTaken: row.date_taken ? new Date(row.date_taken).toISOString() : undefined,
       tags: [],
-    }));
+    })) as MediaImage[];
   }
 
   async getImageCount(filter?: ImageFilter): Promise<number> {
-    if (this.isPgClient()) {
-      let query =
-        "SELECT COUNT(DISTINCT i.id) as count FROM media_items i WHERE i.file_type LIKE 'image/%'";
-      const conditions: string[] = [];
-      const params: any[] = [];
-      const bind = (value: any) => {
-        params.push(value);
-        return `$${params.length}`;
-      };
-
-      if (filter) {
-        if (filter.albumId) conditions.push(`i.album_id = ${bind(filter.albumId)}`);
-        if (filter.personId) {
-          conditions.push(
-            `i.id IN (SELECT media_item_id FROM media_item_people WHERE entity_id = ${bind(filter.personId)})`,
-          );
-        }
-        if (filter.tagId) {
-          conditions.push(
-            `i.id IN (SELECT media_item_id FROM media_item_tags WHERE tag_id = ${bind(filter.tagId)})`,
-          );
-        }
-        if (filter.hasPeople) {
-          conditions.push(
-            'EXISTS (SELECT 1 FROM media_item_people mp WHERE mp.media_item_id = i.id)',
-          );
-        }
-        if (filter.format) conditions.push(`i.file_type = ${bind(`image/${filter.format}`)}`);
-        if (filter.dateFrom) conditions.push(`i.date_taken >= ${bind(filter.dateFrom)}`);
-        if (filter.dateTo) conditions.push(`i.date_taken <= ${bind(filter.dateTo)}`);
-        if (filter.searchQuery) {
-          const p1 = bind(`%${filter.searchQuery}%`);
-          const p2 = bind(`%${filter.searchQuery}%`);
-          conditions.push(`(i.title ILIKE ${p1} OR i.description ILIKE ${p2})`);
-        }
-      }
-
-      if (conditions.length > 0) query += ' AND ' + conditions.join(' AND ');
-      const { rows } = await this.db.query(query, params);
-      return Number(rows?.[0]?.count || 0);
-    }
-
     let query =
       "SELECT COUNT(DISTINCT i.id) as count FROM media_items i WHERE i.file_type LIKE 'image/%'";
-
     const conditions: string[] = [];
     const params: any[] = [];
+    const bind = (value: any) => {
+      params.push(value);
+      return `$${params.length}`;
+    };
 
     if (filter) {
-      if (filter.albumId) {
-        conditions.push('i.album_id = ?');
-        params.push(filter.albumId);
-      }
+      if (filter.albumId) conditions.push(`i.album_id = ${bind(filter.albumId)}`);
       if (filter.personId) {
         conditions.push(
-          'i.id IN (SELECT media_item_id FROM media_item_people WHERE entity_id = ?)',
+          `i.id IN (SELECT media_item_id FROM media_item_people WHERE entity_id = ${bind(filter.personId)})`,
         );
-        params.push(filter.personId);
       }
       if (filter.tagId) {
-        conditions.push('i.id IN (SELECT media_item_id FROM media_item_tags WHERE tag_id = ?)');
-        params.push(filter.tagId);
+        conditions.push(
+          `i.id IN (SELECT media_item_id FROM media_item_tags WHERE tag_id = ${bind(filter.tagId)})`,
+        );
       }
       if (filter.hasPeople) {
         conditions.push(
           'EXISTS (SELECT 1 FROM media_item_people mp WHERE mp.media_item_id = i.id)',
         );
       }
-      if (filter.format) {
-        conditions.push('i.file_type = ?');
-        params.push(`image/${filter.format}`);
-      }
-      if (filter.dateFrom) {
-        conditions.push('i.date_taken >= ?');
-        params.push(filter.dateFrom);
-      }
-      if (filter.dateTo) {
-        conditions.push('i.date_taken <= ?');
-        params.push(filter.dateTo);
-      }
+      if (filter.format) conditions.push(`i.file_type = ${bind(`image/${filter.format}`)}`);
+      if (filter.dateFrom) conditions.push(`i.date_taken >= ${bind(filter.dateFrom)}`);
+      if (filter.dateTo) conditions.push(`i.date_taken <= ${bind(filter.dateTo)}`);
       if (filter.searchQuery) {
-        conditions.push('(i.title ILIKE ? OR i.description ILIKE ?)');
-        params.push(`%${filter.searchQuery}%`, `%${filter.searchQuery}%`);
+        const p1 = bind(`%${filter.searchQuery}%`);
+        const p2 = bind(`%${filter.searchQuery}%`);
+        conditions.push(`(i.title ILIKE ${p1} OR i.description ILIKE ${p2})`);
       }
     }
 
-    if (conditions.length > 0) {
-      query += ' AND ' + conditions.join(' AND ');
-    }
-
-    const result = (await this.db.get(query, ...params)) as { count: number };
-    return Number(result.count);
+    if (conditions.length > 0) query += ' AND ' + conditions.join(' AND ');
+    const res = await this.pgRow<{ count: string | number }>(query, params);
+    return Number(res?.count || 0);
   }
 
   async getImageById(id: number): Promise<MediaImage | undefined> {
-    if (this.isPgClient()) {
-      const { rows } = await this.db.query(
-        `
-          SELECT
-            id,
-            entity_id,
-            document_id,
-            file_path,
-            thumbnail_path,
-            file_type,
-            file_size,
-            width,
-            height,
-            title,
-            description,
-            is_sensitive,
-            verification_status,
-            red_flag_rating,
-            metadata_json,
-            exif_json,
-            date_taken,
-            created_at
-          FROM media_items
-          WHERE id = $1
-          LIMIT 1
-        `,
-        [id],
-      );
-      const item = rows[0];
-      if (!item) return undefined;
-
-      return {
-        ...item,
-        id: Number(item.id),
-        path: item.file_path,
-        filePath: item.file_path,
-        thumbnailPath: item.thumbnail_path,
-        isSensitive: Boolean(item.is_sensitive),
-        redFlagRating: Number(item.red_flag_rating || 0),
-        width: Number(item.width || 0),
-        height: Number(item.height || 0),
-        fileSize: Number(item.file_size || 0),
-        dateAdded: item.created_at ? new Date(item.created_at).toISOString() : '',
-        dateModified: '',
-        dateTaken: item.date_taken ? new Date(item.date_taken).toISOString() : undefined,
-      } as any;
-    }
-
-    const rows = await mediaQueries.getMediaItemById.run(
-      { id: String(id) },
-      this.isPgClient() ? this.db : pgDb,
+    const item = await this.pgRow<any>(
+      `
+        SELECT
+          id,
+          entity_id as "entityId",
+          document_id as "documentId",
+          file_path as "filePath",
+          thumbnail_path as "thumbnailPath",
+          file_type as "fileType",
+          file_size as "fileSize",
+          width,
+          height,
+          title,
+          description,
+          is_sensitive as "isSensitive",
+          verification_status as "verificationStatus",
+          red_flag_rating as "redFlagRating",
+          metadata_json as "metadataJson",
+          exif_json as "exifJson",
+          date_taken as "dateTaken",
+          created_at as "createdAt"
+        FROM media_items
+        WHERE id = $1
+        LIMIT 1
+      `,
+      [id],
     );
-    const item = rows[0] as any;
     if (!item) return undefined;
 
     return {
       ...item,
       id: Number(item.id),
-      path: item.file_path,
-      filePath: item.file_path,
-      thumbnailPath: item.thumbnail_path,
-      isSensitive: Boolean(item.is_sensitive),
-      redFlagRating: Number(item.red_flag_rating || 0),
-      width: item.width || 0,
-      height: item.height || 0,
-      fileSize: Number(item.file_size || 0),
-      dateAdded: item.created_at ? new Date(item.created_at).toISOString() : '',
-      dateModified: item.date_modified ? new Date(item.date_modified).toISOString() : '',
-      dateTaken: item.date_taken ? new Date(item.date_taken).toISOString() : undefined,
+      path: item.filePath,
+      isSensitive: Boolean(item.isSensitive),
+      redFlagRating: Number(item.redFlagRating || 0),
+      width: Number(item.width || 0),
+      height: Number(item.height || 0),
+      fileSize: Number(item.fileSize || 0),
+      dateAdded: item.createdAt ? new Date(item.createdAt).toISOString() : '',
+      dateModified: '',
+      dateTaken: item.dateTaken ? new Date(item.dateTaken).toISOString() : undefined,
     } as any;
   }
 
@@ -574,12 +357,11 @@ export class MediaService {
         camera_make, camera_model, lens, focal_length, aperture, shutter_speed,
         iso, latitude, longitude, color_profile, orientation,
         created_at, date_modified
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       RETURNING id
     `;
 
-    const result = (await this.db.get(
-      query,
+    const result = await this.pgRow<{ id: number }>(query, [
       image.filename,
       image.originalFilename,
       image.path,
@@ -603,8 +385,9 @@ export class MediaService {
       image.longitude || null,
       image.colorProfile || null,
       image.orientation || 1,
-    )) as any;
+    ]);
 
+    if (!result) throw new Error('Failed to create image');
     return (await this.getImageById(Number(result.id)))!;
   }
 
@@ -626,37 +409,22 @@ export class MediaService {
     Object.entries(updates).forEach(([key, value]) => {
       const dbField = fieldMap[key];
       if (dbField) {
-        fields.push(`${dbField} = ?`);
+        fields.push(dbField);
         values.push(value);
       }
     });
 
     if (fields.length > 0) {
-      if (this.isPgClient()) {
-        const params: any[] = [];
-        const setClauses = fields.map((f, idx) => {
-          const dbField = f.split('=')[0].trim();
-          params.push(values[idx]);
-          return `${dbField} = $${params.length}`;
-        });
-        params.push(id);
-        await this.pgExec(
-          `
-          UPDATE media_items
-          SET ${setClauses.join(', ')}
-          WHERE id = $${params.length}
-        `,
-          params,
-        );
-      } else {
-        values.push(id);
-        const query = `
-          UPDATE media_items
-          SET ${fields.join(', ')}, date_modified = CURRENT_TIMESTAMP
-          WHERE id = ?
-        `;
-        await this.db.run(query, ...values);
-      }
+      const setClauses = fields.map((f, i) => `${f} = $${i + 1}`);
+      values.push(id);
+      await this.pgExec(
+        `
+        UPDATE media_items
+        SET ${setClauses.join(', ')}, date_modified = CURRENT_TIMESTAMP
+        WHERE id = $${values.length}
+      `,
+        values,
+      );
     }
   }
 
@@ -713,11 +481,7 @@ export class MediaService {
   }
 
   async deleteImage(id: number): Promise<void> {
-    if (this.isPgClient()) {
-      await this.pgExec('DELETE FROM media_items WHERE id = $1', [id]);
-      return;
-    }
-    await this.db.run('DELETE FROM media_items WHERE id = ?', id);
+    await this.pgExec('DELETE FROM media_items WHERE id = $1', [id]);
   }
 
   // ============ TAG OPERATIONS ============
@@ -725,20 +489,19 @@ export class MediaService {
   async createTag(name: string, category?: string): Promise<MediaTag> {
     const query = `
       INSERT INTO media_tags (name, category)
-      VALUES (?, ?) RETURNING id
+      VALUES ($1, $2) RETURNING id
     `;
-    const result = (await this.db.get(query, name, category || null)) as any;
+    const result = await this.pgRow<{ id: number }>(query, [name, category || null]);
+    if (!result) throw new Error('Failed to create tag');
     return (await this.getTagById(Number(result.id)))!;
   }
 
   async getTagById(id: number): Promise<MediaTag | undefined> {
-    return (await this.db.get('SELECT * FROM media_tags WHERE id = ?', id)) as MediaTag | undefined;
+    return await this.pgRow<MediaTag>('SELECT * FROM media_tags WHERE id = $1', [id]);
   }
 
   async getOrCreateTag(name: string, category?: string): Promise<MediaTag> {
-    let tag = (await this.db.get('SELECT * FROM media_tags WHERE name = ?', name)) as
-      | MediaTag
-      | undefined;
+    let tag = await this.pgRow<MediaTag>('SELECT * FROM media_tags WHERE name = $1', [name]);
 
     if (!tag) {
       tag = await this.createTag(name, category);
@@ -748,207 +511,106 @@ export class MediaService {
   }
 
   async addTagToImage(imageId: number, tagId: number): Promise<void> {
-    if (this.isPgClient()) {
-      await this.pgExec(
-        `
-        INSERT INTO media_item_tags (media_item_id, tag_id)
-        VALUES ($1, $2) ON CONFLICT DO NOTHING
-      `,
-        [imageId, tagId],
-      );
-      return;
-    }
-    await this.db.run(
+    await this.pgExec(
       `
       INSERT INTO media_item_tags (media_item_id, tag_id)
-      VALUES (?, ?) ON CONFLICT DO NOTHING
+      VALUES ($1, $2) ON CONFLICT DO NOTHING
     `,
-      imageId,
-      tagId,
+      [imageId, tagId],
     );
   }
 
   async removeTagFromImage(imageId: number, tagId: number): Promise<void> {
-    if (this.isPgClient()) {
-      await this.pgExec(
-        `
-        DELETE FROM media_item_tags
-        WHERE media_item_id = $1 AND tag_id = $2
-      `,
-        [imageId, tagId],
-      );
-      return;
-    }
-    await this.db.run(
+    await this.pgExec(
       `
       DELETE FROM media_item_tags
-      WHERE media_item_id = ? AND tag_id = ?
+      WHERE media_item_id = $1 AND tag_id = $2
     `,
-      imageId,
-      tagId,
+      [imageId, tagId],
     );
   }
 
   async getImageTags(imageId: number): Promise<MediaTag[]> {
-    return (await this.db.all(
+    return await this.pgRows<MediaTag>(
       `
       SELECT t.*
       FROM media_tags t
       JOIN media_item_tags it ON t.id = it.tag_id
-      WHERE it.media_item_id = ?
+      WHERE it.media_item_id = $1
       ORDER BY t.name
     `,
-      imageId,
-    )) as MediaTag[];
+      [imageId],
+    );
   }
 
   // ============ MEDIA ITEM (AUDIO/VIDEO) TAGS ============
 
   async addTagToItem(itemId: number, tagId: number): Promise<void> {
-    if (this.isPgClient()) {
-      await this.pgExec(
-        `
-        INSERT INTO media_item_tags (media_item_id, tag_id)
-        VALUES ($1, $2) ON CONFLICT DO NOTHING
-      `,
-        [itemId, tagId],
-      );
-      return;
-    }
-    await this.db.run(
+    await this.pgExec(
       `
       INSERT INTO media_item_tags (media_item_id, tag_id)
-      VALUES (?, ?) ON CONFLICT DO NOTHING
+      VALUES ($1, $2) ON CONFLICT DO NOTHING
     `,
-      itemId,
-      tagId,
+      [itemId, tagId],
     );
   }
 
   async removeTagFromItem(itemId: number, tagId: number): Promise<void> {
-    if (this.isPgClient()) {
-      await this.pgExec(
-        `
-        DELETE FROM media_item_tags
-        WHERE media_item_id = $1 AND tag_id = $2
-      `,
-        [itemId, tagId],
-      );
-      return;
-    }
-    await this.db.run(
+    await this.pgExec(
       `
       DELETE FROM media_item_tags
-      WHERE media_item_id = ? AND tag_id = ?
+      WHERE media_item_id = $1 AND tag_id = $2
     `,
-      itemId,
-      tagId,
+      [itemId, tagId],
     );
   }
 
   async addPersonToItem(itemId: number, personId: number): Promise<void> {
-    if (this.isPgClient()) {
-      await this.pgExec(
-        `
-        INSERT INTO media_item_people (media_item_id, entity_id)
-        VALUES ($1, $2) ON CONFLICT DO NOTHING
-      `,
-        [itemId, personId],
-      );
-      return;
-    }
-    await this.db.run(
+    await this.pgExec(
       `
       INSERT INTO media_item_people (media_item_id, entity_id)
-      VALUES (?, ?) ON CONFLICT DO NOTHING
+      VALUES ($1, $2) ON CONFLICT DO NOTHING
     `,
-      itemId,
-      personId,
+      [itemId, personId],
     );
   }
 
   async removePersonFromItem(itemId: number, personId: number): Promise<void> {
-    if (this.isPgClient()) {
-      await this.pgExec(
-        `
-        DELETE FROM media_item_people
-        WHERE media_item_id = $1 AND entity_id = $2
-      `,
-        [itemId, personId],
-      );
-      return;
-    }
-    await this.db.run(
+    await this.pgExec(
       `
       DELETE FROM media_item_people
-      WHERE media_item_id = ? AND entity_id = ?
+      WHERE media_item_id = $1 AND entity_id = $2
     `,
-      itemId,
-      personId,
+      [itemId, personId],
     );
   }
 
   // ============ STATISTICS ============
 
   async getMediaStats(): Promise<MediaStats> {
-    if (this.isPgClient()) {
-      const totalImagesRes = (await this.pgRow<{ count: string | number }>(
-        "SELECT COUNT(*) as count FROM media_items WHERE file_type LIKE 'image/%'",
-      )) || { count: 0 };
-      const totalAlbumsRes = (await this.pgRow<{ count: string | number }>(
-        'SELECT COUNT(*) as count FROM media_albums',
-      )) || { count: 0 };
-      const totalSizeRes = (await this.pgRow<{ size: string | number | null }>(
-        "SELECT COALESCE(SUM(file_size), 0) as size FROM media_items WHERE file_type LIKE 'image/%'",
-      )) || { size: 0 };
+    const totalImagesRes = (await this.pgRow<{ count: string | number }>(
+      "SELECT COUNT(*) as count FROM media_items WHERE file_type LIKE 'image/%'",
+    )) || { count: 0 };
+    const totalAlbumsRes = (await this.pgRow<{ count: string | number }>(
+      'SELECT COUNT(*) as count FROM media_albums',
+    )) || { count: 0 };
+    const totalSizeRes = (await this.pgRow<{ size: string | number | null }>(
+      "SELECT COALESCE(SUM(file_size), 0) as size FROM media_items WHERE file_type LIKE 'image/%'",
+    )) || { size: 0 };
 
-      const formatBreakdown = await this.pgRows<{ format: string; count: string | number }>(`
+    const formatBreakdown = await this.pgRows<{ format: string; count: string | number }>(`
         SELECT file_type as format, COUNT(*) as count
         FROM media_items
         WHERE file_type LIKE 'image/%'
         GROUP BY file_type
       `);
 
-      const albumBreakdown = await this.pgRows<{ name: string; count: string | number }>(`
+    const albumBreakdown = await this.pgRows<{ name: string; count: string | number }>(`
         SELECT a.name, COUNT(i.id) as count
         FROM media_albums a
         LEFT JOIN media_items i ON a.id = i.album_id AND i.file_type LIKE 'image/%'
         GROUP BY a.id, a.name
       `);
-
-      return {
-        totalImages: Number(totalImagesRes.count || 0),
-        totalAlbums: Number(totalAlbumsRes.count || 0),
-        totalSize: Number(totalSizeRes.size || 0),
-        formatBreakdown: Object.fromEntries(
-          formatBreakdown.map((f) => [f.format, Number(f.count)]),
-        ),
-        albumBreakdown: Object.fromEntries(albumBreakdown.map((a) => [a.name, Number(a.count)])),
-      };
-    }
-    const totalImagesRes = (await this.db.get(
-      "SELECT COUNT(*) as count FROM media_items WHERE file_type LIKE 'image/%'",
-    )) as { count: number };
-    const totalAlbumsRes = (await this.db.get('SELECT COUNT(*) as count FROM media_albums')) as {
-      count: number;
-    };
-    const totalSizeRes = (await this.db.get(
-      "SELECT SUM(file_size) as size FROM media_items WHERE file_type LIKE 'image/%'",
-    )) as { size: number };
-
-    const formatBreakdown = (await this.db.all(`
-      SELECT file_type as format, COUNT(*) as count
-      FROM media_items
-      WHERE file_type LIKE 'image/%'
-      GROUP BY file_type
-    `)) as { format: string; count: number }[];
-
-    const albumBreakdown = (await this.db.all(`
-      SELECT a.name, COUNT(i.id) as count
-      FROM media_albums a
-      LEFT JOIN media_items i ON a.id = i.album_id AND i.file_type LIKE 'image/%'
-      GROUP BY a.id, a.name
-    `)) as { name: string; count: number }[];
 
     return {
       totalImages: Number(totalImagesRes.count || 0),
@@ -1127,16 +789,15 @@ export class MediaService {
         shutter_speed, iso, latitude, longitude,
         created_at, date_modified
       ) VALUES (
-        ?, ?, ?, ?, ?,
-        ?, ?, ?, ?,
-        ?, ?, ?, ?,
-        ?, ?, ?, ?,
+        $1, $2, $3, $4, $5,
+        $6, $7, $8, $9,
+        $10, $11, $12, $13,
+        $14, $15, $16, $17,
         CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
       ) RETURNING id
     `;
 
-    const info = (await this.db.get(
-      query,
+    const info = await this.pgRow<{ id: number }>(query, [
       file.filename,
       file.originalname,
       file.path,
@@ -1154,8 +815,9 @@ export class MediaService {
       tags.ISO || null,
       tags.GPSLatitude || null,
       tags.GPSLongitude || null,
-    )) as any;
+    ]);
 
+    if (!info) throw new Error('Failed to create media item after upload');
     const finalImage = await this.getImageById(Number(info.id));
     return finalImage!;
   }

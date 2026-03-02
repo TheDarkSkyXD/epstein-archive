@@ -411,7 +411,7 @@ export const documentsRepository = {
       source_collection: 'Epstein Files',
       entities,
       mentionedEntities: entities,
-      original_file_path: (document as any).original_file_path || (document as any).filePath,
+      original_file_path: document.originalFilePath || document.filePath,
       redaction_spans: redactionSpans.map((s: any) => ({
         ...s,
         id: Number(s.id),

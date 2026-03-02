@@ -69,11 +69,11 @@ export const searchRepository = {
     // ── Entities ─────────────────────────────────────────────────────────────
     const entityRows = isPrefix
       ? await searchQueries.searchEntitiesPrefix.run(
-          { searchTerm: tsArg, limit: BigInt(safeLimit) },
+          { searchTerm: tsArg, limit: safeLimit },
           getApiPool(),
         )
       : await searchQueries.searchEntities.run(
-          { searchTerm: tsArg, limit: BigInt(safeLimit) },
+          { searchTerm: tsArg, limit: safeLimit },
           getApiPool(),
         );
 
@@ -94,7 +94,7 @@ export const searchRepository = {
       ? await searchQueries.searchDocumentsPrefix.run(
           {
             searchTerm: tsArg,
-            limit: BigInt(safeLimit),
+            limit: safeLimit,
             evidenceType:
               filters.evidenceType && filters.evidenceType !== 'ALL'
                 ? filters.evidenceType.toLowerCase()
@@ -107,7 +107,7 @@ export const searchRepository = {
       : await searchQueries.searchDocuments.run(
           {
             searchTerm: tsArg,
-            limit: BigInt(safeLimit),
+            limit: safeLimit,
             evidenceType:
               filters.evidenceType && filters.evidenceType !== 'ALL'
                 ? filters.evidenceType.toLowerCase()
@@ -117,6 +117,24 @@ export const searchRepository = {
           },
           getApiPool(),
         );
+
+    // ── Investigations ───────────────────────────────────────────────────────
+    const investigationRows = await searchQueries.searchInvestigations.run(
+      { searchTerm: tsArg, limit: safeLimit },
+      getApiPool(),
+    );
+
+    // ── Articles ─────────────────────────────────────────────────────────────
+    const articleRows = await searchQueries.searchArticles.run(
+      { searchTerm: tsArg, limit: safeLimit },
+      getApiPool(),
+    );
+
+    // ── Media ────────────────────────────────────────────────────────────────
+    const mediaRows = await searchQueries.searchMedia.run(
+      { searchTerm: tsArg, limit: safeLimit },
+      getApiPool(),
+    );
 
     const entityIds = entityRows
       .map((row: any) => Number(row.id))
@@ -236,6 +254,34 @@ export const searchRepository = {
           snippet: row.snippet,
         };
       }),
+      investigations: investigationRows.map((row: any) => ({
+        id: String(row.id),
+        uuid: row.uuid,
+        title: row.title,
+        description: row.description,
+        status: row.status,
+        snippet: row.snippet,
+        rank: row.rank,
+      })),
+      articles: articleRows.map((row: any) => ({
+        id: String(row.id),
+        title: row.title,
+        source: row.source,
+        author: row.author,
+        pubDate: row.pubDate,
+        snippet: row.snippet,
+        rank: row.rank,
+      })),
+      media: mediaRows.map((row: any) => ({
+        id: String(row.id),
+        filename: row.filename,
+        title: row.title,
+        description: row.description,
+        filePath: row.filePath,
+        fileType: row.fileType,
+        snippet: row.snippet,
+        rank: row.rank,
+      })),
     };
   },
 
@@ -247,7 +293,7 @@ export const searchRepository = {
 
     try {
       const rows = await searchQueries.searchSentences.run(
-        { searchTerm, limit: BigInt(safeLimit) },
+        { searchTerm, limit: safeLimit },
         getApiPool(),
       );
       return rows;

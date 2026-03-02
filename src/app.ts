@@ -41,6 +41,9 @@ import emailRoutes from './server/routes/emailRoutes.js';
 import financialRoutes from './server/routes/financialRoutes.js';
 import forensicRoutes from './server/routes/forensicRoutes.js';
 import documentsRoutes from './server/routes/documentsRoutes.js';
+import { entitiesRepository } from './server/db/entitiesRepository.js';
+import { mapSubjectsListResponseDto } from './server/mappers/entitiesDtoMapper.js';
+import { validate, subjectsQuerySchema } from './server/middleware/validate.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -248,6 +251,41 @@ export class App {
 
     // Mount routes
     router.use('/auth', authRoutes);
+    router.get(
+      '/subjects',
+      authenticateRequest,
+      validate(subjectsQuerySchema, 'query'),
+      async (req, res, next) => {
+        try {
+          const query = req.query as any;
+          const page = Number(query.page || 1);
+          const limit = Number(query.limit || 24);
+          const likelihoodRaw = query.likelihoodScore;
+          const likelihoodScore = Array.isArray(likelihoodRaw)
+            ? likelihoodRaw
+            : typeof likelihoodRaw === 'string' && likelihoodRaw.length > 0
+              ? [likelihoodRaw]
+              : undefined;
+
+          const result = await entitiesRepository.getSubjectCards(
+            page,
+            limit,
+            {
+              searchTerm: query.search,
+              role: query.role,
+              entityType: query.entityType,
+              likelihoodScore,
+              sortOrder: String(query.sortOrder || 'desc').toLowerCase() === 'asc' ? 'asc' : 'desc',
+            } as any,
+            (query.sortBy as any) || 'risk',
+          );
+
+          res.json(mapSubjectsListResponseDto(result));
+        } catch (error) {
+          next(error);
+        }
+      },
+    );
     router.use('/stats', statsRoutes);
     router.use('/relationships', relationshipsRoutes);
     router.use('/analytics', analyticsRoutes);

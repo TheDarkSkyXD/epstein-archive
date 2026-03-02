@@ -7,6 +7,7 @@
   - `GET /api/ready` -> `307 /api/health/ready`
   - `GET /api/_meta/db` for deploy/monitoring metadata checks.
 - Reinstated strict RBAC on media APIs in the active runtime path (`/api/media/*` now requires auth), aligning with post-deploy verification gates.
+- Restored authenticated `/api/subjects` route in the active runtime path (no SPA fallback false-200 on API path misses).
 - Removed false-positive operational UI state: footer now requires both readiness success and protected data-route probe success before showing **System Operational**.
 - Standardized release progression to strict `MAJOR.MINOR.PATCH` for active releases and bumped minor from `15.0.1` to `15.1.0`.
 

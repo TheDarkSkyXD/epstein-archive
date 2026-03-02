@@ -1,4 +1,4 @@
-# QA Matrix: v14.7.x Postgres Stabilization Follow-up
+# QA Matrix: v14.7.0 Postgres Stabilization Follow-up
 
 Date: 2026-02-25
 Scope: Postgres migration stabilization, API contract compatibility, UI regression validation, focused E2E coverage refresh

@@ -308,7 +308,13 @@ router.post('/:id/analyze', validate(evidenceIdSchema), async (req: Request, res
       notes: `OCR quality: ${ocrQualityScore.toFixed(2)}, provenance: ${provenanceScore.toFixed(2)}. Signal score (heuristic only): ${documentSignalScore.toFixed(2)}`,
     });
 
-    res.json({ success: true, metrics, documentSignalScore });
+    // authenticityScore is a deprecated alias kept for backward compatibility
+    res.json({
+      success: true,
+      metrics,
+      documentSignalScore,
+      authenticityScore: documentSignalScore,
+    });
   } catch (e) {
     console.error('Analysis error:', e);
     res.status(500).json({ error: 'Analysis failed' });

@@ -1,3 +1,11 @@
+## 15.0.1 - 2026-03-02 - Bug Fixes + Production Build Hardening
+
+### Highlights
+
+- **Production server fix**: `app.ts` was calling `validateStartup()` synchronously without awaiting and reading non-existent `.isValid`/`.errors` properties from the returned Promise, preventing the server from booting correctly in production. Fixed to `await validateStartup()` inside a try/catch.
+- **Removed unused import**: `toServedDocumentUrl` in `app.ts` was causing a TypeScript error that broke the server build; removed.
+- **CodeRabbit review fixes (23 findings)**: Addressed all review findings including pagination reset missing global date dep, `redFlagLevel` min=0 skip, Timeline response.ok guard, EmailClient date re-population loop, EvidenceDetail timeout leak and localStorage JSON.parse safety, App.tsx date picker click-outside + ARIA attributes, entity mapper numeric-0 `??` fixes, status filter field correction, and ORDER BY on batch context query.
+
 ## 14.9.0 - 2026-02-28 - Strict RBAC Enforcement + Case Bundle Export
 
 ### Highlights

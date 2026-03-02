@@ -8,8 +8,11 @@ The Epstein Archive API provides access to the document corpus, entity graph, an
 
 ## Authentication
 
-Currently, the API is open for read access but requires authentication headers for mutation operations in production.
-_(Note: Full JWT implementation is pending in Tier 5)_
+The API uses JWT (JSON Web Tokens) for authentication.
+
+- **Header**: `Authorization: Bearer <token>`
+- **Login**: `POST /api/auth/login`
+- **Access**: Read-only routes may be public; mutation routes require authentication.
 
 ## Endpoints
 

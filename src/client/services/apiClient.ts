@@ -755,10 +755,13 @@ class ApiClient {
   }
 
   async getEvidence(evidenceId: string): Promise<any> {
-    return this.fetchWithErrorHandling<any>(`${API_BASE_URL}/evidence/${evidenceId}`, {
-      useCache: true,
-      cacheTtl: 30000,
-    });
+    return this.fetchWithErrorHandling<any>(
+      `${API_BASE_URL}/evidence/${encodeURIComponent(evidenceId)}`,
+      {
+        useCache: true,
+        cacheTtl: 30000,
+      },
+    );
   }
 
   async getEvidenceMetrics(documentId: string): Promise<any> {
@@ -1046,8 +1049,10 @@ class ApiClient {
     if (filters.endDate) params.append('endDate', filters.endDate);
     if (filters.fileType && filters.fileType.length > 0)
       params.append('fileType', filters.fileType.join(','));
-    if (filters.redFlagLevel?.min) params.append('minRedFlag', filters.redFlagLevel.min.toString());
-    if (filters.redFlagLevel?.max) params.append('maxRedFlag', filters.redFlagLevel.max.toString());
+    if (filters.redFlagLevel?.min !== undefined)
+      params.append('minRedFlag', filters.redFlagLevel.min.toString());
+    if (filters.redFlagLevel?.max !== undefined)
+      params.append('maxRedFlag', filters.redFlagLevel.max.toString());
 
     const url = `${API_BASE_URL}/documents?${params.toString()}`;
     const raw = await this.fetchWithErrorHandling<unknown>(url);

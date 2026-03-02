@@ -410,6 +410,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
     filters.dateRange,
     filters.fileType,
     filters.redFlagLevel,
+    globalFilters.timeRange,
   ]);
 
   // Apply client-side filters (credibility only - other filters handled by API)

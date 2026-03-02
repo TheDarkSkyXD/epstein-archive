@@ -18,8 +18,8 @@
 
 ### Prerequisites
 
-- Node.js v18+
-- SQLite3
+- Node.js v20+
+- PostgreSQL 15+
 - pnpm
 
 ### Installation
@@ -30,15 +30,22 @@ git clone <repo-url>
 cd epstein-archive
 pnpm install
 
-# Setup Database (Scenario A: Sample Data)
-# Points to the included sample.db (~50 docs, ~130 entities)
-echo "DB_PATH=./sample.db" > .env.local
-
-# Scenario B: Full Ingestion (Requires 300GB+ SSD)
-# See TECHNICAL_OVERVIEW.md for pipeline details
+# Setup Database
+# Ensure PostgreSQL is running and DATABASE_URL is set in .env
+pnpm db:migrate:pg
 
 # Start development server
 pnpm dev
+```
+
+### Testing
+
+```bash
+# Unit Tests (Vitest)
+pnpm test:unit
+
+# End-to-End Tests (Playwright)
+pnpm test:e2e
 ```
 
 ### Production Build

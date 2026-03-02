@@ -88,6 +88,7 @@ export const Timeline: React.FC<TimelineProps> = React.memo(({ className = '' })
       if (end) params.set('endDate', end);
       const qs = params.toString();
       const response = await fetch(`/api/timeline${qs ? `?${qs}` : ''}`);
+      if (!response.ok) throw new Error(`Timeline API error: ${response.status}`);
       const data = await response.json();
 
       console.log('Timeline API response:', data);

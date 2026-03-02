@@ -343,6 +343,7 @@ export const documentsRepository = {
           AND entity_id = ANY($2::int[])
           AND mention_context IS NOT NULL
           AND mention_context != ''
+        ORDER BY entity_id, id
         LIMIT 200
       `;
       const batchCtxRes = await getApiPool().query(batchContextSql, [docId, entityIds]);

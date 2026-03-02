@@ -43,7 +43,7 @@ export function searchPeople(
 
   if (filters.status !== 'all') {
     filtered = filtered.filter((person) =>
-      person.likelihood_score?.toLowerCase().includes(filters.status?.toLowerCase() || ''),
+      person.status?.toLowerCase().includes(filters.status?.toLowerCase() || ''),
     );
   }
 

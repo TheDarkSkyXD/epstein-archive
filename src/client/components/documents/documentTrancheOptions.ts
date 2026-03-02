@@ -30,7 +30,7 @@ export const DOJ_TRANCHE_OPTIONS: Array<{ value: string; label: string; sources:
   },
   {
     value: 'doj-dataset-9-11',
-    label: 'DOJ Data Set 9-11',
+    label: 'DOJ Data Sets 9-11',
     sources: ['DOJ Data Set 9', 'DOJ Data Set 10', 'DOJ Data Set 11'],
   },
   {

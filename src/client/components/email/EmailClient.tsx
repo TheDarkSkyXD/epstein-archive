@@ -274,12 +274,23 @@ export const EmailClient: React.FC = () => {
     return () => window.clearTimeout(timer);
   }, [searchInput]);
 
-  // Sync global date range into local state when URL params are absent
+  // Sync global date range into local state when URL params are absent.
+  // Use a ref to track the last value we synced so that a user clearing
+  // their local date (which doesn't change globalTime*) won't be immediately
+  // re-populated on the next render.
   const globalTimeStart = globalFilters.timeRange[0];
   const globalTimeEnd = globalFilters.timeRange[1];
+  const lastSyncedFromRef = useRef<string | null | undefined>(undefined);
+  const lastSyncedToRef = useRef<string | null | undefined>(undefined);
   useEffect(() => {
-    if (!searchParams.get('dateFrom') && globalTimeStart) setDateFrom(globalTimeStart);
-    if (!searchParams.get('dateTo') && globalTimeEnd) setDateTo(globalTimeEnd);
+    if (!searchParams.get('dateFrom') && globalTimeStart !== lastSyncedFromRef.current) {
+      lastSyncedFromRef.current = globalTimeStart;
+      if (globalTimeStart) setDateFrom(globalTimeStart);
+    }
+    if (!searchParams.get('dateTo') && globalTimeEnd !== lastSyncedToRef.current) {
+      lastSyncedToRef.current = globalTimeEnd;
+      if (globalTimeEnd) setDateTo(globalTimeEnd);
+    }
   }, [globalTimeStart, globalTimeEnd, searchParams]);
 
   const withBodyLimiter = useCallback(async (task: () => Promise<void>) => {

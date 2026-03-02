@@ -104,8 +104,8 @@ export const mapEntityListItemDto = (
   likelihood_score: String(
     entity.likelihood_score || entity.risk_level || entity.riskLevel || 'LOW',
   ).toUpperCase() as RiskLevel,
-  red_flag_score: Number(entity.red_flag_score || entity.redFlagScore || 0),
-  red_flag_rating: Number(entity.red_flag_rating || entity.redFlagRating || 0),
+  red_flag_score: Number(entity.red_flag_score ?? entity.redFlagScore ?? 0),
+  red_flag_rating: Number(entity.red_flag_rating ?? entity.redFlagRating ?? 0),
   red_flag_peppers:
     typeof entity.red_flag_rating === 'number' && entity.red_flag_rating > 0
       ? '🚩'.repeat(entity.red_flag_rating)

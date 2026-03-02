@@ -31,7 +31,7 @@ export const relationshipsRepository = {
        FROM entity_relationships
        WHERE (source_entity_id = $1::bigint OR target_entity_id = $1::bigint)
          AND ($2::float IS NULL OR proximity_score >= $2)
-         AND ($3::float IS NULL OR 1 >= $3)
+         AND ($3::float IS NULL OR 1.0 >= $3)
        ORDER BY proximity_score DESC
        LIMIT $4::int`,
       [

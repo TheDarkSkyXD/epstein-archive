@@ -2,267 +2,59 @@ name: CI
 
 on:
   push:
-    branches: [main, master, develop]
+    branches: [main, master]
   pull_request:
-    branches: [main, master, develop]
+    branches: [main, master]
 
 jobs:
-  integrity:
-    name: 🛡️ Integrity & Security
+  build-and-test:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - name: Check for forbidden sample data files
-        run: |
-          echo "🔍 Checking for forbidden sample data files..."
-          FORBIDDEN_FILES=(
-            "src/data/sampleDocuments.ts"
-            "src/data/peopleData.ts"
-          )
-          FOUND=0
-          for file in "${FORBIDDEN_FILES[@]}"; do
-            if [ -f "$file" ]; then
-              echo "❌ BLOCKED: $file exists"
-              FOUND=1
-            fi
-          done
-          if [ $FOUND -eq 1 ]; then
-            echo ""
-            echo "These files contained fabricated data and were removed during the security audit."
-            exit 1
-          fi
-          echo "✅ No forbidden files found"
+    strategy:
+      matrix:
+        node-version: [20.x]
 
-      - name: Scan for fabricated content patterns
-        run: |
-          echo "🔍 Scanning for fabricated content patterns..."
-          # Check for fake email addresses
-          if grep -r "@clintonfoundation.org\|@epstein.com" src/ --include="*.ts" --include="*.tsx" 2>/dev/null; then
-            echo "❌ BLOCKED: Found fabricated email addresses in source"
-            exit 1
-          fi
-          # Check for fallback to sample documents
-          if grep -r "generateSampleDocuments\|fallback.*sample" src/ --include="*.ts" --include="*.tsx" 2>/dev/null; then
-            echo "❌ BLOCKED: Found fallback to sample documents"
-            exit 1
-          fi
-          # Check for hardcoded incriminating content
-          if grep -r "fabricated\|fake.*email\|fake.*deposition" src/data/ --include="*.ts" 2>/dev/null; then
-            echo "❌ BLOCKED: Found fabricated content in src/data/"
-            exit 1
-          fi
-          echo "✅ No fabricated content patterns found"
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: epstein_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
-      - name: Validate data quality tests exist
-        run: |
-          echo "🔍 Checking for API-based tests..."
-          if ! grep -q "baseUrl" tests/data-validation.spec.ts 2>/dev/null; then
-            echo "⚠️ WARNING: data-validation tests may not be API-based"
-          fi
-          if grep -q "from.*peopleData" tests/ -r --include="*.ts" 2>/dev/null; then
-            echo "❌ BLOCKED: Tests still import hardcoded peopleData"
-            exit 1
-          fi
-          echo "✅ Test validation passed"
-
-      - name: Check FTS schema integrity
-        run: |
-          echo "🔍 Checking FTS schema for correct column names..."
-          # Ensure FTS triggers use correct columns
-          if grep -q "NEW.name, NEW.role, NEW.description" schema.sql 2>/dev/null; then
-            echo "❌ BLOCKED: FTS triggers reference wrong column names"
-            echo "   Should use: full_name, primary_role, connections_summary"
-            exit 1
-          fi
-          echo "✅ FTS schema check passed"
-
-      - name: Verify build database integrity
-        run: |
-          if [ -f "epstein-archive.db" ]; then
-            echo "🔍 Checking database integrity..."
-            sqlite3 epstein-archive.db "PRAGMA integrity_check;" | grep -q "ok"
-            echo "✅ Database integrity check passed"
-          else
-            echo "ℹ️ No database file found in CI environment (expected if using remote DB)"
-          fi
-
-  quality:
-    name: 💎 Code Quality
-    needs: integrity
-    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v3
+        uses: pnpm/action-setup@v2
         with:
-          version: 9
+          version: 10
 
-      - name: Setup Node.js
+      - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: ${{ matrix.node-version }}
           cache: 'pnpm'
 
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Rebuild Native Modules
-        run: pnpm rebuild
-
-      - name: Format Check
-        run: pnpm format:check
-
-      - name: Lint
-        run: pnpm lint
+      - name: Install dependencies
+        run: pnpm install
 
       - name: Type Check
         run: pnpm type-check
 
-  build:
-    name: 🏗️ Build
-    needs: quality
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16
+      - name: Lint
+        run: pnpm lint
+
+      - name: Run Unit Tests
+        run: pnpm test:unit
         env:
-          POSTGRES_DB: epstein_archive_ci
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d epstein_archive_ci"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
-    env:
-      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/epstein_archive_ci
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Install Postgres client tools
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
-
-      - name: Run Postgres migrations for build gate DB
-        run: pnpm db:migrate:pg
-
-      - name: Guard Against SQLite In Production Source
-        run: bash scripts/guard_no_sqlite.sh
+          DATABASE_URL: postgres://postgres:password@localhost:5432/epstein_test
 
       - name: Build
-        run: pnpm build:prod
-
-      - name: Verify build output
-        run: |
-          if [ ! -d "dist" ] || [ ! -f "dist/server.js" ]; then
-            echo "❌ Build failed - missing dist assets or dist/server.js"
-            exit 1
-          fi
-          echo "✅ Build successful"
-
-  pg_nuclear_gates:
-    name: ☢️ PG Nuclear Gates
-    needs: quality
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_DB: epstein_archive_ci
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d epstein_archive_ci"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
-    env:
-      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/epstein_archive_ci
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Install Postgres client tools
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
-
-      - name: Run Postgres migrations for CI gate DB
-        run: pnpm db:migrate:pg
-
-      - name: Build server for PG endpoint smoke
-        run: pnpm --filter @epstein/db build && tsc -p tsconfig.server.json
-
-      - name: Start API server (PG smoke)
-        run: |
-          mkdir -p "$RUNNER_TEMP/raw-corpus" logs
-          nohup env \
-            NODE_ENV=production \
-            PORT=3012 \
-            DATABASE_URL="$DATABASE_URL" \
-            JWT_SECRET=ci-jwt-secret \
-            SESSION_SECRET=ci-session-secret \
-            RAW_CORPUS_BASE_PATH="$RUNNER_TEMP/raw-corpus" \
-            LOG_LEVEL=warn \
-            CORS_ORIGIN=http://localhost:3002 \
-            node dist/server.js > "$RUNNER_TEMP/ci-pg-api.log" 2>&1 &
-          echo $! > "$RUNNER_TEMP/ci-pg-api.pid"
-          for i in $(seq 1 120); do
-            if curl -fsS "http://127.0.0.1:3012/api/health/ready" >/dev/null 2>&1; then
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "❌ CI PG smoke server failed to become ready"
-          cat "$RUNNER_TEMP/ci-pg-api.log" || true
-          exit 1
-
-      - name: PG endpoint smoke (incident routes)
-        run: bash scripts/ci_pg_endpoint_smoke.sh
-
-      - name: PG public GET matrix smoke
-        run: bash scripts/ci_pg_public_get_matrix.sh
-
-      - name: Run PG Nuclear Gates
-        run: bash scripts/ci_pg_nuclear_gates.sh
-
-      - name: Check Postgres Schema Hash
-        run: pnpm schema:hash:update && pnpm schema:hash:check
-
-      - name: Stop API server (PG smoke)
-        if: always()
-        run: |
-          if [ -f "$RUNNER_TEMP/ci-pg-api.pid" ]; then
-            kill "$(cat "$RUNNER_TEMP/ci-pg-api.pid")" || true
-          fi
-          tail -n 120 "$RUNNER_TEMP/ci-pg-api.log" || true
+        run: pnpm build

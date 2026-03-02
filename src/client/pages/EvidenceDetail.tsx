@@ -4,7 +4,7 @@
  * Displays evidence with type-specific viewers and linked entities
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   FileText,
@@ -69,6 +69,13 @@ export function EvidenceDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const noticeTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     fetchEvidence();
@@ -134,8 +141,9 @@ export function EvidenceDetail() {
   };
 
   const showNotice = (message: string) => {
+    if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
     setActionNotice(message);
-    window.setTimeout(() => setActionNotice(null), 2500);
+    noticeTimerRef.current = window.setTimeout(() => setActionNotice(null), 2500);
   };
 
   const handleShare = async () => {
@@ -151,7 +159,13 @@ export function EvidenceDetail() {
     if (!id) return;
     const key = 'evidence-bookmarks';
     const raw = window.localStorage.getItem(key);
-    const existing = new Set<string>(raw ? JSON.parse(raw) : []);
+    let parsed: string[] = [];
+    try {
+      parsed = raw ? JSON.parse(raw) : [];
+    } catch {
+      parsed = [];
+    }
+    const existing = new Set<string>(parsed);
     if (existing.has(id)) {
       existing.delete(id);
       showNotice('Bookmark removed');

@@ -277,6 +277,17 @@ function App() {
   const [showReleaseNotes, setShowReleaseNotes] = useState(false);
   const [showCreateEntityModal, setShowCreateEntityModal] = useState(false);
   const [showDateRangePicker, setShowDateRangePicker] = useState(false);
+  const dateRangePickerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!showDateRangePicker) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dateRangePickerRef.current && !dateRangePickerRef.current.contains(e.target as Node)) {
+        setShowDateRangePicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showDateRangePicker]);
   const parsedReleaseNotes = useMemo(() => parseReleaseNotes(releaseNotesRaw), []);
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
   const navTrackRef = useRef<HTMLDivElement | null>(null);
@@ -1316,9 +1327,11 @@ function App() {
                     </div>
 
                     {/* Global Date Range Filter */}
-                    <div className="hidden md:flex items-center relative">
+                    <div ref={dateRangePickerRef} className="hidden md:flex items-center relative">
                       <button
                         onClick={() => setShowDateRangePicker((v) => !v)}
+                        aria-expanded={showDateRangePicker}
+                        aria-haspopup="dialog"
                         className={`group control flex items-center rounded-full h-11 px-3 gap-2 transition-all duration-300${filters.timeRange[0] || filters.timeRange[1] ? ' text-amber-300' : ''}`}
                         title="Global date range filter"
                       >
@@ -1334,14 +1347,24 @@ function App() {
                         )}
                       </button>
                       {showDateRangePicker && (
-                        <div className="absolute top-full right-0 mt-2 z-50 dropdown-surface p-4 w-72">
+                        <div
+                          className="absolute top-full right-0 mt-2 z-50 dropdown-surface p-4 w-72"
+                          role="dialog"
+                          aria-label="Global date range filter"
+                        >
                           <div className="text-xs font-semibold text-slate-400 mb-3 uppercase tracking-wider">
                             Global Date Filter
                           </div>
                           <div className="space-y-3">
                             <div>
-                              <label className="block text-xs text-slate-500 mb-1">From</label>
+                              <label
+                                htmlFor="global-date-from"
+                                className="block text-xs text-slate-500 mb-1"
+                              >
+                                From
+                              </label>
                               <input
+                                id="global-date-from"
                                 type="date"
                                 className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-600"
                                 value={filters.timeRange[0] ?? ''}
@@ -1353,8 +1376,14 @@ function App() {
                               />
                             </div>
                             <div>
-                              <label className="block text-xs text-slate-500 mb-1">To</label>
+                              <label
+                                htmlFor="global-date-to"
+                                className="block text-xs text-slate-500 mb-1"
+                              >
+                                To
+                              </label>
                               <input
+                                id="global-date-to"
                                 type="date"
                                 className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-600"
                                 value={filters.timeRange[1] ?? ''}

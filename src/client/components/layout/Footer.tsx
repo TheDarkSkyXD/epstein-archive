@@ -10,7 +10,7 @@ interface FooterProps {
 
 const Footer: React.FC<FooterProps> = ({ onVersionClick }) => {
   const [systemStatus, setSystemStatus] = useState<{
-    status: 'checking' | 'operational' | 'error' | 'healing';
+    status: 'checking' | 'operational' | 'error';
     message?: string;
     details?: string;
   }>({ status: 'checking' });
@@ -20,40 +20,28 @@ const Footer: React.FC<FooterProps> = ({ onVersionClick }) => {
     const checkHealth = async () => {
       try {
         const health = await apiClient.readinessCheck();
-
-        let protectedDataPathOk = true;
-        let protectedDataPathError: string | undefined;
-        try {
-          await apiClient.get('/documents?page=1&limit=1&sortBy=red_flag', { useCache: false });
-        } catch (probeError) {
-          protectedDataPathOk = false;
-          protectedDataPathError =
-            probeError instanceof Error ? probeError.message : 'Protected data route probe failed';
-        }
+        const stats = await apiClient.getStats();
 
         const dbOk = health.checks?.db?.ok === true;
         const entities = Number(health.checks?.data?.entities || 0);
         const documents = Number(health.checks?.data?.documents || 0);
-        const hasMinimumData = entities > 0 && documents > 0;
+        const statsEntities = Number(stats?.totalEntities || 0);
+        const statsDocuments = Number(stats?.totalDocuments || 0);
+        const hasMinimumData =
+          entities > 0 && documents > 0 && statsEntities > 0 && statsDocuments > 0;
 
-        if (health.status === 'ok' && dbOk && hasMinimumData && protectedDataPathOk) {
+        if (health.status === 'ok' && dbOk && hasMinimumData) {
           setSystemStatus({ status: 'operational' });
         } else {
           let errorDetail = 'Service reporting unhealthy status';
           if (health.checks?.db?.ok === false) {
             errorDetail = `Database Error: ${health.checks.db.error || 'Connection failed'}`;
           } else if (!hasMinimumData) {
-            errorDetail = `Data Error: entities=${entities}, documents=${documents}`;
-          } else if (!protectedDataPathOk) {
-            if (/unauthorized/i.test(protectedDataPathError || '')) {
-              errorDetail = 'Auth Error: Session expired or missing credentials for protected data';
-            } else {
-              errorDetail = `Data Route Error: ${protectedDataPathError || 'Protected data route probe failed'}`;
-            }
+            errorDetail = `Data Error: readiness(entities=${entities}, documents=${documents}), stats(entities=${statsEntities}, documents=${statsDocuments})`;
           }
 
           setSystemStatus({
-            status: 'healing',
+            status: 'error',
             message: health.status.toUpperCase(),
             details: errorDetail,
           });
@@ -75,7 +63,6 @@ const Footer: React.FC<FooterProps> = ({ onVersionClick }) => {
   const statusConfig = {
     checking: { color: 'bg-yellow-500', text: 'Checking Status' },
     operational: { color: 'bg-green-500 animate-pulse', text: 'System Operational' },
-    healing: { color: 'bg-orange-500 animate-pulse', text: 'Self-Healing In Progress' },
     error: { color: 'bg-red-500', text: 'System Issue Detected' },
   };
 
@@ -93,7 +80,7 @@ const Footer: React.FC<FooterProps> = ({ onVersionClick }) => {
               flows regarding the Jeffrey Epstein network.
             </p>
             <div
-              className={`pt-2 flex items-center gap-2 group relative ${systemStatus.status === 'error' || systemStatus.status === 'healing' ? 'cursor-help' : ''}`}
+              className={`pt-2 flex items-center gap-2 group relative ${systemStatus.status === 'error' ? 'cursor-help' : ''}`}
             >
               <div
                 className={`w-2 h-2 rounded-full ${statusConfig[systemStatus.status].color}`}
@@ -103,22 +90,16 @@ const Footer: React.FC<FooterProps> = ({ onVersionClick }) => {
               </p>
 
               {/* Status Tooltip */}
-              {(systemStatus.status === 'error' || systemStatus.status === 'healing') && (
-                <div
-                  className={`absolute bottom-full left-0 mb-2 px-3 py-2 bg-slate-950 border ${systemStatus.status === 'healing' ? 'border-orange-500/30 text-orange-400' : 'border-red-500/30 text-red-400'} rounded shadow-xl text-xs w-64 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none backdrop-blur-md`}
-                >
-                  <div className="font-bold mb-1">
-                    {systemStatus.status === 'healing' ? 'Self-Healing Active:' : 'System Error:'}
-                  </div>
+              {systemStatus.status === 'error' && (
+                <div className="absolute bottom-full left-0 mb-2 px-3 py-2 bg-slate-950 border border-red-500/30 text-red-400 rounded shadow-xl text-xs w-64 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none backdrop-blur-md">
+                  <div className="font-bold mb-1">System Error:</div>
                   <div className="font-mono mb-1">{systemStatus.message}</div>
                   {systemStatus.details && (
                     <div className="text-[10px] opacity-80 leading-tight border-t border-white/5 pt-1 mt-1">
                       {systemStatus.details}
                     </div>
                   )}
-                  <div
-                    className={`absolute -bottom-1 left-4 w-2 h-2 bg-slate-950 border-r border-b ${systemStatus.status === 'healing' ? 'border-orange-500/30' : 'border-red-500/30'} transform rotate-45`}
-                  ></div>
+                  <div className="absolute -bottom-1 left-4 w-2 h-2 bg-slate-950 border-r border-b border-red-500/30 transform rotate-45"></div>
                 </div>
               )}
             </div>

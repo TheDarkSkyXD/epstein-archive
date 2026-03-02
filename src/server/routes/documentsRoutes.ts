@@ -4,13 +4,68 @@ import { documentPagesRepository } from '../db/documentPagesRepository.js';
 import { authenticateRequest } from '../auth/middleware.js';
 import { z } from 'zod';
 import { validate } from '../middleware/validate.js';
+import { mapDocumentsListResponseDto } from '../mappers/documentsDtoMapper.js';
 
 const router = Router();
+
+const documentsListQuerySchema = z.object({
+  query: z.object({
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(200).default(50),
+    search: z.string().optional(),
+    fileType: z.string().optional(),
+    evidenceType: z.string().optional(),
+    source: z.string().optional(),
+    startDate: z.string().optional(),
+    endDate: z.string().optional(),
+    hasFailedRedactions: z
+      .preprocess(
+        (val) =>
+          typeof val === 'string'
+            ? val.toLowerCase() === 'true'
+            : typeof val === 'boolean'
+              ? val
+              : undefined,
+        z.boolean().optional(),
+      )
+      .optional(),
+    minRedFlag: z.coerce.number().int().min(0).max(5).optional(),
+    maxRedFlag: z.coerce.number().int().min(0).max(5).optional(),
+    sortBy: z.string().optional(),
+    sortOrder: z.enum(['asc', 'desc']).optional(),
+  }),
+});
 
 const documentIdSchema = z.object({
   params: z.object({
     id: z.string().min(1),
   }),
+});
+
+// GET /api/documents
+router.get('/', authenticateRequest, validate(documentsListQuerySchema), async (req, res, next) => {
+  try {
+    const query = req.query as any;
+    const page = Number(query.page || 1);
+    const limit = Number(query.limit || 50);
+    const result = await documentsRepository.getDocuments(page, limit, {
+      search: query.search,
+      fileType: query.fileType,
+      evidenceType: query.evidenceType,
+      source: query.source,
+      startDate: query.startDate,
+      endDate: query.endDate,
+      hasFailedRedactions:
+        typeof query.hasFailedRedactions === 'boolean' ? query.hasFailedRedactions : undefined,
+      minRedFlag: query.minRedFlag,
+      maxRedFlag: query.maxRedFlag,
+      sortBy: query.sortBy,
+      sortOrder: query.sortOrder,
+    });
+    res.json(mapDocumentsListResponseDto(result));
+  } catch (error) {
+    next(error);
+  }
 });
 
 // GET /api/documents/:id/pages

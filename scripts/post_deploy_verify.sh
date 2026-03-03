@@ -71,13 +71,14 @@ else
     exit 1
 fi
 
-# 5. Check Subject Listings (/api/subjects) - informational only
-echo "Checking /api/subjects (Public Access, informational)..."
+# 5. Check Subject Listings (/api/subjects) - public + required
+echo "Checking /api/subjects (Public Access)..."
 SUBJECTS_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/api/subjects?page=1&limit=24")
 if [ "$SUBJECTS_STATUS" == "200" ]; then
    log_success "Subject Listing API Public Access Verified (200)"
 else
-   log_warning "Subject Listing API returned $SUBJECTS_STATUS (continuing; non-blocking check)"
+   log_error "Subject Listing API FAILED (Expected 200, got $SUBJECTS_STATUS)"
+   exit 1
 fi
 
 # 6. Check Main Page
@@ -90,7 +91,7 @@ else
     exit 1
 fi
 
-# 8. Check Document Loading (Path Resolution Fix)
+# 8. Check Document Loading (Public Data + Detail Fetch)
 echo "Checking /api/documents (Loading Verification)..."
 DOCS_RESPONSE=$(curl -sS --max-time 60 -w " HTTP_STATUS:%{http_code}" "$URL/api/documents?limit=1")
 DOCS_STATUS="${DOCS_RESPONSE##*HTTP_STATUS:}"
@@ -100,20 +101,18 @@ if [ "$DOCS_STATUS" != "200" ]; then
     exit 1
 fi
 
-FIRST_DOC_ID=$(echo "$DOCS_JSON" | grep -o '"id":"[^"]*' | head -1 | cut -d'"' -f4)
-FIRST_DOC_PATH=$(echo "$DOCS_JSON" | grep -o '"filePath":"[^"]*' | head -1 | cut -d'"' -f4)
+FIRST_DOC_ID=$(echo "$DOCS_JSON" | grep -o '"id":"\{0,1\}[0-9]\+' | head -1 | grep -o '[0-9]\+')
+if [ -z "$FIRST_DOC_ID" ]; then
+    log_error "Documents API returned no parsable document id; payload was: $DOCS_JSON"
+    exit 1
+fi
 
-if [ -n "$FIRST_DOC_ID" ] && [ -n "$FIRST_DOC_PATH" ]; then
-    echo "Verifying file load for: $FIRST_DOC_PATH"
-    # Files require authentication, but we check if the path is correctly formatted
-    if [[ "$FIRST_DOC_PATH" == /files/* ]]; then
-        log_success "Document Path Resolution OK ($FIRST_DOC_PATH)"
-    else
-        log_error "Document Path Resolution FAILED (Expected /files/*, got $FIRST_DOC_PATH)"
-        exit 1
-    fi
+DOC_DETAIL_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/api/documents/$FIRST_DOC_ID")
+if [ "$DOC_DETAIL_STATUS" == "200" ]; then
+    log_success "Document Detail API Verified (id=$FIRST_DOC_ID)"
 else
-    log_warning "No documents found to verify path resolution."
+    log_error "Document Detail API FAILED for id=$FIRST_DOC_ID (status=$DOC_DETAIL_STATUS)"
+    exit 1
 fi
 
 # 9. Burst check to ensure immediate limiter lockout is not happening (on public endpoint)

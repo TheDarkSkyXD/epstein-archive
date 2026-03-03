@@ -251,7 +251,7 @@ export class App {
 
     // Mount routes
     router.use('/auth', authRoutes);
-    router.get('/subjects', validate(subjectsQuerySchema, 'query'), async (req, res, next) => {
+    router.get('/subjects', validate(subjectsQuerySchema), async (req, res, next) => {
       try {
         const query = req.query as any;
         const page = Number(query.page || 1);

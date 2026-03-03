@@ -1,3 +1,11 @@
+## 15.1.1 - 2026-03-03 - Public Data Route Stabilization
+
+### Highlights
+
+- Fixed `/api/subjects` validation wiring in the active runtime path (`app.ts`) so valid query params no longer fail with `Validation failed` (`query Required`).
+- Kept public document/subject access aligned with the public-resource requirement while preserving auth on protected media routes.
+- Removed remaining production query drift causing document fetch failures (`cleaned_path` mismatch), enabling `/api/documents` to serve from Postgres in production.
+
 ## 15.1.0 - 2026-03-02 - Readiness Truthfulness Hardening + Semver Discipline
 
 ### Highlights

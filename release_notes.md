@@ -1,3 +1,10 @@
+## 15.1.3 - 2026-03-03 - HTML Cache Busting Hardening
+
+### Highlights
+
+- Hardened SPA shell cache policy: `/` and `*.html` now return `Cache-Control: no-store` (plus `Pragma/Expires`) to prevent stale client bundles after deploy.
+- Added the same no-store policy to SPA fallback responses to ensure route reloads always pick the latest `index.html` asset map.
+
 ## 15.1.2 - 2026-03-03 - Public Documents Validation + Thumbnail Noise Control
 
 ### Highlights

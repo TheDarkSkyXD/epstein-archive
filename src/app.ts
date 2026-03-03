@@ -125,6 +125,14 @@ export class App {
     });
 
     // 6. Static files
+    this.app.use((req, res, next) => {
+      if (req.method === 'GET' && (req.path === '/' || req.path.endsWith('.html'))) {
+        res.setHeader('Cache-Control', 'no-store, max-age=0, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+      }
+      next();
+    });
     this.app.use(express.static(path.join(__dirname, '../dist')));
     this.app.use('/data', express.static(path.join(__dirname, '../data')));
 
@@ -306,6 +314,9 @@ export class App {
 
     // SPA Fallback
     this.app.get('*', (_req, res) => {
+      res.setHeader('Cache-Control', 'no-store, max-age=0, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
       res.sendFile(path.join(__dirname, '../dist/index.html'));
     });
   }

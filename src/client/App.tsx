@@ -856,6 +856,14 @@ function App() {
   const [, setDocumentLoadingProgressValue] = useState<number>(0);
 
   useEffect(() => {
+    if (!currentUser) {
+      setDocumentProcessor(null);
+      setDocumentsLoaded(true);
+      setDocumentLoadingProgress('');
+      setDocumentLoadingProgressValue(0);
+      return;
+    }
+
     // Initialize document processor with REAL database documents
     const loadRealDocuments = async () => {
       try {
@@ -933,7 +941,7 @@ function App() {
     };
 
     loadRealDocuments();
-  }, [addToast]);
+  }, [addToast, currentUser]);
 
   // Handler for risk level click clicks
   const handleRiskLevelClick = useCallback((level: 'HIGH' | 'MEDIUM' | 'LOW') => {

@@ -187,6 +187,7 @@ function App() {
   const { filters, setFilters } = useFilters();
   const location = useLocation();
   const navigate = useNavigate();
+  const { user: currentUser, isAdmin } = useAuth();
 
   // Determine active tab from URL
   const getTabFromPath = (pathname: string): Tab => {
@@ -657,6 +658,11 @@ function App() {
 
   const { addToast } = useToasts();
   useEffect(() => {
+    if (!currentUser) {
+      setIsInitializing(false);
+      return;
+    }
+
     // Initialize optimized data service
     const initializeDataService = async () => {
       try {
@@ -763,7 +769,17 @@ function App() {
     };
 
     fetchGlobalStats();
-  }, [addToast]);
+  }, [addToast, currentUser]);
+
+  useEffect(() => {
+    if (!currentUser && location.pathname !== '/login') {
+      navigate('/login', { replace: true });
+      return;
+    }
+    if (currentUser && location.pathname === '/login') {
+      navigate('/', { replace: true });
+    }
+  }, [currentUser, location.pathname, navigate]);
 
   useEffect(() => {
     try {
@@ -992,7 +1008,6 @@ function App() {
     [location.pathname, location.search, navigate],
   );
 
-  const { user: currentUser, isAdmin } = useAuth();
   const navSegmentBaseClass = `flex h-full w-full min-w-0 items-center justify-center ${
     navLayoutMode === 'icons'
       ? 'gap-0 px-2'

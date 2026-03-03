@@ -375,6 +375,9 @@ if [ "$DRY_RUN" = false ] && [ "$DB_ONLY" = false ]; then
   pnpm format
   pnpm lint:fix
 
+  log_step "Checking SQL parity (before auto-commit)..."
+  node --import tsx/esm scripts/check_documents_sql_parity.ts
+
   verify_release_notes_version
 
   if [ -n "$(git status --porcelain)" ]; then

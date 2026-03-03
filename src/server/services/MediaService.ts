@@ -65,7 +65,7 @@ export class MediaService {
         ci.file_path as "coverImagePath"
       FROM media_albums a
       LEFT JOIN media_items i ON a.id = i.album_id AND i.file_type LIKE 'image/%'
-      LEFT JOIN media_items ci ON a.cover_image_id = ci.id
+      LEFT JOIN media_items ci ON a.cover_image_id = ci.id::text
       GROUP BY a.id, ci.file_path
       HAVING COUNT(i.id) > 0
       ORDER BY a.name
@@ -83,7 +83,7 @@ export class MediaService {
         ci.file_path as "coverImagePath"
       FROM media_albums a
       LEFT JOIN media_items i ON a.id = i.album_id AND i.file_type LIKE 'image/%'
-      LEFT JOIN media_items ci ON a.cover_image_id = ci.id
+      LEFT JOIN media_items ci ON a.cover_image_id = ci.id::text
       WHERE a.id = $1
       GROUP BY a.id, ci.file_path
     `,

@@ -1,3 +1,10 @@
+## 15.2.1 - 2026-03-03 - Media Albums Public Endpoint PG Type Fix
+
+### Highlights
+
+- Fixed production `500` on `GET /api/media/albums` by correcting `cover_image_id` join typing in media album queries (`text` -> join via `ci.id::text`).
+- Kept public-read policy intact for documents/media while preserving auth on mutation/edit routes.
+
 ## 15.2.0 - 2026-03-03 - Public Read Access Policy Alignment
 
 ### Highlights

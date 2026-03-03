@@ -181,23 +181,14 @@ export const documentsRepository = {
         AND (source_collection = ANY($4::text[]) OR $4::text[] IS NULL)
         AND (date_created >= $5::timestamp OR $5::timestamp IS NULL)
         AND (date_created <= $6::timestamp OR $6::timestamp IS NULL)
-        AND (
-          $7::boolean IS NULL
-          OR LOWER(COALESCE(has_failed_redactions::text, '')) = ANY(
-            CASE
-              WHEN $7::boolean THEN ARRAY['1', 'true', 't']
-              ELSE ARRAY['0', 'false', 'f']
-            END
-          )
-        )
-        AND (red_flag_rating >= $8::int OR $8::int IS NULL)
-        AND (red_flag_rating <= $9::int OR $9::int IS NULL)
+        AND (red_flag_rating >= $7::int OR $7::int IS NULL)
+        AND (red_flag_rating <= $8::int OR $8::int IS NULL)
       ORDER BY
-        CASE WHEN $10::text = 'date' THEN date_created END DESC,
-        CASE WHEN $10::text = 'title' THEN file_name END ASC,
-        CASE WHEN $10::text = 'red_flag' OR $10::text IS NULL THEN red_flag_rating END DESC,
+        CASE WHEN $9::text = 'date' THEN date_created END DESC,
+        CASE WHEN $9::text = 'title' THEN file_name END ASC,
+        CASE WHEN $9::text = 'red_flag' OR $9::text IS NULL THEN red_flag_rating END DESC,
         date_created DESC
-      LIMIT $11::int OFFSET $12::int
+      LIMIT $10::int OFFSET $11::int
     `;
     const docsRes = await getApiPool().query(docsSql, [
       search ? `%${search}%` : null,
@@ -206,7 +197,6 @@ export const documentsRepository = {
       sources,
       filters.startDate || null,
       filters.endDate || null,
-      typeof filters.hasFailedRedactions === 'boolean' ? filters.hasFailedRedactions : null,
       filters.minRedFlag ?? null,
       filters.maxRedFlag ?? null,
       sortBy,
@@ -224,17 +214,8 @@ export const documentsRepository = {
         AND (source_collection = ANY($4::text[]) OR $4::text[] IS NULL)
         AND (date_created >= $5::timestamp OR $5::timestamp IS NULL)
         AND (date_created <= $6::timestamp OR $6::timestamp IS NULL)
-        AND (
-          $7::boolean IS NULL
-          OR LOWER(COALESCE(has_failed_redactions::text, '')) = ANY(
-            CASE
-              WHEN $7::boolean THEN ARRAY['1', 'true', 't']
-              ELSE ARRAY['0', 'false', 'f']
-            END
-          )
-        )
-        AND (red_flag_rating >= $8::int OR $8::int IS NULL)
-        AND (red_flag_rating <= $9::int OR $9::int IS NULL)
+        AND (red_flag_rating >= $7::int OR $7::int IS NULL)
+        AND (red_flag_rating <= $8::int OR $8::int IS NULL)
     `;
     const countResultRes = await getApiPool().query(countSql, [
       search ? `%${search}%` : null,
@@ -243,7 +224,6 @@ export const documentsRepository = {
       sources,
       filters.startDate || null,
       filters.endDate || null,
-      typeof filters.hasFailedRedactions === 'boolean' ? filters.hasFailedRedactions : null,
       filters.minRedFlag ?? null,
       filters.maxRedFlag ?? null,
     ]);

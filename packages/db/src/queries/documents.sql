@@ -20,15 +20,6 @@ WHERE (:search::text IS NULL OR file_name ILIKE :search OR content_refined ILIKE
   AND (source_collection = ANY(:sources) OR :sources IS NULL)
   AND (date_created >= :startDate OR :startDate IS NULL)
   AND (date_created <= :endDate OR :endDate IS NULL)
-  AND (
-    :hasFailedRedactions::boolean IS NULL
-    OR LOWER(COALESCE(has_failed_redactions::text, '')) = ANY(
-      CASE
-        WHEN :hasFailedRedactions::boolean THEN ARRAY['1', 'true', 't']
-        ELSE ARRAY['0', 'false', 'f']
-      END
-    )
-  )
   AND (red_flag_rating >= :minRedFlag OR :minRedFlag IS NULL)
   AND (red_flag_rating <= :maxRedFlag OR :maxRedFlag IS NULL)
 ORDER BY 
@@ -47,15 +38,6 @@ WHERE (:search::text IS NULL OR file_name ILIKE :search OR content_refined ILIKE
   AND (source_collection = ANY(:sources) OR :sources IS NULL)
   AND (date_created >= :startDate OR :startDate IS NULL)
   AND (date_created <= :endDate OR :endDate IS NULL)
-  AND (
-    :hasFailedRedactions::boolean IS NULL
-    OR LOWER(COALESCE(has_failed_redactions::text, '')) = ANY(
-      CASE
-        WHEN :hasFailedRedactions::boolean THEN ARRAY['1', 'true', 't']
-        ELSE ARRAY['0', 'false', 'f']
-      END
-    )
-  )
   AND (red_flag_rating >= :minRedFlag OR :minRedFlag IS NULL)
   AND (red_flag_rating <= :maxRedFlag OR :maxRedFlag IS NULL);
 

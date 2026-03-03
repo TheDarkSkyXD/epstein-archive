@@ -539,6 +539,20 @@ export class MediaService {
     );
   }
 
+  async getImagePeople(imageId: number): Promise<Array<{ id: number; name: string }>> {
+    const rows = await this.pgRows<{ id: string | number; name: string }>(
+      `
+      SELECT e.id, e.full_name as name
+      FROM media_item_people mp
+      JOIN entities e ON e.id = mp.entity_id
+      WHERE mp.media_item_id = $1
+      ORDER BY e.full_name ASC
+    `,
+      [imageId],
+    );
+    return rows.map((row) => ({ id: Number(row.id), name: row.name }));
+  }
+
   // ============ MEDIA ITEM (AUDIO/VIDEO) TAGS ============
 
   async addTagToItem(itemId: number, tagId: number): Promise<void> {

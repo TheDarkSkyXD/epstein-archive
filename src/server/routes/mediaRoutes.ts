@@ -7,7 +7,6 @@ import { validate } from '../middleware/validate.js';
 import { MediaService } from '../services/MediaService.js';
 import { authenticateRequest } from '../auth/middleware.js';
 import { findFirstExistingPath } from '../utils/pathResolver.js';
-import { getApiPool } from '../db/connection.js';
 
 const router = Router();
 const mediaService = new MediaService(null);
@@ -213,17 +212,8 @@ router.get('/images/:id/tags', validate(mediaIdParamSchema), async (req, res, ne
 router.get('/images/:id/people', validate(mediaIdParamSchema), async (req, res, next) => {
   try {
     const imageId = Number(req.params.id);
-    const { rows } = await getApiPool().query(
-      `
-        SELECT e.id, e.full_name as name, e.entity_type as "entityType"
-        FROM media_item_people mp
-        JOIN entities e ON e.id = mp.entity_id
-        WHERE mp.media_item_id = $1
-        ORDER BY e.full_name ASC
-      `,
-      [imageId],
-    );
-    res.json(rows);
+    const people = await mediaService.getImagePeople(imageId);
+    res.json(people);
   } catch (error) {
     next(error);
   }

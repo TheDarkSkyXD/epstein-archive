@@ -4,13 +4,39 @@ import { cacheResponse } from '../utils/perfCache.js';
 import crypto from 'crypto';
 import { z } from 'zod';
 import { validate } from '../middleware/validate.js';
+import { MediaService } from '../services/MediaService.js';
+import { authenticateRequest } from '../auth/middleware.js';
+import { findFirstExistingPath } from '../utils/pathResolver.js';
+import { getApiPool } from '../db/connection.js';
 
 const router = Router();
+const mediaService = new MediaService(null);
 
 // Schemas
 const batchAvatarsSchema = z.object({
   query: z.object({
     ids: z.string().min(1, 'ids parameter required'),
+  }),
+});
+
+const mediaImagesQuerySchema = z.object({
+  query: z.object({
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(500).default(24),
+    albumId: z.coerce.number().int().positive().optional(),
+    sortField: z.string().optional(),
+    sortOrder: z.enum(['asc', 'desc', 'ASC', 'DESC']).optional(),
+    slim: z.preprocess((v) => v === 'true' || v === true, z.boolean()).optional(),
+    verificationStatus: z.string().optional(),
+    minRedFlagRating: z.coerce.number().int().min(0).max(5).optional(),
+    hasPeople: z.preprocess((v) => v === 'true' || v === true, z.boolean()).optional(),
+    search: z.string().optional(),
+  }),
+});
+
+const mediaIdParamSchema = z.object({
+  params: z.object({
+    id: z.coerce.number().int().positive(),
   }),
 });
 
@@ -44,5 +70,236 @@ router.get(
     }
   },
 );
+
+router.get('/albums', cacheResponse(300), async (_req, res, next) => {
+  try {
+    const albums = await mediaService.getAllAlbums();
+    res.json(albums);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/stats', cacheResponse(120), async (_req, res, next) => {
+  try {
+    const stats = await mediaService.getMediaStats();
+    res.json(stats);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/tags', cacheResponse(120), async (_req, res, next) => {
+  try {
+    const tags = await mediaService.getAllTags();
+    res.json(tags);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/images', validate(mediaImagesQuerySchema), async (req, res, next) => {
+  try {
+    const query = req.query as any;
+    const page = Number(query.page || 1);
+    const limit = Number(query.limit || 24);
+    const sortField = String(query.sortField || 'date_added').toLowerCase();
+    const sortOrder = String(query.sortOrder || 'desc').toLowerCase() === 'asc' ? 'asc' : 'desc';
+    const slim = Boolean(query.slim);
+
+    const sortBy: 'title' | 'date' | 'rating' =
+      sortField === 'title' ? 'title' : sortField === 'rating' ? 'rating' : 'date';
+
+    const { mediaItems, total } = await mediaRepository.getMediaItemsPaginated(page, limit, {
+      albumId: query.albumId ? Number(query.albumId) : undefined,
+      sortBy,
+      sortOrder,
+      fileType: 'image',
+      transcriptQuery: query.search,
+    } as any);
+
+    res.setHeader('X-Total-Count', String(total));
+    res.json(
+      mediaItems.map((item: any) =>
+        slim
+          ? {
+              id: item.id,
+              title: item.title || '',
+              description: item.description || '',
+              fileType: item.fileType,
+              fileSize: Number(item.fileSize || 0),
+              width: Number(item.width || 0),
+              height: Number(item.height || 0),
+              thumbnailPath: item.thumbnailPath || null,
+              path: item.filePath || item.file_path || null,
+              isSensitive: Boolean(item.isSensitive),
+              redFlagRating: Number(item.redFlagRating || 0),
+              createdAt: item.createdAt || null,
+              dateTaken: item.dateTaken || null,
+              albumId: item.albumId || null,
+            }
+          : item,
+      ),
+    );
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/images/:id', validate(mediaIdParamSchema), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const item = await mediaRepository.getMediaItemById(id);
+    if (!item) return res.status(404).json({ error: 'Image not found' });
+    res.json(item);
+  } catch (error) {
+    next(error);
+  }
+});
+
+const sendImageFile = async (id: number, res: any, preferThumbnail: boolean) => {
+  const item = await mediaRepository.getMediaItemById(id);
+  if (!item) return res.status(404).json({ error: 'Image not found' });
+
+  const resolvedPath = findFirstExistingPath(
+    preferThumbnail
+      ? [String(item.thumbnailPath || ''), String(item.filePath || '')]
+      : [String(item.filePath || ''), String(item.thumbnailPath || '')],
+  );
+
+  if (!resolvedPath) {
+    return res.status(404).json({ error: 'Media file not found on disk' });
+  }
+
+  if (item.fileType) {
+    res.type(String(item.fileType));
+  }
+  return res.sendFile(resolvedPath);
+};
+
+router.get('/images/:id/thumbnail', validate(mediaIdParamSchema), async (req, res, next) => {
+  try {
+    await sendImageFile(Number(req.params.id), res, true);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/images/:id/file', validate(mediaIdParamSchema), async (req, res, next) => {
+  try {
+    await sendImageFile(Number(req.params.id), res, false);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/images/:id/raw', validate(mediaIdParamSchema), async (req, res, next) => {
+  try {
+    await sendImageFile(Number(req.params.id), res, false);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/images/:id/tags', validate(mediaIdParamSchema), async (req, res, next) => {
+  try {
+    const tags = await mediaService.getImageTags(Number(req.params.id));
+    res.json(tags);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/images/:id/people', validate(mediaIdParamSchema), async (req, res, next) => {
+  try {
+    const imageId = Number(req.params.id);
+    const { rows } = await getApiPool().query(
+      `
+        SELECT e.id, e.full_name as name, e.entity_type as "entityType"
+        FROM media_item_people mp
+        JOIN entities e ON e.id = mp.entity_id
+        WHERE mp.media_item_id = $1
+        ORDER BY e.full_name ASC
+      `,
+      [imageId],
+    );
+    res.json(rows);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Edit and moderation routes remain authenticated.
+router.put('/images/:id', authenticateRequest, validate(mediaIdParamSchema), (_req, res) => {
+  res.status(501).json({ error: 'Not implemented' });
+});
+router.put('/images/:id/rotate', authenticateRequest, validate(mediaIdParamSchema), (_req, res) => {
+  res.status(501).json({ error: 'Not implemented' });
+});
+router.post(
+  '/images/:id/tags',
+  authenticateRequest,
+  validate(mediaIdParamSchema),
+  async (req, res, next) => {
+    try {
+      const imageId = Number(req.params.id);
+      const tagId = Number(req.body?.tagId);
+      if (!Number.isFinite(tagId)) return res.status(400).json({ error: 'tagId is required' });
+      await mediaService.addTagToImage(imageId, tagId);
+      res.json({ ok: true });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+router.delete('/images/:id/tags/:tagId', authenticateRequest, async (req, res, next) => {
+  try {
+    await mediaService.removeTagFromImage(Number(req.params.id), Number(req.params.tagId));
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+router.post(
+  '/images/:id/people',
+  authenticateRequest,
+  validate(mediaIdParamSchema),
+  async (req, res, next) => {
+    try {
+      const imageId = Number(req.params.id);
+      const personId = Number(req.body?.personId);
+      if (!Number.isFinite(personId))
+        return res.status(400).json({ error: 'personId is required' });
+      await mediaService.addPersonToItem(imageId, personId);
+      res.json({ ok: true });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+router.delete('/images/:id/people/:personId', authenticateRequest, async (req, res, next) => {
+  try {
+    await mediaService.removePersonFromItem(Number(req.params.id), Number(req.params.personId));
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/images/batch/rotate', authenticateRequest, (_req, res) => {
+  res.status(501).json({ error: 'Not implemented' });
+});
+router.post('/images/batch/rate', authenticateRequest, (_req, res) => {
+  res.status(501).json({ error: 'Not implemented' });
+});
+router.post('/images/batch/tags', authenticateRequest, (_req, res) => {
+  res.status(501).json({ error: 'Not implemented' });
+});
+router.post('/images/batch/people', authenticateRequest, (_req, res) => {
+  res.status(501).json({ error: 'Not implemented' });
+});
+router.post('/images/batch/metadata', authenticateRequest, (_req, res) => {
+  res.status(501).json({ error: 'Not implemented' });
+});
 
 export default router;

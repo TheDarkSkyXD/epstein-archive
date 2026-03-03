@@ -49,13 +49,13 @@ else
     exit 1
 fi
 
-# 3. Check Media Access (/api/media/images) - Expected 401 (RBAC Hardened)
-echo "Checking /api/media/images (Strict RBAC)..."
+# 3. Check Media Read Access (/api/media/images) - public
+echo "Checking /api/media/images (Public Read Access)..."
 MEDIA_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/api/media/images?limit=1&slim=true")
-if [ "$MEDIA_STATUS" == "401" ]; then
-    log_success "Media API Hardening Verified (401)"
+if [ "$MEDIA_STATUS" == "200" ]; then
+    log_success "Media API Public Access Verified (200)"
 else
-    log_error "Media API Hardening FAILED (Expected 401, got $MEDIA_STATUS)"
+    log_error "Media API Public Access FAILED (Expected 200, got $MEDIA_STATUS)"
     exit 1
 fi
 

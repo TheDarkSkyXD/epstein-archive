@@ -10,7 +10,6 @@ import rateLimit from 'express-rate-limit';
 import { logger } from './server/services/Logger.js';
 import { requestIdMiddleware } from './server/middleware/requestId.js';
 import { globalErrorHandler } from './server/utils/errorHandler.js';
-import { authenticateRequest } from './server/auth/middleware.js';
 import {
   initPools,
   assertProductionPg,
@@ -138,7 +137,7 @@ export class App {
 
     // 7. Secure File Serving
     // This replicates the logic from server.ts for handling /files/*
-    this.app.get('/files/*', authenticateRequest, (req, res) => {
+    this.app.get('/files/*', (req, res) => {
       const filePath = req.params[0];
 
       // Basic security check to prevent directory traversal
@@ -294,7 +293,7 @@ export class App {
     router.use('/analytics', analyticsRoutes);
     router.use('/graph', graphRoutes);
     router.use('/map', mapRoutes);
-    router.use('/media', authenticateRequest, mediaRoutes);
+    router.use('/media', mediaRoutes);
     router.use('/users', usersRoutes);
     router.use('/investigations', investigationsRouter);
     router.use('/evidence', evidenceRoutes);

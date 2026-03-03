@@ -1,3 +1,24 @@
+## 15.2.0 - 2026-03-03 - Public Read Access Policy Alignment
+
+### Highlights
+
+- Removed blanket auth gating from public file and media read surfaces:
+  - `/files/*` now serves publicly for archive access.
+  - `/api/media/*` mount is now public-read by default.
+- Added concrete public media read endpoints:
+  - `GET /api/media/albums`
+  - `GET /api/media/stats`
+  - `GET /api/media/tags`
+  - `GET /api/media/images`
+  - `GET /api/media/images/:id`
+  - `GET /api/media/images/:id/thumbnail`
+  - `GET /api/media/images/:id/file`
+  - `GET /api/media/images/:id/raw`
+  - `GET /api/media/images/:id/tags`
+  - `GET /api/media/images/:id/people`
+- Kept edit/mutation media endpoints authenticated (write/update/batch operations remain protected).
+- Updated post-deploy verification to require public media-read success (`/api/media/images` must return 200).
+
 ## 15.1.4 - 2026-03-03 - Stale Bundle Auto-Reload Guard
 
 ### Highlights

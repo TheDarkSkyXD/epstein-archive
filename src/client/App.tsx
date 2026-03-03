@@ -658,11 +658,6 @@ function App() {
 
   const { addToast } = useToasts();
   useEffect(() => {
-    if (!currentUser) {
-      setIsInitializing(false);
-      return;
-    }
-
     // Initialize optimized data service
     const initializeDataService = async () => {
       try {
@@ -769,17 +764,7 @@ function App() {
     };
 
     fetchGlobalStats();
-  }, [addToast, currentUser]);
-
-  useEffect(() => {
-    if (!currentUser && location.pathname !== '/login') {
-      navigate('/login', { replace: true });
-      return;
-    }
-    if (currentUser && location.pathname === '/login') {
-      navigate('/', { replace: true });
-    }
-  }, [currentUser, location.pathname, navigate]);
+  }, [addToast]);
 
   useEffect(() => {
     try {
@@ -856,14 +841,6 @@ function App() {
   const [, setDocumentLoadingProgressValue] = useState<number>(0);
 
   useEffect(() => {
-    if (!currentUser) {
-      setDocumentProcessor(null);
-      setDocumentsLoaded(true);
-      setDocumentLoadingProgress('');
-      setDocumentLoadingProgressValue(0);
-      return;
-    }
-
     // Initialize document processor with REAL database documents
     const loadRealDocuments = async () => {
       try {
@@ -941,7 +918,7 @@ function App() {
     };
 
     loadRealDocuments();
-  }, [addToast, currentUser]);
+  }, [addToast]);
 
   // Handler for risk level click clicks
   const handleRiskLevelClick = useCallback((level: 'HIGH' | 'MEDIUM' | 'LOW') => {

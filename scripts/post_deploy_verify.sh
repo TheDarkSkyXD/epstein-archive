@@ -71,13 +71,13 @@ else
     exit 1
 fi
 
-# 5. Check Subject Listings (/api/subjects) - Expected 401 (RBAC Hardened)
-echo "Checking /api/subjects (Strict RBAC)..."
+# 5. Check Subject Listings (/api/subjects) - Expected 200 (public read access)
+echo "Checking /api/subjects (Public Access)..."
 SUBJECTS_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/api/subjects?limit=1")
-if [ "$SUBJECTS_STATUS" == "401" ]; then
-   log_success "Subject Listing API Hardening Verified (401)"
+if [ "$SUBJECTS_STATUS" == "200" ]; then
+   log_success "Subject Listing API Public Access Verified (200)"
 else
-   log_error "Subject Listing API Hardening FAILED (Expected 401, got $SUBJECTS_STATUS)"
+   log_error "Subject Listing API Access FAILED (Expected 200, got $SUBJECTS_STATUS)"
    exit 1
 fi
 

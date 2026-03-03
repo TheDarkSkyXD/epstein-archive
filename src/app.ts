@@ -251,41 +251,36 @@ export class App {
 
     // Mount routes
     router.use('/auth', authRoutes);
-    router.get(
-      '/subjects',
-      authenticateRequest,
-      validate(subjectsQuerySchema, 'query'),
-      async (req, res, next) => {
-        try {
-          const query = req.query as any;
-          const page = Number(query.page || 1);
-          const limit = Number(query.limit || 24);
-          const likelihoodRaw = query.likelihoodScore;
-          const likelihoodScore = Array.isArray(likelihoodRaw)
-            ? likelihoodRaw
-            : typeof likelihoodRaw === 'string' && likelihoodRaw.length > 0
-              ? [likelihoodRaw]
-              : undefined;
+    router.get('/subjects', validate(subjectsQuerySchema, 'query'), async (req, res, next) => {
+      try {
+        const query = req.query as any;
+        const page = Number(query.page || 1);
+        const limit = Number(query.limit || 24);
+        const likelihoodRaw = query.likelihoodScore;
+        const likelihoodScore = Array.isArray(likelihoodRaw)
+          ? likelihoodRaw
+          : typeof likelihoodRaw === 'string' && likelihoodRaw.length > 0
+            ? [likelihoodRaw]
+            : undefined;
 
-          const result = await entitiesRepository.getSubjectCards(
-            page,
-            limit,
-            {
-              searchTerm: query.search,
-              role: query.role,
-              entityType: query.entityType,
-              likelihoodScore,
-              sortOrder: String(query.sortOrder || 'desc').toLowerCase() === 'asc' ? 'asc' : 'desc',
-            } as any,
-            (query.sortBy as any) || 'risk',
-          );
+        const result = await entitiesRepository.getSubjectCards(
+          page,
+          limit,
+          {
+            searchTerm: query.search,
+            role: query.role,
+            entityType: query.entityType,
+            likelihoodScore,
+            sortOrder: String(query.sortOrder || 'desc').toLowerCase() === 'asc' ? 'asc' : 'desc',
+          } as any,
+          (query.sortBy as any) || 'risk',
+        );
 
-          res.json(mapSubjectsListResponseDto(result));
-        } catch (error) {
-          next(error);
-        }
-      },
-    );
+        res.json(mapSubjectsListResponseDto(result));
+      } catch (error) {
+        next(error);
+      }
+    });
     router.use('/stats', statsRoutes);
     router.use('/relationships', relationshipsRoutes);
     router.use('/analytics', analyticsRoutes);

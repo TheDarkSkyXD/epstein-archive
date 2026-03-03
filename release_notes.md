@@ -1,3 +1,10 @@
+## 15.2.3 - 2026-03-03 - Public Media Tags Endpoint Fix
+
+### Highlights
+
+- Fixed `GET /api/media/tags` production `500` by removing reference to non-existent `media_tags.created_at`.
+- Returned stable tag payload using `id`, `name`, `category` with nullable `dateCreated`.
+
 ## 15.2.2 - 2026-03-03 - MediaService Runtime Pool Fix
 
 ### Highlights

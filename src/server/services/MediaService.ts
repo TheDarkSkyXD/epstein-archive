@@ -48,7 +48,7 @@ export class MediaService {
 
   async getAllTags(): Promise<MediaTag[]> {
     return await this.pgRows<MediaTag>(
-      `SELECT id, name, category, created_at as "dateCreated"
+      `SELECT id, name, category, NULL::text as "dateCreated"
        FROM media_tags
        ORDER BY name`,
     );

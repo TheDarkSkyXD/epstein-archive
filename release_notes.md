@@ -1,3 +1,10 @@
+## 15.2.2 - 2026-03-03 - MediaService Runtime Pool Fix
+
+### Highlights
+
+- Fixed `GET /api/media/albums` production `500` by binding `MediaService` to the server API Postgres pool (`getApiPool`) instead of the incompatible `@epstein/db` wrapper object in this runtime.
+- Preserved public-read policy for media/documents and auth protection on edit/mutation routes.
+
 ## 15.2.1 - 2026-03-03 - Media Albums Public Endpoint PG Type Fix
 
 ### Highlights

@@ -11,14 +11,14 @@ import path from 'path';
 import sharp from 'sharp';
 import exifParser from 'exif-parser';
 import archiver from 'archiver';
-import { db as pgDb } from '@epstein/db';
+import { getApiPool } from '../db/runtime.js';
 
 export class MediaService {
   private db: any;
 
   constructor(db: any) {
-    // Preserve passed db for compatibility, but default to shared PG wrapper.
-    this.db = db || pgDb;
+    // Preserve passed db for compatibility, but default to shared API pool.
+    this.db = db || getApiPool();
     if (process.env.NODE_ENV === 'production' && this.isLegacyPrepareClient()) {
       throw new Error(
         '[MediaService] Legacy prepare()-based DB client is not allowed in production. Use Postgres pool-backed runtime.',

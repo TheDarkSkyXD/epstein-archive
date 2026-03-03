@@ -138,7 +138,8 @@ export class App {
     // 7. Secure File Serving
     // This replicates the logic from server.ts for handling /files/*
     this.app.get('/files/*', (req, res) => {
-      const filePath = req.params[0];
+      const wildcardPath = (req.params as Record<string, string | undefined>)['0'];
+      const filePath = wildcardPath ?? '';
 
       // Basic security check to prevent directory traversal
       if (filePath.includes('..')) {

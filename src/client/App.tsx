@@ -848,8 +848,8 @@ function App() {
         setDocumentLoadingProgress('Connecting to document database...');
         setDocumentLoadingProgressValue(10);
         // Fetch recent documents for client-side processing
-        // Reduced from 3000 to 500 to prevent browser timeout (was taking 20+ seconds)
-        const response = await apiClient.getDocuments({}, 1, 500);
+        // Pull a bounded sample for client-side initialization
+        const response = await apiClient.getDocuments({}, 1, 200);
 
         console.log('API response:', response);
 

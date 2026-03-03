@@ -10,7 +10,7 @@ const router = Router();
 const documentsListQuerySchema = z.object({
   query: z.object({
     page: z.coerce.number().int().min(1).default(1),
-    limit: z.coerce.number().int().min(1).max(200).default(50),
+    limit: z.coerce.number().int().min(1).max(500).default(50),
     search: z.string().optional(),
     fileType: z.string().optional(),
     evidenceType: z.string().optional(),

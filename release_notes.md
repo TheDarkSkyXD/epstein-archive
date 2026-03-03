@@ -1,3 +1,11 @@
+## 15.1.2 - 2026-03-03 - Public Documents Validation + Thumbnail Noise Control
+
+### Highlights
+
+- Fixed public documents validation mismatch by allowing `limit=500` on `GET /api/documents`, matching active client requests.
+- Reduced public browse errors by capping App bootstrap document preload to 200 records for stable initialization.
+- Prevented unauthenticated users from requesting protected media thumbnails in main subject/person cards, removing repeated 401 console noise while keeping media RBAC enforced.
+
 ## 15.1.1 - 2026-03-03 - Public Data Route Stabilization
 
 ### Highlights

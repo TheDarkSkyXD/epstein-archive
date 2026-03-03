@@ -1,3 +1,10 @@
+## 15.1.4 - 2026-03-03 - Stale Bundle Auto-Reload Guard
+
+### Highlights
+
+- Added client-side build hash polling in `App.tsx` that checks the latest `index-<hash>.js` reference from `/` every 60 seconds.
+- When a newer deployed hash is detected, the app now auto-reloads to prevent stale tabs from continuing to run obsolete bundles.
+
 ## 15.1.3 - 2026-03-03 - HTML Cache Busting Hardening
 
 ### Highlights

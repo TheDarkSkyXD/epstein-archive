@@ -939,6 +939,37 @@ function App() {
     // No-op
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    const currentEntry = document.querySelector<HTMLScriptElement>('script[type="module"][src]');
+    const currentSrc = currentEntry?.src || '';
+    const currentHash = (currentSrc.match(/index-([A-Za-z0-9_-]+)\.js/) || [])[1] || null;
+    if (!currentHash) return;
+
+    const pollForNewBuild = async () => {
+      try {
+        const res = await fetch(`/?build_check=${Date.now()}`, {
+          cache: 'no-store',
+          credentials: 'same-origin',
+        });
+        if (!res.ok) return;
+        const html = await res.text();
+        const latestHash = (html.match(/index-([A-Za-z0-9_-]+)\.js/) || [])[1] || null;
+        if (!cancelled && latestHash && latestHash !== currentHash) {
+          window.location.reload();
+        }
+      } catch {
+        // Ignore transient network/cache probe failures
+      }
+    };
+
+    const interval = window.setInterval(pollForNewBuild, 60000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, []);
+
   const fetchAnalyticsData = useCallback(async () => {
     try {
       setAnalyticsLoading(true);

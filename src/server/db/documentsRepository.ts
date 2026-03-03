@@ -172,8 +172,7 @@ export const documentsRepository = {
         word_count as "wordCount",
         red_flag_rating as "redFlagRating",
         COALESCE(NULLIF(title, ''), file_name) as "title",
-        source_collection as "sourceCollection",
-        cleaned_path as "cleanedPath"
+        source_collection as "sourceCollection"
       FROM documents
       WHERE ($1::text IS NULL OR file_name ILIKE $1 OR content_refined ILIKE $1 OR source_collection ILIKE $1 OR file_path ILIKE $1)
         AND (file_type = ANY($2::text[]) OR $2::text[] IS NULL)

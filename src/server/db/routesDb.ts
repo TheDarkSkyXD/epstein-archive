@@ -934,17 +934,17 @@ export async function getEmailMailboxes(showSuppressedJunk: boolean) {
 
 export async function getEmailThreads(params: {
   mailboxId: string;
-  query: string;
-  fromFilter: string;
-  toFilter: string;
-  dateFrom: string;
-  dateTo: string;
-  hasAttachments: boolean;
-  minRisk: number;
-  tab: string;
+  query?: string;
+  fromFilter?: string;
+  toFilter?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  hasAttachments?: boolean;
+  minRisk?: number;
+  tab?: string;
   limit: number;
   parsedCursor: { lastMessageAt: string; threadId: string } | null;
-  showSuppressedJunk: boolean;
+  showSuppressedJunk?: boolean;
 }) {
   const buildConversationThreadFilter = (qualifier: string) => `
     COALESCE(${qualifier}.participantsraw, '') <> ''
@@ -961,17 +961,17 @@ export async function getEmailThreads(params: {
 
   const {
     mailboxId,
-    query,
-    fromFilter,
-    toFilter,
-    dateFrom,
-    dateTo,
-    hasAttachments,
-    minRisk,
-    tab,
+    query = '',
+    fromFilter = '',
+    toFilter = '',
+    dateFrom = '',
+    dateTo = '',
+    hasAttachments = false,
+    minRisk = 0,
+    tab = 'all',
     limit,
     parsedCursor,
-    showSuppressedJunk,
+    showSuppressedJunk = false,
   } = params;
 
   const queryParams: any[] = [];

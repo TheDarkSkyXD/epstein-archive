@@ -85,6 +85,46 @@ export const DocumentMetadataPanel: React.FC<DocumentMetadataPanelProps> = ({
         </section>
       )}
 
+      {/* Temporal Analysis - NEW */}
+      {(document.extractedDate || metadata.temporal) && (
+        <section className="surface-quiet p-5 rounded-2xl border border-violet-500/20 bg-violet-500/5">
+          <h3 className="text-[10px] font-black text-violet-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+            <Database className="w-3 h-3" />
+            Temporal Intelligence
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-1">
+              <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block">
+                Extracted Primary Date
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-black text-white">
+                  {formatDate(document.extractedDate || metadata.temporal?.primary)}
+                </span>
+                <span className="px-1.5 py-0.5 bg-violet-500/20 text-[8px] font-black text-violet-300 rounded border border-violet-500/30 uppercase tracking-tighter">
+                  Heuristic
+                </span>
+              </div>
+            </div>
+
+            {metadata.temporal?.min &&
+              metadata.temporal?.max &&
+              metadata.temporal.min !== metadata.temporal.max && (
+                <div className="space-y-1">
+                  <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block">
+                    Document Date Range
+                  </span>
+                  <div className="flex items-center gap-2 text-xs font-medium text-slate-300">
+                    <span>{format(new Date(metadata.temporal.min), 'MMM yyyy')}</span>
+                    <span className="text-slate-600">—</span>
+                    <span>{format(new Date(metadata.temporal.max), 'MMM yyyy')}</span>
+                  </div>
+                </div>
+              )}
+          </div>
+        </section>
+      )}
+
       {/* Analysis & Forensics Grid */}
       <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="surface-quiet p-4 rounded-2xl border border-white/5 flex flex-col justify-between overflow-hidden relative">

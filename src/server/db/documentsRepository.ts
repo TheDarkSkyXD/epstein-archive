@@ -166,6 +166,7 @@ export const documentsRepository = {
         file_type as "fileType",
         file_size as "fileSize",
         date_created as "dateCreated",
+        extracted_date as "extractedDate",
         content_refined as "contentRefined",
         evidence_type as "evidenceType",
         metadata_json as "metadata",
@@ -285,6 +286,7 @@ export const documentsRepository = {
         fileType: doc.fileType,
         fileSize: Number(doc.fileSize || 0),
         dateCreated: doc.dateCreated,
+        extractedDate: doc.extractedDate,
         evidenceType: doc.evidenceType || 'document',
         metadata,
         redFlagRating: Number(doc.redFlagRating || 0),
@@ -396,6 +398,7 @@ export const documentsRepository = {
       fileType: document.fileType,
       fileSize: Number(document.fileSize || 0),
       dateCreated: document.dateCreated,
+      extractedDate: document.extractedDate,
       evidenceType: document.evidenceType || 'document',
       content: document.content || '',
       contentRefined: document.content || '', // In PG version we only have content_refined usually

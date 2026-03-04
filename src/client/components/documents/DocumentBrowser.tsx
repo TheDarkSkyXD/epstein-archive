@@ -232,17 +232,9 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
   const [jumpToPage, setJumpToPage] = useState('');
   const [availableCollections, setAvailableCollections] = useState<any[]>([]);
 
-  // Fetch collections on mount
+  // Collections endpoint is optional in current deployments; fail-open with no groupings.
   useEffect(() => {
-    const fetchCollectionsList = async () => {
-      try {
-        const data = await apiClient.getCollections();
-        setAvailableCollections(data);
-      } catch (error) {
-        console.error('Error fetching collections list:', error);
-      }
-    };
-    fetchCollectionsList();
+    setAvailableCollections([]);
   }, []);
 
   const [filters, setFilters] = useState<BrowseFilters>({
@@ -409,6 +401,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
     sortOrder,
     filters.categories,
     filters.source,
+    filters.collectionId,
     filters.dateRange,
     filters.fileType,
     filters.redFlagLevel,
@@ -426,6 +419,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
     sortBy,
     sortOrder,
     filters.categories,
+    filters.collectionId,
     filters.source,
     filters.dateRange,
     filters.fileType,

@@ -283,6 +283,88 @@ export class App {
       }
     });
 
+    // Resolve DOJ-style file paths to local document IDs for in-app viewer deep links.
+    // Example input path: "DataSet 6/EFTA00008744.pdf"
+    router.get('/resolve/epstein-file', async (req, res, next) => {
+      try {
+        const rawPath = String((req.query as any).path || '').trim();
+        if (!rawPath) {
+          return res.status(400).json({ error: 'Missing path parameter' });
+        }
+
+        const safeDecode = (value: string) => {
+          try {
+            return decodeURIComponent(value);
+          } catch {
+            return value;
+          }
+        };
+
+        const decoded = safeDecode(rawPath).replace(/^\/+/, '');
+        const encoded = encodeURI(decoded).replace(/^\/+/, '');
+
+        const candidates = Array.from(
+          new Set(
+            [
+              decoded,
+              encoded,
+              `epstein/files/${decoded}`,
+              `epstein/files/${encoded}`,
+              `/epstein/files/${decoded}`,
+              `/epstein/files/${encoded}`,
+              `https://www.justice.gov/epstein/files/${decoded}`,
+              `https://www.justice.gov/epstein/files/${encoded}`,
+              `https://justice.gov/epstein/files/${decoded}`,
+              `https://justice.gov/epstein/files/${encoded}`,
+              `https://epstein.academy/epstein/files/${decoded}`,
+              `https://epstein.academy/epstein/files/${encoded}`,
+            ].map((value) => value.toLowerCase()),
+          ),
+        );
+
+        const { rows } = await getApiPool().query<{
+          id: number;
+          file_name: string | null;
+          file_path: string | null;
+          original_file_path: string | null;
+        }>(
+          `
+            SELECT id, file_name, file_path, original_file_path
+            FROM documents
+            WHERE
+              LOWER(COALESCE(file_path, '')) = ANY($1::text[])
+              OR LOWER(COALESCE(original_file_path, '')) = ANY($1::text[])
+              OR LOWER(COALESCE(metadata_json->>'source_original_url', '')) = ANY($1::text[])
+              OR LOWER(COALESCE(file_path, '')) LIKE '%' || $2::text
+              OR LOWER(COALESCE(original_file_path, '')) LIKE '%' || $2::text
+              OR LOWER(COALESCE(metadata_json->>'source_original_url', '')) LIKE '%' || $2::text
+            ORDER BY
+              CASE
+                WHEN LOWER(COALESCE(file_path, '')) = ANY($1::text[]) THEN 0
+                WHEN LOWER(COALESCE(original_file_path, '')) = ANY($1::text[]) THEN 1
+                WHEN LOWER(COALESCE(metadata_json->>'source_original_url', '')) = ANY($1::text[]) THEN 2
+                ELSE 3
+              END,
+              id DESC
+            LIMIT 1
+          `,
+          [candidates, decoded.toLowerCase()],
+        );
+
+        const hit = rows[0];
+        if (!hit) {
+          return res.status(404).json({ error: 'Document not found for path' });
+        }
+
+        return res.json({
+          documentId: String(hit.id),
+          redirectTo: `/documents?id=${hit.id}`,
+        });
+      } catch (error) {
+        next(error);
+      }
+    });
+
     // Mount routes
     router.use('/auth', authRoutes);
     router.get('/subjects', validate(subjectsQuerySchema), async (req, res, next) => {

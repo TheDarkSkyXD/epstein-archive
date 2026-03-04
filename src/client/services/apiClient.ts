@@ -889,6 +889,21 @@ class ApiClient {
     return this.fetchWithErrorHandling<any[]>(url);
   }
 
+  async getCollections(): Promise<any[]> {
+    return this.get<any[]>('/documents/collections');
+  }
+
+  async getCollectionDocuments(collectionId: string): Promise<any[]> {
+    return this.get<any[]>(`/documents/collections/${collectionId}/documents`);
+  }
+
+  async addToCollection(documentId: string, collectionId: string, notes?: string): Promise<void> {
+    await this.post(`/documents/collections/${collectionId}/documents`, {
+      documentId,
+      notes,
+    });
+  }
+
   async getInvestigations(
     params: { status?: string; ownerId?: string; page?: number; limit?: number } = {},
   ): Promise<any> {

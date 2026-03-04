@@ -27,6 +27,11 @@ export interface Document {
   threadPosition?: number;
   cleanedPath?: string;
   originalFilePath?: string;
+  parentId?: string;
+  startOffset?: number;
+  endOffset?: number;
+  childDocuments?: any[];
+  collectionId?: string;
 }
 
 export interface TechnicalMetadata {
@@ -185,6 +190,8 @@ export interface BrowseFilters {
   };
   confidentiality?: string[];
   source?: string[];
+  collections?: string[];
+  collectionId?: string;
 }
 
 export interface BrowseOptions {

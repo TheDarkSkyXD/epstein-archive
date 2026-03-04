@@ -41,7 +41,10 @@ import financialRoutes from './server/routes/financialRoutes.js';
 import forensicRoutes from './server/routes/forensicRoutes.js';
 import documentsRoutes from './server/routes/documentsRoutes.js';
 import { entitiesRepository } from './server/db/entitiesRepository.js';
-import { mapSubjectsListResponseDto } from './server/mappers/entitiesDtoMapper.js';
+import {
+  mapEntityListResponseDto,
+  mapSubjectsListResponseDto,
+} from './server/mappers/entitiesDtoMapper.js';
 import { validate, subjectsQuerySchema } from './server/middleware/validate.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -289,6 +292,84 @@ export class App {
         next(error);
       }
     });
+    router.get('/entities', async (req, res, next) => {
+      try {
+        const query = req.query as any;
+        const page = Math.max(1, Number(query.page || 1));
+        const limit = Math.min(500, Math.max(1, Number(query.limit || 24)));
+        const sortByRaw = String(query.sortBy || 'risk').toLowerCase();
+        const sortBy =
+          sortByRaw === 'red_flag_rating' || sortByRaw === 'red_flag' ? 'red_flag' : sortByRaw;
+
+        const likelihoodRaw = query.likelihood || query.likelihoodScore;
+        const likelihoodScore = Array.isArray(likelihoodRaw)
+          ? likelihoodRaw
+          : typeof likelihoodRaw === 'string' && likelihoodRaw.length > 0
+            ? [likelihoodRaw]
+            : undefined;
+
+        const result = await entitiesRepository.getEntities(
+          page,
+          limit,
+          {
+            searchTerm: query.search,
+            role: query.role,
+            likelihoodScore,
+            minRedFlagIndex:
+              query.minRedFlagIndex !== undefined ? Number(query.minRedFlagIndex) : undefined,
+            maxRedFlagIndex:
+              query.maxRedFlagIndex !== undefined ? Number(query.maxRedFlagIndex) : undefined,
+            entityType: query.type,
+          } as any,
+          sortBy as any,
+        );
+
+        res.json(
+          mapEntityListResponseDto({
+            entities: result.entities,
+            total: result.total,
+            page,
+            pageSize: limit,
+            photosByEntity: {},
+          }),
+        );
+      } catch (error) {
+        next(error);
+      }
+    });
+    router.get('/entities/all', async (req, res, next) => {
+      try {
+        const limit = Math.max(0, Number((req.query as any).limit || 0));
+        const entities = await entitiesRepository.getAllEntities(limit);
+        res.json(entities);
+      } catch (error) {
+        next(error);
+      }
+    });
+    router.get('/entities/search', async (req, res, next) => {
+      try {
+        const q = String((req.query as any).q || '').trim();
+        const limit = Math.min(100, Math.max(1, Number((req.query as any).limit || 20)));
+        const result = await entitiesRepository.getEntities(
+          1,
+          limit,
+          q ? ({ searchTerm: q } as any) : undefined,
+          'relevance',
+        );
+        res.json({ results: result.entities });
+      } catch (error) {
+        next(error);
+      }
+    });
+    router.get('/entities/:id', async (req, res, next) => {
+      try {
+        const entity = await entitiesRepository.getEntityById(req.params.id);
+        if (!entity) return res.status(404).json({ error: 'Entity not found' });
+        return res.json(entity);
+      } catch (error) {
+        next(error);
+      }
+    });
     router.use('/stats', statsRoutes);
     router.use('/relationships', relationshipsRoutes);
     router.use('/analytics', analyticsRoutes);
@@ -299,6 +380,7 @@ export class App {
     router.use('/investigations', investigationsRouter);
     router.use('/evidence', evidenceRoutes);
     router.use('/advanced-analytics', advancedAnalyticsRoutes);
+    router.use('/entities', entityEvidenceRoutes);
     router.use('/entity-evidence', entityEvidenceRoutes);
     router.use('/tasks', investigativeTasksRoutes);
     router.use('/articles', articlesRoutes);

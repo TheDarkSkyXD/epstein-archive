@@ -81,6 +81,26 @@ else
    exit 1
 fi
 
+# 5b. Check Entity Listings (/api/entities) returns JSON (not SPA HTML fallback)
+echo "Checking /api/entities (Public JSON Access)..."
+ENTITIES_RESPONSE=$(curl -sS --max-time 60 -w " HTTP_STATUS:%{http_code}" "$URL/api/entities?page=1&limit=1")
+ENTITIES_STATUS="${ENTITIES_RESPONSE##*HTTP_STATUS:}"
+ENTITIES_BODY="${ENTITIES_RESPONSE% HTTP_STATUS:*}"
+if [ "$ENTITIES_STATUS" != "200" ]; then
+    log_error "Entity Listing API FAILED (Expected 200, got $ENTITIES_STATUS)"
+    exit 1
+fi
+if echo "$ENTITIES_BODY" | grep -qi '<!doctype html'; then
+    log_error "Entity Listing API returned HTML fallback instead of JSON."
+    exit 1
+fi
+if echo "$ENTITIES_BODY" | grep -Eq '"data"[[:space:]]*:'; then
+    log_success "Entity Listing API JSON Verified (200)"
+else
+    log_error "Entity Listing API JSON payload missing expected 'data' field."
+    exit 1
+fi
+
 # 6. Check Main Page
 echo "Checking Main Page Load..."
 MAIN_PAGE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL")

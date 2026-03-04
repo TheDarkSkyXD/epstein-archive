@@ -1,3 +1,11 @@
+## 15.2.4 - 2026-03-04 - Subjects/Entities Boot Route Restoration
+
+### Highlights
+
+- Restored missing `/api/entities` runtime routes in `app.ts` (list, detail, search, all) so startup data initialization no longer parses SPA HTML as JSON.
+- Mounted entity evidence routes under `/api/entities/*` to restore expected paths such as `/api/entities/:id/evidence`, `/api/entities/:id/documents`, and `/api/entities/:id/media`.
+- Hardened post-deploy verification to fail if `/api/entities` returns HTML fallback instead of JSON, preventing false operational status.
+
 ## 15.2.3 - 2026-03-03 - Public Media Tags Endpoint Fix
 
 ### Highlights

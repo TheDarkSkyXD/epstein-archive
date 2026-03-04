@@ -23,9 +23,9 @@ export async function up(pgm) {
           ELSE to_char(date_created, 'YYYY-MM')
         END AS period,
         COUNT(*)::bigint AS total,
-        SUM(CASE WHEN mime_type LIKE '%pdf%' THEN 1 ELSE 0 END)::bigint AS pdfs,
-        SUM(CASE WHEN mime_type LIKE '%image%' THEN 1 ELSE 0 END)::bigint AS images,
-        SUM(CASE WHEN mime_type LIKE '%email%' OR mime_type = 'message/rfc822' THEN 1 ELSE 0 END)::bigint AS emails,
+        SUM(CASE WHEN file_type LIKE '%pdf%' THEN 1 ELSE 0 END)::bigint AS pdfs,
+        SUM(CASE WHEN file_type LIKE '%image%' THEN 1 ELSE 0 END)::bigint AS images,
+        SUM(CASE WHEN file_type LIKE '%email%' OR file_type = 'message/rfc822' THEN 1 ELSE 0 END)::bigint AS emails,
         SUM(CASE WHEN is_sensitive THEN 1 ELSE 0 END)::bigint AS sensitive
       FROM documents
       GROUP BY 1
@@ -50,9 +50,9 @@ export async function down(pgm) {
           ELSE to_char(created_at, 'YYYY-MM')
         END AS period,
         COUNT(*)::bigint AS total,
-        SUM(CASE WHEN mime_type LIKE '%pdf%' THEN 1 ELSE 0 END)::bigint AS pdfs,
-        SUM(CASE WHEN mime_type LIKE '%image%' THEN 1 ELSE 0 END)::bigint AS images,
-        SUM(CASE WHEN mime_type LIKE '%email%' OR mime_type = 'message/rfc822' THEN 1 ELSE 0 END)::bigint AS emails,
+        SUM(CASE WHEN file_type LIKE '%pdf%' THEN 1 ELSE 0 END)::bigint AS pdfs,
+        SUM(CASE WHEN file_type LIKE '%image%' THEN 1 ELSE 0 END)::bigint AS images,
+        SUM(CASE WHEN file_type LIKE '%email%' OR file_type = 'message/rfc822' THEN 1 ELSE 0 END)::bigint AS emails,
         SUM(CASE WHEN is_sensitive THEN 1 ELSE 0 END)::bigint AS sensitive
       FROM documents
       GROUP BY 1

@@ -11,7 +11,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { SunburstChart } from '../visualizations/SunburstChart';
-import { AreaTimeline } from '../visualizations/AreaTimeline';
+import { DocumentBarChart } from '../visualizations/DocumentBarChart';
 import { NetworkGraph } from '../visualizations/NetworkGraph';
 import { EvidenceDrawer } from '../visualizations/EvidenceDrawer';
 import { filterPeopleOnly } from '../../utils/entityFilters';
@@ -766,20 +766,20 @@ export const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
           <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2 relative z-10">
             <TrendingUp className="h-5 w-5 text-purple-400" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
-              Document Timeline
+              Document Distribution & Gap Analysis
             </span>
           </h3>
 
           <div className="text-xs text-slate-400 mb-4 flex items-start gap-2 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50 relative z-10">
             <Info className="h-4 w-4 mt-0.5 flex-shrink-0 text-purple-400" />
             <span>
-              Evidence volume over time, stacked by document type. Shows activity patterns and
-              peaks.
+              Historical document distribution plotted by original creation date. The red zone
+              highlights the 2001 period where significant data gaps have been identified.
             </span>
           </div>
 
           <div className="relative z-10">
-            <AreaTimeline data={data.timelineData} />
+            <DocumentBarChart data={data.timelineData} />
           </div>
         </div>
       </div>

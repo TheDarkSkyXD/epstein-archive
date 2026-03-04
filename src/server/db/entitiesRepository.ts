@@ -248,27 +248,52 @@ export const entitiesRepository = {
     const whereSql = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
 
     const riskRankExpr = `CASE UPPER(COALESCE(e.risk_level, 'LOW')) WHEN 'HIGH' THEN 3 WHEN 'MEDIUM' THEN 2 WHEN 'LOW' THEN 1 ELSE 0 END`;
-    const sortKey = sortBy || 'risk';
-    const primarySort =
-      sortKey === 'name'
-        ? `LOWER(COALESCE(e.full_name, '')) ${sortOrder}`
-        : sortKey === 'mentions'
-          ? `COALESCE(mc.mentions, 0) ${sortOrder}`
-          : sortKey === 'recent'
-            ? `e.id ${sortOrder}`
-            : sortKey === 'document-count'
-              ? `COALESCE(mc.documents, 0) ${sortOrder}`
-              : sortKey === 'risk'
-                ? `${riskRankExpr} ${sortOrder}`
-                : `COALESCE(e.red_flag_rating, 0) ${sortOrder}`;
+    const sortKey = String(sortBy || 'red_flag')
+      .toLowerCase()
+      .replace(/-/g, '_');
 
-    const orderBySql = [
-      `COALESCE(e.is_vip, 0) DESC`,
-      primarySort,
-      `COALESCE(e.red_flag_rating, 0) DESC`,
-      `COALESCE(mc.mentions, 0) DESC`,
-      `LOWER(COALESCE(e.full_name, '')) ASC`,
-    ].join(', ');
+    const orderByTerms = [`COALESCE(e.is_vip, 0) DESC`];
+
+    if (sortKey === 'red_flag' || sortKey === 'rfi' || sortKey === 'default') {
+      // Canonical ordering for subject cards:
+      // Red Flag Index -> Risk Level -> Mentions
+      orderByTerms.push(
+        `COALESCE(e.red_flag_rating, 0) ${sortOrder}`,
+        `${riskRankExpr} ${sortOrder}`,
+        `COALESCE(mc.mentions, 0) ${sortOrder}`,
+      );
+    } else if (sortKey === 'risk') {
+      orderByTerms.push(
+        `${riskRankExpr} ${sortOrder}`,
+        `COALESCE(e.red_flag_rating, 0) ${sortOrder}`,
+        `COALESCE(mc.mentions, 0) ${sortOrder}`,
+      );
+    } else if (sortKey === 'mentions') {
+      orderByTerms.push(
+        `COALESCE(mc.mentions, 0) ${sortOrder}`,
+        `COALESCE(e.red_flag_rating, 0) DESC`,
+        `${riskRankExpr} DESC`,
+      );
+    } else if (sortKey === 'document_count' || sortKey === 'document-count') {
+      orderByTerms.push(
+        `COALESCE(mc.documents, 0) ${sortOrder}`,
+        `COALESCE(e.red_flag_rating, 0) DESC`,
+        `${riskRankExpr} DESC`,
+        `COALESCE(mc.mentions, 0) DESC`,
+      );
+    } else if (sortKey === 'recent') {
+      orderByTerms.push(
+        `e.id ${sortOrder}`,
+        `COALESCE(e.red_flag_rating, 0) DESC`,
+        `${riskRankExpr} DESC`,
+        `COALESCE(mc.mentions, 0) DESC`,
+      );
+    } else {
+      orderByTerms.push(`LOWER(COALESCE(e.full_name, '')) ${sortOrder}`);
+    }
+
+    orderByTerms.push(`LOWER(COALESCE(e.full_name, '')) ASC`);
+    const orderBySql = orderByTerms.join(', ');
 
     const listParams = [...params, limit, offset];
     const rawEntitiesResult = await pool.query(

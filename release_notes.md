@@ -1,3 +1,13 @@
+## 15.3.1 - 2026-03-04 - Subject Sort Order Correction (RFI -> Risk -> Mentions)
+
+### Highlights
+
+- Corrected People/Subjects list ordering to follow strict priority:
+  - `Red Flag Index` first
+  - `Risk Level` second
+  - `Mentions` third
+- Applied at the repository query layer for `red_flag` sorting to ensure stable ordering regardless of client-side state.
+
 ## 15.3.0 - 2026-03-04 - Subject Integrity Aggregation Hardening
 
 ### Highlights

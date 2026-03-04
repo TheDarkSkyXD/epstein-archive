@@ -145,7 +145,6 @@ export const documentsRepository = {
       maxRedFlag?: number;
       sortBy?: string;
       sortOrder?: 'asc' | 'desc';
-      collectionId?: string;
     } = {},
   ) => {
     const offset = (page - 1) * limit;
@@ -160,7 +159,6 @@ export const documentsRepository = {
     const evidenceType =
       filters.evidenceType && filters.evidenceType !== 'all' ? filters.evidenceType : null;
     const sortBy = filters.sortBy || 'red_flag';
-    const collectionId = filters.collectionId || null;
 
     const docsSql = `
       SELECT
@@ -186,7 +184,6 @@ export const documentsRepository = {
         AND (COALESCE(extracted_date, date_created) <= $6::timestamp OR $6::timestamp IS NULL)
         AND (red_flag_rating >= $7::int OR $7::int IS NULL)
         AND (red_flag_rating <= $8::int OR $8::int IS NULL)
-        AND (id IN (SELECT document_id FROM document_collections WHERE collection_id = $12) OR $12::text IS NULL)
       ORDER BY
         CASE WHEN $9::text = 'date' THEN COALESCE(extracted_date, date_created) END DESC,
         CASE WHEN $9::text = 'title' THEN file_name END ASC,
@@ -206,7 +203,6 @@ export const documentsRepository = {
       sortBy,
       limit,
       offset,
-      collectionId,
     ]);
     const docs = docsRes.rows as any[];
 
@@ -221,7 +217,6 @@ export const documentsRepository = {
         AND (COALESCE(extracted_date, date_created) <= $6::timestamp OR $6::timestamp IS NULL)
         AND (red_flag_rating >= $7::int OR $7::int IS NULL)
         AND (red_flag_rating <= $8::int OR $8::int IS NULL)
-        AND (id IN (SELECT document_id FROM document_collections WHERE collection_id = $9) OR $9::text IS NULL)
     `;
     const countResultRes = await getApiPool().query(countSql, [
       search ? `%${search}%` : null,
@@ -232,7 +227,6 @@ export const documentsRepository = {
       filters.endDate || null,
       filters.minRedFlag ?? null,
       filters.maxRedFlag ?? null,
-      collectionId,
     ]);
     const countResult = countResultRes.rows as Array<{ total?: string | number | null }>;
 

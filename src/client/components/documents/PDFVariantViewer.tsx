@@ -35,9 +35,11 @@ export const PDFVariantViewer: React.FC<PDFVariantViewerProps> = ({
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [viewerWidth, setViewerWidth] = useState<number>(0);
   const [docMeta, setDocMeta] = useState<{
+    fileName?: string;
     filePath?: string;
     originalFilePath?: string;
     cleanedPath?: string;
+    mimeType?: string;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,9 +66,11 @@ export const PDFVariantViewer: React.FC<PDFVariantViewerProps> = ({
         if (res.ok) {
           const data = await res.json();
           setDocMeta({
+            fileName: data.fileName || data.file_name,
             filePath: data.filePath,
             originalFilePath: data.originalFilePath || data.original_file_path,
             cleanedPath: data.cleanedPath || data.cleaned_path,
+            mimeType: data.mimeType || data.mime_type,
           });
         } else {
           setError('Failed to fetch document metadata');
@@ -92,14 +96,46 @@ export const PDFVariantViewer: React.FC<PDFVariantViewerProps> = ({
   const zoomOut = () => setScale((prev) => Math.max(0.5, prev - 0.2));
   const rotateClockwise = () => setRotation((prev) => (prev + 90) % 360);
 
+  const inferAssetType = () => {
+    const mime = String(docMeta?.mimeType || '').toLowerCase();
+    if (mime.includes('pdf')) return 'pdf';
+    if (mime.startsWith('image/')) return 'image';
+
+    const candidatePath = String(
+      docMeta?.fileName || docMeta?.filePath || docMeta?.originalFilePath || '',
+    ).toLowerCase();
+    if (candidatePath.endsWith('.pdf')) return 'pdf';
+    if (
+      candidatePath.endsWith('.jpg') ||
+      candidatePath.endsWith('.jpeg') ||
+      candidatePath.endsWith('.png') ||
+      candidatePath.endsWith('.gif') ||
+      candidatePath.endsWith('.webp') ||
+      candidatePath.endsWith('.bmp') ||
+      candidatePath.endsWith('.tif') ||
+      candidatePath.endsWith('.tiff') ||
+      candidatePath.endsWith('.svg')
+    ) {
+      return 'image';
+    }
+
+    return 'unknown';
+  };
+
   const getCurrentUrl = () => {
     if (!docMeta) return '';
-    if (variant === 'cleaned' && !docMeta.cleanedPath) return '';
-    if (variant === 'original' && !docMeta.originalFilePath) return '';
-    return `/api/documents/${documentId}/file?variant=${encodeURIComponent(variant)}`;
+    // Dirty/Cleaned are OCR modes; default to the single canonical file when a dedicated path is absent.
+    if (variant === 'original' && docMeta.originalFilePath) {
+      return `/api/documents/${documentId}/file?variant=original`;
+    }
+    if (variant === 'cleaned' && docMeta.cleanedPath) {
+      return `/api/documents/${documentId}/file?variant=cleaned`;
+    }
+    return `/api/documents/${documentId}/file?variant=dirty`;
   };
 
   const currentUrl = getCurrentUrl();
+  const assetType = inferAssetType();
 
   return (
     <div className={`flex flex-col h-full bg-slate-900 overflow-hidden ${className}`}>
@@ -211,6 +247,22 @@ export const PDFVariantViewer: React.FC<PDFVariantViewerProps> = ({
               variant.
             </p>
           </div>
+        ) : assetType === 'image' ? (
+          <div className="flex items-center justify-center p-6">
+            <img
+              src={currentUrl}
+              alt={docMeta?.fileName || `Document ${documentId}`}
+              className="max-w-full max-h-[calc(100vh-380px)] object-contain rounded-lg shadow-2xl ring-1 ring-white/10"
+            />
+          </div>
+        ) : assetType !== 'pdf' ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 p-8 text-center">
+            <Info className="w-12 h-12 mb-4 opacity-20" />
+            <p className="font-bold mb-2 text-slate-300">Preview unavailable</p>
+            <p className="text-xs text-slate-500 max-w-xs">
+              This asset is not a PDF. Open the original file from the document actions.
+            </p>
+          </div>
         ) : (
           <Document
             file={currentUrl}
@@ -218,7 +270,7 @@ export const PDFVariantViewer: React.FC<PDFVariantViewerProps> = ({
             loading={
               <div className="flex flex-col items-center justify-center py-20 text-slate-500">
                 <div className="w-6 h-6 border-2 border-cyan-500/10 border-t-cyan-500 rounded-full animate-spin mb-3" />
-                <span className="text-xs font-medium">Downloading PDF...</span>
+                <span className="text-xs font-medium">Loading document...</span>
               </div>
             }
             error={

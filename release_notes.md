@@ -1,5 +1,13 @@
 # Release Notes
 
+## 15.4.6 - 2026-03-05 - Asset Viewer Fix for Non-PDF Documents
+
+### Document Viewer
+
+- **No More Infinite \"Downloading PDF...\":** Fixed `PDF View` hanging on image-backed records (e.g. `.JPG`) by detecting asset type and rendering non-PDF assets directly.
+- **Single-Asset Routing:** `Dirty` and `Cleaned` now default to the same canonical document file when dedicated cleaned/original files are not present, instead of forcing missing variant paths.
+- **Loading Copy Cleanup:** Updated loader text to `Loading document...` to reflect mixed asset support (PDF/image) instead of PDF-only behavior.
+
 ## 15.4.5 - 2026-03-05 - Entity Header Cleanup & Profile Photo Reliability
 
 ### UI Refinement

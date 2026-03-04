@@ -1,5 +1,13 @@
 # Release Notes
 
+## 15.4.5 - 2026-03-05 - Entity Header Cleanup & Profile Photo Reliability
+
+### UI Refinement
+
+- **Removed Oversized Header Badge:** Removed the large floating `Inferred Evidence` header badge from the entity modal profile area to reduce visual clutter.
+- **Profile Image Reliability:** Header profile image now resolves from multiple media URL fields with thumbnail-first fallback and API fallback (`/api/media/images/:id/thumbnail` then `/api/media/images/:id`) for PostgreSQL-normalized media rows.
+- **Graceful Fallback:** If an image still fails, the modal falls back to the neutral icon without breaking layout.
+
 ## 15.4.4 - 2026-03-05 - Evidence Cards Open Viewer by Full-Row Click
 
 ### UX & Navigation

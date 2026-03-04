@@ -20,7 +20,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 import { SignalPanel } from '../entities/cards/SignalPanel';
 import { DriverChips } from '../entities/cards/DriverChips';
-import { EvidenceBadge } from '../entities/cards/EvidenceBadge';
 import { apiClient } from '../../services/apiClient';
 import { cn } from '../../utils/cn';
 import {
@@ -132,6 +131,33 @@ const formatMetaDate = (value?: string | null): string => {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return 'Date unknown';
   return parsed.toLocaleDateString();
+};
+
+const resolveEntityPhotoUrl = (photo: any, preferThumbnail = true): string | null => {
+  if (!photo) return null;
+
+  const thumbCandidates = [
+    photo.thumbnailUrl,
+    photo.thumbnail_url,
+    photo.thumbUrl,
+    photo.thumb_url,
+  ];
+  const mainCandidates = [photo.url, photo.fullUrl, photo.imageUrl, photo.image_url, photo.src];
+  const id = photo.id ? String(photo.id) : null;
+  const generatedThumb = id ? `/api/media/images/${id}/thumbnail` : null;
+  const generatedMain = id ? `/api/media/images/${id}` : null;
+
+  const ordered = preferThumbnail
+    ? [...thumbCandidates, generatedThumb, ...mainCandidates, generatedMain]
+    : [...mainCandidates, generatedMain, ...thumbCandidates, generatedThumb];
+
+  for (const candidate of ordered) {
+    if (typeof candidate === 'string' && candidate.trim().length > 0) {
+      return candidate;
+    }
+  }
+
+  return null;
 };
 
 export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, onClose }) => {
@@ -668,6 +694,10 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
 
   if (!isOpen) return null;
 
+  const headerPhoto = entity?.photos?.[0];
+  const headerPhotoId = headerPhoto?.id ? String(headerPhoto.id) : 'header-photo';
+  const headerPhotoUrl = resolveEntityPhotoUrl(headerPhoto, true);
+
   return createPortal(
     <Profiler id="EvidenceModal" onRender={onRenderCallback}>
       <AnimatePresence>
@@ -692,11 +722,25 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                 <div className="w-20 h-20 md:w-24 md:h-24 rounded-[var(--radius-md)] bg-slate-800 border-2 border-slate-700 overflow-hidden shadow-inner">
                   {loading ? (
                     <div className="w-full h-full animate-pulse bg-slate-800" />
-                  ) : entity?.photos?.[0] ? (
+                  ) : headerPhotoUrl && !brokenMediaIds[headerPhotoId] ? (
                     <img
-                      src={entity.photos[0].url}
-                      alt={entity.fullName}
+                      src={headerPhotoUrl}
+                      alt={entity?.fullName || 'Profile image'}
                       className="w-full h-full object-cover"
+                      onError={(event) => {
+                        const fallbackUrl = resolveEntityPhotoUrl(headerPhoto, false);
+                        const img = event.currentTarget;
+                        if (
+                          fallbackUrl &&
+                          img.dataset.fallbackApplied !== '1' &&
+                          fallbackUrl !== img.src
+                        ) {
+                          img.dataset.fallbackApplied = '1';
+                          img.src = fallbackUrl;
+                          return;
+                        }
+                        setBrokenMediaIds((prev) => ({ ...prev, [headerPhotoId]: true }));
+                      }}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-slate-600">
@@ -704,11 +748,6 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                     </div>
                   )}
                 </div>
-                {forensicData && (
-                  <div className="absolute -bottom-3 -right-3">
-                    <EvidenceBadge level={forensicData.ladder.level} />
-                  </div>
-                )}
               </div>
 
               <div className="flex-1 min-w-0">

@@ -26,6 +26,9 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
   searchTerm,
   showRaw = false,
 }) => {
+  const getEntityName = (entity: any): string =>
+    String(entity?.full_name || entity?.fullName || entity?.name || '').trim();
+
   const [showAnnotations, setShowAnnotations] = useState(false);
   // Optimize entity lookup map
   const [entityMap, setEntityMap] = useState<Map<string, any>>(new Map());
@@ -50,14 +53,14 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
     const map = new Map();
     // Sort by length desc to match longest names first
     const sorted = [...entityData].sort((a, b) => {
-      const nameA = a.full_name || a.name || '';
-      const nameB = b.full_name || b.name || '';
+      const nameA = getEntityName(a);
+      const nameB = getEntityName(b);
       return nameB.length - nameA.length;
     });
 
     const terms: string[] = [];
     sorted.forEach((e) => {
-      const name = e.full_name || e.name;
+      const name = getEntityName(e);
       if (name && name.length > 3) {
         // Skip very short names to avoid noise
         map.set(name.toLowerCase(), e);
@@ -128,7 +131,8 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
           const entity = entityMap.get(match.toLowerCase());
           if (!entity) return match;
 
-          return `<span class="entity-link" data-entity-id="${entity.id}" data-entity-name="${entity.full_name}" style="color: var(--accent); text-decoration: underline; cursor: pointer; border-bottom: 1px dotted var(--accent); padding: 0 1px;" title="Click to view entity details">${match}</span>`;
+          const entityName = getEntityName(entity);
+          return `<span class="entity-link" data-entity-id="${entity.id}" data-entity-name="${entityName}" style="color: var(--accent); text-decoration: underline; cursor: pointer; border-bottom: 1px dotted var(--accent); padding: 0 1px;" title="Click to view entity details">${match}</span>`;
         });
       });
 
@@ -879,7 +883,10 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
                 if (matches.size > 50) break;
               }
 
-              const found = _entities.filter((e) => matches.has(e.full_name.toLowerCase()));
+              const found = _entities.filter((e) => {
+                const entityName = getEntityName(e);
+                return entityName.length > 0 && matches.has(entityName.toLowerCase());
+              });
 
               if (found.length === 0)
                 return (
@@ -892,13 +899,14 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
                   className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-900/30 text-blue-200 border border-blue-500/30 cursor-pointer hover:bg-blue-800 transition-colors"
                   onClick={(evt) => {
                     evt.preventDefault();
+                    const entityName = getEntityName(e);
                     const event = new CustomEvent('entityClick', {
-                      detail: { id: e.id, name: e.full_name },
+                      detail: { id: e.id, name: entityName },
                     });
                     window.dispatchEvent(event);
                   }}
                 >
-                  {e.full_name}
+                  {getEntityName(e)}
                   {e.entity_type && (
                     <span className="ml-1.5 opacity-50 text-[10px] uppercase">{e.entity_type}</span>
                   )}

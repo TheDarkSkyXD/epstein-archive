@@ -1,5 +1,12 @@
 # Release Notes
 
+## 15.4.3 - 2026-03-05 - Document Viewer Entity-Name Crash Fix
+
+### Core Fix
+
+- **Document Viewer Stability:** Fixed a production crash in the document viewer caused by entity records missing `full_name`. Entity rendering now safely normalizes names from `full_name | fullName | name` before matching and click dispatch.
+- **Related Entities Panel:** Prevented runtime failures when mention chips are generated from partial entity payloads, ensuring documents always render even with heterogeneous PostgreSQL-backed entity rows.
+
 ## 15.4.2 - 2026-03-04 - Timeline Accuracy & Evidence Backing
 
 ### Timeline & API

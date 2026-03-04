@@ -1,11 +1,33 @@
 import { getApiPool } from './connection.js';
 
+type TimelineQueryFilters = {
+  startDate?: string;
+  endDate?: string;
+};
+
 export const timelineRepository = {
-  getTimelineEvents: async () => {
+  getTimelineEvents: async (filters?: TimelineQueryFilters) => {
     const pool = getApiPool();
     try {
+      const whereParts: string[] = ['date <= CURRENT_DATE'];
+      const params: Array<string> = [];
+      const addParam = (value: string) => {
+        params.push(value);
+        return `$${params.length}`;
+      };
+
+      if (filters?.startDate) {
+        whereParts.push(`date >= ${addParam(filters.startDate)}::date`);
+      }
+      if (filters?.endDate) {
+        whereParts.push(`date <= ${addParam(filters.endDate)}::date`);
+      }
+
+      const whereSql = whereParts.length > 0 ? `WHERE ${whereParts.join(' AND ')}` : '';
+
       // Fetch Curated Global Events
-      const res = await pool.query(`
+      const res = await pool.query(
+        `
         SELECT 
           id,
           title,
@@ -17,15 +39,30 @@ export const timelineRepository = {
           related_document_id,
           source
         FROM global_timeline_events
+        ${whereSql}
         ORDER BY date DESC
-      `);
+      `,
+        params,
+      );
 
-      const globalEvents = res.rows;
+      const deduped = new Map<string, any>();
+      for (const row of res.rows) {
+        const key = `${String(row.title || '')
+          .toLowerCase()
+          .trim()}|${String(row.start_date || '')}`;
+        const existing = deduped.get(key);
+        if (!existing || Number(row.id) > Number(existing.id)) {
+          deduped.set(key, row);
+        }
+      }
+
+      const globalEvents = Array.from(deduped.values());
 
       // Transform Global Events
       const mappedEvents = await Promise.all(
         globalEvents.map(async (e: any) => {
           let entityData: Array<{ id: number | null; name: string }> = [];
+          let resolvedEntityIds: number[] = [];
 
           // Parse entity IDs and look up names
           if (e.entities) {
@@ -99,15 +136,24 @@ export const timelineRepository = {
                     return null;
                   })
                   .filter((value): value is { id: number | null; name: string } => Boolean(value));
+
+                resolvedEntityIds = Array.from(
+                  new Set(
+                    entityData
+                      .map((entity) => Number(entity.id))
+                      .filter((id) => Number.isInteger(id) && id > 0),
+                  ),
+                );
               }
             } catch (err) {
               console.warn('[Timeline] Failed to parse entities for event', e.id, err);
               entityData = [];
+              resolvedEntityIds = [];
             }
           }
 
           // Lookup related document info
-          let relatedDocument = null;
+          let relatedDocument: { id: number; name: string; path: string } | null = null;
           if (e.related_document_id) {
             try {
               const docRes = await pool.query(
@@ -128,6 +174,98 @@ export const timelineRepository = {
             }
           }
 
+          let support = {
+            evidence_count: 0,
+            document_count: relatedDocument ? 1 : 0,
+            media_count: 0,
+            top_documents: relatedDocument
+              ? [{ id: relatedDocument.id, name: relatedDocument.name }]
+              : ([] as Array<{ id: number; name: string }>),
+          };
+
+          if (resolvedEntityIds.length > 0) {
+            try {
+              const supportRes = await pool.query<{
+                evidence_count: string | number;
+                document_count: string | number;
+                media_count: string | number;
+                top_documents: Array<{ id: number; name: string }> | string | null | undefined;
+              }>(
+                `
+                  WITH mention_rows AS (
+                    SELECT em.document_id
+                    FROM entity_mentions em
+                    WHERE em.entity_id = ANY($1::bigint[])
+                  ),
+                  docs AS (
+                    SELECT DISTINCT d.id, d.file_name, d.file_path, d.evidence_type, d.file_type, COALESCE(d.red_flag_rating, 0) AS red_flag
+                    FROM mention_rows mr
+                    JOIN documents d ON d.id = mr.document_id
+                  ),
+                  top_docs AS (
+                    SELECT id, COALESCE(NULLIF(BTRIM(file_name), ''), CONCAT('Document #', id)) AS name
+                    FROM docs
+                    ORDER BY red_flag DESC, id DESC
+                    LIMIT 3
+                  )
+                  SELECT
+                    (SELECT COUNT(*) FROM mention_rows) AS evidence_count,
+                    (SELECT COUNT(*) FROM docs) AS document_count,
+                    (
+                      SELECT COUNT(*)
+                      FROM docs
+                      WHERE
+                        LOWER(COALESCE(evidence_type, '')) = 'media'
+                        OR file_type ILIKE 'image/%'
+                        OR file_type ILIKE 'video/%'
+                        OR file_type ILIKE 'audio/%'
+                    ) AS media_count,
+                    (
+                      SELECT COALESCE(JSON_AGG(JSON_BUILD_OBJECT('id', td.id, 'name', td.name)), '[]'::json)
+                      FROM top_docs td
+                    ) AS top_documents
+                `,
+                [resolvedEntityIds],
+              );
+
+              const row = supportRes.rows[0];
+              if (row) {
+                let topDocs: Array<{ id: number; name: string }> = [];
+                if (Array.isArray(row.top_documents)) {
+                  topDocs = row.top_documents as Array<{ id: number; name: string }>;
+                } else if (typeof row.top_documents === 'string') {
+                  try {
+                    const parsed = JSON.parse(row.top_documents);
+                    if (Array.isArray(parsed)) {
+                      topDocs = parsed;
+                    }
+                  } catch {
+                    topDocs = [];
+                  }
+                }
+
+                if (
+                  relatedDocument &&
+                  !topDocs.some((doc) => Number(doc.id) === Number(relatedDocument?.id))
+                ) {
+                  topDocs = [relatedDocument, ...topDocs].slice(0, 3);
+                }
+
+                support = {
+                  evidence_count: Number(row.evidence_count || 0),
+                  document_count: Math.max(
+                    Number(row.document_count || 0),
+                    relatedDocument ? 1 : 0,
+                  ),
+                  media_count: Number(row.media_count || 0),
+                  top_documents: topDocs,
+                };
+              }
+            } catch (err) {
+              console.warn('[Timeline] Failed to compute support stats for event', e.id, err);
+            }
+          }
+
           return {
             id: `evt-${e.id}`,
             title: e.title,
@@ -141,6 +279,7 @@ export const timelineRepository = {
             is_curated: true,
             source: e.source || null,
             related_document: relatedDocument,
+            support,
           };
         }),
       );

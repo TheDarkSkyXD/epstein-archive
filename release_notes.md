@@ -1,3 +1,20 @@
+## 15.4.0 - 2026-03-04 - Timeline API Restore + Evidence-Backed Chronology
+
+### Highlights
+
+- Restored public `GET /api/timeline` route (Timeline page was requesting this endpoint while the route was missing).
+- Added timeline evidence backing in API responses:
+  - `support.evidence_count`
+  - `support.document_count`
+  - `support.media_count`
+  - `support.top_documents[]`
+- Hardened timeline feed quality:
+  - server-side dedupe on `(title, date)`
+  - hidden future-dated events (`date <= CURRENT_DATE`)
+  - optional date-range filtering via `startDate`/`endDate` query params.
+- Seeded canonical historical timeline events (1994-2025) from investigation milestones as idempotent Postgres migration.
+- Updated Timeline UI cards/modal to display evidence/doc/media support and clickable supporting document links.
+
 ## 15.3.9 - 2026-03-04 - Inference Classifier Regression Fix
 
 ### Highlights

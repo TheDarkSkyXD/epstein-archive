@@ -40,6 +40,7 @@ import emailRoutes from './server/routes/emailRoutes.js';
 import financialRoutes from './server/routes/financialRoutes.js';
 import forensicRoutes from './server/routes/forensicRoutes.js';
 import documentsRoutes from './server/routes/documentsRoutes.js';
+import timelineRoutes from './server/routes/timelineRoutes.js';
 import { entitiesRepository } from './server/db/entitiesRepository.js';
 import {
   mapEntityListResponseDto,
@@ -396,6 +397,7 @@ export class App {
     router.use('/financial', financialRoutes);
     router.use('/forensic', forensicRoutes);
     router.use('/documents', documentsRoutes);
+    router.use('/timeline', timelineRoutes);
 
     // Legacy/Direct routes that might need adjustment
     router.use('/investigation-evidence', investigationEvidenceRoutes);

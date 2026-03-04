@@ -29,6 +29,12 @@ interface TimelineEvent {
   significance: 'high' | 'medium' | 'low';
   is_curated?: boolean;
   related_document?: { id: number; name: string; path: string } | null; // Linked source document
+  support?: {
+    evidence_count: number;
+    document_count: number;
+    media_count: number;
+    top_documents: Array<{ id: number; name: string }>;
+  };
 }
 
 interface TimelineProps {
@@ -108,6 +114,12 @@ export const Timeline: React.FC<TimelineProps> = React.memo(({ className = '' })
             significance: event.significance_score || 'medium',
             is_curated: event.is_curated || false,
             related_document: event.related_document || null,
+            support: event.support || {
+              evidence_count: 0,
+              document_count: 0,
+              media_count: 0,
+              top_documents: [],
+            },
           }))
           .filter((event) => !isNaN(event.date.getTime()));
 
@@ -321,6 +333,20 @@ export const Timeline: React.FC<TimelineProps> = React.memo(({ className = '' })
                       )}
                     </div>
                   )}
+
+                  {event.support && (
+                    <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                      <span className="px-2 py-1 bg-slate-800 border border-slate-600 text-slate-300 rounded">
+                        Evidence: {event.support.evidence_count}
+                      </span>
+                      <span className="px-2 py-1 bg-slate-800 border border-slate-600 text-slate-300 rounded">
+                        Docs: {event.support.document_count}
+                      </span>
+                      <span className="px-2 py-1 bg-slate-800 border border-slate-600 text-slate-300 rounded">
+                        Media: {event.support.media_count}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="hidden md:block shrink-0">
@@ -431,6 +457,27 @@ export const Timeline: React.FC<TimelineProps> = React.memo(({ className = '' })
                     </div>
                   )}
                 </div>
+
+                {selectedEvent.support && selectedEvent.support.top_documents.length > 0 && (
+                  <div>
+                    <span className="text-slate-400 text-xs uppercase tracking-wider block mb-2">
+                      Supporting Documents
+                    </span>
+                    <div className="space-y-2">
+                      {selectedEvent.support.top_documents.map((doc) => (
+                        <Link
+                          key={doc.id}
+                          to={`/documents?id=${doc.id}`}
+                          onClick={() => setSelectedEvent(null)}
+                          className="flex items-center gap-3 bg-slate-800 p-2.5 rounded-lg border border-slate-700 hover:border-cyan-500/40 hover:bg-slate-700/70 transition-colors"
+                        >
+                          <FileText className="w-4 h-4 text-cyan-400" />
+                          <span className="text-slate-200 text-sm truncate flex-1">{doc.name}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {selectedEvent.entities.length > 0 && (
                   <div>

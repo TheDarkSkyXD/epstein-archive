@@ -659,7 +659,14 @@ threaded AS (
       )
     ) AS confidence,
     MAX(COALESCE(metadata_json ->> 'ladder', metadata_json ->> 'evidence_ladder')) AS ladder,
-    MAX(CASE WHEN (COALESCE(metadata_json ->> 'attachments_count', '0'))::int > 0 THEN 1 ELSE 0 END) AS hasAttachments,
+    MAX(
+      CASE
+        WHEN COALESCE(metadata_json ->> 'attachments_count', '0') ~ '^\\d+$'
+          AND (metadata_json ->> 'attachments_count')::int > 0
+          THEN 1
+        ELSE 0
+      END
+    ) AS hasAttachments,
     NULL AS linkedEntityIdsRaw,
     MAX(COALESCE(snippet, '')) AS snippet
   FROM email_docs
@@ -1024,7 +1031,7 @@ export async function getEmailThreads(params: {
   }
 
   if (hasAttachments) {
-    where += ` AND (COALESCE(metadata_json ->> 'attachments_count', '0'))::int > 0`;
+    where += ` AND COALESCE(metadata_json ->> 'attachments_count', '0') ~ '^\\d+$' AND (metadata_json ->> 'attachments_count')::int > 0`;
   }
 
   if (Number.isFinite(minRisk) && minRisk > 0) {

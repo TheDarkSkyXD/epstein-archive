@@ -1,6 +1,7 @@
 import { simpleParser, AddressObject } from 'mailparser';
 import { htmlToText } from 'html-to-text';
 import DOMPurify from 'isomorphic-dompurify';
+import { decode } from 'html-entities';
 
 export interface CleanedEmailParts {
   body_clean_text: string;
@@ -60,9 +61,9 @@ export async function cleanMime(raw: string): Promise<CleanedEmailParts> {
     const bcc = formatAddressList(parsed.bcc);
 
     return {
-      body_clean_text: bodyText.trim(),
+      body_clean_text: decode(bodyText.trim()),
       body_clean_html: bodyHtml.trim(),
-      subject: parsed.subject || '',
+      subject: decode(parsed.subject || ''),
       from,
       to,
       cc,

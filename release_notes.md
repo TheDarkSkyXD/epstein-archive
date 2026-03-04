@@ -1,3 +1,12 @@
+## 15.3.6 - 2026-03-04 - Proxy-Aware Rate Limit Stabilization (429 Fix)
+
+### Highlights
+
+- Fixed production-wide `429` bursts caused by shared proxy IP buckets.
+- Enabled `trust proxy` in Express so rate limiting keys on real client IP behind nginx.
+- Increased global per-IP allowance (`500` -> `2000` per 15 minutes) to support public page boot bursts (subjects, documents, media thumbnails).
+- Exempted core health/readiness endpoints from global limiter so operational status checks are not throttled into false-failure states.
+
 ## 15.3.5 - 2026-03-04 - Canonical Entities Feed + Album-Based Avatar Recovery
 
 ### Highlights

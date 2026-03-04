@@ -86,6 +86,9 @@ export class App {
   }
 
   private initializeMiddleware() {
+    // Respect real client IP from upstream proxy (nginx) so rate limits are per-user, not global.
+    this.app.set('trust proxy', 1);
+
     // 1. Core Security & Performance
     this.app.use(requestIdMiddleware);
     this.app.use(
@@ -109,9 +112,14 @@ export class App {
     // 3. Rate Limiting
     const limiter = rateLimit({
       windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 500, // Limit each IP to 500 requests per windowMs
+      max: 2000, // Public site boot + media loads can be bursty; keep per-user limits practical.
       standardHeaders: true,
       legacyHeaders: false,
+      skip: (req) =>
+        req.path === '/api/health' ||
+        req.path === '/api/ready' ||
+        req.path === '/api/health/ready' ||
+        req.path === '/api/stats/health/deep',
     });
     this.app.use(limiter);
 

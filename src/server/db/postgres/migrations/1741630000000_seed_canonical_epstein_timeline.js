@@ -222,8 +222,7 @@ export async function up(pgm) {
       type: 'legal',
       significance: 'high',
       source: 'SDNY',
-      description:
-        'Judge Alison Nathan sentences Ghislaine Maxwell to 20 years in federal prison.',
+      description: 'Judge Alison Nathan sentences Ghislaine Maxwell to 20 years in federal prison.',
       entities: ['Ghislaine Maxwell'],
     },
     {
@@ -283,7 +282,7 @@ export async function up(pgm) {
       significance: 'medium',
       source: 'U.S. Senate Hearing',
       description:
-        "During confirmation hearings, AG nominee Pam Bondi pledges to review Epstein case files and remaining co-conspirator leads.",
+        'During confirmation hearings, AG nominee Pam Bondi pledges to review Epstein case files and remaining co-conspirator leads.',
       entities: ['Pam Bondi', 'Jeffrey Epstein'],
     },
     {
@@ -350,4 +349,3 @@ export async function up(pgm) {
 export async function down(_pgm) {
   // Historical canonical seed; intentionally no-op.
 }
-

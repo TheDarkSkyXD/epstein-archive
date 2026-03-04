@@ -644,7 +644,20 @@ threaded AS (
     COUNT(*) AS messageCount,
     STRING_AGG(DISTINCT fromAddress, ',') AS participantsRaw,
     MAX(COALESCE(red_flag_rating, 0)) AS risk,
-    MAX(COALESCE((metadata_json ->> 'confidence')::float, (metadata_json ->> 'significance_score')::float)) AS confidence,
+    MAX(
+      COALESCE(
+        CASE
+          WHEN (metadata_json ->> 'confidence') ~ '^-?\\d+(\\.\\d+)?$'
+            THEN (metadata_json ->> 'confidence')::float
+          ELSE NULL
+        END,
+        CASE
+          WHEN (metadata_json ->> 'significance_score') ~ '^-?\\d+(\\.\\d+)?$'
+            THEN (metadata_json ->> 'significance_score')::float
+          ELSE NULL
+        END
+      )
+    ) AS confidence,
     MAX(COALESCE(metadata_json ->> 'ladder', metadata_json ->> 'evidence_ladder')) AS ladder,
     MAX(CASE WHEN (COALESCE(metadata_json ->> 'attachments_count', '0'))::int > 0 THEN 1 ELSE 0 END) AS hasAttachments,
     NULL AS linkedEntityIdsRaw,

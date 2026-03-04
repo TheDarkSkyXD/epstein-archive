@@ -3,6 +3,17 @@ import { blackBookRepository } from '../db/blackBookRepository.js';
 
 const router = Router();
 
+function parseJsonArray(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map((v) => String(v));
+  if (typeof value !== 'string' || value.trim() === '') return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.map((v) => String(v)) : [];
+  } catch {
+    return [];
+  }
+}
+
 router.get('/', async (req, res, next) => {
   try {
     const letter = String((req.query as any).letter || 'ALL').trim();
@@ -31,9 +42,9 @@ router.get('/', async (req, res, next) => {
       id: Number(entry.id),
       person_id: entry.personId ? Number(entry.personId) : null,
       entry_text: String(entry.entryText || ''),
-      phone_numbers: entry.phoneNumbers || [],
-      addresses: entry.addresses || [],
-      email_addresses: entry.emailAddresses || [],
+      phone_numbers: parseJsonArray(entry.phoneNumbers),
+      addresses: parseJsonArray(entry.addresses),
+      email_addresses: parseJsonArray(entry.emailAddresses),
       notes: String(entry.notes || ''),
       page_number: entry.pageNumber ?? null,
       document_id: entry.documentId ? Number(entry.documentId) : null,

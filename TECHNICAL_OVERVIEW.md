@@ -4,7 +4,7 @@ This document provides a high-level technical map of the Epstein Archive platfor
 
 ## 1. System Architecture
 
-The system is a monolith designed for high-performance forensic analysis of a large SQLite-backed dataset.
+The system is a monolith designed for high-performance forensic analysis of a large PostgreSQL-backed dataset.
 
 ```mermaid
 graph TD
@@ -18,15 +18,15 @@ graph TD
         IP -->|Relationship Extraction| ER[Entity Relationships]
     end
 
-    subgraph "Storage Layer (SQLite)"
-        DB[(epstein-archive.db)]
-        FTS5[FTS5 Search Index]
-        DB --- FTS5
+    subgraph "Storage Layer (PostgreSQL)"
+        DB[(PostgreSQL)]
+        FTS[FTS (tsvector) Search Index]
+        DB --- FTS
     end
 
     subgraph "Server Layer (Express.js)"
-        API[REST API] -->|better-sqlite3| DB
-        API -->|Search Queries| FTS5
+        API[REST API] -->|pg| DB
+        API -->|Search Queries| FTS
     end
 
     subgraph "Frontend Layer (React 18)"
@@ -77,8 +77,8 @@ graph TD
     subgraph "Stage 5: High-Fidelity Persistence"
         VIP --> Persist[Database Writer]
         Prox --> Persist
-        Persist -->|Atomic Swap| DB[(epstein-archive.db)]
-        Persist -->|Trigger| FTS5[FTS5 Search Indices]
+        Persist -->|Atomic Swap| DB[(PostgreSQL)]
+        Persist -->|Trigger| FTS[FTS Search Indices]
     end
 
     subgraph "Stage 6: Post-Processing"
@@ -116,7 +116,7 @@ The "Forensic Entity Graph" uses a weighted proximity model:
 sequenceDiagram
     participant UI as React Frontend
     participant API as Express Server
-    participant DB as SQLite Engine
+    participant DB as PostgreSQL Engine
 
     UI->>API: GET /api/entities/:id/graph
     API->>DB: SELECT * FROM relations WHERE subject_entity_id = ?
@@ -140,10 +140,10 @@ sequenceDiagram
 - **Host**: Linode/VPS ("glasscode")
 - **Serving**: PM2 manager -> Express API (:3012) -> Vite Assets (:3002)
 - **Proxy**: Nginx handling SSL and routing.
-- **Storage**: Block storage for the master `.db` file.
+- **Storage**: PostgreSQL Database (Managed or Self-Hosted).
 
 > [!NOTE]
-> Database migrations are handled via `scripts/migrations/`. Always verify local integrity with `PRAGMA integrity_check;` before any deployment.
+> Database migrations are handled via `node-pg-migrate` in `src/server/db/migrations/`. Always verify local integrity with `pnpm verify` before any deployment.
 
 ## 5. Agentic Intelligence Layer (v12.8.0)
 

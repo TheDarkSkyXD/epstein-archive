@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project overview
 
-Epstein Archive is an investigative research platform for analyzing documents, entities, and relationships from the Epstein Files corpus. It is a monolith with a React 18 frontend, Express.js API server, and a PostgreSQL database (migrating from SQLite legacy).
+Epstein Archive is an investigative research platform for analyzing documents, entities, and relationships from the Epstein Files corpus. It is a monolith with a React 18 frontend, Express.js API server, and a PostgreSQL database.
 
 ## Commands
 
@@ -95,7 +95,7 @@ epstein-archive/         # Main application (has its own git repo)
 
 **Client/Server boundary**: The `check:boundaries` script enforces that `src/client` never imports from `src/server`. The `@client`, `@server`, and `@shared` path aliases map to these three lanes. Only code in `src/shared` is safe in both environments.
 
-**Database layer**: Production uses PostgreSQL via the `pg` pool (three pools: `apiPool`, `maintenancePool`, `ingressPool`). The `@epstein/db` workspace package provides pgtyped-generated strongly-typed SQL queries. Legacy SQLite code (`better-sqlite3`) still exists in some scripts but is being replaced.
+**Database layer**: Production uses PostgreSQL via the `pg` pool (three pools: `apiPool`, `maintenancePool`, `ingressPool`). The `@epstein/db` workspace package provides pgtyped-generated strongly-typed SQL queries.
 
 **Repository pattern**: Each domain area has a dedicated repository file in `src/server/db/` (e.g. `entitiesRepository.ts`, `documentsRepository.ts`). Route handlers import from repositories, not directly from the pool.
 
@@ -117,9 +117,6 @@ Copy `.env.example` to `.env` and set at minimum:
 
 - `DATABASE_URL` — Postgres connection string
 - `JWT_SECRET` / `SESSION_SECRET`
-- `DB_PATH` — for legacy SQLite scripts (use `./sample.db` for local dev)
-
-For local development with sample data only: `echo "DB_PATH=./sample.db" > .env.local`
 
 ## Rules from AGENTS.md
 
@@ -129,5 +126,5 @@ For local development with sample data only: `echo "DB_PATH=./sample.db" > .env.
 - Update `release_notes.md` before any deploy using the heading format `## vX.Y.Z - YYYY-MM-DD - Descriptive Title`.
 - UI: radius tokens only (`sm`/`md`/`lg`), Lucide icons, no emoji UI indicators, 44px minimum touch targets.
 - Label inference clearly; do not hide consequential evidence behind neutral styling.
-- Migrations live in `scripts/migrations/`; always verify with `PRAGMA integrity_check;` (SQLite) or schema hash check (Postgres) before deploy.
+- Migrations live in `src/server/db/migrations/`; always verify with `pnpm verify` (Postgres) before deploy.
 - `ULTRATHINK` in a user message triggers deeper analysis of security, evidentiary integrity, and second-order effects.

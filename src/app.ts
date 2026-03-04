@@ -41,6 +41,9 @@ import financialRoutes from './server/routes/financialRoutes.js';
 import forensicRoutes from './server/routes/forensicRoutes.js';
 import documentsRoutes from './server/routes/documentsRoutes.js';
 import timelineRoutes from './server/routes/timelineRoutes.js';
+import flightsRoutes from './server/routes/flightsRoutes.js';
+import propertiesRoutes from './server/routes/propertiesRoutes.js';
+import blackBookRoutes from './server/routes/blackBookRoutes.js';
 import { entitiesRepository } from './server/db/entitiesRepository.js';
 import {
   mapEntityListResponseDto,
@@ -94,7 +97,18 @@ export class App {
     this.app.use(requestIdMiddleware);
     this.app.use(
       helmet({
-        contentSecurityPolicy: false,
+        contentSecurityPolicy: {
+          directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Required for Vite/React dev mode and some legacy scripts
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", 'data:', 'blob:'],
+            fontSrc: ["'self'", 'data:'],
+            connectSrc: ["'self'"],
+            objectSrc: ["'none'"],
+            upgradeInsecureRequests: [],
+          },
+        },
         crossOriginEmbedderPolicy: false,
       }),
     );
@@ -393,11 +407,15 @@ export class App {
     router.use('/entity-evidence', entityEvidenceRoutes);
     router.use('/tasks', investigativeTasksRoutes);
     router.use('/articles', articlesRoutes);
-    router.use('/email', emailRoutes);
+    router.use('/emails', emailRoutes);
+    router.use('/email', emailRoutes); // legacy singular alias
     router.use('/financial', financialRoutes);
     router.use('/forensic', forensicRoutes);
     router.use('/documents', documentsRoutes);
     router.use('/timeline', timelineRoutes);
+    router.use('/flights', flightsRoutes);
+    router.use('/properties', propertiesRoutes);
+    router.use('/black-book', blackBookRoutes);
 
     // Legacy/Direct routes that might need adjustment
     router.use('/investigation-evidence', investigationEvidenceRoutes);

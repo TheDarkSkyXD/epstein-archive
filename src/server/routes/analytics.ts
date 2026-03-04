@@ -69,6 +69,11 @@ router.get('/enhanced', analyticsRateLimiter, cacheResponse(60), async (_req, re
   }
 });
 
+// Backward-compatible alias for clients probing /api/analytics directly.
+router.get('/', (_req, res) => {
+  res.redirect(307, '/api/analytics/enhanced');
+});
+
 // Admin Route: Trigger Junk Entity Reconciliation
 router.post('/reconcile/junk', async (_req, res, next) => {
   try {

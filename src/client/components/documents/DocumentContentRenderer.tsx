@@ -13,6 +13,7 @@ import {
 import { Document } from '../../types/documents';
 import { DocumentAnnotationSystem } from './DocumentAnnotationSystem';
 import { prettifyOCRText } from '../../utils/prettifyOCR';
+import DOMPurify from 'isomorphic-dompurify';
 
 interface DocumentContentRendererProps {
   document: Document | any; // Accept any for flexibility with legacy types
@@ -222,7 +223,16 @@ export const DocumentContentRenderer: React.FC<DocumentContentRendererProps> = (
     const contentWithEntities = entityRegexes.length > 0 ? linkEntitiesInText(content) : content;
 
     // Step 3: Apply search term highlighting on top
-    return searchTerm ? highlightText(contentWithEntities, searchTerm) : contentWithEntities;
+    const finalHtml = searchTerm
+      ? highlightText(contentWithEntities, searchTerm)
+      : contentWithEntities;
+
+    // SANITIZE: Ensure no XSS from source content while allowing our annotations
+    return DOMPurify.sanitize(finalHtml, {
+      USE_PROFILES: { html: true },
+      ADD_TAGS: ['mark', 'span'],
+      ADD_ATTR: ['class', 'style', 'data-entity-id', 'data-entity-name', 'title', 'target', 'rel'],
+    });
   }, [
     doc.content,
     doc.contentRefined,

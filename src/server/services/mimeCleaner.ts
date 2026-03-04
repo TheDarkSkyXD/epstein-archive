@@ -1,5 +1,6 @@
 import { simpleParser, AddressObject } from 'mailparser';
 import { htmlToText } from 'html-to-text';
+import DOMPurify from 'isomorphic-dompurify';
 
 export interface CleanedEmailParts {
   body_clean_text: string;
@@ -43,13 +44,14 @@ export async function cleanMime(raw: string): Promise<CleanedEmailParts> {
       bodyHtml = `<div>${bodyText.replace(/\n/g, '<br/>')}</div>`;
     }
 
-    // Sanitize HTML (remove scripts, etc - simpleParser handles some, but we can be stricter if needed)
-    // For now, rely on mailparser's output but maybe strip some dangerous tags if we had a sanitizer.
-    // The user requirement said "body_clean_html (sanitized)".
-    // mailparser produces "html" which is the HTML content. It doesn't strictly sanitize XSS.
-    // But let's assume for now we trust mailparser's structure or use a sanitizer if available.
-    // We don't see 'dompurify' in package.json. We have 'jsdom'.
-    // We'll stick to what mailparser gives us, maybe stripping <script> tags if we implement a helper.
+    // Sanitize HTML (remove scripts, etc) using DOMPurify
+    if (bodyHtml) {
+      bodyHtml = DOMPurify.sanitize(bodyHtml, {
+        USE_PROFILES: { html: true },
+        FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'meta'],
+        ADD_ATTR: ['target'], // Allow target for links if needed
+      });
+    }
 
     // 2. Normalize Headers
     const from = formatAddress(parsed.from);
@@ -83,7 +85,7 @@ export async function cleanMime(raw: string): Promise<CleanedEmailParts> {
     // Fallback: Try to extract at least some text if possible, or return raw as text
     return {
       body_clean_text: raw, // Fallback to raw
-      body_clean_html: `<pre>${raw}</pre>`,
+      body_clean_html: `<pre>${DOMPurify.sanitize(raw)}</pre>`,
       subject: '',
       from: '',
       to: [],

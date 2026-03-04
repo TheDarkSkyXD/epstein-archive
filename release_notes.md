@@ -1,3 +1,12 @@
+## 15.3.0 - 2026-03-04 - Subject Integrity Aggregation Hardening
+
+### Highlights
+
+- Fixed subject-card integrity drift where duplicate aliases could show fragmented low counts (for example `Donald Trump` showing `1` instead of corpus totals).
+- Hardened `getSubjectCards` to merge all filtered alias variants for each on-page canonical subject key before card stats are returned.
+- Tightened canonical key normalization to collapse title/middle-initial variants (`President`, single-letter initials, punctuation noise) into the same public subject card.
+- Prevents false undercounting on People page cards while keeping admin/edit protections unchanged.
+
 ## 15.2.5 - 2026-03-04 - Client Fallback Hardening For Subject Load
 
 ### Highlights

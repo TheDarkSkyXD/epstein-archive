@@ -156,9 +156,37 @@ function normalizeSubjectDedupeKey(name: string): string {
   return name
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, '')
+    .replace(
+      /\b(mr|mrs|ms|miss|dr|prof|professor|president|prime|minster|governor|senator|judge|justice|secretary)\b/g,
+      '',
+    )
     .replace(/\b(the|of|and|or|inc|llc|corp|ltd|group|trust)\b/g, '')
+    .replace(/\b[a-z]\b/g, '')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function normalizeSubjectKeySql(columnSql: string): string {
+  return `
+    TRIM(
+      REGEXP_REPLACE(
+        REGEXP_REPLACE(
+          REGEXP_REPLACE(
+            REGEXP_REPLACE(LOWER(COALESCE(${columnSql}, '')), '[^a-z0-9\\s]', ' ', 'g'),
+            '\\m(mr|mrs|ms|miss|dr|prof|professor|president|prime|minster|governor|senator|judge|justice|secretary)\\M',
+            ' ',
+            'gi'
+          ),
+          '\\m(the|of|and|or|inc|llc|corp|ltd|group|trust|[a-z])\\M',
+          ' ',
+          'gi'
+        ),
+        '\\s+',
+        ' ',
+        'g'
+      )
+    )
+  `;
 }
 
 const EVIDENCE_LADDER_RANK: Record<'NONE' | 'L3' | 'L2' | 'L1', number> = {
@@ -305,7 +333,79 @@ export const entitiesRepository = {
     const maxConnectivityCount = Number(maxConnResult[0]?.maxConn || 1);
 
     const vipDisplayLookup = await buildVipDisplayLookup();
-    const subjectIds = rawEntities
+
+    const pageNormalizedKeys = Array.from(
+      new Set(
+        rawEntities
+          .map((row) => resolveDisplayName(String(row.fullName || ''), vipDisplayLookup))
+          .map((name) => normalizeSubjectDedupeKey(name))
+          .filter(Boolean),
+      ),
+    );
+
+    let entitiesForPageMerge = rawEntities;
+    if (pageNormalizedKeys.length > 0) {
+      const supplementalParams = [...params];
+      const keysParam = `$${supplementalParams.length + 1}`;
+      supplementalParams.push(pageNormalizedKeys);
+
+      const whereWithKeysSql = whereParts.length
+        ? `WHERE ${whereParts.join(' AND ')} AND ${normalizeSubjectKeySql('e.full_name')} = ANY(${keysParam}::text[])`
+        : `WHERE ${normalizeSubjectKeySql('e.full_name')} = ANY(${keysParam}::text[])`;
+
+      const supplementalResult = await pool.query(
+        `
+          WITH mention_counts AS (
+            SELECT
+              em.entity_id,
+              COUNT(*)::bigint AS mentions,
+              COUNT(DISTINCT em.document_id)::bigint AS documents
+            FROM entity_mentions em
+            GROUP BY em.entity_id
+          )
+          SELECT
+            e.id,
+            e.full_name as "fullName",
+            e.primary_role as "primaryRole",
+            e.bio,
+            COALESCE(mc.mentions, COALESCE(e.mentions, 0)) as mentions,
+            e.risk_level as "riskLevel",
+            e.red_flag_rating as "redFlagRating",
+            e.connections_summary as "connections",
+            e.was_agentic as "wasAgentic",
+            (
+              SELECT COUNT(*)
+              FROM entity_mentions em2
+              JOIN documents d ON d.id = em2.document_id
+              WHERE em2.entity_id = e.id
+                AND d.evidence_type = 'media'
+            ) as "mediaCount",
+            (SELECT COUNT(*) FROM black_book_entries WHERE person_id = e.id) as "blackBookCount",
+            (
+              SELECT d.id
+              FROM entity_mentions em3
+              JOIN documents d ON d.id = em3.document_id
+              WHERE em3.entity_id = e.id
+                AND d.evidence_type = 'media'
+                AND (d.file_type ILIKE 'image/%' OR d.file_type IS NULL)
+              ORDER BY d.red_flag_rating DESC, d.id DESC
+              LIMIT 1
+            ) as "topPhotoId"
+          FROM entities e
+          LEFT JOIN mention_counts mc ON mc.entity_id = e.id
+          ${whereWithKeysSql}
+        `,
+        supplementalParams,
+      );
+
+      const byId = new Map<string, any>();
+      for (const row of [...rawEntities, ...supplementalResult.rows]) {
+        byId.set(String(row.id), row);
+      }
+      entitiesForPageMerge = Array.from(byId.values());
+    }
+
+    const subjectIds = entitiesForPageMerge
       .map((row) => Number(row.id))
       .filter((id) => Number.isFinite(id) && id > 0);
 
@@ -370,7 +470,7 @@ export const entitiesRepository = {
       }
     }
 
-    const subjects: SubjectCardListItemDto[] = rawEntities.map((e) => {
+    const subjects: SubjectCardListItemDto[] = entitiesForPageMerge.map((e) => {
       const entityId = Number(e.id || 0);
       const aggregateStats = aggregateStatsByEntity.get(entityId);
       const mentions = Number(e.mentions || 0);

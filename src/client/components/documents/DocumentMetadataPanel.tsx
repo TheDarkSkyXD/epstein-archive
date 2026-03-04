@@ -283,6 +283,10 @@ export const DocumentMetadataPanel: React.FC<DocumentMetadataPanelProps> = ({
             </div>
           )}
         </div>
+
+        <div className="mt-6 pt-6 border-t border-white/5">
+          <CollectionPicker documentId={document.id} />
+        </div>
       </section>
     </div>
   );

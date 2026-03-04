@@ -1,5 +1,13 @@
 # Release Notes
 
+## 15.4.4 - 2026-03-05 - Evidence Cards Open Viewer by Full-Row Click
+
+### UX & Navigation
+
+- **Full-Row Click for Evidence:** High-significance evidence rows and linked evidence cards in the entity modal are now fully clickable to open the in-app document viewer (`/documents?id=...`), not just the corner action link.
+- **Keyboard Accessible:** Added `Enter` / `Space` activation for these cards to preserve accessibility and fast keyboard workflows.
+- **Corner Action Preserved:** The corner `Open source` action still opens in a new tab, but now no longer blocks full-card click behavior.
+
 ## 15.4.3 - 2026-03-05 - Document Viewer Entity-Name Crash Fix
 
 ### Core Fix

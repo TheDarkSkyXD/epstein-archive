@@ -214,6 +214,23 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
     },
     [navigate, onClose],
   );
+  const openDocumentFromEvidence = useCallback(
+    (
+      documentId: string | number | undefined | null,
+      options?: {
+        newTab?: boolean;
+      },
+    ) => {
+      if (!documentId) return;
+      const path = `/documents?id=${encodeURIComponent(String(documentId))}`;
+      if (options?.newTab) {
+        window.open(path, '_blank', 'noopener,noreferrer');
+        return;
+      }
+      navigateFromModal(path);
+    },
+    [navigateFromModal],
+  );
 
   const isHighProfileEntity = useMemo(() => {
     const name = String(entity?.fullName || '').toLowerCase();
@@ -530,7 +547,16 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
       return (
         <article
           data-testid="entity-evidence-row"
-          className="bg-slate-950 border border-slate-800 rounded-[var(--radius-md)] p-4 hover:border-slate-600 transition-colors h-full flex flex-col justify-between"
+          className="bg-slate-950 border border-slate-800 rounded-[var(--radius-md)] p-4 hover:border-slate-600 transition-colors h-full flex flex-col justify-between cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-400/70"
+          role="button"
+          tabIndex={0}
+          onClick={() => openDocumentFromEvidence(doc.id)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              openDocumentFromEvidence(doc.id);
+            }
+          }}
         >
           <div>
             <div className="flex items-start justify-between gap-3">
@@ -546,7 +572,10 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                 </h4>
               </div>
               <button
-                onClick={() => window.open(`/documents/${doc.id}`, '_blank')}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  openDocumentFromEvidence(doc.id, { newTab: true });
+                }}
                 className="control h-8 px-3 text-xs text-slate-200 flex items-center gap-1"
               >
                 Open <ExternalLink size={12} />
@@ -573,7 +602,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
         </article>
       );
     },
-    [entity?.fullName],
+    [entity?.fullName, openDocumentFromEvidence],
   );
   const usePlainEvidenceList = totalDocs > 0 && totalDocs <= 500;
 
@@ -894,7 +923,28 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                             {entity.significant_passages.map((passage, idx) => (
                               <article
                                 key={idx}
-                                className="bg-slate-950 border border-slate-800 rounded-[var(--radius-md)] p-4 hover:border-indigo-500/30 transition-colors"
+                                className={`bg-slate-950 border border-slate-800 rounded-[var(--radius-md)] p-4 hover:border-indigo-500/30 transition-colors ${
+                                  passage.documentId
+                                    ? 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-400/70'
+                                    : ''
+                                }`}
+                                role={passage.documentId ? 'button' : undefined}
+                                tabIndex={passage.documentId ? 0 : undefined}
+                                onClick={
+                                  passage.documentId
+                                    ? () => openDocumentFromEvidence(passage.documentId)
+                                    : undefined
+                                }
+                                onKeyDown={
+                                  passage.documentId
+                                    ? (event) => {
+                                        if (event.key === 'Enter' || event.key === ' ') {
+                                          event.preventDefault();
+                                          openDocumentFromEvidence(passage.documentId);
+                                        }
+                                      }
+                                    : undefined
+                                }
                               >
                                 <div className="flex items-start gap-4">
                                   <div className="mt-1 shrink-0 p-2 bg-slate-900 rounded-[var(--radius-sm)] text-slate-400 transition-colors">
@@ -910,12 +960,12 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({ entityId, isOpen, 
                                       </span>
                                       {passage.documentId && (
                                         <button
-                                          onClick={() =>
-                                            window.open(
-                                              `/documents/${passage.documentId}`,
-                                              '_blank',
-                                            )
-                                          }
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            openDocumentFromEvidence(passage.documentId, {
+                                              newTab: true,
+                                            });
+                                          }}
                                           className="ml-auto text-xs text-indigo-300 hover:text-indigo-200 flex items-center gap-1"
                                         >
                                           Open source <ExternalLink size={11} />

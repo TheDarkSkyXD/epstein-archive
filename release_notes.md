@@ -1,3 +1,13 @@
+## 15.2.5 - 2026-03-04 - Client Fallback Hardening For Subject Load
+
+### Highlights
+
+- Hardened client startup path in `apiClient.getEntities()`:
+  - Primary source remains `GET /api/entities`.
+  - Automatic fallback to `GET /api/subjects` now activates on parse/contract/runtime failure.
+- Prevents startup breakage where malformed/legacy entity responses could block subject loading.
+- Keeps public-read behavior intact while preserving protection on edit/admin routes.
+
 ## 15.2.4 - 2026-03-04 - Subjects/Entities Boot Route Restoration
 
 ### Highlights

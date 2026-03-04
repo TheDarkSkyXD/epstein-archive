@@ -496,22 +496,79 @@ class ApiClient {
     if (limit !== 24) params.append('limit', limit.toString());
 
     const url = `${API_BASE_URL}/entities${params.toString() ? `?${params.toString()}` : ''}`;
-    const raw = await this.fetchWithErrorHandling<unknown>(url);
-    const resp = parseWithSchema<EntityListResponseDto>(
-      raw,
-      entityListResponseSchema,
-      '/api/entities',
-    );
-    const data = Array.isArray(resp.data) ? resp.data : [];
-    const normalized = data.map((e: any) => ({
-      ...e,
-      name: e.name ?? e.fullName ?? e.full_name,
-      fullName: e.fullName ?? e.name ?? e.full_name,
-      red_flag_rating: e.red_flag_rating ?? e.redFlagRating ?? 0,
-      files: e.files ?? e.documentCount ?? 0,
-      blackBookEntry: e.blackBookEntry || null,
-    }));
-    return { ...(resp as any), data: normalized } as PaginatedResponse;
+    try {
+      const raw = await this.fetchWithErrorHandling<unknown>(url);
+      const resp = parseWithSchema<EntityListResponseDto>(
+        raw,
+        entityListResponseSchema,
+        '/api/entities',
+      );
+      const data = Array.isArray(resp.data) ? resp.data : [];
+      const normalized = data.map((e: any) => ({
+        ...e,
+        name: e.name ?? e.fullName ?? e.full_name,
+        fullName: e.fullName ?? e.name ?? e.full_name,
+        red_flag_rating: e.red_flag_rating ?? e.redFlagRating ?? 0,
+        files: e.files ?? e.documentCount ?? 0,
+        blackBookEntry: e.blackBookEntry || null,
+      }));
+      return { ...(resp as any), data: normalized } as PaginatedResponse;
+    } catch (primaryError) {
+      console.warn('Primary /api/entities failed, falling back to /api/subjects:', primaryError);
+
+      const subjects = await this.getSubjects({
+        searchTerm: filters.searchTerm,
+        role:
+          filters.evidenceTypes && filters.evidenceTypes.length > 0 ? filters.evidenceTypes[0] : '',
+        sortBy: (filters.sortBy as any) || 'red_flag',
+        sortOrder: filters.sortOrder || 'desc',
+        minRedFlagIndex: filters.minRedFlagIndex,
+        maxRedFlagIndex: filters.maxRedFlagIndex,
+        entityType: filters.entityType,
+        likelihood: (filters as any).likelihood || filters.likelihoodScore,
+      } as any);
+
+      const fallbackData = (subjects.subjects || []).map((s: any) => {
+        const redFlag =
+          s?.forensics?.red_flag_objective ??
+          s?.forensics?.red_flag_subjective ??
+          s?.red_flag_rating ??
+          0;
+        return {
+          id: s.id,
+          name: s.name || 'Unknown',
+          fullName: s.name || 'Unknown',
+          bio: s.short_bio || '',
+          entity_type: 'Person',
+          primaryRole: s.role || 'Unknown',
+          secondaryRoles: [],
+          mentions: Number(s?.stats?.mentions || 0),
+          files: Number(s?.stats?.documents || 0),
+          contexts: [],
+          evidence_types: [],
+          evidenceTypes: [],
+          photos: [],
+          significant_passages: [],
+          keyEvidence: '',
+          fileReferences: [],
+          likelihood_score: s?.forensics?.risk_level || 'LOW',
+          red_flag_score: Number(redFlag || 0),
+          red_flag_rating: Number(redFlag || 0),
+          red_flag_peppers: Number(redFlag || 0) > 0 ? '🚩'.repeat(Number(redFlag || 0)) : '🏳️',
+          red_flag_description: `Red Flag Index ${Number(redFlag || 0)}`,
+          connectionsToEpstein: '',
+          blackBookEntry: null,
+        };
+      });
+
+      return {
+        data: fallbackData,
+        total: Number(subjects.total || fallbackData.length),
+        page,
+        pageSize: limit,
+        totalPages: Math.max(1, Math.ceil(Number(subjects.total || fallbackData.length) / limit)),
+      } as PaginatedResponse;
+    }
   }
 
   async getEntity(id: string): Promise<Person> {

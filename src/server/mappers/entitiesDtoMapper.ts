@@ -97,7 +97,11 @@ export const mapEntityListItemDto = (
   evidenceTypes: Array.isArray(entity.evidence_types || entity.evidenceTypes)
     ? entity.evidence_types || entity.evidenceTypes
     : [],
-  photos: photosByEntity[String(entity.id)] || [],
+  photos:
+    photosByEntity[String(entity.id)] ||
+    ((entity?.topPhotoId || entity?.top_photo_id
+      ? [{ id: Number(entity?.topPhotoId || entity?.top_photo_id) }]
+      : []) as any[]),
   significant_passages: Array.isArray(entity.significant_passages)
     ? entity.significant_passages
     : [],

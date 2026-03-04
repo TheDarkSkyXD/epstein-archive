@@ -1,3 +1,14 @@
+## 15.3.5 - 2026-03-04 - Canonical Entities Feed + Album-Based Avatar Recovery
+
+### Highlights
+
+- Unified `GET /api/entities` with canonical subject-card aggregation to prevent alias-split undercounting and ordering drift.
+- Kept strict `RFI -> Risk -> Mentions` precedence by reusing the hardened subject merge/sort pipeline for entity list responses.
+- Restored profile-card avatar linkage when direct entity-media links are absent:
+  - `topPhotoId` lookup now also matches entity names/aliases against `media_albums.name`.
+  - This recovers public thumbnails after Postgres migration paths where `media_items.entity_id` or `media_item_people` links are sparse.
+- Added legacy response compatibility mapping so entity cards receive `photos[0].id` derived from `topPhotoId`.
+
 ## 15.3.4 - 2026-03-04 - Post-Merge Sort Integrity + Entity Photo Link Fix
 
 ### Highlights

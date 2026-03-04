@@ -328,7 +328,17 @@ export const entitiesRepository = {
             SELECT m.id
             FROM media_items m
             LEFT JOIN media_item_people mip ON m.id = mip.media_item_id::text
-            WHERE COALESCE(mip.entity_id, m.entity_id) = e.id
+            LEFT JOIN media_albums ma ON ma.id = m.album_id
+            WHERE (
+              COALESCE(mip.entity_id, m.entity_id) = e.id
+              OR LOWER(COALESCE(ma.name, '')) = LOWER(COALESCE(e.full_name, ''))
+              OR EXISTS (
+                SELECT 1
+                FROM unnest(regexp_split_to_array(LOWER(COALESCE(e.aliases, '')), '\\s*,\\s*')) alias_name
+                WHERE alias_name <> ''
+                  AND alias_name = LOWER(COALESCE(ma.name, ''))
+              )
+            )
               AND (m.file_type ILIKE 'image/%' OR m.file_type IS NULL)
             ORDER BY COALESCE(m.red_flag_rating, 0) DESC, m.id DESC
             LIMIT 1
@@ -409,7 +419,17 @@ export const entitiesRepository = {
               SELECT m.id
               FROM media_items m
               LEFT JOIN media_item_people mip ON m.id = mip.media_item_id::text
-              WHERE COALESCE(mip.entity_id, m.entity_id) = e.id
+              LEFT JOIN media_albums ma ON ma.id = m.album_id
+              WHERE (
+                COALESCE(mip.entity_id, m.entity_id) = e.id
+                OR LOWER(COALESCE(ma.name, '')) = LOWER(COALESCE(e.full_name, ''))
+                OR EXISTS (
+                  SELECT 1
+                  FROM unnest(regexp_split_to_array(LOWER(COALESCE(e.aliases, '')), '\\s*,\\s*')) alias_name
+                  WHERE alias_name <> ''
+                    AND alias_name = LOWER(COALESCE(ma.name, ''))
+                )
+              )
                 AND (m.file_type ILIKE 'image/%' OR m.file_type IS NULL)
               ORDER BY COALESCE(m.red_flag_rating, 0) DESC, m.id DESC
               LIMIT 1
@@ -699,56 +719,31 @@ export const entitiesRepository = {
     filters?: SearchFilters,
     sortBy?: SortOption,
   ): Promise<EntityRepositoryResult> => {
-    const offset = (page - 1) * limit;
-    const searchTerm = filters?.searchTerm ? `%${filters.searchTerm.trim()}%` : null;
-    const riskLevels = filters?.likelihoodScore
-      ? filters.likelihoodScore.map((s) => String(s).toUpperCase())
-      : null;
+    const result = await entitiesRepository.getSubjectCards(page, limit, filters, sortBy);
 
-    const rawEntities = await (entitiesQueries.getSubjectCards as any).run(
-      {
-        searchTerm,
-        riskLevels,
-        minRedFlag: filters?.minRedFlagIndex !== undefined ? filters.minRedFlagIndex : null,
-        maxRedFlag: filters?.maxRedFlagIndex !== undefined ? filters.maxRedFlagIndex : null,
-        role: filters?.role && filters.role !== 'all' ? filters.role : null,
-        sortBy: sortBy || 'risk',
-        limit: limit,
-        offset: offset,
-      },
-      getApiPool(),
-    );
-
-    const countResult = await (entitiesQueries.countSubjectCards as any).run(
-      {
-        searchTerm,
-        riskLevels,
-      },
-      getApiPool(),
-    );
-
-    const total = Number(countResult[0]?.total || 0);
-
-    const mappedEntities = rawEntities.map((e: any) => ({
-      ...e,
-      id: String(e.id),
-      fullName: e.fullName || 'Unknown',
-      primaryRole: e.primaryRole || 'Unknown',
-      mentions: Number(e.mentions || 0),
-      redFlagRating: Number(e.redFlagRating || 0),
-    }));
-
-    const seen = new Set<string>();
-    const normalizedEntities = mappedEntities.filter((e: any) => {
-      const norm = e.fullName.toLowerCase().trim();
-      if (seen.has(norm)) return false;
-      seen.add(norm);
-      return true;
+    const normalizedEntities = result.subjects.map((subject) => {
+      const redFlag = Number(
+        subject.forensics.red_flag_objective ?? subject.forensics.red_flag_subjective ?? 0,
+      );
+      return {
+        id: String(subject.id),
+        fullName: subject.name || 'Unknown',
+        primaryRole: subject.role || 'Unknown',
+        mentions: Number(subject.stats.mentions || 0),
+        documentCount: Number(subject.stats.documents || 0),
+        distinctSources: Number(subject.stats.distinct_sources || 0),
+        verifiedMedia: Number(subject.stats.verified_media || 0),
+        riskLevel: String(subject.forensics.risk_level || 'LOW').toUpperCase(),
+        redFlagRating: redFlag,
+        red_flag_rating: redFlag,
+        bio: subject.short_bio || '',
+        topPhotoId: (subject as any).topPhotoId || undefined,
+      };
     });
 
     return {
       entities: normalizedEntities as any,
-      total,
+      total: Number(result.total || 0),
     };
   },
 

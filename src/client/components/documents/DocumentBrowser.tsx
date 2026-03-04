@@ -30,6 +30,7 @@ import {
   HelpCircle,
   LayoutGrid,
   List as ListIcon,
+  GalleryVertical,
 } from 'lucide-react';
 import { useNavigation } from '../../services/NavigationContext';
 import { apiClient } from '../../services/apiClient';
@@ -92,7 +93,10 @@ const mapApiDocumentToDocument = (doc: any): Document => ({
   redFlagPeppers: '',
   redFlagDescription: `Red Flag Index ${doc.redFlagRating || 1}`,
   evidenceType: doc.evidenceType || doc.evidence_type || 'document',
-  parentDocumentId: doc.parentDocumentId || doc.parent_document_id,
+  parentId: doc.parentId || doc.parent_id || doc.original_file_id,
+  startOffset: Number(doc.startOffset || doc.start_offset || 0),
+  endOffset: Number(doc.endOffset || doc.end_offset || 0),
+  childDocuments: Array.isArray(doc.childDocuments) ? doc.childDocuments : [],
   threadId: doc.threadId || doc.thread_id,
   threadPosition: doc.threadPosition || doc.thread_position,
 });
@@ -226,6 +230,20 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
   const [selectedTranche, setSelectedTranche] = useState<string>('all');
   const [isHeaderCondensed, setIsHeaderCondensed] = useState(false);
   const [jumpToPage, setJumpToPage] = useState('');
+  const [availableCollections, setAvailableCollections] = useState<any[]>([]);
+
+  // Fetch collections on mount
+  useEffect(() => {
+    const fetchCollectionsList = async () => {
+      try {
+        const data = await apiClient.getCollections();
+        setAvailableCollections(data);
+      } catch (error) {
+        console.error('Error fetching collections list:', error);
+      }
+    };
+    fetchCollectionsList();
+  }, []);
 
   const [filters, setFilters] = useState<BrowseFilters>({
     fileType: [],
@@ -346,6 +364,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
             startDate: effectiveStart ?? undefined,
             endDate: effectiveEnd ?? undefined,
             redFlagLevel: filters.redFlagLevel,
+            collectionId: filters.collectionId,
           },
           currentPage,
           itemsPerPage,
@@ -1921,6 +1940,28 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
                     />
                     Hide low credibility material
                   </label>
+                </div>
+
+                {/* Logical Collections Filter */}
+                <div>
+                  <label className="block text-sm font-medium mb-2 flex items-center gap-2">
+                    <GalleryVertical className="w-4 h-4 text-cyan-400" />
+                    Logical Grouping
+                  </label>
+                  <select
+                    className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-sm text-slate-200"
+                    value={filters.collectionId || ''}
+                    onChange={(e) =>
+                      handleFilterChange('collectionId', e.target.value || undefined)
+                    }
+                  >
+                    <option value="">All Documents</option>
+                    {availableCollections.map((col) => (
+                      <option key={col.id} value={col.id}>
+                        {col.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>

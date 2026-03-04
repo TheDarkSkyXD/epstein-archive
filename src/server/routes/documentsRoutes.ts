@@ -32,6 +32,7 @@ const documentsListQuerySchema = z.object({
     maxRedFlag: z.coerce.number().int().min(0).max(5).optional(),
     sortBy: z.string().optional(),
     sortOrder: z.enum(['asc', 'desc']).optional(),
+    collectionId: z.string().optional(),
   }),
 });
 
@@ -60,6 +61,7 @@ router.get('/', validate(documentsListQuerySchema), async (req, res, next) => {
       maxRedFlag: query.maxRedFlag,
       sortBy: query.sortBy,
       sortOrder: query.sortOrder,
+      collectionId: query.collectionId,
     });
     res.json(mapDocumentsListResponseDto(result));
   } catch (error) {

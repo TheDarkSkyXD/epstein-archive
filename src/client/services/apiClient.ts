@@ -1116,6 +1116,7 @@ class ApiClient {
       search?: string;
       startDate?: string;
       endDate?: string;
+      collectionId?: string;
     } = {},
     page: number = 1,
     limit: number = 50,
@@ -1131,6 +1132,7 @@ class ApiClient {
       params.append('source', filters.source.join(','));
     if (filters.startDate) params.append('startDate', filters.startDate);
     if (filters.endDate) params.append('endDate', filters.endDate);
+    if (filters.collectionId) params.append('collectionId', filters.collectionId);
     if (filters.fileType && filters.fileType.length > 0)
       params.append('fileType', filters.fileType.join(','));
     if (filters.redFlagLevel?.min !== undefined)

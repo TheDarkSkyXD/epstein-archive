@@ -22,6 +22,10 @@ WHERE (:search::text IS NULL OR file_name ILIKE :search OR content_refined ILIKE
   AND (COALESCE(extracted_date, date_created) <= :endDate OR :endDate IS NULL)
   AND (red_flag_rating >= :minRedFlag OR :minRedFlag IS NULL)
   AND (red_flag_rating <= :maxRedFlag OR :maxRedFlag IS NULL)
+  AND (
+    id IN (SELECT document_id FROM document_collections WHERE collection_id = :collectionId)
+    OR :collectionId::text IS NULL
+  )
 ORDER BY 
   CASE WHEN :sortBy = 'date' THEN COALESCE(extracted_date, date_created) END DESC,
   CASE WHEN :sortBy = 'title' THEN file_name END ASC,
@@ -39,7 +43,11 @@ WHERE (:search::text IS NULL OR file_name ILIKE :search OR content_refined ILIKE
   AND (COALESCE(extracted_date, date_created) >= :startDate OR :startDate IS NULL)
   AND (COALESCE(extracted_date, date_created) <= :endDate OR :endDate IS NULL)
   AND (red_flag_rating >= :minRedFlag OR :minRedFlag IS NULL)
-  AND (red_flag_rating <= :maxRedFlag OR :maxRedFlag IS NULL);
+  AND (red_flag_rating <= :maxRedFlag OR :maxRedFlag IS NULL)
+  AND (
+    id IN (SELECT document_id FROM document_collections WHERE collection_id = :collectionId)
+    OR :collectionId::text IS NULL
+  );
 
 /* @name getDocumentById */
 SELECT 

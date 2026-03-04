@@ -1,3 +1,12 @@
+## 15.3.4 - 2026-03-04 - Post-Merge Sort Integrity + Entity Photo Link Fix
+
+### Highlights
+
+- Added deterministic post-merge subject sorting so alias aggregation cannot disturb sort order.
+- Ensured `red_flag` ordering remains strict after merge:
+  - `Red Flag Index` -> `Risk` -> `Mentions`
+- Corrected subject `topPhotoId` selection to use entity-linked media records (`media_items` + `media_item_people`) for profile thumbnails.
+
 ## 15.3.3 - 2026-03-04 - Sorting Precedence + Thumbnail ID Mapping Fixes
 
 ### Highlights

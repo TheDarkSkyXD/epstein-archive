@@ -326,15 +326,11 @@ export const entitiesRepository = {
           (SELECT COUNT(*) FROM black_book_entries WHERE person_id = e.id) as "blackBookCount",
           (
             SELECT m.id
-            FROM entity_mentions em3
-            JOIN documents d ON d.id = em3.document_id
-            JOIN media_items m ON m.document_id = d.id
-            WHERE em3.entity_id = e.id
-              AND (
-                m.file_type ILIKE 'image/%'
-                OR (m.file_type IS NULL AND d.file_type ILIKE 'image/%')
-              )
-            ORDER BY COALESCE(m.red_flag_rating, d.red_flag_rating, 0) DESC, m.id DESC
+            FROM media_items m
+            LEFT JOIN media_item_people mip ON m.id = mip.media_item_id::text
+            WHERE COALESCE(mip.entity_id, m.entity_id) = e.id
+              AND (m.file_type ILIKE 'image/%' OR m.file_type IS NULL)
+            ORDER BY COALESCE(m.red_flag_rating, 0) DESC, m.id DESC
             LIMIT 1
           ) as "topPhotoId"
         FROM entities e
@@ -401,7 +397,7 @@ export const entitiesRepository = {
             e.red_flag_rating as "redFlagRating",
             e.connections_summary as "connections",
             e.was_agentic as "wasAgentic",
-            (
+          (
               SELECT COUNT(*)
               FROM entity_mentions em2
               JOIN documents d ON d.id = em2.document_id
@@ -409,17 +405,13 @@ export const entitiesRepository = {
                 AND d.evidence_type = 'media'
             ) as "mediaCount",
             (SELECT COUNT(*) FROM black_book_entries WHERE person_id = e.id) as "blackBookCount",
-          (
+            (
               SELECT m.id
-              FROM entity_mentions em3
-              JOIN documents d ON d.id = em3.document_id
-              JOIN media_items m ON m.document_id = d.id
-              WHERE em3.entity_id = e.id
-                AND (
-                  m.file_type ILIKE 'image/%'
-                  OR (m.file_type IS NULL AND d.file_type ILIKE 'image/%')
-                )
-              ORDER BY COALESCE(m.red_flag_rating, d.red_flag_rating, 0) DESC, m.id DESC
+              FROM media_items m
+              LEFT JOIN media_item_people mip ON m.id = mip.media_item_id::text
+              WHERE COALESCE(mip.entity_id, m.entity_id) = e.id
+                AND (m.file_type ILIKE 'image/%' OR m.file_type IS NULL)
+              ORDER BY COALESCE(m.red_flag_rating, 0) DESC, m.id DESC
               LIMIT 1
             ) as "topPhotoId"
           FROM entities e
@@ -646,7 +638,46 @@ export const entitiesRepository = {
       mergedByNormalizedName.set(norm, merged);
     }
 
-    const normalizedSubjects = Array.from(mergedByNormalizedName.values());
+    const riskRank = (value: string | undefined): number => {
+      const level = String(value || 'LOW').toUpperCase();
+      if (level === 'HIGH') return 3;
+      if (level === 'MEDIUM') return 2;
+      return 1;
+    };
+    const dir = sortOrder === 'ASC' ? 1 : -1;
+    const normalizedSubjects = Array.from(mergedByNormalizedName.values()).sort((a, b) => {
+      const aRfi = Number(a.forensics.red_flag_objective || a.forensics.red_flag_subjective || 0);
+      const bRfi = Number(b.forensics.red_flag_objective || b.forensics.red_flag_subjective || 0);
+      const aRisk = riskRank(a.forensics.risk_level);
+      const bRisk = riskRank(b.forensics.risk_level);
+      const aMentions = Number(a.stats.mentions || 0);
+      const bMentions = Number(b.stats.mentions || 0);
+      const aDocs = Number(a.stats.documents || 0);
+      const bDocs = Number(b.stats.documents || 0);
+
+      if (sortKey === 'red_flag' || sortKey === 'rfi' || sortKey === 'default') {
+        if (aRfi !== bRfi) return (aRfi - bRfi) * dir;
+        if (aRisk !== bRisk) return (aRisk - bRisk) * dir;
+        if (aMentions !== bMentions) return (aMentions - bMentions) * dir;
+      } else if (sortKey === 'risk') {
+        if (aRisk !== bRisk) return (aRisk - bRisk) * dir;
+        if (aRfi !== bRfi) return (aRfi - bRfi) * dir;
+        if (aMentions !== bMentions) return (aMentions - bMentions) * dir;
+      } else if (sortKey === 'mentions') {
+        if (aMentions !== bMentions) return (aMentions - bMentions) * dir;
+        if (aRfi !== bRfi) return bRfi - aRfi;
+        if (aRisk !== bRisk) return bRisk - aRisk;
+      } else if (sortKey === 'document_count' || sortKey === 'document-count') {
+        if (aDocs !== bDocs) return (aDocs - bDocs) * dir;
+        if (aRfi !== bRfi) return bRfi - aRfi;
+        if (aRisk !== bRisk) return bRisk - aRisk;
+        if (aMentions !== bMentions) return bMentions - aMentions;
+      }
+
+      const vipCmp = Number((b as any).isVip || 0) - Number((a as any).isVip || 0);
+      if (vipCmp !== 0) return vipCmp;
+      return a.name.localeCompare(b.name);
+    });
 
     return {
       subjects: normalizedSubjects,

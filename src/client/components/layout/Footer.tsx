@@ -19,18 +19,41 @@ const Footer: React.FC<FooterProps> = ({ onVersionClick }) => {
   useEffect(() => {
     const checkHealth = async () => {
       try {
-        const health = await apiClient.readinessCheck();
-        const stats = await apiClient.getStats();
+        const [healthRes, statsRes, subjectsRes, documentsRes, mailboxesRes] =
+          await Promise.allSettled([
+            apiClient.readinessCheck(),
+            apiClient.getStats(),
+            apiClient.getSubjects({}, 1, 1),
+            apiClient.getDocuments({}, 1, 1),
+            apiClient.getEmailMailboxes(),
+          ]);
+
+        if (healthRes.status !== 'fulfilled') {
+          throw healthRes.reason;
+        }
+        if (statsRes.status !== 'fulfilled') {
+          throw statsRes.reason;
+        }
+
+        const health = healthRes.value;
+        const stats = statsRes.value;
 
         const dbOk = health.checks?.db?.ok === true;
         const entities = Number(health.checks?.data?.entities || 0);
         const documents = Number(health.checks?.data?.documents || 0);
         const statsEntities = Number(stats?.totalEntities || 0);
         const statsDocuments = Number(stats?.totalDocuments || 0);
+        const probeFailures: string[] = [];
+
+        if (subjectsRes.status !== 'fulfilled') probeFailures.push('subjects');
+        if (documentsRes.status !== 'fulfilled') probeFailures.push('documents');
+        if (mailboxesRes.status !== 'fulfilled') probeFailures.push('emails/mailboxes');
+
         const hasMinimumData =
           entities > 0 && documents > 0 && statsEntities > 0 && statsDocuments > 0;
+        const probesHealthy = probeFailures.length === 0;
 
-        if (health.status === 'ok' && dbOk && hasMinimumData) {
+        if (health.status === 'ok' && dbOk && hasMinimumData && probesHealthy) {
           setSystemStatus({ status: 'operational' });
         } else {
           let errorDetail = 'Service reporting unhealthy status';
@@ -38,6 +61,8 @@ const Footer: React.FC<FooterProps> = ({ onVersionClick }) => {
             errorDetail = `Database Error: ${health.checks.db.error || 'Connection failed'}`;
           } else if (!hasMinimumData) {
             errorDetail = `Data Error: readiness(entities=${entities}, documents=${documents}), stats(entities=${statsEntities}, documents=${statsDocuments})`;
+          } else if (!probesHealthy) {
+            errorDetail = `Public Endpoint Error: ${probeFailures.join(', ')}`;
           }
 
           setSystemStatus({

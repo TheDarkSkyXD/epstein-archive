@@ -179,15 +179,15 @@ export const documentsRepository = {
         AND (file_type = ANY($2::text[]) OR $2::text[] IS NULL)
         AND (evidence_type = $3::text OR $3::text IS NULL)
         AND (source_collection = ANY($4::text[]) OR $4::text[] IS NULL)
-        AND (date_created >= $5::timestamp OR $5::timestamp IS NULL)
-        AND (date_created <= $6::timestamp OR $6::timestamp IS NULL)
+        AND (COALESCE(extracted_date, date_created) >= $5::timestamp OR $5::timestamp IS NULL)
+        AND (COALESCE(extracted_date, date_created) <= $6::timestamp OR $6::timestamp IS NULL)
         AND (red_flag_rating >= $7::int OR $7::int IS NULL)
         AND (red_flag_rating <= $8::int OR $8::int IS NULL)
       ORDER BY
-        CASE WHEN $9::text = 'date' THEN date_created END DESC,
+        CASE WHEN $9::text = 'date' THEN COALESCE(extracted_date, date_created) END DESC,
         CASE WHEN $9::text = 'title' THEN file_name END ASC,
         CASE WHEN $9::text = 'red_flag' OR $9::text IS NULL THEN red_flag_rating END DESC,
-        date_created DESC
+        COALESCE(extracted_date, date_created) DESC
       LIMIT $10::int OFFSET $11::int
     `;
     const docsRes = await getApiPool().query(docsSql, [
@@ -212,8 +212,8 @@ export const documentsRepository = {
         AND (file_type = ANY($2::text[]) OR $2::text[] IS NULL)
         AND (evidence_type = $3::text OR $3::text IS NULL)
         AND (source_collection = ANY($4::text[]) OR $4::text[] IS NULL)
-        AND (date_created >= $5::timestamp OR $5::timestamp IS NULL)
-        AND (date_created <= $6::timestamp OR $6::timestamp IS NULL)
+        AND (COALESCE(extracted_date, date_created) >= $5::timestamp OR $5::timestamp IS NULL)
+        AND (COALESCE(extracted_date, date_created) <= $6::timestamp OR $6::timestamp IS NULL)
         AND (red_flag_rating >= $7::int OR $7::int IS NULL)
         AND (red_flag_rating <= $8::int OR $8::int IS NULL)
     `;

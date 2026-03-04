@@ -18,15 +18,15 @@ WHERE (:search::text IS NULL OR file_name ILIKE :search OR content_refined ILIKE
   AND (file_type = ANY(:fileTypes) OR :fileTypes IS NULL)
   AND (evidence_type = :evidenceType OR :evidenceType IS NULL)
   AND (source_collection = ANY(:sources) OR :sources IS NULL)
-  AND (date_created >= :startDate OR :startDate IS NULL)
-  AND (date_created <= :endDate OR :endDate IS NULL)
+  AND (COALESCE(extracted_date, date_created) >= :startDate OR :startDate IS NULL)
+  AND (COALESCE(extracted_date, date_created) <= :endDate OR :endDate IS NULL)
   AND (red_flag_rating >= :minRedFlag OR :minRedFlag IS NULL)
   AND (red_flag_rating <= :maxRedFlag OR :maxRedFlag IS NULL)
 ORDER BY 
-  CASE WHEN :sortBy = 'date' THEN date_created END DESC,
+  CASE WHEN :sortBy = 'date' THEN COALESCE(extracted_date, date_created) END DESC,
   CASE WHEN :sortBy = 'title' THEN file_name END ASC,
   CASE WHEN :sortBy = 'red_flag' OR :sortBy IS NULL THEN red_flag_rating END DESC,
-  date_created DESC
+  COALESCE(extracted_date, date_created) DESC
 LIMIT :limit! OFFSET :offset!;
 
 /* @name countDocuments */
@@ -36,8 +36,8 @@ WHERE (:search::text IS NULL OR file_name ILIKE :search OR content_refined ILIKE
   AND (file_type = ANY(:fileTypes) OR :fileTypes IS NULL)
   AND (evidence_type = :evidenceType OR :evidenceType IS NULL)
   AND (source_collection = ANY(:sources) OR :sources IS NULL)
-  AND (date_created >= :startDate OR :startDate IS NULL)
-  AND (date_created <= :endDate OR :endDate IS NULL)
+  AND (COALESCE(extracted_date, date_created) >= :startDate OR :startDate IS NULL)
+  AND (COALESCE(extracted_date, date_created) <= :endDate OR :endDate IS NULL)
   AND (red_flag_rating >= :minRedFlag OR :minRedFlag IS NULL)
   AND (red_flag_rating <= :maxRedFlag OR :maxRedFlag IS NULL);
 
@@ -121,6 +121,6 @@ WHERE em.entity_id IN (
   SELECT entity_id FROM entity_mentions WHERE document_id = :documentId!
 )
   AND d.id != :documentId!
-GROUP BY d.id, d.title, d.file_name, d.file_type, d.evidence_type, d.red_flag_rating, d.date_created
-ORDER BY "sharedEntityCount" DESC, d.red_flag_rating DESC, d.date_created DESC
+GROUP BY d.id, d.title, d.file_name, d.file_type, d.evidence_type, d.red_flag_rating, d.date_created, d.extracted_date
+ORDER BY "sharedEntityCount" DESC, d.red_flag_rating DESC, COALESCE(d.extracted_date, d.date_created) DESC
 LIMIT :limit!;

@@ -5,6 +5,81 @@ type TimelineQueryFilters = {
   endDate?: string;
 };
 
+const TIMELINE_TITLE_GROUPS: Array<{ key: string; test: (title: string) => boolean }> = [
+  {
+    key: 'epstein_death_2019',
+    test: (title) =>
+      /epstein/.test(title) && /(found dead|death|dies|died|suicide|cell)/.test(title),
+  },
+  {
+    key: 'doc_release_2024_batch1',
+    test: (title) =>
+      /epstein/.test(title) &&
+      /(document|documents|records|files)/.test(title) &&
+      /(release|released|list|first batch)/.test(title) &&
+      /2024/.test(title),
+  },
+  {
+    key: 'jpm_290m_settlement',
+    test: (title) =>
+      /jpmorgan/.test(title) && /(settle|settlement)/.test(title) && /290/.test(title),
+  },
+  {
+    key: 'deutsche_75m_settlement',
+    test: (title) =>
+      /deutsche bank/.test(title) && /(settle|settlement)/.test(title) && /75/.test(title),
+  },
+];
+
+const PREFERRED_TITLES = new Set([
+  'Jeffrey Epstein Found Dead in Cell',
+  'Epstein Court Documents Released (The "Epstein List")',
+  'JPMorgan Settles Epstein-Related Lawsuit for $290M',
+  'Deutsche Bank Settles for $75M',
+]);
+
+function normalizeTimelineTitle(value: string): string {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function getTimelineGroupKey(title: string, date: string): string {
+  const normalizedTitle = normalizeTimelineTitle(title);
+  const year = String(date || '').slice(0, 4) || '0000';
+  for (const group of TIMELINE_TITLE_GROUPS) {
+    if (group.test(normalizedTitle)) return `${group.key}_${year}`;
+  }
+  return `${normalizedTitle}|${String(date || '')}`;
+}
+
+function timelineRowPreferenceScore(row: any): number {
+  let score = 0;
+  if (PREFERRED_TITLES.has(String(row.title || ''))) score += 100;
+  if (
+    String(row.source || '')
+      .toLowerCase()
+      .includes('court')
+  )
+    score += 10;
+  if (
+    String(row.source || '')
+      .toLowerCase()
+      .includes('doj')
+  )
+    score += 8;
+  if (
+    String(row.source || '')
+      .toLowerCase()
+      .includes('fbi')
+  )
+    score += 6;
+  score += Number(row.id || 0) / 100000;
+  return score;
+}
+
 export const timelineRepository = {
   getTimelineEvents: async (filters?: TimelineQueryFilters) => {
     const pool = getApiPool();
@@ -47,11 +122,9 @@ export const timelineRepository = {
 
       const deduped = new Map<string, any>();
       for (const row of res.rows) {
-        const key = `${String(row.title || '')
-          .toLowerCase()
-          .trim()}|${String(row.start_date || '')}`;
+        const key = getTimelineGroupKey(String(row.title || ''), String(row.start_date || ''));
         const existing = deduped.get(key);
-        if (!existing || Number(row.id) > Number(existing.id)) {
+        if (!existing || timelineRowPreferenceScore(row) > timelineRowPreferenceScore(existing)) {
           deduped.set(key, row);
         }
       }

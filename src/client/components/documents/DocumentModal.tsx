@@ -530,6 +530,14 @@ export const DocumentModal: React.FC<Props> = ({
                     key={relatedDoc.id}
                     className="surface-quiet p-5 hover:border-cyan-500/40 transition-all group border-l-4 border-l-slate-800 hover:border-l-cyan-500 cursor-pointer"
                     onClick={() => navigate(`${location.pathname}?documentId=${relatedDoc.id}`)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        navigate(`${location.pathname}?documentId=${relatedDoc.id}`);
+                      }
+                    }}
                   >
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                       <div className="min-w-0 flex-1">

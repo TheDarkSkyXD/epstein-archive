@@ -1,3 +1,16 @@
+## 15.4.1 - 2026-03-04 - Timeline Duplicate Collapse (Canonical Milestones)
+
+### Highlights
+
+- Added deterministic timeline duplicate collapse for known legacy alias events (same milestone, different historical title/source variants).
+- Introduced canonical group-based dedupe keys for:
+  - Epstein death milestone
+  - 2024 first document-release milestone
+  - JPMorgan 290M settlement milestone
+  - Deutsche Bank 75M settlement milestone
+- Added canonical preference scoring so authoritative titles/sources are retained in merged timeline output.
+- Kept raw underlying rows intact; dedupe is applied at API response shaping to avoid destructive data loss.
+
 ## 15.4.0 - 2026-03-04 - Timeline API Restore + Evidence-Backed Chronology
 
 ### Highlights

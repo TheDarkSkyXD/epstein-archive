@@ -20,7 +20,7 @@ interface SubjectCardV2Props {
 const SubjectCardV2: React.FC<SubjectCardV2Props> = React.memo(
   ({ subject, style, onClick }) => {
     const navigate = useNavigate();
-    const topPhotoId = (subject as any).topPhotoId as string | undefined;
+    const topPhotoId = subject.topPhotoId;
     const [avatarUrl, setAvatarUrl] = React.useState<string | null>(
       topPhotoId ? `/api/media/images/${topPhotoId}/thumbnail` : null,
     );
@@ -39,10 +39,7 @@ const SubjectCardV2: React.FC<SubjectCardV2Props> = React.memo(
       driver_labels: [],
     };
     const riskRating = Number(
-      (forensics as any).red_flag_objective ||
-        (forensics as any).red_flag_subjective ||
-        (subject as any).red_flag_rating ||
-        0,
+      forensics.red_flag_objective || forensics.red_flag_subjective || subject.red_flag_rating || 0,
     );
     const riskTone = riskToneFromRating(riskRating);
 
@@ -95,9 +92,17 @@ const SubjectCardV2: React.FC<SubjectCardV2Props> = React.memo(
         <div
           data-testid="subject-card"
           onClick={handleCardClick}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleCardClick();
+            }
+          }}
           className="group relative surface-glass-card p-4 cursor-pointer transition-all duration-300 hover:border-slate-300/35 flex flex-col h-full w-full"
           style={{
-            boxShadow: `inset 0 1px 0 rgba(248,250,252,0.05), 0 12px 26px rgba(2,6,23,0.36), 0 0 0 1px color-mix(in srgb, ${riskTone.cssVar} 22%, transparent)`,
+            boxShadow: `inset 0 1px 0 color-mix(in srgb, var(--text-strong) 5%, transparent), 0 12px 26px color-mix(in srgb, var(--bg-dark) 36%, transparent), 0 0 0 1px color-mix(in srgb, ${riskTone.cssVar} 22%, transparent)`,
           }}
         >
           <div className="flex items-start gap-3 mb-2">
@@ -126,8 +131,8 @@ const SubjectCardV2: React.FC<SubjectCardV2Props> = React.memo(
                 </h3>
                 <EvidenceBadge
                   level={forensics.evidence_ladder as any}
-                  ratingObjective={(forensics as any).red_flag_objective as number | undefined}
-                  ratingSubjective={(forensics as any).red_flag_subjective as number | undefined}
+                  ratingObjective={forensics.red_flag_objective}
+                  ratingSubjective={forensics.red_flag_subjective}
                 />
               </div>
               <div className="text-[10px] text-slate-500 uppercase tracking-wider truncate">
@@ -187,8 +192,14 @@ const SubjectCardV2: React.FC<SubjectCardV2Props> = React.memo(
       </div>
     );
   },
-  (prev, next) => prev.subject.id === next.subject.id,
-); // Strict equality check on ID for memoization if props are stable
+  (prev, next) => {
+    // Performance optimization: Only re-render if the ID changes.
+    // Data in this view is generally static during a user session.
+    // If we need to support real-time updates (e.g. websocket push),
+    // this comparison should be expanded to include stats/risk checksums.
+    return prev.subject.id === next.subject.id;
+  },
+);
 
 const Metric = ({
   label,

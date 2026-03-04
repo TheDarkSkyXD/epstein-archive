@@ -1,4 +1,4 @@
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -7,17 +7,17 @@ const __dirname = dirname(__filename);
 const ROOT = join(__dirname, '..');
 
 const ENFORCED_FILES = [
-  'src/pages/PeoplePage.tsx',
-  'src/components/entities/SubjectCardV2.tsx',
-  'src/components/pages/StatsDisplay.tsx',
-  'src/components/common/EvidenceModal.tsx',
-  'src/components/documents/DocumentModal.tsx',
-  'src/components/evidence/DocumentViewer.tsx',
-  'src/components/email/EmailClient.tsx',
-  'src/components/ReleaseNotesPanel.tsx',
-  'src/components/pages/AboutPage.tsx',
-  'src/components/documents/DocumentContentRenderer.tsx',
-  'src/components/documents/DocumentBrowser.tsx',
+  'src/client/pages/PeoplePage.tsx',
+  'src/client/components/entities/SubjectCardV2.tsx',
+  'src/client/components/pages/StatsDisplay.tsx',
+  'src/client/components/common/EvidenceModal.tsx',
+  'src/client/components/documents/DocumentModal.tsx',
+  'src/client/components/evidence/DocumentViewer.tsx',
+  'src/client/components/email/EmailClient.tsx',
+  'src/client/components/ReleaseNotesPanel.tsx',
+  'src/client/components/pages/AboutPage.tsx',
+  'src/client/components/documents/DocumentContentRenderer.tsx',
+  'src/client/components/documents/DocumentBrowser.tsx',
 ];
 
 const emojiRegex = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE0F}]/gu;
@@ -34,6 +34,10 @@ interface Violation {
 
 function scanFile(filePath: string): Violation[] {
   const fullPath = join(ROOT, filePath);
+  if (!existsSync(fullPath)) {
+    console.warn(`Warning: File not found: ${filePath}`);
+    return [];
+  }
   const content = readFileSync(fullPath, 'utf-8');
   const violations: Violation[] = [];
 

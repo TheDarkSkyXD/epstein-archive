@@ -202,4 +202,6 @@ export interface SubjectCardDTO {
     confidence: number;
     year?: number;
   };
+  topPhotoId?: string;
+  red_flag_rating?: number;
 }

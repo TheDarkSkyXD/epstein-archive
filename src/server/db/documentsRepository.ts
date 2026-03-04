@@ -145,6 +145,7 @@ export const documentsRepository = {
       maxRedFlag?: number;
       sortBy?: string;
       sortOrder?: 'asc' | 'desc';
+      collectionId?: string;
     } = {},
   ) => {
     const offset = (page - 1) * limit;

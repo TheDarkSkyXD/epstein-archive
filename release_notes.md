@@ -1,3 +1,11 @@
+## 15.3.9 - 2026-03-04 - Inference Classifier Regression Fix
+
+### Highlights
+
+- Fixed a ranking regression where real named people with role `Lawyer` were incorrectly treated as inferred entities.
+- Removed role-only inference demotion checks and kept inference classification name-pattern based.
+- Preserved strict public ordering precedence: `RFI -> Risk -> Mentions`, while still demoting role/header artifact names.
+
 ## 15.3.8 - 2026-03-04 - Real-Person Priority Hardening + Inferred Artifact Demotion
 
 ### Highlights

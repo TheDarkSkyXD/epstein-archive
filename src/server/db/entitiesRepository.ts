@@ -196,11 +196,8 @@ function normalizeSubjectKeySql(columnSql: string): string {
   `;
 }
 
-function isLikelyInferredEntity(name: string, role?: string): boolean {
+function isLikelyInferredEntity(name: string, _role?: string): boolean {
   const n = String(name || '')
-    .toLowerCase()
-    .trim();
-  const r = String(role || '')
     .toLowerCase()
     .trim();
 
@@ -209,9 +206,6 @@ function isLikelyInferredEntity(name: string, role?: string): boolean {
   if (/\b(to|from|cc|bcc|subject|re|fwd|fw)\s*$/.test(n)) return true;
   if (/\b(?:.+?)'s\s+(lawyer|assistant|aide|counsel|staff|pilot|masseuse)\b/.test(n)) return true;
   if (/^(lawyer|assistant|aide|counsel|staff|pilot|masseuse)\b\s+/.test(n)) return true;
-  const hasRoleTail =
-    /(^|[^a-z])(lawyer|assistant|aide|counsel|staff|pilot|masseuse)([^a-z]|$)/.test(r);
-  if (hasRoleTail) return true;
   return false;
 }
 
@@ -229,8 +223,6 @@ function inferredEntityPenalty(name: string, role?: string): number {
   if (/^(to|from|cc|bcc|subject|re|fwd|fw|of)\b[:\s-]*/.test(n)) penalty += 3;
   if (/\b(?:.+?)'s\s+(lawyer|assistant|aide|counsel|staff|pilot|masseuse)\b/.test(n)) penalty += 2;
   if (/^(lawyer|assistant|aide|counsel|staff|pilot|masseuse)\b\s+/.test(n)) penalty += 2;
-  if (/(^|[^a-z])(lawyer|assistant|aide|counsel|staff|pilot|masseuse)([^a-z]|$)/.test(r))
-    penalty += 1;
   return penalty;
 }
 
@@ -298,7 +290,6 @@ export const entitiesRepository = {
         OR LOWER(COALESCE(e.full_name, '')) ~* '\\m(to|from|cc|bcc|subject|re|fwd|fw)\\M\\s*$'
         OR LOWER(COALESCE(e.full_name, '')) ~* '\\m.+''s\\M\\s+(lawyer|assistant|aide|counsel|staff|pilot|masseuse)\\M'
         OR LOWER(COALESCE(e.full_name, '')) ~* '^(lawyer|assistant|aide|counsel|staff|pilot|masseuse)\\b\\s+'
-        OR LOWER(COALESCE(e.primary_role, '')) ~* '\\m(lawyer|assistant|aide|counsel|staff|pilot|masseuse)\\M'
       THEN 1 ELSE 0 END`;
     const sortKey = String(sortBy || 'red_flag')
       .toLowerCase()

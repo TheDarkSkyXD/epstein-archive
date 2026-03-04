@@ -4,6 +4,8 @@ import { documentPagesRepository } from '../db/documentPagesRepository.js';
 import { z } from 'zod';
 import { validate } from '../middleware/validate.js';
 import { mapDocumentsListResponseDto } from '../mappers/documentsDtoMapper.js';
+import fs from 'fs';
+import path from 'path';
 
 const router = Router();
 
@@ -96,6 +98,51 @@ router.get('/:id/redactions', validate(documentIdSchema), async (req, res, next)
         bbox: s.bbox || [0, 0, 0, 0],
       })),
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/documents/:id/file
+router.get('/:id/file', validate(documentIdSchema), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const variant = String((req.query as any).variant || 'dirty').toLowerCase();
+    const doc = await documentsRepository.getDocumentById(id);
+    if (!doc) return res.status(404).json({ error: 'Document not found' });
+
+    const dirtyPath = (doc.filePath || (doc as any).file_path || '') as string;
+    const originalPath = (doc.originalFilePath || (doc as any).original_file_path || '') as string;
+    const cleanedPath = ((doc as any).cleanedPath ||
+      (doc as any).cleaned_path ||
+      (doc as any).metadata?.cleanedPath ||
+      (doc as any).metadata?.cleaned_path ||
+      '') as string;
+
+    let selectedPath = dirtyPath;
+    if (variant === 'original' && originalPath) selectedPath = originalPath;
+    if (variant === 'cleaned' && cleanedPath) selectedPath = cleanedPath;
+
+    if (!selectedPath) {
+      return res.status(404).json({ error: 'No file path available for document' });
+    }
+
+    const dataRoot = path.resolve(process.cwd(), 'data');
+    const normalizedRelative = selectedPath.replace(/^\/+/, '');
+    const absolutePath = path.isAbsolute(selectedPath)
+      ? selectedPath
+      : path.resolve(process.cwd(), normalizedRelative);
+
+    if (!absolutePath.startsWith(dataRoot)) {
+      return res.status(400).json({ error: 'Invalid file path' });
+    }
+
+    if (!fs.existsSync(absolutePath)) {
+      return res.status(404).json({ error: 'File not found on disk' });
+    }
+
+    res.setHeader('Content-Disposition', 'inline');
+    return res.sendFile(absolutePath);
   } catch (error) {
     next(error);
   }

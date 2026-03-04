@@ -94,10 +94,9 @@ export const PDFVariantViewer: React.FC<PDFVariantViewerProps> = ({
 
   const getCurrentUrl = () => {
     if (!docMeta) return '';
-    if (variant === 'original' && docMeta.originalFilePath)
-      return `/files/${docMeta.originalFilePath}`;
-    if (variant === 'cleaned' && docMeta.cleanedPath) return `/files/${docMeta.cleanedPath}`;
-    return docMeta.filePath ? `/files/${docMeta.filePath}` : '';
+    if (variant === 'cleaned' && !docMeta.cleanedPath) return '';
+    if (variant === 'original' && !docMeta.originalFilePath) return '';
+    return `/api/documents/${documentId}/file?variant=${encodeURIComponent(variant)}`;
   };
 
   const currentUrl = getCurrentUrl();

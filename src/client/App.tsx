@@ -429,9 +429,12 @@ function App() {
 
   // Load document from URL on page load (for shareable links)
   useEffect(() => {
-    const docMatch = location.pathname.match(/^\/documents\/(\d+)/);
-    if (docMatch) {
-      const docId = docMatch[1];
+    const pathMatch = location.pathname.match(/^\/documents\/([^/?#]+)/);
+    const params = new URLSearchParams(location.search);
+    const queryDocId = params.get('id') || params.get('docId') || params.get('documentId');
+    const docId = pathMatch?.[1] || queryDocId;
+
+    if (docId) {
       if (documentModalId !== docId) {
         // Clear conflicting modals
         setSelectedPerson(null);
@@ -444,7 +447,13 @@ function App() {
       setDocumentModalId('');
       setDocumentModalInitial(null);
     }
-  }, [location.pathname, documentModalId, setSelectedPerson, setSelectedDocumentId]);
+  }, [
+    location.pathname,
+    location.search,
+    documentModalId,
+    setSelectedPerson,
+    setSelectedDocumentId,
+  ]);
 
   // Safety net for legacy justice.gov path swaps when edge proxy serves SPA shell.
   // Example: /epstein/files/DataSet%209/EFTA01188336.pdf

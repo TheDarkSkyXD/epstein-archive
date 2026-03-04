@@ -1,3 +1,12 @@
+## 15.3.7 - 2026-03-04 - Header-Tail Consolidation + Real-Entity Priority
+
+### Highlights
+
+- Consolidated email/header tail artifacts (`To`, `From`, `CC`, `BCC`, `Subject`, `Re`, `Fwd`) into the base person dedupe key for subject/entity card aggregation.
+- Kept inferred entities in the dataset, but reduced their ranking priority in People sorting.
+  - Real named people now rank ahead of possessive role-tail entities (for example `X's Lawyer`, `X's Assistant`) and header-tail artifacts.
+- Applied the same prioritization during merge selection so canonical display names are preferred over inferred artifact names.
+
 ## 15.3.6 - 2026-03-04 - Proxy-Aware Rate Limit Stabilization (429 Fix)
 
 ### Highlights

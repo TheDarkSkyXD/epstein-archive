@@ -155,6 +155,7 @@ function resolveDisplayName(name: string, lookup: Map<string, string>): string {
 function normalizeSubjectDedupeKey(name: string): string {
   return name
     .toLowerCase()
+    .replace(/\b(to|from|cc|bcc|subject|re|fwd|fw)\b\s*$/g, '')
     .replace(/[^a-z0-9\s]/g, '')
     .replace(
       /\b(mr|mrs|ms|miss|dr|prof|professor|president|prime|minster|governor|senator|judge|justice|secretary)\b/g,
@@ -172,7 +173,12 @@ function normalizeSubjectKeySql(columnSql: string): string {
       REGEXP_REPLACE(
         REGEXP_REPLACE(
           REGEXP_REPLACE(
-            REGEXP_REPLACE(LOWER(COALESCE(${columnSql}, '')), '[^a-z0-9\\s]', ' ', 'g'),
+            REGEXP_REPLACE(
+              REGEXP_REPLACE(LOWER(COALESCE(${columnSql}, '')), '\\m(to|from|cc|bcc|subject|re|fwd|fw)\\M\\s*$', ' ', 'gi'),
+              '[^a-z0-9\\s]',
+              ' ',
+              'g'
+            ),
             '\\m(mr|mrs|ms|miss|dr|prof|professor|president|prime|minster|governor|senator|judge|justice|secretary)\\M',
             ' ',
             'gi'
@@ -187,6 +193,21 @@ function normalizeSubjectKeySql(columnSql: string): string {
       )
     )
   `;
+}
+
+function inferredEntityPenalty(name: string, role?: string): number {
+  const n = String(name || '')
+    .toLowerCase()
+    .trim();
+  const r = String(role || '')
+    .toLowerCase()
+    .trim();
+
+  let penalty = 0;
+  if (/\b(to|from|cc|bcc|subject|re|fwd|fw)\s*$/.test(n)) penalty += 3;
+  if (/\b(?:.+?)'s\s+(lawyer|assistant|aide|counsel|staff)\b/.test(n)) penalty += 2;
+  if (/(^|[^a-z])(lawyer|assistant|aide|counsel|staff)([^a-z]|$)/.test(r)) penalty += 1;
+  return penalty;
 }
 
 const EVIDENCE_LADDER_RANK: Record<'NONE' | 'L3' | 'L2' | 'L1', number> = {
@@ -581,11 +602,15 @@ export const entitiesRepository = {
         continue;
       }
 
+      const existingPenalty = inferredEntityPenalty(existing.name, existing.role);
+      const incomingPenalty = inferredEntityPenalty(subject.name, subject.role);
       const preferIncoming =
-        subject.stats.mentions > existing.stats.mentions ||
-        (subject.stats.mentions === existing.stats.mentions &&
-          (subject.stats.documents > existing.stats.documents ||
-            subject.stats.verified_media > existing.stats.verified_media));
+        incomingPenalty < existingPenalty ||
+        (incomingPenalty === existingPenalty &&
+          (subject.stats.mentions > existing.stats.mentions ||
+            (subject.stats.mentions === existing.stats.mentions &&
+              (subject.stats.documents > existing.stats.documents ||
+                subject.stats.verified_media > existing.stats.verified_media))));
 
       const mergedDrivers = Array.from(
         new Set([
@@ -674,21 +699,27 @@ export const entitiesRepository = {
       const bMentions = Number(b.stats.mentions || 0);
       const aDocs = Number(a.stats.documents || 0);
       const bDocs = Number(b.stats.documents || 0);
+      const aPenalty = inferredEntityPenalty(a.name, a.role);
+      const bPenalty = inferredEntityPenalty(b.name, b.role);
 
       if (sortKey === 'red_flag' || sortKey === 'rfi' || sortKey === 'default') {
         if (aRfi !== bRfi) return (aRfi - bRfi) * dir;
         if (aRisk !== bRisk) return (aRisk - bRisk) * dir;
+        if (aPenalty !== bPenalty) return aPenalty - bPenalty;
         if (aMentions !== bMentions) return (aMentions - bMentions) * dir;
       } else if (sortKey === 'risk') {
         if (aRisk !== bRisk) return (aRisk - bRisk) * dir;
         if (aRfi !== bRfi) return (aRfi - bRfi) * dir;
+        if (aPenalty !== bPenalty) return aPenalty - bPenalty;
         if (aMentions !== bMentions) return (aMentions - bMentions) * dir;
       } else if (sortKey === 'mentions') {
         if (aMentions !== bMentions) return (aMentions - bMentions) * dir;
+        if (aPenalty !== bPenalty) return aPenalty - bPenalty;
         if (aRfi !== bRfi) return bRfi - aRfi;
         if (aRisk !== bRisk) return bRisk - aRisk;
       } else if (sortKey === 'document_count' || sortKey === 'document-count') {
         if (aDocs !== bDocs) return (aDocs - bDocs) * dir;
+        if (aPenalty !== bPenalty) return aPenalty - bPenalty;
         if (aRfi !== bRfi) return bRfi - aRfi;
         if (aRisk !== bRisk) return bRisk - aRisk;
         if (aMentions !== bMentions) return bMentions - aMentions;

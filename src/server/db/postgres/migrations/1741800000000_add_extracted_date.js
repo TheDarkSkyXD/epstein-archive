@@ -3,9 +3,9 @@ export const shorthands = undefined;
 
 export async function up(pgm) {
   pgm.addColumn('documents', {
-    extracted_date: { type: 'timestamp', notNull: false }
+    extracted_date: { type: 'timestamp', notNull: false },
   });
-  
+
   pgm.sql(`CREATE INDEX idx_documents_extracted_date ON documents(extracted_date)`);
 
   // Update mv_timeline_data to prefer extracted_date
@@ -35,7 +35,7 @@ export async function up(pgm) {
 
 export async function down(pgm) {
   pgm.dropColumn('documents', 'extracted_date');
-  
+
   // Revert mv_timeline_data to original
   pgm.sql(`DROP MATERIALIZED VIEW IF EXISTS mv_timeline_data`);
   pgm.sql(`

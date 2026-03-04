@@ -2330,6 +2330,18 @@ Major architecture overhaul and enhanced investigative capabilities.
 
 # 🚀 Epstein Archive: Production Release Notes (v5.3.8)
 
+# Release 15.4.2 (2026-03-04)
+
+- Fixed timeline dedupe matcher for 2024 document-release milestones.
+- Prevented false grouping with unrelated "documentary" events.
+- Ensured only canonical document-release event survives per duplicate group.
+
+# Release 15.4.1 (2026-03-04)
+
+- Added canonical timeline duplicate collapse for legacy seeded events.
+- Prioritized canonical titles for key historical milestones.
+- Included approved formatting updates from workspace.
+
 **December 10, 2025**
 
 Final polish for navigation and media sections.

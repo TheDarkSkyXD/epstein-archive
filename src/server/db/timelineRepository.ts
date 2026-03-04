@@ -15,9 +15,8 @@ const TIMELINE_TITLE_GROUPS: Array<{ key: string; test: (title: string) => boole
     key: 'doc_release_2024_batch1',
     test: (title) =>
       /epstein/.test(title) &&
-      /(document|documents|records|files)/.test(title) &&
-      /(release|released|list|first batch)/.test(title) &&
-      /2024/.test(title),
+      /(\bdocument\b|\bdocuments\b|\brecords?\b|\bfiles?\b|\bepstein list\b)/.test(title) &&
+      /(\brelease\b|\breleased\b|\bfirst batch\b)/.test(title),
   },
   {
     key: 'jpm_290m_settlement',

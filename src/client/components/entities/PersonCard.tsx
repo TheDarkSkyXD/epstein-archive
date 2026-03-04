@@ -12,7 +12,6 @@ import {
 import { SignalPanel } from './cards/SignalPanel';
 import { EvidenceBadge } from './cards/EvidenceBadge';
 import { DriverChips } from './cards/DriverChips';
-import { useAuth } from '../../contexts/AuthContext';
 
 interface PersonCardProps {
   person: Person;
@@ -22,7 +21,6 @@ interface PersonCardProps {
 }
 
 const PersonCard: React.FC<PersonCardProps> = ({ person, onClick, searchTerm }) => {
-  const { isAuthenticated } = useAuth();
   const rating = Number((person as any).red_flag_rating ?? (person as any).redFlagRating ?? 0);
 
   // Forensic Calculations
@@ -68,7 +66,7 @@ const PersonCard: React.FC<PersonCardProps> = ({ person, onClick, searchTerm }) 
       <div className="flex items-start gap-4 mb-3">
         {/* Zoomed Avatar */}
         <div className="flex-shrink-0 relative w-12 h-12 rounded-lg overflow-hidden border border-slate-700 group-hover:border-cyan-500/50 transition-colors bg-slate-950">
-          {isAuthenticated && avatarPhoto ? (
+          {avatarPhoto ? (
             <img
               src={`/api/media/images/${avatarPhoto.id}/thumbnail`}
               alt={person.name}

@@ -1,3 +1,11 @@
+## 15.3.2 - 2026-03-04 - Public Subject/Profile Thumbnail Restoration
+
+### Highlights
+
+- Restored public profile/media thumbnails on subject/person cards after Postgres migration regressions.
+- Removed auth-only thumbnail gating in card components so public users can see available profile images.
+- Kept safe icon fallback behavior when an image is missing or thumbnail load fails.
+
 ## 15.3.1 - 2026-03-04 - Subject Sort Order Correction (RFI -> Risk -> Mentions)
 
 ### Highlights

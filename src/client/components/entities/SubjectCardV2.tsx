@@ -10,7 +10,6 @@ import { EvidenceBadge } from './cards/EvidenceBadge';
 import { DriverChips } from './cards/DriverChips';
 import Tooltip from '../common/Tooltip';
 import { riskToneFromRating } from '../../utils/riskSemantics';
-import { useAuth } from '../../contexts/AuthContext';
 
 interface SubjectCardV2Props {
   subject: SubjectCardDTO;
@@ -21,10 +20,9 @@ interface SubjectCardV2Props {
 const SubjectCardV2: React.FC<SubjectCardV2Props> = React.memo(
   ({ subject, style, onClick }) => {
     const navigate = useNavigate();
-    const { isAuthenticated } = useAuth();
     const topPhotoId = (subject as any).topPhotoId as string | undefined;
     const [avatarUrl, setAvatarUrl] = React.useState<string | null>(
-      isAuthenticated && topPhotoId ? `/api/media/images/${topPhotoId}/thumbnail` : null,
+      topPhotoId ? `/api/media/images/${topPhotoId}/thumbnail` : null,
     );
 
     // Safety fallbacks
@@ -60,12 +58,6 @@ const SubjectCardV2: React.FC<SubjectCardV2Props> = React.memo(
 
     React.useEffect(() => {
       let active = true;
-      if (!isAuthenticated) {
-        setAvatarUrl(null);
-        return () => {
-          active = false;
-        };
-      }
       if (topPhotoId) {
         setAvatarUrl(`/api/media/images/${topPhotoId}/thumbnail`);
         return () => {
@@ -97,7 +89,7 @@ const SubjectCardV2: React.FC<SubjectCardV2Props> = React.memo(
       return () => {
         active = false;
       };
-    }, [isAuthenticated, subject.id, subject.stats?.verified_media, topPhotoId]);
+    }, [subject.id, subject.stats?.verified_media, topPhotoId]);
     return (
       <div style={style}>
         <div

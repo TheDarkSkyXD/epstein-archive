@@ -380,6 +380,10 @@ class ApiClient {
     return error instanceof Error && /HTTP 404\b/.test(error.message);
   }
 
+  private isServiceUnavailableError(error: unknown): error is Error {
+    return error instanceof Error && /HTTP 503\b/.test(error.message);
+  }
+
   private async fetchWithLegacyFallback<T>(
     canonicalUrl: string,
     legacyUrl: string,
@@ -890,11 +894,25 @@ class ApiClient {
   }
 
   async getCollections(): Promise<any[]> {
-    return this.get<any[]>('/documents/collections');
+    try {
+      return await this.get<any[]>('/documents/collections');
+    } catch (error) {
+      if (this.isNotFoundError(error) || this.isServiceUnavailableError(error)) {
+        return [];
+      }
+      throw error;
+    }
   }
 
   async getCollectionDocuments(collectionId: string): Promise<any[]> {
-    return this.get<any[]>(`/documents/collections/${collectionId}/documents`);
+    try {
+      return await this.get<any[]>(`/documents/collections/${collectionId}/documents`);
+    } catch (error) {
+      if (this.isNotFoundError(error) || this.isServiceUnavailableError(error)) {
+        return [];
+      }
+      throw error;
+    }
   }
 
   async addToCollection(documentId: string, collectionId: string, notes?: string): Promise<void> {

@@ -1,3 +1,14 @@
+## 15.3.3 - 2026-03-04 - Sorting Precedence + Thumbnail ID Mapping Fixes
+
+### Highlights
+
+- Enforced strict subject ordering precedence for red-flag sort:
+  - `Red Flag Index` -> `Risk` -> `Mentions`
+  - Removed VIP-first precedence from overriding this chain.
+- Fixed card thumbnail ID mapping:
+  - `topPhotoId` now resolves to `media_items.id` (image ID), not `documents.id`.
+  - Eliminates broken `/api/media/images/:id/thumbnail` lookups caused by document/media ID mismatch.
+
 ## 15.3.2 - 2026-03-04 - Public Subject/Profile Thumbnail Restoration
 
 ### Highlights

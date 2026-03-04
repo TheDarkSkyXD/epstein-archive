@@ -252,7 +252,7 @@ export const entitiesRepository = {
       .toLowerCase()
       .replace(/-/g, '_');
 
-    const orderByTerms = [`COALESCE(e.is_vip, 0) DESC`];
+    const orderByTerms: string[] = [];
 
     if (sortKey === 'red_flag' || sortKey === 'rfi' || sortKey === 'default') {
       // Canonical ordering for subject cards:
@@ -292,7 +292,7 @@ export const entitiesRepository = {
       orderByTerms.push(`LOWER(COALESCE(e.full_name, '')) ${sortOrder}`);
     }
 
-    orderByTerms.push(`LOWER(COALESCE(e.full_name, '')) ASC`);
+    orderByTerms.push(`COALESCE(e.is_vip, 0) DESC`, `LOWER(COALESCE(e.full_name, '')) ASC`);
     const orderBySql = orderByTerms.join(', ');
 
     const listParams = [...params, limit, offset];
@@ -325,13 +325,16 @@ export const entitiesRepository = {
           ) as "mediaCount",
           (SELECT COUNT(*) FROM black_book_entries WHERE person_id = e.id) as "blackBookCount",
           (
-            SELECT d.id
+            SELECT m.id
             FROM entity_mentions em3
             JOIN documents d ON d.id = em3.document_id
+            JOIN media_items m ON m.document_id = d.id
             WHERE em3.entity_id = e.id
-              AND d.evidence_type = 'media'
-              AND (d.file_type ILIKE 'image/%' OR d.file_type IS NULL)
-            ORDER BY d.red_flag_rating DESC, d.id DESC
+              AND (
+                m.file_type ILIKE 'image/%'
+                OR (m.file_type IS NULL AND d.file_type ILIKE 'image/%')
+              )
+            ORDER BY COALESCE(m.red_flag_rating, d.red_flag_rating, 0) DESC, m.id DESC
             LIMIT 1
           ) as "topPhotoId"
         FROM entities e
@@ -406,14 +409,17 @@ export const entitiesRepository = {
                 AND d.evidence_type = 'media'
             ) as "mediaCount",
             (SELECT COUNT(*) FROM black_book_entries WHERE person_id = e.id) as "blackBookCount",
-            (
-              SELECT d.id
+          (
+              SELECT m.id
               FROM entity_mentions em3
               JOIN documents d ON d.id = em3.document_id
+              JOIN media_items m ON m.document_id = d.id
               WHERE em3.entity_id = e.id
-                AND d.evidence_type = 'media'
-                AND (d.file_type ILIKE 'image/%' OR d.file_type IS NULL)
-              ORDER BY d.red_flag_rating DESC, d.id DESC
+                AND (
+                  m.file_type ILIKE 'image/%'
+                  OR (m.file_type IS NULL AND d.file_type ILIKE 'image/%')
+                )
+              ORDER BY COALESCE(m.red_flag_rating, d.red_flag_rating, 0) DESC, m.id DESC
               LIMIT 1
             ) as "topPhotoId"
           FROM entities e

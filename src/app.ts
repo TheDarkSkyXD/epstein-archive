@@ -302,6 +302,13 @@ export class App {
 
         const decoded = safeDecode(rawPath).replace(/^\/+/, '');
         const encoded = encodeURI(decoded).replace(/^\/+/, '');
+        const fileName = decoded.split('/').filter(Boolean).pop()?.toLowerCase() || null;
+        const datasetMatch = decoded.match(/dataset\s*([0-9]+)/i);
+        const datasetNumber = datasetMatch ? Number(datasetMatch[1]) : null;
+        const volumeHint =
+          Number.isFinite(datasetNumber) && datasetNumber !== null
+            ? `vol${String(datasetNumber).padStart(5, '0')}`
+            : null;
 
         const candidates = Array.from(
           new Set(
@@ -351,9 +358,39 @@ export class App {
           [candidates, decoded.toLowerCase()],
         );
 
-        const hit = rows[0];
+        let hit = rows[0];
+
+        if (!hit && fileName) {
+          const fallback = await getApiPool().query<{
+            id: number;
+            file_name: string | null;
+            file_path: string | null;
+            original_file_path: string | null;
+          }>(
+            `
+              SELECT id, file_name, file_path, original_file_path
+              FROM documents
+              WHERE
+                LOWER(COALESCE(file_name, '')) = $1::text
+                OR LOWER(COALESCE(file_path, '')) LIKE '%' || $1::text
+                OR LOWER(COALESCE(original_file_path, '')) LIKE '%' || $1::text
+              ORDER BY
+                CASE
+                  WHEN $2::text IS NOT NULL AND LOWER(COALESCE(file_path, '')) LIKE '%' || $2::text || '%' THEN 0
+                  WHEN $2::text IS NOT NULL AND LOWER(COALESCE(original_file_path, '')) LIKE '%' || $2::text || '%' THEN 1
+                  WHEN LOWER(COALESCE(file_name, '')) = $1::text THEN 2
+                  ELSE 3
+                END,
+                id DESC
+              LIMIT 1
+            `,
+            [fileName, volumeHint],
+          );
+          hit = fallback.rows[0];
+        }
+
         if (!hit) {
-          return res.status(404).json({ error: 'Document not found for path' });
+          return res.status(404).json({ error: 'Document not found for path', path: decoded });
         }
 
         return res.json({

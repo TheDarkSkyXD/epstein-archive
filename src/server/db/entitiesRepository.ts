@@ -155,6 +155,7 @@ function resolveDisplayName(name: string, lookup: Map<string, string>): string {
 function normalizeSubjectDedupeKey(name: string): string {
   return name
     .toLowerCase()
+    .replace(/^(to|from|cc|bcc|subject|re|fwd|fw|of)\b[:\s-]*/g, '')
     .replace(/\b(to|from|cc|bcc|subject|re|fwd|fw)\b\s*$/g, '')
     .replace(/[^a-z0-9\s]/g, '')
     .replace(
@@ -195,6 +196,25 @@ function normalizeSubjectKeySql(columnSql: string): string {
   `;
 }
 
+function isLikelyInferredEntity(name: string, role?: string): boolean {
+  const n = String(name || '')
+    .toLowerCase()
+    .trim();
+  const r = String(role || '')
+    .toLowerCase()
+    .trim();
+
+  if (!n) return false;
+  if (/^(to|from|cc|bcc|subject|re|fwd|fw|of)\b[:\s-]*/.test(n)) return true;
+  if (/\b(to|from|cc|bcc|subject|re|fwd|fw)\s*$/.test(n)) return true;
+  if (/\b(?:.+?)'s\s+(lawyer|assistant|aide|counsel|staff|pilot|masseuse)\b/.test(n)) return true;
+  if (/^(lawyer|assistant|aide|counsel|staff|pilot|masseuse)\b\s+/.test(n)) return true;
+  const hasRoleTail =
+    /(^|[^a-z])(lawyer|assistant|aide|counsel|staff|pilot|masseuse)([^a-z]|$)/.test(r);
+  if (hasRoleTail) return true;
+  return false;
+}
+
 function inferredEntityPenalty(name: string, role?: string): number {
   const n = String(name || '')
     .toLowerCase()
@@ -204,9 +224,13 @@ function inferredEntityPenalty(name: string, role?: string): number {
     .trim();
 
   let penalty = 0;
+  if (isLikelyInferredEntity(n, r)) penalty += 4;
   if (/\b(to|from|cc|bcc|subject|re|fwd|fw)\s*$/.test(n)) penalty += 3;
-  if (/\b(?:.+?)'s\s+(lawyer|assistant|aide|counsel|staff)\b/.test(n)) penalty += 2;
-  if (/(^|[^a-z])(lawyer|assistant|aide|counsel|staff)([^a-z]|$)/.test(r)) penalty += 1;
+  if (/^(to|from|cc|bcc|subject|re|fwd|fw|of)\b[:\s-]*/.test(n)) penalty += 3;
+  if (/\b(?:.+?)'s\s+(lawyer|assistant|aide|counsel|staff|pilot|masseuse)\b/.test(n)) penalty += 2;
+  if (/^(lawyer|assistant|aide|counsel|staff|pilot|masseuse)\b\s+/.test(n)) penalty += 2;
+  if (/(^|[^a-z])(lawyer|assistant|aide|counsel|staff|pilot|masseuse)([^a-z]|$)/.test(r))
+    penalty += 1;
   return penalty;
 }
 
@@ -269,11 +293,19 @@ export const entitiesRepository = {
     const whereSql = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
 
     const riskRankExpr = `CASE UPPER(COALESCE(e.risk_level, 'LOW')) WHEN 'HIGH' THEN 3 WHEN 'MEDIUM' THEN 2 WHEN 'LOW' THEN 1 ELSE 0 END`;
+    const inferredRankExpr = `CASE
+      WHEN LOWER(COALESCE(e.full_name, '')) ~* '^(to|from|cc|bcc|subject|re|fwd|fw|of)\\b[:\\s-]*'
+        OR LOWER(COALESCE(e.full_name, '')) ~* '\\m(to|from|cc|bcc|subject|re|fwd|fw)\\M\\s*$'
+        OR LOWER(COALESCE(e.full_name, '')) ~* '\\m.+''s\\M\\s+(lawyer|assistant|aide|counsel|staff|pilot|masseuse)\\M'
+        OR LOWER(COALESCE(e.full_name, '')) ~* '^(lawyer|assistant|aide|counsel|staff|pilot|masseuse)\\b\\s+'
+        OR LOWER(COALESCE(e.primary_role, '')) ~* '\\m(lawyer|assistant|aide|counsel|staff|pilot|masseuse)\\M'
+      THEN 1 ELSE 0 END`;
     const sortKey = String(sortBy || 'red_flag')
       .toLowerCase()
       .replace(/-/g, '_');
 
     const orderByTerms: string[] = [];
+    orderByTerms.push(`${inferredRankExpr} ASC`);
 
     if (sortKey === 'red_flag' || sortKey === 'rfi' || sortKey === 'default') {
       // Canonical ordering for subject cards:
@@ -701,6 +733,10 @@ export const entitiesRepository = {
       const bDocs = Number(b.stats.documents || 0);
       const aPenalty = inferredEntityPenalty(a.name, a.role);
       const bPenalty = inferredEntityPenalty(b.name, b.role);
+      const aInferred = isLikelyInferredEntity(a.name, a.role);
+      const bInferred = isLikelyInferredEntity(b.name, b.role);
+
+      if (aInferred !== bInferred) return aInferred ? 1 : -1;
 
       if (sortKey === 'red_flag' || sortKey === 'rfi' || sortKey === 'default') {
         if (aRfi !== bRfi) return (aRfi - bRfi) * dir;

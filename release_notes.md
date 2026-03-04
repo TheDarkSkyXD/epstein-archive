@@ -1,3 +1,13 @@
+## 15.3.8 - 2026-03-04 - Real-Person Priority Hardening + Inferred Artifact Demotion
+
+### Highlights
+
+- Enforced strict real-person-first ranking in `/api/entities` and subject-card sorting, so inferred role artifacts no longer displace named people on page 1.
+- Added SQL-level inferred-entity rank precedence before pagination to prevent role-tail/header artifacts from crowding top result windows.
+- Expanded inferred artifact detection to include role-prefix names (`Lawyer X`, `Assistant X`), possessive role tails (`X's Lawyer`), and header-prefix fragments (`Of X`, `To X`, `From X`).
+- Kept inferred entities in the dataset for traceability, while deprioritizing them in public ranking and display ordering.
+- Strengthened dedupe-key normalization for header prefixes to consolidate header-fragment aliases into canonical person entities.
+
 ## 15.3.7 - 2026-03-04 - Header-Tail Consolidation + Real-Entity Priority
 
 ### Highlights

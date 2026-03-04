@@ -1,3 +1,11 @@
+## 15.4.2 - 2026-03-04 - Timeline Document-Release Dedupe Matcher Tightening
+
+### Highlights
+
+- Fixed timeline duplicate grouping for 2024 Epstein document-release events so legacy "first batch" aliases collapse into the canonical milestone.
+- Tightened matching to avoid false positives on unrelated "documentary" events.
+- Preserved canonical title preference: `Epstein Court Documents Released (The "Epstein List")`.
+
 ## 15.4.1 - 2026-03-04 - Timeline Duplicate Collapse (Canonical Milestones)
 
 ### Highlights

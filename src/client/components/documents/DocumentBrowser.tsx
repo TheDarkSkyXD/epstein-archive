@@ -43,6 +43,7 @@ import { AddToInvestigationButton } from '../common/AddToInvestigationButton';
 // import { prettifyOCRText } from '../../utils/prettifyOCR';
 import { DocumentContentRenderer } from './DocumentContentRenderer';
 import { PDFVariantViewer } from './PDFVariantViewer';
+import { DocumentModal } from './DocumentModal';
 import { useHighlightNavigation } from '../../hooks/useHighlightNavigation';
 import { HighlightNavigationControls } from './HighlightNavigationControls';
 import { DocumentCard } from './DocumentCard';
@@ -180,6 +181,7 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
   selectedDocumentId,
   onDocumentClose,
 }) => {
+  const useLegacyViewer = false;
   // Consume global date range from FilterContext
   const { filters: globalFilters } = useFilters();
 
@@ -2272,7 +2274,21 @@ export const DocumentBrowser: React.FC<DocumentBrowserProps> = ({
 
         {/* Document Viewer Modal */}
         {selectedDocument && (
-          <DocumentViewer document={selectedDocument} searchTerm={effectiveSearchTerm} />
+          <>
+            {useLegacyViewer ? (
+              <DocumentViewer document={selectedDocument} searchTerm={effectiveSearchTerm} />
+            ) : (
+              <DocumentModal
+                id={String(selectedDocument.id)}
+                searchTerm={effectiveSearchTerm}
+                initialDoc={selectedDocument}
+                onClose={() => {
+                  setSelectedDocument(null);
+                  onDocumentClose?.();
+                }}
+              />
+            )}
+          </>
         )}
 
         {/* Hover Preview Overlay */}

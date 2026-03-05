@@ -1,5 +1,13 @@
 # Release Notes
 
+## 15.4.8 - 2026-03-05 - Unified Modern Document Viewer
+
+### Viewer Consistency
+
+- **Legacy Viewer Removed from Document Browser:** Document browser selections now open the same modern `DocumentModal` experience used elsewhere, replacing the older embedded viewer variant.
+- **Consistent Controls & Layout:** Removed the legacy eye/plus-style header controls and old panel chrome from this path for a single consistent viewing UI.
+- **Close Behavior Preserved:** Closing the modal still correctly clears document selection and returns to the browser context.
+
 ## 15.4.7 - 2026-03-05 - Single-Asset PDF View Simplification
 
 ### Document Viewer UI

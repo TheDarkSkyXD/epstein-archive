@@ -16,14 +16,12 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/$
 
 interface PDFVariantViewerProps {
   documentId: string;
-  initialVariant?: 'cleaned' | 'dirty' | 'original';
   className?: string;
   showToolbar?: boolean;
 }
 
 export const PDFVariantViewer: React.FC<PDFVariantViewerProps> = ({
   documentId,
-  initialVariant = 'dirty',
   className = '',
   showToolbar = true,
 }) => {
@@ -31,7 +29,6 @@ export const PDFVariantViewer: React.FC<PDFVariantViewerProps> = ({
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [scale, setScale] = useState<number>(1.0);
   const [rotation, setRotation] = useState<number>(0);
-  const [variant, setVariant] = useState<'cleaned' | 'dirty' | 'original'>(initialVariant);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [viewerWidth, setViewerWidth] = useState<number>(0);
   const [docMeta, setDocMeta] = useState<{
@@ -124,13 +121,7 @@ export const PDFVariantViewer: React.FC<PDFVariantViewerProps> = ({
 
   const getCurrentUrl = () => {
     if (!docMeta) return '';
-    // Dirty/Cleaned are OCR modes; default to the single canonical file when a dedicated path is absent.
-    if (variant === 'original' && docMeta.originalFilePath) {
-      return `/api/documents/${documentId}/file?variant=original`;
-    }
-    if (variant === 'cleaned' && docMeta.cleanedPath) {
-      return `/api/documents/${documentId}/file?variant=cleaned`;
-    }
+    // Single-file mode: always load the canonical/original asset.
     return `/api/documents/${documentId}/file?variant=dirty`;
   };
 
@@ -152,47 +143,6 @@ export const PDFVariantViewer: React.FC<PDFVariantViewerProps> = ({
                 className="pl-9 pr-3 py-1.5 bg-slate-950/50 border border-slate-700 rounded-md text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 w-40"
               />
             </div>
-          </div>
-
-          <div className="flex items-center gap-1 bg-slate-950/40 p-1 rounded-lg border border-slate-700/50">
-            <button
-              onClick={() => setVariant('dirty')}
-              className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${
-                variant === 'dirty'
-                  ? 'bg-cyan-600 text-white shadow-lg'
-                  : 'text-slate-500 hover:text-slate-300'
-              }`}
-            >
-              Dirty
-            </button>
-            <button
-              onClick={() => setVariant('cleaned')}
-              disabled={!docMeta?.cleanedPath}
-              className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${
-                variant === 'cleaned'
-                  ? 'bg-cyan-600 text-white shadow-lg'
-                  : !docMeta?.cleanedPath
-                    ? 'text-slate-700 cursor-not-allowed'
-                    : 'text-slate-500 hover:text-slate-300'
-              }`}
-              title={!docMeta?.cleanedPath ? 'No cleaned version available' : ''}
-            >
-              Cleaned
-            </button>
-            <button
-              onClick={() => setVariant('original')}
-              disabled={!docMeta?.originalFilePath}
-              className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${
-                variant === 'original'
-                  ? 'bg-cyan-600 text-white shadow-lg'
-                  : !docMeta?.originalFilePath
-                    ? 'text-slate-700 cursor-not-allowed'
-                    : 'text-slate-500 hover:text-slate-300'
-              }`}
-              title={!docMeta?.originalFilePath ? 'No original file available' : ''}
-            >
-              Original
-            </button>
           </div>
 
           <div className="flex items-center gap-3">

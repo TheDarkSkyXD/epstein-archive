@@ -1,5 +1,13 @@
 # Release Notes
 
+## 15.4.7 - 2026-03-05 - Single-Asset PDF View Simplification
+
+### Document Viewer UI
+
+- **Removed Variant Toggle:** Removed `Dirty / Cleaned / Original` controls from the PDF view toolbar.
+- **Single Asset Behavior:** Viewer now always opens the canonical document file for this view, matching the single-source storage model.
+- **OCR Separation Preserved:** Dirty vs cleaned distinctions remain in text tabs (`Clean Text` / `Raw OCR`) rather than file-level asset toggles.
+
 ## 15.4.6 - 2026-03-05 - Asset Viewer Fix for Non-PDF Documents
 
 ### Document Viewer
